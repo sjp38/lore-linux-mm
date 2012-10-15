@@ -1,47 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id A88AE6B00AA
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:41:49 -0400 (EDT)
-Received: from mail-ea0-f169.google.com ([209.85.215.169])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TNlrY-000742-Hz
-	for linux-mm@kvack.org; Mon, 15 Oct 2012 14:41:48 +0000
-Received: by mail-ea0-f169.google.com with SMTP id k11so1272922eaa.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 07:41:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 8907E6B00AC
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:45:04 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so3094040dad.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 07:45:03 -0700 (PDT)
+Date: Mon, 15 Oct 2012 23:44:12 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121015144412.GA2173@barrios>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.44L0.1210151029350.1702-100000@iolanthe.rowland.org>
-References: <1350278059-14904-2-git-send-email-ming.lei@canonical.com>
-	<Pine.LNX.4.44L0.1210151029350.1702-100000@iolanthe.rowland.org>
-Date: Mon, 15 Oct 2012 22:41:48 +0800
-Message-ID: <CACVXFVM=nNEthvSOzoTnoZ-7uhLGGmZ8ULsPu0N0d8QegtHYew@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/3] mm: teach mm by current context info to not do
- I/O during memory allocation
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Stern <stern@rowland.harvard.edu>
-Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Oliver Neukum <oneukum@suse.de>, Jiri Kosina <jiri.kosina@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org
 
-On Mon, Oct 15, 2012 at 10:33 PM, Alan Stern <stern@rowland.harvard.edu> wrote:
->
-> Instead of allow/forbid, the API should be save/restore (like
-> local_irq_save and local_irq_restore).  This makes nesting much easier.
+Hello,
 
-Good point.
+On Fri, Sep 28, 2012 at 10:32:20AM -0700, Luigi Semenzato wrote:
+> Greetings,
+> 
+> We are experimenting with zram in Chrome OS.  It works quite well
+> until the system runs out of memory, at which point it seems to hang,
+> but we suspect it is thrashing.
+> 
+> Before the (apparent) hang, the OOM killer gets rid of a few
+> processes, but then the other processes gradually stop responding,
+> until the entire system becomes unresponsive.
 
-> Also, do we really the "p" argument?  This is not at all likely to be
-> used with any task other than the current one.
+Why do you think it's zram problem? If you use swap device as storage
+instead of zram, does the problem disappear?
 
-Yes, only 'current' can be passed now. I keep it because no performance
-effect with macro implementation. But that is not good since it may
-cause misuse. Will remove the 'p' argument.
+Could you do sysrq+t,m several time and post it while hang happens?
+/proc/vmstat could be helpful, too.
 
-Thanks,
---
-Ming Lei
+> 
+> I am wondering if anybody has run into this.  Thanks!
+> 
+> Luigi
+> 
+> P.S.  For those who wish to know more:
+> 
+> 1. We use the min_filelist_kbytes patch
+> (http://lwn.net/Articles/412313/)  (I am not sure if it made it into
+> the standard kernel) and set min_filelist_kbytes to 50Mb.  (This may
+> not matter, as it's unlikely to make things worse.)
+
+One of the problem I look at this patch is it might prevent
+increasing of zone->pages_scanned when the swap if full or anon pages
+are very small although there are lots of file-backed pages.
+It means OOM can't occur and page allocator could loop forever.
+Please look at zone_reclaimable.
+
+Have you ever test it without above patch?
+
+> 
+> 2. We swap only to compressed ram.  The setup is very simple:
+> 
+>  echo ${ZRAM_SIZE_KB}000 >/sys/block/zram0/disksize ||
+>       logger -t "$UPSTART_JOB" "failed to set zram size"
+>   mkswap /dev/zram0 || logger -t "$UPSTART_JOB" "mkswap /dev/zram0 failed"
+>   swapon /dev/zram0 || logger -t "$UPSTART_JOB" "swapon /dev/zram0 failed"
+> 
+> For ZRAM_SIZE_KB, we typically use 1.5 the size of RAM (which is 2 or
+> 4 Gb).  The compression factor is about 3:1.  The hangs happen for
+> quite a wide range of zram sizes.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
