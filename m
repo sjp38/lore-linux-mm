@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id CC0A16B002B
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 02:00:14 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 9C7A26B002B
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 02:00:15 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH v4 02/10] thp: zap_huge_pmd(): zap huge zero pmd
-Date: Mon, 15 Oct 2012 09:00:51 +0300
-Message-Id: <1350280859-18801-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH v4 03/10] thp: copy_huge_pmd(): copy huge zero page
+Date: Mon, 15 Oct 2012 09:00:52 +0300
+Message-Id: <1350280859-18801-4-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,47 +15,51 @@ Cc: Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, lin
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We don't have a real page to zap in huge zero page case. Let's just
-clear pmd and remove it from tlb.
+It's easy to copy huge zero page. Just set destination pmd to huge zero
+page.
+
+It's safe to copy huge zero page since we have none yet :-p
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |   21 +++++++++++++--------
- 1 files changed, 13 insertions(+), 8 deletions(-)
+ mm/huge_memory.c |   17 +++++++++++++++++
+ 1 files changed, 17 insertions(+), 0 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 438adbf..680c27f 100644
+index 680c27f..9f5e5cb 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1057,15 +1057,20 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		pmd_t orig_pmd;
- 		pgtable = pgtable_trans_huge_withdraw(tlb->mm);
- 		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
--		page = pmd_page(orig_pmd);
- 		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
--		page_remove_rmap(page);
--		VM_BUG_ON(page_mapcount(page) < 0);
--		add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
--		VM_BUG_ON(!PageHead(page));
--		tlb->mm->nr_ptes--;
--		spin_unlock(&tlb->mm->page_table_lock);
--		tlb_remove_page(tlb, page);
-+		if (is_huge_zero_pmd(orig_pmd)) {
-+			tlb->mm->nr_ptes--;
-+			spin_unlock(&tlb->mm->page_table_lock);
-+		} else {
-+			page = pmd_page(orig_pmd);
-+			page_remove_rmap(page);
-+			VM_BUG_ON(page_mapcount(page) < 0);
-+			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
-+			VM_BUG_ON(!PageHead(page));
-+			tlb->mm->nr_ptes--;
-+			spin_unlock(&tlb->mm->page_table_lock);
-+			tlb_remove_page(tlb, page);
-+		}
- 		pte_free(tlb->mm, pgtable);
- 		ret = 1;
+@@ -700,6 +700,18 @@ static inline struct page *alloc_hugepage(int defrag)
+ }
+ #endif
+ 
++static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
++		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd)
++{
++	pmd_t entry;
++	entry = pfn_pmd(huge_zero_pfn, vma->vm_page_prot);
++	entry = pmd_wrprotect(entry);
++	entry = pmd_mkhuge(entry);
++	set_pmd_at(mm, haddr, pmd, entry);
++	pgtable_trans_huge_deposit(mm, pgtable);
++	mm->nr_ptes++;
++}
++
+ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			       unsigned long address, pmd_t *pmd,
+ 			       unsigned int flags)
+@@ -777,6 +789,11 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		pte_free(dst_mm, pgtable);
+ 		goto out_unlock;
  	}
++	if (is_huge_zero_pmd(pmd)) {
++		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd);
++		ret = 0;
++		goto out_unlock;
++	}
+ 	if (unlikely(pmd_trans_splitting(pmd))) {
+ 		/* split huge page running from under us */
+ 		spin_unlock(&src_mm->page_table_lock);
 -- 
 1.7.7.6
 
