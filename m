@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 8E0DA6B005D
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 16:44:26 -0400 (EDT)
-Date: Mon, 15 Oct 2012 20:44:25 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/2] SLUB: increase the range of slab sizes available to
- kmalloc, allowing a somewhat more effient use of memory.
-In-Reply-To: <1350145885-6099-3-git-send-email-richard@rsk.demon.co.uk>
-Message-ID: <0000013a662b9db5-1ea40fb2-3337-4cbc-8eca-5a610564dd75-000000@email.amazonses.com>
-References: <1350145885-6099-1-git-send-email-richard@rsk.demon.co.uk> <1350145885-6099-2-git-send-email-richard@rsk.demon.co.uk> <1350145885-6099-3-git-send-email-richard@rsk.demon.co.uk>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id D6EED6B005D
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 16:51:13 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so5910843pad.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 13:51:13 -0700 (PDT)
+Date: Mon, 15 Oct 2012 13:51:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: huge_memory: Fix build error.
+In-Reply-To: <20121015114456.GA30314@linux-mips.org>
+Message-ID: <alpine.DEB.2.00.1210151349560.17947@chino.kir.corp.google.com>
+References: <20121015114456.GA30314@linux-mips.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Kennedy <richard@rsk.demon.co.uk>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ralf Baechle <ralf@linux-mips.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, David Daney <david.daney@cavium.com>
 
-On Sat, 13 Oct 2012, Richard Kennedy wrote:
+On Mon, 15 Oct 2012, Ralf Baechle wrote:
 
-> -extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
->
-> -/*
-> - * Sorry that the following has to be that ugly but some versions of GCC
-> - * have trouble with constant propagation and loops.
-> +static const short __slab_sizes[] = {0, 8, 12, 16, 24, 32, 48, 64, 96,
-> +				     128, 192, 256, 384, 512, 768, 1024,
-> +				     1536, 2048, 3072, 4096, 6144, 8192};
-> +
+> Certain configurations won't implicitly pull in <linux/pagemap.h> resulting
+> in the following build error:
+> 
+> mm/huge_memory.c: In function 'release_pte_page':
+> mm/huge_memory.c:1697:2: error: implicit declaration of function 'unlock_page' [-Werror=implicit-function-declaration]
+> mm/huge_memory.c: In function '__collapse_huge_page_isolate':
+> mm/huge_memory.c:1757:3: error: implicit declaration of function 'trylock_page' [-Werror=implicit-function-declaration]
+> cc1: some warnings being treated as errors
+> 
 
-Urg. No thanks. What is the exact benefit of this patch?
+This is because CONFIG_HUGETLB_PAGE=n so mempolicy.h doesn't include 
+pagemap.h?
+
+> Reported-by: David Daney <david.daney@cavium.com>
+> Signed-off-by: Ralf Baechle <ralf@linux-mips.org>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
