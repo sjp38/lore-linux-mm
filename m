@@ -1,268 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id E68F96B0071
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 02:00:36 -0400 (EDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH v4 06/10] thp: change split_huge_page_pmd() interface
-Date: Mon, 15 Oct 2012 09:00:55 +0300
-Message-Id: <1350280859-18801-7-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 9A28F6B002B
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 02:42:20 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so1116368eaa.14
+        for <linux-mm@kvack.org>; Sun, 14 Oct 2012 23:42:19 -0700 (PDT)
+From: Tomasz Figa <tomasz.figa@gmail.com>
+Subject: Re: dma_alloc_coherent fails in framebuffer
+Date: Mon, 15 Oct 2012 08:42:20 +0200
+Message-ID: <1822826.6oRYLvbneG@flatron>
+In-Reply-To: <1350253591.13440.1.camel@gitbox>
+References: <1350192523.10946.4.camel@gitbox> <1350246895.11504.6.camel@gitbox> <1350253591.13440.1.camel@gitbox>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
-Cc: Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-arm-kernel@lists.infradead.org
+Cc: Tony Prisk <linux@prisktech.co.nz>, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, mgorman@suse.de, m.szyprowski@samsung.com
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Hi Tony,
 
-Pass vma instead of mm and add address parameter.
+On Monday 15 of October 2012 11:26:31 Tony Prisk wrote:
+> On Mon, 2012-10-15 at 09:34 +1300, Tony Prisk wrote:
+> > On Sun, 2012-10-14 at 18:28 +1300, Tony Prisk wrote:
+> > > Up until 07 Oct, drivers/video/wm8505-fb.c was working fine, but on
+> > > the
+> > > 11 Oct when I did another pull from linus all of a sudden
+> > > dma_alloc_coherent is failing to allocate the framebuffer any
+> > > longer.
+> > > 
+> > > I did a quick look back and found this:
+> > > 
+> > > ARM: add coherent dma ops
+> > > 
+> > > arch_is_coherent is problematic as it is a global symbol. This
+> > > doesn't work for multi-platform kernels or platforms which can
+> > > support
+> > > per device coherent DMA.
+> > > 
+> > > This adds arm_coherent_dma_ops to be used for devices which
+> > > connected
+> > > coherently (i.e. to the ACP port on Cortex-A9 or A15). The
+> > > arm_dma_ops
+> > > are modified at boot when arch_is_coherent is true.
+> > > 
+> > > Signed-off-by: Rob Herring <rob.herring@calxeda.com>
+> > > Cc: Russell King <linux@arm.linux.org.uk>
+> > > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> > > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> > > 
+> > > 
+> > > This is the only patch lately that I could find (not that I would
+> > > claim
+> > > to be any good at finding things) that is related to the problem.
+> > > Could
+> > > it have caused the allocations to fail?
+> > > 
+> > > Regards
+> > > Tony P
+> > 
+> > Have done a bit more digging and found the cause - not Rob's patch so
+> > apologies.
+> > 
+> > The cause of the regression is this patch:
+> > 
+> > From f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e Mon Sep 17 00:00:00 2001
+> > From: Mel Gorman <mgorman@suse.de>
+> > Date: Mon, 8 Oct 2012 16:32:36 -0700
+> > Subject: [PATCH 2/3] mm: compaction: acquire the zone->lock as late as
+> > 
+> >  possible
+> > 
+> > Up until then, the framebuffer allocation with dma_alloc_coherent(...)
+> > was fine. From this patch onwards, allocations fail.
+> > 
+> > I don't know how this patch would effect CMA allocations, but it seems
+> > to be causing the issue (or at least, it's caused an error in
+> > arch-vt8500 to become visible).
+> > 
+> > Perhaps someone who understand -mm could explain the best way to
+> > troubleshoot the cause of this problem?
+> > 
+> > 
+> > Regards
+> > Tony P
+> > 
+> > 
+> > _______________________________________________
+> > linux-arm-kernel mailing list
+> > linux-arm-kernel@lists.infradead.org
+> > http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+> 
+> Have done a bit more testing..
+> 
+> Disabling Memory Compaction makes no difference.
+> Disabling CMA fixes/hides the problem. ?!?!?!
 
-In most cases we already have vma on the stack. We provides
-split_huge_page_pmd_mm() for few cases when we have mm, but not vma.
+Could you post your kernel log when it isn't working?
 
-This change is preparation to huge zero pmd splitting implementation.
+Do you have the default CMA reserved pool in Kconfig set big enough to 
+serve this allocation?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- Documentation/vm/transhuge.txt |    4 ++--
- arch/x86/kernel/vm86_32.c      |    2 +-
- fs/proc/task_mmu.c             |    2 +-
- include/linux/huge_mm.h        |   14 ++++++++++----
- mm/huge_memory.c               |   24 +++++++++++++++++++-----
- mm/memory.c                    |    4 ++--
- mm/mempolicy.c                 |    2 +-
- mm/mprotect.c                  |    2 +-
- mm/mremap.c                    |    2 +-
- mm/pagewalk.c                  |    2 +-
- 10 files changed, 39 insertions(+), 19 deletions(-)
+I'm not sure what kind of allocation this framebuffer driver does, but if 
+it needs to allocate memory from atomic context then possibly this patch 
+series has something to do with it: 
+http://thread.gmane.org/gmane.linux.ports.arm.kernel/182697/focus=182699
 
-diff --git a/Documentation/vm/transhuge.txt b/Documentation/vm/transhuge.txt
-index f734bb2..677a599 100644
---- a/Documentation/vm/transhuge.txt
-+++ b/Documentation/vm/transhuge.txt
-@@ -276,7 +276,7 @@ unaffected. libhugetlbfs will also work fine as usual.
- == Graceful fallback ==
- 
- Code walking pagetables but unware about huge pmds can simply call
--split_huge_page_pmd(mm, pmd) where the pmd is the one returned by
-+split_huge_page_pmd(vma, pmd, addr) where the pmd is the one returned by
- pmd_offset. It's trivial to make the code transparent hugepage aware
- by just grepping for "pmd_offset" and adding split_huge_page_pmd where
- missing after pmd_offset returns the pmd. Thanks to the graceful
-@@ -299,7 +299,7 @@ diff --git a/mm/mremap.c b/mm/mremap.c
- 		return NULL;
- 
- 	pmd = pmd_offset(pud, addr);
--+	split_huge_page_pmd(mm, pmd);
-++	split_huge_page_pmd(vma, pmd, addr);
- 	if (pmd_none_or_clear_bad(pmd))
- 		return NULL;
- 
-diff --git a/arch/x86/kernel/vm86_32.c b/arch/x86/kernel/vm86_32.c
-index 5c9687b..1dfe69c 100644
---- a/arch/x86/kernel/vm86_32.c
-+++ b/arch/x86/kernel/vm86_32.c
-@@ -182,7 +182,7 @@ static void mark_screen_rdonly(struct mm_struct *mm)
- 	if (pud_none_or_clear_bad(pud))
- 		goto out;
- 	pmd = pmd_offset(pud, 0xA0000);
--	split_huge_page_pmd(mm, pmd);
-+	split_huge_page_pmd_mm(mm, 0xA0000, pmd);
- 	if (pmd_none_or_clear_bad(pmd))
- 		goto out;
- 	pte = pte_offset_map_lock(mm, pmd, 0xA0000, &ptl);
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 79827ce..866aa48 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -597,7 +597,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
- 	struct page *page;
- 
--	split_huge_page_pmd(walk->mm, pmd);
-+	split_huge_page_pmd(vma, addr, pmd);
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
- 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index b31cb7d..856f080 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -91,12 +91,14 @@ extern int handle_pte_fault(struct mm_struct *mm,
- 			    struct vm_area_struct *vma, unsigned long address,
- 			    pte_t *pte, pmd_t *pmd, unsigned int flags);
- extern int split_huge_page(struct page *page);
--extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
--#define split_huge_page_pmd(__mm, __pmd)				\
-+extern void __split_huge_page_pmd(struct vm_area_struct *vma,
-+		unsigned long address, pmd_t *pmd);
-+#define split_huge_page_pmd(__vma, __address, __pmd)			\
- 	do {								\
- 		pmd_t *____pmd = (__pmd);				\
- 		if (unlikely(pmd_trans_huge(*____pmd)))			\
--			__split_huge_page_pmd(__mm, ____pmd);		\
-+			__split_huge_page_pmd(__vma, __address,		\
-+					____pmd);			\
- 	}  while (0)
- #define wait_split_huge_page(__anon_vma, __pmd)				\
- 	do {								\
-@@ -106,6 +108,8 @@ extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
- 		BUG_ON(pmd_trans_splitting(*____pmd) ||			\
- 		       pmd_trans_huge(*____pmd));			\
- 	} while (0)
-+extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
-+		pmd_t *pmd);
- #if HPAGE_PMD_ORDER > MAX_ORDER
- #error "hugepages can't be allocated by the buddy allocator"
- #endif
-@@ -173,10 +177,12 @@ static inline int split_huge_page(struct page *page)
- {
- 	return 0;
- }
--#define split_huge_page_pmd(__mm, __pmd)	\
-+#define split_huge_page_pmd(__vma, __address, __pmd)	\
- 	do { } while (0)
- #define wait_split_huge_page(__anon_vma, __pmd)	\
- 	do { } while (0)
-+#define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
-+	do { } while (0)
- #define compound_trans_head(page) compound_head(page)
- static inline int hugepage_madvise(struct vm_area_struct *vma,
- 				   unsigned long *vm_flags, int advice)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 8dbb1e4..87359f1 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2508,19 +2508,23 @@ static int khugepaged(void *none)
- 	return 0;
- }
- 
--void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
-+void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
-+		pmd_t *pmd)
- {
- 	struct page *page;
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
- 
--	spin_lock(&mm->page_table_lock);
-+	BUG_ON(vma->vm_start > haddr || vma->vm_end < haddr + HPAGE_PMD_SIZE);
-+
-+	spin_lock(&vma->vm_mm->page_table_lock);
- 	if (unlikely(!pmd_trans_huge(*pmd))) {
--		spin_unlock(&mm->page_table_lock);
-+		spin_unlock(&vma->vm_mm->page_table_lock);
- 		return;
- 	}
- 	page = pmd_page(*pmd);
- 	VM_BUG_ON(!page_count(page));
- 	get_page(page);
--	spin_unlock(&mm->page_table_lock);
-+	spin_unlock(&vma->vm_mm->page_table_lock);
- 
- 	split_huge_page(page);
- 
-@@ -2528,6 +2532,16 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
- 	BUG_ON(pmd_trans_huge(*pmd));
- }
- 
-+void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
-+		pmd_t *pmd)
-+{
-+	struct vm_area_struct *vma;
-+
-+	vma = find_vma(mm, address);
-+	BUG_ON(vma == NULL);
-+	split_huge_page_pmd(vma, address, pmd);
-+}
-+
- static void split_huge_page_address(struct mm_struct *mm,
- 				    unsigned long address)
- {
-@@ -2552,7 +2566,7 @@ static void split_huge_page_address(struct mm_struct *mm,
- 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
- 	 * materialize from under us.
- 	 */
--	split_huge_page_pmd(mm, pmd);
-+	split_huge_page_pmd_mm(mm, address, pmd);
- }
- 
- void __vma_adjust_trans_huge(struct vm_area_struct *vma,
-diff --git a/mm/memory.c b/mm/memory.c
-index 6edc030..6017e23 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1243,7 +1243,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
- 					BUG();
- 				}
- #endif
--				split_huge_page_pmd(vma->vm_mm, pmd);
-+				split_huge_page_pmd(vma, addr, pmd);
- 			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
- 				goto next;
- 			/* fall through */
-@@ -1512,7 +1512,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 	}
- 	if (pmd_trans_huge(*pmd)) {
- 		if (flags & FOLL_SPLIT) {
--			split_huge_page_pmd(mm, pmd);
-+			split_huge_page_pmd(vma, address, pmd);
- 			goto split_fallthrough;
- 		}
- 		spin_lock(&mm->page_table_lock);
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0b78fb9..a32bbfc 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -511,7 +511,7 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 	pmd = pmd_offset(pud, addr);
- 	do {
- 		next = pmd_addr_end(addr, end);
--		split_huge_page_pmd(vma->vm_mm, pmd);
-+		split_huge_page_pmd(vma, addr, pmd);
- 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
- 			continue;
- 		if (check_pte_range(vma, pmd, addr, next, nodes,
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index a409926..e8c3938 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -90,7 +90,7 @@ static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
- 		next = pmd_addr_end(addr, end);
- 		if (pmd_trans_huge(*pmd)) {
- 			if (next - addr != HPAGE_PMD_SIZE)
--				split_huge_page_pmd(vma->vm_mm, pmd);
-+				split_huge_page_pmd(vma, addr, pmd);
- 			else if (change_huge_pmd(vma, pmd, addr, newprot))
- 				continue;
- 			/* fall through */
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 1b61c2d..eabb24d 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -182,7 +182,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 				need_flush = true;
- 				continue;
- 			} else if (!err) {
--				split_huge_page_pmd(vma->vm_mm, old_pmd);
-+				split_huge_page_pmd(vma, old_addr, old_pmd);
- 			}
- 			VM_BUG_ON(pmd_trans_huge(*old_pmd));
- 		}
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 6c118d0..35aa294 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -58,7 +58,7 @@ again:
- 		if (!walk->pte_entry)
- 			continue;
- 
--		split_huge_page_pmd(walk->mm, pmd);
-+		split_huge_page_pmd_mm(walk->mm, addr, pmd);
- 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
- 			goto again;
- 		err = walk_pte_range(pmd, addr, next, walk);
--- 
-1.7.7.6
+CC'ing Marek Szyprowski <m.szyprowski@samsung.com>
+
+Best regards,
+Tomasz Figa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
