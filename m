@@ -1,123 +1,282 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id ED76E6B00B9
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 14:28:17 -0400 (EDT)
-Message-ID: <1350325704.31162.16.camel@gitbox>
-Subject: Re: dma_alloc_coherent fails in framebuffer
-From: Tony Prisk <linux@prisktech.co.nz>
-Date: Tue, 16 Oct 2012 07:28:24 +1300
-In-Reply-To: <20121015094547.GC29125@suse.de>
-References: <1350192523.10946.4.camel@gitbox>
-	 <1350246895.11504.6.camel@gitbox> <20121015094547.GC29125@suse.de>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id D14446B00BB
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 14:54:37 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so5099498qcq.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 11:54:36 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20121015144412.GA2173@barrios>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+	<20121015144412.GA2173@barrios>
+Date: Mon, 15 Oct 2012 11:54:36 -0700
+Message-ID: <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, Arm Kernel Mailing List <linux-arm-kernel@lists.infradead.org>, Arnd Bergmann <arnd@arndb.de>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org
 
-On Mon, 2012-10-15 at 10:45 +0100, Mel Gorman wrote:
-> On Mon, Oct 15, 2012 at 09:34:55AM +1300, Tony Prisk wrote:
-> > On Sun, 2012-10-14 at 18:28 +1300, Tony Prisk wrote:
-> > > Up until 07 Oct, drivers/video/wm8505-fb.c was working fine, but on the
-> > > 11 Oct when I did another pull from linus all of a sudden
-> > > dma_alloc_coherent is failing to allocate the framebuffer any longer.
-> > > 
-> > > I did a quick look back and found this:
-> > > 
-> > > ARM: add coherent dma ops
-> > > 
-> > > arch_is_coherent is problematic as it is a global symbol. This
-> > > doesn't work for multi-platform kernels or platforms which can support
-> > > per device coherent DMA.
-> > > 
-> > > This adds arm_coherent_dma_ops to be used for devices which connected
-> > > coherently (i.e. to the ACP port on Cortex-A9 or A15). The arm_dma_ops
-> > > are modified at boot when arch_is_coherent is true.
-> > > 
-> > > Signed-off-by: Rob Herring <rob.herring@calxeda.com>
-> > > Cc: Russell King <linux@arm.linux.org.uk>
-> > > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> > > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> > > 
-> > > 
-> > > This is the only patch lately that I could find (not that I would claim
-> > > to be any good at finding things) that is related to the problem. Could
-> > > it have caused the allocations to fail?
-> > > 
-> > > Regards
-> > > Tony P
-> > 
-> > Have done a bit more digging and found the cause - not Rob's patch so
-> > apologies.
-> > 
-> > The cause of the regression is this patch:
-> > 
-> > From f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e Mon Sep 17 00:00:00 2001
-> > From: Mel Gorman <mgorman@suse.de>
-> > Date: Mon, 8 Oct 2012 16:32:36 -0700
-> > Subject: [PATCH 2/3] mm: compaction: acquire the zone->lock as late as
-> >  possible
-> > 
-> > Up until then, the framebuffer allocation with dma_alloc_coherent(...)
-> > was fine. From this patch onwards, allocations fail.
-> > 
-> 
-> Was this found through bisection or some other means?
-> 
-> There was a bug in that series that broke CMA but it was commit bb13ffeb
-> (mm: compaction: cache if a pageblock was scanned and no pages were
-> isolated) and it was fixed by 62726059 (mm: compaction: fix bit ranges
-> in {get,clear,set}_pageblock_skip()). So it should have been fixed by
-> 3.7-rc1 and probably was included by the time you pulled in October 11th
-> but bisection would be a pain. There were problems with that series during
-> development but tests were completing for other people.
-> 
-> Just in case, is this still broken in 3.7-rc1?
+On Mon, Oct 15, 2012 at 7:44 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Hello,
+>
+> On Fri, Sep 28, 2012 at 10:32:20AM -0700, Luigi Semenzato wrote:
+>> Greetings,
+>>
+>> We are experimenting with zram in Chrome OS.  It works quite well
+>> until the system runs out of memory, at which point it seems to hang,
+>> but we suspect it is thrashing.
+>>
+>> Before the (apparent) hang, the OOM killer gets rid of a few
+>> processes, but then the other processes gradually stop responding,
+>> until the entire system becomes unresponsive.
+>
+> Why do you think it's zram problem? If you use swap device as storage
+> instead of zram, does the problem disappear?
 
-Still broken. Although the printk's might have cleared it up a bit.
-> 
-> > I don't know how this patch would effect CMA allocations, but it seems
-> > to be causing the issue (or at least, it's caused an error in
-> > arch-vt8500 to become visible).
-> > 
-> > Perhaps someone who understand -mm could explain the best way to
-> > troubleshoot the cause of this problem?
-> > 
-> 
-> If you are comfortable with ftrace, it can be used to narrow down where
-> the exact failure is occurring but if you're not comfortable with that
-> then the easiest is a bunch of printks starting in alloc_contig_range()
-> to see at what point and why it returns failure.
-> 
-> It's not obvious at the moment why that patch would cause an allocation
-> problem. It's the type of patch that if it was wrong it would fail every
-> time for everyone, not just for a single driver.
-> 
+I haven't tried with a swap device, but that is a good suggestion.
 
-I added some printk's to see what was happening.
+I didn't want to swap to disk (too slow compared to zram, so it's not
+the same experiment any more), but I could preallocate a RAM disk and
+swap to that.
 
-from arch/arm/mm/dma-mapping.c: arm_dma_alloc(..) it calls out to:
-dma_alloc_from_coherent().
+> Could you do sysrq+t,m several time and post it while hang happens?
+> /proc/vmstat could be helpful, too.
 
-This returns 0, because:
-mem = dev->dma_mem
-if (!mem) return 0;
+The stack traces look mostly like this:
 
-and then arm_dma_alloc() falls back on __dma_alloc(..)
+[ 2058.069020]  [<810681c4>] handle_edge_irq+0x8f/0xb1
+[ 2058.069028]  <IRQ>  [<810037ed>] ? do_IRQ+0x3f/0x98
+[ 2058.069044]  [<813b7eb0>] ? common_interrupt+0x30/0x38
+[ 2058.069058]  [<8108007b>] ? ftrace_raw_event_rpm_internal+0xf/0x108
+[ 2058.069072]  [<81196c1a>] ? do_raw_spin_lock+0x93/0xf3
+[ 2058.069085]  [<813b70d5>] ? _raw_spin_lock+0xd/0xf
+[ 2058.069097]  [<810b418c>] ? put_super+0x15/0x29
+[ 2058.069108]  [<810b41ba>] ? drop_super+0x1a/0x1d
+[ 2058.069119]  [<810b4d04>] ? prune_super+0x106/0x110
+[ 2058.069132]  [<81093647>] ? shrink_slab+0x7f/0x22f
+[ 2058.069144]  [<81095943>] ? try_to_free_pages+0x1b7/0x2e6
+[ 2058.069158]  [<8108de27>] ? __alloc_pages_nodemask+0x412/0x5d5
+[ 2058.069173]  [<810a9c6a>] ? read_swap_cache_async+0x4a/0xcf
+[ 2058.069185]  [<810a9d50>] ? swapin_readahead+0x61/0x8d
+[ 2058.069198]  [<8109fea0>] ? handle_pte_fault+0x310/0x5fb
+[ 2058.069208]  [<8100223a>] ? do_signal+0x470/0x4fe
+[ 2058.069220]  [<810a02cc>] ? handle_mm_fault+0xae/0xbd
+[ 2058.069233]  [<8101d0f9>] ? do_page_fault+0x265/0x284
+[ 2058.069247]  [<81192b32>] ? copy_to_user+0x3e/0x49
+[ 2058.069257]  [<8100306d>] ? do_spurious_interrupt_bug+0x26/0x26
+[ 2058.069270]  [<81009279>] ? init_fpu+0x73/0x81
+[ 2058.069280]  [<8100275e>] ? math_state_restore+0x1f/0xa0
+[ 2058.069290]  [<8100306d>] ? do_spurious_interrupt_bug+0x26/0x26
+[ 2058.069303]  [<8101ce94>] ? vmalloc_sync_all+0xa/0xa
+[ 2058.069315]  [<813b7737>] ? error_code+0x67/0x6c
+
+The bottom part of the stack varies, but most processes are spending a
+lot of time in prune_super().  There is a pretty high number of
+mounted file systems, and do_try_to_free_pages() keeps calling
+shrink_slab() even when there is nothing to reclaim there.
+
+In addition, do_try_to_free_pages() keeps returning 1 because
+all_unreclaimable() at the end is always false.  The allocator thinks
+that zone 1 has freeable pages (zones 0 and 2 do not).  That prevents
+the allocator from ooming.
+
+I went in some more depth, but didn't quite untangle all that goes on.
+ In any case, this explains why I came up with the theory that somehow
+mm is too optimistic about how many pages are freeable.  Then I found
+what looks like a smoking gun in vmscan.c:
+
+if (nr_swap_pages > 0)
+    nr += zone_page_state(zone, NR_ACTIVE_ANON) +
+            zone_page_state(zone, NR_INACTIVE_ANON);
+
+which seems to ignore that not all ANON pages are freeable if swap
+space is limited.
+
+Pretty much all processes hang while trying to allocate memory.  Those
+that don't allocate memory keep running fine.
+
+vmstat 1 shows a large amount of swapping activity, which drops to 0
+when the processes hang.
+
+/proc/meminfo and /proc/vmstat are at the bottom.
+
+>
+>>
+>> I am wondering if anybody has run into this.  Thanks!
+>>
+>> Luigi
+>>
+>> P.S.  For those who wish to know more:
+>>
+>> 1. We use the min_filelist_kbytes patch
+>> (http://lwn.net/Articles/412313/)  (I am not sure if it made it into
+>> the standard kernel) and set min_filelist_kbytes to 50Mb.  (This may
+>> not matter, as it's unlikely to make things worse.)
+>
+> One of the problem I look at this patch is it might prevent
+> increasing of zone->pages_scanned when the swap if full or anon pages
+> are very small although there are lots of file-backed pages.
+> It means OOM can't occur and page allocator could loop forever.
+> Please look at zone_reclaimable.
+
+Yes---I think you are right.  It didn't matter to us because we don't
+use swap.  The problem looks fixable.
+
+> Have you ever test it without above patch?
+
+Good suggestion.  I just did.  Almost all text pages are evicted, and
+then the system thrashes so badly that the hang detector kicks in
+after a couple of minutes and panics.
+
+Thank you for the very helpful suggestions!
 
 
-I suspect the reason this fault is a bit 'weird' is because its
-effectively not using alloc_from_coherent at all, but falling back on
-__dma_alloc all the time, and sometimes it fails.
+>
+>>
+>> 2. We swap only to compressed ram.  The setup is very simple:
+>>
+>>  echo ${ZRAM_SIZE_KB}000 >/sys/block/zram0/disksize ||
+>>       logger -t "$UPSTART_JOB" "failed to set zram size"
+>>   mkswap /dev/zram0 || logger -t "$UPSTART_JOB" "mkswap /dev/zram0 failed"
+>>   swapon /dev/zram0 || logger -t "$UPSTART_JOB" "swapon /dev/zram0 failed"
+>>
+>> For ZRAM_SIZE_KB, we typically use 1.5 the size of RAM (which is 2 or
+>> 4 Gb).  The compression factor is about 3:1.  The hangs happen for
+>> quite a wide range of zram sizes.
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Kind Regards,
+> Minchan Kim
 
-Why it caused a problem on that particular commit I don't know - but it
-was reproducible by adding/removing it.
+
+MemTotal:        2002292 kB
+MemFree:           15148 kB
+Buffers:             260 kB
+Cached:           169952 kB
+SwapCached:       149448 kB
+Active:           722608 kB
+Inactive:         290824 kB
+Active(anon):     682680 kB
+Inactive(anon):   230888 kB
+Active(file):      39928 kB
+Inactive(file):    59936 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+HighTotal:         74504 kB
+HighFree:              0 kB
+LowTotal:        1927788 kB
+LowFree:           15148 kB
+SwapTotal:       2933044 kB
+SwapFree:          47968 kB
+Dirty:                 0 kB
+Writeback:            56 kB
+AnonPages:        695180 kB
+Mapped:            73276 kB
+Shmem:             70276 kB
+Slab:              19596 kB
+SReclaimable:       9152 kB
+SUnreclaim:        10444 kB
+KernelStack:        1448 kB
+PageTables:         9964 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     3934188 kB
+Committed_AS:    4371740 kB
+VmallocTotal:     122880 kB
+VmallocUsed:       22268 kB
+VmallocChunk:     100340 kB
+DirectMap4k:       34808 kB
+DirectMap2M:     1927168 kB
 
 
-Regards
-Tony P
+nr_free_pages 3776
+nr_inactive_anon 58243
+nr_active_anon 172106
+nr_inactive_file 14984
+nr_active_file 9982
+nr_unevictable 0
+nr_mlock 0
+nr_anon_pages 174840
+nr_mapped 18387
+nr_file_pages 80762
+nr_dirty 0
+nr_writeback 13
+nr_slab_reclaimable 2290
+nr_slab_unreclaimable 2611
+nr_page_table_pages 2471
+nr_kernel_stack 180
+nr_unstable 0
+nr_bounce 0
+nr_vmscan_write 679247
+nr_vmscan_immediate_reclaim 0
+nr_writeback_temp 0
+nr_isolated_anon 416
+nr_isolated_file 0
+nr_shmem 17637
+nr_dirtied 7630
+nr_written 686863
+nr_anon_transparent_hugepages 0
+nr_dirty_threshold 151452
+nr_dirty_background_threshold 2524
+pgpgin 284189
+pgpgout 2748940
+pswpin 5602
+pswpout 679271
+pgalloc_dma 9976
+pgalloc_normal 1426651
+pgalloc_high 34659
+pgalloc_movable 0
+pgfree 1475099
+pgactivate 58092
+pgdeactivate 745734
+pgfault 1489876
+pgmajfault 1098
+pgrefill_dma 8557
+pgrefill_normal 742123
+pgrefill_high 4088
+pgrefill_movable 0
+pgsteal_kswapd_dma 199
+pgsteal_kswapd_normal 48387
+pgsteal_kswapd_high 2443
+pgsteal_kswapd_movable 0
+pgsteal_direct_dma 7688
+pgsteal_direct_normal 652670
+pgsteal_direct_high 6242
+pgsteal_direct_movable 0
+pgscan_kswapd_dma 268
+pgscan_kswapd_normal 105036
+pgscan_kswapd_high 8395
+pgscan_kswapd_movable 0
+pgscan_direct_dma 185240
+pgscan_direct_normal 23961886
+pgscan_direct_high 584047
+pgscan_direct_movable 0
+pginodesteal 123
+slabs_scanned 10368
+kswapd_inodesteal 1
+kswapd_low_wmark_hit_quickly 15
+kswapd_high_wmark_hit_quickly 8
+kswapd_skip_congestion_wait 639
+pageoutrun 582
+allocstall 14514
+pgrotated 1
+unevictable_pgs_culled 0
+unevictable_pgs_scanned 0
+unevictable_pgs_rescued 1
+unevictable_pgs_mlocked 1
+unevictable_pgs_munlocked 1
+unevictable_pgs_cleared 0
+unevictable_pgs_stranded 0
+unevictable_pgs_mlockfreed 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
