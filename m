@@ -1,36 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id D4B7B6B00B2
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 11:49:56 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so5703935pbb.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 08:49:56 -0700 (PDT)
-Date: Tue, 16 Oct 2012 00:49:52 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: use IS_ENABLED(CONFIG_COMPACTION) instead of
- COMPACTION_BUILD
-Message-ID: <20121015154952.GB2840@barrios>
-References: <1350302735-8416-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 5AB146B00B5
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 12:16:34 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id c11so1628040qad.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 09:16:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1350302735-8416-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1350302608-8322-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1350302608-8322-1-git-send-email-kirill.shutemov@linux.intel.com>
+From: Catalin Marinas <catalin.marinas@arm.com>
+Date: Mon, 15 Oct 2012 17:16:13 +0100
+Message-ID: <CAHkRjk7akwhcmeYV_Ank-YVotUMW0mN_1xeu5zbXWE+z5d9xdg@mail.gmail.com>
+Subject: Re: [PATCH] asm-generic, mm: PTE_SPECIAL cleanup
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org
 
-On Mon, Oct 15, 2012 at 03:05:35PM +0300, Kirill A. Shutemov wrote:
+On 15 October 2012 13:03, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> We don't need custom COMPACTION_BUILD anymore, since we have handy
-> IS_ENABLED().
-> 
+>
+> Advertise PTE_SPECIAL through Kconfig option and consolidate dummy
+> pte_special() and mkspecial() in <asm-generic/pgtable.h>
+>
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  arch/Kconfig                             |    6 ++++++
+>  arch/alpha/include/asm/pgtable.h         |    2 --
+>  arch/arm/include/asm/pgtable.h           |    3 ---
+>  arch/arm64/Kconfig                       |    1 +
+>  arch/arm64/include/asm/pgtable.h         |    2 --
 
--- 
-Kind Regards,
-Minchan Kim
+For the arm64 bits:
+
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
