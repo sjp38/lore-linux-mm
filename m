@@ -1,49 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id F2E0E6B00A4
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:33 -0400 (EDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 15 Oct 2012 10:06:32 -0400
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E45B238C804F
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9FE6TC6192424
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9FE6S30009669
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400
-Message-ID: <507C183C.2070106@linux.vnet.ibm.com>
-Date: Mon, 15 Oct 2012 07:05:48 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 557C96B00A7
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:25:35 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so6175264oag.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 07:25:34 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-References: <20121012125708.GJ10110@dhcp22.suse.cz>
-In-Reply-To: <20121012125708.GJ10110@dhcp22.suse.cz>
+In-Reply-To: <20121015094907.GE29069@dhcp22.suse.cz>
+References: <20121010141142.GG23011@dhcp22.suse.cz> <507BD33C.4030209@jp.fujitsu.com>
+ <20121015094907.GE29069@dhcp22.suse.cz>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 15 Oct 2012 10:25:14 -0400
+Message-ID: <CAHGf_=p4d33t7i5++YHTkc0PbAUckca1oBxR5dZ48EzybKYHgw@mail.gmail.com>
+Subject: Re: [RFC PATCH] memcg: oom: fix totalpages calculation for swappiness==0
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/12/2012 05:57 AM, Michal Hocko wrote:
-> I would like to resurrect the following Dave's patch. The last time it
-> has been posted was here https://lkml.org/lkml/2010/9/16/250 and there
-> didn't seem to be any strong opposition. 
-> Kosaki was worried about possible excessive logging when somebody drops
-> caches too often (but then he claimed he didn't have a strong opinion
-> on that) but I would say opposite. If somebody does that then I would
-> really like to know that from the log when supporting a system because
-> it almost for sure means that there is something fishy going on. It is
-> also worth mentioning that only root can write drop caches so this is
-> not an flooding attack vector.
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index 078701f..308fd77 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -640,6 +640,9 @@ swappiness
+>  This control is used to define how aggressive the kernel will swap
+>  memory pages.  Higher values will increase agressiveness, lower values
+>  decrease the amount of swap.
+> +The value can be used from the [0, 100] range, where 0 means no swapping
+> +at all (even if there is a swap storage enabled) while 100 means that
+> +anonymous pages are reclaimed in the same rate as file pages.
 
-Just read through the patch again.  Still looks great to me.
+I think this only correct when memcg. Even if swappiness==0, global reclaim swap
+out anon pages before oom.
 
-Thanks for bringing it up again, Michal!
+see below.
+
+get_scan_count()
+(snip)
+	if (global_reclaim(sc)) {
+		free  = zone_page_state(zone, NR_FREE_PAGES);
+		/* If we have very few page cache pages,
+		   force-scan anon pages. */
+		if (unlikely(file + free <= high_wmark_pages(zone))) {
+			fraction[0] = 1;
+			fraction[1] = 0;
+			denominator = 1;
+			goto out;
+		}
+	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
