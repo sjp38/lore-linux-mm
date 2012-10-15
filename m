@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 216446B00A3
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:30 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MBX0029FTRG5T90@mailout2.samsung.com> for
- linux-mm@kvack.org; Mon, 15 Oct 2012 23:04:28 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MBX00JMCTQOCL70@mmp1.samsung.com> for linux-mm@kvack.org;
- Mon, 15 Oct 2012 23:04:27 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [RFC 1/2] common: DMA-mapping: add DMA_ATTR_FORCE_CONTIGUOUS attribute
-Date: Mon, 15 Oct 2012 16:03:51 +0200
-Message-id: <1350309832-18461-2-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
-References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id F2E0E6B00A4
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:33 -0400 (EDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Mon, 15 Oct 2012 10:06:32 -0400
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E45B238C804F
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9FE6TC6192424
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9FE6S30009669
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 10:06:29 -0400
+Message-ID: <507C183C.2070106@linux.vnet.ibm.com>
+Date: Mon, 15 Oct 2012 07:05:48 -0700
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
+References: <20121012125708.GJ10110@dhcp22.suse.cz>
+In-Reply-To: <20121012125708.GJ10110@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Inki Dae <inki.dae@samsung.com>, Rob Clark <rob@ti.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch adds DMA_ATTR_FORCE_CONTIGUOUS attribute to the DMA-mapping
-subsystem.
+On 10/12/2012 05:57 AM, Michal Hocko wrote:
+> I would like to resurrect the following Dave's patch. The last time it
+> has been posted was here https://lkml.org/lkml/2010/9/16/250 and there
+> didn't seem to be any strong opposition. 
+> Kosaki was worried about possible excessive logging when somebody drops
+> caches too often (but then he claimed he didn't have a strong opinion
+> on that) but I would say opposite. If somebody does that then I would
+> really like to know that from the log when supporting a system because
+> it almost for sure means that there is something fishy going on. It is
+> also worth mentioning that only root can write drop caches so this is
+> not an flooding attack vector.
 
-By default DMA-mapping subsystem is allowed to assemble the buffer
-allocated by dma_alloc_attrs() function from individual pages if it can
-be mapped as contiguous chunk into device dma address space. By
-specifing this attribute the allocated buffer is forced to be contiguous
-also in physical memory.
+Just read through the patch again.  Still looks great to me.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- Documentation/DMA-attributes.txt |    9 +++++++++
- include/linux/dma-attrs.h        |    1 +
- 2 files changed, 10 insertions(+)
-
-diff --git a/Documentation/DMA-attributes.txt b/Documentation/DMA-attributes.txt
-index f503090..e59480d 100644
---- a/Documentation/DMA-attributes.txt
-+++ b/Documentation/DMA-attributes.txt
-@@ -91,3 +91,12 @@ transferred to 'device' domain. This attribute can be also used for
- dma_unmap_{single,page,sg} functions family to force buffer to stay in
- device domain after releasing a mapping for it. Use this attribute with
- care!
-+
-+DMA_ATTR_FORCE_CONTIGUOUS
-+-------------------------
-+
-+By default DMA-mapping subsystem is allowed to assemble the buffer
-+allocated by dma_alloc_attrs() function from individual pages if it can
-+be mapped as contiguous chunk into device dma address space. By
-+specifing this attribute the allocated buffer is forced to be contiguous
-+also in physical memory.
-diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
-index f83f793..c8e1831 100644
---- a/include/linux/dma-attrs.h
-+++ b/include/linux/dma-attrs.h
-@@ -17,6 +17,7 @@ enum dma_attr {
- 	DMA_ATTR_NON_CONSISTENT,
- 	DMA_ATTR_NO_KERNEL_MAPPING,
- 	DMA_ATTR_SKIP_CPU_SYNC,
-+	DMA_ATTR_FORCE_CONTIGUOUS,
- 	DMA_ATTR_MAX,
- };
- 
--- 
-1.7.9.5
+Thanks for bringing it up again, Michal!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
