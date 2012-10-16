@@ -1,112 +1,356 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 22D656B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:21:37 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3F8C93EE0C3
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:21:35 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1DCCC45DE58
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:21:35 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id DAA1545DE50
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:21:34 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id C90201DB8041
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:21:34 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 724E81DB803B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:21:34 +0900 (JST)
-Message-ID: <507D0AE2.1020604@jp.fujitsu.com>
-Date: Tue, 16 Oct 2012 16:21:06 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
- onlined
-References: <505187D4.7070404@cn.fujitsu.com> <20120913205935.GK1560@cmpxchg.org> <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 93DA06B0044
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:23:13 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id jm1so2730064bkc.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 00:23:12 -0700 (PDT)
+Subject: Re: [Q] Default SLAB allocator
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <CAAmzW4M8drwRPy_qWxnkG3-GKGPq+m24me+pGOWNtPzA15iVfg@mail.gmail.com>
+References: 
+	 <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	 <m27gqwtyu9.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	 <m2391ktxjj.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210130249070.7462@chino.kir.corp.google.com>
+	 <1350141021.21172.14949.camel@edumazet-glaptop>
+	 <CAAmzW4M8drwRPy_qWxnkG3-GKGPq+m24me+pGOWNtPzA15iVfg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 16 Oct 2012 09:23:07 +0200
+Message-ID: <1350372187.3954.636.camel@edumazet-glaptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Wen Congyang <wency@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Ezequiel Garcia <elezegarcia@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
 
-(2012/09/14 10:36), Hugh Dickins wrote:
-> On Thu, 13 Sep 2012, Johannes Weiner wrote:
->> On Thu, Sep 13, 2012 at 03:14:28PM +0800, Wen Congyang wrote:
->>> root_mem_cgroup->info.nodeinfo is initialized when the system boots.
->>> But NODE_DATA(nid) is null if the node is not onlined, so
->>> root_mem_cgroup->info.nodeinfo[nid]->zoneinfo[zone].lruvec.zone contains
->>> an invalid pointer. If we use numactl to bind a program to the node
->>> after onlining the node and its memory, it will cause the kernel
->>> panicked:
->>
->> Is there any chance we could get rid of the zone backpointer in lruvec
->> again instead?
->
-> It could be done, but it would make me sad :(
->
->> Adding new nodes is a rare event and so updating every
->> single memcg in the system might be just borderline crazy.
->
-> Not horribly crazy, but rather ugly, yes.
->
->> But can't
->> we just go back to passing the zone along with the lruvec down
->> vmscan.c paths?  I agree it's ugly to pass both, given their
->> relationship.  But I don't think the backpointer is any cleaner but in
->> addition less robust.
->
-> It's like how we use vma->mm: we could change everywhere to pass mm with
-> vma, but it looks cleaner and cuts down on long arglists to have mm in vma.
->  From past experience, one of the things I worried about was adding extra
-> args to the reclaim stack.
->
->>
->> That being said, the crashing code in particular makes me wonder:
->>
->> static __always_inline void add_page_to_lru_list(struct page *page,
->> 				struct lruvec *lruvec, enum lru_list lru)
->> {
->> 	int nr_pages = hpage_nr_pages(page);
->> 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
->> 	list_add(&page->lru, &lruvec->lists[lru]);
->> 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
->> }
->>
->> Why did we ever pass zone in here and then felt the need to replace it
->> with lruvec->zone in fa9add6 "mm/memcg: apply add/del_page to lruvec"?
->> A page does not roam between zones, its zone is a static property that
->> can be retrieved with page_zone().
->
-> Just as in vmscan.c, we have the lruvec to hand, and that's what we
-> mainly want to operate upon, but there is also some need for zone.
->
-> (Both Konstantin and I were looking towards the day when we move the
-> lru_lock into the lruvec, removing more dependence on "zone".  Pretty
-> much the only reason that hasn't happened yet, is that we have not found
-> time to make a performance case convincingly - but that's another topic.)
->
-> Yes, page_zone(page) is a static property of the page, but it's not
-> necessarily cheap to evaluate: depends on how complex the memory model
-> and the spare page flags space, doesn't it?  We both preferred to
-> derive zone from lruvec where convenient.
->
-> How do you feel about this patch, and does it work for you guys?
->
-> You'd be right if you guessed that I started out without the
-> mem_cgroup_zone_lruvec part of it, but oops in get_scan_count
-> told me that's needed too.
->
-> Description to be filled in later: would it be needed for -stable,
-> or is onlining already broken in other ways that you're now fixing up?
->
-> Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+On Tue, 2012-10-16 at 10:28 +0900, JoonSoo Kim wrote:
+> Hello, Eric.
+> 
+> 2012/10/14 Eric Dumazet <eric.dumazet@gmail.com>:
+> > SLUB was really bad in the common workload you describe (allocations
+> > done by one cpu, freeing done by other cpus), because all kfree() hit
+> > the slow path and cpus contend in __slab_free() in the loop guarded by
+> > cmpxchg_double_slab(). SLAB has a cache for this, while SLUB directly
+> > hit the main "struct page" to add the freed object to freelist.
+> 
+> Could you elaborate more on how 'netperf RR' makes kernel "allocations
+> done by one cpu, freeling done by other cpus", please?
+> I don't have enough background network subsystem, so I'm just curious.
+> 
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Common network load is to have one cpu A handling device interrupts
+doing the memory allocations to hold incoming frames,
+and queueing skbs to various sockets.
 
+These sockets are read by other cpus (if the cpu A is fully used to
+service softirqs under high load), so the kfree() are done by other
+cpus.
+
+Each incoming frame uses one sk_buff, allocated from skbuff_head_cache
+kmemcache (256 bytes on x86_64)
+
+# ls -l /sys/kernel/slab/skbuff_head_cache
+lrwxrwxrwx 1 root root 0 oct.  16
+08:50 /sys/kernel/slab/skbuff_head_cache -> :t-0000256
+
+# cat /sys/kernel/slab/skbuff_head_cache/objs_per_slab 
+32
+
+On a configuration with 24 cpus and one cpu servicing network, we may
+have 23 cpus doing the frees roughly at the same time, all competing in 
+__slab_free() on the same page. This increases if we increase slub page
+order (as recommended by SLUB hackers)
+
+To reproduce this kind of workload without a real NIC, we probably need
+some test module, using one thread doing allocations, and other threads
+doing the free.
+
+> > I played some months ago adding a percpu associative cache to SLUB, then
+> > just moved on other strategy.
+> >
+> > (Idea for this per cpu cache was to build a temporary free list of
+> > objects to batch accesses to struct page)
+> 
+> Is this implemented and submitted?
+> If it is, could you tell me the link for the patches?
+
+It was implemented in february and not submitted at that time.
+
+The following rebase has probably some issues with slab debug, but seems
+to work.
+
+ include/linux/slub_def.h |   22 ++++++
+ mm/slub.c                |  127 +++++++++++++++++++++++++++++++------
+ 2 files changed, 131 insertions(+), 18 deletions(-)
+
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index df448ad..9e5b91c 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -41,8 +41,30 @@ enum stat_item {
+ 	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
+ 	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
+ 	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
++	FREE_CACHED,		/* free delayed in secondary freelist, cumulative counter */
++	FREE_CACHED_ITEMS,	/* items in victim cache */
+ 	NR_SLUB_STAT_ITEMS };
+ 
++/**
++ * struct slub_cache_desc - victim cache descriptor 
++ * @page: slab page
++ * @objects_head: head of freed objects list
++ * @objects_tail: tail of freed objects list
++ * @count: number of objects in list
++ *
++ * freed objects in slow path are managed into an associative cache,
++ * to reduce contention on @page->freelist
++ */
++struct slub_cache_desc {
++	struct page	*page;
++	void		**objects_head;
++	void		**objects_tail;
++	int		count;
++};
++
++#define NR_SLUB_PCPU_CACHE_SHIFT 6
++#define NR_SLUB_PCPU_CACHE (1 << NR_SLUB_PCPU_CACHE_SHIFT)
++
+ struct kmem_cache_cpu {
+ 	void **freelist;	/* Pointer to next available object */
+ 	unsigned long tid;	/* Globally unique transaction id */
+diff --git a/mm/slub.c b/mm/slub.c
+index a0d6984..30a6d72 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -31,6 +31,7 @@
+ #include <linux/fault-inject.h>
+ #include <linux/stacktrace.h>
+ #include <linux/prefetch.h>
++#include <linux/hash.h>
+ 
+ #include <trace/events/kmem.h>
+ 
+@@ -221,6 +222,14 @@ static inline void stat(const struct kmem_cache *s, enum stat_item si)
+ #endif
+ }
+ 
++static inline void stat_add(const struct kmem_cache *s, enum stat_item si,
++			    int cnt)
++{
++#ifdef CONFIG_SLUB_STATS
++	__this_cpu_add(s->cpu_slab->stat[si], cnt);
++#endif
++}
++
+ /********************************************************************
+  * 			Core slab cache functions
+  *******************************************************************/
+@@ -1993,6 +2002,8 @@ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+ 	c->freelist = NULL;
+ }
+ 
++static void victim_cache_flush(struct kmem_cache *s, int cpu);
++
+ /*
+  * Flush cpu slab.
+  *
+@@ -2006,6 +2017,7 @@ static inline void __flush_cpu_slab(struct kmem_cache *s, int cpu)
+ 		if (c->page)
+ 			flush_slab(s, c);
+ 
++		victim_cache_flush(s, cpu);
+ 		unfreeze_partials(s);
+ 	}
+ }
+@@ -2446,38 +2458,34 @@ EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+ #endif
+ 
+ /*
+- * Slow patch handling. This may still be called frequently since objects
++ * Slow path handling. This may still be called frequently since objects
+  * have a longer lifetime than the cpu slabs in most processing loads.
+  *
+  * So we still attempt to reduce cache line usage. Just take the slab
+- * lock and free the item. If there is no additional partial page
++ * lock and free the items. If there is no additional partial page
+  * handling required then we can return immediately.
+  */
+-static void __slab_free(struct kmem_cache *s, struct page *page,
+-			void *x, unsigned long addr)
++static void slub_cache_flush(const struct slub_cache_desc *cache)
+ {
+ 	void *prior;
+-	void **object = (void *)x;
+ 	int was_frozen;
+ 	int inuse;
+ 	struct page new;
+ 	unsigned long counters;
+ 	struct kmem_cache_node *n = NULL;
+-	unsigned long uninitialized_var(flags);
+-
+-	stat(s, FREE_SLOWPATH);
++	struct page *page = cache->page;
++	struct kmem_cache *s = page->slab;
+ 
+-	if (kmem_cache_debug(s) &&
+-		!(n = free_debug_processing(s, page, x, addr, &flags)))
+-		return;
++	stat_add(s, FREE_CACHED, cache->count - 1);
++	stat_add(s, FREE_CACHED_ITEMS, -cache->count);
+ 
+ 	do {
+ 		prior = page->freelist;
+ 		counters = page->counters;
+-		set_freepointer(s, object, prior);
++		set_freepointer(s, cache->objects_tail, prior);
+ 		new.counters = counters;
+ 		was_frozen = new.frozen;
+-		new.inuse--;
++		new.inuse -= cache->count;
+ 		if ((!new.inuse || !prior) && !was_frozen && !n) {
+ 
+ 			if (!kmem_cache_debug(s) && !prior)
+@@ -2499,7 +2507,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 				 * Otherwise the list_lock will synchronize with
+ 				 * other processors updating the list of slabs.
+ 				 */
+-				spin_lock_irqsave(&n->list_lock, flags);
++				spin_lock(&n->list_lock);
+ 
+ 			}
+ 		}
+@@ -2507,8 +2515,8 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 	} while (!cmpxchg_double_slab(s, page,
+ 		prior, counters,
+-		object, new.counters,
+-		"__slab_free"));
++		cache->objects_head, new.counters,
++		"slab_free_objects"));
+ 
+ 	if (likely(!n)) {
+ 
+@@ -2549,7 +2557,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 			stat(s, FREE_ADD_PARTIAL);
+ 		}
+ 	}
+-	spin_unlock_irqrestore(&n->list_lock, flags);
++	spin_unlock(&n->list_lock);
+ 	return;
+ 
+ slab_empty:
+@@ -2563,11 +2571,90 @@ slab_empty:
+ 		/* Slab must be on the full list */
+ 		remove_full(s, page);
+ 
+-	spin_unlock_irqrestore(&n->list_lock, flags);
++	spin_unlock(&n->list_lock);
+ 	stat(s, FREE_SLAB);
+ 	discard_slab(s, page);
+ }
+ 
++DEFINE_PER_CPU_ALIGNED(struct slub_cache_desc, victim_cache[NR_SLUB_PCPU_CACHE]);
++
++static void victim_cache_flush(struct kmem_cache *s, int cpu)
++{
++	int i;
++	struct slub_cache_desc *cache = per_cpu(victim_cache, cpu);
++
++	for (i = 0; i < NR_SLUB_PCPU_CACHE; i++,cache++) {
++		if (cache->page && cache->page->slab == s) {
++			slub_cache_flush(cache);
++			cache->page = NULL;
++		}
++			
++	}
++}
++
++static unsigned int slub_page_hash(const struct page *page)
++{
++	u32 val = hash32_ptr(page);
++
++	/* ID : add coloring, so that cpus dont flush a slab at same time ?
++	 *	val += raw_smp_processor_id();
++	 */
++	return hash_32(val, NR_SLUB_PCPU_CACHE_SHIFT);
++}
++
++/*
++ * Instead of pushing individual objects into page freelist,
++ * dirtying page->freelist/counters for each object, we build percpu private
++ * lists of objects belonging to same slab.
++ */
++static void __slab_free(struct kmem_cache *s, struct page *page,
++			void *x, unsigned long addr)
++{
++	void **object = (void *)x;
++	struct slub_cache_desc *cache;
++	unsigned int hash;
++	struct kmem_cache_node *n = NULL;
++	unsigned long flags;
++
++	stat(s, FREE_SLOWPATH);
++
++	if (kmem_cache_debug(s)) {
++		n = free_debug_processing(s, page, x, addr, &flags);
++		if (!n)
++			return;
++		spin_unlock_irqrestore(&n->list_lock, flags);
++	}
++
++	hash = slub_page_hash(page);
++
++	local_irq_save(flags);
++
++	cache = __this_cpu_ptr(&victim_cache[hash]);
++	if (cache->page == page) {
++		/*
++		 * Nice, we have a private freelist for this page,
++		 * add this object in it. Since we are in slow path,
++		 * we add this 'hot' object at tail, to let a chance old
++		 * objects being evicted from our cache before another cpu
++		 * need them later. This also helps the final
++		 * slab_free_objects() call to access objects_tail
++		 * without a cache miss (object_tail being hot)
++		 */
++		set_freepointer(s, cache->objects_tail, object);
++		cache->count++;
++	} else {
++		if (likely(cache->page))
++			slub_cache_flush(cache);
++
++		cache->page = page;
++		cache->objects_head = object;
++		cache->count = 1;
++	}
++	cache->objects_tail = object;
++	stat(s, FREE_CACHED_ITEMS);
++	local_irq_restore(flags);
++}
++
+ /*
+  * Fastpath with forced inlining to produce a kfree and kmem_cache_free that
+  * can perform fastpath freeing without additional function calls.
+@@ -5084,6 +5171,8 @@ STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
+ STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
+ STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
+ STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
++STAT_ATTR(FREE_CACHED, free_cached);
++STAT_ATTR(FREE_CACHED_ITEMS, free_cached_items);
+ #endif
+ 
+ static struct attribute *slab_attrs[] = {
+@@ -5151,6 +5240,8 @@ static struct attribute *slab_attrs[] = {
+ 	&cpu_partial_free_attr.attr,
+ 	&cpu_partial_node_attr.attr,
+ 	&cpu_partial_drain_attr.attr,
++	&free_cached_attr.attr,
++	&free_cached_items_attr.attr,
+ #endif
+ #ifdef CONFIG_FAILSLAB
+ 	&failslab_attr.attr,
 
 
 --
