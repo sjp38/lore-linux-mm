@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 23E4F6B002B
+	by kanga.kvack.org (Postfix) with SMTP id 02B7C6B005A
 	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 07:48:25 -0400 (EDT)
 From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Subject: [PATCHv3 1/6] lib/string: introduce helper to get base file name from given path
-Date: Tue, 16 Oct 2012 14:48:08 +0300
-Message-Id: <1350388094-18805-2-git-send-email-andriy.shevchenko@linux.intel.com>
+Subject: [PATCHv3 4/6] mm: reuse kbasename() functionality
+Date: Tue, 16 Oct 2012 14:48:12 +0300
+Message-Id: <1350388094-18805-6-git-send-email-andriy.shevchenko@linux.intel.com>
 In-Reply-To: <1350388094-18805-1-git-send-email-andriy.shevchenko@linux.intel.com>
 References: <1350388094-18805-1-git-send-email-andriy.shevchenko@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Joe Perches <joe@perches.com>
-Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Jason Baron <jbaron@redhat.com>, YAMANE Toshiaki <yamanetoshi@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>
-
-There are several places in the kernel that use functionality like basename(3)
-with an exception: in case of '/foo/bar/' we expect to get an empty string.
-Let's do it common helper for them.
+Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, linux-mm@kvack.org
 
 Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-Cc: Jason Baron <jbaron@redhat.com>
-Cc: YAMANE Toshiaki <yamanetoshi@gmail.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: linux-mm@kvack.org
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>
 ---
- include/linux/string.h |   11 +++++++++++
- 1 file changed, 11 insertions(+)
+ mm/memory.c |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/string.h b/include/linux/string.h
-index 6301258..ac889c5 100644
---- a/include/linux/string.h
-+++ b/include/linux/string.h
-@@ -143,4 +143,15 @@ static inline bool strstarts(const char *str, const char *prefix)
+diff --git a/mm/memory.c b/mm/memory.c
+index 5823f29..06158b7 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -58,6 +58,7 @@
+ #include <linux/elf.h>
+ #include <linux/gfp.h>
+ #include <linux/migrate.h>
++#include <linux/string.h>
  
- extern size_t memweight(const void *ptr, size_t bytes);
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -4034,15 +4035,12 @@ void print_vma_addr(char *prefix, unsigned long ip)
+ 		struct file *f = vma->vm_file;
+ 		char *buf = (char *)__get_free_page(GFP_KERNEL);
+ 		if (buf) {
+-			char *p, *s;
++			char *p;
  
-+/**
-+ * kbasename - return the last part of a pathname.
-+ *
-+ * @path: path to extract the filename from.
-+ */
-+static inline const char *kbasename(const char *path)
-+{
-+	const char *tail = strrchr(path, '/');
-+	return tail ? tail + 1 : path;
-+}
-+
- #endif /* _LINUX_STRING_H_ */
+ 			p = d_path(&f->f_path, buf, PAGE_SIZE);
+ 			if (IS_ERR(p))
+ 				p = "?";
+-			s = strrchr(p, '/');
+-			if (s)
+-				p = s+1;
+-			printk("%s%s[%lx+%lx]", prefix, p,
++			printk("%s%s[%lx+%lx]", prefix, kbasename(p),
+ 					vma->vm_start,
+ 					vma->vm_end - vma->vm_start);
+ 			free_page((unsigned long)buf);
 -- 
 1.7.10.4
 
