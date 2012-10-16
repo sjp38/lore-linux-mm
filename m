@@ -1,38 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 26F596B005D
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:25:08 -0400 (EDT)
-Date: Tue, 16 Oct 2012 18:25:06 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v5 14/14] Add documentation about the kmem controller
-In-Reply-To: <1350382611-20579-15-git-send-email-glommer@parallels.com>
-Message-ID: <0000013a6ad26c73-d043cf97-c44a-45c1-9cae-0a962e93a005-000000@email.amazonses.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-15-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id D779A6B0062
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:27:04 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so12866896ied.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 11:27:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <507DA245.9050709@am.sony.com>
+References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	<m27gqwtyu9.fsf@firstfloor.org>
+	<alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	<m2391ktxjj.fsf@firstfloor.org>
+	<CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
+	<alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
+	<CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
+	<alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com>
+	<CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
+	<1350392160.3954.986.camel@edumazet-glaptop>
+	<507DA245.9050709@am.sony.com>
+Date: Tue, 16 Oct 2012 15:27:04 -0300
+Message-ID: <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
+Subject: Re: [Q] Default SLAB allocator
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Tim Bird <tim.bird@am.sony.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "celinux-dev@lists.celinuxforum.org" <celinux-dev@lists.celinuxforum.org>
 
-On Tue, 16 Oct 2012, Glauber Costa wrote:
-
+On Tue, Oct 16, 2012 at 3:07 PM, Tim Bird <tim.bird@am.sony.com> wrote:
+> On 10/16/2012 05:56 AM, Eric Dumazet wrote:
+>> On Tue, 2012-10-16 at 09:35 -0300, Ezequiel Garcia wrote:
+>>
+>>> Now, returning to the fragmentation. The problem with SLAB is that
+>>> its smaller cache available for kmalloced objects is 32 bytes;
+>>> while SLUB allows 8, 16, 24 ...
+>>>
+>>> Perhaps adding smaller caches to SLAB might make sense?
+>>> Is there any strong reason for NOT doing this?
+>>
+>> I would remove small kmalloc-XX caches, as sharing a cache line
+>> is sometime dangerous for performance, because of false sharing.
+>>
+>> They make sense only for very small hosts.
 >
-> + memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
-> + memory.kmem.usage_in_bytes      # show current kernel memory allocation
-> + memory.kmem.failcnt             # show the number of kernel memory usage hits limits
-> + memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
+> That's interesting...
+>
+> It would be good to measure the performance/size tradeoff here.
+> I'm interested in very small systems, and it might be worth
+> the tradeoff, depending on how bad the performance is.  Maybe
+> a new config option would be useful (I can hear the groans now... :-)
+>
+> Ezequiel - do you have any measurements of how much memory
+> is wasted by 32-byte kmalloc allocations for smaller objects,
+> in the tests you've been doing?
 
-Does it actually make sense to limit kernel memory? The user generally has
-no idea how much kernel memory a process is using and kernel changes can
-change the memory footprint. Given the fuzzy accounting in the kernel a
-large cache refill (if someone configures the slab batch count to be
-really big f.e.) can account a lot of memory to the wrong cgroup. The
-allocation could fail.
+Yes, we have some numbers:
 
-Limiting the total memory use of a process (U+K) would make more sense I
-guess. Only U is probably sufficient? In what way would a limitation on
-kernel memory in use be good?
+http://elinux.org/Kernel_dynamic_memory_analysis#Kmalloc_objects
+
+Are they too informal? I can add some details...
+
+They've been measured on a **very** minimal setup, almost every option
+is stripped out, except from initramfs, sysfs, and trace.
+
+On this scenario, strings allocated for file names and directories
+created by sysfs
+are quite noticeable, being 4-16 bytes, and produce a lot of fragmentation from
+that 32 byte cache at SLAB.
+
+Is an option to enable small caches on SLUB and SLAB worth it?
+
+    Ezequiel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
