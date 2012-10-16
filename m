@@ -1,94 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 718866B006C
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 07:11:41 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so8192039vcb.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:11:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 0B5486B006C
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 07:13:15 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so11893830ied.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:13:15 -0700 (PDT)
+Message-ID: <507D4143.3020108@gmail.com>
+Date: Tue, 16 Oct 2012 19:13:07 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20121016103109.GA21164@n2100.arm.linux.org.uk>
-References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
-	<CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com>
-	<20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
-	<CAAQKjZNQFfxpr-7dFb4cgNB2Gkrxxrswds_fSrYgssxXaqRF7g@mail.gmail.com>
-	<20121016103109.GA21164@n2100.arm.linux.org.uk>
-Date: Tue, 16 Oct 2012 20:11:40 +0900
-Message-ID: <CAAQKjZPf5RYJ75Zsqo=+gadXH1Jx9BFuFUuDCrsrhLKO1_frfg@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
- contiguous allocations
-From: Inki Dae <inki.dae@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v4 00/10, REBASED] Introduce huge zero page
+References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com> <507D2E83.4010702@gmail.com> <20121016105456.GA13265@shutemov.name>
+In-Reply-To: <20121016105456.GA13265@shutemov.name>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Hiroshi Doyu <hdoyu@nvidia.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-tegra@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
 
-Hi Russell,
+On 10/16/2012 06:54 PM, Kirill A. Shutemov wrote:
+> On Tue, Oct 16, 2012 at 05:53:07PM +0800, Ni zhan Chen wrote:
+>>> By hpa request I've tried alternative approach for hzp implementation (see
+>>> Virtual huge zero page patchset): pmd table with all entries set to zero
+>>> page. This way should be more cache friendly, but it increases TLB
+>>> pressure.
+>> Thanks for your excellent works. But could you explain me why
+>> current implementation not cache friendly and hpa's request cache
+>> friendly? Thanks in advance.
+> In workloads like microbenchmark1 you need N * size(zero page) cache
+> space to get zero page fully cached, where N is cache associativity.
+> If zero page is 2M, cache pressure is significant.
+>
+> On other hand with table of 4k zero pages (hpa's proposal) will increase
+> pressure on TLB, since we have more pages for the same memory area. So we
+> have to do more page translation in this case.
+>
+> On my test machine with simple memcmp() virtual huge zero page is faster.
+> But it highly depends on TLB size, cache size, memory access and page
+> translation costs.
+>
+> It looks like cache size in modern processors grows faster than TLB size.
 
-2012/10/16 Russell King - ARM Linux <linux@arm.linux.org.uk>:
-> On Tue, Oct 16, 2012 at 07:12:49PM +0900, Inki Dae wrote:
->> Hi Hiroshi,
->>
->> I'm not sure I understand what you mean but we had already tried this
->> way and for this, you can refer to below link,
->>                http://www.mail-archive.com/dri-devel@lists.freedesktop.org/msg22555.html
->>
->> but this way had been pointed out by drm guys because the pages could
->> be used through gem object after that pages had been freed by free()
->> anyway their pointing was reasonable and I'm trying another way, this
->> is the way that the pages to user space has same life time with dma
->> operation. in other word, if dma completed access to that pages then
->> also that pages will be freed. actually drm-based via driver of
->> mainline kernel is using same way
->
-> I don't know about Hiroshi, but the above "sentence" - and I mean the 7
-> line sentence - is very difficult to understand and wears readers out.
->
+Oh, I see, thanks for your quick response. Another one question belowi 1/4 ?
 
-Sorry for this. Please see below comments.
+>
+>>> The problem with virtual huge zero page: it requires per-arch enabling.
+>>> We need a way to mark that pmd table has all ptes set to zero page.
+>>>
+>>> Some numbers to compare two implementations (on 4s Westmere-EX):
+>>>
+>>> Mirobenchmark1
+>>> ==============
+>>>
+>>> test:
+>>>          posix_memalign((void **)&p, 2 * MB, 8 * GB);
+>>>          for (i = 0; i < 100; i++) {
+>>>                  assert(memcmp(p, p + 4*GB, 4*GB) == 0);
+>>>                  asm volatile ("": : :"memory");
+>>>          }
+>>>
+>>> hzp:
+>>>   Performance counter stats for './test_memcmp' (5 runs):
+>>>
+>>>        32356.272845 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
+>>>                  40 context-switches          #    0.001 K/sec                    ( +-  0.94% )
+>>>                   0 CPU-migrations            #    0.000 K/sec
+>>>               4,218 page-faults               #    0.130 K/sec                    ( +-  0.00% )
+>>>      76,712,481,765 cycles                    #    2.371 GHz                      ( +-  0.13% ) [83.31%]
+>>>      36,279,577,636 stalled-cycles-frontend   #   47.29% frontend cycles idle     ( +-  0.28% ) [83.35%]
+>>>       1,684,049,110 stalled-cycles-backend    #    2.20% backend  cycles idle     ( +-  2.96% ) [66.67%]
+>>>     134,355,715,816 instructions              #    1.75  insns per cycle
+>>>                                               #    0.27  stalled cycles per insn  ( +-  0.10% ) [83.35%]
+>>>      13,526,169,702 branches                  #  418.039 M/sec                    ( +-  0.10% ) [83.31%]
+>>>           1,058,230 branch-misses             #    0.01% of all branches          ( +-  0.91% ) [83.36%]
+>>>
+>>>        32.413866442 seconds time elapsed                                          ( +-  0.13% )
+>>>
+>>> vhzp:
+>>>   Performance counter stats for './test_memcmp' (5 runs):
+>>>
+>>>        30327.183829 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
+>>>                  38 context-switches          #    0.001 K/sec                    ( +-  1.53% )
+>>>                   0 CPU-migrations            #    0.000 K/sec
+>>>               4,218 page-faults               #    0.139 K/sec                    ( +-  0.01% )
+>>>      71,964,773,660 cycles                    #    2.373 GHz                      ( +-  0.13% ) [83.35%]
+>>>      31,191,284,231 stalled-cycles-frontend   #   43.34% frontend cycles idle     ( +-  0.40% ) [83.32%]
+>>>         773,484,474 stalled-cycles-backend    #    1.07% backend  cycles idle     ( +-  6.61% ) [66.67%]
+>>>     134,982,215,437 instructions              #    1.88  insns per cycle
+>>>                                               #    0.23  stalled cycles per insn  ( +-  0.11% ) [83.32%]
+>>>      13,509,150,683 branches                  #  445.447 M/sec                    ( +-  0.11% ) [83.34%]
+>>>           1,017,667 branch-misses             #    0.01% of all branches          ( +-  1.07% ) [83.32%]
+>>>
+>>>        30.381324695 seconds time elapsed                                          ( +-  0.13% )
+>> Could you tell me which data I should care in this performance
+>> counter. And what's the benefit of your current implementation
+>> compare to hpa's request?
 
-> If your GPU hardware has a MMU, then the problem of dealing with userspace
-> pages is very easy.  Do it the same way that the i915 driver and the rest
-> of DRM does.  Use shmem backed memory.
->
-> I'm doing that for the Dove DRM driver and it works a real treat, and as
-> the pages are backed by page cache pages, you can use all the normal
-> page refcounting on them to prevent them being freed until your DMA has
-> completed.  All my X pixmaps are shmem backed drm objects, except for
-> the scanout buffers which are dumb drm objects (because they must be
-> contiguous.)
->
-> In fact, get_user_pages() will take the reference for you before you pass
-> them over to dma_map_sg().  On completion of DMA, you just need to use
-> dma_unmap_sg() and release each page.
->
-
-It's exactly same as ours. Besides, I know get_user_pages() takes 2
-reference counts if the user process has never accessed user region
-allocated by malloc(). Then, if the user calls free(), the page
-reference count becomes 1 and becomes 0 with put_page() call. And the
-reverse holds as well. This means how the pages backed are used by dma
-and freed. dma_map_sg() just does cache operation properly and maps
-these pages with iommu table. There may be my missing point.
-
-Thanks,
-Inki Dae
-
-> If you don't want to use get_user_pages() (which other drivers don't) then
-> you need to following the i915 example and get each page out of shmem
-> individually.
->
-> (My situation on the Dove hardware is a little different, because the
-> kernel DRM driver isn't involved with the GPU - it merely provides the
-> memory for pixmaps.  The GPU software stack, being a chunk of closed
-> source userspace library with open source kernel driver, means that
-> things are more complicated; the kernel side GPU driver uses
-> get_user_pages() to pin them prior to building the GPU's MMU table.)
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Sorry for my unintelligent. Could you tell me which data I should care 
+in this performance counter stats. The same question about the second 
+benchmark counter stats, thanks in adance. :-)
+>>> Mirobenchmark2
+>>> ==============
+>>>
+>>> test:
+>>>          posix_memalign((void **)&p, 2 * MB, 8 * GB);
+>>>          for (i = 0; i < 1000; i++) {
+>>>                  char *_p = p;
+>>>                  while (_p < p+4*GB) {
+>>>                          assert(*_p == *(_p+4*GB));
+>>>                          _p += 4096;
+>>>                          asm volatile ("": : :"memory");
+>>>                  }
+>>>          }
+>>>
+>>> hzp:
+>>>   Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
+>>>
+>>>         3505.727639 task-clock                #    0.998 CPUs utilized            ( +-  0.26% )
+>>>                   9 context-switches          #    0.003 K/sec                    ( +-  4.97% )
+>>>               4,384 page-faults               #    0.001 M/sec                    ( +-  0.00% )
+>>>       8,318,482,466 cycles                    #    2.373 GHz                      ( +-  0.26% ) [33.31%]
+>>>       5,134,318,786 stalled-cycles-frontend   #   61.72% frontend cycles idle     ( +-  0.42% ) [33.32%]
+>>>       2,193,266,208 stalled-cycles-backend    #   26.37% backend  cycles idle     ( +-  5.51% ) [33.33%]
+>>>       9,494,670,537 instructions              #    1.14  insns per cycle
+>>>                                               #    0.54  stalled cycles per insn  ( +-  0.13% ) [41.68%]
+>>>       2,108,522,738 branches                  #  601.451 M/sec                    ( +-  0.09% ) [41.68%]
+>>>             158,746 branch-misses             #    0.01% of all branches          ( +-  1.60% ) [41.71%]
+>>>       3,168,102,115 L1-dcache-loads
+>>>            #  903.693 M/sec                    ( +-  0.11% ) [41.70%]
+>>>       1,048,710,998 L1-dcache-misses
+>>>           #   33.10% of all L1-dcache hits    ( +-  0.11% ) [41.72%]
+>>>       1,047,699,685 LLC-load
+>>>                   #  298.854 M/sec                    ( +-  0.03% ) [33.38%]
+>>>               2,287 LLC-misses
+>>>                 #    0.00% of all LL-cache hits     ( +-  8.27% ) [33.37%]
+>>>       3,166,187,367 dTLB-loads
+>>>                 #  903.147 M/sec                    ( +-  0.02% ) [33.35%]
+>>>           4,266,538 dTLB-misses
+>>>                #    0.13% of all dTLB cache hits   ( +-  0.03% ) [33.33%]
+>>>
+>>>         3.513339813 seconds time elapsed                                          ( +-  0.26% )
+>>>
+>>> vhzp:
+>>>   Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
+>>>
+>>>        27313.891128 task-clock                #    0.998 CPUs utilized            ( +-  0.24% )
+>>>                  62 context-switches          #    0.002 K/sec                    ( +-  0.61% )
+>>>               4,384 page-faults               #    0.160 K/sec                    ( +-  0.01% )
+>>>      64,747,374,606 cycles                    #    2.370 GHz                      ( +-  0.24% ) [33.33%]
+>>>      61,341,580,278 stalled-cycles-frontend   #   94.74% frontend cycles idle     ( +-  0.26% ) [33.33%]
+>>>      56,702,237,511 stalled-cycles-backend    #   87.57% backend  cycles idle     ( +-  0.07% ) [33.33%]
+>>>      10,033,724,846 instructions              #    0.15  insns per cycle
+>>>                                               #    6.11  stalled cycles per insn  ( +-  0.09% ) [41.65%]
+>>>       2,190,424,932 branches                  #   80.195 M/sec                    ( +-  0.12% ) [41.66%]
+>>>           1,028,630 branch-misses             #    0.05% of all branches          ( +-  1.50% ) [41.66%]
+>>>       3,302,006,540 L1-dcache-loads
+>>>            #  120.891 M/sec                    ( +-  0.11% ) [41.68%]
+>>>         271,374,358 L1-dcache-misses
+>>>           #    8.22% of all L1-dcache hits    ( +-  0.04% ) [41.66%]
+>>>          20,385,476 LLC-load
+>>>                   #    0.746 M/sec                    ( +-  1.64% ) [33.34%]
+>>>              76,754 LLC-misses
+>>>                 #    0.38% of all LL-cache hits     ( +-  2.35% ) [33.34%]
+>>>       3,309,927,290 dTLB-loads
+>>>                 #  121.181 M/sec                    ( +-  0.03% ) [33.34%]
+>>>       2,098,967,427 dTLB-misses
+>>>                #   63.41% of all dTLB cache hits   ( +-  0.03% ) [33.34%]
+>>>
+>>>        27.364448741 seconds time elapsed                                          ( +-  0.24% )
+>> For this case, the same question as above, thanks in adance. :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
