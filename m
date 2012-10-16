@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 707766B006E
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:20:26 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so11806786ied.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:20:25 -0700 (PDT)
-Message-ID: <507D34E3.3040705@gmail.com>
-Date: Tue, 16 Oct 2012 18:20:19 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 7C6E66B007D
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:28:03 -0400 (EDT)
+From: Hiroshi Doyu <hdoyu@nvidia.com>
+Date: Tue, 16 Oct 2012 12:27:55 +0200
+Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
+ contiguous allocations
+Message-ID: <20121016.132755.661591248175727826.hdoyu@nvidia.com>
+References: <CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com><20121016090434.7d5e088152a3e0b0606903c8@nvidia.com><20121016085928.GV21164@n2100.arm.linux.org.uk>
+In-Reply-To: <20121016085928.GV21164@n2100.arm.linux.org.uk>
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom, memcg: handle sysctl oom_kill_allocating_task while
- memcg oom happening
-References: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
+Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "inki.dae@samsung.com" <inki.dae@samsung.com>, "arnd@arndb.de" <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>
 
-On 10/16/2012 06:12 PM, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
->
-> Sysctl oom_kill_allocating_task enables or disables killing the OOM-triggering
-> task in out-of-memory situations, but it only works on overall system-wide oom.
-> But it's also a useful indication in memcg so we take it into consideration
-> while oom happening in memcg. Other sysctl such as panic_on_oom has already
-> been memcg-ware.
+Hi Russell,
 
-Is it the resend one or new version, could you add changelog if it is 
-the last case?
+Russell King - ARM Linux <linux@arm.linux.org.uk> wrote @ Tue, 16 Oct 2012 =
+10:59:28 +0200:
 
+> On Tue, Oct 16, 2012 at 09:04:34AM +0300, Hiroshi Doyu wrote:
+> > In addition to those contiguous/discontiguous page allocation, is
+> > there any way to _import_ anonymous pages allocated by a process to be
+> > used in dma-mapping API later?
+> >=20
+> > I'm considering the following scenario, an user process allocates a
+> > buffer by malloc() in advance, and then it asks some driver to convert
+> > that buffer into IOMMU'able/DMA'able ones later. In this case, pages
+> > are discouguous and even they may not be yet allocated at
+> > malloc()/mmap().
+>=20
+> That situation is covered.  It's the streaming API you're wanting for tha=
+t.
+> dma_map_sg() - but you may need additional cache handling via
+> flush_dcache_page() to ensure that your code is safe for all CPU cache
+> architectures.
 >
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> ---
->   mm/memcontrol.c |    9 +++++++++
->   1 files changed, 9 insertions(+), 0 deletions(-)
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e4e9b18..c329940 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1486,6 +1486,15 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->   
->   	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
->   	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
-> +	if (sysctl_oom_kill_allocating_task && current->mm &&
-> +	    !oom_unkillable_task(current, memcg, NULL) &&
-> +	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-> +		get_task_struct(current);
-> +		oom_kill_process(current, gfp_mask, order, 0, totalpages, memcg, NULL,
-> +				 "Memory cgroup out of memory (oom_kill_allocating_task)");
-> +		return;
-> +	}
-> +
->   	for_each_mem_cgroup_tree(iter, memcg) {
->   		struct cgroup *cgroup = iter->css.cgroup;
->   		struct cgroup_iter it;
+> Remember that pages allocated into userspace will be cacheable, so a cach=
+e
+> flush is required before they can be DMA'd.  Hence the streaming
+> API.
+
+Is the syscall "cacheflush()" supposed to be the knob for that?
+
+Or is there any other ones to have more precise control, "clean",
+"invalidate" and "flush", from userland in generic way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
