@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id D779A6B0062
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:27:04 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so12866896ied.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 11:27:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 4BD426B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:36:45 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so12887781ied.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 11:36:44 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <507DA245.9050709@am.sony.com>
 References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
@@ -17,8 +17,8 @@ References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
 	<CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
 	<1350392160.3954.986.camel@edumazet-glaptop>
 	<507DA245.9050709@am.sony.com>
-Date: Tue, 16 Oct 2012 15:27:04 -0300
-Message-ID: <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
+Date: Tue, 16 Oct 2012 15:36:44 -0300
+Message-ID: <CALF0-+XLXAh3=OScQ=V0F80ZcnTGjHox68SApOwPUYVvmjdqPw@mail.gmail.com>
 Subject: Re: [Q] Default SLAB allocator
 From: Ezequiel Garcia <elezegarcia@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -50,25 +50,9 @@ On Tue, Oct 16, 2012 at 3:07 PM, Tim Bird <tim.bird@am.sony.com> wrote:
 > the tradeoff, depending on how bad the performance is.  Maybe
 > a new config option would be useful (I can hear the groans now... :-)
 >
-> Ezequiel - do you have any measurements of how much memory
-> is wasted by 32-byte kmalloc allocations for smaller objects,
-> in the tests you've been doing?
 
-Yes, we have some numbers:
-
-http://elinux.org/Kernel_dynamic_memory_analysis#Kmalloc_objects
-
-Are they too informal? I can add some details...
-
-They've been measured on a **very** minimal setup, almost every option
-is stripped out, except from initramfs, sysfs, and trace.
-
-On this scenario, strings allocated for file names and directories
-created by sysfs
-are quite noticeable, being 4-16 bytes, and produce a lot of fragmentation from
-that 32 byte cache at SLAB.
-
-Is an option to enable small caches on SLUB and SLAB worth it?
+It might be worth reminding that very small systems can use SLOB
+allocator, which does not suffer from this kind of fragmentation.
 
     Ezequiel
 
