@@ -1,86 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id B5D036B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 09:34:43 -0400 (EDT)
-Date: Tue, 16 Oct 2012 15:34:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom, memcg: handle sysctl oom_kill_allocating_task while
- memcg oom happening
-Message-ID: <20121016133439.GI13991@dhcp22.suse.cz>
-References: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 640146B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 09:47:04 -0400 (EDT)
+Received: from mail-ee0-f41.google.com ([74.125.83.41])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1TO7U7-0004fN-Bd
+	for linux-mm@kvack.org; Tue, 16 Oct 2012 13:47:03 +0000
+Received: by mail-ee0-f41.google.com with SMTP id c4so3930228eek.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:47:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <20121016130927.GA5603@barrios>
+References: <1350278059-14904-1-git-send-email-ming.lei@canonical.com>
+	<1350278059-14904-2-git-send-email-ming.lei@canonical.com>
+	<20121015154724.GA2840@barrios>
+	<CACVXFVM09H=8ZuFSzkcN1NmOCR1pcPUsuUyT9tpR0doVam2BiQ@mail.gmail.com>
+	<20121016054946.GA3934@barrios>
+	<CACVXFVOdohPprD7N69=Tz2keTbLG7b-s5324OUX-oY84Jszumg@mail.gmail.com>
+	<20121016130927.GA5603@barrios>
+Date: Tue, 16 Oct 2012 21:47:03 +0800
+Message-ID: <CACVXFVMr=JMNHFe1GO=di99eB-6-=_pBkP3QH4x_qtKhdRZMFw@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/3] mm: teach mm by current context info to not do
+ I/O during memory allocation
+From: Ming Lei <ming.lei@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Jiri Kosina <jiri.kosina@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
 
-On Tue 16-10-12 18:12:08, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
-> 
-> Sysctl oom_kill_allocating_task enables or disables killing the OOM-triggering
-> task in out-of-memory situations, but it only works on overall system-wide oom.
-> But it's also a useful indication in memcg so we take it into consideration
-> while oom happening in memcg. Other sysctl such as panic_on_oom has already
-> been memcg-ware.
+On Tue, Oct 16, 2012 at 9:09 PM, Minchan Kim <minchan@kernel.org> wrote:
+>
+> Good point. You can check it in __zone_reclaim and change gfp_mask of scan_control
+> because it's never hot path.
+>
+>>
+>> So could you make sure it is safe to move the branch into
+>> __alloc_pages_slowpath()?  If so, I will add the check into
+>> gfp_to_alloc_flags().
+>
+> How about this?
 
-Could you be more specific about the motivation for this patch? Is it
-"let's be consistent with the global oom" or you have a real use case
-for this knob.
+It is quite smart change, :-)
 
-The primary motivation for oom_kill_allocating_task AFAIU was to reduce
-search over huge tasklists and reduce task_lock holding times. I am not
-sure whether the original concern is still valid since 6b0c81b (mm,
-oom: reduce dependency on tasklist_lock) as the tasklist_lock usage has
-been reduced conciderably in favor of RCU read locks is taken but maybe
-even that can be too disruptive?
-David?
+Considered that other part(sched.h) of the patch need update, I
+will merge your change into -v1 for further review with your
+Signed-off-by if you have no objection.
 
-Moreover memcg oom killer doesn't iterate over tasklist (it uses
-cgroup_iter*) so this shouldn't cause the performance problem like
-for the global case.
-On the other hand we are taking css_set_lock for reading for the whole
-iteration which might cause some issues as well but those should better
-be described in the changelog.
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index d976957..b3607fa 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2614,10 +2614,16 @@ retry_cpuset:
+>         page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+>                         zonelist, high_zoneidx, alloc_flags,
+>                         preferred_zone, migratetype);
+> -       if (unlikely(!page))
+> +       if (unlikely(!page)) {
+> +               /*
+> +                * Resume path can deadlock because block device
+> +                * isn't active yet.
+> +                */
 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> ---
->  mm/memcontrol.c |    9 +++++++++
->  1 files changed, 9 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e4e9b18..c329940 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1486,6 +1486,15 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  
->  	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
->  	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
-> +	if (sysctl_oom_kill_allocating_task && current->mm &&
-> +	    !oom_unkillable_task(current, memcg, NULL) &&
-> +	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-> +		get_task_struct(current);
-> +		oom_kill_process(current, gfp_mask, order, 0, totalpages, memcg, NULL,
-> +				 "Memory cgroup out of memory (oom_kill_allocating_task)");
-> +		return;
-> +	}
+Not only resume path, I/O transfer or its error handling path may deadlock too.
+
+> +               if (unlikely(tsk_memalloc_no_io(current)))
+> +                       gfp_mask &= ~GFP_IOFS;
+>                 page = __alloc_pages_slowpath(gfp_mask, order,
+>                                 zonelist, high_zoneidx, nodemask,
+>                                 preferred_zone, migratetype);
+> +       }
+>
+>         trace_mm_page_alloc(page, order, gfp_mask, migratetype);
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index b5e45f4..6c2ccdd 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3290,6 +3290,16 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+>         };
+>         unsigned long nr_slab_pages0, nr_slab_pages1;
+>
+> +       if (unlikely(tsk_memalloc_no_io(current))) {
+> +               sc.gfp_mask &= ~GFP_IOFS;
+> +               shrink.gfp_mask = sc.gfp_mask;
+> +               /*
+> +                * We allow to reclaim only clean pages.
+> +                * It can affect RECLAIM_SWAP and RECLAIM_WRITE mode
+> +                * but this is really rare event and allocator can
+>                  * fallback to other zones.
+> +                */
+> +               sc.may_writepage = 0;
+> +               sc.may_swap = 0;
+> +       }
 > +
->  	for_each_mem_cgroup_tree(iter, memcg) {
->  		struct cgroup *cgroup = iter->css.cgroup;
->  		struct cgroup_iter it;
-> -- 
-> 1.7.6.1
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>         cond_resched();
+>         /*
+>          * We need to be able to allocate from the reserves for RECLAIM_SWAP
+>
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
