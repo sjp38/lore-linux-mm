@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 98FD86B0044
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:59:49 -0400 (EDT)
-Date: Tue, 16 Oct 2012 09:59:28 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
-	contiguous allocations
-Message-ID: <20121016085928.GV21164@n2100.arm.linux.org.uk>
-References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com> <CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com> <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 1A55C6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 05:30:16 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so4289360wey.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 02:30:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
+In-Reply-To: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
+References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
+Date: Tue, 16 Oct 2012 11:30:14 +0200
+Message-ID: <CAKMK7uEuwYG8F=OL6rOrYWWjdmDhA2UZSFTYO7xETi=4DJigLQ@mail.gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
+ contiguous allocations
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroshi Doyu <hdoyu@nvidia.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Inki Dae <inki.dae@samsung.com>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-tegra@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Inki Dae <inki.dae@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-On Tue, Oct 16, 2012 at 09:04:34AM +0300, Hiroshi Doyu wrote:
-> In addition to those contiguous/discontiguous page allocation, is
-> there any way to _import_ anonymous pages allocated by a process to be
-> used in dma-mapping API later?
-> 
-> I'm considering the following scenario, an user process allocates a
-> buffer by malloc() in advance, and then it asks some driver to convert
-> that buffer into IOMMU'able/DMA'able ones later. In this case, pages
-> are discouguous and even they may not be yet allocated at
-> malloc()/mmap().
+On Mon, Oct 15, 2012 at 4:03 PM, Marek Szyprowski
+<m.szyprowski@samsung.com> wrote:
+> Some devices, which have IOMMU, for some use cases might require to
+> allocate a buffers for DMA which is contiguous in physical memory. Such
+> use cases appears for example in DRM subsystem when one wants to improve
+> performance or use secure buffer protection.
+>
+> I would like to ask if adding a new attribute, as proposed in this RFC
+> is a good idea? I feel that it might be an attribute just for a single
+> driver, but I would like to know your opinion. Should we look for other
+> solution?
 
-That situation is covered.  It's the streaming API you're wanting for that.
-dma_map_sg() - but you may need additional cache handling via
-flush_dcache_page() to ensure that your code is safe for all CPU cache
-architectures.
+One thing to consider is that up to know all allocation constraints
+have been stored somewhere in struct device, either in the dma
+attributes (for the more generic stuff) or somewhere in platform
+specific data (e.g. for special cma pools). The design of dma_buf
+relies on this: The exporter/buffer allocator only sees all the struct
+device *devs that want to take part in sharing a given buffer. With
+this proposal some of these allocation constraints get moved to alloc
+time and aren't visible in the struct device any more. Now I that
+dma_buf isn't really there yet and no one has yet implemented a
+generic exporter that would allocate the dma_buf at the right spot for
+all cases, but I think we should consider this to not draw ourselves
+into an ugly api corner.
 
-Remember that pages allocated into userspace will be cacheable, so a cache
-flush is required before they can be DMA'd.  Hence the streaming API.
+Cheers, Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
