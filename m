@@ -1,53 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 07B8E6B005D
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 11:31:14 -0400 (EDT)
-Date: Tue, 16 Oct 2012 15:31:13 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v5 07/14] mm: Allocate kernel pages to the right memcg
-In-Reply-To: <1350382611-20579-8-git-send-email-glommer@parallels.com>
-Message-ID: <0000013a6a333867-52b0d904-5ca2-4095-8c46-5a4dfc021cde-000000@email.amazonses.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-8-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 5B00A6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 12:00:29 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so6910241pbb.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 09:00:28 -0700 (PDT)
+From: Ming Lei <ming.lei@canonical.com>
+Subject: [RFC PATCH v1 1/3] mm: teach mm by current context info to not do I/O during memory allocation
+Date: Tue, 16 Oct 2012 23:59:41 +0800
+Message-Id: <1350403183-12650-2-git-send-email-ming.lei@canonical.com>
+In-Reply-To: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
+References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: linux-kernel@vger.kernel.org
+Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Ming Lei <ming.lei@canonical.com>, Jiri Kosina <jiri.kosina@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 16 Oct 2012, Glauber Costa wrote:
+This patch introduces PF_MEMALLOC_NOIO on process flag('flags' field of
+'struct task_struct'), so that the flag can be set by one task
+to avoid doing I/O inside memory allocation in the task's context.
 
-> To avoid adding markers to the page - and a kmem flag that would
-> necessarily follow, as much as doing page_cgroup lookups for no reason,
-> whoever is marking its allocations with __GFP_KMEMCG flag is responsible
-> for telling the page allocator that this is such an allocation at
-> free_pages() time. This is done by the invocation of
-> __free_accounted_pages() and free_accounted_pages().
+The patch trys to solve one deadlock problem caused by block device,
+and the problem may happen at least in the below situations:
 
-Hmmm... The code paths to free pages are often shared between multiple
-subsystems. Are you sure that this is actually working and accurately
-tracks the MEMCG pages?
+- during block device runtime resume, if memory allocation with
+GFP_KERNEL is called inside runtime resume callback of any one
+of its ancestors(or the block device itself), the deadlock may be
+triggered inside the memory allocation since it might not complete
+until the block device becomes active and the involed page I/O finishes.
+The situation is pointed out first by Alan Stern. It is not a good
+approach to convert all GFP_KERNEL in the path into GFP_NOIO because
+several subsystems may be involved(for example, PCI, USB and SCSI may
+be involved for usb mass stoarage device)
 
-> +/*
-> + * __free_accounted_pages and free_accounted_pages will free pages allocated
-> + * with __GFP_KMEMCG.
-> + *
-> + * Those pages are accounted to a particular memcg, embedded in the
-> + * corresponding page_cgroup. To avoid adding a hit in the allocator to search
-> + * for that information only to find out that it is NULL for users who have no
-> + * interest in that whatsoever, we provide these functions.
-> + *
-> + * The caller knows better which flags it relies on.
-> + */
-> +void __free_accounted_pages(struct page *page, unsigned int order)
-> +{
-> +	memcg_kmem_uncharge_page(page, order);
-> +	__free_pages(page, order);
-> +}
+- during error handling of usb mass storage deivce, USB bus reset
+will be put on the device, so there shouldn't have any
+memory allocation with GFP_KERNEL during USB bus reset, otherwise
+the deadlock similar with above may be triggered. Unfortunately, any
+usb device may include one mass storage interface in theory, so it
+requires all usb interface drivers to handle the situation. In fact,
+most usb drivers don't know how to handle bus reset on the device
+and don't provide .pre_set() and .post_reset() callback at all, so
+USB core has to unbind and bind driver for these devices. So it
+is still not practical to resort to GFP_NOIO for solving the problem.
 
-If we already are introducing such an API: Could it not be made more
-general so that it can also be used in the future to communicate other
-characteristics of a page on free?
+Also the introduced solution can be used by block subsystem or block
+drivers too, for example, set the PF_MEMALLOC_NOIO flag before doing
+actual I/O transfer.
+
+Cc: Alan Stern <stern@rowland.harvard.edu>
+Cc: Oliver Neukum <oneukum@suse.de>
+Cc: Jiri Kosina <jiri.kosina@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-mm <linux-mm@kvack.org>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Ming Lei <ming.lei@canonical.com>
+---
+ include/linux/sched.h |   11 +++++++++++
+ mm/page_alloc.c       |   10 +++++++++-
+ mm/vmscan.c           |   13 +++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index f6961c9..c149ae7 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1811,6 +1811,7 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
+ #define PF_FROZEN	0x00010000	/* frozen for system suspend */
+ #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
+ #define PF_KSWAPD	0x00040000	/* I am kswapd */
++#define PF_MEMALLOC_NOIO 0x00080000	/* Allocating memory without IO involved */
+ #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
+ #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
+ #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+@@ -1848,6 +1849,16 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
+ #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
+ #define used_math() tsk_used_math(current)
+ 
++#define memalloc_noio() (current->flags & PF_MEMALLOC_NOIO)
++#define memalloc_noio_save(noio_flag) do { \
++	(noio_flag) = current->flags & PF_MEMALLOC_NOIO; \
++	current->flags |= PF_MEMALLOC_NOIO; \
++} while (0)
++#define memalloc_noio_restore(noio_flag) do { \
++	if (!(noio_flag)) \
++		current->flags &= ~PF_MEMALLOC_NOIO; \
++} while (0)
++
+ /*
+  * task->jobctl flags
+  */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8e1be1c..e3746dd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2630,10 +2630,18 @@ retry_cpuset:
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+ 			zonelist, high_zoneidx, alloc_flags,
+ 			preferred_zone, migratetype);
+-	if (unlikely(!page))
++	if (unlikely(!page)) {
++		/*
++		 * Resume, block IO and its error handling path
++		 * can deadlock because I/O on the device might not
++		 * complete.
++		 */
++		if (unlikely(memalloc_noio()))
++			gfp_mask &= ~GFP_IOFS;
+ 		page = __alloc_pages_slowpath(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+ 				preferred_zone, migratetype);
++	}
+ 
+ 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1e9aa66..6647805 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3298,6 +3298,19 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	};
+ 	unsigned long nr_slab_pages0, nr_slab_pages1;
+ 
++	if (unlikely(memalloc_noio())) {
++		sc.gfp_mask &= ~GFP_IOFS;
++		shrink.gfp_mask = sc.gfp_mask;
++		/*
++		 * We allow to reclaim only clean pages.
++		 * It can affect RECLAIM_SWAP and RECLAIM_WRITE mode
++		 * but this is really rare event and allocator can
++		 * fallback to other zones.
++		 */
++		sc.may_writepage = 0;
++		sc.may_swap = 0;
++	}
++
+ 	cond_resched();
+ 	/*
+ 	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
