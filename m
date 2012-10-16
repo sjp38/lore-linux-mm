@@ -1,87 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 9667D6B0044
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:12:50 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id v13so7435615vbk.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:12:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
-References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
-	<CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com>
-	<20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
-Date: Tue, 16 Oct 2012 19:12:49 +0900
-Message-ID: <CAAQKjZNQFfxpr-7dFb4cgNB2Gkrxxrswds_fSrYgssxXaqRF7g@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
- contiguous allocations
-From: Inki Dae <inki.dae@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
+	by kanga.kvack.org (Postfix) with SMTP id 749E66B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:17:16 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v5 01/14] memcg: Make it possible to use the stock for more than one page.
+Date: Tue, 16 Oct 2012 14:16:38 +0400
+Message-Id: <1350382611-20579-2-git-send-email-glommer@parallels.com>
+In-Reply-To: <1350382611-20579-1-git-send-email-glommer@parallels.com>
+References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hiroshi Doyu <hdoyu@nvidia.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-tegra@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
 
-Hi Hiroshi,
+From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
 
-2012/10/16 Hiroshi Doyu <hdoyu@nvidia.com>:
-> Hi Inki/Marek,
->
-> On Tue, 16 Oct 2012 02:50:16 +0200
-> Inki Dae <inki.dae@samsung.com> wrote:
->
->> 2012/10/15 Marek Szyprowski <m.szyprowski@samsung.com>:
->> > Hello,
->> >
->> > Some devices, which have IOMMU, for some use cases might require to
->> > allocate a buffers for DMA which is contiguous in physical memory. Such
->> > use cases appears for example in DRM subsystem when one wants to improve
->> > performance or use secure buffer protection.
->> >
->> > I would like to ask if adding a new attribute, as proposed in this RFC
->> > is a good idea? I feel that it might be an attribute just for a single
->> > driver, but I would like to know your opinion. Should we look for other
->> > solution?
->> >
->>
->> In addition, currently we have worked dma-mapping-based iommu support
->> for exynos drm driver with this patch set so this patch set has been
->> tested with iommu enabled exynos drm driver and worked fine. actually,
->> this feature is needed for secure mode such as TrustZone. in case of
->> Exynos SoC, memory region for secure mode should be physically
->> contiguous and also maybe OMAP but now dma-mapping framework doesn't
->> guarantee physically continuous memory allocation so this patch set
->> would make it possible.
->
-> Agree that the contigous memory allocation is necessary for us too.
->
-> In addition to those contiguous/discontiguous page allocation, is
-> there any way to _import_ anonymous pages allocated by a process to be
-> used in dma-mapping API later?
->
-> I'm considering the following scenario, an user process allocates a
-> buffer by malloc() in advance, and then it asks some driver to convert
-> that buffer into IOMMU'able/DMA'able ones later. In this case, pages
-> are discouguous and even they may not be yet allocated at
-> malloc()/mmap().
->
+We currently have a percpu stock cache scheme that charges one page at a
+time from memcg->res, the user counter. When the kernel memory
+controller comes into play, we'll need to charge more than that.
 
-I'm not sure I understand what you mean but we had already tried this
-way and for this, you can refer to below link,
-               http://www.mail-archive.com/dri-devel@lists.freedesktop.org/msg22555.html
+This is because kernel memory allocations will also draw from the user
+counter, and can be bigger than a single page, as it is the case with
+the stack (usually 2 pages) or some higher order slabs.
 
-but this way had been pointed out by drm guys because the pages could
-be used through gem object after that pages had been freed by free()
-anyway their pointing was reasonable and I'm trying another way, this
-is the way that the pages to user space has same life time with dma
-operation. in other word, if dma completed access to that pages then
-also that pages will be freed. actually drm-based via driver of
-mainline kernel is using same way
+[ glommer@parallels.com: added a changelog ]
 
+Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+CC: Tejun Heo <tj@kernel.org>
+---
+ mm/memcontrol.c | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7acf43b..47cb019 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2028,20 +2028,28 @@ struct memcg_stock_pcp {
+ static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
+ static DEFINE_MUTEX(percpu_charge_mutex);
+ 
+-/*
+- * Try to consume stocked charge on this cpu. If success, one page is consumed
+- * from local stock and true is returned. If the stock is 0 or charges from a
+- * cgroup which is not current target, returns false. This stock will be
+- * refilled.
++/**
++ * consume_stock: Try to consume stocked charge on this cpu.
++ * @memcg: memcg to consume from.
++ * @nr_pages: how many pages to charge.
++ *
++ * The charges will only happen if @memcg matches the current cpu's memcg
++ * stock, and at least @nr_pages are available in that stock.  Failure to
++ * service an allocation will refill the stock.
++ *
++ * returns true if succesfull, false otherwise.
+  */
+-static bool consume_stock(struct mem_cgroup *memcg)
++static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
+ {
+ 	struct memcg_stock_pcp *stock;
+ 	bool ret = true;
+ 
++	if (nr_pages > CHARGE_BATCH)
++		return false;
++
+ 	stock = &get_cpu_var(memcg_stock);
+-	if (memcg == stock->cached && stock->nr_pages)
+-		stock->nr_pages--;
++	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
++		stock->nr_pages -= nr_pages;
+ 	else /* need to call res_counter_charge */
+ 		ret = false;
+ 	put_cpu_var(memcg_stock);
+@@ -2340,7 +2348,7 @@ again:
+ 		VM_BUG_ON(css_is_removed(&memcg->css));
+ 		if (mem_cgroup_is_root(memcg))
+ 			goto done;
+-		if (nr_pages == 1 && consume_stock(memcg))
++		if (consume_stock(memcg, nr_pages))
+ 			goto done;
+ 		css_get(&memcg->css);
+ 	} else {
+@@ -2365,7 +2373,7 @@ again:
+ 			rcu_read_unlock();
+ 			goto done;
+ 		}
+-		if (nr_pages == 1 && consume_stock(memcg)) {
++		if (consume_stock(memcg, nr_pages)) {
+ 			/*
+ 			 * It seems dagerous to access memcg without css_get().
+ 			 * But considering how consume_stok works, it's not
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
