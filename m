@@ -1,55 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 514856B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:56:56 -0400 (EDT)
-Date: Tue, 16 Oct 2012 14:55:42 -0400
-From: Aristeu Rozanski <aris@ruivo.org>
-Subject: Re: [PATCH v5 14/14] Add documentation about the kmem controller
-Message-ID: <20121016185542.GA5423@cathedrallabs.org>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
- <1350382611-20579-15-git-send-email-glommer@parallels.com>
- <0000013a6ad26c73-d043cf97-c44a-45c1-9cae-0a962e93a005-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <0000013a6ad26c73-d043cf97-c44a-45c1-9cae-0a962e93a005-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 4A16C6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 14:58:13 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so7024922pad.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 11:58:12 -0700 (PDT)
+From: raghu.prabhu13@gmail.com
+Subject: [PATCH] Change the check for PageReadahead into an else-if
+Date: Wed, 17 Oct 2012 00:28:05 +0530
+Message-Id: <08589dd39c78346ec2ed2fedfd6e3121ca38acda.1350413420.git.rprabhu@wnohang.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: zheng.yan@oracle.com, fengguang.wu@intel.com
+Cc: linux-mm@kvack.org, linux-btrfs@vger.kernel.org, Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-On Tue, Oct 16, 2012 at 06:25:06PM +0000, Christoph Lameter wrote:
-> On Tue, 16 Oct 2012, Glauber Costa wrote:
-> 
-> >
-> > + memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
-> > + memory.kmem.usage_in_bytes      # show current kernel memory allocation
-> > + memory.kmem.failcnt             # show the number of kernel memory usage hits limits
-> > + memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
-> 
-> Does it actually make sense to limit kernel memory? The user generally has
-> no idea how much kernel memory a process is using and kernel changes can
-> change the memory footprint. Given the fuzzy accounting in the kernel a
-> large cache refill (if someone configures the slab batch count to be
-> really big f.e.) can account a lot of memory to the wrong cgroup. The
-> allocation could fail.
-> 
-> Limiting the total memory use of a process (U+K) would make more sense I
-> guess. Only U is probably sufficient? In what way would a limitation on
-> kernel memory in use be good?
+From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-It's about preventing abuses caused by bugs or malicious use and avoiding
-groups stepping on each others' toes. You're saying that letting a group
-to allocate 32GB of paged memory is the same as 32GB of kernel memory?
+>From 51daa88ebd8e0d437289f589af29d4b39379ea76, page_sync_readahead coalesces
+async readahead into its readahead window, so another checking for that again is
+not required.
 
-I don't belive sysadmins will keep a tight limit for kernel memory but rather
-a safety limit in case something goes wrong. usage_in_bytes will provide
-data to get the limits better adjusted.
+Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
+---
+ fs/btrfs/relocation.c | 10 ++++------
+ mm/filemap.c          |  3 +--
+ 2 files changed, 5 insertions(+), 8 deletions(-)
 
-The innacuracy of the kmem accounting is (AFAIK) a cost tradeoff.
-
---
-Aristeu
+diff --git a/fs/btrfs/relocation.c b/fs/btrfs/relocation.c
+index 4da0865..6362003 100644
+--- a/fs/btrfs/relocation.c
++++ b/fs/btrfs/relocation.c
+@@ -2996,12 +2996,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
+ 				ret = -ENOMEM;
+ 				goto out;
+ 			}
+-		}
+-
+-		if (PageReadahead(page)) {
+-			page_cache_async_readahead(inode->i_mapping,
+-						   ra, NULL, page, index,
+-						   last_index + 1 - index);
++		} else if (PageReadahead(page)) {
++				page_cache_async_readahead(inode->i_mapping,
++							ra, NULL, page, index,
++							last_index + 1 - index);
+ 		}
+ 
+ 		if (!PageUptodate(page)) {
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 3843445..d703224 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1113,8 +1113,7 @@ find_page:
+ 			page = find_get_page(mapping, index);
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+-		}
+-		if (PageReadahead(page)) {
++		} else if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+ 					index, last_index - index);
+-- 
+1.7.12.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
