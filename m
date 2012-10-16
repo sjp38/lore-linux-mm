@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id F13F06B005A
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 08:52:17 -0400 (EDT)
-Message-ID: <507D5873.6010106@redhat.com>
-Date: Tue, 16 Oct 2012 08:52:03 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: compaction: Correct the nr_strict_isolated check
- for CMA
-References: <20121016083927.GG29125@suse.de>
-In-Reply-To: <20121016083927.GG29125@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 918156B005A
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 08:56:05 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id jm1so2920358bkc.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 05:56:03 -0700 (PDT)
+Subject: Re: [Q] Default SLAB allocator
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
+References: 
+	 <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	 <m27gqwtyu9.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	 <m2391ktxjj.fsf@firstfloor.org>
+	 <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
+	 <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
+	 <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
+	 <alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com>
+	 <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 16 Oct 2012 14:56:00 +0200
+Message-ID: <1350392160.3954.986.camel@edumazet-glaptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Richard Davies <richard@arachsys.com>, Shaohua Li <shli@kernel.org>, Avi Kivity <avi@redhat.com>, Arnd Bergmann <arnd@arndb.de>, QEMU-devel <qemu-devel@nongnu.org>, KVM <kvm@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Arm Kernel Mailing List <linux-arm-kernel@lists.infradead.org>
+To: Ezequiel Garcia <elezegarcia@gmail.com>
+Cc: David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Tim Bird <tim.bird@am.sony.com>, celinux-dev@lists.celinuxforum.org
 
-On 10/16/2012 04:39 AM, Mel Gorman wrote:
-> Thierry reported that the "iron out" patch for isolate_freepages_block()
-> had problems due to the strict check being too strict with "mm: compaction:
-> Iron out isolate_freepages_block() and isolate_freepages_range() -fix1".
-> It's possible that more pages than necessary are isolated but the check
-> still fails and I missed that this fix was not picked up before RC1. This
-> same problem has been identified in 3.7-RC1 by Tony Prisk and should be
-> addressed by the following patch.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Tested-by: Tony Prisk <linux@prisktech.co.nz>
+On Tue, 2012-10-16 at 09:35 -0300, Ezequiel Garcia wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Now, returning to the fragmentation. The problem with SLAB is that
+> its smaller cache available for kmalloced objects is 32 bytes;
+> while SLUB allows 8, 16, 24 ...
+> 
+> Perhaps adding smaller caches to SLAB might make sense?
+> Is there any strong reason for NOT doing this?
 
--- 
-All rights reversed
+I would remove small kmalloc-XX caches, as sharing a cache line
+is sometime dangerous for performance, because of false sharing.
+
+They make sense only for very small hosts.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
