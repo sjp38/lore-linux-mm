@@ -1,106 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 36D146B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 16:19:35 -0400 (EDT)
-Date: Tue, 16 Oct 2012 13:19:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH v1 1/3] mm: teach mm by current context info to not
- do I/O during memory allocation
-Message-Id: <20121016131933.c196457a.akpm@linux-foundation.org>
-In-Reply-To: <1350403183-12650-2-git-send-email-ming.lei@canonical.com>
-References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
-	<1350403183-12650-2-git-send-email-ming.lei@canonical.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 129316B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 18:54:27 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so7238226pad.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 15:54:26 -0700 (PDT)
+References: <CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com> <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com> <CAAQKjZNQFfxpr-7dFb4cgNB2Gkrxxrswds_fSrYgssxXaqRF7g@mail.gmail.com> <20121016.171338.1300372057637804407.hdoyu@nvidia.com>
+In-Reply-To: <20121016.171338.1300372057637804407.hdoyu@nvidia.com>
+Mime-Version: 1.0 (1.0)
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=euc-kr
+Message-Id: <A52B7C89-16F2-44A0-A9FF-2EB599F4F074@gmail.com>
+From: Inki Dae <daeinki@gmail.com>
+Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically contiguous allocations
+Date: Wed, 17 Oct 2012 07:54:17 +0900
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: Hiroshi Doyu <hdoyu@nvidia.com>
+Cc: "inki.dae@samsung.com" <inki.dae@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "arnd@arndb.de" <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>
 
-On Tue, 16 Oct 2012 23:59:41 +0800
-Ming Lei <ming.lei@canonical.com> wrote:
+Hi Hiroshi,
 
-> This patch introduces PF_MEMALLOC_NOIO on process flag('flags' field of
-> 'struct task_struct'), so that the flag can be set by one task
-> to avoid doing I/O inside memory allocation in the task's context.
-> 
-> The patch trys to solve one deadlock problem caused by block device,
-> and the problem may happen at least in the below situations:
-> 
-> - during block device runtime resume, if memory allocation with
-> GFP_KERNEL is called inside runtime resume callback of any one
-> of its ancestors(or the block device itself), the deadlock may be
-> triggered inside the memory allocation since it might not complete
-> until the block device becomes active and the involed page I/O finishes.
-> The situation is pointed out first by Alan Stern. It is not a good
-> approach to convert all GFP_KERNEL in the path into GFP_NOIO because
-> several subsystems may be involved(for example, PCI, USB and SCSI may
-> be involved for usb mass stoarage device)
-> 
-> - during error handling of usb mass storage deivce, USB bus reset
-> will be put on the device, so there shouldn't have any
-> memory allocation with GFP_KERNEL during USB bus reset, otherwise
-> the deadlock similar with above may be triggered. Unfortunately, any
-> usb device may include one mass storage interface in theory, so it
-> requires all usb interface drivers to handle the situation. In fact,
-> most usb drivers don't know how to handle bus reset on the device
-> and don't provide .pre_set() and .post_reset() callback at all, so
-> USB core has to unbind and bind driver for these devices. So it
-> is still not practical to resort to GFP_NOIO for solving the problem.
-> 
-> Also the introduced solution can be used by block subsystem or block
-> drivers too, for example, set the PF_MEMALLOC_NOIO flag before doing
-> actual I/O transfer.
 
-The patch seems reasonable to me.  I'd like to see some examples of
-these resume-time callsite which are performing the GFP_KERNEL
-allocations, please.  You have found some kernel bugs, so those should
-be fully described.
 
-> @@ -1848,6 +1849,16 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
->  #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
->  #define used_math() tsk_used_math(current)
->  
-> +#define memalloc_noio() (current->flags & PF_MEMALLOC_NOIO)
-> +#define memalloc_noio_save(noio_flag) do { \
-> +	(noio_flag) = current->flags & PF_MEMALLOC_NOIO; \
-> +	current->flags |= PF_MEMALLOC_NOIO; \
-> +} while (0)
-> +#define memalloc_noio_restore(noio_flag) do { \
-> +	if (!(noio_flag)) \
-> +		current->flags &= ~PF_MEMALLOC_NOIO; \
-> +} while (0)
+2012. 10. 16. =BF=C0=C8=C4 11:13 Hiroshi Doyu <hdoyu@nvidia.com> =C0=DB=BC=BA=
+:
 
-This is just awful.  Why oh why do we write code in macros when we have
-a nice C compiler?
+> Hi Inki,
+>=20
+> Inki Dae <inki.dae@samsung.com> wrote @ Tue, 16 Oct 2012 12:12:49 +0200:
+>=20
+>> Hi Hiroshi,
+>>=20
+>> 2012/10/16 Hiroshi Doyu <hdoyu@nvidia.com>:
+>>> Hi Inki/Marek,
+>>>=20
+>>> On Tue, 16 Oct 2012 02:50:16 +0200
+>>> Inki Dae <inki.dae@samsung.com> wrote:
+>>>=20
+>>>> 2012/10/15 Marek Szyprowski <m.szyprowski@samsung.com>:
+>>>>> Hello,
+>>>>>=20
+>>>>> Some devices, which have IOMMU, for some use cases might require to
+>>>>> allocate a buffers for DMA which is contiguous in physical memory. Suc=
+h
+>>>>> use cases appears for example in DRM subsystem when one wants to impro=
+ve
+>>>>> performance or use secure buffer protection.
+>>>>>=20
+>>>>> I would like to ask if adding a new attribute, as proposed in this RFC=
 
-These can all be done as nice, clean, type-safe, documented C
-functions.  And if they can be done that way, they *should* be done
-that way!
+>>>>> is a good idea? I feel that it might be an attribute just for a single=
 
-And I suggest that a better name for memalloc_noio_save() is
-memalloc_noio_set().  So this:
+>>>>> driver, but I would like to know your opinion. Should we look for othe=
+r
+>>>>> solution?
+>>>>>=20
+>>>>=20
+>>>> In addition, currently we have worked dma-mapping-based iommu support
+>>>> for exynos drm driver with this patch set so this patch set has been
+>>>> tested with iommu enabled exynos drm driver and worked fine. actually,
+>>>> this feature is needed for secure mode such as TrustZone. in case of
+>>>> Exynos SoC, memory region for secure mode should be physically
+>>>> contiguous and also maybe OMAP but now dma-mapping framework doesn't
+>>>> guarantee physically continuous memory allocation so this patch set
+>>>> would make it possible.
+>>>=20
+>>> Agree that the contigous memory allocation is necessary for us too.
+>>>=20
+>>> In addition to those contiguous/discontiguous page allocation, is
+>>> there any way to _import_ anonymous pages allocated by a process to be
+>>> used in dma-mapping API later?
+>>>=20
+>>> I'm considering the following scenario, an user process allocates a
+>>> buffer by malloc() in advance, and then it asks some driver to convert
+>>> that buffer into IOMMU'able/DMA'able ones later. In this case, pages
+>>> are discouguous and even they may not be yet allocated at
+>>> malloc()/mmap().
+>>>=20
+>>=20
+>> I'm not sure I understand what you mean but we had already tried this
+>> way and for this, you can refer to below link,
+>>               http://www.mail-archive.com/dri-devel@lists.freedesktop.org=
+/msg22555.html
+>=20
+> The above patch doesn't seem to have so much platform/SoC specific
+> code but rather it could common over other SoC as well. Is there any
+> plan to make it more generic, which can be used by other DRM drivers?
+>=20
 
-static inline unsigned memalloc_noio(void)
-{
-	return current->flags & PF_MEMALLOC_NOIO;
-}
+Right, the above patch has no any platform/SoC specific code but doesn't use=
+ dma-mapping API . Anyway we should refrain from using such thing because ge=
+m object could still be used and shared with other processes even if user pr=
+ocess freed user region allocated by malloc()
 
-static inline unsigned memalloc_noio_set(unsigned flags)
-{
-	unsigned ret = memalloc_noio();
+And our new patch in progress would resolve this issue and this way is simil=
+ar to drm-based via driver of mainline kernel. And this patch isn't consider=
+ed for common use and is specific to platform/SoC so much. The pages backed c=
+an be used only by 2d gpu's dma.
 
-	current->flags |= PF_MEMALLOC_NOIO;
-	return ret;
-}
+Thanks,
+Inki Dae
 
-static inline unsigned memalloc_noio_restore(unsigned flags)
-{
-	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
-}
-
-(I think that's correct?  It's probably more efficient this way).
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
