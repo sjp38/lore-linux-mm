@@ -1,100 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 749E66B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:17:16 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id B5BEE6B005A
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:17:17 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v5 01/14] memcg: Make it possible to use the stock for more than one page.
-Date: Tue, 16 Oct 2012 14:16:38 +0400
-Message-Id: <1350382611-20579-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH v5 03/14] memcg: change defines to an enum
+Date: Tue, 16 Oct 2012 14:16:40 +0400
+Message-Id: <1350382611-20579-4-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350382611-20579-1-git-send-email-glommer@parallels.com>
 References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>
 
-From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+This is just a cleanup patch for clarity of expression.  In earlier
+submissions, people asked it to be in a separate patch, so here it is.
 
-We currently have a percpu stock cache scheme that charges one page at a
-time from memcg->res, the user counter. When the kernel memory
-controller comes into play, we'll need to charge more than that.
+[ v2: use named enum as type throughout the file as well ]
 
-This is because kernel memory allocations will also draw from the user
-counter, and can be bigger than a single page, as it is the case with
-the stack (usually 2 pages) or some higher order slabs.
-
-[ glommer@parallels.com: added a changelog ]
-
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: David Rientjes <rientjes@google.com>
 Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Acked-by: Michal Hocko <mhocko@suse.cz>
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 CC: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c | 28 ++++++++++++++++++----------
- 1 file changed, 18 insertions(+), 10 deletions(-)
+ mm/memcontrol.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7acf43b..47cb019 100644
+index 7a9652a..71d259e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2028,20 +2028,28 @@ struct memcg_stock_pcp {
- static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
- static DEFINE_MUTEX(percpu_charge_mutex);
+@@ -386,9 +386,12 @@ enum charge_type {
+ };
  
--/*
-- * Try to consume stocked charge on this cpu. If success, one page is consumed
-- * from local stock and true is returned. If the stock is 0 or charges from a
-- * cgroup which is not current target, returns false. This stock will be
-- * refilled.
-+/**
-+ * consume_stock: Try to consume stocked charge on this cpu.
-+ * @memcg: memcg to consume from.
-+ * @nr_pages: how many pages to charge.
-+ *
-+ * The charges will only happen if @memcg matches the current cpu's memcg
-+ * stock, and at least @nr_pages are available in that stock.  Failure to
-+ * service an allocation will refill the stock.
-+ *
-+ * returns true if succesfull, false otherwise.
-  */
--static bool consume_stock(struct mem_cgroup *memcg)
-+static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
- {
- 	struct memcg_stock_pcp *stock;
- 	bool ret = true;
- 
-+	if (nr_pages > CHARGE_BATCH)
-+		return false;
+ /* for encoding cft->private value on file */
+-#define _MEM			(0)
+-#define _MEMSWAP		(1)
+-#define _OOM_TYPE		(2)
++enum res_type {
++	_MEM,
++	_MEMSWAP,
++	_OOM_TYPE,
++};
 +
- 	stock = &get_cpu_var(memcg_stock);
--	if (memcg == stock->cached && stock->nr_pages)
--		stock->nr_pages--;
-+	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
-+		stock->nr_pages -= nr_pages;
- 	else /* need to call res_counter_charge */
- 		ret = false;
- 	put_cpu_var(memcg_stock);
-@@ -2340,7 +2348,7 @@ again:
- 		VM_BUG_ON(css_is_removed(&memcg->css));
- 		if (mem_cgroup_is_root(memcg))
- 			goto done;
--		if (nr_pages == 1 && consume_stock(memcg))
-+		if (consume_stock(memcg, nr_pages))
- 			goto done;
- 		css_get(&memcg->css);
- 	} else {
-@@ -2365,7 +2373,7 @@ again:
- 			rcu_read_unlock();
- 			goto done;
- 		}
--		if (nr_pages == 1 && consume_stock(memcg)) {
-+		if (consume_stock(memcg, nr_pages)) {
- 			/*
- 			 * It seems dagerous to access memcg without css_get().
- 			 * But considering how consume_stok works, it's not
+ #define MEMFILE_PRIVATE(x, val)	((x) << 16 | (val))
+ #define MEMFILE_TYPE(val)	((val) >> 16 & 0xffff)
+ #define MEMFILE_ATTR(val)	((val) & 0xffff)
+@@ -3915,7 +3918,8 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 	char str[64];
+ 	u64 val;
+-	int type, name, len;
++	int name, len;
++	enum res_type type;
+ 
+ 	type = MEMFILE_TYPE(cft->private);
+ 	name = MEMFILE_ATTR(cft->private);
+@@ -3951,7 +3955,8 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
+ 			    const char *buffer)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+-	int type, name;
++	enum res_type type;
++	int name;
+ 	unsigned long long val;
+ 	int ret;
+ 
+@@ -4027,7 +4032,8 @@ out:
+ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+-	int type, name;
++	int name;
++	enum res_type type;
+ 
+ 	type = MEMFILE_TYPE(event);
+ 	name = MEMFILE_ATTR(event);
+@@ -4363,7 +4369,7 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup_thresholds *thresholds;
+ 	struct mem_cgroup_threshold_ary *new;
+-	int type = MEMFILE_TYPE(cft->private);
++	enum res_type type = MEMFILE_TYPE(cft->private);
+ 	u64 threshold, usage;
+ 	int i, size, ret;
+ 
+@@ -4446,7 +4452,7 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup_thresholds *thresholds;
+ 	struct mem_cgroup_threshold_ary *new;
+-	int type = MEMFILE_TYPE(cft->private);
++	enum res_type type = MEMFILE_TYPE(cft->private);
+ 	u64 usage;
+ 	int i, j, size;
+ 
+@@ -4524,7 +4530,7 @@ static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup_eventfd_list *event;
+-	int type = MEMFILE_TYPE(cft->private);
++	enum res_type type = MEMFILE_TYPE(cft->private);
+ 
+ 	BUG_ON(type != _OOM_TYPE);
+ 	event = kmalloc(sizeof(*event),	GFP_KERNEL);
+@@ -4549,7 +4555,7 @@ static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+ 	struct mem_cgroup_eventfd_list *ev, *tmp;
+-	int type = MEMFILE_TYPE(cft->private);
++	enum res_type type = MEMFILE_TYPE(cft->private);
+ 
+ 	BUG_ON(type != _OOM_TYPE);
+ 
 -- 
 1.7.11.7
 
