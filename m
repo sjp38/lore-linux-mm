@@ -1,227 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id EE75A6B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 01:53:14 -0400 (EDT)
-Message-ID: <507CF789.6050307@cn.fujitsu.com>
-Date: Tue, 16 Oct 2012 13:58:33 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
- onlined
-References: <505187D4.7070404@cn.fujitsu.com> <20120913205935.GK1560@cmpxchg.org> <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 954786B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 01:54:45 -0400 (EDT)
+Message-ID: <1350366893.26424.5.camel@gitbox>
+Subject: Re: dma_alloc_coherent fails in framebuffer
+From: Tony Prisk <linux@prisktech.co.nz>
+Date: Tue, 16 Oct 2012 18:54:53 +1300
+In-Reply-To: <CAA_GA1cPE+m8N1LQA2iOym4jbFwcHG+K2p-3iBovPWuf1N1q+g@mail.gmail.com>
+References: <1350192523.10946.4.camel@gitbox>
+	 <1350246895.11504.6.camel@gitbox> <20121015094547.GC29125@suse.de>
+	 <1350325704.31162.16.camel@gitbox>
+	 <CAA_GA1cPE+m8N1LQA2iOym4jbFwcHG+K2p-3iBovPWuf1N1q+g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
+To: linux-mm@kvack.org
+Cc: Arnd Bergmann <arnd@arndb.de>, Mel Gorman <mgorman@suse.de>, Arm Kernel Mailing List <linux-arm-kernel@lists.infradead.org>
 
-At 09/14/2012 09:36 AM, Hugh Dickins Wrote:
-> On Thu, 13 Sep 2012, Johannes Weiner wrote:
->> On Thu, Sep 13, 2012 at 03:14:28PM +0800, Wen Congyang wrote:
->>> root_mem_cgroup->info.nodeinfo is initialized when the system boots.
->>> But NODE_DATA(nid) is null if the node is not onlined, so
->>> root_mem_cgroup->info.nodeinfo[nid]->zoneinfo[zone].lruvec.zone contains
->>> an invalid pointer. If we use numactl to bind a program to the node
->>> after onlining the node and its memory, it will cause the kernel
->>> panicked:
->>
->> Is there any chance we could get rid of the zone backpointer in lruvec
->> again instead?
+On Tue, 2012-10-16 at 10:17 +0800, Bob Liu wrote:
+> On Tue, Oct 16, 2012 at 2:28 AM, Tony Prisk <linux@prisktech.co.nz> wrote:
+> > On Mon, 2012-10-15 at 10:45 +0100, Mel Gorman wrote:
+> >> On Mon, Oct 15, 2012 at 09:34:55AM +1300, Tony Prisk wrote:
+> >> > On Sun, 2012-10-14 at 18:28 +1300, Tony Prisk wrote:
+> >> > > Up until 07 Oct, drivers/video/wm8505-fb.c was working fine, but on the
+> >> > > 11 Oct when I did another pull from linus all of a sudden
+> >> > > dma_alloc_coherent is failing to allocate the framebuffer any longer.
+> >> > >
+> >> > > I did a quick look back and found this:
+> >> > >
+> >> > > ARM: add coherent dma ops
+> >> > >
+> >> > > arch_is_coherent is problematic as it is a global symbol. This
+> >> > > doesn't work for multi-platform kernels or platforms which can support
+> >> > > per device coherent DMA.
+> >> > >
+> >> > > This adds arm_coherent_dma_ops to be used for devices which connected
+> >> > > coherently (i.e. to the ACP port on Cortex-A9 or A15). The arm_dma_ops
+> >> > > are modified at boot when arch_is_coherent is true.
+> >> > >
+> >> > > Signed-off-by: Rob Herring <rob.herring@calxeda.com>
+> >> > > Cc: Russell King <linux@arm.linux.org.uk>
+> >> > > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> >> > > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> >> > >
+> >> > >
+> >> > > This is the only patch lately that I could find (not that I would claim
+> >> > > to be any good at finding things) that is related to the problem. Could
+> >> > > it have caused the allocations to fail?
+> >> > >
+> >> > > Regards
+> >> > > Tony P
+> >> >
+> >> > Have done a bit more digging and found the cause - not Rob's patch so
+> >> > apologies.
+> >> >
+> >> > The cause of the regression is this patch:
+> >> >
+> >> > From f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e Mon Sep 17 00:00:00 2001
+> >> > From: Mel Gorman <mgorman@suse.de>
+> >> > Date: Mon, 8 Oct 2012 16:32:36 -0700
+> >> > Subject: [PATCH 2/3] mm: compaction: acquire the zone->lock as late as
+> >> >  possible
+> >> >
+> >> > Up until then, the framebuffer allocation with dma_alloc_coherent(...)
+> >> > was fine. From this patch onwards, allocations fail.
+> >> >
+> >>
+> >> Was this found through bisection or some other means?
+> >>
+> >> There was a bug in that series that broke CMA but it was commit bb13ffeb
+> >> (mm: compaction: cache if a pageblock was scanned and no pages were
+> >> isolated) and it was fixed by 62726059 (mm: compaction: fix bit ranges
+> >> in {get,clear,set}_pageblock_skip()). So it should have been fixed by
+> >> 3.7-rc1 and probably was included by the time you pulled in October 11th
+> >> but bisection would be a pain. There were problems with that series during
+> >> development but tests were completing for other people.
+> >>
+> >> Just in case, is this still broken in 3.7-rc1?
+> >
+> > Still broken. Although the printk's might have cleared it up a bit.
+> >>
+> >> > I don't know how this patch would effect CMA allocations, but it seems
+> >> > to be causing the issue (or at least, it's caused an error in
+> >> > arch-vt8500 to become visible).
+> >> >
+> >> > Perhaps someone who understand -mm could explain the best way to
+> >> > troubleshoot the cause of this problem?
+> >> >
+> >>
+> >> If you are comfortable with ftrace, it can be used to narrow down where
+> >> the exact failure is occurring but if you're not comfortable with that
+> >> then the easiest is a bunch of printks starting in alloc_contig_range()
+> >> to see at what point and why it returns failure.
+> >>
+> >> It's not obvious at the moment why that patch would cause an allocation
+> >> problem. It's the type of patch that if it was wrong it would fail every
+> >> time for everyone, not just for a single driver.
+> >>
+> >
+> > I added some printk's to see what was happening.
+> >
+> > from arch/arm/mm/dma-mapping.c: arm_dma_alloc(..) it calls out to:
+> > dma_alloc_from_coherent().
+> >
+> > This returns 0, because:
+> > mem = dev->dma_mem
+> > if (!mem) return 0;
+> >
+> > and then arm_dma_alloc() falls back on __dma_alloc(..)
+> >
+> >
+> > I suspect the reason this fault is a bit 'weird' is because its
+> > effectively not using alloc_from_coherent at all, but falling back on
+> > __dma_alloc all the time, and sometimes it fails.
+> >
 > 
-> It could be done, but it would make me sad :(
+> I think you need to declare that memory using
+> dma_declare_coherent_memory() before
+> alloc_from_coherent.
 > 
->> Adding new nodes is a rare event and so updating every
->> single memcg in the system might be just borderline crazy.
+> > Why it caused a problem on that particular commit I don't know - but it
+> > was reproducible by adding/removing it.
+> >
+> >
+> > Regards
+> > Tony P
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
-> Not horribly crazy, but rather ugly, yes.
-> 
->> But can't
->> we just go back to passing the zone along with the lruvec down
->> vmscan.c paths?  I agree it's ugly to pass both, given their
->> relationship.  But I don't think the backpointer is any cleaner but in
->> addition less robust.
-> 
-> It's like how we use vma->mm: we could change everywhere to pass mm with
-> vma, but it looks cleaner and cuts down on long arglists to have mm in vma.
->>From past experience, one of the things I worried about was adding extra
-> args to the reclaim stack.
-> 
->>
->> That being said, the crashing code in particular makes me wonder:
->>
->> static __always_inline void add_page_to_lru_list(struct page *page,
->> 				struct lruvec *lruvec, enum lru_list lru)
->> {
->> 	int nr_pages = hpage_nr_pages(page);
->> 	mem_cgroup_update_lru_size(lruvec, lru, nr_pages);
->> 	list_add(&page->lru, &lruvec->lists[lru]);
->> 	__mod_zone_page_state(lruvec_zone(lruvec), NR_LRU_BASE + lru, nr_pages);
->> }
->>
->> Why did we ever pass zone in here and then felt the need to replace it
->> with lruvec->zone in fa9add6 "mm/memcg: apply add/del_page to lruvec"?
->> A page does not roam between zones, its zone is a static property that
->> can be retrieved with page_zone().
-> 
-> Just as in vmscan.c, we have the lruvec to hand, and that's what we
-> mainly want to operate upon, but there is also some need for zone.
-> 
-> (Both Konstantin and I were looking towards the day when we move the
-> lru_lock into the lruvec, removing more dependence on "zone".  Pretty
-> much the only reason that hasn't happened yet, is that we have not found
-> time to make a performance case convincingly - but that's another topic.)
-> 
-> Yes, page_zone(page) is a static property of the page, but it's not
-> necessarily cheap to evaluate: depends on how complex the memory model
-> and the spare page flags space, doesn't it?  We both preferred to
-> derive zone from lruvec where convenient.
-> 
-> How do you feel about this patch, and does it work for you guys?
-> 
-> You'd be right if you guessed that I started out without the
-> mem_cgroup_zone_lruvec part of it, but oops in get_scan_count
-> told me that's needed too.
-> 
-> Description to be filled in later: would it be needed for -stable,
-> or is onlining already broken in other ways that you're now fixing up?
-> 
-> Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Hi, all:
 
-What about the status of this patch?
+I finally found the link to this patch which caused the problem - and
+may still be the cause of my problems :)
 
-Thanks
-Wen Congyang
+> >>>
+> >>> From f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e Mon Sep 17 00:00:00 2001
+> >>> From: Mel Gorman <mgorman@suse.de>
+> >>> Date: Mon, 8 Oct 2012 16:32:36 -0700
+> >>> Subject: [PATCH 2/3] mm: compaction: acquire the zone->lock as late as
+> >>>  possible
 
-> ---
-> 
->  include/linux/mmzone.h |    2 -
->  mm/memcontrol.c        |   40 ++++++++++++++++++++++++++++++++-------
->  mm/mmzone.c            |    6 -----
->  mm/page_alloc.c        |    2 -
->  4 files changed, 36 insertions(+), 14 deletions(-)
-> 
-> --- 3.6-rc5/include/linux/mmzone.h	2012-08-03 08:31:26.892842267 -0700
-> +++ linux/include/linux/mmzone.h	2012-09-13 17:07:51.893772372 -0700
-> @@ -744,7 +744,7 @@ extern int init_currently_empty_zone(str
->  				     unsigned long size,
->  				     enum memmap_context context);
->  
-> -extern void lruvec_init(struct lruvec *lruvec, struct zone *zone);
-> +extern void lruvec_init(struct lruvec *lruvec);
->  
->  static inline struct zone *lruvec_zone(struct lruvec *lruvec)
->  {
-> --- 3.6-rc5/mm/memcontrol.c	2012-08-03 08:31:27.060842270 -0700
-> +++ linux/mm/memcontrol.c	2012-09-13 17:46:36.870804625 -0700
-> @@ -1061,12 +1061,25 @@ struct lruvec *mem_cgroup_zone_lruvec(st
->  				      struct mem_cgroup *memcg)
->  {
->  	struct mem_cgroup_per_zone *mz;
-> +	struct lruvec *lruvec;
->  
-> -	if (mem_cgroup_disabled())
-> -		return &zone->lruvec;
-> +	if (mem_cgroup_disabled()) {
-> +		lruvec = &zone->lruvec;
-> +		goto out;
-> +	}
->  
->  	mz = mem_cgroup_zoneinfo(memcg, zone_to_nid(zone), zone_idx(zone));
-> -	return &mz->lruvec;
-> +	lruvec = &mz->lruvec;
-> +out:
-> +	/*
-> +	 * Since a node can be onlined after the mem_cgroup was created,
-> +	 * we have to be prepared to initialize lruvec->zone here.
-> +	 */
-> +	if (unlikely(lruvec->zone != zone)) {
-> +		VM_BUG_ON(lruvec->zone);
-> +		lruvec->zone = zone;
-> +	}
-> +	return lruvec;
->  }
->  
->  /*
-> @@ -1093,9 +1106,12 @@ struct lruvec *mem_cgroup_page_lruvec(st
->  	struct mem_cgroup_per_zone *mz;
->  	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc;
-> +	struct lruvec *lruvec;
->  
-> -	if (mem_cgroup_disabled())
-> -		return &zone->lruvec;
-> +	if (mem_cgroup_disabled()) {
-> +		lruvec = &zone->lruvec;
-> +		goto out;
-> +	}
->  
->  	pc = lookup_page_cgroup(page);
->  	memcg = pc->mem_cgroup;
-> @@ -1113,7 +1129,17 @@ struct lruvec *mem_cgroup_page_lruvec(st
->  		pc->mem_cgroup = memcg = root_mem_cgroup;
->  
->  	mz = page_cgroup_zoneinfo(memcg, page);
-> -	return &mz->lruvec;
-> +	lruvec = &mz->lruvec;
-> +out:
-> +	/*
-> +	 * Since a node can be onlined after the mem_cgroup was created,
-> +	 * we have to be prepared to initialize lruvec->zone here.
-> +	 */
-> +	if (unlikely(lruvec->zone != zone)) {
-> +		VM_BUG_ON(lruvec->zone);
-> +		lruvec->zone = zone;
-> +	}
-> +	return lruvec;
->  }
->  
->  /**
-> @@ -4742,7 +4768,7 @@ static int alloc_mem_cgroup_per_zone_inf
->  
->  	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
->  		mz = &pn->zoneinfo[zone];
-> -		lruvec_init(&mz->lruvec, &NODE_DATA(node)->node_zones[zone]);
-> +		lruvec_init(&mz->lruvec);
->  		mz->usage_in_excess = 0;
->  		mz->on_tree = false;
->  		mz->memcg = memcg;
-> --- 3.6-rc5/mm/mmzone.c	2012-08-03 08:31:27.064842271 -0700
-> +++ linux/mm/mmzone.c	2012-09-13 17:06:28.921766001 -0700
-> @@ -87,7 +87,7 @@ int memmap_valid_within(unsigned long pf
->  }
->  #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
->  
-> -void lruvec_init(struct lruvec *lruvec, struct zone *zone)
-> +void lruvec_init(struct lruvec *lruvec)
->  {
->  	enum lru_list lru;
->  
-> @@ -95,8 +95,4 @@ void lruvec_init(struct lruvec *lruvec,
->  
->  	for_each_lru(lru)
->  		INIT_LIST_HEAD(&lruvec->lists[lru]);
-> -
-> -#ifdef CONFIG_MEMCG
-> -	lruvec->zone = zone;
-> -#endif
->  }
-> --- 3.6-rc5/mm/page_alloc.c	2012-08-22 14:25:39.508279046 -0700
-> +++ linux/mm/page_alloc.c	2012-09-13 17:06:08.265763526 -0700
-> @@ -4456,7 +4456,7 @@ static void __paginginit free_area_init_
->  		zone->zone_pgdat = pgdat;
->  
->  		zone_pcp_init(zone);
-> -		lruvec_init(&zone->lruvec, zone);
-> +		lruvec_init(&zone->lruvec);
->  		if (!size)
->  			continue;
->  
-> 
+In mm/page_alloc.c:alloc_contig_range()
+
+...
+	outer_end = isolate_freepages_range(&cc, outer_start, end);
+	if (!outer_end) {
+		ret = -EBUSY;
+		goto done;
+	}
+..
+
+It is always returning via the !outer_end test with -EBUSY.
+
+isolate_freepages_range() was one of the functions modified by
+the above mentioned patch.
+
+Around in a big circle and back to the start :)
+
+Regards
+Tony P
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
