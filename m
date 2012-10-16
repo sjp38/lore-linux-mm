@@ -1,104 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 8AD496B005A
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id E9E1C6B0062
 	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:17:19 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v5 02/14] memcg: Reclaim when more than one page needed.
-Date: Tue, 16 Oct 2012 14:16:39 +0400
-Message-Id: <1350382611-20579-3-git-send-email-glommer@parallels.com>
+Subject: [PATCH v5 04/14] kmem accounting basic infrastructure
+Date: Tue, 16 Oct 2012 14:16:41 +0400
+Message-Id: <1350382611-20579-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350382611-20579-1-git-send-email-glommer@parallels.com>
 References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>, Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>
 
-From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+This patch adds the basic infrastructure for the accounting of kernel
+memory. To control that, the following files are created:
 
-mem_cgroup_do_charge() was written before kmem accounting, and expects
-three cases: being called for 1 page, being called for a stock of 32
-pages, or being called for a hugepage.  If we call for 2 or 3 pages (and
-both the stack and several slabs used in process creation are such, at
-least with the debug options I had), it assumed it's being called for
-stock and just retried without reclaiming.
+ * memory.kmem.usage_in_bytes
+ * memory.kmem.limit_in_bytes
+ * memory.kmem.failcnt
+ * memory.kmem.max_usage_in_bytes
 
-Fix that by passing down a minsize argument in addition to the csize.
+They have the same meaning of their user memory counterparts. They
+reflect the state of the "kmem" res_counter.
 
-And what to do about that (csize == PAGE_SIZE && ret) retry?  If it's
-needed at all (and presumably is since it's there, perhaps to handle
-races), then it should be extended to more than PAGE_SIZE, yet how far?
-And should there be a retry count limit, of what?  For now retry up to
-COSTLY_ORDER (as page_alloc.c does) and make sure not to do it if
-__GFP_NORETRY.
+Per cgroup kmem memory accounting is not enabled until a limit is set
+for the group. Once the limit is set the accounting cannot be disabled
+for that group.  This means that after the patch is applied, no
+behavioral changes exists for whoever is still using memcg to control
+their memory usage, until memory.kmem.limit_in_bytes is set for the
+first time.
 
-[v4: fixed nr pages calculation pointed out by Christoph Lameter ]
+We always account to both user and kernel resource_counters. This
+effectively means that an independent kernel limit is in place when the
+limit is set to a lower value than the user memory. A equal or higher
+value means that the user limit will always hit first, meaning that kmem
+is effectively unlimited.
 
-Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+People who want to track kernel memory but not limit it, can set this
+limit to a very high number (like RESOURCE_MAX - 1page - that no one
+will ever hit, or equal to the user memory)
+
+[ v4: make kmem files part of the main array;
+      do not allow limit to be set for non-empty cgroups ]
+[ v5: cosmetic changes ]
+
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
+ mm/memcontrol.c | 116 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 115 insertions(+), 1 deletion(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 47cb019..7a9652a 100644
+index 71d259e..30eafeb 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2226,7 +2226,8 @@ enum {
+@@ -266,6 +266,10 @@ struct mem_cgroup {
+ 	};
+ 
+ 	/*
++	 * the counter to account for kernel memory usage.
++	 */
++	struct res_counter kmem;
++	/*
+ 	 * Per cgroup active and inactive list, similar to the
+ 	 * per zone LRU lists.
+ 	 */
+@@ -280,6 +284,7 @@ struct mem_cgroup {
+ 	 * Should the accounting and control be hierarchical, per subtree?
+ 	 */
+ 	bool use_hierarchy;
++	unsigned long kmem_accounted; /* See KMEM_ACCOUNTED_*, below */
+ 
+ 	bool		oom_lock;
+ 	atomic_t	under_oom;
+@@ -332,6 +337,20 @@ struct mem_cgroup {
+ #endif
  };
  
- static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
--				unsigned int nr_pages, bool oom_check)
-+				unsigned int nr_pages, unsigned int min_pages,
-+				bool oom_check)
- {
- 	unsigned long csize = nr_pages * PAGE_SIZE;
- 	struct mem_cgroup *mem_over_limit;
-@@ -2249,18 +2250,18 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	} else
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 	/*
--	 * nr_pages can be either a huge page (HPAGE_PMD_NR), a batch
--	 * of regular pages (CHARGE_BATCH), or a single regular page (1).
--	 *
- 	 * Never reclaim on behalf of optional batching, retry with a
- 	 * single page instead.
- 	 */
--	if (nr_pages == CHARGE_BATCH)
-+	if (nr_pages > min_pages)
- 		return CHARGE_RETRY;
- 
- 	if (!(gfp_mask & __GFP_WAIT))
- 		return CHARGE_WOULDBLOCK;
- 
-+	if (gfp_mask & __GFP_NORETRY)
-+		return CHARGE_NOMEM;
++/* internal only representation about the status of kmem accounting. */
++enum {
++	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
++};
 +
- 	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		return CHARGE_RETRY;
-@@ -2273,7 +2274,7 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 * unlikely to succeed so close to the limit, and we fall back
- 	 * to regular pages anyway in case of failure.
- 	 */
--	if (nr_pages == 1 && ret)
-+	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
- 		return CHARGE_RETRY;
++#define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
++
++#ifdef CONFIG_MEMCG_KMEM
++static void memcg_kmem_set_active(struct mem_cgroup *memcg)
++{
++	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
++}
++#endif
++
+ /* Stuffs for move charges at task migration. */
+ /*
+  * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+@@ -390,6 +409,7 @@ enum res_type {
+ 	_MEM,
+ 	_MEMSWAP,
+ 	_OOM_TYPE,
++	_KMEM,
+ };
  
- 	/*
-@@ -2408,7 +2409,8 @@ again:
- 			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 		}
+ #define MEMFILE_PRIVATE(x, val)	((x) << 16 | (val))
+@@ -1433,6 +1453,10 @@ done:
+ 		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
+ 		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
+ 		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
++	printk(KERN_INFO "kmem: usage %llukB, limit %llukB, failcnt %llu\n",
++		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
++		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
++		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
+ }
  
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, oom_check);
-+		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch, nr_pages,
-+		    oom_check);
- 		switch (ret) {
- 		case CHARGE_OK:
+ /*
+@@ -3940,6 +3964,9 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 		else
+ 			val = res_counter_read_u64(&memcg->memsw, name);
+ 		break;
++	case _KMEM:
++		val = res_counter_read_u64(&memcg->kmem, name);
++		break;
+ 	default:
+ 		BUG();
+ 	}
+@@ -3947,6 +3974,57 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+ 	len = scnprintf(str, sizeof(str), "%llu\n", (unsigned long long)val);
+ 	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+ }
++
++static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
++{
++	int ret = -EINVAL;
++#ifdef CONFIG_MEMCG_KMEM
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	/*
++	 * For simplicity, we won't allow this to be disabled.  It also can't
++	 * be changed if the cgroup has children already, or if tasks had
++	 * already joined.
++	 *
++	 * If tasks join before we set the limit, a person looking at
++	 * kmem.usage_in_bytes will have no way to determine when it took
++	 * place, which makes the value quite meaningless.
++	 *
++	 * After it first became limited, changes in the value of the limit are
++	 * of course permitted.
++	 *
++	 * Taking the cgroup_lock is really offensive, but it is so far the only
++	 * way to guarantee that no children will appear. There are plenty of
++	 * other offenders, and they should all go away. Fine grained locking
++	 * is probably the way to go here. When we are fully hierarchical, we
++	 * can also get rid of the use_hierarchy check.
++	 */
++	cgroup_lock();
++	mutex_lock(&set_limit_mutex);
++	if (!memcg->kmem_accounted && val != RESOURCE_MAX) {
++		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
++						!list_empty(&cont->children))) {
++			ret = -EBUSY;
++			goto out;
++		}
++		ret = res_counter_set_limit(&memcg->kmem, val);
++		VM_BUG_ON(ret);
++
++		memcg_kmem_set_active(memcg);
++	} else
++		ret = res_counter_set_limit(&memcg->kmem, val);
++out:
++	mutex_unlock(&set_limit_mutex);
++	cgroup_unlock();
++#endif
++	return ret;
++}
++
++static void memcg_propagate_kmem(struct mem_cgroup *memcg,
++				 struct mem_cgroup *parent)
++{
++	memcg->kmem_accounted = parent->kmem_accounted;
++}
++
+ /*
+  * The user of this function is...
+  * RES_LIMIT.
+@@ -3978,8 +4056,12 @@ static int mem_cgroup_write(struct cgroup *cont, struct cftype *cft,
  			break;
+ 		if (type == _MEM)
+ 			ret = mem_cgroup_resize_limit(memcg, val);
+-		else
++		else if (type == _MEMSWAP)
+ 			ret = mem_cgroup_resize_memsw_limit(memcg, val);
++		else if (type == _KMEM)
++			ret = memcg_update_kmem_limit(cont, val);
++		else
++			return -EINVAL;
+ 		break;
+ 	case RES_SOFT_LIMIT:
+ 		ret = res_counter_memparse_write_strategy(buffer, &val);
+@@ -4045,12 +4127,16 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
+ 	case RES_MAX_USAGE:
+ 		if (type == _MEM)
+ 			res_counter_reset_max(&memcg->res);
++		else if (type == _KMEM)
++			res_counter_reset_max(&memcg->kmem);
+ 		else
+ 			res_counter_reset_max(&memcg->memsw);
+ 		break;
+ 	case RES_FAILCNT:
+ 		if (type == _MEM)
+ 			res_counter_reset_failcnt(&memcg->res);
++		else if (type == _KMEM)
++			res_counter_reset_failcnt(&memcg->kmem);
+ 		else
+ 			res_counter_reset_failcnt(&memcg->memsw);
+ 		break;
+@@ -4728,6 +4814,31 @@ static struct cftype mem_cgroup_files[] = {
+ 		.read = mem_cgroup_read,
+ 	},
+ #endif
++#ifdef CONFIG_MEMCG_KMEM
++	{
++		.name = "kmem.limit_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
++		.write_string = mem_cgroup_write,
++		.read = mem_cgroup_read,
++	},
++	{
++		.name = "kmem.usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
++		.read = mem_cgroup_read,
++	},
++	{
++		.name = "kmem.failcnt",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_FAILCNT),
++		.trigger = mem_cgroup_reset,
++		.read = mem_cgroup_read,
++	},
++	{
++		.name = "kmem.max_usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_MAX_USAGE),
++		.trigger = mem_cgroup_reset,
++		.read = mem_cgroup_read,
++	},
++#endif
+ 	{ },	/* terminate */
+ };
+ 
+@@ -4973,6 +5084,7 @@ mem_cgroup_create(struct cgroup *cont)
+ 	if (parent && parent->use_hierarchy) {
+ 		res_counter_init(&memcg->res, &parent->res);
+ 		res_counter_init(&memcg->memsw, &parent->memsw);
++		res_counter_init(&memcg->kmem, &parent->kmem);
+ 		/*
+ 		 * We increment refcnt of the parent to ensure that we can
+ 		 * safely access it on res_counter_charge/uncharge.
+@@ -4980,9 +5092,11 @@ mem_cgroup_create(struct cgroup *cont)
+ 		 * mem_cgroup(see mem_cgroup_put).
+ 		 */
+ 		mem_cgroup_get(parent);
++		memcg_propagate_kmem(memcg, parent);
+ 	} else {
+ 		res_counter_init(&memcg->res, NULL);
+ 		res_counter_init(&memcg->memsw, NULL);
++		res_counter_init(&memcg->kmem, NULL);
+ 		/*
+ 		 * Deeper hierachy with use_hierarchy == false doesn't make
+ 		 * much sense so let cgroup subsystem know about this
 -- 
 1.7.11.7
 
