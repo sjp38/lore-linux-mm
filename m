@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 665C46B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 15:03:02 -0400 (EDT)
-Message-ID: <507DAF56.9010403@parallels.com>
-Date: Tue, 16 Oct 2012 23:02:46 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 14/14] Add documentation about the kmem controller
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-15-git-send-email-glommer@parallels.com> <0000013a6ad26c73-d043cf97-c44a-45c1-9cae-0a962e93a005-000000@email.amazonses.com>
-In-Reply-To: <0000013a6ad26c73-d043cf97-c44a-45c1-9cae-0a962e93a005-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 1EF006B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 15:16:13 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so1759290eaa.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 12:16:11 -0700 (PDT)
+Subject: Re: [Q] Default SLAB allocator
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
+References: 
+	 <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
+	 <m27gqwtyu9.fsf@firstfloor.org>
+	 <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
+	 <m2391ktxjj.fsf@firstfloor.org>
+	 <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
+	 <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
+	 <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
+	 <alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com>
+	 <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
+	 <1350392160.3954.986.camel@edumazet-glaptop> <507DA245.9050709@am.sony.com>
+	 <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 16 Oct 2012 21:16:08 +0200
+Message-ID: <1350414968.3954.1427.camel@edumazet-glaptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Frederic Weisbecker <fweisbec@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Ezequiel Garcia <elezegarcia@gmail.com>
+Cc: Tim Bird <tim.bird@am.sony.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "celinux-dev@lists.celinuxforum.org" <celinux-dev@lists.celinuxforum.org>
 
-On 10/16/2012 10:25 PM, Christoph Lameter wrote:
-> On Tue, 16 Oct 2012, Glauber Costa wrote:
+On Tue, 2012-10-16 at 15:27 -0300, Ezequiel Garcia wrote:
+
+> Yes, we have some numbers:
 > 
->>
->> + memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
->> + memory.kmem.usage_in_bytes      # show current kernel memory allocation
->> + memory.kmem.failcnt             # show the number of kernel memory usage hits limits
->> + memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
+> http://elinux.org/Kernel_dynamic_memory_analysis#Kmalloc_objects
 > 
-> Does it actually make sense to limit kernel memory? 
-
-Yes.
-
-> The user generally has
-> no idea how much kernel memory a process is using and kernel changes can
-> change the memory footprint. Given the fuzzy accounting in the kernel a
-> large cache refill (if someone configures the slab batch count to be
-> really big f.e.) can account a lot of memory to the wrong cgroup. The
-> allocation could fail.
+> Are they too informal? I can add some details...
 > 
-
-It heavily depends on the type of the user. The user may not know how
-much kernel memory precisely will be used, but he/she usually knows
-quite well that it shouldn't be all cgroups together shouldn't use more
-than available in the system.
-
-IOW: It is usually safe to overcommit user memory, but not kernel
-memory. This is absolutely crucial in any high-density container host,
-and we've been doing this in OpenVZ for ages (in an uglier form than this)
-
-> Limiting the total memory use of a process (U+K) would make more sense I
-> guess. Only U is probably sufficient? In what way would a limitation on
-> kernel memory in use be good?
+> They've been measured on a **very** minimal setup, almost every option
+> is stripped out, except from initramfs, sysfs, and trace.
 > 
+> On this scenario, strings allocated for file names and directories
+> created by sysfs
+> are quite noticeable, being 4-16 bytes, and produce a lot of fragmentation from
+> that 32 byte cache at SLAB.
+> 
+> Is an option to enable small caches on SLUB and SLAB worth it?
 
-The kmem counter is also fed into the u counter. If the limit value of
-"u" is equal or greater than "k", this is actually what you are doing.
+Random small web server :
 
-For a lot of application yes, only U is sufficient. This is the default,
-btw, since "k" is only even accounted if you set the limit.
+# free
+             total       used       free     shared    buffers     cached
+Mem:       7884536    5412572    2471964          0     155440    1803340
+-/+ buffers/cache:    3453792    4430744
+Swap:      2438140      51164    2386976
 
-All those use cases are detailed a bit below in this file.
+# grep Slab /proc/meminfo
+Slab:             351592 kB
 
-A limitation of kernel memory use would be good, for example, to prevent
-abuse from non-trusted containers in a high density, shared, container
-environment.
+# egrep "kmalloc-32|kmalloc-16|kmalloc-8" /proc/slabinfo 
+kmalloc-32         11332  12544     32  128    1 : tunables    0    0    0 : slabdata     98     98      0
+kmalloc-16          5888   5888     16  256    1 : tunables    0    0    0 : slabdata     23     23      0
+kmalloc-8          76563  82432      8  512    1 : tunables    0    0    0 : slabdata    161    161      0
+
+Really, some waste on these small objects is pure noise on SMP hosts.
+
+(Waste on bigger objects is probably more important by orders of magnitude)
+
 
 
 
