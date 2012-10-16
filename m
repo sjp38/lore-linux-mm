@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id BE2526B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:04:50 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id c4so376897qae.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:04:49 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20121016085928.GV21164@n2100.arm.linux.org.uk>
-References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com>
- <CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com>
- <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com> <20121016085928.GV21164@n2100.arm.linux.org.uk>
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Tue, 16 Oct 2012 11:04:29 +0100
-Message-ID: <CAHkRjk52DH9_QPQwGF0HUcjsH3+WTRCF41uDKJW7LyxD65pJdw@mail.gmail.com>
-Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
- contiguous allocations
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id B871F6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 06:12:18 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so6527273pad.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 03:12:18 -0700 (PDT)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH] oom, memcg: handle sysctl oom_kill_allocating_task while memcg oom happening
+Date: Tue, 16 Oct 2012 18:12:08 +0800
+Message-Id: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Hiroshi Doyu <hdoyu@nvidia.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Inki Dae <inki.dae@samsung.com>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-tegra@vger.kernel.org
+To: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, mhocko@suse.cz
+Cc: linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On 16 October 2012 09:59, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Tue, Oct 16, 2012 at 09:04:34AM +0300, Hiroshi Doyu wrote:
->> In addition to those contiguous/discontiguous page allocation, is
->> there any way to _import_ anonymous pages allocated by a process to be
->> used in dma-mapping API later?
->>
->> I'm considering the following scenario, an user process allocates a
->> buffer by malloc() in advance, and then it asks some driver to convert
->> that buffer into IOMMU'able/DMA'able ones later. In this case, pages
->> are discouguous and even they may not be yet allocated at
->> malloc()/mmap().
->
-> That situation is covered.  It's the streaming API you're wanting for that.
-> dma_map_sg() - but you may need additional cache handling via
-> flush_dcache_page() to ensure that your code is safe for all CPU cache
-> architectures.
+From: Sha Zhengju <handai.szj@taobao.com>
 
-For user-allocated pages you first need get_user_pages() to make sure
-they are in memory (and will stay there). This function also calls
-flush_dcache_page(). Then you can build the sg list for dma_map_sg().
+Sysctl oom_kill_allocating_task enables or disables killing the OOM-triggering
+task in out-of-memory situations, but it only works on overall system-wide oom.
+But it's also a useful indication in memcg so we take it into consideration
+while oom happening in memcg. Other sysctl such as panic_on_oom has already
+been memcg-ware.
 
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ mm/memcontrol.c |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e4e9b18..c329940 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1486,6 +1486,15 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 
+ 	check_panic_on_oom(CONSTRAINT_MEMCG, gfp_mask, order, NULL);
+ 	totalpages = mem_cgroup_get_limit(memcg) >> PAGE_SHIFT ? : 1;
++	if (sysctl_oom_kill_allocating_task && current->mm &&
++	    !oom_unkillable_task(current, memcg, NULL) &&
++	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
++		get_task_struct(current);
++		oom_kill_process(current, gfp_mask, order, 0, totalpages, memcg, NULL,
++				 "Memory cgroup out of memory (oom_kill_allocating_task)");
++		return;
++	}
++
+ 	for_each_mem_cgroup_tree(iter, memcg) {
+ 		struct cgroup *cgroup = iter->css.cgroup;
+ 		struct cgroup_iter it;
 -- 
-Catalin
+1.7.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
