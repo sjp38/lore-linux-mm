@@ -1,91 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id D5EC76B002B
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 21:56:49 -0400 (EDT)
-Received: from mail-ee0-f41.google.com ([74.125.83.41])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TNwOm-0003TH-R2
-	for linux-mm@kvack.org; Tue, 16 Oct 2012 01:56:48 +0000
-Received: by mail-ee0-f41.google.com with SMTP id c4so3612754eek.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 18:56:48 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 86D696B002B
+	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 22:17:26 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so4084030wey.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 19:17:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20121015154724.GA2840@barrios>
-References: <1350278059-14904-1-git-send-email-ming.lei@canonical.com>
-	<1350278059-14904-2-git-send-email-ming.lei@canonical.com>
-	<20121015154724.GA2840@barrios>
-Date: Tue, 16 Oct 2012 09:56:48 +0800
-Message-ID: <CACVXFVM09H=8ZuFSzkcN1NmOCR1pcPUsuUyT9tpR0doVam2BiQ@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/3] mm: teach mm by current context info to not do
- I/O during memory allocation
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1350325704.31162.16.camel@gitbox>
+References: <1350192523.10946.4.camel@gitbox>
+	<1350246895.11504.6.camel@gitbox>
+	<20121015094547.GC29125@suse.de>
+	<1350325704.31162.16.camel@gitbox>
+Date: Tue, 16 Oct 2012 10:17:24 +0800
+Message-ID: <CAA_GA1cPE+m8N1LQA2iOym4jbFwcHG+K2p-3iBovPWuf1N1q+g@mail.gmail.com>
+Subject: Re: dma_alloc_coherent fails in framebuffer
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Jiri Kosina <jiri.kosina@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: Tony Prisk <linux@prisktech.co.nz>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Arm Kernel Mailing List <linux-arm-kernel@lists.infradead.org>, Arnd Bergmann <arnd@arndb.de>
 
-On Mon, Oct 15, 2012 at 11:47 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Mon, Oct 15, 2012 at 01:14:17PM +0800, Ming Lei wrote:
->> This patch introduces PF_MEMALLOC_NOIO on process flag('flags' field of
->> 'struct task_struct'), so that the flag can be set by one task
->> to avoid doing I/O inside memory allocation in the task's context.
+On Tue, Oct 16, 2012 at 2:28 AM, Tony Prisk <linux@prisktech.co.nz> wrote:
+> On Mon, 2012-10-15 at 10:45 +0100, Mel Gorman wrote:
+>> On Mon, Oct 15, 2012 at 09:34:55AM +1300, Tony Prisk wrote:
+>> > On Sun, 2012-10-14 at 18:28 +1300, Tony Prisk wrote:
+>> > > Up until 07 Oct, drivers/video/wm8505-fb.c was working fine, but on the
+>> > > 11 Oct when I did another pull from linus all of a sudden
+>> > > dma_alloc_coherent is failing to allocate the framebuffer any longer.
+>> > >
+>> > > I did a quick look back and found this:
+>> > >
+>> > > ARM: add coherent dma ops
+>> > >
+>> > > arch_is_coherent is problematic as it is a global symbol. This
+>> > > doesn't work for multi-platform kernels or platforms which can support
+>> > > per device coherent DMA.
+>> > >
+>> > > This adds arm_coherent_dma_ops to be used for devices which connected
+>> > > coherently (i.e. to the ACP port on Cortex-A9 or A15). The arm_dma_ops
+>> > > are modified at boot when arch_is_coherent is true.
+>> > >
+>> > > Signed-off-by: Rob Herring <rob.herring@calxeda.com>
+>> > > Cc: Russell King <linux@arm.linux.org.uk>
+>> > > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+>> > > Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+>> > >
+>> > >
+>> > > This is the only patch lately that I could find (not that I would claim
+>> > > to be any good at finding things) that is related to the problem. Could
+>> > > it have caused the allocations to fail?
+>> > >
+>> > > Regards
+>> > > Tony P
+>> >
+>> > Have done a bit more digging and found the cause - not Rob's patch so
+>> > apologies.
+>> >
+>> > The cause of the regression is this patch:
+>> >
+>> > From f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e Mon Sep 17 00:00:00 2001
+>> > From: Mel Gorman <mgorman@suse.de>
+>> > Date: Mon, 8 Oct 2012 16:32:36 -0700
+>> > Subject: [PATCH 2/3] mm: compaction: acquire the zone->lock as late as
+>> >  possible
+>> >
+>> > Up until then, the framebuffer allocation with dma_alloc_coherent(...)
+>> > was fine. From this patch onwards, allocations fail.
+>> >
 >>
->> The patch trys to solve one deadlock problem caused by block device,
->> and the problem can be occured at least in the below situations:
+>> Was this found through bisection or some other means?
 >>
->> - during block device runtime resume situation, if memory allocation
->> with GFP_KERNEL is called inside runtime resume callback of any one
->> of its ancestors(or the block device itself), the deadlock may be
->> triggered inside the memory allocation since it might not complete
->> until the block device becomes active and the involed page I/O finishes.
->> The situation is pointed out first by Alan Stern. It is not a good
->> approach to convert all GFP_KERNEL in the path into GFP_NOIO because
->> several subsystems may be involved(for example, PCI, USB and SCSI may
->> be involved for usb mass stoarage device)
->
-> Couldn't we expand pm_restrict_gfp_mask to cover resume path as well as
-> suspend path?
-
-IMO, we could, but it is not good and might trigger memory allocation problem.
-
-pm_restrict_gfp_mask uses the global variable of gfp_allowed_mask to
-avoid allocating page with GFP_IOFS in all contexts during system sleep,
-when processes have been frozen.
-
-But during runtime PM, the whole system is running and all processes are
-runnable. Also runtime PM is per device and the whole system may have
-lots of devices, so taking the global gfp_allowed_mask may keep page
-allocation with ~GFP_IOFS for a considerable proportion of system
-running time, then alloc_page() will return failure easier.
-
-The above deadlock problem may be fixed by allocating memory with
-~GFP_IOFS only in the context of calling runtime_resume, and that is
-idea of the patch.
-
->
+>> There was a bug in that series that broke CMA but it was commit bb13ffeb
+>> (mm: compaction: cache if a pageblock was scanned and no pages were
+>> isolated) and it was fixed by 62726059 (mm: compaction: fix bit ranges
+>> in {get,clear,set}_pageblock_skip()). So it should have been fixed by
+>> 3.7-rc1 and probably was included by the time you pulled in October 11th
+>> but bisection would be a pain. There were problems with that series during
+>> development but tests were completing for other people.
 >>
->> - during error handling situation of usb mass storage deivce, USB
->> bus reset will be put on the device, so there shouldn't have any
->> memory allocation with GFP_KERNEL during USB bus reset, otherwise
->> the deadlock similar with above may be triggered. Unfortunately, any
->> usb device may include one mass storage interface in theory, so it
->> requires all usb interface drivers to handle the situation. In fact,
->> most usb drivers don't know how to handle bus reset on the device
->> and don't provide .pre_set() and .post_reset() callback at all, so
->> USB core has to unbind and bind driver for these devices. So it
->> is still not practical to resort to GFP_NOIO for solving the problem.
+>> Just in case, is this still broken in 3.7-rc1?
 >
-> I hope this case could be handled by usb core like usb_restrict_gfp_mask
-> rather than adding new branch on fast path.
+> Still broken. Although the printk's might have cleared it up a bit.
+>>
+>> > I don't know how this patch would effect CMA allocations, but it seems
+>> > to be causing the issue (or at least, it's caused an error in
+>> > arch-vt8500 to become visible).
+>> >
+>> > Perhaps someone who understand -mm could explain the best way to
+>> > troubleshoot the cause of this problem?
+>> >
+>>
+>> If you are comfortable with ftrace, it can be used to narrow down where
+>> the exact failure is occurring but if you're not comfortable with that
+>> then the easiest is a bunch of printks starting in alloc_contig_range()
+>> to see at what point and why it returns failure.
+>>
+>> It's not obvious at the moment why that patch would cause an allocation
+>> problem. It's the type of patch that if it was wrong it would fail every
+>> time for everyone, not just for a single driver.
+>>
+>
+> I added some printk's to see what was happening.
+>
+> from arch/arm/mm/dma-mapping.c: arm_dma_alloc(..) it calls out to:
+> dma_alloc_from_coherent().
+>
+> This returns 0, because:
+> mem = dev->dma_mem
+> if (!mem) return 0;
+>
+> and then arm_dma_alloc() falls back on __dma_alloc(..)
+>
+>
+> I suspect the reason this fault is a bit 'weird' is because its
+> effectively not using alloc_from_coherent at all, but falling back on
+> __dma_alloc all the time, and sometimes it fails.
+>
 
-See above, applying the global gfp_allowed_mask is not good.
+I think you need to declare that memory using
+dma_declare_coherent_memory() before
+alloc_from_coherent.
 
+> Why it caused a problem on that particular commit I don't know - but it
+> was reproducible by adding/removing it.
+>
+>
+> Regards
+> Tony P
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks,
---
-Ming Lei
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
