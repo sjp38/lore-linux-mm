@@ -1,186 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 6073C6B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 07:37:55 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so6599862pad.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:37:54 -0700 (PDT)
-Message-ID: <507D470B.7050807@gmail.com>
-Date: Tue, 16 Oct 2012 19:37:47 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v4 00/10, REBASED] Introduce huge zero page
-References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com> <507D2E83.4010702@gmail.com> <20121016105456.GA13265@shutemov.name> <507D4143.3020108@gmail.com> <20121016112845.GA13540@shutemov.name>
-In-Reply-To: <20121016112845.GA13540@shutemov.name>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 23E4F6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 07:48:25 -0400 (EDT)
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Subject: [PATCHv3 1/6] lib/string: introduce helper to get base file name from given path
+Date: Tue, 16 Oct 2012 14:48:08 +0300
+Message-Id: <1350388094-18805-2-git-send-email-andriy.shevchenko@linux.intel.com>
+In-Reply-To: <1350388094-18805-1-git-send-email-andriy.shevchenko@linux.intel.com>
+References: <1350388094-18805-1-git-send-email-andriy.shevchenko@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Joe Perches <joe@perches.com>
+Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Jason Baron <jbaron@redhat.com>, YAMANE Toshiaki <yamanetoshi@gmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>
 
-On 10/16/2012 07:28 PM, Kirill A. Shutemov wrote:
-> On Tue, Oct 16, 2012 at 07:13:07PM +0800, Ni zhan Chen wrote:
->> On 10/16/2012 06:54 PM, Kirill A. Shutemov wrote:
->>> On Tue, Oct 16, 2012 at 05:53:07PM +0800, Ni zhan Chen wrote:
->>>>> By hpa request I've tried alternative approach for hzp implementation (see
->>>>> Virtual huge zero page patchset): pmd table with all entries set to zero
->>>>> page. This way should be more cache friendly, but it increases TLB
->>>>> pressure.
->>>> Thanks for your excellent works. But could you explain me why
->>>> current implementation not cache friendly and hpa's request cache
->>>> friendly? Thanks in advance.
->>> In workloads like microbenchmark1 you need N * size(zero page) cache
->>> space to get zero page fully cached, where N is cache associativity.
->>> If zero page is 2M, cache pressure is significant.
->>>
->>> On other hand with table of 4k zero pages (hpa's proposal) will increase
->>> pressure on TLB, since we have more pages for the same memory area. So we
->>> have to do more page translation in this case.
->>>
->>> On my test machine with simple memcmp() virtual huge zero page is faster.
->>> But it highly depends on TLB size, cache size, memory access and page
->>> translation costs.
->>>
->>> It looks like cache size in modern processors grows faster than TLB size.
->> Oh, I see, thanks for your quick response. Another one question belowi 1/4 ?
->>
->>>>> The problem with virtual huge zero page: it requires per-arch enabling.
->>>>> We need a way to mark that pmd table has all ptes set to zero page.
->>>>>
->>>>> Some numbers to compare two implementations (on 4s Westmere-EX):
->>>>>
->>>>> Mirobenchmark1
->>>>> ==============
->>>>>
->>>>> test:
->>>>>          posix_memalign((void **)&p, 2 * MB, 8 * GB);
->>>>>          for (i = 0; i < 100; i++) {
->>>>>                  assert(memcmp(p, p + 4*GB, 4*GB) == 0);
->>>>>                  asm volatile ("": : :"memory");
->>>>>          }
->>>>>
->>>>> hzp:
->>>>>   Performance counter stats for './test_memcmp' (5 runs):
->>>>>
->>>>>        32356.272845 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
->>>>>                  40 context-switches          #    0.001 K/sec                    ( +-  0.94% )
->>>>>                   0 CPU-migrations            #    0.000 K/sec
->>>>>               4,218 page-faults               #    0.130 K/sec                    ( +-  0.00% )
->>>>>      76,712,481,765 cycles                    #    2.371 GHz                      ( +-  0.13% ) [83.31%]
->>>>>      36,279,577,636 stalled-cycles-frontend   #   47.29% frontend cycles idle     ( +-  0.28% ) [83.35%]
->>>>>       1,684,049,110 stalled-cycles-backend    #    2.20% backend  cycles idle     ( +-  2.96% ) [66.67%]
->>>>>     134,355,715,816 instructions              #    1.75  insns per cycle
->>>>>                                               #    0.27  stalled cycles per insn  ( +-  0.10% ) [83.35%]
->>>>>      13,526,169,702 branches                  #  418.039 M/sec                    ( +-  0.10% ) [83.31%]
->>>>>           1,058,230 branch-misses             #    0.01% of all branches          ( +-  0.91% ) [83.36%]
->>>>>
->>>>>        32.413866442 seconds time elapsed                                          ( +-  0.13% )
->>>>>
->>>>> vhzp:
->>>>>   Performance counter stats for './test_memcmp' (5 runs):
->>>>>
->>>>>        30327.183829 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
->>>>>                  38 context-switches          #    0.001 K/sec                    ( +-  1.53% )
->>>>>                   0 CPU-migrations            #    0.000 K/sec
->>>>>               4,218 page-faults               #    0.139 K/sec                    ( +-  0.01% )
->>>>>      71,964,773,660 cycles                    #    2.373 GHz                      ( +-  0.13% ) [83.35%]
->>>>>      31,191,284,231 stalled-cycles-frontend   #   43.34% frontend cycles idle     ( +-  0.40% ) [83.32%]
->>>>>         773,484,474 stalled-cycles-backend    #    1.07% backend  cycles idle     ( +-  6.61% ) [66.67%]
->>>>>     134,982,215,437 instructions              #    1.88  insns per cycle
->>>>>                                               #    0.23  stalled cycles per insn  ( +-  0.11% ) [83.32%]
->>>>>      13,509,150,683 branches                  #  445.447 M/sec                    ( +-  0.11% ) [83.34%]
->>>>>           1,017,667 branch-misses             #    0.01% of all branches          ( +-  1.07% ) [83.32%]
->>>>>
->>>>>        30.381324695 seconds time elapsed                                          ( +-  0.13% )
->>>> Could you tell me which data I should care in this performance
->>>> counter. And what's the benefit of your current implementation
->>>> compare to hpa's request?
->> Sorry for my unintelligent. Could you tell me which data I should
->> care in this performance counter stats. The same question about the
->> second benchmark counter stats, thanks in adance. :-)
-> I've missed relevant counters in this run, you can see them in the second
-> benchmark.
->
-> Relevant counters:
-> L1-dcache-*, LLC-*: shows cache related stats (hits/misses);
-> dTLB-*: shows data TLB hits and misses.
->
-> Indirect relevant counters:
-> stalled-cycles-*: how long CPU pipeline has to wait for data.
+There are several places in the kernel that use functionality like basename(3)
+with an exception: in case of '/foo/bar/' we expect to get an empty string.
+Let's do it common helper for them.
 
-Oh, I see, thanks for your patient. :-)
+Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: Jason Baron <jbaron@redhat.com>
+Cc: YAMANE Toshiaki <yamanetoshi@gmail.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: linux-mm@kvack.org
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Cc: Frederic Weisbecker <fweisbec@gmail.com>
+---
+ include/linux/string.h |   11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
->
->>>>> Mirobenchmark2
->>>>> ==============
->>>>>
->>>>> test:
->>>>>          posix_memalign((void **)&p, 2 * MB, 8 * GB);
->>>>>          for (i = 0; i < 1000; i++) {
->>>>>                  char *_p = p;
->>>>>                  while (_p < p+4*GB) {
->>>>>                          assert(*_p == *(_p+4*GB));
->>>>>                          _p += 4096;
->>>>>                          asm volatile ("": : :"memory");
->>>>>                  }
->>>>>          }
->>>>>
->>>>> hzp:
->>>>>   Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
->>>>>
->>>>>         3505.727639 task-clock                #    0.998 CPUs utilized            ( +-  0.26% )
->>>>>                   9 context-switches          #    0.003 K/sec                    ( +-  4.97% )
->>>>>               4,384 page-faults               #    0.001 M/sec                    ( +-  0.00% )
->>>>>       8,318,482,466 cycles                    #    2.373 GHz                      ( +-  0.26% ) [33.31%]
->>>>>       5,134,318,786 stalled-cycles-frontend   #   61.72% frontend cycles idle     ( +-  0.42% ) [33.32%]
->>>>>       2,193,266,208 stalled-cycles-backend    #   26.37% backend  cycles idle     ( +-  5.51% ) [33.33%]
->>>>>       9,494,670,537 instructions              #    1.14  insns per cycle
->>>>>                                               #    0.54  stalled cycles per insn  ( +-  0.13% ) [41.68%]
->>>>>       2,108,522,738 branches                  #  601.451 M/sec                    ( +-  0.09% ) [41.68%]
->>>>>             158,746 branch-misses             #    0.01% of all branches          ( +-  1.60% ) [41.71%]
->>>>>       3,168,102,115 L1-dcache-loads
->>>>>            #  903.693 M/sec                    ( +-  0.11% ) [41.70%]
->>>>>       1,048,710,998 L1-dcache-misses
->>>>>           #   33.10% of all L1-dcache hits    ( +-  0.11% ) [41.72%]
->>>>>       1,047,699,685 LLC-load
->>>>>                   #  298.854 M/sec                    ( +-  0.03% ) [33.38%]
->>>>>               2,287 LLC-misses
->>>>>                 #    0.00% of all LL-cache hits     ( +-  8.27% ) [33.37%]
->>>>>       3,166,187,367 dTLB-loads
->>>>>                 #  903.147 M/sec                    ( +-  0.02% ) [33.35%]
->>>>>           4,266,538 dTLB-misses
->>>>>                #    0.13% of all dTLB cache hits   ( +-  0.03% ) [33.33%]
->>>>>
->>>>>         3.513339813 seconds time elapsed                                          ( +-  0.26% )
->>>>>
->>>>> vhzp:
->>>>>   Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
->>>>>
->>>>>        27313.891128 task-clock                #    0.998 CPUs utilized            ( +-  0.24% )
->>>>>                  62 context-switches          #    0.002 K/sec                    ( +-  0.61% )
->>>>>               4,384 page-faults               #    0.160 K/sec                    ( +-  0.01% )
->>>>>      64,747,374,606 cycles                    #    2.370 GHz                      ( +-  0.24% ) [33.33%]
->>>>>      61,341,580,278 stalled-cycles-frontend   #   94.74% frontend cycles idle     ( +-  0.26% ) [33.33%]
->>>>>      56,702,237,511 stalled-cycles-backend    #   87.57% backend  cycles idle     ( +-  0.07% ) [33.33%]
->>>>>      10,033,724,846 instructions              #    0.15  insns per cycle
->>>>>                                               #    6.11  stalled cycles per insn  ( +-  0.09% ) [41.65%]
->>>>>       2,190,424,932 branches                  #   80.195 M/sec                    ( +-  0.12% ) [41.66%]
->>>>>           1,028,630 branch-misses             #    0.05% of all branches          ( +-  1.50% ) [41.66%]
->>>>>       3,302,006,540 L1-dcache-loads
->>>>>            #  120.891 M/sec                    ( +-  0.11% ) [41.68%]
->>>>>         271,374,358 L1-dcache-misses
->>>>>           #    8.22% of all L1-dcache hits    ( +-  0.04% ) [41.66%]
->>>>>          20,385,476 LLC-load
->>>>>                   #    0.746 M/sec                    ( +-  1.64% ) [33.34%]
->>>>>              76,754 LLC-misses
->>>>>                 #    0.38% of all LL-cache hits     ( +-  2.35% ) [33.34%]
->>>>>       3,309,927,290 dTLB-loads
->>>>>                 #  121.181 M/sec                    ( +-  0.03% ) [33.34%]
->>>>>       2,098,967,427 dTLB-misses
->>>>>                #   63.41% of all dTLB cache hits   ( +-  0.03% ) [33.34%]
->>>>>
->>>>>        27.364448741 seconds time elapsed                                          ( +-  0.24% )
->>>> For this case, the same question as above, thanks in adance. :-)
+diff --git a/include/linux/string.h b/include/linux/string.h
+index 6301258..ac889c5 100644
+--- a/include/linux/string.h
++++ b/include/linux/string.h
+@@ -143,4 +143,15 @@ static inline bool strstarts(const char *str, const char *prefix)
+ 
+ extern size_t memweight(const void *ptr, size_t bytes);
+ 
++/**
++ * kbasename - return the last part of a pathname.
++ *
++ * @path: path to extract the filename from.
++ */
++static inline const char *kbasename(const char *path)
++{
++	const char *tail = strrchr(path, '/');
++	return tail ? tail + 1 : path;
++}
++
+ #endif /* _LINUX_STRING_H_ */
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
