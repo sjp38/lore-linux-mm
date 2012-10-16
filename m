@@ -1,38 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 800536B002B
-	for <linux-mm@kvack.org>; Mon, 15 Oct 2012 23:58:36 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so6215958pad.14
-        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 20:58:35 -0700 (PDT)
-Date: Mon, 15 Oct 2012 20:58:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id ECE766B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 00:02:48 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so3442106dad.14
+        for <linux-mm@kvack.org>; Mon, 15 Oct 2012 21:02:48 -0700 (PDT)
+Date: Mon, 15 Oct 2012 21:02:45 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: mpol_to_str revisited.
-In-Reply-To: <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
-References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
+Subject: Re: [PATCH] make GFP_NOTRACK flag unconditional
+In-Reply-To: <alpine.DEB.2.00.1210022156450.8723@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1210152102220.5400@chino.kir.corp.google.com>
+References: <1348826194-21781-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210022156450.8723@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, bhutchings@solarflare.com, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, 15 Oct 2012, KOSAKI Motohiro wrote:
+On Tue, 2 Oct 2012, David Rientjes wrote:
 
-> I don't think 80de7c3138ee9fd86a98696fd2cf7ad89b995d0a is right fix.
+> > There was a general sentiment in a recent discussion (See
+> > https://lkml.org/lkml/2012/9/18/258) that the __GFP flags should be
+> > defined unconditionally. Currently, the only offender is GFP_NOTRACK,
+> > which is conditional to KMEMCHECK.
+> > 
+> > This simple patch makes it unconditional.
+> > 
+> > Signed-off-by: Glauber Costa <glommer@parallels.com>
+> > CC: Christoph Lameter <cl@linux.com>
+> > CC: Mel Gorman <mgorman@suse.de>
+> > CC: Andrew Morton <akpm@linux-foundation.org>
+> 
+> Acked-by: David Rientjes <rientjes@google.com>
+> 
+> I think it was done this way to show that if CONFIG_KMEMCHECK=n then the 
+> bit could be reused for something else but I can't think of any reason why 
+> that would be useful; what would need to add a gfp bit that would also 
+> happen to depend on CONFIG_KMEMCHECK=n?  Nothing comes to mind to save a 
+> bit.
+> 
+> There are other cases of this as well, like __GFP_OTHER_NODE which is only 
+> useful for thp and it's defined unconditionally.  So this seems fine to 
+> me.
+> 
 
-It's certainly not a complete fix, but I think it's a much better result 
-of the race, i.e. we don't panic anymore, we simply fail the read() 
-instead.
-
-> we should
-> close a race (or kill remain ref count leak) if we still have.
-
-As I mentioned earlier in the thread, the read() is done here on a task 
-while only a reference to the task_struct is taken and we do not hold 
-task_lock() which is required for task->mempolicy.  Once that is fixed, 
-mpol_to_str() should never be called for !task->mempolicy so it will never 
-need to return -EINVAL in such a condition.
+Still missing from linux-next as of this morning, I think this patch 
+should be merged.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
