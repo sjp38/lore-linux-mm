@@ -1,57 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 90C4F6B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:52:58 -0400 (EDT)
-Message-ID: <507D2061.3030101@parallels.com>
-Date: Tue, 16 Oct 2012 12:52:49 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 98FD86B0044
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 04:59:49 -0400 (EDT)
+Date: Tue, 16 Oct 2012 09:59:28 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [Linaro-mm-sig] [RFC 0/2] DMA-mapping & IOMMU - physically
+	contiguous allocations
+Message-ID: <20121016085928.GV21164@n2100.arm.linux.org.uk>
+References: <1350309832-18461-1-git-send-email-m.szyprowski@samsung.com> <CAAQKjZMYFNMEnb2ue2aR+6AEbOixnQFyggbXrThBCW5VOznePg@mail.gmail.com> <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] slab: Ignore internal flags in cache creation
-References: <1349434154-8000-1-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210081424340.22552@chino.kir.corp.google.com> <alpine.DEB.2.00.1210151747290.31712@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1210151747290.31712@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121016090434.7d5e088152a3e0b0606903c8@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Hiroshi Doyu <hdoyu@nvidia.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Inki Dae <inki.dae@samsung.com>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Kyungmin Park <kyungmin.park@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-tegra@vger.kernel.org
 
-On 10/16/2012 04:47 AM, David Rientjes wrote:
-> On Mon, 8 Oct 2012, David Rientjes wrote:
+On Tue, Oct 16, 2012 at 09:04:34AM +0300, Hiroshi Doyu wrote:
+> In addition to those contiguous/discontiguous page allocation, is
+> there any way to _import_ anonymous pages allocated by a process to be
+> used in dma-mapping API later?
 > 
->>> diff --git a/mm/slab.h b/mm/slab.h
->>> index 7deeb44..4c35c17 100644
->>> --- a/mm/slab.h
->>> +++ b/mm/slab.h
->>> @@ -45,6 +45,31 @@ static inline struct kmem_cache *__kmem_cache_alias(const char *name, size_t siz
->>>  #endif
->>>  
->>>  
->>> +/* Legal flag mask for kmem_cache_create(), for various configurations */
->>> +#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
->>> +			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
->>> +
->>> +#if defined(CONFIG_DEBUG_SLAB)
->>> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
->>> +#elif defined(CONFIG_SLUB_DEBUG)
->>> +#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
->>> +			  SLAB_TRACE | SLAB_DEBUG_FREE)
->>> +#else
->>> +#define SLAB_DEBUG_FLAGS (0)
->>> +#endif
->>> +
->>> +#if defined(CONFIG_SLAB)
->>> +#define SLAB_CACHE_FLAGS (SLAB_MEMSPREAD | SLAB_NOLEAKTRACE | \
->>
->> s/SLAB_MEMSPREAD/SLAB_MEM_SPREAD/
->>
-> 
-> Did you have a v5 of this patch with the above fix?
-> 
-Yes, I sent it bundled in my kmemcg-slab series.
+> I'm considering the following scenario, an user process allocates a
+> buffer by malloc() in advance, and then it asks some driver to convert
+> that buffer into IOMMU'able/DMA'able ones later. In this case, pages
+> are discouguous and even they may not be yet allocated at
+> malloc()/mmap().
 
-I can send it separately as well, no problem. (Or we can merge the
-series!!! =p )
+That situation is covered.  It's the streaming API you're wanting for that.
+dma_map_sg() - but you may need additional cache handling via
+flush_dcache_page() to ensure that your code is safe for all CPU cache
+architectures.
+
+Remember that pages allocated into userspace will be cacheable, so a cache
+flush is required before they can be DMA'd.  Hence the streaming API.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
