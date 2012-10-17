@@ -1,98 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 11C606B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:20:54 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so15381317ied.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 12:20:53 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 615FF6B005A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:21:23 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so8485578pad.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 12:21:22 -0700 (PDT)
+Date: Wed, 17 Oct 2012 12:21:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+In-Reply-To: <20121017181413.GA16805@redhat.com>
+Message-ID: <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com>
+References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com> <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com> <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com> <20121017181413.GA16805@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1350501217.26103.852.camel@edumazet-glaptop>
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
- <m27gqwtyu9.fsf@firstfloor.org> <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
- <m2391ktxjj.fsf@firstfloor.org> <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
- <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
- <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
- <alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com>
- <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
- <1350392160.3954.986.camel@edumazet-glaptop> <507DA245.9050709@am.sony.com>
- <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
- <1350414968.3954.1427.camel@edumazet-glaptop> <507EFCC3.1050304@am.sony.com> <1350501217.26103.852.camel@edumazet-glaptop>
-From: Shentino <shentino@gmail.com>
-Date: Wed, 17 Oct 2012 12:20:12 -0700
-Message-ID: <CAGDaZ_qKg3x_ChdZck25P_XF78cJNeB_DJLg=ZtL3eZWSz3yXA@mail.gmail.com>
-Subject: Re: [Q] Default SLAB allocator
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Tim Bird <tim.bird@am.sony.com>, Ezequiel Garcia <elezegarcia@gmail.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "celinux-dev@lists.celinuxforum.org" <celinux-dev@lists.celinuxforum.org>
+To: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 17, 2012 at 12:13 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
-> On Wed, 2012-10-17 at 11:45 -0700, Tim Bird wrote:
->
->> 8G is a small web server?  The RAM budget for Linux on one of
->> Sony's cameras was 10M.  We're not merely not in the same ballpark -
->> you're in a ballpark and I'm trimming bonsai trees... :-)
->>
->
-> Even laptops in 2012 have +4GB of ram.
->
-> (Maybe not Sony laptops, I have to double check ?)
->
-> Yes, servers do have more ram than laptops.
->
-> (Maybe not Sony servers, I have to double check ?)
->
->> > # grep Slab /proc/meminfo
->> > Slab:             351592 kB
->> >
->> > # egrep "kmalloc-32|kmalloc-16|kmalloc-8" /proc/slabinfo
->> > kmalloc-32         11332  12544     32  128    1 : tunables    0    0    0 : slabdata     98     98      0
->> > kmalloc-16          5888   5888     16  256    1 : tunables    0    0    0 : slabdata     23     23      0
->> > kmalloc-8          76563  82432      8  512    1 : tunables    0    0    0 : slabdata    161    161      0
->> >
->> > Really, some waste on these small objects is pure noise on SMP hosts.
->> In this example, it appears that if all kmalloc-8's were pushed into 32-byte slabs,
->> we'd lose about 1.8 meg due to pure slab overhead.  This would not be noise
->> on my system.
->
->
-> I said :
->
-> <quote>
-> I would remove small kmalloc-XX caches, as sharing a cache line
-> is sometime dangerous for performance, because of false sharing.
->
-> They make sense only for very small hosts
-> </quote>
->
-> I think your 10M cameras are very tiny hosts.
->
-> Using SLUB on them might not be the best choice.
->
-> First time I ran linux, years ago, it was on 486SX machines with 8M of
-> memory (or maybe less, I dont remember exactly). But I no longer use
-> this class of machines with recent kernels.
->
-> # size vmlinux
->    text    data     bss     dec     hex filename
-> 10290631        1278976 1896448 13466055         cd79c7 vmlinux
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+On Wed, 17 Oct 2012, Dave Jones wrote:
 
-Potentially stupid question
+> On Tue, Oct 16, 2012 at 10:24:32PM -0700, David Rientjes wrote:
+>  > On Wed, 17 Oct 2012, Dave Jones wrote:
+>  > 
+>  > > BUG: sleeping function called from invalid context at kernel/mutex.c:269
+>  > 
+>  > Hmm, looks like we need to change the refcount semantics entirely.  We'll 
+>  > need to make get_vma_policy() always take a reference and then drop it 
+>  > accordingly.  This work sif get_vma_policy() can grab a reference while 
+>  > holding task_lock() for the task policy fallback case.
+>  > 
+>  > Comments on this approach?
+> 
+> Seems to be surviving my testing at least..
+> 
 
-But is SLAB the one where all objects per cache have a fixed size and
-thus you don't have any bookkeeping overhead for the actual
-allocations?
-
-I remember something about one of the allocation mechanisms being
-designed for caches of fixed sized objects to minimize the need for
-bookkeeping.
+Sounds good.  Is it possible to verify that policy_cache isn't getting 
+larger than normal in /proc/slabinfo, i.e. when all processes with a 
+task mempolicy or shared vma policy have exited, are there still a 
+significant number of active objects?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
