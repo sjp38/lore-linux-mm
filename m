@@ -1,66 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 02DAB6B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:31:13 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 356BF6B005A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:31:17 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC] memcg/cgroup: do not fail fail on pre_destroy callbacks
-Date: Wed, 17 Oct 2012 15:30:42 +0200
-Message-Id: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+Subject: [PATCH 1/6] memcg: split mem_cgroup_force_empty into reclaiming and reparenting parts
+Date: Wed, 17 Oct 2012 15:30:43 +0200
+Message-Id: <1350480648-10905-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-Hi,
-memcg is the only controller which might fail in its pre_destroy
-callback which makes the cgroup core more complicated for no good
-reason. This is an attempt to change this unfortunate state. 
+mem_cgroup_force_empty did two separate things depending on free_all
+parameter from the very beginning. It either reclaimed as many pages as
+possible and moved the rest to the parent or just moved charges to the
+parent. The first variant is used as memory.force_empty callback while
+the later is used from the mem_cgroup_pre_destroy.
 
-I am sending this a RFC because I would like to hear back whether the
-approach is correct. I thought that the changes would be more invasive
-but it seems that the current code was mostly prepared for this and it
-needs just some small tweaks (so I might be missing something important
-here).
+The whole games around gotos are far from being nice and there is no
+reason to keep those two functions inside one. Let's split them and
+also move the responsibility for css reference counting to their callers
+to make to code easier.
 
-The first two patches are just clean ups. They could be merged even
-without the rest.
+This patch doesn't have any functional changes.
 
-The real change, although the code is not changed that much, is the 3rd
-patch. It changes the way how we handle mem_cgroup_move_parent failures.
-We have to realize that all those failures are *temporal*. Because we
-are either racing with the page removal or the page is temporarily off
-the LRU because of migration resp. global reclaim. As a result we do
-not fail mem_cgroup_force_empty_list if the page cannot be moved to the
-parent and rather retry until the LRU is empty.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c |   72 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 42 insertions(+), 30 deletions(-)
 
-The 4th patch is for cgroup core. I have moved cgroup_call_pre_destroy
-inside the cgroup_lock which is not very nice because the callbacks
-can take some time. Maybe we can move this call at the very end of the
-function?
-All I need for memcg is that cgroup_call_pre_destroy has been called and
-that no new cgroups can be attached to the group. The cgroup_lock is
-necessary for the later condition but if we move after CGRP_REMOVED flag
-is set then we are safe as well.
-
-The last two patches are trivial follow ups for the cgroups core change
-because now we know that nobody will interfere with us so we can drop
-those empty && no child condition.
-
-Comments, thoughts?
-
-Michal Hocko (6):
-      memcg: split mem_cgroup_force_empty into reclaiming and reparenting parts
-      memcg: root_cgroup cannot reach mem_cgroup_move_parent
-      memcg: Simplify mem_cgroup_force_empty_list error handling
-      cgroups: forbid pre_destroy callback to fail
-      memcg: make mem_cgroup_reparent_charges non failing
-      hugetlb: do not fail in hugetlb_cgroup_pre_destroy
-
-Cumulative diffstat:
- kernel/cgroup.c     |   30 ++++---------
- mm/hugetlb_cgroup.c |   11 ++---
- mm/memcontrol.c     |  124 +++++++++++++++++++++++++++------------------------
- 3 files changed, 78 insertions(+), 87 deletions(-)
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e4e9b18..f25e9c0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3733,27 +3733,21 @@ static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+ }
+ 
+ /*
+- * make mem_cgroup's charge to be 0 if there is no task.
++ * make mem_cgroup's charge to be 0 if there is no task by moving
++ * all the charges and pages to the parent.
+  * This enables deleting this mem_cgroup.
++ *
++ * Caller is responsible for holding css reference on the memcg.
+  */
+-static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
++static int mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
+ {
+-	int ret;
+-	int node, zid, shrink;
+-	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+ 	struct cgroup *cgrp = memcg->css.cgroup;
++	int node, zid;
++	int ret;
+ 
+-	css_get(&memcg->css);
+-
+-	shrink = 0;
+-	/* should free all ? */
+-	if (free_all)
+-		goto try_to_free;
+-move_account:
+ 	do {
+-		ret = -EBUSY;
+ 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+-			goto out;
++			return -EBUSY;
+ 		/* This is for making all *used* pages to be on LRU. */
+ 		lru_add_drain_all();
+ 		drain_all_stock_sync(memcg);
+@@ -3777,27 +3771,34 @@ move_account:
+ 		cond_resched();
+ 	/* "ret" should also be checked to ensure all lists are empty. */
+ 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
+-out:
+-	css_put(&memcg->css);
++
+ 	return ret;
++}
++
++/*
++ * Reclaims as many pages from the given memcg as possible and moves
++ * the rest to the parent.
++ *
++ * Caller is responsible for holding css reference for memcg.
++ */
++static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
++{
++	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
++	struct cgroup *cgrp = memcg->css.cgroup;
+ 
+-try_to_free:
+ 	/* returns EBUSY if there is a task or if we come here twice. */
+-	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children) || shrink) {
+-		ret = -EBUSY;
+-		goto out;
+-	}
++	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
++		return -EBUSY;
++
+ 	/* we call try-to-free pages for make this cgroup empty */
+ 	lru_add_drain_all();
+ 	/* try to free all pages in this cgroup */
+-	shrink = 1;
+ 	while (nr_retries && res_counter_read_u64(&memcg->res, RES_USAGE) > 0) {
+ 		int progress;
+ 
+-		if (signal_pending(current)) {
+-			ret = -EINTR;
+-			goto out;
+-		}
++		if (signal_pending(current))
++			return -EINTR;
++
+ 		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
+ 						false);
+ 		if (!progress) {
+@@ -3808,13 +3809,19 @@ try_to_free:
+ 
+ 	}
+ 	lru_add_drain();
+-	/* try move_account...there may be some *locked* pages. */
+-	goto move_account;
++	return mem_cgroup_reparent_charges(memcg);
+ }
+ 
+ static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
+ {
+-	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
++	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	int ret;
++
++	css_get(&memcg->css);
++	ret = mem_cgroup_force_empty(memcg);
++	css_put(&memcg->css);
++
++	return ret;
+ }
+ 
+ 
+@@ -5004,8 +5011,13 @@ free_out:
+ static int mem_cgroup_pre_destroy(struct cgroup *cont)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
++	int ret;
+ 
+-	return mem_cgroup_force_empty(memcg, false);
++	css_get(&memcg->css);
++	ret = mem_cgroup_reparent_charges(memcg);
++	css_put(&memcg->css);
++
++	return ret;
+ }
+ 
+ static void mem_cgroup_destroy(struct cgroup *cont)
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
