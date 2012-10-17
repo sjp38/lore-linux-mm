@@ -1,38 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 1A53A6B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 21:44:12 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so8357447obc.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 18:44:11 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 621126B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 21:49:04 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so7430802pbb.14
+        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 18:49:03 -0700 (PDT)
+Date: Tue, 16 Oct 2012 18:49:00 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+In-Reply-To: <CAHGf_=qSy63-H0ZgdYBtUmdDpxacmAcK=L7X+Ajgr8Yboztqig@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210161847060.20503@chino.kir.corp.google.com>
+References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com> <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com> <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <CAHGf_=qSy63-H0ZgdYBtUmdDpxacmAcK=L7X+Ajgr8Yboztqig@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <COL115-DS17FCFB8683288781F8E011BC770@phx.gbl>
-References: <COL115-DS17FCFB8683288781F8E011BC770@phx.gbl>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 16 Oct 2012 21:43:51 -0400
-Message-ID: <CAHGf_=p__OFKsP=qf+RP28gZntYAwzq-gNnQ61UR_kJuFL7OSw@mail.gmail.com>
-Subject: Re: [help] kernel boot parameter "mem=xx" disparity
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jun Hu <duanshuidao@hotmail.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 16, 2012 at 8:55 PM, Jun Hu <duanshuidao@hotmail.com> wrote:
-> Hi Guys:
->
-> My machine has 8G memory, when I use kernel boot parameter mem=3D5G , it =
-only
-> display =934084 M=94 using =93free =96m =93.
-> where the =935120-4084 =3D 1036M =93 memory run?
+On Tue, 16 Oct 2012, KOSAKI Motohiro wrote:
 
-mem is misleading parameter. It is not specify amount memoy. It is specify
-maximum recognized address. Thus when your machine have some memory
-hole, you see such result. Don't worry, recent regular machine often have
- ~1G hole.
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index 0b78fb9..d04a8a5 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -1536,9 +1536,8 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
+> >   *
+> >   * Returns effective policy for a VMA at specified address.
+> >   * Falls back to @task or system default policy, as necessary.
+> > - * Current or other task's task mempolicy and non-shared vma policies
+> > - * are protected by the task's mmap_sem, which must be held for read by
+> > - * the caller.
+> > + * Current or other task's task mempolicy and non-shared vma policies must be
+> > + * protected by task_lock(task) by the caller.
+> 
+> This is not correct. mmap_sem is needed for protecting vma. task_lock()
+> is needed to close vs exit race only when task != current. In other word,
+> caller must held both mmap_sem and task_lock if task != current.
+> 
 
-Detailed memory map is logged in /var/log/messages as a part of boot messag=
-es.
+The comment is specifically addressing non-shared vma policies, you do not 
+need to hold mmap_sem to access another thread's mempolicy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
