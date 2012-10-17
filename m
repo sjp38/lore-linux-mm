@@ -1,77 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id E913F6B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 04:51:00 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so8827045oag.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 01:51:00 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 24B1B6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 04:59:43 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so8675307obc.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 01:59:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <507E4F0C.9040506@cn.fujitsu.com>
-References: <507656D1.5020703@jp.fujitsu.com> <50765896.4000300@jp.fujitsu.com>
- <CAHGf_=rvdU+TymYZSXvx1bz4xdp43bqnyjRMGEoiBizC5rP0sQ@mail.gmail.com> <507E4F0C.9040506@cn.fujitsu.com>
+In-Reply-To: <507E54AA.2080806@cn.fujitsu.com>
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
+ <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
+ <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
+ <507E54AA.2080806@cn.fujitsu.com>
 From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 17 Oct 2012 04:50:40 -0400
-Message-ID: <CAHGf_=obXYBGg9HK6d7AyAe7rjM_NyE6icr69aH-DNOp4tB+VA@mail.gmail.com>
-Subject: Re: [PATCH 2/2]suppress "Device nodeX does not have a release()
- function" warning
+Date: Wed, 17 Oct 2012 04:59:22 -0400
+Message-ID: <CAHGf_=o_Wu1kr56C=7XTjYRzL4egSyGJYd4+2RecVWzpeM427Q@mail.gmail.com>
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Wed, Oct 17, 2012 at 2:24 AM, Wen Congyang <wency@cn.fujitsu.com> wrote:
-> At 10/12/2012 06:33 AM, KOSAKI Motohiro Wrote:
->> On Thu, Oct 11, 2012 at 1:26 AM, Yasuaki Ishimatsu
->> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->>> When calling unregister_node(), the function shows following message at
->>> device_release().
+On Wed, Oct 17, 2012 at 2:48 AM, Wen Congyang <wency@cn.fujitsu.com> wrote:
+> At 10/13/2012 03:10 AM, KOSAKI Motohiro Wrote:
+>>>>> -static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>>>>> +static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+>>>>>  {
+>>>>>         int result;
+>>>>>         struct acpi_memory_info *info, *n;
+>>>>>
+>>>>> +       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>>>>
+>>>> Which lock protect this loop?
 >>>
->>> "Device 'node2' does not have a release() function, it is broken and must
->>> be fixed."
->>>
->>> The reason is node's device struct does not have a release() function.
->>>
->>> So the patch registers node_device_release() to the device's release()
->>> function for suppressing the warning message. Additionally, the patch adds
->>> memset() to initialize a node struct into register_node(). Because the node
->>> struct is part of node_devices[] array and it cannot be freed by
->>> node_device_release(). So if system reuses the node struct, it has a garbage.
->>>
->>> CC: David Rientjes <rientjes@google.com>
->>> CC: Jiang Liu <liuj97@gmail.com>
->>> Cc: Minchan Kim <minchan.kim@gmail.com>
->>> CC: Andrew Morton <akpm@linux-foundation.org>
->>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->>> ---
->>>  drivers/base/node.c |   11 +++++++++++
->>>  1 file changed, 11 insertions(+)
->>>
->>> Index: linux-3.6/drivers/base/node.c
->>> ===================================================================
->>> --- linux-3.6.orig/drivers/base/node.c  2012-10-11 10:04:02.149758748 +0900
->>> +++ linux-3.6/drivers/base/node.c       2012-10-11 10:20:34.111806931 +0900
->>> @@ -252,6 +252,14 @@ static inline void hugetlb_register_node
->>>  static inline void hugetlb_unregister_node(struct node *node) {}
->>>  #endif
->>>
->>> +static void node_device_release(struct device *dev)
->>> +{
->>> +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
->>> +       struct node *node_dev = to_node(dev);
->>> +
->>> +       flush_work(&node_dev->node_work);
->>> +#endif
->>> +}
+>>> There is no any lock to protect it now...
 >>
->> The patch description don't explain why this flush_work() is needed.
+>> When iterate an item removal list, you should use lock for protecting from
+>> memory corruption.
+>>
+>>
+>>
+>>
+>>>>> +static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>>>>> +{
+>>>>> +       int result;
+>>>>>
+>>>>>         /*
+>>>>>          * Ask the VM to offline this memory range.
+>>>>>          * Note: Assume that this function returns zero on success
+>>>>>          */
+>>>>
+>>>> Write function comment instead of this silly comment.
+>>>>
+>>>>> -       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>>>>> -               if (info->enabled) {
+>>>>> -                       result = remove_memory(info->start_addr, info->length);
+>>>>> -                       if (result)
+>>>>> -                               return result;
+>>>>> -               }
+>>>>> -               kfree(info);
+>>>>> -       }
+>>>>> +       result = acpi_memory_remove_memory(mem_device);
+>>>>> +       if (result)
+>>>>> +               return result;
+>>>>>
+>>>>>         /* Power-off and eject the device */
+>>>>>         result = acpi_memory_powerdown_device(mem_device);
+>>>>
+>>>> This patch move acpi_memory_powerdown_device() from ACPI_NOTIFY_EJECT_REQUEST
+>>>> to release callback, but don't explain why.
+>>>
+>>> Hmm, it doesn't move the code. It just reuse the code in acpi_memory_powerdown_device().
+>>
+>> Even if reuse or not reuse, you changed the behavior. If any changes
+>> has no good rational, you cannot get an ack.
 >
-> If the node is onlined after it is offlined, we will clear the memory,
-> so we should flush_work() before node_dev is set to 0.
+> I don't understand this? IIRC, the behavior isn't changed.
 
-So then, it is irrelevant from warning supressness. You should make an
-another patch.
+Heh, please explain why do you think so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
