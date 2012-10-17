@@ -1,70 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 1BE456B005A
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:26:40 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so8229581pad.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 08:26:39 -0700 (PDT)
-Message-ID: <507ECE16.7030107@gmail.com>
-Date: Wed, 17 Oct 2012 23:26:14 +0800
-From: Wen Congyang <wencongyang@gmail.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 3E8156B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:31:04 -0400 (EDT)
+Message-ID: <507ECF28.1060602@parallels.com>
+Date: Wed, 17 Oct 2012 19:30:48 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 3/5] memory-hotplug: auto offline page_cgroup when
- onlining memory block failed
-References: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com> <1350475735-26136-4-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1350475735-26136-4-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=GB2312
+Subject: Re: [RFC] memcg/cgroup: do not fail fail on pre_destroy callbacks
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-At 2012/10/17 20:08, wency@cn.fujitsu.com Wrote:
-> From: Wen Congyang<wency@cn.fujitsu.com>
+On 10/17/2012 05:30 PM, Michal Hocko wrote:
+> Hi,
+> memcg is the only controller which might fail in its pre_destroy
+> callback which makes the cgroup core more complicated for no good
+> reason. This is an attempt to change this unfortunate state. 
 > 
-> When a memory block is onlined, we will try allocate memory on that node
-> to store page_cgroup. If onlining the memory block failed, we don't
-> offline the page cgroup, and we have no chance to offline this page cgroup
-> unless the memory block is onlined successfully again. It will cause
-> that we can't hot-remove the memory device on that node, because some
-> memory is used to store page cgroup. If onlining the memory block
-> is failed, there is no need to stort page cgroup for this memory. So
-> auto offline page_cgroup when onlining memory block failed.
+> I am sending this a RFC because I would like to hear back whether the
+> approach is correct. I thought that the changes would be more invasive
+> but it seems that the current code was mostly prepared for this and it
+> needs just some small tweaks (so I might be missing something important
+> here).
 > 
-> CC: David Rientjes<rientjes@google.com>
-> CC: Jiang Liu<liuj97@gmail.com>
-> CC: Len Brown<len.brown@intel.com>
-> CC: Benjamin Herrenschmidt<benh@kernel.crashing.org>
-> CC: Paul Mackerras<paulus@samba.org>
-> CC: Christoph Lameter<cl@linux.com>
-> Cc: Minchan Kim<minchan.kim@gmail.com>
-> CC: Andrew Morton<akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
-
-This patch has been acked by kosaki.
-I forgot to add "Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>"
-
-
-> ---
->   mm/page_cgroup.c |    3 +++
->   1 files changed, 3 insertions(+), 0 deletions(-)
+> The first two patches are just clean ups. They could be merged even
+> without the rest.
 > 
-> diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-> index 5ddad0c..44db00e 100644
-> --- a/mm/page_cgroup.c
-> +++ b/mm/page_cgroup.c
-> @@ -251,6 +251,9 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
->   				mn->nr_pages, mn->status_change_nid);
->   		break;
->   	case MEM_CANCEL_ONLINE:
-> +		offline_page_cgroup(mn->start_pfn,
-> +				mn->nr_pages, mn->status_change_nid);
-> +		break;
->   	case MEM_GOING_OFFLINE:
->   		break;
->   	case MEM_ONLINE:
+> The real change, although the code is not changed that much, is the 3rd
+> patch. It changes the way how we handle mem_cgroup_move_parent failures.
+> We have to realize that all those failures are *temporal*. Because we
+> are either racing with the page removal or the page is temporarily off
+> the LRU because of migration resp. global reclaim. As a result we do
+> not fail mem_cgroup_force_empty_list if the page cannot be moved to the
+> parent and rather retry until the LRU is empty.
+> 
+> The 4th patch is for cgroup core. I have moved cgroup_call_pre_destroy
+> inside the cgroup_lock which is not very nice because the callbacks
+> can take some time. Maybe we can move this call at the very end of the
+> function?
+> All I need for memcg is that cgroup_call_pre_destroy has been called and
+> that no new cgroups can be attached to the group. The cgroup_lock is
+> necessary for the later condition but if we move after CGRP_REMOVED flag
+> is set then we are safe as well.
+> 
+> The last two patches are trivial follow ups for the cgroups core change
+> because now we know that nobody will interfere with us so we can drop
+> those empty && no child condition.
+> 
+> Comments, thoughts?
+> 
+
+I personally don't see anything fundamentally wrong with this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
