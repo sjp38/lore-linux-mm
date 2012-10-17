@@ -1,43 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 1AFCD6B005D
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 05:19:13 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so8693400obc.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 02:19:12 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id D71C76B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 06:47:49 -0400 (EDT)
+Message-ID: <507E7FC2.8@cn.fujitsu.com>
+Date: Wed, 17 Oct 2012 17:52:02 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <507E75AA.2000605@cn.fujitsu.com>
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
- <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
- <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
- <507E54AA.2080806@cn.fujitsu.com> <CAHGf_=o_Wu1kr56C=7XTjYRzL4egSyGJYd4+2RecVWzpeM427Q@mail.gmail.com>
- <507E75AA.2000605@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 17 Oct 2012 05:18:51 -0400
-Message-ID: <CAHGf_=oNufcAQhxWtvq56qwF==+14+Cm7r9eiTGdY=B=ENwPQg@mail.gmail.com>
-Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to
+ acpi_memory_device_remove()
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com> <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com> <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com> <507E54AA.2080806@cn.fujitsu.com> <CAHGf_=o_Wu1kr56C=7XTjYRzL4egSyGJYd4+2RecVWzpeM427Q@mail.gmail.com> <507E75AA.2000605@cn.fujitsu.com> <CAHGf_=oNufcAQhxWtvq56qwF==+14+Cm7r9eiTGdY=B=ENwPQg@mail.gmail.com>
+In-Reply-To: <CAHGf_=oNufcAQhxWtvq56qwF==+14+Cm7r9eiTGdY=B=ENwPQg@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
->>>>> Hmm, it doesn't move the code. It just reuse the code in acpi_memory_powerdown_device().
+At 10/17/2012 05:18 PM, KOSAKI Motohiro Wrote:
+>>>>>> Hmm, it doesn't move the code. It just reuse the code in acpi_memory_powerdown_device().
+>>>>>
+>>>>> Even if reuse or not reuse, you changed the behavior. If any changes
+>>>>> has no good rational, you cannot get an ack.
 >>>>
->>>> Even if reuse or not reuse, you changed the behavior. If any changes
->>>> has no good rational, you cannot get an ack.
+>>>> I don't understand this? IIRC, the behavior isn't changed.
 >>>
->>> I don't understand this? IIRC, the behavior isn't changed.
+>>> Heh, please explain why do you think so.
 >>
->> Heh, please explain why do you think so.
->
-> We just introduce a function, and move codes from acpi_memory_disable_device() to the new
-> function. We call the new function in acpi_memory_disable_device(), so the function
-> acpi_memory_disable_device()'s behavior isn't changed.
->
-> Maybe I don't understand what do you want to say.
+>> We just introduce a function, and move codes from acpi_memory_disable_device() to the new
+>> function. We call the new function in acpi_memory_disable_device(), so the function
+>> acpi_memory_disable_device()'s behavior isn't changed.
+>>
+>> Maybe I don't understand what do you want to say.
+> 
+> Ok, now you agreed you moved the code, yes? So then, you should explain why
+> your code moving makes zero impact other acpi_memory_disable_device() caller.
 
-Ok, now you agreed you moved the code, yes? So then, you should explain why
-your code moving makes zero impact other acpi_memory_disable_device() caller.
+We just move the code, and don't change the acpi_memory_disable_device()'s behavior.
+
+I look it the change again, and found some diffs:
+1. we treat !info->enabled as error, while it isn't a error without this patch
+2. we remove memory info from the list, it is a bug fix because we free the memory
+   that stores memory info.(I have sent a patch to fix this bug, and it is in akpm's tree now)
+
+I guess you mean 1 will change the behavior. In the last version, I don't do it.
+Ishimatsu changes this and I don't notify this.
+
+To Ishimatsu:
+
+Why do you change this?
+
+Thanks
+Wen Congyang
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
