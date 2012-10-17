@@ -1,60 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id B89196B005A
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 19:28:41 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so8705692pad.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:28:41 -0700 (PDT)
-Date: Wed, 17 Oct 2012 16:28:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 09/14] memcg: kmem accounting lifecycle management
-In-Reply-To: <1350382611-20579-10-git-send-email-glommer@parallels.com>
-Message-ID: <alpine.DEB.2.00.1210171624540.20813@chino.kir.corp.google.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-10-git-send-email-glommer@parallels.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 0FC9D6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 19:54:03 -0400 (EDT)
+Date: Wed, 17 Oct 2012 16:54:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH v1 1/3] mm: teach mm by current context info to not
+ do I/O during memory allocation
+Message-Id: <20121017165401.cc343861.akpm@linux-foundation.org>
+In-Reply-To: <CACVXFVPRsHTf85bTsHUWgHV2b7LBASGQ2s_9Kx9-ZCHv5WDuQQ@mail.gmail.com>
+References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
+	<1350403183-12650-2-git-send-email-ming.lei@canonical.com>
+	<20121016131933.c196457a.akpm@linux-foundation.org>
+	<CACVXFVPRsHTf85bTsHUWgHV2b7LBASGQ2s_9Kx9-ZCHv5WDuQQ@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Ming Lei <ming.lei@canonical.com>
+Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 16 Oct 2012, Glauber Costa wrote:
+On Wed, 17 Oct 2012 09:54:09 +0800
+Ming Lei <ming.lei@canonical.com> wrote:
 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1182188..e24b388 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -344,6 +344,7 @@ struct mem_cgroup {
->  /* internal only representation about the status of kmem accounting. */
->  enum {
->  	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
-> +	KMEM_ACCOUNTED_DEAD, /* dead memcg, pending kmem charges */
+> On Wed, Oct 17, 2012 at 4:19 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> >
+> > The patch seems reasonable to me.  I'd like to see some examples of
+> > these resume-time callsite which are performing the GFP_KERNEL
+> > allocations, please.  You have found some kernel bugs, so those should
+> > be fully described.
+> 
+> There are two examples on 2/3 and 3/3 of the patchset, see below link:
+> 
+>         http://marc.info/?l=linux-kernel&m=135040325717213&w=2
+>         http://marc.info/?l=linux-kernel&m=135040327317222&w=2
+> 
+> Sorry for not Cc them to linux-mm because I am afraid of making noise
+> in mm list.
 
-"dead memcg with pending kmem charges" seems better.
+Don't worry about mailing list noise ;)
 
->  };
->  
->  #define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
-> @@ -353,6 +354,22 @@ static void memcg_kmem_set_active(struct mem_cgroup *memcg)
->  {
->  	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
->  }
-> +
-> +static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
-> +{
-> +	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
-> +}
+> >
+> > This is just awful.  Why oh why do we write code in macros when we have
+> > a nice C compiler?
+> 
+> The two helpers are following style of local_irq_save() and
+> local_irq_restore(), so that people can use them easily, that is
+> why I define them as macro instead of inline.
 
-I think all of these should be inline.
+local_irq_save() and local_irq_restore() were mistakes :( It's silly to
+write what appears to be a C function and then have it operate like
+Pascal (warning: I last wrote some Pascal in 66 B.C.).
 
-> +
-> +static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
-> +{
-> +	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted))
-> +		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_accounted);
-> +}
+> >
+> > These can all be done as nice, clean, type-safe, documented C
+> > functions.  And if they can be done that way, they *should* be done
+> > that way!
+> >
+> > And I suggest that a better name for memalloc_noio_save() is
+> > memalloc_noio_set().  So this:
+> 
+> IMO, renaming as memalloc_noio_set() might not be better than _save
+> because the _set name doesn't indicate that the flag should be stored first.
 
-The set_bit() doesn't happen atomically with the test_bit(), what 
-synchronization is required for this?
+You could add __must_check to the function definition to ensure that
+all callers save its return value.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
