@@ -1,76 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id C53D56B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 02:41:35 -0400 (EDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DF85F3EE0BD
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBBA145DE58
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A22A345DE3E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F9321DB804F
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4072E1DB803F
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
-Message-ID: <507E52EE.7080706@jp.fujitsu.com>
-Date: Wed, 17 Oct 2012 15:40:46 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5BE036B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 02:42:31 -0400 (EDT)
+Message-ID: <507E54AA.2080806@cn.fujitsu.com>
+Date: Wed, 17 Oct 2012 14:48:10 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com>
-In-Reply-To: <1350382611-20579-7-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to
+ acpi_memory_device_remove()
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com> <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com> <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
+In-Reply-To: <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-(2012/10/16 19:16), Glauber Costa wrote:
-> This patch introduces infrastructure for tracking kernel memory pages to
-> a given memcg. This will happen whenever the caller includes the flag
-> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
+At 10/13/2012 03:10 AM, KOSAKI Motohiro Wrote:
+>>>> -static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>>>> +static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+>>>>  {
+>>>>         int result;
+>>>>         struct acpi_memory_info *info, *n;
+>>>>
+>>>> +       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>>>
+>>> Which lock protect this loop?
+>>
+>> There is no any lock to protect it now...
 > 
-> In memcontrol.h those functions are wrapped in inline acessors.  The
-> idea is to later on, patch those with static branches, so we don't incur
-> any overhead when no mem cgroups with limited kmem are being used.
+> When iterate an item removal list, you should use lock for protecting from
+> memory corruption.
 > 
-> Users of this functionality shall interact with the memcg core code
-> through the following functions:
 > 
-> memcg_kmem_newpage_charge: will return true if the group can handle the
->                             allocation. At this point, struct page is not
->                             yet allocated.
 > 
-> memcg_kmem_commit_charge: will either revert the charge, if struct page
->                            allocation failed, or embed memcg information
->                            into page_cgroup.
 > 
-> memcg_kmem_uncharge_page: called at free time, will revert the charge.
+>>>> +static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>>>> +{
+>>>> +       int result;
+>>>>
+>>>>         /*
+>>>>          * Ask the VM to offline this memory range.
+>>>>          * Note: Assume that this function returns zero on success
+>>>>          */
+>>>
+>>> Write function comment instead of this silly comment.
+>>>
+>>>> -       list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>>>> -               if (info->enabled) {
+>>>> -                       result = remove_memory(info->start_addr, info->length);
+>>>> -                       if (result)
+>>>> -                               return result;
+>>>> -               }
+>>>> -               kfree(info);
+>>>> -       }
+>>>> +       result = acpi_memory_remove_memory(mem_device);
+>>>> +       if (result)
+>>>> +               return result;
+>>>>
+>>>>         /* Power-off and eject the device */
+>>>>         result = acpi_memory_powerdown_device(mem_device);
+>>>
+>>> This patch move acpi_memory_powerdown_device() from ACPI_NOTIFY_EJECT_REQUEST
+>>> to release callback, but don't explain why.
+>>
+>> Hmm, it doesn't move the code. It just reuse the code in acpi_memory_powerdown_device().
 > 
-> [ v2: improved comments and standardized function names ]
-> [ v3: handle no longer opaque, functions not exported,
->    even more comments ]
-> [ v4: reworked Used bit handling and surroundings for more clarity ]
-> [ v5: simplified code for kmemcg compiled out and core functions in
->    memcontrol.c, moved kmem code to the middle to avoid forward decls ]
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> CC: Christoph Lameter <cl@linux.com>
-> CC: Pekka Enberg <penberg@cs.helsinki.fi>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Tejun Heo <tj@kernel.org>
+> Even if reuse or not reuse, you changed the behavior. If any changes
+> has no good rational, you cannot get an ack.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I don't understand this? IIRC, the behavior isn't changed.
 
+Thanks
+Wen Congyang
 
+> 
+> 
+> 
+> 
+>>>> @@ -473,12 +486,23 @@ static int acpi_memory_device_add(struct
+>>>>  static int acpi_memory_device_remove(struct acpi_device *device, int type)
+>>>>  {
+>>>>         struct acpi_memory_device *mem_device = NULL;
+>>>> -
+>>>> +       int result;
+>>>>
+>>>>         if (!device || !acpi_driver_data(device))
+>>>>                 return -EINVAL;
+>>>>
+>>>>         mem_device = acpi_driver_data(device);
+>>>> +
+>>>> +       if (type == ACPI_BUS_REMOVAL_EJECT) {
+>>>> +               /*
+>>>> +                * offline and remove memory only when the memory device is
+>>>> +                * ejected.
+>>>> +                */
+>>>
+>>> This comment explain nothing. A comment should describe _why_ should we do.
+>>> e.g. Why REMOVAL_NORMAL and REMOVEL_EJECT should be ignored. Why
+>>> we need remove memory here instead of ACPI_NOTIFY_EJECT_REQUEST.
+>>
+>> Hmm, we have 2 ways to remove a memory:
+>> 1. SCI
+>> 2. echo 1 >/sys/bus/acpi/devices/PNP0C80:XX/eject
+>>
+>> In the 2nd case, there is no ACPI_NOTIFY_EJECT_REQUEST. We should offline
+>> the memory and remove it from kernel in the release callback. We will poweroff
+>> the memory device in acpi_bus_hot_remove_device(), so we must offline
+>> and remove it if the type is ACPI_BUS_REMOVAL_EJECT.
+>>
+>> I guess we should not poweroff the memory device when we fail to offline it.
+>> But device_release_driver() doesn't returns any error...
+> 
+> 1) I think /sys/bus/acpi/devices/PNP0C80:XX/eject should emulate acpi
+> eject. Can't
+> you make a pseudo acpi eject event and detach device by acpi regular path?
+> 
+> 2) Your explanation didn't explain why we should ignore REMOVAL_NORMAL
+> and REMOVEL_EJECT. As far as reviewers can't track your intention, we
+> can't maintain
+> the code and can't ack them.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
