@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 9CF896B0069
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 18:11:56 -0400 (EDT)
-Date: Wed, 17 Oct 2012 15:11:55 -0700
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id EE9566B0069
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 18:12:08 -0400 (EDT)
+Date: Wed, 17 Oct 2012 15:12:07 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 01/14] memcg: Make it possible to use the stock for
- more than one page.
-Message-Id: <20121017151155.d417bd13.akpm@linux-foundation.org>
-In-Reply-To: <1350382611-20579-2-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v5 04/14] kmem accounting basic infrastructure
+Message-Id: <20121017151207.e8bb3db2.akpm@linux-foundation.org>
+In-Reply-To: <1350382611-20579-5-git-send-email-glommer@parallels.com>
 References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
-	<1350382611-20579-2-git-send-email-glommer@parallels.com>
+	<1350382611-20579-5-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Suleiman Souhlal <suleiman@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org
 
-On Tue, 16 Oct 2012 14:16:38 +0400
+On Tue, 16 Oct 2012 14:16:41 +0400
 Glauber Costa <glommer@parallels.com> wrote:
 
-> From: Suleiman Souhlal <ssouhlal@FreeBSD.org>
+> This patch adds the basic infrastructure for the accounting of kernel
+> memory. To control that, the following files are created:
 > 
-> We currently have a percpu stock cache scheme that charges one page at a
-> time from memcg->res, the user counter. When the kernel memory
-> controller comes into play, we'll need to charge more than that.
+>  * memory.kmem.usage_in_bytes
+>  * memory.kmem.limit_in_bytes
+>  * memory.kmem.failcnt
+
+gargh.  "failcnt" is not a word.  Who was it who first thought that
+omitting voewls from words improves anything?
+
+Sigh.  That pooch is already screwed and there's nothing we can do
+about it now.
+
+>  * memory.kmem.max_usage_in_bytes
 > 
-> This is because kernel memory allocations will also draw from the user
-> counter, and can be bigger than a single page, as it is the case with
-> the stack (usually 2 pages) or some higher order slabs.
+> They have the same meaning of their user memory counterparts. They
+> reflect the state of the "kmem" res_counter.
 > 
-> ...
->
-> -/*
-> - * Try to consume stocked charge on this cpu. If success, one page is consumed
-> - * from local stock and true is returned. If the stock is 0 or charges from a
-> - * cgroup which is not current target, returns false. This stock will be
-> - * refilled.
-> +/**
-> + * consume_stock: Try to consume stocked charge on this cpu.
-> + * @memcg: memcg to consume from.
-> + * @nr_pages: how many pages to charge.
-> + *
-> + * The charges will only happen if @memcg matches the current cpu's memcg
-> + * stock, and at least @nr_pages are available in that stock.  Failure to
-> + * service an allocation will refill the stock.
-> + *
-> + * returns true if succesfull, false otherwise.
-
-spello.
-
->   */
-> -static bool consume_stock(struct mem_cgroup *memcg)
-> +static bool consume_stock(struct mem_cgroup *memcg, int nr_pages)
-
-I don't believe there is a case for nr_pages < 0 here?  If not then I
-suggest that it would be clearer to use an unsigned type, like
-memcg_stock_pcp.stock.
-
+> Per cgroup kmem memory accounting is not enabled until a limit is set
+> for the group. Once the limit is set the accounting cannot be disabled
+> for that group.  This means that after the patch is applied, no
+> behavioral changes exists for whoever is still using memcg to control
+> their memory usage, until memory.kmem.limit_in_bytes is set for the
+> first time.
+> 
+> We always account to both user and kernel resource_counters. This
+> effectively means that an independent kernel limit is in place when the
+> limit is set to a lower value than the user memory. A equal or higher
+> value means that the user limit will always hit first, meaning that kmem
+> is effectively unlimited.
+> 
+> People who want to track kernel memory but not limit it, can set this
+> limit to a very high number (like RESOURCE_MAX - 1page - that no one
+> will ever hit, or equal to the user memory)
+> 
 >
 > ...
 >
+> +/* internal only representation about the status of kmem accounting. */
+> +enum {
+> +	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+> +};
+> +
+> +#define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
+> +
+> +#ifdef CONFIG_MEMCG_KMEM
+> +static void memcg_kmem_set_active(struct mem_cgroup *memcg)
+> +{
+> +	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_accounted);
+> +}
+> +#endif
+
+I don't think memcg_kmem_set_active() really needs to exist.  It has a
+single caller and is unlikely to get any additional callers, so just
+open-code it there?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
