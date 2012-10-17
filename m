@@ -1,50 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 423206B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:01:31 -0400 (EDT)
-Date: Wed, 17 Oct 2012 14:01:25 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121017130125.GH5973@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
- <20121002150104.da57fa94.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121002150104.da57fa94.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 02DAB6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:31:13 -0400 (EDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC] memcg/cgroup: do not fail fail on pre_destroy callbacks
+Date: Wed, 17 Oct 2012 15:30:42 +0200
+Message-Id: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-Hi Andrew,
+Hi,
+memcg is the only controller which might fail in its pre_destroy
+callback which makes the cgroup core more complicated for no good
+reason. This is an attempt to change this unfortunate state. 
 
-On Tue, Oct 02, 2012 at 11:01:04PM +0100, Andrew Morton wrote:
-> On Tue,  2 Oct 2012 17:59:11 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> 
-> > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > flag is set for the appropriate PTE/PMD).
-> > 
-> > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > be called for a write fault.
-> > 
-> > This patch ensures that faults on transparent hugepages which do not result
-> > in a CoW update the access flags for the faulting pmd.
-> 
-> Alas, the code you're altering has changed so much in linux-next that I
-> am reluctant to force this fix in there myself.  Can you please
-> redo/retest/resend?  You can do that on 3.7-rc1 if you like, then we
-> can feed this into -rc2.
+I am sending this a RFC because I would like to hear back whether the
+approach is correct. I thought that the changes would be more invasive
+but it seems that the current code was mostly prepared for this and it
+needs just some small tweaks (so I might be missing something important
+here).
 
-Here's the updated patch against -rc1...
+The first two patches are just clean ups. They could be merged even
+without the rest.
 
-Cheers,
+The real change, although the code is not changed that much, is the 3rd
+patch. It changes the way how we handle mem_cgroup_move_parent failures.
+We have to realize that all those failures are *temporal*. Because we
+are either racing with the page removal or the page is temporarily off
+the LRU because of migration resp. global reclaim. As a result we do
+not fail mem_cgroup_force_empty_list if the page cannot be moved to the
+parent and rather retry until the LRU is empty.
 
-Will
+The 4th patch is for cgroup core. I have moved cgroup_call_pre_destroy
+inside the cgroup_lock which is not very nice because the callbacks
+can take some time. Maybe we can move this call at the very end of the
+function?
+All I need for memcg is that cgroup_call_pre_destroy has been called and
+that no new cgroups can be attached to the group. The cgroup_lock is
+necessary for the later condition but if we move after CGRP_REMOVED flag
+is set then we are safe as well.
 
---->8
+The last two patches are trivial follow ups for the cgroups core change
+because now we know that nobody will interfere with us so we can drop
+those empty && no child condition.
+
+Comments, thoughts?
+
+Michal Hocko (6):
+      memcg: split mem_cgroup_force_empty into reclaiming and reparenting parts
+      memcg: root_cgroup cannot reach mem_cgroup_move_parent
+      memcg: Simplify mem_cgroup_force_empty_list error handling
+      cgroups: forbid pre_destroy callback to fail
+      memcg: make mem_cgroup_reparent_charges non failing
+      hugetlb: do not fail in hugetlb_cgroup_pre_destroy
+
+Cumulative diffstat:
+ kernel/cgroup.c     |   30 ++++---------
+ mm/hugetlb_cgroup.c |   11 ++---
+ mm/memcontrol.c     |  124 +++++++++++++++++++++++++++------------------------
+ 3 files changed, 78 insertions(+), 87 deletions(-)
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
