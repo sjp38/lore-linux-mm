@@ -1,44 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 0A5F56B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 03:30:32 -0400 (EDT)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 860713EE0CB
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:30:31 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6C32145DEBF
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:30:31 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5349445DEBA
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:30:31 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4283C1DB8045
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:30:31 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E2A111DB8041
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:30:30 +0900 (JST)
-Message-ID: <507E5E6E.7040500@jp.fujitsu.com>
-Date: Wed, 17 Oct 2012 16:29:50 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id CBCF16B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 04:49:23 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so8825447oag.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 01:49:23 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 14/14] Add documentation about the kmem controller
-References: <1349690780-15988-1-git-send-email-glommer@parallels.com> <1349690780-15988-15-git-send-email-glommer@parallels.com>
-In-Reply-To: <1349690780-15988-15-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <507E4531.1070700@jp.fujitsu.com>
+References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
+ <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
+ <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
+ <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
+ <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
+ <507E4531.1070700@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 17 Oct 2012 04:49:02 -0400
+Message-ID: <CAHGf_=rCbH7=6FX+PhhPUbixw-0TstdpTNzMEmXgQALbNAkGRg@mail.gmail.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in numa_maps
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Suleiman Souhlal <suleiman@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, devel@openvz.org, Frederic Weisbecker <fweisbec@gmail.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-(2012/10/08 19:06), Glauber Costa wrote:
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> ---
->   Documentation/cgroups/memory.txt | 55 +++++++++++++++++++++++++++++++++++++++-
->   1 file changed, 54 insertions(+), 1 deletion(-)
-> 
+On Wed, Oct 17, 2012 at 1:42 AM, Kamezawa Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> (2012/10/17 14:24), David Rientjes wrote:
+>>
+>> On Wed, 17 Oct 2012, Dave Jones wrote:
+>>
+>>> BUG: sleeping function called from invalid context at kernel/mutex.c:269
+>>> in_atomic(): 1, irqs_disabled(): 0, pid: 8558, name: trinity-child2
+>>> 3 locks on stack by trinity-child2/8558:
+>>>   #0: held:     (&p->lock){+.+.+.}, instance: ffff88010c9a00b0, at:
+>>> [<ffffffff8120cd1f>] seq_lseek+0x3f/0x120
+>>>   #1: held:     (&mm->mmap_sem){++++++}, instance: ffff88013956f7c8, at:
+>>> [<ffffffff81254437>] m_start+0xa7/0x190
+>>>   #2: held:     (&(&p->alloc_lock)->rlock){+.+...}, instance:
+>>> ffff88011fc64f30, at: [<ffffffff81254f8f>] show_numa_map+0x14f/0x610
+>>> Pid: 8558, comm: trinity-child2 Not tainted 3.7.0-rc1+ #32
+>>> Call Trace:
+>>>   [<ffffffff810ae4ec>] __might_sleep+0x14c/0x200
+>>>   [<ffffffff816bdf4e>] mutex_lock_nested+0x2e/0x50
+>>>   [<ffffffff811c43a3>] mpol_shared_policy_lookup+0x33/0x90
+>>>   [<ffffffff8118d5c3>] shmem_get_policy+0x33/0x40
+>>>   [<ffffffff811c31fa>] get_vma_policy+0x3a/0x90
+>>>   [<ffffffff81254fa3>] show_numa_map+0x163/0x610
+>>>   [<ffffffff81255b10>] ? pid_maps_open+0x20/0x20
+>>>   [<ffffffff81255980>] ? pagemap_hugetlb_range+0xf0/0xf0
+>>>   [<ffffffff81255483>] show_pid_numa_map+0x13/0x20
+>>>   [<ffffffff8120c902>] traverse+0xf2/0x230
+>>>   [<ffffffff8120cd8b>] seq_lseek+0xab/0x120
+>>>   [<ffffffff811e6c0b>] sys_lseek+0x7b/0xb0
+>>>   [<ffffffff816ca088>] tracesys+0xe1/0xe6
+>>>
+>>
+>> Hmm, looks like we need to change the refcount semantics entirely.  We'll
+>> need to make get_vma_policy() always take a reference and then drop it
+>> accordingly.  This work sif get_vma_policy() can grab a reference while
+>> holding task_lock() for the task policy fallback case.
+>>
+>> Comments on this approach?
+>
+>
+> I think this refcounting is better than using task_lock().
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+I don't think so. get_vma_policy() is used from fast path. In other
+words, number of
+atomic ops is sensible for allocation performance. Instead, I'd like
+to use spinlock
+for shared mempolicy instead of mutex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
