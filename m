@@ -1,60 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 64BC26B006E
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:31:22 -0400 (EDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 6/6] hugetlb: do not fail in hugetlb_cgroup_pre_destroy
-Date: Wed, 17 Oct 2012 15:30:48 +0200
-Message-Id: <1350480648-10905-7-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id C7B1C6B0044
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:11:36 -0400 (EDT)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 17 Oct 2012 09:11:35 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 9E3963E40055
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:11:01 -0600 (MDT)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9HFAtNK037236
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:10:56 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9HFA4gj032365
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:10:05 -0600
+Message-ID: <507ECA43.3070402@linux.vnet.ibm.com>
+Date: Wed, 17 Oct 2012 08:09:55 -0700
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 2/5] memory-hotplug: update mce_bad_pages when removing
+ the memory
+References: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com> <1350475735-26136-3-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1350475735-26136-3-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
 
-Now that pre_destroy callbacks are called from within cgroup_lock and
-the cgroup has been checked to be empty without any children then there
-is no other way to fail.
+Hi Wen,
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/hugetlb_cgroup.c |   11 +++--------
- 1 file changed, 3 insertions(+), 8 deletions(-)
+> +#ifdef CONFIG_MEMORY_FAILURE
+> +static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+> +{
+> +	int i;
+> +
+> +	if (!memmap)
+> +		return;
 
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index a3f358f..dc595c6 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -159,14 +159,9 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
- {
- 	struct hstate *h;
- 	struct page *page;
--	int ret = 0, idx = 0;
-+	int idx = 0;
- 
- 	do {
--		if (cgroup_task_count(cgroup) ||
--		    !list_empty(&cgroup->children)) {
--			ret = -EBUSY;
--			goto out;
--		}
- 		for_each_hstate(h) {
- 			spin_lock(&hugetlb_lock);
- 			list_for_each_entry(page, &h->hugepage_activelist, lru)
-@@ -177,8 +172,8 @@ static int hugetlb_cgroup_pre_destroy(struct cgroup *cgroup)
- 		}
- 		cond_resched();
- 	} while (hugetlb_cgroup_have_usage(cgroup));
--out:
--	return ret;
-+
-+	return 0;
- }
- 
- int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
--- 
-1.7.10.4
+I guess free_section_usemap() does the same thing.
+
+> +	for (i = 0; i < PAGES_PER_SECTION; i++) {
+> +		if (PageHWPoison(&memmap[i])) {
+> +			atomic_long_sub(1, &mce_bad_pages);
+> +			ClearPageHWPoison(&memmap[i]);
+> +		}
+> +	}
+> +}
+> +#endif
+> +
+>  void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+>  {
+>  	struct page *memmap = NULL;
+> @@ -786,6 +803,10 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+>  		ms->pageblock_flags = NULL;
+>  	}
+> 
+> +#ifdef CONFIG_MEMORY_FAILURE
+> +	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
+> +#endif
+> +
+>  	free_section_usemap(memmap, usemap);
+>  }
+>  #endif
+
+But why put the call outside the  "if (ms->section_mem_map)" block?  If
+you put it inside, then you don't have to check for !memmap in
+clear_hwpoisoned_pages().
+
+Also, we really frown on #ifdefs scattered throughout code.  I'd suggest
+either:
+
++static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
++{
++#ifdef CONFIG_MEMORY_FAILURE
+... existing code
++#endif /* CONFIG_MEMORY_FAILURE */
++}
+
+or
+
++#ifdef CONFIG_MEMORY_FAILURE
++static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
++{
+... existing code
++}
++#else
++static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
++{}
++#endif /* CONFIG_MEMORY_FAILURE */
+
+and keep the #ifdef out of sparse_remove_one_section().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
