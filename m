@@ -1,92 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 200066B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 21:54:11 -0400 (EDT)
-Received: from mail-ea0-f169.google.com ([209.85.215.169])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TOIpm-0007cp-3O
-	for linux-mm@kvack.org; Wed, 17 Oct 2012 01:54:10 +0000
-Received: by mail-ea0-f169.google.com with SMTP id k11so1844182eaa.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 18:54:09 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id D6B056B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 22:00:15 -0400 (EDT)
+Date: Wed, 17 Oct 2012 10:00:12 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] Change the check for PageReadahead into an else-if
+Message-ID: <20121017020012.GA13769@localhost>
+References: <08589dd39c78346ec2ed2fedfd6e3121ca38acda.1350413420.git.rprabhu@wnohang.net>
 MIME-Version: 1.0
-In-Reply-To: <20121016131933.c196457a.akpm@linux-foundation.org>
-References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
-	<1350403183-12650-2-git-send-email-ming.lei@canonical.com>
-	<20121016131933.c196457a.akpm@linux-foundation.org>
-Date: Wed, 17 Oct 2012 09:54:09 +0800
-Message-ID: <CACVXFVPRsHTf85bTsHUWgHV2b7LBASGQ2s_9Kx9-ZCHv5WDuQQ@mail.gmail.com>
-Subject: Re: [RFC PATCH v1 1/3] mm: teach mm by current context info to not do
- I/O during memory allocation
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <08589dd39c78346ec2ed2fedfd6e3121ca38acda.1350413420.git.rprabhu@wnohang.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: raghu.prabhu13@gmail.com
+Cc: zheng.yan@oracle.com, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, Raghavendra D Prabhu <rprabhu@wnohang.net>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Oct 17, 2012 at 4:19 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
+On Wed, Oct 17, 2012 at 12:28:05AM +0530, raghu.prabhu13@gmail.com wrote:
+> From: Raghavendra D Prabhu <rprabhu@wnohang.net>
+> 
+> >From 51daa88ebd8e0d437289f589af29d4b39379ea76, page_sync_readahead coalesces
+> async readahead into its readahead window, so another checking for that again is
+> not required.
 >
-> The patch seems reasonable to me.  I'd like to see some examples of
-> these resume-time callsite which are performing the GFP_KERNEL
-> allocations, please.  You have found some kernel bugs, so those should
-> be fully described.
+> Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
+> ---
+>  fs/btrfs/relocation.c | 10 ++++------
+>  mm/filemap.c          |  3 +--
+>  2 files changed, 5 insertions(+), 8 deletions(-)
+> 
+> diff --git a/fs/btrfs/relocation.c b/fs/btrfs/relocation.c
+> index 4da0865..6362003 100644
 
-There are two examples on 2/3 and 3/3 of the patchset, see below link:
+> --- a/fs/btrfs/relocation.c
+> +++ b/fs/btrfs/relocation.c
+> @@ -2996,12 +2996,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
+>  				ret = -ENOMEM;
+>  				goto out;
+>  			}
+> -		}
+> -
+> -		if (PageReadahead(page)) {
+> -			page_cache_async_readahead(inode->i_mapping,
+> -						   ra, NULL, page, index,
+> -						   last_index + 1 - index);
+> +		} else if (PageReadahead(page)) {
+> +				page_cache_async_readahead(inode->i_mapping,
+> +							ra, NULL, page, index,
+> +							last_index + 1 - index);
 
-        http://marc.info/?l=linux-kernel&m=135040325717213&w=2
-        http://marc.info/?l=linux-kernel&m=135040327317222&w=2
+That extra indent is not necessary.
 
-Sorry for not Cc them to linux-mm because I am afraid of making noise
-in mm list.
+Otherwise looks good to me. Thanks!
 
->
-> This is just awful.  Why oh why do we write code in macros when we have
-> a nice C compiler?
+Reviewed-by: Fengguang Wu <fengguang.wu@intel.com>
 
-The two helpers are following style of local_irq_save() and
-local_irq_restore(), so that people can use them easily, that is
-why I define them as macro instead of inline.
-
->
-> These can all be done as nice, clean, type-safe, documented C
-> functions.  And if they can be done that way, they *should* be done
-> that way!
->
-> And I suggest that a better name for memalloc_noio_save() is
-> memalloc_noio_set().  So this:
-
-IMO, renaming as memalloc_noio_set() might not be better than _save
-because the _set name doesn't indicate that the flag should be stored first.
-
->
-> static inline unsigned memalloc_noio(void)
-> {
->         return current->flags & PF_MEMALLOC_NOIO;
-> }
->
-> static inline unsigned memalloc_noio_set(unsigned flags)
-> {
->         unsigned ret = memalloc_noio();
->
->         current->flags |= PF_MEMALLOC_NOIO;
->         return ret;
-> }
->
-> static inline unsigned memalloc_noio_restore(unsigned flags)
-> {
->         current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
-> }
->
-> (I think that's correct?  It's probably more efficient this way).
-
-Yes, it is correct and more clean, and I will take it.
-
-Thanks,
---
-Ming Lei
+>  		}
+>  
+>  		if (!PageUptodate(page)) {
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 3843445..d703224 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1113,8 +1113,7 @@ find_page:
+>  			page = find_get_page(mapping, index);
+>  			if (unlikely(page == NULL))
+>  				goto no_cached_page;
+> -		}
+> -		if (PageReadahead(page)) {
+> +		} else if (PageReadahead(page)) {
+>  			page_cache_async_readahead(mapping,
+>  					ra, filp, page,
+>  					index, last_index - index);
+> -- 
+> 1.7.12.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
