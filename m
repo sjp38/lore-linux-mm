@@ -1,65 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id CAE906B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:28:07 -0400 (EDT)
-Message-ID: <507F160A.7090302@am.sony.com>
-Date: Wed, 17 Oct 2012 13:33:14 -0700
-From: Tim Bird <tim.bird@am.sony.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 3F60E6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 16:28:51 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so8594179pbb.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 13:28:50 -0700 (PDT)
+Date: Wed, 17 Oct 2012 13:28:47 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch for-3.7] mm, mempolicy: avoid taking mutex inside spinlock
+ when reading numa_maps
+In-Reply-To: <20121017194501.GA24400@redhat.com>
+Message-ID: <alpine.DEB.2.00.1210171318400.28214@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com> <20121017181413.GA16805@redhat.com> <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com> <20121017193229.GC16805@redhat.com>
+ <alpine.DEB.2.00.1210171237130.28214@chino.kir.corp.google.com> <20121017194501.GA24400@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [Q] Default SLAB allocator
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com> <m27gqwtyu9.fsf@firstfloor.org> <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com> <m2391ktxjj.fsf@firstfloor.org> <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com> <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com> <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com> <alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com> <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com> <1350392160.3954.986.camel@edumazet-glaptop> <507DA245.9050709@am.sony.com> <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com> <1350414968.3954.1427.camel@edumazet-glaptop> <507EFCC3.1050304@am.sony.com> <1350501217.26103.852.camel@edumazet-glaptop> <CAGDaZ_qKg3x_ChdZck25P_XF78cJNeB_DJLg=ZtL3eZWSz3yXA@mail.gmail.com>
-In-Reply-To: <CAGDaZ_qKg3x_ChdZck25P_XF78cJNeB_DJLg=ZtL3eZWSz3yXA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shentino <shentino@gmail.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Ezequiel Garcia <elezegarcia@gmail.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "celinux-dev@lists.celinuxforum.org" <celinux-dev@lists.celinuxforum.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/17/2012 12:20 PM, Shentino wrote:
-> Potentially stupid question
-> 
-> But is SLAB the one where all objects per cache have a fixed size and
-> thus you don't have any bookkeeping overhead for the actual
-> allocations?
-> 
-> I remember something about one of the allocation mechanisms being
-> designed for caches of fixed sized objects to minimize the need for
-> bookkeeping.
+As a result of commit 32f8516a8c73 ("mm, mempolicy: fix printing stack
+contents in numa_maps"), the mutex protecting a shared policy can be
+inadvertently taken while holding task_lock(task).
 
-I wouldn't say "don't have _any_ bookkeeping", but minimizing the
-bookkeeping is indeed part of the SLAB goals.
+Recently, commit b22d127a39dd ("mempolicy: fix a race in 
+shared_policy_replace()") switched the spinlock within a shared policy to 
+a mutex so sp_alloc() could block.  Thus, a refcount must be grabbed on 
+all mempolicies returned by get_vma_policy() so it isn't freed while being 
+passed to mpol_to_str() when reading /proc/pid/numa_maps.
 
-However, that is for objects that are allocated at fixed size.
-kmalloc is (currently) a thin wrapper over the slab system,
-and it maps non-power-of-two allocations onto slabs that are
-power-of-two sized.  So, for example a string that is 18 bytes long
-will be allocated out of a slab with 32-byte objects.  This
-is the wastage that we're talking about here.  "Overhead" may
-have been the wrong word on my part, as that may imply overhead
-in the actual slab mechanisms, rather than just slop in the
-data area.
+This patch only takes task_lock() while dereferencing task->mempolicy in 
+get_vma_policy() to increment its refcount.  This ensures it will remain 
+in memory until dropped by __mpol_put() after mpol_to_str() is called.
 
-As an aside...
+Refcounts of shared policies are grabbed by the ->get_policy() function of 
+the vma, all others will be grabbed directly in get_vma_policy().  Now 
+that this is done, all callers now unconditionally drop the refcount.
 
-Is there a canonical glossary for memory-related terms?  What
-is the correct term for the difference between what is requested
-and what is actually returned by the allocator?  I've been
-calling it alternately "wastage" or "overhead", but maybe there's
-a more official term?
+Tested-by: Dave Jones <davej@redhat.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ fs/proc/task_mmu.c        |    4 +--
+ include/linux/mempolicy.h |   12 +------
+ mm/hugetlb.c              |    4 +--
+ mm/mempolicy.c            |   79 +++++++++++++++++++--------------------------
+ 4 files changed, 38 insertions(+), 61 deletions(-)
 
-I looked here: http://www.memorymanagement.org/glossary/
-but didn't find exactly what I was looking for.  The closest
-things I found were "internal fragmentation" and
-"padding", but those didn't seem to exactly describe
-the situation here.
- -- Tim
-
-=============================
-Tim Bird
-Architecture Group Chair, CE Workgroup of the Linux Foundation
-Senior Staff Engineer, Sony Network Entertainment
-=============================
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1178,11 +1178,9 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 	walk.private = md;
+ 	walk.mm = mm;
+ 
+-	task_lock(task);
+ 	pol = get_vma_policy(task, vma, vma->vm_start);
+ 	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+-	mpol_cond_put(pol);
+-	task_unlock(task);
++	__mpol_put(pol);
+ 
+ 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
+ 
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -73,13 +73,7 @@ static inline void mpol_put(struct mempolicy *pol)
+  */
+ static inline int mpol_needs_cond_ref(struct mempolicy *pol)
+ {
+-	return (pol && (pol->flags & MPOL_F_SHARED));
+-}
+-
+-static inline void mpol_cond_put(struct mempolicy *pol)
+-{
+-	if (mpol_needs_cond_ref(pol))
+-		__mpol_put(pol);
++	return pol->flags & MPOL_F_SHARED;
+ }
+ 
+ extern struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
+@@ -211,10 +205,6 @@ static inline void mpol_put(struct mempolicy *p)
+ {
+ }
+ 
+-static inline void mpol_cond_put(struct mempolicy *pol)
+-{
+-}
+-
+ static inline struct mempolicy *mpol_cond_copy(struct mempolicy *to,
+ 						struct mempolicy *from)
+ {
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -568,13 +568,13 @@ retry_cpuset:
+ 		}
+ 	}
+ 
+-	mpol_cond_put(mpol);
++	__mpol_put(mpol);
+ 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+ 		goto retry_cpuset;
+ 	return page;
+ 
+ err:
+-	mpol_cond_put(mpol);
++	__mpol_put(mpol);
+ 	return NULL;
+ }
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -906,7 +906,8 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 	}
+ 
+  out:
+-	mpol_cond_put(pol);
++	if (mpol_needs_cond_ref(pol))
++		__mpol_put(pol);
+ 	if (vma)
+ 		up_read(&current->mm->mmap_sem);
+ 	return err;
+@@ -1527,48 +1528,52 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
+ }
+ 
+ #endif
+-
+-/*
+- * get_vma_policy(@task, @vma, @addr)
+- * @task - task for fallback if vma policy == default
+- * @vma   - virtual memory area whose policy is sought
+- * @addr  - address in @vma for shared policy lookup
++/**
++ * get_vma_policy() - return effective policy for a vma at specified address
++ * @task: task for fallback if vma policy == default_policy
++ * @vma: virtual memory area whose policy is sought
++ * @addr: address in @vma for shared policy lookup
+  *
+- * Returns effective policy for a VMA at specified address.
+  * Falls back to @task or system default policy, as necessary.
+- * Current or other task's task mempolicy and non-shared vma policies must be
+- * protected by task_lock(task) by the caller.
+- * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
+- * count--added by the get_policy() vm_op, as appropriate--to protect against
+- * freeing by another task.  It is the caller's responsibility to free the
+- * extra reference for shared policies.
++ * Increments the reference count of the returned mempolicy, it is the caller's
++ * responsibility to decrement with __mpol_put().
++ * Requires vma->vm_mm->mmap_sem to be held for vma policies and takes
++ * task_lock(task) for task policy fallback.
+  */
+ struct mempolicy *get_vma_policy(struct task_struct *task,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+-	struct mempolicy *pol = task->mempolicy;
++	struct mempolicy *pol;
++
++	/*
++	 * Grab a reference before task has the potential to exit and free its
++	 * mempolicy.
++	 */
++	task_lock(task);
++	pol = task->mempolicy;
++	mpol_get(pol);
++	task_unlock(task);
+ 
+ 	if (vma) {
+ 		if (vma->vm_ops && vma->vm_ops->get_policy) {
+ 			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
+ 									addr);
+-			if (vpol)
++			if (vpol) {
++				mpol_put(pol);
+ 				pol = vpol;
++				if (!mpol_needs_cond_ref(pol))
++					mpol_get(pol);
++			}
+ 		} else if (vma->vm_policy) {
++			mpol_put(pol);
+ 			pol = vma->vm_policy;
+-
+-			/*
+-			 * shmem_alloc_page() passes MPOL_F_SHARED policy with
+-			 * a pseudo vma whose vma->vm_ops=NULL. Take a reference
+-			 * count on these policies which will be dropped by
+-			 * mpol_cond_put() later
+-			 */
+-			if (mpol_needs_cond_ref(pol))
+-				mpol_get(pol);
++			mpol_get(pol);
+ 		}
+ 	}
+-	if (!pol)
++	if (!pol) {
+ 		pol = &default_policy;
++		mpol_get(pol);
++	}
+ 	return pol;
+ }
+ 
+@@ -1919,30 +1924,14 @@ retry_cpuset:
+ 		unsigned nid;
+ 
+ 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
+-		mpol_cond_put(pol);
+ 		page = alloc_page_interleave(gfp, order, nid);
+-		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+-			goto retry_cpuset;
+-
+-		return page;
++		goto out;
+ 	}
+ 	zl = policy_zonelist(gfp, pol, node);
+-	if (unlikely(mpol_needs_cond_ref(pol))) {
+-		/*
+-		 * slow path: ref counted shared policy
+-		 */
+-		struct page *page =  __alloc_pages_nodemask(gfp, order,
+-						zl, policy_nodemask(gfp, pol));
+-		__mpol_put(pol);
+-		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+-			goto retry_cpuset;
+-		return page;
+-	}
+-	/*
+-	 * fast path:  default or task policy
+-	 */
+ 	page = __alloc_pages_nodemask(gfp, order, zl,
+ 				      policy_nodemask(gfp, pol));
++out:
++	__mpol_put(pol);
+ 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+ 		goto retry_cpuset;
+ 	return page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
