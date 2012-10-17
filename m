@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 3E8156B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:31:04 -0400 (EDT)
-Message-ID: <507ECF28.1060602@parallels.com>
-Date: Wed, 17 Oct 2012 19:30:48 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id E41F66B005A
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:31:20 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so8281294pbb.14
+        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 08:31:20 -0700 (PDT)
+Message-ID: <507ECF49.7050003@gmail.com>
+Date: Wed, 17 Oct 2012 23:31:21 +0800
+From: Wen Congyang <wencongyang@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] memcg/cgroup: do not fail fail on pre_destroy callbacks
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH v2 0/5] bugfix for memory hotplug
+References: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com> <507EA308.9090106@gmail.com>
+In-Reply-To: <507EA308.9090106@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Ni zhan Chen <nizhan.chen@gmail.com>
+Cc: wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On 10/17/2012 05:30 PM, Michal Hocko wrote:
-> Hi,
-> memcg is the only controller which might fail in its pre_destroy
-> callback which makes the cgroup core more complicated for no good
-> reason. This is an attempt to change this unfortunate state. 
-> 
-> I am sending this a RFC because I would like to hear back whether the
-> approach is correct. I thought that the changes would be more invasive
-> but it seems that the current code was mostly prepared for this and it
-> needs just some small tweaks (so I might be missing something important
-> here).
-> 
-> The first two patches are just clean ups. They could be merged even
-> without the rest.
-> 
-> The real change, although the code is not changed that much, is the 3rd
-> patch. It changes the way how we handle mem_cgroup_move_parent failures.
-> We have to realize that all those failures are *temporal*. Because we
-> are either racing with the page removal or the page is temporarily off
-> the LRU because of migration resp. global reclaim. As a result we do
-> not fail mem_cgroup_force_empty_list if the page cannot be moved to the
-> parent and rather retry until the LRU is empty.
-> 
-> The 4th patch is for cgroup core. I have moved cgroup_call_pre_destroy
-> inside the cgroup_lock which is not very nice because the callbacks
-> can take some time. Maybe we can move this call at the very end of the
-> function?
-> All I need for memcg is that cgroup_call_pre_destroy has been called and
-> that no new cgroups can be attached to the group. The cgroup_lock is
-> necessary for the later condition but if we move after CGRP_REMOVED flag
-> is set then we are safe as well.
-> 
-> The last two patches are trivial follow ups for the cgroups core change
-> because now we know that nobody will interfere with us so we can drop
-> those empty && no child condition.
-> 
-> Comments, thoughts?
-> 
+At 2012/10/17 20:22, Ni zhan Chen Wrote:
+> On 10/17/2012 08:08 PM, wency@cn.fujitsu.com wrote:
+>> From: Wen Congyang <wency@cn.fujitsu.com>
+>>
+>> Wen Congyang (5):
+>> memory-hotplug: skip HWPoisoned page when offlining pages
+>> memory-hotplug: update mce_bad_pages when removing the memory
+>> memory-hotplug: auto offline page_cgroup when onlining memory block
+>> failed
+>> memory-hotplug: fix NR_FREE_PAGES mismatch
+>> memory-hotplug: allocate zone's pcp before onlining pages
+>
+> Oops, why you don't write changelog?
 
-I personally don't see anything fundamentally wrong with this.
+I forgot to add it. Here is the changelog:
+
+Patch 1: updated according to kosaki's suggestion
+
+Patch 2: new patch, and update mce_bad_pages when removing memory.
+
+Patch 4: new patch, and fix a NR_FREE_PAGES mismatch, and this bug
+cause oom in my test.
+
+Patch 5: new patch, and fix a new bug. When repeating to online/offline
+pages, the free pages will continue to decrease.
+
+>
+>>
+>> include/linux/page-isolation.h | 10 ++++++----
+>> mm/memory-failure.c | 2 +-
+>> mm/memory_hotplug.c | 14 ++++++++------
+>> mm/page_alloc.c | 37 ++++++++++++++++++++++++++++---------
+>> mm/page_cgroup.c | 3 +++
+>> mm/page_isolation.c | 27 ++++++++++++++++++++-------
+>> mm/sparse.c | 21 +++++++++++++++++++++
+>> 7 files changed, 87 insertions(+), 27 deletions(-)
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org. For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
