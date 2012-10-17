@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id F25406B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 08:22:39 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so8873372obc.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 05:22:39 -0700 (PDT)
-Message-ID: <507EA308.9090106@gmail.com>
-Date: Wed, 17 Oct 2012 20:22:32 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 423206B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 09:01:31 -0400 (EDT)
+Date: Wed, 17 Oct 2012 14:01:25 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-ID: <20121017130125.GH5973@mudshark.cambridge.arm.com>
+References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+ <20121002150104.da57fa94.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/5] bugfix for memory hotplug
-References: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121002150104.da57fa94.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
 
-On 10/17/2012 08:08 PM, wency@cn.fujitsu.com wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> Wen Congyang (5):
->    memory-hotplug: skip HWPoisoned page when offlining pages
->    memory-hotplug: update mce_bad_pages when removing the memory
->    memory-hotplug: auto offline page_cgroup when onlining memory block
->      failed
->    memory-hotplug: fix NR_FREE_PAGES mismatch
->    memory-hotplug: allocate zone's pcp before onlining pages
+Hi Andrew,
 
-Oops, why you don't write changelog?
+On Tue, Oct 02, 2012 at 11:01:04PM +0100, Andrew Morton wrote:
+> On Tue,  2 Oct 2012 17:59:11 +0100
+> Will Deacon <will.deacon@arm.com> wrote:
+> 
+> > On x86 memory accesses to pages without the ACCESSED flag set result in the
+> > ACCESSED flag being set automatically. With the ARM architecture a page access
+> > fault is raised instead (and it will continue to be raised until the ACCESSED
+> > flag is set for the appropriate PTE/PMD).
+> > 
+> > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> > be called for a write fault.
+> > 
+> > This patch ensures that faults on transparent hugepages which do not result
+> > in a CoW update the access flags for the faulting pmd.
+> 
+> Alas, the code you're altering has changed so much in linux-next that I
+> am reluctant to force this fix in there myself.  Can you please
+> redo/retest/resend?  You can do that on 3.7-rc1 if you like, then we
+> can feed this into -rc2.
 
->
->   include/linux/page-isolation.h |   10 ++++++----
->   mm/memory-failure.c            |    2 +-
->   mm/memory_hotplug.c            |   14 ++++++++------
->   mm/page_alloc.c                |   37 ++++++++++++++++++++++++++++---------
->   mm/page_cgroup.c               |    3 +++
->   mm/page_isolation.c            |   27 ++++++++++++++++++++-------
->   mm/sparse.c                    |   21 +++++++++++++++++++++
->   7 files changed, 87 insertions(+), 27 deletions(-)
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+Here's the updated patch against -rc1...
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Cheers,
+
+Will
+
+--->8
