@@ -1,115 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 0DA2C6B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 20:31:26 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so7319653pad.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 17:31:26 -0700 (PDT)
-Date: Tue, 16 Oct 2012 17:31:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.7] mm, mempolicy: fix printing stack contents in
- numa_maps
-In-Reply-To: <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
-References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com> <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com> <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
- <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 7E89D6B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 20:43:03 -0400 (EDT)
+Date: Wed, 17 Oct 2012 02:43:00 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
+ s390
+Message-ID: <20121017004300.GH13227@quack.suse.cz>
+References: <1349108796-32161-1-git-send-email-jack@suse.cz>
+ <alpine.LSU.2.00.1210082029190.2237@eggly.anvils>
+ <20121009162107.GE15790@quack.suse.cz>
+ <alpine.LSU.2.00.1210091824390.30802@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1210091824390.30802@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
 
-When reading /proc/pid/numa_maps, it's possible to return the contents of 
-the stack where the mempolicy string should be printed if the policy gets 
-freed from beneath us.
+On Tue 09-10-12 19:19:09, Hugh Dickins wrote:
+> On Tue, 9 Oct 2012, Jan Kara wrote:
+<snip a lot>
+> > > But here's where I think the problem is.  You're assuming that all
+> > > filesystems go the same mapping_cap_account_writeback_dirty() (yeah,
+> > > there's no such function, just a confusing maze of three) route as XFS.
+> > > 
+> > > But filesystems like tmpfs and ramfs (perhaps they're the only two
+> > > that matter here) don't participate in that, and wait for an mmap'ed
+> > > page to be seen modified by the user (usually via pte_dirty, but that's
+> > > a no-op on s390) before page is marked dirty; and page reclaim throws
+> > > away undirtied pages.
+> >   I admit I haven't thought of tmpfs and similar. After some discussion Mel
+> > pointed me to the code in mmap which makes a difference. So if I get it
+> > right, the difference which causes us problems is that on tmpfs we map the
+> > page writeably even during read-only fault. OK, then if I make the above
+> > code in page_remove_rmap():
+> > 	if ((PageSwapCache(page) ||
+> > 	     (!anon && !mapping_cap_account_dirty(page->mapping))) &&
+> > 	    page_test_and_clear_dirty(page_to_pfn(page), 1))
+> > 		set_page_dirty(page);
+> > 
+> >   Things should be ok (modulo the ugliness of this condition), right?
+> 
+> (Setting aside my reservations above...) That's almost exactly right, but
+> I think the issue of a racing truncation (which could reset page->mapping
+> to NULL at any moment) means we have to be a bit more careful.  Usually
+> we guard against that with page lock, but here we can rely on mapcount.
+> 
+> page_mapping(page), with its built-in PageSwapCache check, actually ends
+> up making the condition look less ugly; and so far as I could tell,
+> the extra code does get optimized out on x86 (unless CONFIG_DEBUG_VM,
+> when we are left with its VM_BUG_ON(PageSlab(page))).
+> 
+> But please look this over very critically and test (and if you like it,
+> please adopt it as your own): I'm not entirely convinced yet myself.
+  Just to followup on this. The new version of the patch runs fine for
+several days on our s390 build machines. I was also running fsx-linux on
+tmpfs while pushing the machine to swap. fsx ran fine but I hit
+WARN_ON(delalloc) in xfs_vm_releasepage(). The exact stack trace is:
+ [<000003c008edb38e>] xfs_vm_releasepage+0xc6/0xd4 [xfs]
+ [<0000000000213326>] shrink_page_list+0x6ba/0x734
+ [<0000000000213924>] shrink_inactive_list+0x230/0x578
+ [<0000000000214148>] shrink_list+0x6c/0x120
+ [<00000000002143ee>] shrink_zone+0x1f2/0x238
+ [<0000000000215482>] balance_pgdat+0x5f6/0x86c
+ [<00000000002158b8>] kswapd+0x1c0/0x248
+ [<000000000017642a>] kthread+0xa6/0xb0
+ [<00000000004e58be>] kernel_thread_starter+0x6/0xc
+ [<00000000004e58b8>] kernel_thread_starter+0x0/0xc
 
-This happens because mpol_to_str() may return an error the 
-stack-allocated buffer is then printed without ever being stored.
+I don't think it is really related but I'll hold off the patch for a while
+to investigate what's going on...
 
-There are two possible error conditions in mpol_to_str():
-
- - if the buffer allocated is insufficient for the string to be stored, 
-   and
-
- - if the mempolicy has an invalid mode.
-
-The first error condition is not triggered in any of the callers to 
-mpol_to_str(): at least 50 bytes is always allocated on the stack and this 
-is sufficient for the string to be written.  A future patch should convert 
-this into BUILD_BUG_ON() since we know the maximum strlen possible, but 
-that's not -rc material.
-
-The second error condition is possible if a race occurs in dropping a 
-reference to a task's mempolicy causing it to be freed during the read().  
-The slab poison value is then used for the mode and mpol_to_str() returns 
--EINVAL.
-
-This race is only possible because get_vma_policy() believes that 
-mm->mmap_sem protects task->mempolicy, which isn't true.  The exit path 
-does not hold mm->mmap_sem when dropping the reference or setting 
-task->mempolicy to NULL: it uses task_lock(task) instead.
-
-Thus, it's required for the caller of a task mempolicy to hold 
-task_lock(task) while grabbing the mempolicy and reading it.  Callers with 
-a vma policy store their mempolicy earlier and can simply increment the 
-reference count so it's guaranteed not to be freed.
-
-Reported-by: Dave Jones <davej@redhat.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- fs/proc/task_mmu.c |    7 +++++--
- mm/mempolicy.c     |    5 ++---
- 2 files changed, 7 insertions(+), 5 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1158,6 +1158,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	struct vm_area_struct *vma = v;
- 	struct numa_maps *md = &numa_priv->md;
- 	struct file *file = vma->vm_file;
-+	struct task_struct *task = proc_priv->task;
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct mm_walk walk = {};
- 	struct mempolicy *pol;
-@@ -1177,9 +1178,11 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	walk.private = md;
- 	walk.mm = mm;
- 
--	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
-+	task_lock(task);
-+	pol = get_vma_policy(task, vma, vma->vm_start);
- 	mpol_to_str(buffer, sizeof(buffer), pol, 0);
- 	mpol_cond_put(pol);
-+	task_unlock(task);
- 
- 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
- 
-@@ -1189,7 +1192,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
- 		seq_printf(m, " heap");
- 	} else {
--		pid_t tid = vm_is_stack(proc_priv->task, vma, is_pid);
-+		pid_t tid = vm_is_stack(task, vma, is_pid);
- 		if (tid != 0) {
- 			/*
- 			 * Thread stack in /proc/PID/task/TID/maps or
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 0b78fb9..d04a8a5 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1536,9 +1536,8 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
-  *
-  * Returns effective policy for a VMA at specified address.
-  * Falls back to @task or system default policy, as necessary.
-- * Current or other task's task mempolicy and non-shared vma policies
-- * are protected by the task's mmap_sem, which must be held for read by
-- * the caller.
-+ * Current or other task's task mempolicy and non-shared vma policies must be
-+ * protected by task_lock(task) by the caller.
-  * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
-  * count--added by the get_policy() vm_op, as appropriate--to protect against
-  * freeing by another task.  It is the caller's responsibility to free the
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
