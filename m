@@ -1,116 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 526926B0068
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 18:12:16 -0400 (EDT)
-Date: Wed, 17 Oct 2012 15:12:14 -0700
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id A56926B0069
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 18:12:22 -0400 (EDT)
+Date: Wed, 17 Oct 2012 15:12:21 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-Message-Id: <20121017151214.e3d2aa3b.akpm@linux-foundation.org>
-In-Reply-To: <1350382611-20579-7-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v5 07/14] mm: Allocate kernel pages to the right memcg
+Message-Id: <20121017151221.4c420e5a.akpm@linux-foundation.org>
+In-Reply-To: <1350382611-20579-8-git-send-email-glommer@parallels.com>
 References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
-	<1350382611-20579-7-git-send-email-glommer@parallels.com>
+	<1350382611-20579-8-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Tue, 16 Oct 2012 14:16:43 +0400
+On Tue, 16 Oct 2012 14:16:44 +0400
 Glauber Costa <glommer@parallels.com> wrote:
 
-> This patch introduces infrastructure for tracking kernel memory pages to
-> a given memcg. This will happen whenever the caller includes the flag
-> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
+> When a process tries to allocate a page with the __GFP_KMEMCG flag, the
+> page allocator will call the corresponding memcg functions to validate
+> the allocation. Tasks in the root memcg can always proceed.
 > 
-> In memcontrol.h those functions are wrapped in inline acessors.  The
-> idea is to later on, patch those with static branches, so we don't incur
-> any overhead when no mem cgroups with limited kmem are being used.
-> 
-> Users of this functionality shall interact with the memcg core code
-> through the following functions:
-> 
-> memcg_kmem_newpage_charge: will return true if the group can handle the
->                            allocation. At this point, struct page is not
->                            yet allocated.
-> 
-> memcg_kmem_commit_charge: will either revert the charge, if struct page
->                           allocation failed, or embed memcg information
->                           into page_cgroup.
-> 
-> memcg_kmem_uncharge_page: called at free time, will revert the charge.
-> 
-> ...
->
-> +static __always_inline bool
-> +memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
-> +{
-> +	if (!memcg_kmem_enabled())
-> +		return true;
-> +
-> +	/*
-> +	 * __GFP_NOFAIL allocations will move on even if charging is not
-> +	 * possible. Therefore we don't even try, and have this allocation
-> +	 * unaccounted. We could in theory charge it with
-> +	 * res_counter_charge_nofail, but we hope those allocations are rare,
-> +	 * and won't be worth the trouble.
-> +	 */
-> +	if (!(gfp & __GFP_KMEMCG) || (gfp & __GFP_NOFAIL))
-> +		return true;
-> +	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
-> +		return true;
-> +
-> +	/* If the test is dying, just let it go. */
-> +        if (unlikely(test_thread_flag(TIF_MEMDIE)
-> +                     || fatal_signal_pending(current)))
-> +		return true;
-> +
-> +	return __memcg_kmem_newpage_charge(gfp, memcg, order);
-> +}
+> To avoid adding markers to the page - and a kmem flag that would
+> necessarily follow, as much as doing page_cgroup lookups for no reason,
+> whoever is marking its allocations with __GFP_KMEMCG flag is responsible
+> for telling the page allocator that this is such an allocation at
+> free_pages() time.
 
-That's a big function!  Why was it __always_inline?  I'd have thought
-it would be better to move the code after memcg_kmem_enabled() out of
-line.
+Well, why?  Was that the correct decision?
 
-Do we actually need to test PF_KTHREAD when current->mm == NULL? 
-Perhaps because of aio threads whcih temporarily adopt a userspace mm?
+> This is done by the invocation of
+> __free_accounted_pages() and free_accounted_pages().
 
-> +/**
-> + * memcg_kmem_uncharge_page: uncharge pages from memcg
-> + * @page: pointer to struct page being freed
-> + * @order: allocation order.
-> + *
-> + * there is no need to specify memcg here, since it is embedded in page_cgroup
-> + */
-> +static __always_inline void
-> +memcg_kmem_uncharge_page(struct page *page, int order)
-> +{
-> +	if (memcg_kmem_enabled())
-> +		__memcg_kmem_uncharge_page(page, order);
-> +}
-> +
-> +/**
-> + * memcg_kmem_commit_charge: embeds correct memcg in a page
-> + * @page: pointer to struct page recently allocated
-> + * @memcg: the memcg structure we charged against
-> + * @order: allocation order.
-> + *
-> + * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
-> + * failure of the allocation. if @page is NULL, this function will revert the
-> + * charges. Otherwise, it will commit the memcg given by @memcg to the
-> + * corresponding page_cgroup.
-> + */
-> +static __always_inline void
-> +memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
-> +{
-> +	if (memcg_kmem_enabled() && memcg)
-> +		__memcg_kmem_commit_charge(page, memcg, order);
-> +}
-
-I suspect the __always_inline's here are to do with static branch
-trickery.  A code comment is warranted if so?
-
+These are very general-sounding names.  I'd expect the identifiers to
+contain "memcg" and/or "kmem", to identify what's going on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
