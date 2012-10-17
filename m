@@ -1,89 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 634D36B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 02:18:34 -0400 (EDT)
-Message-ID: <507E4F0C.9040506@cn.fujitsu.com>
-Date: Wed, 17 Oct 2012 14:24:12 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C53D56B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 02:41:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id DF85F3EE0BD
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id BBBA145DE58
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id A22A345DE3E
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8F9321DB804F
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 4072E1DB803F
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 15:41:33 +0900 (JST)
+Message-ID: <507E52EE.7080706@jp.fujitsu.com>
+Date: Wed, 17 Oct 2012 15:40:46 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2]suppress "Device nodeX does not have a release() function"
- warning
-References: <507656D1.5020703@jp.fujitsu.com> <50765896.4000300@jp.fujitsu.com> <CAHGf_=rvdU+TymYZSXvx1bz4xdp43bqnyjRMGEoiBizC5rP0sQ@mail.gmail.com>
-In-Reply-To: <CAHGf_=rvdU+TymYZSXvx1bz4xdp43bqnyjRMGEoiBizC5rP0sQ@mail.gmail.com>
+Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
+References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com>
+In-Reply-To: <1350382611-20579-7-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-At 10/12/2012 06:33 AM, KOSAKI Motohiro Wrote:
-> On Thu, Oct 11, 2012 at 1:26 AM, Yasuaki Ishimatsu
-> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->> When calling unregister_node(), the function shows following message at
->> device_release().
->>
->> "Device 'node2' does not have a release() function, it is broken and must
->> be fixed."
->>
->> The reason is node's device struct does not have a release() function.
->>
->> So the patch registers node_device_release() to the device's release()
->> function for suppressing the warning message. Additionally, the patch adds
->> memset() to initialize a node struct into register_node(). Because the node
->> struct is part of node_devices[] array and it cannot be freed by
->> node_device_release(). So if system reuses the node struct, it has a garbage.
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  drivers/base/node.c |   11 +++++++++++
->>  1 file changed, 11 insertions(+)
->>
->> Index: linux-3.6/drivers/base/node.c
->> ===================================================================
->> --- linux-3.6.orig/drivers/base/node.c  2012-10-11 10:04:02.149758748 +0900
->> +++ linux-3.6/drivers/base/node.c       2012-10-11 10:20:34.111806931 +0900
->> @@ -252,6 +252,14 @@ static inline void hugetlb_register_node
->>  static inline void hugetlb_unregister_node(struct node *node) {}
->>  #endif
->>
->> +static void node_device_release(struct device *dev)
->> +{
->> +#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
->> +       struct node *node_dev = to_node(dev);
->> +
->> +       flush_work(&node_dev->node_work);
->> +#endif
->> +}
+(2012/10/16 19:16), Glauber Costa wrote:
+> This patch introduces infrastructure for tracking kernel memory pages to
+> a given memcg. This will happen whenever the caller includes the flag
+> __GFP_KMEMCG flag, and the task belong to a memcg other than the root.
 > 
-> The patch description don't explain why this flush_work() is needed.
+> In memcontrol.h those functions are wrapped in inline acessors.  The
+> idea is to later on, patch those with static branches, so we don't incur
+> any overhead when no mem cgroups with limited kmem are being used.
+> 
+> Users of this functionality shall interact with the memcg core code
+> through the following functions:
+> 
+> memcg_kmem_newpage_charge: will return true if the group can handle the
+>                             allocation. At this point, struct page is not
+>                             yet allocated.
+> 
+> memcg_kmem_commit_charge: will either revert the charge, if struct page
+>                            allocation failed, or embed memcg information
+>                            into page_cgroup.
+> 
+> memcg_kmem_uncharge_page: called at free time, will revert the charge.
+> 
+> [ v2: improved comments and standardized function names ]
+> [ v3: handle no longer opaque, functions not exported,
+>    even more comments ]
+> [ v4: reworked Used bit handling and surroundings for more clarity ]
+> [ v5: simplified code for kmemcg compiled out and core functions in
+>    memcontrol.c, moved kmem code to the middle to avoid forward decls ]
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> CC: Tejun Heo <tj@kernel.org>
 
-If the node is onlined after it is offlined, we will clear the memory,
-so we should flush_work() before node_dev is set to 0.
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Thanks
-Wen Congyang
 
-> 
-> 
->>  /*
->>   * register_node - Setup a sysfs device for a node.
->> @@ -263,8 +271,11 @@ int register_node(struct node *node, int
->>  {
->>         int error;
->>
->> +       memset(node, 0, sizeof(*node));
->> +
-> 
-> You should add a comment why we need initialize a node here. A lot
-> of developers don't have hotplug knowledge.
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
