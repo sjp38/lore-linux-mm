@@ -1,71 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 197306B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 22:34:23 -0400 (EDT)
-Date: Wed, 17 Oct 2012 10:34:19 +0800
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id EEE496B002B
+	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 22:53:26 -0400 (EDT)
+Date: Wed, 17 Oct 2012 10:53:23 +0800
 From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: Re: Re: [PATCH 2/5] mm/readahead: Change the condition for
- SetPageReadahead
-Message-ID: <20121017023419.GC13769@localhost>
+Subject: Re: Re: Re: [PATCH 1/5] mm/readahead: Check return value of
+ read_pages
+Message-ID: <20121017025323.GD13769@localhost>
 References: <cover.1348309711.git.rprabhu@wnohang.net>
- <82b88a97e1b86b718fe8e4616820d224f6abbc52.1348309711.git.rprabhu@wnohang.net>
- <20120922124920.GB17562@localhost>
- <20120926012900.GA36532@Archie>
- <20120928115623.GB1525@localhost>
- <20121016174252.GB2826@Archie>
+ <dcdfd8620ae632321a28112f5074cc3c78d05bde.1348309711.git.rprabhu@wnohang.net>
+ <20120922124337.GA17562@localhost>
+ <20120926012503.GA24218@Archie>
+ <20120928115405.GA1525@localhost>
+ <20121016174705.GC2826@Archie>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121016174252.GB2826@Archie>
+In-Reply-To: <20121016174705.GC2826@Archie>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Raghavendra D Prabhu <raghu.prabhu13@gmail.com>
 Cc: linux-mm@kvack.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
 
-Hi Raghavendra,
-
-> An implication of 51daa88ebd8e0d437289f589af29d4b39379ea76 is that,
-> a redundant check for PageReadahead(page) is avoided since  async is
-> piggy-backed into the synchronous readahead itself.
-
-That's right.
-
-> So, in case of
+On Tue, Oct 16, 2012 at 11:17:05PM +0530, Raghavendra D Prabhu wrote:
+> Hi,
 > 
->     page = find_get_page()
->     if(!page)
->         page_cache_sync_readahead()
->     else if (PageReadahead(page))
->         page_cache_async_readahead();
 > 
-> isnt' there a possibility that PG_readahead won't be set at all if
-> page is not in cache (causing page_cache_sync_readahead) but page at
-> index  (nr_to_read - lookahead_size) is already in the cache? (due
-> to if (page) continue; in the code)?
+> * On Fri, Sep 28, 2012 at 07:54:05PM +0800, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> >On Wed, Sep 26, 2012 at 06:55:03AM +0530, Raghavendra D Prabhu wrote:
+> >>
+> >>Hi,
+> >>
+> >>
+> >>* On Sat, Sep 22, 2012 at 08:43:37PM +0800, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> >>>On Sat, Sep 22, 2012 at 04:03:10PM +0530, raghu.prabhu13@gmail.com wrote:
+> >>>>From: Raghavendra D Prabhu <rprabhu@wnohang.net>
+> >>>>
+> >>>>Return value of a_ops->readpage will be propagated to return value of read_pages
+> >>>>and __do_page_cache_readahead.
+> >>>
+> >>>That does not explain the intention and benefit of this patch..
+> >>
+> >>I noticed that force_page_cache_readahead checks return value of
+> >>__do_page_cache_readahead but the actual error if any is never
+> >>propagated.
+> >
+> >force_page_cache_readahead()'s return value, in turn, is never used by
+> >its callers..
+> Yes, it is not called by its callers, however, since it is called in
+> a loop, shouldn't we bail out if force_page_cache_readahead fails
+> once? Without the appropriate return value, it will continue  and
+> in
+> 
+> force_page_cache_readahead
+> 
+> 
+> 		if (err < 0) {
+> 			ret = err;
+> 			break;
+> 		}
+> 
+> 	is never hit.
+> Nor does the other __do_page_cache_readahead() callers
 
-Yes, and I'm fully aware of that. It's left alone because it's assumed
-to be a rare case. The nature of readahead is, there are all kinds of
-less common cases that we deliberately ignore in order to keep the
-code simple and maintainable.
-
-> Hence, I changed the condition from equality to >= for setting
-> SetPageReadahead(page) (and added a variable so that it is done only
-> once).
-
-It's excellent that you noticed that case. And sorry that I come to
-realize that your change
-
--               if (page_idx == nr_to_read - lookahead_size)
-+               if (page_idx >= nr_to_read - lookahead_size) {
-                        SetPageReadahead(page);
-+                       lookahead_size = 0;
-+               }
-
-won't negatively impact cache hot reads. So I have no strong feelings
-about the patch now.
+That sounds all reasonable, but please don't change the meaning of
+__do_page_cache_readahead()'s return value. It should always return
+the number of new pages put to IO, which will be used by some
+readahead tracing/accounting feature. So it will need another parameter
+for passing the error code from ->readpages(). However since the major
+filesystems always return 0 in ->readpages(), I'm not sure it worth
+the efforts.
 
 Thanks,
 Fengguang
+
+> >care about the error state. So until we find an actual user of the
+> >error code, I'd recommend to avoid changing the current code.
+> >
+> >Thanks,
+> >Fengguang
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
