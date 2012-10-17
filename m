@@ -1,78 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 064D86B002B
-	for <linux-mm@kvack.org>; Tue, 16 Oct 2012 23:40:13 -0400 (EDT)
-Received: from mail-ee0-f41.google.com ([74.125.83.41])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TOKUP-0005mn-1H
-	for linux-mm@kvack.org; Wed, 17 Oct 2012 03:40:13 +0000
-Received: by mail-ee0-f41.google.com with SMTP id c4so4290979eek.14
-        for <linux-mm@kvack.org>; Tue, 16 Oct 2012 20:40:12 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 33B7E6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 00:05:27 -0400 (EDT)
+Date: Wed, 17 Oct 2012 00:05:15 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+Message-ID: <20121017040515.GA13505@redhat.com>
+References: <20121008150949.GA15130@redhat.com>
+ <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
+ <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
+ <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
+ <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
+ <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20121016131933.c196457a.akpm@linux-foundation.org>
-References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
-	<1350403183-12650-2-git-send-email-ming.lei@canonical.com>
-	<20121016131933.c196457a.akpm@linux-foundation.org>
-Date: Wed, 17 Oct 2012 11:40:12 +0800
-Message-ID: <CACVXFVPXp8bK+A8xTZBWP5n43+S9qHQUg1VhiFVj9q7q+JfX8g@mail.gmail.com>
-Subject: Re: [RFC PATCH v1 1/3] mm: teach mm by current context info to not do
- I/O during memory allocation
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 17, 2012 at 4:19 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> The patch seems reasonable to me.  I'd like to see some examples of
-> these resume-time callsite which are performing the GFP_KERNEL
-> allocations, please.  You have found some kernel bugs, so those should
-> be fully described.
+On Tue, Oct 16, 2012 at 05:31:23PM -0700, David Rientjes wrote:
 
-OK, there are two examples of GFP_KERNEL allocation in subsystem
-runtime resume path:
+ > -	pol = get_vma_policy(proc_priv->task, vma, vma->vm_start);
+ > +	task_lock(task);
+ > +	pol = get_vma_policy(task, vma, vma->vm_start);
+ >  	mpol_to_str(buffer, sizeof(buffer), pol, 0);
+ >  	mpol_cond_put(pol);
+ > +	task_unlock(task);
 
-1), almost all devices in some pci platform
-acpi_os_allocate
-	<-acpi_ut_allocate
-		<-ACPI_ALLOCATE_ZEROED
-			<-acpi_evaluate_object
-				<-__acpi_bus_set_power
-					<-acpi_bus_set_power
-						<-acpi_pci_set_power_state
-							<-platform_pci_set_power_state
-								<-pci_platform_power_transition
-									<-__pci_complete_power_transition
-										<-pci_set_power_state
-											<-pci_restore_standard_config
-												<-pci_pm_runtime_resume
+This seems to cause some fallout for me..
 
-2), all devices in usb subsystem
-usb_get_status
-	<-finish_port_resume
-		<-usb_port_resume
-			<-generic_resume
-				<-usb_resume_device
-					<-usb_resume_both
-						<-usb_runtime_resume	
+BUG: sleeping function called from invalid context at kernel/mutex.c:269
+in_atomic(): 1, irqs_disabled(): 0, pid: 8558, name: trinity-child2
+3 locks on stack by trinity-child2/8558:
+ #0: held:     (&p->lock){+.+.+.}, instance: ffff88010c9a00b0, at: [<ffffffff8120cd1f>] seq_lseek+0x3f/0x120
+ #1: held:     (&mm->mmap_sem){++++++}, instance: ffff88013956f7c8, at: [<ffffffff81254437>] m_start+0xa7/0x190
+ #2: held:     (&(&p->alloc_lock)->rlock){+.+...}, instance: ffff88011fc64f30, at: [<ffffffff81254f8f>] show_numa_map+0x14f/0x610
+Pid: 8558, comm: trinity-child2 Not tainted 3.7.0-rc1+ #32
+Call Trace:
+ [<ffffffff810ae4ec>] __might_sleep+0x14c/0x200
+ [<ffffffff816bdf4e>] mutex_lock_nested+0x2e/0x50
+ [<ffffffff811c43a3>] mpol_shared_policy_lookup+0x33/0x90
+ [<ffffffff8118d5c3>] shmem_get_policy+0x33/0x40
+ [<ffffffff811c31fa>] get_vma_policy+0x3a/0x90
+ [<ffffffff81254fa3>] show_numa_map+0x163/0x610
+ [<ffffffff81255b10>] ? pid_maps_open+0x20/0x20
+ [<ffffffff81255980>] ? pagemap_hugetlb_range+0xf0/0xf0
+ [<ffffffff81255483>] show_pid_numa_map+0x13/0x20
+ [<ffffffff8120c902>] traverse+0xf2/0x230
+ [<ffffffff8120cd8b>] seq_lseek+0xab/0x120
+ [<ffffffff811e6c0b>] sys_lseek+0x7b/0xb0
+ [<ffffffff816ca088>] tracesys+0xe1/0xe6
 
-I also have many examples in which GFP_KERNEL allocation
-is involved in runtime resume path of individual drivers.
 
-The above two examples just show how difficult to solve the problem
-by traditional way, :-)
+same problem, different syscall..
 
-Also as pointed by Oliver, network driver need memory allocation with
-no io in iSCSI runtime resume situation too.
 
-Thanks,
---
-Ming Lei
+BUG: sleeping function called from invalid context at kernel/mutex.c:269
+in_atomic(): 1, irqs_disabled(): 0, pid: 21996, name: trinity-child3
+3 locks on stack by trinity-child3/21996:
+ #0: held:     (&p->lock){+.+.+.}, instance: ffff88008d712c08, at: [<ffffffff8120ce3d>] seq_read+0x3d/0x3e0
+ #1: held:     (&mm->mmap_sem){++++++}, instance: ffff88013956f7c8, at: [<ffffffff81254437>] m_start+0xa7/0x190
+ #2: held:     (&(&p->alloc_lock)->rlock){+.+...}, instance: ffff88011fc64f30, at: [<ffffffff81254f8f>] show_numa_map+0x14f/0x610
+Pid: 21996, comm: trinity-child3 Not tainted 3.7.0-rc1+ #32
+Call Trace:
+ [<ffffffff810ae4ec>] __might_sleep+0x14c/0x200
+ [<ffffffff816bdf4e>] mutex_lock_nested+0x2e/0x50
+ [<ffffffff811c43a3>] mpol_shared_policy_lookup+0x33/0x90
+ [<ffffffff8118d5c3>] shmem_get_policy+0x33/0x40
+ [<ffffffff811c31fa>] get_vma_policy+0x3a/0x90
+ [<ffffffff81254fa3>] show_numa_map+0x163/0x610
+ [<ffffffff81255b10>] ? pid_maps_open+0x20/0x20
+ [<ffffffff81255980>] ? pagemap_hugetlb_range+0xf0/0xf0
+ [<ffffffff81255483>] show_pid_numa_map+0x13/0x20
+ [<ffffffff8120c902>] traverse+0xf2/0x230
+ [<ffffffff8120d14b>] seq_read+0x34b/0x3e0
+ [<ffffffff8120ce00>] ? seq_lseek+0x120/0x120
+ [<ffffffff811e751a>] do_loop_readv_writev+0x5a/0x90
+ [<ffffffff811e7851>] do_readv_writev+0x1c1/0x1e0
+ [<ffffffff810b0de1>] ? get_parent_ip+0x11/0x50
+ [<ffffffff811e7905>] vfs_readv+0x35/0x60
+ [<ffffffff811e7b72>] sys_preadv+0xc2/0xe0
+ [<ffffffff816ca088>] tracesys+0xe1/0xe6
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
