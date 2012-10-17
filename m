@@ -1,38 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 6A1606B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 11:54:11 -0400 (EDT)
-Date: Wed, 17 Oct 2012 16:54:02 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121017155401.GJ5973@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
- <20121002150104.da57fa94.akpm@linux-foundation.org>
- <20121017130125.GH5973@mudshark.cambridge.arm.com>
- <20121017.112620.1865348978594874782.davem@davemloft.net>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 00A7F6B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 14:14:25 -0400 (EDT)
+Date: Wed, 17 Oct 2012 14:14:13 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+Message-ID: <20121017181413.GA16805@redhat.com>
+References: <20121008150949.GA15130@redhat.com>
+ <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
+ <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
+ <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
+ <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
+ <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com>
+ <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121017.112620.1865348978594874782.davem@davemloft.net>
+In-Reply-To: <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 17, 2012 at 04:26:20PM +0100, David Miller wrote:
-> From: Will Deacon <will.deacon@arm.com>
-> Date: Wed, 17 Oct 2012 14:01:25 +0100
-> 
-> > +		update_mmu_cache(vma, address, pmd);
-> 
-> This won't build, use update_mmu_cache_pmd().
+On Tue, Oct 16, 2012 at 10:24:32PM -0700, David Rientjes wrote:
+ > On Wed, 17 Oct 2012, Dave Jones wrote:
+ > 
+ > > BUG: sleeping function called from invalid context at kernel/mutex.c:269
+ > 
+ > Hmm, looks like we need to change the refcount semantics entirely.  We'll 
+ > need to make get_vma_policy() always take a reference and then drop it 
+ > accordingly.  This work sif get_vma_policy() can grab a reference while 
+ > holding task_lock() for the task policy fallback case.
+ > 
+ > Comments on this approach?
 
-Good catch. They're both empty macros on ARM, so the typechecker didn't spot
-it. Updated patch below.
+Seems to be surviving my testing at least..
 
-Cheers,
+	Dave
 
-Will
-
---->8
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
