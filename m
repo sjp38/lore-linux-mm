@@ -1,46 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id CDE676B005D
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:47:32 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so4250112dad.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 12:47:32 -0700 (PDT)
-Date: Thu, 18 Oct 2012 12:47:27 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v5 04/14] kmem accounting basic infrastructure
-Message-ID: <20121018194727.GB13370@google.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com>
- <1350382611-20579-5-git-send-email-glommer@parallels.com>
- <alpine.DEB.2.00.1210171455010.20712@chino.kir.corp.google.com>
- <508035E3.4080508@parallels.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id A65B66B0044
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 16:03:43 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so9813842pbb.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 13:03:43 -0700 (PDT)
+Date: Thu, 18 Oct 2012 13:03:38 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch for-3.7 v2] mm, mempolicy: avoid taking mutex inside
+ spinlock when reading numa_maps
+In-Reply-To: <507F86BD.7070201@jp.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1210181255470.26994@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com> <20121017181413.GA16805@redhat.com> <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com> <20121017193229.GC16805@redhat.com>
+ <alpine.DEB.2.00.1210171237130.28214@chino.kir.corp.google.com> <20121017194501.GA24400@redhat.com> <alpine.DEB.2.00.1210171318400.28214@chino.kir.corp.google.com> <alpine.DEB.2.00.1210171428540.20712@chino.kir.corp.google.com> <507F803A.8000900@jp.fujitsu.com>
+ <507F86BD.7070201@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <508035E3.4080508@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hey, Glauber.
+On Thu, 18 Oct 2012, Kamezawa Hiroyuki wrote:
 
-On Thu, Oct 18, 2012 at 09:01:23PM +0400, Glauber Costa wrote:
-> That is the offensive part. But it is also how things are done in memcg
-> right now, and there is nothing fundamentally different in this one.
-> Whatever lands in the remaining offenders, can land in here.
+> diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+> index cceaab0..43973b0 100644
+> --- a/fs/proc/internal.h
+> +++ b/fs/proc/internal.h
+> @@ -12,6 +12,7 @@
+>  #include <linux/sched.h>
+>  #include <linux/proc_fs.h>
+>  struct  ctl_table_header;
+> +struct  mempolicy;
+>   extern struct proc_dir_entry proc_root;
+>  #ifdef CONFIG_PROC_SYSCTL
+> @@ -74,6 +75,9 @@ struct proc_maps_private {
+>  #ifdef CONFIG_MMU
+>  	struct vm_area_struct *tail_vma;
+>  #endif
+> +#ifdef CONFIG_NUMA
+> +	struct mempolicy *task_mempolicy;
+> +#endif
+>  };
+>   void proc_init_inodecache(void);
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 14df880..624927d 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -89,11 +89,41 @@ static void pad_len_spaces(struct seq_file *m, int len)
+>  		len = 1;
+>  	seq_printf(m, "%*c", len, ' ');
+>  }
+> +#ifdef CONFIG_NUMA
+> +/*
+> + * numa_maps scans all vmas under mmap_sem and checks their mempolicy.
 
-I think the problem here is that we don't have "you're committing to
-creation of a new cgroup" callback and thus subsystem can't
-synchronize locally against cgroup creation.  For task migration
-->attach() does that but cgroup creation may fail after ->create()
-succeeded so that doesn't work.
+Doesn't only affect numa_maps, it also affects maps and smaps although 
+they don't need the refcounts.
 
-We'll probably need to add ->post_create() which is invoked after
-creation is complete.  Li?
+> + * But task->mempolicy is not guarded by mmap_sem, it can be cleared/freed
+> + * under task_lock() (see kernel/exit.c) replacement of it is guarded by
+> + * mmap_sem.
 
-Thanks.
+I think this should be a little more verbose making it clear that 
+task->mempolicy can be cleared and freed if its refcount drops to 0 and is 
+only protected by task_lock() and that we're safe from task->mempolicy 
+changing between ->start(), ->next(), and ->stop() because 
+task->mm->mmap_sem is held for the duration.
 
--- 
-tejun
+> So, take referenceount under task_lock() before we start
+> + * scanning and drop it when numa_maps reaches the end.
+> + */
+> +static void hold_task_mempolicy(struct proc_maps_private *priv)
+> +{
+> +	struct task_struct *task = priv->task;
+> +
+> +	task_lock(task);
+> +	priv->task_mempolicy = task->mempolicy;
+> +	mpol_get(priv->task_mempolicy);
+> +	task_unlock(task);
+> +}
+> +static void release_task_mempolicy(struct proc_maps_private *priv)
+> +{
+> +	mpol_put(priv->task_mempolicy);
+> +}
+> +#else
+> +static void hold_task_mempolicy(struct proc_maps_private *priv)
+> +{
+> +}
+> +static void release_task_mempolicy(struct proc_maps_private *priv)
+> +{
+> +}
+> +#endif
+>   static void vma_stop(struct proc_maps_private *priv, struct vm_area_struct
+> *vma)
+>  {
+>  	if (vma && vma != priv->tail_vma) {
+>  		struct mm_struct *mm = vma->vm_mm;
+> +		release_task_mempolicy(priv);
+>  		up_read(&mm->mmap_sem);
+>  		mmput(mm);
+>  	}
+> @@ -132,7 +162,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+>   	tail_vma = get_gate_vma(priv->task->mm);
+>  	priv->tail_vma = tail_vma;
+> -
+> +	hold_task_mempolicy(priv);
+>  	/* Start with last addr hint */
+>  	vma = find_vma(mm, last_addr);
+>  	if (last_addr && vma) {
+> @@ -159,6 +189,7 @@ out:
+>  	if (vma)
+>  		return vma;
+>  +	release_task_mempolicy(priv);
+>  	/* End of vmas has been reached */
+>  	m->version = (tail_vma != NULL)? 0: -1UL;
+>  	up_read(&mm->mmap_sem);
+
+Otherwise looks good, but please remove the two task_lock()'s in 
+show_numa_map() that I added as part of this since you're replacing the 
+need for locking.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
