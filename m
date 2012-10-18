@@ -1,51 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id DAF4A6B0069
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:41:52 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so4317845dad.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:41:52 -0700 (PDT)
-Date: Thu, 18 Oct 2012 15:41:48 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
-Message-ID: <20121018224148.GR13370@google.com>
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
- <1350480648-10905-5-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 8B05D6B0068
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:41:58 -0400 (EDT)
+Received: by mail-yh0-f41.google.com with SMTP id 47so2649196yhr.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:41:57 -0700 (PDT)
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Subject: [PATCH 1/3] mm/slob: Drop usage of page->private for storing page-sized allocations
+Date: Thu, 18 Oct 2012 19:41:45 -0300
+Message-Id: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Tim Bird <tim.bird@am.sony.com>, Ezequiel Garcia <elezegarcia@gmail.com>, Pekka Penberg <penberg@kernel.org>
 
-Hello, Michal.
+This field was being used to store size allocation so it could be
+retrieved by ksize(). However, it is a bad practice to not mark a page
+as a slab page and then use fields for special purposes.
+There is no need to store the allocated size and
+ksize() can simply return PAGE_SIZE << compound_order(page).
 
-On Wed, Oct 17, 2012 at 03:30:46PM +0200, Michal Hocko wrote:
-> Now that mem_cgroup_pre_destroy callback doesn't fail finally we can
-> safely move on and forbit all the callbacks to fail. The last missing
-> piece is moving cgroup_call_pre_destroy after cgroup_clear_css_refs so
-> that css_tryget fails so no new charges for the memcg can happen.
-> The callbacks are also called from within cgroup_lock to guarantee that
-> no new tasks show up. We could theoretically call them outside of the
-> lock but then we have to move after CGRP_REMOVED flag is set.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Cc: Pekka Penberg <penberg@kernel.org>
+Acked-by: Christoph Lameter <cl@linux.com>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+ mm/slob.c |   24 ++++++++++--------------
+ 1 files changed, 10 insertions(+), 14 deletions(-)
 
-So, the plan is to do something like the following once memcg is
-ready.
-
-  http://thread.gmane.org/gmane.linux.kernel.containers/22559/focus=75251
-
-Note that the patch is broken in a couple places but it does show the
-general direction.  I'd prefer if patch #3 simply makes pre_destroy()
-return 0 and drop __DEPRECATED_clear_css_refs from mem_cgroup_subsys.
-Then, I can pull the branch in and drop all the unnecessary cruft.
-
-Thanks.
-
+diff --git a/mm/slob.c b/mm/slob.c
+index a08e468..06a5ec7 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -28,9 +28,8 @@
+  * from kmalloc are prepended with a 4-byte header with the kmalloc size.
+  * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
+  * alloc_pages() directly, allocating compound pages so the page order
+- * does not have to be separately tracked, and also stores the exact
+- * allocation size in page->private so that it can be used to accurately
+- * provide ksize(). These objects are detected in kfree() because slob_page()
++ * does not have to be separately tracked.
++ * These objects are detected in kfree() because PageSlab()
+  * is false for them.
+  *
+  * SLAB is emulated on top of SLOB by simply calling constructors and
+@@ -455,11 +454,6 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ 		if (likely(order))
+ 			gfp |= __GFP_COMP;
+ 		ret = slob_new_pages(gfp, order, node);
+-		if (ret) {
+-			struct page *page;
+-			page = virt_to_page(ret);
+-			page->private = size;
+-		}
+ 
+ 		trace_kmalloc_node(caller, ret,
+ 				   size, PAGE_SIZE << order, gfp, node);
+@@ -514,18 +508,20 @@ EXPORT_SYMBOL(kfree);
+ size_t ksize(const void *block)
+ {
+ 	struct page *sp;
++	int align;
++	unsigned int *m;
+ 
+ 	BUG_ON(!block);
+ 	if (unlikely(block == ZERO_SIZE_PTR))
+ 		return 0;
+ 
+ 	sp = virt_to_page(block);
+-	if (PageSlab(sp)) {
+-		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+-		unsigned int *m = (unsigned int *)(block - align);
+-		return SLOB_UNITS(*m) * SLOB_UNIT;
+-	} else
+-		return sp->private;
++	if (unlikely(!PageSlab(sp)))
++		return PAGE_SIZE << compound_order(sp);
++
++	align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
++	m = (unsigned int *)(block - align);
++	return SLOB_UNITS(*m) * SLOB_UNIT;
+ }
+ EXPORT_SYMBOL(ksize);
+ 
 -- 
-tejun
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
