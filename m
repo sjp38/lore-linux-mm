@@ -1,43 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id DA2946B0070
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id CC2946B006E
 	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:42:04 -0400 (EDT)
-Date: Thu, 18 Oct 2012 15:42:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5] slab: Ignore internal flags in cache creation
-Message-Id: <20121018154203.4b3a1179.akpm@linux-foundation.org>
-In-Reply-To: <1350473811-16264-1-git-send-email-glommer@parallels.com>
-References: <1350473811-16264-1-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: by mail-gg0-f169.google.com with SMTP id i1so2631208ggm.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:42:04 -0700 (PDT)
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Subject: [PATCH 2/3] mm/slob: Use object_size field in kmem_cache_size()
+Date: Thu, 18 Oct 2012 19:41:46 -0300
+Message-Id: <1350600107-4558-2-git-send-email-elezegarcia@gmail.com>
+In-Reply-To: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
+References: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Tim Bird <tim.bird@am.sony.com>, Ezequiel Garcia <elezegarcia@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Wed, 17 Oct 2012 15:36:51 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+Fields object_size and size are not the same: the latter might include
+slab metadata. Return object_size field in kmem_cache_size().
+Also, improve trace accuracy by correctly tracing reported size.
 
-> Some flags are used internally by the allocators for management
-> purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
-> to mark that the metadata for that cache is stored outside of the slab.
-> 
-> No cache should ever pass those as a creation flags. We can just ignore
-> this bit if it happens to be passed (such as when duplicating a cache in
-> the kmem memcg patches).
+Cc: Christoph Lameter <cl@linux-foundation.org>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+---
+ mm/slob.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
-I may be minunderstanding this, but...
-
-If some caller to kmem_cache_create() is passing in bogus flags then
-that's a bug, and it is undesirable to hide such a bug in this fashion?
-
-> Because such flags can vary from allocator to allocator, we allow them
-> to make their own decisions on that, defining SLAB_AVAILABLE_FLAGS with
-> all flags that are valid at creation time.  Allocators that doesn't have
-> any specific flag requirement should define that to mean all flags.
-> 
-> Common code will mask out all flags not belonging to that set.
+diff --git a/mm/slob.c b/mm/slob.c
+index 06a5ec7..287a88a 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -554,12 +554,12 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ 
+ 	if (c->size < PAGE_SIZE) {
+ 		b = slob_alloc(c->size, flags, c->align, node);
+-		trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
++		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
+ 					    SLOB_UNITS(c->size) * SLOB_UNIT,
+ 					    flags, node);
+ 	} else {
+ 		b = slob_new_pages(flags, get_order(c->size), node);
+-		trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
++		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
+ 					    PAGE_SIZE << get_order(c->size),
+ 					    flags, node);
+ 	}
+@@ -606,7 +606,7 @@ EXPORT_SYMBOL(kmem_cache_free);
+ 
+ unsigned int kmem_cache_size(struct kmem_cache *c)
+ {
+-	return c->size;
++	return c->object_size;
+ }
+ EXPORT_SYMBOL(kmem_cache_size);
+ 
+-- 
+1.7.8.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
