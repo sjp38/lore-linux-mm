@@ -1,71 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 0FC9D6B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 19:54:03 -0400 (EDT)
-Date: Wed, 17 Oct 2012 16:54:01 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH v1 1/3] mm: teach mm by current context info to not
- do I/O during memory allocation
-Message-Id: <20121017165401.cc343861.akpm@linux-foundation.org>
-In-Reply-To: <CACVXFVPRsHTf85bTsHUWgHV2b7LBASGQ2s_9Kx9-ZCHv5WDuQQ@mail.gmail.com>
-References: <1350403183-12650-1-git-send-email-ming.lei@canonical.com>
-	<1350403183-12650-2-git-send-email-ming.lei@canonical.com>
-	<20121016131933.c196457a.akpm@linux-foundation.org>
-	<CACVXFVPRsHTf85bTsHUWgHV2b7LBASGQ2s_9Kx9-ZCHv5WDuQQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id B1F886B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 20:30:41 -0400 (EDT)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D74E73EE0BD
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 09:30:39 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BE39645DEB5
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 09:30:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9CE2845DEBA
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 09:30:39 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9114F1DB803E
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 09:30:39 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 47BB61DB803B
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 09:30:39 +0900 (JST)
+Message-ID: <507F4D86.106@jp.fujitsu.com>
+Date: Thu, 18 Oct 2012 09:29:58 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] memcg/cgroup: do not fail fail on pre_destroy callbacks
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, linux-mm <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed, 17 Oct 2012 09:54:09 +0800
-Ming Lei <ming.lei@canonical.com> wrote:
-
-> On Wed, Oct 17, 2012 at 4:19 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> >
-> > The patch seems reasonable to me.  I'd like to see some examples of
-> > these resume-time callsite which are performing the GFP_KERNEL
-> > allocations, please.  You have found some kernel bugs, so those should
-> > be fully described.
+(2012/10/17 22:30), Michal Hocko wrote:
+> Hi,
+> memcg is the only controller which might fail in its pre_destroy
+> callback which makes the cgroup core more complicated for no good
+> reason. This is an attempt to change this unfortunate state.
 > 
-> There are two examples on 2/3 and 3/3 of the patchset, see below link:
+> I am sending this a RFC because I would like to hear back whether the
+> approach is correct. I thought that the changes would be more invasive
+> but it seems that the current code was mostly prepared for this and it
+> needs just some small tweaks (so I might be missing something important
+> here).
 > 
->         http://marc.info/?l=linux-kernel&m=135040325717213&w=2
->         http://marc.info/?l=linux-kernel&m=135040327317222&w=2
+> The first two patches are just clean ups. They could be merged even
+> without the rest.
 > 
-> Sorry for not Cc them to linux-mm because I am afraid of making noise
-> in mm list.
-
-Don't worry about mailing list noise ;)
-
-> >
-> > This is just awful.  Why oh why do we write code in macros when we have
-> > a nice C compiler?
+> The real change, although the code is not changed that much, is the 3rd
+> patch. It changes the way how we handle mem_cgroup_move_parent failures.
+> We have to realize that all those failures are *temporal*. Because we
+> are either racing with the page removal or the page is temporarily off
+> the LRU because of migration resp. global reclaim. As a result we do
+> not fail mem_cgroup_force_empty_list if the page cannot be moved to the
+> parent and rather retry until the LRU is empty.
 > 
-> The two helpers are following style of local_irq_save() and
-> local_irq_restore(), so that people can use them easily, that is
-> why I define them as macro instead of inline.
-
-local_irq_save() and local_irq_restore() were mistakes :( It's silly to
-write what appears to be a C function and then have it operate like
-Pascal (warning: I last wrote some Pascal in 66 B.C.).
-
-> >
-> > These can all be done as nice, clean, type-safe, documented C
-> > functions.  And if they can be done that way, they *should* be done
-> > that way!
-> >
-> > And I suggest that a better name for memalloc_noio_save() is
-> > memalloc_noio_set().  So this:
+> The 4th patch is for cgroup core. I have moved cgroup_call_pre_destroy
+> inside the cgroup_lock which is not very nice because the callbacks
+> can take some time. Maybe we can move this call at the very end of the
+> function?
+> All I need for memcg is that cgroup_call_pre_destroy has been called and
+> that no new cgroups can be attached to the group. The cgroup_lock is
+> necessary for the later condition but if we move after CGRP_REMOVED flag
+> is set then we are safe as well.
 > 
-> IMO, renaming as memalloc_noio_set() might not be better than _save
-> because the _set name doesn't indicate that the flag should be stored first.
+> The last two patches are trivial follow ups for the cgroups core change
+> because now we know that nobody will interfere with us so we can drop
+> those empty && no child condition.
+> 
+> Comments, thoughts?
+> 
+> Michal Hocko (6):
+>        memcg: split mem_cgroup_force_empty into reclaiming and reparenting parts
+>        memcg: root_cgroup cannot reach mem_cgroup_move_parent
+>        memcg: Simplify mem_cgroup_force_empty_list error handling
+>        cgroups: forbid pre_destroy callback to fail
+>        memcg: make mem_cgroup_reparent_charges non failing
+>        hugetlb: do not fail in hugetlb_cgroup_pre_destroy
+> 
+> Cumulative diffstat:
+>   kernel/cgroup.c     |   30 ++++---------
+>   mm/hugetlb_cgroup.c |   11 ++---
+>   mm/memcontrol.c     |  124 +++++++++++++++++++++++++++------------------------
+>   3 files changed, 78 insertions(+), 87 deletions(-)
 
-You could add __must_check to the function definition to ensure that
-all callers save its return value.
+Thank you very much ! The whole patch seems good to me and I like this approach.
+
+Thanks,
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
