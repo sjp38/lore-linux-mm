@@ -1,56 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id B88896B0044
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:03:22 -0400 (EDT)
-Date: Thu, 18 Oct 2012 18:03:06 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
- onlined
-Message-ID: <20121018220306.GA1739@cmpxchg.org>
-References: <505187D4.7070404@cn.fujitsu.com>
- <20120913205935.GK1560@cmpxchg.org>
- <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
- <507CF789.6050307@cn.fujitsu.com>
- <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 5CF4B6B0044
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:05:04 -0400 (EDT)
+Date: Thu, 18 Oct 2012 15:05:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-Id: <20121018150502.3dee7899.akpm@linux-foundation.org>
+In-Reply-To: <20121017155401.GJ5973@mudshark.cambridge.arm.com>
+References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+	<20121002150104.da57fa94.akpm@linux-foundation.org>
+	<20121017130125.GH5973@mudshark.cambridge.arm.com>
+	<20121017.112620.1865348978594874782.davem@davemloft.net>
+	<20121017155401.GJ5973@mudshark.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
+To: Will Deacon <will.deacon@arm.com>
+Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
 
-On Thu, Oct 18, 2012 at 12:03:44PM -0700, Hugh Dickins wrote:
-> On Tue, 16 Oct 2012, Wen Congyang wrote:
-> > At 09/14/2012 09:36 AM, Hugh Dickins Wrote:
-> > > 
-> > > Description to be filled in later: would it be needed for -stable,
-> > > or is onlining already broken in other ways that you're now fixing up?
-> > > 
-> > > Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
-> > > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > 
-> > Hi, all:
-> > 
-> > What about the status of this patch?
-> 
-> Sorry I'm being so unresponsive at the moment (or, as usual).
-> 
-> When I sent the fixed version afterwards (minus mistaken VM_BUG_ON,
-> plus safer mem_cgroup_force_empty_list), I expected you or Konstantin
-> to respond with a patch to fix it as you preferred (at offline/online);
-> so this was on hold until we could compare and decide between them.
-> 
-> In the meantime, I assume, we've all come to feel that this way is
-> simple, and probably the best way for now; or at least good enough,
-> and we all have better things to do than play with alternatives.
-> 
-> I'll write up the description of the fixed version, and post it for
-> 3.7, including the Acks from Hannes and KAMEZAWA (assuming they carry
-> forward to the second version) - but probably not today or tomorrow.
+On Wed, 17 Oct 2012 16:54:02 +0100
+Will Deacon <will.deacon@arm.com> wrote:
 
-Mine does, thanks for asking :-)
+> On x86 memory accesses to pages without the ACCESSED flag set result in the
+> ACCESSED flag being set automatically. With the ARM architecture a page access
+> fault is raised instead (and it will continue to be raised until the ACCESSED
+> flag is set for the appropriate PTE/PMD).
+> 
+> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> be called for a write fault.
+> 
+> This patch ensures that faults on transparent hugepages which do not result
+> in a CoW update the access flags for the faulting pmd.
+
+Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
