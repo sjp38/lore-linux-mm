@@ -1,120 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 637256B0062
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:42:07 -0400 (EDT)
-Received: by mail-yh0-f41.google.com with SMTP id 47so2649196yhr.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:42:07 -0700 (PDT)
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Subject: [PATCH 3/3] mm/sl[aou]b: Move common kmem_cache_size() to slab.h
-Date: Thu, 18 Oct 2012 19:41:47 -0300
-Message-Id: <1350600107-4558-3-git-send-email-elezegarcia@gmail.com>
-In-Reply-To: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
-References: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id DC1CF6B0062
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:46:10 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so9883265pad.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:46:10 -0700 (PDT)
+Date: Thu, 18 Oct 2012 15:46:06 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
+Message-ID: <20121018224606.GS13370@google.com>
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+ <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+ <20121018224148.GR13370@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121018224148.GR13370@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Tim Bird <tim.bird@am.sony.com>, Ezequiel Garcia <elezegarcia@gmail.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-This function is identically defined in all three allocators
-and it's trivial to move it to slab.h
+On Thu, Oct 18, 2012 at 03:41:48PM -0700, Tejun Heo wrote:
+> Note that the patch is broken in a couple places but it does show the
+> general direction.  I'd prefer if patch #3 simply makes pre_destroy()
+> return 0 and drop __DEPRECATED_clear_css_refs from mem_cgroup_subsys.
+> Then, I can pull the branch in and drop all the unnecessary cruft.
 
-Since now it's static, inline, header-defined function
-this patch also drops the EXPORT_SYMBOL tag.
+But you need the locking change for further memcg cleanup.  To avoid
+interlocked pulls from both sides, I think it's okay to push this one
+with the rest of memcg changes.  I can do the cleanup on top of this
+whole series, but please do drop .__DEPRECATED_clear_css_refs from
+memcg.
 
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Matt Mackall <mpm@selenic.com>
-Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
----
- include/linux/slab.h |    9 ++++++++-
- mm/slab.c            |    6 ------
- mm/slob.c            |    6 ------
- mm/slub.c            |    9 ---------
- 4 files changed, 8 insertions(+), 22 deletions(-)
+ Acked-by: Tejun Heo <tj@kernel.org>
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 83d1a14..d513147 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -128,7 +128,6 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
- void kmem_cache_destroy(struct kmem_cache *);
- int kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
--unsigned int kmem_cache_size(struct kmem_cache *);
- 
- /*
-  * Please use this macro to create slab caches. Simply specify the
-@@ -388,6 +387,14 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
- 	return kmalloc_node(size, flags | __GFP_ZERO, node);
- }
- 
-+/*
-+ * Determine the size of a slab object
-+ */
-+unsigned int kmem_cache_size(struct kmem_cache *s)
-+{
-+	return s->object_size;
-+}
-+
- void __init kmem_cache_init_late(void);
- 
- #endif	/* _LINUX_SLAB_H */
-diff --git a/mm/slab.c b/mm/slab.c
-index 87c55b0..92a3fec 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3969,12 +3969,6 @@ void kfree(const void *objp)
- }
- EXPORT_SYMBOL(kfree);
- 
--unsigned int kmem_cache_size(struct kmem_cache *cachep)
--{
--	return cachep->object_size;
--}
--EXPORT_SYMBOL(kmem_cache_size);
--
- /*
-  * This initializes kmem_list3 or resizes various caches for all nodes.
-  */
-diff --git a/mm/slob.c b/mm/slob.c
-index 287a88a..fffbc82 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -604,12 +604,6 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
- }
- EXPORT_SYMBOL(kmem_cache_free);
- 
--unsigned int kmem_cache_size(struct kmem_cache *c)
--{
--	return c->object_size;
--}
--EXPORT_SYMBOL(kmem_cache_size);
--
- int __kmem_cache_shutdown(struct kmem_cache *c)
- {
- 	/* No way to check for remaining objects */
-diff --git a/mm/slub.c b/mm/slub.c
-index a0d6984..1f826b0 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3127,15 +3127,6 @@ error:
- 	return -EINVAL;
- }
- 
--/*
-- * Determine the size of a slab object
-- */
--unsigned int kmem_cache_size(struct kmem_cache *s)
--{
--	return s->object_size;
--}
--EXPORT_SYMBOL(kmem_cache_size);
--
- static void list_slab_objects(struct kmem_cache *s, struct page *page,
- 							const char *text)
- {
+Thanks.
+
 -- 
-1.7.8.6
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
