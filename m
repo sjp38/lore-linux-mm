@@ -1,35 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 16A516B0044
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:51:02 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so9922761pbb.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:51:01 -0700 (PDT)
-Date: Thu, 18 Oct 2012 15:50:59 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 2/3] mm/slob: Use object_size field in
- kmem_cache_size()
-In-Reply-To: <1350600107-4558-2-git-send-email-elezegarcia@gmail.com>
-Message-ID: <alpine.DEB.2.00.1210181550100.4902@chino.kir.corp.google.com>
-References: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com> <1350600107-4558-2-git-send-email-elezegarcia@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with SMTP id 51C8F6B005D
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 19:45:04 -0400 (EDT)
+Date: Thu, 18 Oct 2012 16:45:02 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
+Message-Id: <20121018164502.b32791e7.akpm@linux-foundation.org>
+In-Reply-To: <1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Bird <tim.bird@am.sony.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Thu, 18 Oct 2012, Ezequiel Garcia wrote:
+On Mon, 15 Oct 2012 09:00:59 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-> Fields object_size and size are not the same: the latter might include
-> slab metadata. Return object_size field in kmem_cache_size().
-> Also, improve trace accuracy by correctly tracing reported size.
+> H. Peter Anvin doesn't like huge zero page which sticks in memory forever
+> after the first allocation. Here's implementation of lockless refcounting
+> for huge zero page.
 > 
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: Matt Mackall <mpm@selenic.com>
-> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+> We have two basic primitives: {get,put}_huge_zero_page(). They
+> manipulate reference counter.
+> 
+> If counter is 0, get_huge_zero_page() allocates a new huge page and
+> takes two references: one for caller and one for shrinker. We free the
+> page only in shrinker callback if counter is 1 (only shrinker has the
+> reference).
+> 
+> put_huge_zero_page() only decrements counter. Counter is never zero
+> in put_huge_zero_page() since shrinker holds on reference.
+> 
+> Freeing huge zero page in shrinker callback helps to avoid frequent
+> allocate-free.
 
-Acked-by: David Rientjes <rientjes@google.com>
+I'd like more details on this please.  The cost of freeing then
+reinstantiating that page is tremendous, because it has to be zeroed
+out again.  If there is any way at all in which the kernel can be made
+to enter a high-frequency free/reinstantiate pattern then I expect the
+effects would be quite bad.
+
+Do we have sufficient mechanisms in there to prevent this from
+happening in all cases?  If so, what are they, because I'm not seeing
+them?
+
+> Refcounting has cost. On 4 socket machine I observe ~1% slowdown on
+> parallel (40 processes) read page faulting comparing to lazy huge page
+> allocation.  I think it's pretty reasonable for synthetic benchmark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
