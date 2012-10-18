@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 456CB6B005A
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 06:20:10 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id dq12so6177910wgb.26
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 03:20:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id DE9686B0062
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 06:20:44 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so6178224wgb.26
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 03:20:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1350555140-11030-1-git-send-email-lliubbo@gmail.com>
+In-Reply-To: <1350555140-11030-2-git-send-email-lliubbo@gmail.com>
 References: <1350555140-11030-1-git-send-email-lliubbo@gmail.com>
-Date: Thu, 18 Oct 2012 18:20:08 +0800
-Message-ID: <CAA_GA1fBHAh5YdZBKUz00Bj1pKJX964LGpB0S8rxQwgSObfPNA@mail.gmail.com>
-Subject: Re: [PATCH 1/4] thp: clean up __collapse_huge_page_isolate
+	<1350555140-11030-2-git-send-email-lliubbo@gmail.com>
+Date: Thu, 18 Oct 2012 18:20:42 +0800
+Message-ID: <CAA_GA1epiwyNHWRW1tbO9bnhYZXsTJ2Fd-806UU6s7X=A4HuVw@mail.gmail.com>
+Subject: Re: [PATCH 2/4] thp: introduce hugepage_get_pmd()
 From: Bob Liu <lliubbo@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -17,111 +18,148 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: aarcange@redhat.com, xiaoguangrong@linux.vnet.ibm.com, hughd@google.com, rientjes@google.com, kirill.shutemov@linux.intel.com, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org
 
-Sorry, should be to linux-mm instead of linux-kernel.
-It's strange linux-mm not in the result by using
-./scripts/get_maintainer.pl -f ./mm/huge_memory.c
-
 On Thu, Oct 18, 2012 at 6:12 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> There are duplicated place using release_pte_pages().
-> And release_all_pte_pages() can also be removed.
+> Introduce hugepage_get_pmd() to simple code.
 >
 > Signed-off-by: Bob Liu <lliubbo@gmail.com>
 > ---
->  mm/huge_memory.c |   37 +++++++++++--------------------------
->  1 file changed, 11 insertions(+), 26 deletions(-)
+>  mm/huge_memory.c |   68 ++++++++++++++++++++++--------------------------------
+>  1 file changed, 27 insertions(+), 41 deletions(-)
 >
 > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a863af2..462d6ea 100644
+> index 462d6ea..e575b29 100644
 > --- a/mm/huge_memory.c
 > +++ b/mm/huge_memory.c
-> @@ -1700,64 +1700,49 @@ static void release_pte_pages(pte_t *pte, pte_t *_pte)
->         }
+> @@ -1115,6 +1115,25 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>         return ret;
 >  }
 >
-> -static void release_all_pte_pages(pte_t *pte)
-> -{
-> -       release_pte_pages(pte, pte + HPAGE_PMD_NR);
-> -}
-> -
->  static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->                                         unsigned long address,
->                                         pte_t *pte)
->  {
->         struct page *page;
->         pte_t *_pte;
-> -       int referenced = 0, isolated = 0, none = 0;
-> +       int referenced = 0, isolated = 1, none = 0;
->         for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
->              _pte++, address += PAGE_SIZE) {
->                 pte_t pteval = *_pte;
->                 if (pte_none(pteval)) {
->                         if (++none <= khugepaged_max_ptes_none)
->                                 continue;
-> -                       else {
-> -                               release_pte_pages(pte, _pte);
-> +                       else
->                                 goto out;
-> -                       }
->                 }
-> -               if (!pte_present(pteval) || !pte_write(pteval)) {
-> -                       release_pte_pages(pte, _pte);
-> +               if (!pte_present(pteval) || !pte_write(pteval))
->                         goto out;
-> -               }
->                 page = vm_normal_page(vma, address, pteval);
-> -               if (unlikely(!page)) {
-> -                       release_pte_pages(pte, _pte);
-> +               if (unlikely(!page))
->                         goto out;
-> -               }
+> +static pmd_t *hugepage_get_pmd(struct mm_struct *mm, unsigned long address)
+> +{
+> +       pgd_t *pgd;
+> +       pud_t *pud;
+> +       pmd_t *pmd = NULL;
 > +
->                 VM_BUG_ON(PageCompound(page));
->                 BUG_ON(!PageAnon(page));
->                 VM_BUG_ON(!PageSwapBacked(page));
+> +       pgd = pgd_offset(mm, address);
+> +       if (!pgd_present(*pgd))
+> +               goto out;
+> +
+> +       pud = pud_offset(pgd, address);
+> +       if (!pud_present(*pud))
+> +               goto out;
+> +
+> +       pmd = pmd_offset(pud, address);
+> +out:
+> +       return pmd;
+> +}
+> +
+>  /*
+>   * Returns 1 if a given pmd maps a stable (not under splitting) thp.
+>   * Returns -1 if it maps a thp under splitting. Returns 0 otherwise.
+> @@ -1145,22 +1164,14 @@ pmd_t *page_check_address_pmd(struct page *page,
+>                               unsigned long address,
+>                               enum page_check_address_pmd_flag flag)
+>  {
+> -       pgd_t *pgd;
+> -       pud_t *pud;
+>         pmd_t *pmd, *ret = NULL;
 >
->                 /* cannot use mapcount: can't collapse if there's a gup pin */
-> -               if (page_count(page) != 1) {
-> -                       release_pte_pages(pte, _pte);
-> +               if (page_count(page) != 1)
->                         goto out;
-> -               }
->                 /*
->                  * We can do it before isolate_lru_page because the
->                  * page can't be freed from under us. NOTE: PG_lock
->                  * is needed to serialize against split_huge_page
->                  * when invoked from the VM.
->                  */
-> -               if (!trylock_page(page)) {
-> -                       release_pte_pages(pte, _pte);
-> +               if (!trylock_page(page))
->                         goto out;
-> -               }
->                 /*
->                  * Isolate the page to avoid collapsing an hugepage
->                  * currently in use by the VM.
->                  */
->                 if (isolate_lru_page(page)) {
->                         unlock_page(page);
-> -                       release_pte_pages(pte, _pte);
->                         goto out;
->                 }
->                 /* 0 stands for page_is_file_cache(page) == false */
-> @@ -1770,11 +1755,11 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
->                     mmu_notifier_test_young(vma->vm_mm, address))
->                         referenced = 1;
->         }
-> -       if (unlikely(!referenced))
-> -               release_all_pte_pages(pte);
-> -       else
-> -               isolated = 1;
-> +       if (unlikely(!referenced)) {
->  out:
-> +               release_pte_pages(pte, _pte);
-> +               isolated = 0;
-> +       }
->         return isolated;
->  }
+>         if (address & ~HPAGE_PMD_MASK)
+>                 goto out;
 >
+> -       pgd = pgd_offset(mm, address);
+> -       if (!pgd_present(*pgd))
+> -               goto out;
+> -
+> -       pud = pud_offset(pgd, address);
+> -       if (!pud_present(*pud))
+> +       pmd = hugepage_get_pmd(mm, address);
+> +       if (!pmd)
+>                 goto out;
+> -
+> -       pmd = pmd_offset(pud, address);
+>         if (pmd_none(*pmd))
+>                 goto out;
+>         if (pmd_page(*pmd) != page)
+> @@ -1908,8 +1919,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+>                                    struct vm_area_struct *vma,
+>                                    int node)
+>  {
+> -       pgd_t *pgd;
+> -       pud_t *pud;
+>         pmd_t *pmd, _pmd;
+>         pte_t *pte;
+>         pgtable_t pgtable;
+> @@ -1955,16 +1964,9 @@ static void collapse_huge_page(struct mm_struct *mm,
+>                 goto out;
+>         VM_BUG_ON(vma->vm_flags & VM_NO_THP);
+>
+> -       pgd = pgd_offset(mm, address);
+> -       if (!pgd_present(*pgd))
+> +       pmd = hugepage_get_pmd(mm, address);
+> +       if (!pmd)
+>                 goto out;
+> -
+> -       pud = pud_offset(pgd, address);
+> -       if (!pud_present(*pud))
+> -               goto out;
+> -
+> -       pmd = pmd_offset(pud, address);
+> -       /* pmd can't go away or become huge under us */
+>         if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
+>                 goto out;
+>
+> @@ -2048,8 +2050,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>                                unsigned long address,
+>                                struct page **hpage)
+>  {
+> -       pgd_t *pgd;
+> -       pud_t *pud;
+>         pmd_t *pmd;
+>         pte_t *pte, *_pte;
+>         int ret = 0, referenced = 0, none = 0;
+> @@ -2060,15 +2060,9 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+>
+>         VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+>
+> -       pgd = pgd_offset(mm, address);
+> -       if (!pgd_present(*pgd))
+> -               goto out;
+> -
+> -       pud = pud_offset(pgd, address);
+> -       if (!pud_present(*pud))
+> +       pmd = hugepage_get_pmd(mm, address);
+> +       if (!pmd)
+>                 goto out;
+> -
+> -       pmd = pmd_offset(pud, address);
+>         if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
+>                 goto out;
+>
+> @@ -2363,21 +2357,13 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
+>  static void split_huge_page_address(struct mm_struct *mm,
+>                                     unsigned long address)
+>  {
+> -       pgd_t *pgd;
+> -       pud_t *pud;
+>         pmd_t *pmd;
+>
+>         VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
+>
+> -       pgd = pgd_offset(mm, address);
+> -       if (!pgd_present(*pgd))
+> -               return;
+> -
+> -       pud = pud_offset(pgd, address);
+> -       if (!pud_present(*pud))
+> +       pmd = hugepage_get_pmd(mm, address);
+> +       if (!pmd)
+>                 return;
+> -
+> -       pmd = pmd_offset(pud, address);
+>         if (!pmd_present(*pmd))
+>                 return;
+>         /*
 > --
 > 1.7.9.5
 >
