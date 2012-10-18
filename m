@@ -1,45 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id A53456B005A
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 07:53:52 -0400 (EDT)
-Message-ID: <507FEDC1.4010406@parallels.com>
-Date: Thu, 18 Oct 2012 15:53:37 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 706E26B005A
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 07:56:44 -0400 (EDT)
+Date: Thu, 18 Oct 2012 13:56:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom, memcg: handle sysctl oom_kill_allocating_task while
+ memcg oom happening
+Message-ID: <20121018115640.GB24295@dhcp22.suse.cz>
+References: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
+ <20121016133439.GI13991@dhcp22.suse.cz>
+ <CAFj3OHVW-betpEnauzk-vQEfw_7bJxFneQb2oWpAZzOpZuMDiQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 07/14] mm: Allocate kernel pages to the right memcg
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-8-git-send-email-glommer@parallels.com> <20121017151221.4c420e5a.akpm@linux-foundation.org>
-In-Reply-To: <20121017151221.4c420e5a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFj3OHVW-betpEnauzk-vQEfw_7bJxFneQb2oWpAZzOpZuMDiQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Sha Zhengju <handai.szj@taobao.com>, David Rientjes <rientjes@google.com>
 
-On 10/18/2012 02:12 AM, Andrew Morton wrote:
-> On Tue, 16 Oct 2012 14:16:44 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
+On Wed 17-10-12 01:14:48, Sha Zhengju wrote:
+> On Tuesday, October 16, 2012, Michal Hocko <mhocko@suse.cz> wrote:
+[...]
+> > Could you be more specific about the motivation for this patch? Is it
+> > "let's be consistent with the global oom" or you have a real use case
+> > for this knob.
+> >
 > 
->> When a process tries to allocate a page with the __GFP_KMEMCG flag, the
->> page allocator will call the corresponding memcg functions to validate
->> the allocation. Tasks in the root memcg can always proceed.
->>
->> To avoid adding markers to the page - and a kmem flag that would
->> necessarily follow, as much as doing page_cgroup lookups for no reason,
->> whoever is marking its allocations with __GFP_KMEMCG flag is responsible
->> for telling the page allocator that this is such an allocation at
->> free_pages() time.
+> In our environment(rhel6), we encounter a memcg oom 'deadlock'
+> problem.  Simply speaking, suppose process A is selected to be killed
+> by memcg oom killer, but A is uninterruptible sleeping on a page
+> lock. What's worse, the exact page lock is holding by another memcg
+> process B which is trapped in mem_croup_oom_lock(proves to be a
+> livelock).
+
+Hmm, this is strange. How can you get down that road with the page lock
+held? Is it possible this is related to the issue fixed by: 1d65f86d
+(mm: preallocate page before lock_page() at filemap COW)?
+
+> Then A can not exit successfully to free the memory and both of them
+> can not moving on.
+
+> Indeed, we should dig into these locks to find the solution and
+> in fact the 37b23e05 (x86, mm: make pagefault killable) and
+> 7d9fdac(Memcg: make oom_lock 0 and 1 based other than counter) have
+> already solved the problem, but if oom_killing_allocating_task is
+> memcg aware, enabling this suicide oom behavior will be a simpler
+> workaround. What's more, enabling the sysctl can avoid other potential
+> oom problems to some extent.
+
+As I said, I am not against this but I really want to see a valid use
+case first. So far I haven't seen any because what you mention above is
+a clear bug which should be fixed. I can imagine the huge number of
+tasks in the group could be a problem as well but I would like to see
+what are those problems first.
+
+> > The primary motivation for oom_kill_allocating_tas AFAIU was to reduce
+> > search over huge tasklists and reduce task_lock holding times. I am not
+> > sure whether the original concern is still valid since 6b0c81b (mm,
+> > oom: reduce dependency on tasklist_lock) as the tasklist_lock usage has
+> > been reduced conciderably in favor of RCU read locks is taken but maybe
+> > even that can be too disruptive?
+> > David?
 > 
-> Well, why?  Was that the correct decision?
 > 
->> This is done by the invocation of
->> __free_accounted_pages() and free_accounted_pages().
-> 
-> These are very general-sounding names.  I'd expect the identifiers to
-> contain "memcg" and/or "kmem", to identify what's going on.
-> 
-I've just changed to free_memcg_kmem_pages.
-Let me know if the name is better.
+> On the other hand, from the semantic meaning of oom_kill_allocating_task,
+> it implies to allow suicide-like oom, which has no obvious relationship
+> with performance problems(such as huge task lists or task_lock holding
+> time). 
+
+I guess that suicide-like oom in fact means "kill the poor soul that
+happened to charge the last". I do not see any use case for this from
+top of my head (appart from the performance benefits of course).
+
+> So make the sysctl be consistent with global oom will be better or set
+> an individual option for memcg oom just as panic_on_oom does.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
