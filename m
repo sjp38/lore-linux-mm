@@ -1,66 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 8CCD96B005D
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 17:59:47 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so9892620pbb.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 14:59:46 -0700 (PDT)
-Date: Thu, 18 Oct 2012 14:59:44 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-In-Reply-To: <507FCA90.8060307@parallels.com>
-Message-ID: <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210171515290.20712@chino.kir.corp.google.com> <507FCA90.8060307@parallels.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B88896B0044
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:03:22 -0400 (EDT)
+Date: Thu, 18 Oct 2012 18:03:06 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memory cgroup: update root memory cgroup when node is
+ onlined
+Message-ID: <20121018220306.GA1739@cmpxchg.org>
+References: <505187D4.7070404@cn.fujitsu.com>
+ <20120913205935.GK1560@cmpxchg.org>
+ <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+ <507CF789.6050307@cn.fujitsu.com>
+ <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Hugh Dickins <hughd@google.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com
 
-On Thu, 18 Oct 2012, Glauber Costa wrote:
-
-> >> @@ -2630,6 +2634,171 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
-> >>  	memcg_check_events(memcg, page);
-> >>  }
-> >>  
-> >> +#ifdef CONFIG_MEMCG_KMEM
-> >> +static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
-> >> +{
-> >> +	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
-> >> +		(memcg->kmem_accounted & KMEM_ACCOUNTED_MASK);
-> >> +}
-> >> +
-> >> +static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
-> >> +{
-> >> +	struct res_counter *fail_res;
-> >> +	struct mem_cgroup *_memcg;
-> >> +	int ret = 0;
-> >> +	bool may_oom;
-> >> +
-> >> +	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
-> >> +	if (ret)
-> >> +		return ret;
-> >> +
-> >> +	/*
-> >> +	 * Conditions under which we can wait for the oom_killer.
-> >> +	 * We have to be able to wait, but also, if we can't retry,
-> >> +	 * we obviously shouldn't go mess with oom.
-> >> +	 */
-> >> +	may_oom = (gfp & __GFP_WAIT) && !(gfp & __GFP_NORETRY);
+On Thu, Oct 18, 2012 at 12:03:44PM -0700, Hugh Dickins wrote:
+> On Tue, 16 Oct 2012, Wen Congyang wrote:
+> > At 09/14/2012 09:36 AM, Hugh Dickins Wrote:
+> > > 
+> > > Description to be filled in later: would it be needed for -stable,
+> > > or is onlining already broken in other ways that you're now fixing up?
+> > > 
+> > > Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
+> > > Signed-off-by: Hugh Dickins <hughd@google.com>
 > > 
-> > What about gfp & __GFP_FS?
-> >
+> > Hi, all:
+> > 
+> > What about the status of this patch?
 > 
-> Do you intend to prevent or allow OOM under that flag? I personally
-> think that anything that accepts to be OOM-killed should have GFP_WAIT
-> set, so that ought to be enough.
+> Sorry I'm being so unresponsive at the moment (or, as usual).
 > 
+> When I sent the fixed version afterwards (minus mistaken VM_BUG_ON,
+> plus safer mem_cgroup_force_empty_list), I expected you or Konstantin
+> to respond with a patch to fix it as you preferred (at offline/online);
+> so this was on hold until we could compare and decide between them.
+> 
+> In the meantime, I assume, we've all come to feel that this way is
+> simple, and probably the best way for now; or at least good enough,
+> and we all have better things to do than play with alternatives.
+> 
+> I'll write up the description of the fixed version, and post it for
+> 3.7, including the Acks from Hannes and KAMEZAWA (assuming they carry
+> forward to the second version) - but probably not today or tomorrow.
 
-The oom killer in the page allocator cannot trigger without __GFP_FS 
-because direct reclaim has little chance of being very successful and 
-thus we end up needlessly killing processes, and that tends to happen 
-quite a bit if we dont check for it.  Seems like this would also happen 
-with memcg if mem_cgroup_reclaim() has a large probability of failing?
+Mine does, thanks for asking :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
