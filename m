@@ -1,102 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 35C346B002B
-	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 20:46:57 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so15908231ied.14
-        for <linux-mm@kvack.org>; Wed, 17 Oct 2012 17:46:56 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id B5C646B002B
+	for <linux-mm@kvack.org>; Wed, 17 Oct 2012 21:25:48 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 48BCA3EE0BC
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:25:47 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2FFA045DE5E
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:25:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E9C745DE5C
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:25:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EFA151DB8043
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:25:46 +0900 (JST)
+Received: from g01jpexchyt09.g01.fujitsu.local (g01jpexchyt09.g01.fujitsu.local [10.128.194.48])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9B3AA1DB804A
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:25:46 +0900 (JST)
+Message-ID: <507F5A78.7030500@jp.fujitsu.com>
+Date: Thu, 18 Oct 2012 10:25:12 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <507F160A.7090302@am.sony.com>
-References: <CALF0-+XGn5=QSE0bpa4RTag9CAJ63MKz1kvaYbpw34qUhViaZA@mail.gmail.com>
- <m27gqwtyu9.fsf@firstfloor.org> <alpine.DEB.2.00.1210111558290.6409@chino.kir.corp.google.com>
- <m2391ktxjj.fsf@firstfloor.org> <CALF0-+WLZWtwYY4taYW9D7j-abCJeY90JzcTQ2hGK64ftWsdxw@mail.gmail.com>
- <alpine.DEB.2.00.1210130252030.7462@chino.kir.corp.google.com>
- <CALF0-+Xp_P_NjZpifzDSWxz=aBzy_fwaTB3poGLEJA8yBPQb_Q@mail.gmail.com>
- <alpine.DEB.2.00.1210151745400.31712@chino.kir.corp.google.com>
- <CALF0-+WgfnNOOZwj+WLB397cgGX7YhNuoPXAK5E0DZ5v_BxxEA@mail.gmail.com>
- <1350392160.3954.986.camel@edumazet-glaptop> <507DA245.9050709@am.sony.com>
- <CALF0-+VLVqy_uE63_jL83qh8MqBQAE3vYLRX1mRQURZ4a1M20g@mail.gmail.com>
- <1350414968.3954.1427.camel@edumazet-glaptop> <507EFCC3.1050304@am.sony.com>
- <1350501217.26103.852.camel@edumazet-glaptop> <CAGDaZ_qKg3x_ChdZck25P_XF78cJNeB_DJLg=ZtL3eZWSz3yXA@mail.gmail.com>
- <507F160A.7090302@am.sony.com>
-From: Shentino <shentino@gmail.com>
-Date: Wed, 17 Oct 2012 17:46:16 -0700
-Message-ID: <CAGDaZ_qQ6L38EVkwmSakWF4xGFcESY-cr_XbjwG1pELTr1XGQw@mail.gmail.com>
-Subject: Re: [Q] Default SLAB allocator
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to
+ acpi_memory_device_remove()
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com> <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com> <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com> <507E54AA.2080806@cn.fujitsu.com> <CAHGf_=o_Wu1kr56C=7XTjYRzL4egSyGJYd4+2RecVWzpeM427Q@mail.gmail.com> <507E75AA.2000605@cn.fujitsu.com> <CAHGf_=oNufcAQhxWtvq56qwF==+14+Cm7r9eiTGdY=B=ENwPQg@mail.gmail.com> <507E7FC2.8@cn.fujitsu.com>
+In-Reply-To: <507E7FC2.8@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Bird <tim.bird@am.sony.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Ezequiel Garcia <elezegarcia@gmail.com>, David Rientjes <rientjes@google.com>, Andi Kleen <andi@firstfloor.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "celinux-dev@lists.celinuxforum.org" <celinux-dev@lists.celinuxforum.org>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Wed, Oct 17, 2012 at 1:33 PM, Tim Bird <tim.bird@am.sony.com> wrote:
-> On 10/17/2012 12:20 PM, Shentino wrote:
->> Potentially stupid question
+Hi Wen,
+
+2012/10/17 18:52, Wen Congyang wrote:
+> At 10/17/2012 05:18 PM, KOSAKI Motohiro Wrote:
+>>>>>>> Hmm, it doesn't move the code. It just reuse the code in acpi_memory_powerdown_device().
+>>>>>>
+>>>>>> Even if reuse or not reuse, you changed the behavior. If any changes
+>>>>>> has no good rational, you cannot get an ack.
+>>>>>
+>>>>> I don't understand this? IIRC, the behavior isn't changed.
+>>>>
+>>>> Heh, please explain why do you think so.
+>>>
+>>> We just introduce a function, and move codes from acpi_memory_disable_device() to the new
+>>> function. We call the new function in acpi_memory_disable_device(), so the function
+>>> acpi_memory_disable_device()'s behavior isn't changed.
+>>>
+>>> Maybe I don't understand what do you want to say.
 >>
->> But is SLAB the one where all objects per cache have a fixed size and
->> thus you don't have any bookkeeping overhead for the actual
->> allocations?
+>> Ok, now you agreed you moved the code, yes? So then, you should explain why
+>> your code moving makes zero impact other acpi_memory_disable_device() caller.
+>
+> We just move the code, and don't change the acpi_memory_disable_device()'s behavior.
+>
+> I look it the change again, and found some diffs:
+> 1. we treat !info->enabled as error, while it isn't a error without this patch
+> 2. we remove memory info from the list, it is a bug fix because we free the memory
+>     that stores memory info.(I have sent a patch to fix this bug, and it is in akpm's tree now)
+>
+> I guess you mean 1 will change the behavior. In the last version, I don't do it.
+> Ishimatsu changes this and I don't notify this.
+>
+> To Ishimatsu:
+>
+> Why do you change this?
+
+Oops. If so, it's my mistake.
+Could you update it in next version?
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> Thanks
+> Wen Congyang
+>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
 >>
->> I remember something about one of the allocation mechanisms being
->> designed for caches of fixed sized objects to minimize the need for
->> bookkeeping.
 >
-> I wouldn't say "don't have _any_ bookkeeping", but minimizing the
-> bookkeeping is indeed part of the SLAB goals.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 >
-> However, that is for objects that are allocated at fixed size.
-> kmalloc is (currently) a thin wrapper over the slab system,
-> and it maps non-power-of-two allocations onto slabs that are
-> power-of-two sized.
 
-...yuck?
-
-> So, for example a string that is 18 bytes long
-> will be allocated out of a slab with 32-byte objects.  This
-> is the wastage that we're talking about here.  "Overhead" may
-> have been the wrong word on my part, as that may imply overhead
-> in the actual slab mechanisms, rather than just slop in the
-> data area.
-
-Data slop (both for alignment as well as for making room for
-per-allocation bookkeeping overhead as is often done with userspace
-malloc arenas) is precisely what I was referring to here.
-
-Thanks for the answers I was curious.
-
-> As an aside...
->
-> Is there a canonical glossary for memory-related terms?  What
-> is the correct term for the difference between what is requested
-> and what is actually returned by the allocator?  I've been
-> calling it alternately "wastage" or "overhead", but maybe there's
-> a more official term?
->
-> I looked here: http://www.memorymanagement.org/glossary/
-> but didn't find exactly what I was looking for.  The closest
-> things I found were "internal fragmentation" and
-> "padding", but those didn't seem to exactly describe
-> the situation here.
-
-Another stupid question.
-
-Is it possible to have both SLAB for fixed sized objects and something
-like SLOB or SLUB standing aside with a different pool for variable
-sized allocations ala kmalloc?
-
-My hunch is that handling the two cases with separate methods may get
-the best of both worlds.  Or layering kmalloc through something that
-gets huge blocks from slab and slices them up in ways more amenable to
-avoiding power-of-2 slopping.
-
-No memory geek, so my two cents.
-
->  -- Tim
->
-> =============================
-> Tim Bird
-> Architecture Group Chair, CE Workgroup of the Linux Foundation
-> Senior Staff Engineer, Sony Network Entertainment
-> =============================
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
