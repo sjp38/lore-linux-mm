@@ -1,98 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id E91576B0068
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:46:54 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so9920274pbb.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:46:54 -0700 (PDT)
-Date: Thu, 18 Oct 2012 15:46:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] mm/slob: Drop usage of page->private for storing
- page-sized allocations
-In-Reply-To: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
-Message-ID: <alpine.DEB.2.00.1210181544590.1439@chino.kir.corp.google.com>
-References: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 3E02F6B0069
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:47:02 -0400 (EDT)
+Message-ID: <508086DA.3010600@oracle.com>
+Date: Thu, 18 Oct 2012 18:46:50 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: mm: NULL ptr deref in anon_vma_interval_tree_verify
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Bird <tim.bird@am.sony.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Michel Lespinasse <walken@google.com>, hughd@google.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Thu, 18 Oct 2012, Ezequiel Garcia wrote:
+Hi all,
 
-> This field was being used to store size allocation so it could be
-> retrieved by ksize(). However, it is a bad practice to not mark a page
-> as a slab page and then use fields for special purposes.
-> There is no need to store the allocated size and
-> ksize() can simply return PAGE_SIZE << compound_order(page).
-> 
-> Cc: Pekka Penberg <penberg@kernel.org>
+While fuzzing with trinity inside a KVM tools (lkvm) guest, on today's linux-next kernel,
+I saw the following:
 
-Is Pekka Penberg the long distant cousin of Pekka Enberg? :)  You should 
-probably cc the author of slob, Matt Mackall <mpm@selenic.com>, on slob 
-patches.
+[ 1857.278176] BUG: unable to handle kernel NULL pointer dereference at 0000000000000090
+[ 1857.283725] IP: [<ffffffff81229d0f>] anon_vma_interval_tree_verify+0xf/0xa0
+[ 1857.283725] PGD 6e19e067 PUD 6e19f067 PMD 0
+[ 1857.283725] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 1857.283725] Dumping ftrace buffer:
+[ 1857.283725]    (ftrace buffer empty)
+[ 1857.283725] CPU 2
+[ 1857.283725] Pid: 15637, comm: trinity-child18 Tainted: G        W    3.7.0-rc1-next-20121018-sasha-00002-g60a870d-dirty #61
+[ 1857.283725] RIP: 0010:[<ffffffff81229d0f>]  [<ffffffff81229d0f>] anon_vma_interval_tree_verify+0xf/0xa0
+[ 1857.283725] RSP: 0018:ffff88007df0fce8  EFLAGS: 00010296
+[ 1857.283725] RAX: ffff880089db1000 RBX: ffff880089db0ff0 RCX: ffff8800869e6928
+[ 1857.283725] RDX: 0000000000000000 RSI: ffff880089db1008 RDI: ffff880089db0ff0
+[ 1857.283725] RBP: ffff88007df0fcf8 R08: ffff88006427d508 R09: ffff88012bb95f20
+[ 1857.283725] R10: 0000000000000001 R11: ffff8800c8525c60 R12: ffff88006e199370
+[ 1857.283725] R13: ffff88006e199300 R14: 0000000000000000 R15: ffff880089db1000
+[ 1857.283725] FS:  00007f322fd4c700(0000) GS:ffff88004d600000(0000) knlGS:0000000000000000
+[ 1857.283725] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1857.283725] CR2: 0000000000000090 CR3: 000000006e19d000 CR4: 00000000000406e0
+[ 1857.283725] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1857.283725] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[ 1857.283725] Process trinity-child18 (pid: 15637, threadinfo ffff88007df0e000, task ffff88007ac80000)
+[ 1857.283725] Stack:
+[ 1857.283725]  ffff88007df0fd38 ffff880089db0ff0 ffff88007df0fd48 ffffffff81233b58
+[ 1857.283725]  ffff88007df0fd38 ffff880089db1000 00000000000080d0 ffff880089db1000
+[ 1857.283725]  ffff88012bb95f20 ffff8800005d97c8 ffff8800005d97d8 ffff880089db1000
+[ 1857.283725] Call Trace:
+[ 1857.283725]  [<ffffffff81233b58>] validate_mm+0x58/0x1e0
+[ 1857.283725]  [<ffffffff81233da4>] vma_link+0x94/0xe0
+[ 1857.283725]  [<ffffffff83a67fd4>] ? _raw_spin_unlock_irqrestore+0x84/0xb0
+[ 1857.283725]  [<ffffffff81235f75>] mmap_region+0x3f5/0x5c0
+[ 1857.283725]  [<ffffffff812363f7>] do_mmap_pgoff+0x2b7/0x330
+[ 1857.283725]  [<ffffffff81220fd1>] ? vm_mmap_pgoff+0x61/0xa0
+[ 1857.283725]  [<ffffffff81220fea>] vm_mmap_pgoff+0x7a/0xa0
+[ 1857.283725]  [<ffffffff81234c72>] sys_mmap_pgoff+0x182/0x1a0
+[ 1857.283725]  [<ffffffff8107dc40>] ? syscall_trace_enter+0x20/0x2e0
+[ 1857.283725]  [<ffffffff810738dd>] sys_mmap+0x1d/0x20
+[ 1857.283725]  [<ffffffff83a69ad8>] tracesys+0xe1/0xe6
+[ 1857.283725] Code: 48 39 ce 77 9e f3 c3 0f 1f 44 00 00 31 c0 c3 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 53 48 89 fb
+48 83 ec 08 48 8b 17 <48> 8b 8a 90 00 00 00 48 39 4f 40 74 34 80 3d a6 82 5b 04 00 75
+[ 1857.283725] RIP  [<ffffffff81229d0f>] anon_vma_interval_tree_verify+0xf/0xa0
+[ 1857.283725]  RSP <ffff88007df0fce8>
+[ 1857.283725] CR2: 0000000000000090
+[ 1858.611277] ---[ end trace b51cc425e9b07fc0 ]---
 
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
-> ---
->  mm/slob.c |   24 ++++++++++--------------
->  1 files changed, 10 insertions(+), 14 deletions(-)
-> 
-> diff --git a/mm/slob.c b/mm/slob.c
-> index a08e468..06a5ec7 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -28,9 +28,8 @@
->   * from kmalloc are prepended with a 4-byte header with the kmalloc size.
->   * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
->   * alloc_pages() directly, allocating compound pages so the page order
-> - * does not have to be separately tracked, and also stores the exact
-> - * allocation size in page->private so that it can be used to accurately
-> - * provide ksize(). These objects are detected in kfree() because slob_page()
-> + * does not have to be separately tracked.
-> + * These objects are detected in kfree() because PageSlab()
->   * is false for them.
->   *
->   * SLAB is emulated on top of SLOB by simply calling constructors and
-> @@ -455,11 +454,6 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
->  		if (likely(order))
->  			gfp |= __GFP_COMP;
->  		ret = slob_new_pages(gfp, order, node);
-> -		if (ret) {
-> -			struct page *page;
-> -			page = virt_to_page(ret);
-> -			page->private = size;
-> -		}
->  
->  		trace_kmalloc_node(caller, ret,
->  				   size, PAGE_SIZE << order, gfp, node);
-> @@ -514,18 +508,20 @@ EXPORT_SYMBOL(kfree);
->  size_t ksize(const void *block)
->  {
->  	struct page *sp;
-> +	int align;
-> +	unsigned int *m;
->  
->  	BUG_ON(!block);
->  	if (unlikely(block == ZERO_SIZE_PTR))
->  		return 0;
->  
->  	sp = virt_to_page(block);
-> -	if (PageSlab(sp)) {
-> -		int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-> -		unsigned int *m = (unsigned int *)(block - align);
-> -		return SLOB_UNITS(*m) * SLOB_UNIT;
-> -	} else
-> -		return sp->private;
-> +	if (unlikely(!PageSlab(sp)))
-> +		return PAGE_SIZE << compound_order(sp);
-> +
-> +	align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-> +	m = (unsigned int *)(block - align);
-> +	return SLOB_UNITS(*m) * SLOB_UNIT;
->  }
->  EXPORT_SYMBOL(ksize);
->  
+The obvious part is that anon_vma_interval_tree_verify() got called with node == NULL, but when
+looking at the caller:
+
+                list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+                        anon_vma_interval_tree_verify(avc);
+
+How it got called with said NULL becomes less obvious.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
