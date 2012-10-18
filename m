@@ -1,85 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 475C96B0044
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:20:10 -0400 (EDT)
-Date: Thu, 18 Oct 2012 15:20:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/5] memory-hotplug: update mce_bad_pages when
- removing the memory
-Message-Id: <20121018152008.ada8fea5.akpm@linux-foundation.org>
-In-Reply-To: <507ECA43.3070402@linux.vnet.ibm.com>
-References: <1350475735-26136-1-git-send-email-wency@cn.fujitsu.com>
-	<1350475735-26136-3-git-send-email-wency@cn.fujitsu.com>
-	<507ECA43.3070402@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id ACCBB6B0062
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:41:51 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so18140769ied.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 15:41:51 -0700 (PDT)
+MIME-Version: 1.0
+Date: Thu, 18 Oct 2012 19:41:51 -0300
+Message-ID: <CALF0-+XKorADZ7DSp_yDFG4UkYr3W_pXHCA0ZWVzZpd8dJW_Gw@mail.gmail.com>
+Subject: [PATCH 0/3] Small slob fixes and some more comon code
+From: Ezequiel Garcia <elezegarcia@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
+To: linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Tim Bird <tim.bird@am.sony.com>
 
-On Wed, 17 Oct 2012 08:09:55 -0700
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+Hi folks,
 
-> Hi Wen,
-> 
-> > +#ifdef CONFIG_MEMORY_FAILURE
-> > +static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-> > +{
-> > +	int i;
-> > +
-> > +	if (!memmap)
-> > +		return;
-> 
-> I guess free_section_usemap() does the same thing.
+A little patchset brought to you by the CELF project:
+"Kernel dynamic memory allocation tracking and reduction" [1].
 
-What does this observation mean?
+This applies cleanly on top of Pekka's slab/for-linus,
+which seems to be the latest branch.
+(slab-next is a bit outdated)
 
-> > +	for (i = 0; i < PAGES_PER_SECTION; i++) {
-> > +		if (PageHWPoison(&memmap[i])) {
-> > +			atomic_long_sub(1, &mce_bad_pages);
-> > +			ClearPageHWPoison(&memmap[i]);
-> > +		}
-> > +	}
-> > +}
-> > +#endif
-> > +
-> >  void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
-> >  {
-> >  	struct page *memmap = NULL;
->
-> ..
->
-> and keep the #ifdef out of sparse_remove_one_section().
+Ezequiel Garcia (3):
+ mm/sl[aou]b: Move common kmem_cache_size() to slab.h
+ mm/slob: Use object_size field in kmem_cache_size()
+ mm/slob: Drop usage of page->private for storing page-sized allocations
 
-yup.
+ include/linux/slab.h |    9 ++++++++-
+ mm/slab.c            |    6 ------
+ mm/slob.c            |   34 ++++++++++++----------------------
+ mm/slub.c            |    9 ---------
+ 4 files changed, 20 insertions(+), 38 deletions(-)
 
---- a/mm/sparse.c~memory-hotplug-update-mce_bad_pages-when-removing-the-memory-fix
-+++ a/mm/sparse.c
-@@ -788,6 +788,10 @@ static void clear_hwpoisoned_pages(struc
- 		}
- 	}
- }
-+#else
-+static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-+{
-+}
- #endif
- 
- void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
-@@ -803,10 +807,7 @@ void sparse_remove_one_section(struct zo
- 		ms->pageblock_flags = NULL;
- 	}
- 
--#ifdef CONFIG_MEMORY_FAILURE
- 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
--#endif
--
- 	free_section_usemap(memmap, usemap);
- }
- #endif
-_
+ Any comments/flames welcome!
+Thanks!
+
+    Ezequiel
+
+[1] http://elinux.org/Kernel_dynamic_memory_allocation_tracking_and_reduction
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
