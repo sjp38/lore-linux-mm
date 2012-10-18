@@ -1,230 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 9BAF86B0044
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 10:49:26 -0400 (EDT)
-Date: Thu, 18 Oct 2012 17:50:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 00/10] Introduce huge zero page
-Message-ID: <20121018145031.GA29746@shutemov.name>
-References: <1349191172-28855-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20121002153148.1ae1020a.akpm@linux-foundation.org>
- <20121003000402.GA31141@shutemov.name>
- <507E18AD.3070000@gmail.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 4F5136B0044
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 11:33:00 -0400 (EDT)
+Date: Thu, 18 Oct 2012 17:32:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] oom, memcg: handle sysctl oom_kill_allocating_task while
+ memcg oom happening
+Message-ID: <20121018153256.GC24295@dhcp22.suse.cz>
+References: <1350382328-28977-1-git-send-email-handai.szj@taobao.com>
+ <20121016133439.GI13991@dhcp22.suse.cz>
+ <CAFj3OHVW-betpEnauzk-vQEfw_7bJxFneQb2oWpAZzOpZuMDiQ@mail.gmail.com>
+ <20121018115640.GB24295@dhcp22.suse.cz>
+ <5080097D.5020501@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <507E18AD.3070000@gmail.com>
+In-Reply-To: <5080097D.5020501@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Sha Zhengju <handai.szj@taobao.com>, David Rientjes <rientjes@google.com>
 
-On Wed, Oct 17, 2012 at 10:32:13AM +0800, Ni zhan Chen wrote:
-> On 10/03/2012 08:04 AM, Kirill A. Shutemov wrote:
-> >On Tue, Oct 02, 2012 at 03:31:48PM -0700, Andrew Morton wrote:
-> >>On Tue,  2 Oct 2012 18:19:22 +0300
-> >>"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> >>
-> >>>During testing I noticed big (up to 2.5 times) memory consumption overhead
-> >>>on some workloads (e.g. ft.A from NPB) if THP is enabled.
+On Thu 18-10-12 21:51:57, Sha Zhengju wrote:
+> On 10/18/2012 07:56 PM, Michal Hocko wrote:
+> >On Wed 17-10-12 01:14:48, Sha Zhengju wrote:
+> >>On Tuesday, October 16, 2012, Michal Hocko<mhocko@suse.cz>  wrote:
+> >[...]
+> >>>Could you be more specific about the motivation for this patch? Is it
+> >>>"let's be consistent with the global oom" or you have a real use case
+> >>>for this knob.
 > >>>
-> >>>The main reason for that big difference is lacking zero page in THP case.
-> >>>We have to allocate a real page on read page fault.
-> >>>
-> >>>A program to demonstrate the issue:
-> >>>#include <assert.h>
-> >>>#include <stdlib.h>
-> >>>#include <unistd.h>
-> >>>
-> >>>#define MB 1024*1024
-> >>>
-> >>>int main(int argc, char **argv)
-> >>>{
-> >>>         char *p;
-> >>>         int i;
-> >>>
-> >>>         posix_memalign((void **)&p, 2 * MB, 200 * MB);
-> >>>         for (i = 0; i < 200 * MB; i+= 4096)
-> >>>                 assert(p[i] == 0);
-> >>>         pause();
-> >>>         return 0;
-> >>>}
-> >>>
-> >>>With thp-never RSS is about 400k, but with thp-always it's 200M.
-> >>>After the patcheset thp-always RSS is 400k too.
-> >>I'd like to see a full description of the design, please.
-> >Okay. Design overview.
-> >
-> >Huge zero page (hzp) is a non-movable huge page (2M on x86-64) filled with
-> >zeros.  The way how we allocate it changes in the patchset:
-> >
-> >- [01/10] simplest way: hzp allocated on boot time in hugepage_init();
-> >- [09/10] lazy allocation on first use;
-> >- [10/10] lockless refcounting + shrinker-reclaimable hzp;
-> >
-> >We setup it in do_huge_pmd_anonymous_page() if area around fault address
-> >is suitable for THP and we've got read page fault.
-> >If we fail to setup hzp (ENOMEM) we fallback to handle_pte_fault() as we
-> >normally do in THP.
-> >
-> >On wp fault to hzp we allocate real memory for the huge page and clear it.
-> >If ENOMEM, graceful fallback: we create a new pmd table and set pte around
-> >fault address to newly allocated normal (4k) page. All other ptes in the
-> >pmd set to normal zero page.
-> >
-> >We cannot split hzp (and it's bug if we try), but we can split the pmd
-> >which points to it. On splitting the pmd we create a table with all ptes
-> >set to normal zero page.
-> >
-> >Patchset organized in bisect-friendly way:
-> >  Patches 01-07: prepare all code paths for hzp
-> >  Patch 08: all code paths are covered: safe to setup hzp
-> >  Patch 09: lazy allocation
-> >  Patch 10: lockless refcounting for hzp
-> >
-> >--------------------------------------------------------------------------
-> >
-> >By hpa request I've tried alternative approach for hzp implementation (see
-> >Virtual huge zero page patchset): pmd table with all entries set to zero
-> >page. This way should be more cache friendly, but it increases TLB
-> >pressure.
-> >
-> >The problem with virtual huge zero page: it requires per-arch enabling.
-> >We need a way to mark that pmd table has all ptes set to zero page.
-> >
-> >Some numbers to compare two implementations (on 4s Westmere-EX):
-> >
-> >Mirobenchmark1
-> >==============
-> >
-> >test:
-> >         posix_memalign((void **)&p, 2 * MB, 8 * GB);
-> >         for (i = 0; i < 100; i++) {
-> >                 assert(memcmp(p, p + 4*GB, 4*GB) == 0);
-> >                 asm volatile ("": : :"memory");
-> >         }
-> >
-> >hzp:
-> >  Performance counter stats for './test_memcmp' (5 runs):
-> >
-> >       32356.272845 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
-> >                 40 context-switches          #    0.001 K/sec                    ( +-  0.94% )
-> >                  0 CPU-migrations            #    0.000 K/sec
-> >              4,218 page-faults               #    0.130 K/sec                    ( +-  0.00% )
-> >     76,712,481,765 cycles                    #    2.371 GHz                      ( +-  0.13% ) [83.31%]
-> >     36,279,577,636 stalled-cycles-frontend   #   47.29% frontend cycles idle     ( +-  0.28% ) [83.35%]
-> >      1,684,049,110 stalled-cycles-backend    #    2.20% backend  cycles idle     ( +-  2.96% ) [66.67%]
-> >    134,355,715,816 instructions              #    1.75  insns per cycle
-> >                                              #    0.27  stalled cycles per insn  ( +-  0.10% ) [83.35%]
-> >     13,526,169,702 branches                  #  418.039 M/sec                    ( +-  0.10% ) [83.31%]
-> >          1,058,230 branch-misses             #    0.01% of all branches          ( +-  0.91% ) [83.36%]
-> >
-> >       32.413866442 seconds time elapsed                                          ( +-  0.13% )
-> >
-> >vhzp:
-> >  Performance counter stats for './test_memcmp' (5 runs):
-> >
-> >       30327.183829 task-clock                #    0.998 CPUs utilized            ( +-  0.13% )
-> >                 38 context-switches          #    0.001 K/sec                    ( +-  1.53% )
-> >                  0 CPU-migrations            #    0.000 K/sec
-> >              4,218 page-faults               #    0.139 K/sec                    ( +-  0.01% )
-> >     71,964,773,660 cycles                    #    2.373 GHz                      ( +-  0.13% ) [83.35%]
-> >     31,191,284,231 stalled-cycles-frontend   #   43.34% frontend cycles idle     ( +-  0.40% ) [83.32%]
-> >        773,484,474 stalled-cycles-backend    #    1.07% backend  cycles idle     ( +-  6.61% ) [66.67%]
-> >    134,982,215,437 instructions              #    1.88  insns per cycle
-> >                                              #    0.23  stalled cycles per insn  ( +-  0.11% ) [83.32%]
-> >     13,509,150,683 branches                  #  445.447 M/sec                    ( +-  0.11% ) [83.34%]
-> >          1,017,667 branch-misses             #    0.01% of all branches          ( +-  1.07% ) [83.32%]
-> >
-> >       30.381324695 seconds time elapsed                                          ( +-  0.13% )
-> >
-> >Mirobenchmark2
-> >==============
-> >
-> >test:
-> >         posix_memalign((void **)&p, 2 * MB, 8 * GB);
-> >         for (i = 0; i < 1000; i++) {
-> >                 char *_p = p;
-> >                 while (_p < p+4*GB) {
-> >                         assert(*_p == *(_p+4*GB));
-> >                         _p += 4096;
-> >                         asm volatile ("": : :"memory");
-> >                 }
-> >         }
-> >
-> >hzp:
-> >  Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
-> >
-> >        3505.727639 task-clock                #    0.998 CPUs utilized            ( +-  0.26% )
-> >                  9 context-switches          #    0.003 K/sec                    ( +-  4.97% )
-> >              4,384 page-faults               #    0.001 M/sec                    ( +-  0.00% )
-> >      8,318,482,466 cycles                    #    2.373 GHz                      ( +-  0.26% ) [33.31%]
-> >      5,134,318,786 stalled-cycles-frontend   #   61.72% frontend cycles idle     ( +-  0.42% ) [33.32%]
-> >      2,193,266,208 stalled-cycles-backend    #   26.37% backend  cycles idle     ( +-  5.51% ) [33.33%]
-> >      9,494,670,537 instructions              #    1.14  insns per cycle
-> >                                              #    0.54  stalled cycles per insn  ( +-  0.13% ) [41.68%]
-> >      2,108,522,738 branches                  #  601.451 M/sec                    ( +-  0.09% ) [41.68%]
-> >            158,746 branch-misses             #    0.01% of all branches          ( +-  1.60% ) [41.71%]
-> >      3,168,102,115 L1-dcache-loads
-> >           #  903.693 M/sec                    ( +-  0.11% ) [41.70%]
-> >      1,048,710,998 L1-dcache-misses
-> >          #   33.10% of all L1-dcache hits    ( +-  0.11% ) [41.72%]
-> >      1,047,699,685 LLC-load
-> >                  #  298.854 M/sec                    ( +-  0.03% ) [33.38%]
-> >              2,287 LLC-misses
-> >                #    0.00% of all LL-cache hits     ( +-  8.27% ) [33.37%]
-> >      3,166,187,367 dTLB-loads
-> >                #  903.147 M/sec                    ( +-  0.02% ) [33.35%]
-> >          4,266,538 dTLB-misses
-> >               #    0.13% of all dTLB cache hits   ( +-  0.03% ) [33.33%]
-> >
-> >        3.513339813 seconds time elapsed                                          ( +-  0.26% )
-> >
-> >vhzp:
-> >  Performance counter stats for 'taskset -c 0 ./test_memcmp2' (5 runs):
-> >
-> >       27313.891128 task-clock                #    0.998 CPUs utilized            ( +-  0.24% )
-> >                 62 context-switches          #    0.002 K/sec                    ( +-  0.61% )
-> >              4,384 page-faults               #    0.160 K/sec                    ( +-  0.01% )
-> >     64,747,374,606 cycles                    #    2.370 GHz                      ( +-  0.24% ) [33.33%]
-> >     61,341,580,278 stalled-cycles-frontend   #   94.74% frontend cycles idle     ( +-  0.26% ) [33.33%]
-> >     56,702,237,511 stalled-cycles-backend    #   87.57% backend  cycles idle     ( +-  0.07% ) [33.33%]
-> >     10,033,724,846 instructions              #    0.15  insns per cycle
-> >                                              #    6.11  stalled cycles per insn  ( +-  0.09% ) [41.65%]
-> >      2,190,424,932 branches                  #   80.195 M/sec                    ( +-  0.12% ) [41.66%]
-> >          1,028,630 branch-misses             #    0.05% of all branches          ( +-  1.50% ) [41.66%]
-> >      3,302,006,540 L1-dcache-loads
-> >           #  120.891 M/sec                    ( +-  0.11% ) [41.68%]
-> >        271,374,358 L1-dcache-misses
-> >          #    8.22% of all L1-dcache hits    ( +-  0.04% ) [41.66%]
-> >         20,385,476 LLC-load
-> >                  #    0.746 M/sec                    ( +-  1.64% ) [33.34%]
-> >             76,754 LLC-misses
-> >                #    0.38% of all LL-cache hits     ( +-  2.35% ) [33.34%]
-> >      3,309,927,290 dTLB-loads
-> >                #  121.181 M/sec                    ( +-  0.03% ) [33.34%]
-> >      2,098,967,427 dTLB-misses
-> >               #   63.41% of all dTLB cache hits   ( +-  0.03% ) [33.34%]
-> >
-> >       27.364448741 seconds time elapsed                                          ( +-  0.24% )
-> >
-> >--------------------------------------------------------------------------
+> >>In our environment(rhel6), we encounter a memcg oom 'deadlock'
+> >>problem.  Simply speaking, suppose process A is selected to be killed
+> >>by memcg oom killer, but A is uninterruptible sleeping on a page
+> >>lock. What's worse, the exact page lock is holding by another memcg
+> >>process B which is trapped in mem_croup_oom_lock(proves to be a
+> >>livelock).
+> >Hmm, this is strange. How can you get down that road with the page lock
+> >held? Is it possible this is related to the issue fixed by: 1d65f86d
+> >(mm: preallocate page before lock_page() at filemap COW)?
 > 
-> Hi Kirill A. Shutemov,
-> 
-> I see in the kernel doc which describes the benefit of thp, "the TLB
-> miss will run faster" (especially with virtualization using nested
-> pagetables but almost always also on bare metal without
-> virtualization).
-> 
-> Could you explain me why TLB miss run faster? I think it only reduce
-> TLB miss ratio.
+> No, it has nothing with the cow page. By checking stack of the process A
+> selected to be killed(uninterruptible sleeping), it was stuck at:
+> __do_fault->filemap_fault->__lock_page_or_retry->wait_on_page_bit--(D
+> state).
+> The person B holding the exactly page lock is on the following path:
+> __do_fault->filemap_fault->__do_page_cache_readahead->..->mpage_readpages
+> ->add_to_page_cache_locked ---- >(in memcg oom and cannot exit)
 
-TLB miss for huge page resolved on PMD, not on PTE level, so it's -1 table
-lookup.
+Hmm filemap_fault locks the page after the read ahead is triggered
+already so it doesn't call mpage_readpages with any page locked - the
+add_to_page_cache_lru is called without any page locked.
+This is at least the current code. It might be different in rhel6 but
+calling memcg charging with a page lock is definitely a bug.
 
+> In mpage_readpages, B tends to read a dozen of pages in: for each of
+> page will do
+> locking, charging, and then send out a big bio. And A is waiting for
+> one of the pages
+> and stuck.
+> 
+> As I said, 37b23e05 has made pagefault killable by changing
+> uninterruptible sleeping to killable sleeping. So A can be woke up to
+> exit successfully and free the memory which can in turn help B pass
+> memcg charging period.
+> 
+> (By the way, it seems commit 37b23e05 and 7d9fdac need to be
+
+79dfdaccd1d5 you mean, right? That one just helps when there are too
+many tasks trashing oom killer so it is not related to what you are
+trying to achieve. Besides that make sure you take 23751be0 if you
+take it.
+
+> backported to --stable tree to deliver RHEL users. ;-) )
+
+I am not sure the first one qualifies the stable tree inclusion as it is
+a feature.
+
+> >>Then A can not exit successfully to free the memory and both of them
+> >>can not moving on.
+> >>Indeed, we should dig into these locks to find the solution and
+> >>in fact the 37b23e05 (x86, mm: make pagefault killable) and
+> >>7d9fdac(Memcg: make oom_lock 0 and 1 based other than counter) have
+> >>already solved the problem, but if oom_killing_allocating_task is
+> >>memcg aware, enabling this suicide oom behavior will be a simpler
+> >>workaround. What's more, enabling the sysctl can avoid other potential
+> >>oom problems to some extent.
+> >As I said, I am not against this but I really want to see a valid use
+> >case first. So far I haven't seen any because what you mention above is
+> >a clear bug which should be fixed. I can imagine the huge number of
+> >tasks in the group could be a problem as well but I would like to see
+> >what are those problems first.
+> >
+> 
+> In view of consistent with global oom and performance benefit, I suggest
+> we may as well open it in memcg oom as there's no obvious harm.
+
+I am not sure about "no obvious harm" part. The policy could be
+different in different groups e.g. and the global knob could be really
+misleading. But the question is. Is it worth having this per group? To
+be honest, I do not like the global knob either and I am not entirely
+keen on spreading it out into memcg unless there is a real use case for
+it.
+
+> As refer to the bug I mentioned, obviously the key solution is the above two
+> patchset, but considing other *potential* memcg oom bugs, the sysctl may
+> be a role of temporary workaround to some extent... but it's just a
+> workaround.
+
+We shouldn't add something like that just to workaround obvious bugs.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
