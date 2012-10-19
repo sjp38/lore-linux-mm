@@ -1,80 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 6B4E46B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:08:51 -0400 (EDT)
-Message-ID: <5081269B.5000603@parallels.com>
-Date: Fri, 19 Oct 2012 14:08:27 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 4F7FB6B0069
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:09:37 -0400 (EDT)
+Message-ID: <50812830.8080904@cn.fujitsu.com>
+Date: Fri, 19 Oct 2012 18:15:12 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210171515290.20712@chino.kir.corp.google.com> <507FCA90.8060307@parallels.com> <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH v3 0/9] bugfix for memory hotplug
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <508109F2.1080402@jp.fujitsu.com> <50810D14.8020609@jp.fujitsu.com> <50811336.7070704@cn.fujitsu.com> <50811FE1.4080606@jp.fujitsu.com>
+In-Reply-To: <50811FE1.4080606@jp.fujitsu.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
 
-On 10/19/2012 01:59 AM, David Rientjes wrote:
-> On Thu, 18 Oct 2012, Glauber Costa wrote:
-> 
->>>> @@ -2630,6 +2634,171 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
->>>>  	memcg_check_events(memcg, page);
->>>>  }
->>>>  
->>>> +#ifdef CONFIG_MEMCG_KMEM
->>>> +static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
->>>> +{
->>>> +	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
->>>> +		(memcg->kmem_accounted & KMEM_ACCOUNTED_MASK);
->>>> +}
->>>> +
->>>> +static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
->>>> +{
->>>> +	struct res_counter *fail_res;
->>>> +	struct mem_cgroup *_memcg;
->>>> +	int ret = 0;
->>>> +	bool may_oom;
->>>> +
->>>> +	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
->>>> +	if (ret)
->>>> +		return ret;
->>>> +
->>>> +	/*
->>>> +	 * Conditions under which we can wait for the oom_killer.
->>>> +	 * We have to be able to wait, but also, if we can't retry,
->>>> +	 * we obviously shouldn't go mess with oom.
->>>> +	 */
->>>> +	may_oom = (gfp & __GFP_WAIT) && !(gfp & __GFP_NORETRY);
+At 10/19/2012 05:39 PM, Yasuaki Ishimatsu Wrote:
+> 2012/10/19 17:45, Wen Congyang wrote:
+>> At 10/19/2012 04:19 PM, Yasuaki Ishimatsu Wrote:
+>>> 2012/10/19 17:06, Yasuaki Ishimatsu wrote:
+>>>> Hi Wen,
+>>>>
+>>>> Some bug fix patches have been merged into linux-next.
+>>>> So the patches confuse me.
+>>
+>> Sorry, I don't check linux-next tree.
+>>
 >>>
->>> What about gfp & __GFP_FS?
+>>> The following patches have been already merged into linux-next
+>>> and mm-tree as long as I know.
+>>>
+>>>>> Wen Congyang (6):
+>>>>>      clear the memory to store struct page
+>>>
+>>>
+>>>>>      memory-hotplug: skip HWPoisoned page when offlining pages
+>>>
+>>> mm-tree
+>>
+>> Hmm, I don't find this patch in this URL:
+>> http://www.ozlabs.org/~akpm/mmotm/broken-out/
+>>
+>> Do I miss something?
+> 
+> But Andrew announced that the patch was merged in mm-tree.
+> And you received the announcement.
+
+I search my mail, and don't find such announcement. Maybe I miss
+it.
+
+Thanks
+Wen Congyang
+
+> 
+>>>
+>>>>>      memory-hotplug: update mce_bad_pages when removing the memory
+>>>
+>>>>>      memory-hotplug: auto offline page_cgroup when onlining memory block
+>>>>>        failed
+>>>
+>>> mm-tree
+>>>
+>>>>>      memory-hotplug: fix NR_FREE_PAGES mismatch
+>>>
+>>> mm-tree
+>>>
+>>>>>      memory-hotplug: allocate zone's pcp before onlining pages
+>>>
+>>> mm-tree
+>>>
+>>>>>
+>>>>> Yasuaki Ishimatsu (3):
+>>>>>      suppress "Device memoryX does not have a release() function" warning
+>>>
+>>> linux-next
+>>>
+>>>>>      suppress "Device nodeX does not have a release() function" warning
+>>>>>      memory-hotplug: flush the work for the node when the node is offlined
+>>>
+>>> linux-next
+>>
+>> I split this patch to two patches according to kosaki's comment.
+> 
+> Yeah, I know. But is the patch really need now?
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+>>
+>> Thanks
+>> Wen Congyang
+>>
+>>>
+>>> Thanks,
+>>> Yasuaki Ishimatsu
+>>>
+>>>> Why did you send same patches again?
+>>>>
+>>>> Thanks,
+>>>> Yasuaki Ishimatsu
+>>>>
+>>>> 2012/10/19 15:46, wency@cn.fujitsu.com wrote:
+>>>>> From: Wen Congyang <wency@cn.fujitsu.com>
+>>>>>
+>>>>> Changes from v2 to v3:
+>>>>>      Merge the bug fix from ishimatsu to this patchset(Patch 1-3)
+>>>>>      Patch 3: split it from patch as it fixes another bug.
+>>>>>      Patch 4: new patch, and fix bad-page state when hotadding a memory
+>>>>>               device after hotremoving it. I forgot to post this patch in v2.
+>>>>>      Patch 6: update it according to Dave Hansen's comment.
+>>>>>
+>>>>> Changes from v1 to v2:
+>>>>>      Patch 1: updated according to kosaki's suggestion
+>>>>>
+>>>>>      Patch 2: new patch, and update mce_bad_pages when removing memory.
+>>>>>
+>>>>>      Patch 4: new patch, and fix a NR_FREE_PAGES mismatch, and this bug
+>>>>>               cause oom in my test.
+>>>>>
+>>>>>      Patch 5: new patch, and fix a new bug. When repeating to online/offline
+>>>>>               pages, the free pages will continue to decrease.
+>>>>>
+>>>>> Wen Congyang (6):
+>>>>>      clear the memory to store struct page
+>>>>>      memory-hotplug: skip HWPoisoned page when offlining pages
+>>>>>      memory-hotplug: update mce_bad_pages when removing the memory
+>>>>>      memory-hotplug: auto offline page_cgroup when onlining memory block
+>>>>>        failed
+>>>>>      memory-hotplug: fix NR_FREE_PAGES mismatch
+>>>>>      memory-hotplug: allocate zone's pcp before onlining pages
+>>>>>
+>>>>> Yasuaki Ishimatsu (3):
+>>>>>      suppress "Device memoryX does not have a release() function" warning
+>>>>>      suppress "Device nodeX does not have a release() function" warning
+>>>>>      memory-hotplug: flush the work for the node when the node is offlined
+>>>>>
+>>>>>     drivers/base/memory.c          |    9 ++++++++-
+>>>>>     drivers/base/node.c            |   11 +++++++++++
+>>>>>     include/linux/page-isolation.h |   10 ++++++----
+>>>>>     mm/memory-failure.c            |    2 +-
+>>>>>     mm/memory_hotplug.c            |   14 ++++++++------
+>>>>>     mm/page_alloc.c                |   37 ++++++++++++++++++++++++++++---------
+>>>>>     mm/page_cgroup.c               |    3 +++
+>>>>>     mm/page_isolation.c            |   27 ++++++++++++++++++++-------
+>>>>>     mm/sparse.c                    |   22 +++++++++++++++++++++-
+>>>>>     9 files changed, 106 insertions(+), 29 deletions(-)
+>>>>>
+>>>>
+>>>>
+>>>> --
+>>>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>>>> the body of a message to majordomo@vger.kernel.org
+>>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>>> Please read the FAQ at  http://www.tux.org/lkml/
+>>>>
+>>>
+>>>
 >>>
 >>
->> Do you intend to prevent or allow OOM under that flag? I personally
->> think that anything that accepts to be OOM-killed should have GFP_WAIT
->> set, so that ought to be enough.
->>
 > 
-> The oom killer in the page allocator cannot trigger without __GFP_FS 
-> because direct reclaim has little chance of being very successful and 
-> thus we end up needlessly killing processes, and that tends to happen 
-> quite a bit if we dont check for it.  Seems like this would also happen 
-> with memcg if mem_cgroup_reclaim() has a large probability of failing?
 > 
-
-I can indeed see tests for GFP_FS in some key locations in mm/ before
-calling the OOM Killer.
-
-Should I test for GFP_IO as well? If the idea is preventing OOM to
-trigger for allocations that can write their pages back, how would you
-feel about the following test:
-
-may_oom = (gfp & GFP_KERNEL) && !(gfp & __GFP_NORETRY) ?
-
-Michal, what is your take in here?
-
-
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
