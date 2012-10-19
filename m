@@ -1,63 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 4E4456B0062
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 15:20:27 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so932872obc.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 12:20:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 9A7C86B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 15:34:15 -0400 (EDT)
+Date: Fri, 19 Oct 2012 19:34:14 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v5 04/18] slab: don't preemptively remove element from
+ list in cache destroy
+In-Reply-To: <1350656442-1523-5-git-send-email-glommer@parallels.com>
+Message-ID: <0000013a7a84cb28-334eab12-33c4-4a92-bd9c-e5ad938f83d0-000000@email.amazonses.com>
+References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-5-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1350641040-19434-3-git-send-email-wency@cn.fujitsu.com>
-References: <1350641040-19434-1-git-send-email-wency@cn.fujitsu.com> <1350641040-19434-3-git-send-email-wency@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 15:20:06 -0400
-Message-ID: <CAHGf_=pxLj8r99GwKO3n-Zc_drebVe5Lr4dB+xqB=TQG2B0Wtg@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] acpi,memory-hotplug: introduce a mutex lock to
- protect the list in acpi_memory_device
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, muneda.takahiro@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Fri, Oct 19, 2012 at 6:03 AM,  <wency@cn.fujitsu.com> wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> The memory device can be removed by 2 ways:
-> 1. send eject request by SCI
-> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->
-> This 2 events may happen at the same time, so we may touch
-> acpi_memory_device.res_list at the same time. This patch
-> introduce a lock to protect this list.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->  drivers/acpi/acpi_memhotplug.c |   17 +++++++++++++++--
->  1 files changed, 15 insertions(+), 2 deletions(-)
->
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index 1e90e8f..8ff2976 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -83,7 +83,8 @@ struct acpi_memory_info {
->  struct acpi_memory_device {
->         struct acpi_device * device;
->         unsigned int state;     /* State of the memory device */
-> -       struct list_head res_list;
-> +       struct mutex lock;
-> +       struct list_head res_list;      /* protected by lock */
->  };
+On Fri, 19 Oct 2012, Glauber Costa wrote:
 
-Please avoid grep unfriendly name. "lock" is too common. res_list_lock
-or list_lock
-are better IMHO.
+> I, however, see no reason why we need to do so, since we are now locked
+> during the whole deletion (which wasn't necessarily true before).  I
+> propose a simplification in which we delete it only when there is no
+> more going back, so we don't need to add it again.
+
+Ok lets hope that holding the lock does not cause issues.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
