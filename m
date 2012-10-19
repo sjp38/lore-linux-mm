@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id A71AC6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:42:08 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so204605obc.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 00:42:07 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 69D336B0062
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:47:48 -0400 (EDT)
+Message-ID: <50810101.1070201@cn.fujitsu.com>
+Date: Fri, 19 Oct 2012 15:28:01 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1350629202-9664-9-git-send-email-wency@cn.fujitsu.com>
-References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-9-git-send-email-wency@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 03:41:47 -0400
-Message-ID: <CAHGf_=ohk--=AKesgm+3U2qsSvjaVFBXn9c1KDru40GEpbM7gA@mail.gmail.com>
-Subject: Re: [PATCH v3 8/9] memory-hotplug: fix NR_FREE_PAGES mismatch
+Subject: Re: [PATCH v3 3/9] memory-hotplug: flush the work for the node when
+ the node is offlined
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-4-git-send-email-wency@cn.fujitsu.com> <CAHGf_=oAH+Ky9JbrMrEsd53=a1NBq1+jtr1HkBwnGm4qBZCRAw@mail.gmail.com>
+In-Reply-To: <CAHGf_=oAH+Ky9JbrMrEsd53=a1NBq1+jtr1HkBwnGm4qBZCRAw@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
 
-On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> NR_FREE_PAGES will be wrong after offlining pages. We add/dec NR_FREE_PAGES
-> like this now:
-> 1. mova all pages in buddy system to MIGRATE_ISOLATE, and dec NR_FREE_PAGES
+At 10/19/2012 03:01 PM, KOSAKI Motohiro Wrote:
+> On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
+>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> If the node is onlined after it is offlined, we will clear the memory
+>> to store the node's information. This structure contains struct work,
+>> so we should flush work before the work's information is cleared.
+> 
+> This explanation is incorrect. Even if you don't call memset(), you should
+> call flush_work() at offline event. Because of, after offlinining, we
+> shouldn't touch any node data. Alive workqueue violate this principle.
 
-move?
+Yes, I will update the description.
 
-> 2. don't add NR_FREE_PAGES when it is freed and the migratetype is MIGRATE_ISOLATE
-> 3. dec NR_FREE_PAGES when offlining isolated pages.
-> 4. add NR_FREE_PAGES when undoing isolate pages.
->
-> When we come to step 3, all pages are in MIGRATE_ISOLATE list, and NR_FREE_PAGES
-> are right. When we come to step4, all pages are not in buddy system, so we don't
-> change NR_FREE_PAGES in this step, but we change NR_FREE_PAGES in step3. So
-> NR_FREE_PAGES is wrong after offlining pages. So there is no need to change
-> NR_FREE_PAGES in step3.
-
-Sorry, I don't understand this two paragraph. Can  you please elaborate more?
-
-and one more trivial question: why do we need to call
-undo_isolate_page_range() from
-__offline_pages()?
+> 
+> And, hmmm... Wait. Usually workqueue shutdowning has two phase. 1)
+> inhibit enqueue new work 2) flush work. Otherwise other cpus may
+> enqueue new work after flush_work(). Where is (1)?
+> 
 
 
->
-> This patch also fixs a problem in step2: if the migratetype is MIGRATE_ISOLATE,
-> we should not add NR_FRR_PAGES when we remove pages from pcppages.
+We schedule the work only when a memory section is onlined/offlined on this
+node. When we come here, all the memory on this node has been offlined,
+so we won't enqueue new work to this work. I will add a comment
+to descript this.
 
-Why drain_all_pages doesn't work?
+Thanks
+Wen Congyang
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
