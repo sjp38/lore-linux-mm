@@ -1,85 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 97ECB6B005D
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:35:16 -0400 (EDT)
-Message-ID: <50812E34.5020802@cn.fujitsu.com>
-Date: Fri, 19 Oct 2012 18:40:52 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 30C4D6B005D
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:38:24 -0400 (EDT)
+Message-ID: <50812D97.9060004@parallels.com>
+Date: Fri, 19 Oct 2012 14:38:15 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/3] acpi,memory-hotplug : implement framework for
- hot removing memory
-References: <1350641040-19434-1-git-send-email-wency@cn.fujitsu.com> <50812949.6040005@jp.fujitsu.com>
-In-Reply-To: <50812949.6040005@jp.fujitsu.com>
+Subject: Re: [PATCH v2 0/3] move slabinfo processing to common code
+References: <1348844608-12568-1-git-send-email-glommer@parallels.com>
+In-Reply-To: <1348844608-12568-1-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, muneda.takahiro@jp.fujitsu.com, rjw@sisk.pl
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>
 
-At 10/19/2012 06:19 PM, Yasuaki Ishimatsu Wrote:
-> CCing Rafael, because he become ACPI Maintainer.
+On 09/28/2012 07:03 PM, Glauber Costa wrote:
+> Hi,
 > 
-> Hi Wen,
+> This patch moves on with the slab caches commonization, by moving
+> the slabinfo processing to common code in slab_common.c. It only touches
+> slub and slab, since slob doesn't create that file, which is protected
+> by a Kconfig switch.
 > 
-> If you update the patch-set, please CCing Rafael from the next time.
+> Enjoy,
+> 
+> v2: return objects per slab and cache order in slabinfo structure as well
+> 
+Hi
 
-OK.
-
-Thanks
-Wen Congyang
-
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
-> 2012/10/19 19:03, wency@cn.fujitsu.com wrote:
->> From: Wen Congyang <wency@cn.fujitsu.com>
->>
->> The patch-set implements a framework for hot removing memory.
->>
->> The memory device can be removed by 2 ways:
->> 1. send eject request by SCI
->> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->>
->> In the 1st case, acpi_memory_disable_device() will be called.
->> In the 2nd case, acpi_memory_device_remove() will be called.
->> acpi_memory_device_remove() will also be called when we unbind the
->> memory device from the driver acpi_memhotplug or a driver initialization
->> fails.
->>
->> acpi_memory_disable_device() has already implemented a code which
->> offlines memory and releases acpi_memory_info struct . But
->> acpi_memory_device_remove() has not implemented it yet.
->>
->> So the patch prepares the framework for hot removing memory and
->> adds the framework into acpi_memory_device_remove().
->>
->> The last version of this patchset is here:
->> https://lkml.org/lkml/2012/10/3/126
->>
->> Changelos from v1 to v2:
->>    Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
->>    Patch2: new patch, introduce a lock to protect the list
->>    Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
->>    Note: I don't send [Patch2-4 v1] in this series because they
->>    are no logical changes in these 3 patches.
->>
->> Wen Congyang (2):
->>    acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
->>    acpi,memory-hotplug: introduce a mutex lock to protect the list in
->>      acpi_memory_device
->>
->> Yasuaki Ishimatsu (1):
->>    acpi,memory-hotplug : add memory offline code to
->>      acpi_memory_device_remove()
->>
->>   drivers/acpi/acpi_memhotplug.c |   51 ++++++++++++++++++++++++++++++++--------
->>   1 files changed, 41 insertions(+), 10 deletions(-)
->>
-> 
-> 
-> 
+Any activity here ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
