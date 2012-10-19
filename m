@@ -1,67 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id CC1CA6B0070
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:27:20 -0400 (EDT)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Sat, 20 Oct 2012 00:24:40 +1000
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9JERADw44040296
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 01:27:11 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9JERA2j012078
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 01:27:10 +1100
-Message-ID: <5081630B.2000004@linux.vnet.ibm.com>
-Date: Fri, 19 Oct 2012 19:56:19 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Simplify for_each_populated_zone()
-References: <20121019105546.9704.93446.stgit@srivatsabhat.in.ibm.com> <20121019135454.GJ31863@cmpxchg.org>
-In-Reply-To: <20121019135454.GJ31863@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id A219A6B009D
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:32:21 -0400 (EDT)
+Message-Id: <0000013a797066fe-be951901-f108-4705-95bb-e0d6a2b2af85-000000@email.amazonses.com>
+Date: Fri, 19 Oct 2012 14:32:20 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: CK2 [14/15] stat: Use size_t for sizes instead of unsigned
+References: <20121019142254.724806786@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@gmail.com, akpm@linux-foundation.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On 10/19/2012 07:24 PM, Johannes Weiner wrote:
-> On Fri, Oct 19, 2012 at 04:25:47PM +0530, Srivatsa S. Bhat wrote:
->> Move the check for populated_zone() to the control statement of the
->> 'for' loop and get rid of the odd looking if/else block.
->>
->> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
->> ---
->>
->>  include/linux/mmzone.h |    7 ++-----
->>  1 file changed, 2 insertions(+), 5 deletions(-)
->>
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 50aaca8..5bdf02e 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -913,11 +913,8 @@ extern struct zone *next_zone(struct zone *zone);
->>  
->>  #define for_each_populated_zone(zone)		        \
->>  	for (zone = (first_online_pgdat())->node_zones; \
->> -	     zone;					\
->> -	     zone = next_zone(zone))			\
->> -		if (!populated_zone(zone))		\
->> -			; /* do nothing */		\
->> -		else
->> +	     zone && populated_zone(zone);		\
->> +	     zone = next_zone(zone))
-> 
-> I don't think we want to /abort/ the loop when encountering an
-> unpopulated zone.
-> 
+On some platforms (such as IA64) the large page size may results in
+slab allocations to be allowed of numbers that do not fit in 32 bit.
 
-Oops! I totally missed that.. thanks for catching it! Please ignore
-the patch.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Regards,
-Srivatsa S. Bhat
+Index: linux/fs/proc/stat.c
+===================================================================
+--- linux.orig/fs/proc/stat.c	2012-10-05 13:26:55.711476247 -0500
++++ linux/fs/proc/stat.c	2012-10-15 16:12:38.136811230 -0500
+@@ -178,7 +178,7 @@ static int show_stat(struct seq_file *p,
+ 
+ static int stat_open(struct inode *inode, struct file *file)
+ {
+-	unsigned size = 1024 + 128 * num_possible_cpus();
++	size_t size = 1024 + 128 * num_possible_cpus();
+ 	char *buf;
+ 	struct seq_file *m;
+ 	int res;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
