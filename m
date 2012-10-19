@@ -1,106 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id AEE0F6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:29:28 -0400 (EDT)
-Message-ID: <508102A8.1050605@cn.fujitsu.com>
-Date: Fri, 19 Oct 2012 15:35:04 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A71AC6B0044
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:42:08 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so204605obc.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 00:42:07 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to
- acpi_memory_device_remove()
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com> <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com> <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com> <507E54AA.2080806@cn.fujitsu.com> <CAHGf_=o_Wu1kr56C=7XTjYRzL4egSyGJYd4+2RecVWzpeM427Q@mail.gmail.com> <507E75AA.2000605@cn.fujitsu.com> <CAHGf_=oNufcAQhxWtvq56qwF==+14+Cm7r9eiTGdY=B=ENwPQg@mail.gmail.com> <507E7FC2.8@cn.fujitsu.com> <507F5A78.7030500@jp.fujitsu.com>
-In-Reply-To: <507F5A78.7030500@jp.fujitsu.com>
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1350629202-9664-9-git-send-email-wency@cn.fujitsu.com>
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-9-git-send-email-wency@cn.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 19 Oct 2012 03:41:47 -0400
+Message-ID: <CAHGf_=ohk--=AKesgm+3U2qsSvjaVFBXn9c1KDru40GEpbM7gA@mail.gmail.com>
+Subject: Re: [PATCH v3 8/9] memory-hotplug: fix NR_FREE_PAGES mismatch
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
 
-At 10/18/2012 09:25 AM, Yasuaki Ishimatsu Wrote:
-> Hi Wen,
-> 
-> 2012/10/17 18:52, Wen Congyang wrote:
->> At 10/17/2012 05:18 PM, KOSAKI Motohiro Wrote:
->>>>>>>> Hmm, it doesn't move the code. It just reuse the code in
->>>>>>>> acpi_memory_powerdown_device().
->>>>>>>
->>>>>>> Even if reuse or not reuse, you changed the behavior. If any changes
->>>>>>> has no good rational, you cannot get an ack.
->>>>>>
->>>>>> I don't understand this? IIRC, the behavior isn't changed.
->>>>>
->>>>> Heh, please explain why do you think so.
->>>>
->>>> We just introduce a function, and move codes from
->>>> acpi_memory_disable_device() to the new
->>>> function. We call the new function in acpi_memory_disable_device(),
->>>> so the function
->>>> acpi_memory_disable_device()'s behavior isn't changed.
->>>>
->>>> Maybe I don't understand what do you want to say.
->>>
->>> Ok, now you agreed you moved the code, yes? So then, you should
->>> explain why
->>> your code moving makes zero impact other acpi_memory_disable_device()
->>> caller.
->>
->> We just move the code, and don't change the
->> acpi_memory_disable_device()'s behavior.
->>
->> I look it the change again, and found some diffs:
->> 1. we treat !info->enabled as error, while it isn't a error without
->> this patch
->> 2. we remove memory info from the list, it is a bug fix because we
->> free the memory
->>     that stores memory info.(I have sent a patch to fix this bug, and
->> it is in akpm's tree now)
->>
->> I guess you mean 1 will change the behavior. In the last version, I
->> don't do it.
->> Ishimatsu changes this and I don't notify this.
->>
->> To Ishimatsu:
->>
->> Why do you change this?
-> 
-> Oops. If so, it's my mistake.
-> Could you update it in next version?
+On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
+> From: Wen Congyang <wency@cn.fujitsu.com>
+>
+> NR_FREE_PAGES will be wrong after offlining pages. We add/dec NR_FREE_PAGES
+> like this now:
+> 1. mova all pages in buddy system to MIGRATE_ISOLATE, and dec NR_FREE_PAGES
 
-OK
+move?
 
-Thanks
-Wen Congyang
+> 2. don't add NR_FREE_PAGES when it is freed and the migratetype is MIGRATE_ISOLATE
+> 3. dec NR_FREE_PAGES when offlining isolated pages.
+> 4. add NR_FREE_PAGES when undoing isolate pages.
+>
+> When we come to step 3, all pages are in MIGRATE_ISOLATE list, and NR_FREE_PAGES
+> are right. When we come to step4, all pages are not in buddy system, so we don't
+> change NR_FREE_PAGES in this step, but we change NR_FREE_PAGES in step3. So
+> NR_FREE_PAGES is wrong after offlining pages. So there is no need to change
+> NR_FREE_PAGES in step3.
 
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
->>
->> Thanks
->> Wen Congyang
->>
->>> -- 
->>> To unsubscribe from this list: send the line "unsubscribe
->>> linux-kernel" in
->>> the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>> Please read the FAQ at  http://www.tux.org/lkml/
->>>
->>
->> -- 
->> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>
-> 
-> 
-> -- 
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
-> 
+Sorry, I don't understand this two paragraph. Can  you please elaborate more?
+
+and one more trivial question: why do we need to call
+undo_isolate_page_range() from
+__offline_pages()?
+
+
+>
+> This patch also fixs a problem in step2: if the migratetype is MIGRATE_ISOLATE,
+> we should not add NR_FRR_PAGES when we remove pages from pcppages.
+
+Why drain_all_pages doesn't work?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
