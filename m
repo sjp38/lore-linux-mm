@@ -1,44 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 19A296B005D
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:33:39 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so906746oag.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 11:33:38 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <5081609C.9080702@gmail.com>
-References: <506E43E0.70507@jp.fujitsu.com> <506E451E.1050403@jp.fujitsu.com>
- <CAHGf_=rVDm-JygjPoLHbmF28Dgd52HFc4-b5KCxhEieG60okuw@mail.gmail.com>
- <50812F13.20503@cn.fujitsu.com> <5081609C.9080702@gmail.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 14:33:17 -0400
-Message-ID: <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
-Subject: Re: [PATCH 1/10] memory-hotplug : check whether memory is offline or
- not when removing memory
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E80546B006E
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:49:56 -0400 (EDT)
+Date: Fri, 19 Oct 2012 11:49:55 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-Id: <20121019114955.3a0c2b66.akpm@linux-foundation.org>
+In-Reply-To: <20121019091016.GA4582@mudshark.cambridge.arm.com>
+References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+	<20121002150104.da57fa94.akpm@linux-foundation.org>
+	<20121017130125.GH5973@mudshark.cambridge.arm.com>
+	<20121017.112620.1865348978594874782.davem@davemloft.net>
+	<20121017155401.GJ5973@mudshark.cambridge.arm.com>
+	<20121018150502.3dee7899.akpm@linux-foundation.org>
+	<20121019091016.GA4582@mudshark.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wencongyang@gmail.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
 
-> I think it again, and found that this check is necessary. Because we only
-> lock memory hotplug when offlining pages. Here is the steps to offline and
-> remove memory:
->
-> 1. lock memory hotplug
-> 2. offline a memory section
-> 3. unlock memory hotplug
-> 4. repeat 1-3 to offline all memory sections
-> 5. lock memory hotplug
-> 6. remove memory
-> 7. unlock memory hotplug
->
-> All memory sections must be offlined before removing memory. But we don't
-> hold
-> the lock in the whole operation. So we should check whether all memory
-> sections
-> are offlined before step6.
+On Fri, 19 Oct 2012 10:10:16 +0100
+Will Deacon <will.deacon@arm.com> wrote:
 
-You should describe the race scenario in the patch description. OK?
+> On Thu, Oct 18, 2012 at 11:05:02PM +0100, Andrew Morton wrote:
+> > On Wed, 17 Oct 2012 16:54:02 +0100
+> > Will Deacon <will.deacon@arm.com> wrote:
+> > 
+> > > On x86 memory accesses to pages without the ACCESSED flag set result in the
+> > > ACCESSED flag being set automatically. With the ARM architecture a page access
+> > > fault is raised instead (and it will continue to be raised until the ACCESSED
+> > > flag is set for the appropriate PTE/PMD).
+> > > 
+> > > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> > > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> > > be called for a write fault.
+> > > 
+> > > This patch ensures that faults on transparent hugepages which do not result
+> > > in a CoW update the access flags for the faulting pmd.
+> > 
+> > Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
+> 
+> Right at the end of this patch, which was posted to the ARM list yesterday:
+> 
+>   http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126387.html
+
+I received and then merged a patch which won't compile!
+
+Ho hum.  I'll drop
+mm-thp-set-the-accessed-flag-for-old-pages-on-access-fault.patch and
+shall assume that you'll sort things out at the appropriate time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
