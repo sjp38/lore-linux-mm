@@ -1,52 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id ABC826B005D
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:10:25 -0400 (EDT)
-Date: Fri, 19 Oct 2012 10:10:16 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121019091016.GA4582@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
- <20121002150104.da57fa94.akpm@linux-foundation.org>
- <20121017130125.GH5973@mudshark.cambridge.arm.com>
- <20121017.112620.1865348978594874782.davem@davemloft.net>
- <20121017155401.GJ5973@mudshark.cambridge.arm.com>
- <20121018150502.3dee7899.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 55CB46B0062
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:10:46 -0400 (EDT)
+Message-ID: <50811903.9000105@parallels.com>
+Date: Fri, 19 Oct 2012 13:10:27 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121018150502.3dee7899.akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
+References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <20121017151214.e3d2aa3b.akpm@linux-foundation.org> <507FC8E3.8020006@parallels.com> <alpine.DEB.2.00.1210181502270.30894@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1210181502270.30894@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Thu, Oct 18, 2012 at 11:05:02PM +0100, Andrew Morton wrote:
-> On Wed, 17 Oct 2012 16:54:02 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
+On 10/19/2012 02:06 AM, David Rientjes wrote:
+> On Thu, 18 Oct 2012, Glauber Costa wrote:
 > 
-> > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > flag is set for the appropriate PTE/PMD).
-> > 
-> > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > be called for a write fault.
-> > 
-> > This patch ensures that faults on transparent hugepages which do not result
-> > in a CoW update the access flags for the faulting pmd.
+>>> Do we actually need to test PF_KTHREAD when current->mm == NULL? 
+>>> Perhaps because of aio threads whcih temporarily adopt a userspace mm?
+>>
+>> I believe so. I remember I discussed this in the past with David
+>> Rientjes and he advised me to test for both.
+>>
 > 
-> Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
-
-Right at the end of this patch, which was posted to the ARM list yesterday:
-
-  http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126387.html
-
-Cheers,
-
-Will
+> PF_KTHREAD can do use_mm() to assume an ->mm but hopefully they aren't 
+> allocating slab while doing so.  Have you considered actually charging 
+> current->mm->owner for that memory, though, since the kthread will have 
+> freed the memory before unuse_mm() or otherwise have charged it on behalf 
+> of a user process, i.e. only exempting PF_KTHREAD?
+> 
+I always charge current->mm->owner.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
