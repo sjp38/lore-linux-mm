@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id D666B6B0062
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:22:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 2453C6B0071
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:22:13 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v5 11/18] sl[au]b: Allocate objects from memcg cache
-Date: Fri, 19 Oct 2012 18:20:35 +0400
-Message-Id: <1350656442-1523-12-git-send-email-glommer@parallels.com>
+Subject: [PATCH v5 09/18] memcg: skip memcg kmem allocations in specified code regions
+Date: Fri, 19 Oct 2012 18:20:33 +0400
+Message-Id: <1350656442-1523-10-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350656442-1523-1-git-send-email-glommer@parallels.com>
 References: <1350656442-1523-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,13 +13,15 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-We are able to match a cache allocation to a particular memcg.  If the
-task doesn't change groups during the allocation itself - a rare event,
-this will give us a good picture about who is the first group to touch a
-cache page.
+This patch creates a mechanism that skip memcg allocations during
+certain pieces of our core code. It basically works in the same way
+as preempt_disable()/preempt_enable(): By marking a region under
+which all allocations will be accounted to the root memcg.
 
-This patch uses the now available infrastructure by calling
-memcg_kmem_get_cache() before all the cache allocations.
+We need this to prevent races in early cache creation, when we
+allocate data using caches that are not necessarily created already.
+
+[ v2: wrap the whole enqueue process, INIT_WORK can alloc memory ]
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
@@ -30,147 +32,125 @@ CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- include/linux/slub_def.h | 15 ++++++++++-----
- mm/memcontrol.c          |  3 +++
- mm/slab.c                |  6 +++++-
- mm/slub.c                |  5 +++--
- 4 files changed, 21 insertions(+), 8 deletions(-)
+ include/linux/sched.h |  1 +
+ mm/memcontrol.c       | 63 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 62 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 961e72e..ed330df 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -13,6 +13,8 @@
- #include <linux/kobject.h>
- 
- #include <linux/kmemleak.h>
-+#include <linux/memcontrol.h>
-+#include <linux/mm.h>
- 
- enum stat_item {
- 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
-@@ -209,14 +211,14 @@ static __always_inline int kmalloc_index(size_t size)
-  * This ought to end up with a global pointer to the right cache
-  * in kmalloc_caches.
-  */
--static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
-+static __always_inline struct kmem_cache *kmalloc_slab(gfp_t flags, size_t size)
- {
- 	int index = kmalloc_index(size);
- 
- 	if (index == 0)
- 		return NULL;
- 
--	return kmalloc_caches[index];
-+	return memcg_kmem_get_cache(kmalloc_caches[index], flags);
- }
- 
- void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
-@@ -225,7 +227,10 @@ void *__kmalloc(size_t size, gfp_t flags);
- static __always_inline void *
- kmalloc_order(size_t size, gfp_t flags, unsigned int order)
- {
--	void *ret = (void *) __get_free_pages(flags | __GFP_COMP, order);
-+	void *ret;
-+
-+	flags |= (__GFP_COMP | __GFP_KMEMCG);
-+	ret = (void *) __get_free_pages(flags, order);
- 	kmemleak_alloc(ret, size, 1, flags);
- 	return ret;
- }
-@@ -274,7 +279,7 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
- 			return kmalloc_large(size, flags);
- 
- 		if (!(flags & SLUB_DMA)) {
--			struct kmem_cache *s = kmalloc_slab(size);
-+			struct kmem_cache *s = kmalloc_slab(flags, size);
- 
- 			if (!s)
- 				return ZERO_SIZE_PTR;
-@@ -307,7 +312,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
- {
- 	if (__builtin_constant_p(size) &&
- 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
--			struct kmem_cache *s = kmalloc_slab(size);
-+			struct kmem_cache *s = kmalloc_slab(flags, size);
- 
- 		if (!s)
- 			return ZERO_SIZE_PTR;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 0d907e1..9fad6c1 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1581,6 +1581,7 @@ struct task_struct {
+ 		unsigned long nr_pages;	/* uncharged usage */
+ 		unsigned long memsw_nr_pages; /* uncharged mem+swap usage */
+ 	} memcg_batch;
++	unsigned int memcg_kmem_skip_account;
+ #endif
+ #ifdef CONFIG_HAVE_HW_BREAKPOINT
+ 	atomic_t ptrace_bp_refcnt;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3f46daa..354cdf0 100644
+index ac2e621..3f46daa 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3015,6 +3015,9 @@ static struct kmem_cache *kmem_cache_dup(struct mem_cgroup *memcg,
- 	new = kmem_cache_create_memcg(memcg, name, s->object_size, s->align,
- 				      (s->flags & ~SLAB_PANIC), s->ctor);
- 
-+	if (new)
-+		new->allocflags |= __GFP_KMEMCG;
-+
- 	kfree(name);
- 	return new;
- }
-diff --git a/mm/slab.c b/mm/slab.c
-index 6f22067..c6cdcc0 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1949,7 +1949,7 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
- 	}
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
--	free_pages((unsigned long)addr, cachep->gfporder);
-+	free_memcg_kmem_pages((unsigned long)addr, cachep->gfporder);
+@@ -2950,6 +2950,41 @@ out:
+ 	kfree(s->memcg_params);
  }
  
- static void kmem_rcu_free(struct rcu_head *head)
-@@ -3514,6 +3514,8 @@ __cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
- 	if (slab_should_failslab(cachep, flags))
- 		return NULL;
- 
-+	cachep = memcg_kmem_get_cache(cachep, flags);
++/*
++ * During the creation a new cache, we need to disable our accounting mechanism
++ * altogether. This is true even if we are not creating, but rather just
++ * enqueing new caches to be created.
++ *
++ * This is because that process will trigger allocations; some visible, like
++ * explicit kmallocs to auxiliary data structures, name strings and internal
++ * cache structures; some well concealed, like INIT_WORK() that can allocate
++ * objects during debug.
++ *
++ * If any allocation happens during memcg_kmem_get_cache, we will recurse back
++ * to it. This may not be a bounded recursion: since the first cache creation
++ * failed to complete (waiting on the allocation), we'll just try to create the
++ * cache again, failing at the same point.
++ *
++ * memcg_kmem_get_cache is prepared to abort after seeing a positive count of
++ * memcg_kmem_skip_account. So we enclose anything that might allocate memory
++ * inside the following two functions.
++ */
++static void memcg_stop_kmem_account(void)
++{
++	if (!current->mm)
++		return;
 +
- 	cache_alloc_debugcheck_before(cachep, flags);
- 	local_irq_save(save_flags);
- 
-@@ -3599,6 +3601,8 @@ __cache_alloc(struct kmem_cache *cachep, gfp_t flags, void *caller)
- 	if (slab_should_failslab(cachep, flags))
- 		return NULL;
- 
-+	cachep = memcg_kmem_get_cache(cachep, flags);
++	current->memcg_kmem_skip_account++;
++}
 +
- 	cache_alloc_debugcheck_before(cachep, flags);
- 	local_irq_save(save_flags);
- 	objp = __do_cache_alloc(cachep, flags);
-diff --git a/mm/slub.c b/mm/slub.c
-index 6e1a90f..48b7574 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1405,7 +1405,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
- 	reset_page_mapcount(page);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += pages;
--	__free_pages(page, order);
-+	__free_memcg_kmem_pages(page, order);
++static void memcg_resume_kmem_account(void)
++{
++	if (!current->mm)
++		return;
++
++	current->memcg_kmem_skip_account--;
++}
++
+ static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *cachep)
+ {
+ 	char *name;
+@@ -3009,7 +3044,10 @@ static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	if (new_cachep)
+ 		goto out;
+ 
++	/* Don't block progress to enqueue caches for internal infrastructure */
++	memcg_stop_kmem_account();
+ 	new_cachep = kmem_cache_dup(memcg, cachep);
++	memcg_resume_kmem_account();
+ 
+ 	if (new_cachep == NULL) {
+ 		new_cachep = cachep;
+@@ -3047,8 +3085,8 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+  * Enqueue the creation of a per-memcg kmem_cache.
+  * Called with rcu_read_lock.
+  */
+-static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+-				       struct kmem_cache *cachep)
++static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
++					 struct kmem_cache *cachep)
+ {
+ 	struct create_work *cw;
+ 
+@@ -3067,6 +3105,24 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+ 	schedule_work(&cw->work);
  }
  
- #define need_reserve_slab_rcu						\
-@@ -2321,6 +2321,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
- 	if (slab_pre_alloc_hook(s, gfpflags))
- 		return NULL;
++static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
++				       struct kmem_cache *cachep)
++{
++	/*
++	 * We need to stop accounting when we kmalloc, because if the
++	 * corresponding kmalloc cache is not yet created, the first allocation
++	 * in __memcg_create_cache_enqueue will recurse.
++	 *
++	 * However, it is better to enclose the whole function. Depending on
++	 * the debugging options enabled, INIT_WORK(), for instance, can
++	 * trigger an allocation. This too, will make us recurse. Because at
++	 * this point we can't allow ourselves back into memcg_kmem_get_cache,
++	 * the safest choice is to do it like this, wrapping the whole function.
++	 */
++	memcg_stop_kmem_account();
++	__memcg_create_cache_enqueue(memcg, cachep);
++	memcg_resume_kmem_account();
++}
+ /*
+  * Return the kmem_cache we're supposed to use for a slab allocation.
+  * We try to use the current memcg's version of the cache.
+@@ -3086,6 +3142,9 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+ 	struct mem_cgroup *memcg;
+ 	int idx;
  
-+	s = memcg_kmem_get_cache(s, gfpflags);
- redo:
++	if (!current->mm || current->memcg_kmem_skip_account)
++		return cachep;
++
+ 	if (cachep->memcg_params && cachep->memcg_params->memcg)
+ 		return cachep;
  
- 	/*
-@@ -3478,7 +3479,7 @@ void kfree(const void *x)
- 	if (unlikely(!PageSlab(page))) {
- 		BUG_ON(!PageCompound(page));
- 		kmemleak_free(x);
--		__free_pages(page, compound_order(page));
-+		__free_memcg_kmem_pages(page, compound_order(page));
- 		return;
- 	}
- 	slab_free(page->slab, page, object, _RET_IP_);
 -- 
 1.7.11.7
 
