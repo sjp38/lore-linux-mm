@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id E13476B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:41:10 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 360DE6B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:41:11 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH v3 3/9] memory-hotplug: flush the work for the node when the node is offlined
-Date: Fri, 19 Oct 2012 14:46:36 +0800
-Message-Id: <1350629202-9664-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 4/9] clear the memory to store struct page
+Date: Fri, 19 Oct 2012 14:46:37 +0800
+Message-Id: <1350629202-9664-5-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
 References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,75 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+From: Wen Congyang <wency@cn.fujitsu.com>
 
-If the node is onlined after it is offlined, we will clear the memory
-to store the node's information. This structure contains struct work,
-so we should flush work before the work's information is cleared.
+If sparse memory vmemmap is enabled, we can't free the memory to store
+struct page when a memory device is hotremoved, because we may store
+struct page in the memory to manage the memory which doesn't belong
+to this memory device. When we hotadded this memory device again, we
+will reuse this memory to store struct page, and struct page may
+contain some obsolete information, and we will get bad-page state:
+
+[   59.611278] init_memory_mapping: [mem 0x80000000-0x9fffffff]
+[   59.637836] Built 2 zonelists in Node order, mobility grouping on.  Total pages: 547617
+[   59.638739] Policy zone: Normal
+[   59.650840] BUG: Bad page state in process bash  pfn:9b6dc
+[   59.651124] page:ffffea0002200020 count:0 mapcount:0 mapping:          (null) index:0xfdfdfdfdfdfdfdfd
+[   59.651494] page flags: 0x2fdfdfdfd5df9fd(locked|referenced|uptodate|dirty|lru|active|slab|owner_priv_1|private|private_2|writeback|head|tail|swapcache|reclaim|swapbacked|unevictable|uncached|compound_lock)
+[   59.653604] Modules linked in: netconsole acpiphp pci_hotplug acpi_memhotplug loop kvm_amd kvm microcode tpm_tis tpm tpm_bios evdev psmouse serio_raw i2c_piix4 i2c_core parport_pc parport processor button thermal_sys ext3 jbd mbcache sg sr_mod cdrom ata_generic virtio_net ata_piix virtio_blk libata virtio_pci virtio_ring virtio scsi_mod
+[   59.656998] Pid: 988, comm: bash Not tainted 3.6.0-rc7-guest #12
+[   59.657172] Call Trace:
+[   59.657275]  [<ffffffff810e9b30>] ? bad_page+0xb0/0x100
+[   59.657434]  [<ffffffff810ea4c3>] ? free_pages_prepare+0xb3/0x100
+[   59.657610]  [<ffffffff810ea668>] ? free_hot_cold_page+0x48/0x1a0
+[   59.657787]  [<ffffffff8112cc08>] ? online_pages_range+0x68/0xa0
+[   59.657961]  [<ffffffff8112cba0>] ? __online_page_increment_counters+0x10/0x10
+[   59.658162]  [<ffffffff81045561>] ? walk_system_ram_range+0x101/0x110
+[   59.658346]  [<ffffffff814c4f95>] ? online_pages+0x1a5/0x2b0
+[   59.658515]  [<ffffffff8135663d>] ? __memory_block_change_state+0x20d/0x270
+[   59.658710]  [<ffffffff81356756>] ? store_mem_state+0xb6/0xf0
+[   59.658878]  [<ffffffff8119e482>] ? sysfs_write_file+0xd2/0x160
+[   59.659052]  [<ffffffff8113769a>] ? vfs_write+0xaa/0x160
+[   59.659212]  [<ffffffff81137977>] ? sys_write+0x47/0x90
+[   59.659371]  [<ffffffff814e2f25>] ? async_page_fault+0x25/0x30
+[   59.659543]  [<ffffffff814ea239>] ? system_call_fastpath+0x16/0x1b
+[   59.659720] Disabling lock debugging due to kernel taint
+
+This patch clears the memory to store struct page to avoid unexpected error.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Reported-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/base/node.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ mm/sparse.c |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 2baa73a..13c0ddf 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -254,6 +254,11 @@ static inline void hugetlb_unregister_node(struct node *node) {}
+diff --git a/mm/sparse.c b/mm/sparse.c
+index fac95f2..0021265 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -638,7 +638,6 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+ got_map_page:
+ 	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
+ got_map_ptr:
+-	memset(ret, 0, memmap_size);
  
- static void node_device_release(struct device *dev)
- {
-+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HUGETLBFS)
-+	struct node *node_dev = to_node(dev);
-+
-+	flush_work(&node_dev->node_work);
-+#endif
+ 	return ret;
  }
+@@ -760,6 +759,8 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 		goto out;
+ 	}
  
- /*
++	memset(memmap, 0, sizeof(struct page) * nr_pages);
++
+ 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+ 
+ 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
 -- 
 1.7.1
 
