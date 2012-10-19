@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id CE94B6B0070
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:31:35 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so336098pbb.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:31:35 -0700 (PDT)
-Date: Fri, 19 Oct 2012 02:31:33 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-In-Reply-To: <50811903.9000105@parallels.com>
-Message-ID: <alpine.DEB.2.00.1210190229450.26815@chino.kir.corp.google.com>
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <20121017151214.e3d2aa3b.akpm@linux-foundation.org> <507FC8E3.8020006@parallels.com> <alpine.DEB.2.00.1210181502270.30894@chino.kir.corp.google.com>
- <50811903.9000105@parallels.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id BC5BB6B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:32:52 -0400 (EDT)
+Message-ID: <50811E3B.3060503@parallels.com>
+Date: Fri, 19 Oct 2012 13:32:43 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v5] slab: Ignore internal flags in cache creation
+References: <1350473811-16264-1-git-send-email-glommer@parallels.com> <20121018154203.4b3a1179.akpm@linux-foundation.org>
+In-Reply-To: <20121018154203.4b3a1179.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Fri, 19 Oct 2012, Glauber Costa wrote:
-
-> >>> Do we actually need to test PF_KTHREAD when current->mm == NULL? 
-> >>> Perhaps because of aio threads whcih temporarily adopt a userspace mm?
-> >>
-> >> I believe so. I remember I discussed this in the past with David
-> >> Rientjes and he advised me to test for both.
-> >>
-> > 
-> > PF_KTHREAD can do use_mm() to assume an ->mm but hopefully they aren't 
-> > allocating slab while doing so.  Have you considered actually charging 
-> > current->mm->owner for that memory, though, since the kthread will have 
-> > freed the memory before unuse_mm() or otherwise have charged it on behalf 
-> > of a user process, i.e. only exempting PF_KTHREAD?
-> > 
-> I always charge current->mm->owner.
+On 10/19/2012 02:42 AM, Andrew Morton wrote:
+> On Wed, 17 Oct 2012 15:36:51 +0400
+> Glauber Costa <glommer@parallels.com> wrote:
+> 
+>> Some flags are used internally by the allocators for management
+>> purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
+>> to mark that the metadata for that cache is stored outside of the slab.
+>>
+>> No cache should ever pass those as a creation flags. We can just ignore
+>> this bit if it happens to be passed (such as when duplicating a cache in
+>> the kmem memcg patches).
+> 
+> I may be minunderstanding this, but...
+> 
+> If some caller to kmem_cache_create() is passing in bogus flags then
+> that's a bug, and it is undesirable to hide such a bug in this fashion?
 > 
 
-Yeah, I'm asking have you considered charging current->mm->owner for the 
-memory when a kthread (current) assumes the mm of a user process via 
-use_mm()?  It may free the memory before calling unuse_mm(), but it's also 
-allocating the memory on behalf of a user so this exemption might be 
-dangerous if use_mm() becomes more popular.  I don't think there's 
-anything that prevents that charge, I'm just wondering if you considered 
-doing it even for kthreads with an mm.
+Not necessarily.
+
+This part is part of the kmemcg-slab series. In that use case, I copy
+the flags from the original kmem cache, and create a duplicate. That
+duplicate need to have the same flags, but only the creation flags.
+
+We had many attempts to mask it out in different places, and after some
+discussion, it seemed best to independently do it from common code in
+slab_common.c at creation time. It gets quite independent from the
+kmemcg-slab this way, and so I posted independently to reduce my churn
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
