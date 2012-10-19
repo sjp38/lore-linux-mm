@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id BC5BB6B0070
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:32:52 -0400 (EDT)
-Message-ID: <50811E3B.3060503@parallels.com>
-Date: Fri, 19 Oct 2012 13:32:43 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id C11C26B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:33:50 -0400 (EDT)
+Message-ID: <50811E5E.1090205@huawei.com>
+Date: Fri, 19 Oct 2012 17:33:18 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5] slab: Ignore internal flags in cache creation
-References: <1350473811-16264-1-git-send-email-glommer@parallels.com> <20121018154203.4b3a1179.akpm@linux-foundation.org>
-In-Reply-To: <20121018154203.4b3a1179.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz> <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 10/19/2012 02:42 AM, Andrew Morton wrote:
-> On Wed, 17 Oct 2012 15:36:51 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
+On 2012/10/17 21:30, Michal Hocko wrote:
+> Now that mem_cgroup_pre_destroy callback doesn't fail finally we can
+> safely move on and forbit all the callbacks to fail. The last missing
+> piece is moving cgroup_call_pre_destroy after cgroup_clear_css_refs so
+> that css_tryget fails so no new charges for the memcg can happen.
+
+> The callbacks are also called from within cgroup_lock to guarantee that
+> no new tasks show up. 
+
+I'm afraid this won't work. See commit 3fa59dfbc3b223f02c26593be69ce6fc9a940405
+("cgroup: fix potential deadlock in pre_destroy")
+
+> We could theoretically call them outside of the
+> lock but then we have to move after CGRP_REMOVED flag is set.
 > 
->> Some flags are used internally by the allocators for management
->> purposes. One example of that is the CFLGS_OFF_SLAB flag that slab uses
->> to mark that the metadata for that cache is stored outside of the slab.
->>
->> No cache should ever pass those as a creation flags. We can just ignore
->> this bit if it happens to be passed (such as when duplicating a cache in
->> the kmem memcg patches).
-> 
-> I may be minunderstanding this, but...
-> 
-> If some caller to kmem_cache_create() is passing in bogus flags then
-> that's a bug, and it is undesirable to hide such a bug in this fashion?
-> 
-
-Not necessarily.
-
-This part is part of the kmemcg-slab series. In that use case, I copy
-the flags from the original kmem cache, and create a duplicate. That
-duplicate need to have the same flags, but only the creation flags.
-
-We had many attempts to mask it out in different places, and after some
-discussion, it seemed best to independently do it from common code in
-slab_common.c at creation time. It gets quite independent from the
-kmemcg-slab this way, and so I posted independently to reduce my churn
-
-
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  kernel/cgroup.c |   30 +++++++++---------------------
+>  1 file changed, 9 insertions(+), 21 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
