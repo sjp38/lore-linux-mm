@@ -1,119 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 09F036B0044
-	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 20:50:30 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 2DC273EE0C1
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 09:50:29 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1381A45DE56
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 09:50:29 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id E3BC645DE50
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 09:50:28 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id D2A921DB8040
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 09:50:28 +0900 (JST)
-Received: from G01JPEXCHKW28.g01.fujitsu.local (G01JPEXCHKW28.g01.fujitsu.local [10.0.193.111])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8B32D1DB803F
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 09:50:28 +0900 (JST)
-Message-ID: <5080A394.2000409@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 09:49:24 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 3DA596B0044
+	for <linux-mm@kvack.org>; Thu, 18 Oct 2012 21:07:11 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so11156976obc.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 18:07:10 -0700 (PDT)
+Message-ID: <5080A7B8.3060807@gmail.com>
+Date: Fri, 19 Oct 2012 09:07:04 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/10] memory-hotplug : memory-hotplug: check page type
- in get_page_bootmem
-References: <506E43E0.70507@jp.fujitsu.com> <506E46B6.3060502@jp.fujitsu.com> <CAHGf_=raSH5C8ye90F1PLZ8mGQUGggB=J0HYU8UhkKVDTV5JXQ@mail.gmail.com>
-In-Reply-To: <CAHGf_=raSH5C8ye90F1PLZ8mGQUGggB=J0HYU8UhkKVDTV5JXQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH 1/4] thp: clean up __collapse_huge_page_isolate
+References: <1350555140-11030-1-git-send-email-lliubbo@gmail.com> <CAA_GA1fBHAh5YdZBKUz00Bj1pKJX964LGpB0S8rxQwgSObfPNA@mail.gmail.com>
+In-Reply-To: <CAA_GA1fBHAh5YdZBKUz00Bj1pKJX964LGpB0S8rxQwgSObfPNA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, wency@cn.fujitsu.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, xiaoguangrong@linux.vnet.ibm.com, hughd@google.com, rientjes@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org
 
-Hi Kosaki,
+On 10/18/2012 06:20 PM, Bob Liu wrote:
+> Sorry, should be to linux-mm instead of linux-kernel.
+> It's strange linux-mm not in the result by using
+> ./scripts/get_maintainer.pl -f ./mm/huge_memory.c
+>
+> On Thu, Oct 18, 2012 at 6:12 PM, Bob Liu <lliubbo@gmail.com> wrote:
+>> There are duplicated place using release_pte_pages().
+>> And release_all_pte_pages() can also be removed.
 
-Sorry for late reply.
+this cleanup looks reasonable to me.
 
-2012/10/13 4:28, KOSAKI Motohiro wrote:
-> On Thu, Oct 4, 2012 at 10:32 PM, Yasuaki Ishimatsu
-> <isimatu.yasuaki@jp.fujitsu.com> wrote:
->> The function get_page_bootmem() may be called more than one time to the same
->> page. There is no need to set page's type, private if the function is not
->> the first time called to the page.
 >>
->> Note: the patch is just optimization and does not fix any problem.
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Wen Congyang <wency@cn.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
 >> ---
->>   mm/memory_hotplug.c |   15 +++++++++++----
->>   1 file changed, 11 insertions(+), 4 deletions(-)
+>>   mm/huge_memory.c |   37 +++++++++++--------------------------
+>>   1 file changed, 11 insertions(+), 26 deletions(-)
 >>
->> Index: linux-3.6/mm/memory_hotplug.c
->> ===================================================================
->> --- linux-3.6.orig/mm/memory_hotplug.c  2012-10-04 18:29:58.284676075 +0900
->> +++ linux-3.6/mm/memory_hotplug.c       2012-10-04 18:30:03.454680542 +0900
->> @@ -95,10 +95,17 @@ static void release_memory_resource(stru
->>   static void get_page_bootmem(unsigned long info,  struct page *page,
->>                               unsigned long type)
->>   {
->> -       page->lru.next = (struct list_head *) type;
->> -       SetPagePrivate(page);
->> -       set_page_private(page, info);
->> -       atomic_inc(&page->_count);
->> +       unsigned long page_type;
->> +
->> +       page_type = (unsigned long)page->lru.next;
->
-> If I understand correctly, page->lru.next might be uninitialized yet.
-
-Ah yes. I was misunderstanding...
-
-Hi Wen,
-
-When you update the physical hot remove patch-set, please drop the patch.
-
-Thanks,
-Yasuaki Ishimatsu  
-  
-> Moreover, I have no seen any good effect in this patch. I don't understand
-> why we need to increase code complexity.
->
->
->
->> +       if (page_type < MEMORY_HOTPLUG_MIN_BOOTMEM_TYPE ||
->> +           page_type > MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE){
->> +               page->lru.next = (struct list_head *)type;
->> +               SetPagePrivate(page);
->> +               set_page_private(page, info);
->> +               atomic_inc(&page->_count);
->> +       } else
->> +               atomic_inc(&page->_count);
+>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+>> index a863af2..462d6ea 100644
+>> --- a/mm/huge_memory.c
+>> +++ b/mm/huge_memory.c
+>> @@ -1700,64 +1700,49 @@ static void release_pte_pages(pte_t *pte, pte_t *_pte)
+>>          }
 >>   }
 >>
->>   /* reference to __meminit __free_pages_bootmem is valid
+>> -static void release_all_pte_pages(pte_t *pte)
+>> -{
+>> -       release_pte_pages(pte, pte + HPAGE_PMD_NR);
+>> -}
+>> -
+>>   static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>>                                          unsigned long address,
+>>                                          pte_t *pte)
+>>   {
+>>          struct page *page;
+>>          pte_t *_pte;
+>> -       int referenced = 0, isolated = 0, none = 0;
+>> +       int referenced = 0, isolated = 1, none = 0;
+>>          for (_pte = pte; _pte < pte+HPAGE_PMD_NR;
+>>               _pte++, address += PAGE_SIZE) {
+>>                  pte_t pteval = *_pte;
+>>                  if (pte_none(pteval)) {
+>>                          if (++none <= khugepaged_max_ptes_none)
+>>                                  continue;
+>> -                       else {
+>> -                               release_pte_pages(pte, _pte);
+>> +                       else
+>>                                  goto out;
+>> -                       }
+>>                  }
+>> -               if (!pte_present(pteval) || !pte_write(pteval)) {
+>> -                       release_pte_pages(pte, _pte);
+>> +               if (!pte_present(pteval) || !pte_write(pteval))
+>>                          goto out;
+>> -               }
+>>                  page = vm_normal_page(vma, address, pteval);
+>> -               if (unlikely(!page)) {
+>> -                       release_pte_pages(pte, _pte);
+>> +               if (unlikely(!page))
+>>                          goto out;
+>> -               }
+>> +
+>>                  VM_BUG_ON(PageCompound(page));
+>>                  BUG_ON(!PageAnon(page));
+>>                  VM_BUG_ON(!PageSwapBacked(page));
+>>
+>>                  /* cannot use mapcount: can't collapse if there's a gup pin */
+>> -               if (page_count(page) != 1) {
+>> -                       release_pte_pages(pte, _pte);
+>> +               if (page_count(page) != 1)
+>>                          goto out;
+>> -               }
+>>                  /*
+>>                   * We can do it before isolate_lru_page because the
+>>                   * page can't be freed from under us. NOTE: PG_lock
+>>                   * is needed to serialize against split_huge_page
+>>                   * when invoked from the VM.
+>>                   */
+>> -               if (!trylock_page(page)) {
+>> -                       release_pte_pages(pte, _pte);
+>> +               if (!trylock_page(page))
+>>                          goto out;
+>> -               }
+>>                  /*
+>>                   * Isolate the page to avoid collapsing an hugepage
+>>                   * currently in use by the VM.
+>>                   */
+>>                  if (isolate_lru_page(page)) {
+>>                          unlock_page(page);
+>> -                       release_pte_pages(pte, _pte);
+>>                          goto out;
+>>                  }
+>>                  /* 0 stands for page_is_file_cache(page) == false */
+>> @@ -1770,11 +1755,11 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
+>>                      mmu_notifier_test_young(vma->vm_mm, address))
+>>                          referenced = 1;
+>>          }
+>> -       if (unlikely(!referenced))
+>> -               release_all_pte_pages(pte);
+>> -       else
+>> -               isolated = 1;
+>> +       if (unlikely(!referenced)) {
+>>   out:
+>> +               release_pte_pages(pte, _pte);
+>> +               isolated = 0;
+>> +       }
+>>          return isolated;
+>>   }
 >>
 >> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>> 1.7.9.5
+>>
+>>
 >
-
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
