@@ -1,46 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 0DD1C6B0075
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:07:45 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so174104oag.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 00:07:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 47C416B005D
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 03:20:42 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id k6so175801lbo.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 00:20:40 -0700 (PDT)
+Date: Fri, 19 Oct 2012 10:20:32 +0300 (EEST)
+From: Pekka Enberg <penberg@kernel.org>
+Subject: Re: [PATCH 2/2] slub: remove one code path and reduce lock contention
+ in __slab_free()
+In-Reply-To: <1345042960-6287-2-git-send-email-js1304@gmail.com>
+Message-ID: <alpine.LFD.2.02.1210191020010.4221@tux.localdomain>
+References: <1345042960-6287-1-git-send-email-js1304@gmail.com> <1345042960-6287-2-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1350629202-9664-10-git-send-email-wency@cn.fujitsu.com>
-References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-10-git-send-email-wency@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 03:07:24 -0400
-Message-ID: <CAHGf_=q_chfJQ+dWHdA8v5+qCCs=_EhdHL0J2hX=_Fr8xJiTVQ@mail.gmail.com>
-Subject: Re: [PATCH v3 9/9] memory-hotplug: allocate zone's pcp before
- onlining pages
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
-> From: Wen Congyang <wency@cn.fujitsu.com>
->
-> We use __free_page() to put a page to buddy system when onlining pages.
-> __free_page() will store NR_FREE_PAGES in zone's pcp.vm_stat_diff, so we
-> should allocate zone's pcp before onlining pages, otherwise we will lose
-> some free pages.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+On Thu, 16 Aug 2012, Joonsoo Kim wrote:
+> When we try to free object, there is some of case that we need
+> to take a node lock. This is the necessary step for preventing a race.
+> After taking a lock, then we try to cmpxchg_double_slab().
+> But, there is a possible scenario that cmpxchg_double_slab() is failed
+> with taking a lock. Following example explains it.
+> 
+> CPU A               CPU B
+> need lock
+> ...                 need lock
+> ...                 lock!!
+> lock..but spin      free success
+> spin...             unlock
+> lock!!
+> free fail
+> 
+> In this case, retry with taking a lock is occured in CPU A.
+> I think that in this case for CPU A,
+> "release a lock first, and re-take a lock if necessary" is preferable way.
+> 
+> There are two reasons for this.
+> 
+> First, this makes __slab_free()'s logic somehow simple.
+> With this patch, 'was_frozen = 1' is "always" handled without taking a lock.
+> So we can remove one code path.
+> 
+> Second, it may reduce lock contention.
+> When we do retrying, status of slab is already changed,
+> so we don't need a lock anymore in almost every case.
+> "release a lock first, and re-take a lock if necessary" policy is
+> helpful to this.
+> 
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Acked-by: Christoph Lameter <cl@linux.com>
 
-Looks good.
-
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
