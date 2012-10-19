@@ -1,207 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id DB4016B009B
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:25:53 -0400 (EDT)
-Message-Id: <0000013a796a7912-d1ca62fc-fe3a-460a-853e-85e5535c1e60-000000@email.amazonses.com>
-Date: Fri, 19 Oct 2012 14:25:51 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: CK2 [02/15] create common functions for boot slab creation
-References: <20121019142254.724806786@linux.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id CC1CA6B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:27:20 -0400 (EDT)
+Received: from /spool/local
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Sat, 20 Oct 2012 00:24:40 +1000
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9JERADw44040296
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 01:27:11 +1100
+Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9JERA2j012078
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 01:27:10 +1100
+Message-ID: <5081630B.2000004@linux.vnet.ibm.com>
+Date: Fri, 19 Oct 2012 19:56:19 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: Simplify for_each_populated_zone()
+References: <20121019105546.9704.93446.stgit@srivatsabhat.in.ibm.com> <20121019135454.GJ31863@cmpxchg.org>
+In-Reply-To: <20121019135454.GJ31863@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kosaki.motohiro@gmail.com, akpm@linux-foundation.org
 
-Use a special function to create kmalloc caches and use that function in
-SLAB and SLUB.
+On 10/19/2012 07:24 PM, Johannes Weiner wrote:
+> On Fri, Oct 19, 2012 at 04:25:47PM +0530, Srivatsa S. Bhat wrote:
+>> Move the check for populated_zone() to the control statement of the
+>> 'for' loop and get rid of the odd looking if/else block.
+>>
+>> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+>> ---
+>>
+>>  include/linux/mmzone.h |    7 ++-----
+>>  1 file changed, 2 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index 50aaca8..5bdf02e 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -913,11 +913,8 @@ extern struct zone *next_zone(struct zone *zone);
+>>  
+>>  #define for_each_populated_zone(zone)		        \
+>>  	for (zone = (first_online_pgdat())->node_zones; \
+>> -	     zone;					\
+>> -	     zone = next_zone(zone))			\
+>> -		if (!populated_zone(zone))		\
+>> -			; /* do nothing */		\
+>> -		else
+>> +	     zone && populated_zone(zone);		\
+>> +	     zone = next_zone(zone))
+> 
+> I don't think we want to /abort/ the loop when encountering an
+> unpopulated zone.
+> 
 
-V1->V2:
-	Do check for slasb state in slub's __kmem_cache_create to avoid
-	unlocking a lock that was not taken
+Oops! I totally missed that.. thanks for catching it! Please ignore
+the patch.
 
-Reviewed-by: Glauber Costa <glommer@parallels.com>
-Signed-off-by: Christoph Lameter <cl@linux.com>
----
- mm/slab.c        |   48 ++++++++++++++----------------------------------
- mm/slab.h        |    5 +++++
- mm/slab_common.c |   32 ++++++++++++++++++++++++++++++++
- mm/slub.c        |   36 +++---------------------------------
- 4 files changed, 54 insertions(+), 67 deletions(-)
-
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c	2012-10-19 09:12:41.934366687 -0500
-+++ linux/mm/slab.c	2012-10-19 09:12:44.158404719 -0500
-@@ -1679,23 +1679,13 @@ void __init kmem_cache_init(void)
- 	 * bug.
- 	 */
- 
--	sizes[INDEX_AC].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
--	sizes[INDEX_AC].cs_cachep->name = names[INDEX_AC].name;
--	sizes[INDEX_AC].cs_cachep->size = sizes[INDEX_AC].cs_size;
--	sizes[INDEX_AC].cs_cachep->object_size = sizes[INDEX_AC].cs_size;
--	sizes[INDEX_AC].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
--	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
--	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
-+	sizes[INDEX_AC].cs_cachep = create_kmalloc_cache(names[INDEX_AC].name,
-+					sizes[INDEX_AC].cs_size, ARCH_KMALLOC_FLAGS);
- 
--	if (INDEX_AC != INDEX_L3) {
--		sizes[INDEX_L3].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
--		sizes[INDEX_L3].cs_cachep->name = names[INDEX_L3].name;
--		sizes[INDEX_L3].cs_cachep->size = sizes[INDEX_L3].cs_size;
--		sizes[INDEX_L3].cs_cachep->object_size = sizes[INDEX_L3].cs_size;
--		sizes[INDEX_L3].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
--		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
--		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
--	}
-+	if (INDEX_AC != INDEX_L3)
-+		sizes[INDEX_L3].cs_cachep =
-+			create_kmalloc_cache(names[INDEX_L3].name,
-+				sizes[INDEX_L3].cs_size, ARCH_KMALLOC_FLAGS);
- 
- 	slab_early_init = 0;
- 
-@@ -1707,24 +1697,14 @@ void __init kmem_cache_init(void)
- 		 * Note for systems short on memory removing the alignment will
- 		 * allow tighter packing of the smaller caches.
- 		 */
--		if (!sizes->cs_cachep) {
--			sizes->cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
--			sizes->cs_cachep->name = names->name;
--			sizes->cs_cachep->size = sizes->cs_size;
--			sizes->cs_cachep->object_size = sizes->cs_size;
--			sizes->cs_cachep->align = ARCH_KMALLOC_MINALIGN;
--			__kmem_cache_create(sizes->cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
--			list_add(&sizes->cs_cachep->list, &slab_caches);
--		}
-+		if (!sizes->cs_cachep)
-+			sizes->cs_cachep = create_kmalloc_cache(names->name,
-+					sizes->cs_size, ARCH_KMALLOC_FLAGS);
-+
- #ifdef CONFIG_ZONE_DMA
--		sizes->cs_dmacachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
--		sizes->cs_dmacachep->name = names->name_dma;
--		sizes->cs_dmacachep->size = sizes->cs_size;
--		sizes->cs_dmacachep->object_size = sizes->cs_size;
--		sizes->cs_dmacachep->align = ARCH_KMALLOC_MINALIGN;
--		__kmem_cache_create(sizes->cs_dmacachep,
--			       ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA| SLAB_PANIC);
--		list_add(&sizes->cs_dmacachep->list, &slab_caches);
-+		sizes->cs_dmacachep = create_kmalloc_cache(
-+			names->name_dma, sizes->cs_size,
-+			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
- #endif
- 		sizes++;
- 		names++;
-Index: linux/mm/slab.h
-===================================================================
---- linux.orig/mm/slab.h	2012-10-18 10:37:51.372631802 -0500
-+++ linux/mm/slab.h	2012-10-19 09:12:44.158404719 -0500
-@@ -35,6 +35,11 @@ extern struct kmem_cache *kmem_cache;
- /* Functions provided by the slab allocators */
- extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
- 
-+extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
-+			unsigned long flags);
-+extern void create_boot_cache(struct kmem_cache *, const char *name,
-+			size_t size, unsigned long flags);
-+
- #ifdef CONFIG_SLUB
- struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
- 	size_t align, unsigned long flags, void (*ctor)(void *));
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2012-10-18 10:37:51.392632144 -0500
-+++ linux/mm/slab_common.c	2012-10-19 09:12:44.158404719 -0500
-@@ -192,3 +192,39 @@ int slab_is_available(void)
- {
- 	return slab_state >= UP;
- }
-+
-+#ifndef CONFIG_SLOB
-+/* Create a cache during boot when no slab services are available yet */
-+void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
-+		unsigned long flags)
-+{
-+	int err;
-+
-+	s->name = name;
-+	s->size = s->object_size = size;
-+	s->align = ARCH_KMALLOC_MINALIGN;
-+	err = __kmem_cache_create(s, flags);
-+
-+	if (err)
-+		panic("Creation of kmalloc slab %s size=%td failed. Reason %d\n",
-+					name, size, err);
-+
-+	list_add(&s->list, &slab_caches);
-+	s->refcount = -1;	/* Exempt from merging for now */
-+}
-+
-+struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
-+				unsigned long flags)
-+{
-+	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-+
-+	if (!s)
-+		panic("Out of memory when creating slab %s\n", name);
-+
-+	create_boot_cache(s, name, size, flags);
-+	s->refcount = 1;
-+	return s;
-+}
-+
-+#endif /* !CONFIG_SLOB */
-+
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2012-10-19 09:12:21.830023016 -0500
-+++ linux/mm/slub.c	2012-10-19 09:12:44.162404786 -0500
-@@ -3255,32 +3255,6 @@ static int __init setup_slub_nomerge(cha
- 
- __setup("slub_nomerge", setup_slub_nomerge);
- 
--static struct kmem_cache *__init create_kmalloc_cache(const char *name,
--						int size, unsigned int flags)
--{
--	struct kmem_cache *s;
--
--	s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
--
--	s->name = name;
--	s->size = s->object_size = size;
--	s->align = ARCH_KMALLOC_MINALIGN;
--
--	/*
--	 * This function is called with IRQs disabled during early-boot on
--	 * single CPU so there's no need to take slab_mutex here.
--	 */
--	if (kmem_cache_open(s, flags))
--		goto panic;
--
--	list_add(&s->list, &slab_caches);
--	return s;
--
--panic:
--	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
--	return NULL;
--}
--
- /*
-  * Conversion table for small slabs sizes / 8 to the index in the
-  * kmalloc array. This is necessary for slabs < 192 since we have non power
-@@ -3958,6 +3932,10 @@ int __kmem_cache_create(struct kmem_cach
- 	if (err)
- 		return err;
- 
-+	/* Mutex is not taken during early boot */
-+	if (slab_state <= UP)
-+		return 0;
-+
- 	mutex_unlock(&slab_mutex);
- 	err = sysfs_slab_add(s);
- 	mutex_lock(&slab_mutex);
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
