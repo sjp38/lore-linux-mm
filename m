@@ -1,58 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id E80546B006E
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:49:56 -0400 (EDT)
-Date: Fri, 19 Oct 2012 11:49:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-Id: <20121019114955.3a0c2b66.akpm@linux-foundation.org>
-In-Reply-To: <20121019091016.GA4582@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
-	<20121002150104.da57fa94.akpm@linux-foundation.org>
-	<20121017130125.GH5973@mudshark.cambridge.arm.com>
-	<20121017.112620.1865348978594874782.davem@davemloft.net>
-	<20121017155401.GJ5973@mudshark.cambridge.arm.com>
-	<20121018150502.3dee7899.akpm@linux-foundation.org>
-	<20121019091016.GA4582@mudshark.cambridge.arm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 29E256B005A
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 15:15:39 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so928684obc.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 12:15:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <508110C4.6030805@jp.fujitsu.com>
+References: <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
+ <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
+ <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
+ <20121017181413.GA16805@redhat.com> <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com>
+ <20121017193229.GC16805@redhat.com> <alpine.DEB.2.00.1210171237130.28214@chino.kir.corp.google.com>
+ <20121017194501.GA24400@redhat.com> <alpine.DEB.2.00.1210171318400.28214@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210171428540.20712@chino.kir.corp.google.com>
+ <507F803A.8000900@jp.fujitsu.com> <507F86BD.7070201@jp.fujitsu.com>
+ <alpine.DEB.2.00.1210181255470.26994@chino.kir.corp.google.com> <508110C4.6030805@jp.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Fri, 19 Oct 2012 15:15:18 -0400
+Message-ID: <CAHGf_=pBZAZFQm2+4w8ox3uCZ5psgYmtQmHk7aZU5dgY64+4jQ@mail.gmail.com>
+Subject: Re: [patch for-3.7 v3] mm, mempolicy: hold task->mempolicy refcount
+ while reading numa_maps.
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 19 Oct 2012 10:10:16 +0100
-Will Deacon <will.deacon@arm.com> wrote:
+On Fri, Oct 19, 2012 at 4:35 AM, Kamezawa Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> (2012/10/19 5:03), David Rientjes wrote:
+>>
+>> On Thu, 18 Oct 2012, Kamezawa Hiroyuki wrote:
+>>>
+>>> @@ -132,7 +162,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
+>>>         tail_vma = get_gate_vma(priv->task->mm);
+>>>         priv->tail_vma = tail_vma;
+>>> -
+>>> +       hold_task_mempolicy(priv);
+>>>         /* Start with last addr hint */
+>>>         vma = find_vma(mm, last_addr);
+>>>         if (last_addr && vma) {
+>>> @@ -159,6 +189,7 @@ out:
+>>>         if (vma)
+>>>                 return vma;
+>>>   +     release_task_mempolicy(priv);
+>>>         /* End of vmas has been reached */
+>>>         m->version = (tail_vma != NULL)? 0: -1UL;
+>>>         up_read(&mm->mmap_sem);
+>>
+>>
+>> Otherwise looks good, but please remove the two task_lock()'s in
+>> show_numa_map() that I added as part of this since you're replacing the
+>> need for locking.
+>>
+> Thank you for your review.
+> How about this ?
+>
+> ==
+> From c5849c9034abeec3f26bf30dadccd393b0c5c25e Mon Sep 17 00:00:00 2001
+> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Date: Fri, 19 Oct 2012 17:00:55 +0900
+> Subject: [PATCH] hold task->mempolicy while numa_maps scans.
+>
+>  /proc/<pid>/numa_maps scans vma and show mempolicy under
+>  mmap_sem. It sometimes accesses task->mempolicy which can
+>  be freed without mmap_sem and numa_maps can show some
+>  garbage while scanning.
+>
+> This patch tries to take reference count of task->mempolicy at reading
+> numa_maps before calling get_vma_policy(). By this, task->mempolicy
+> will not be freed until numa_maps reaches its end.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> V2->v3
+>  -  updated comments to be more verbose.
+>  -  removed task_lock() in numa_maps code.
+> V1->V2
+>  -  access task->mempolicy only once and remember it.  Becase kernel/exit.c
+>     can overwrite it.
+>
+> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-> On Thu, Oct 18, 2012 at 11:05:02PM +0100, Andrew Morton wrote:
-> > On Wed, 17 Oct 2012 16:54:02 +0100
-> > Will Deacon <will.deacon@arm.com> wrote:
-> > 
-> > > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > > flag is set for the appropriate PTE/PMD).
-> > > 
-> > > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > > be called for a write fault.
-> > > 
-> > > This patch ensures that faults on transparent hugepages which do not result
-> > > in a CoW update the access flags for the faulting pmd.
-> > 
-> > Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
-> 
-> Right at the end of this patch, which was posted to the ARM list yesterday:
-> 
->   http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126387.html
-
-I received and then merged a patch which won't compile!
-
-Ho hum.  I'll drop
-mm-thp-set-the-accessed-flag-for-old-pages-on-access-fault.patch and
-shall assume that you'll sort things out at the appropriate time.
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
