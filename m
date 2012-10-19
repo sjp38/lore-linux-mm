@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id F00966B005A
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 13:54:40 -0400 (EDT)
-Message-ID: <1350669236.2768.66.camel@twins>
-Subject: Re: question on NUMA page migration
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 19 Oct 2012 19:53:56 +0200
-In-Reply-To: <50818A41.7030909@redhat.com>
-References: <5081777A.8050104@redhat.com> <1350664742.2768.40.camel@twins>
-	 <50818A41.7030909@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 53F766B005A
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:20:14 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so892127oag.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 11:20:13 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <508118A6.80804@cn.fujitsu.com>
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
+ <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
+ <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
+ <507E77D1.3030709@cn.fujitsu.com> <CAHGf_=rxGeb0RsgEFF2FRRfdX0wiE9cDyVaftsG3E8AgyzYi1g@mail.gmail.com>
+ <508118A6.80804@cn.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 19 Oct 2012 14:19:53 -0400
+Message-ID: <CAHGf_=qfzEJ0VjeYkKFVtyew+wYM-rHS4nqmXU4t7HYGuv8k9w@mail.gmail.com>
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Fri, 2012-10-19 at 13:13 -0400, Rik van Riel wrote:
+> Hmm, IIRC, if the memory is recognized from kerenl before driver initialization,
+> the memory device is not managed by the driver acpi_memhotplug.
 
-> Would it make sense to have the normal page migration code always
-> work with the extra refcount, so we do not have to introduce a new
-> MIGRATE_FAULT migration mode?
->=20
-> On the other hand, compaction does not take the extra reference...
+Yup.
 
-Right, it appears to not do this, it gets pages from the pfn and
-zone->lock and the isolate_lru_page() call is the first reference.
 
-> Another alternative might be to do the put_page inside
-> do_prot_none_numa().  That would be analogous to do_wp_page
-> disposing of the old page for the caller.
+> I think we should also deal with REMOVAL_NORMAL here now. Otherwise it will cause
+> some critical problem: we unbind the device from the driver but we still use
+> it. If we eject it, we have no chance to offline and remove it. It is very dangerous.
 
-It'd have to be inside migrate_misplaced_page(), can't do before
-isolate_lru_page() or the page might disappear. Doing it after is
-(obviously) too late.
-
-> I am not real happy about NUMA migration introducing its own
-> migration mode...
-
-You didn't seem to mind too much earlier, but I can remove it if you
-want.
+??
+If resource was not allocated a driver, a driver doesn't need to
+deallocate it when
+error path. I haven't caught your point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
