@@ -1,64 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 8CFDF6B0044
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:51:50 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so165614obc.14
-        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 23:51:49 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id D22876B0075
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:54:17 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so167296obc.14
+        for <linux-mm@kvack.org>; Thu, 18 Oct 2012 23:54:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <507F86BD.7070201@jp.fujitsu.com>
-References: <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
- <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
- <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
- <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
- <20121017181413.GA16805@redhat.com> <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com>
- <20121017193229.GC16805@redhat.com> <alpine.DEB.2.00.1210171237130.28214@chino.kir.corp.google.com>
- <20121017194501.GA24400@redhat.com> <alpine.DEB.2.00.1210171318400.28214@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1210171428540.20712@chino.kir.corp.google.com>
- <507F803A.8000900@jp.fujitsu.com> <507F86BD.7070201@jp.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Fri, 19 Oct 2012 02:51:29 -0400
-Message-ID: <CAHGf_=r9ynudaetANyEng64OSXOsLqdQ1SXHb0Z9AnAr23ahZw@mail.gmail.com>
-Subject: Re: [patch for-3.7 v2] mm, mempolicy: avoid taking mutex inside
- spinlock when reading numa_maps
+In-Reply-To: <1350629202-9664-3-git-send-email-wency@cn.fujitsu.com>
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-3-git-send-email-wency@cn.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 19 Oct 2012 02:53:56 -0400
+Message-ID: <CAHGf_=r017AX=mcTNj=XEnTReuwpJgyKWz-f4i=2bVOt7E0udQ@mail.gmail.com>
+Subject: Re: [PATCH v3 2/9] suppress "Device nodeX does not have a release()
+ function" warning
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com
 
->> Can't we have another way to fix ? like this ? too ugly ?
->> Again, I'm sorry if I misunderstand the points.
->>
-> Sorry this patch itself may be buggy. please don't test..
-> I missed that kernel/exit.c sets task->mempolicy to be NULL.
-> fixed one here.
+On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
+> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 >
-> --
-> From 5581c71e68a7f50e52fd67cca00148911023f9f5 Mon Sep 17 00:00:00 2001
-> From: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Date: Thu, 18 Oct 2012 13:50:29 +0900
+> When calling unregister_node(), the function shows following message at
+> device_release().
 >
-> Subject: [PATCH] hold task->mempolicy while numa_maps scans.
+> "Device 'node2' does not have a release() function, it is broken and must
+> be fixed."
 >
->  /proc/<pid>/numa_maps scans vma and show mempolicy under
->  mmap_sem. It sometimes accesses task->mempolicy which can
->  be freed without mmap_sem and numa_maps can show some
->  garbage while scanning.
+> The reason is node's device struct does not have a release() function.
 >
-> This patch tries to take reference count of task->mempolicy at reading
-> numa_maps before calling get_vma_policy(). By this, task->mempolicy
-> will not be freed until numa_maps reaches its end.
+> So the patch registers node_device_release() to the device's release()
+> function for suppressing the warning message. Additionally, the patch adds
+> memset() to initialize a node struct into register_node(). Because the node
+> struct is part of node_devices[] array and it cannot be freed by
+> node_device_release(). So if system reuses the node struct, it has a garbage.
 >
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> V1->V2
->  -  access task->mempolicy only once and remember it.  Becase kernel/exit.c
->     can overwrite it.
->
-> Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 
-Ok, this is acceptable to me. go ahead.
+I still think node array should be converted node pointer array and
+node_device_release() free memory as other typical drivers.
+However, this is acceptable as first step.
+
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
