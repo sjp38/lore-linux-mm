@@ -1,146 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 742B46B005D
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:55:19 -0400 (EDT)
-Message-ID: <50812379.5090600@parallels.com>
-Date: Fri, 19 Oct 2012 13:55:05 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 00/14] kmem controller for memcg.
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <20121017151142.71e1f3c5.akpm@linux-foundation.org> <50803379.8000808@parallels.com> <20121018122105.2efc2841.akpm@linux-foundation.org>
-In-Reply-To: <20121018122105.2efc2841.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id E74C26B005D
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 05:58:25 -0400 (EDT)
+From: wency@cn.fujitsu.com
+Subject: [PATCH v2 0/3] acpi,memory-hotplug : implement framework for hot removing memory
+Date: Fri, 19 Oct 2012 18:03:57 +0800
+Message-Id: <1350641040-19434-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
+Cc: liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, muneda.takahiro@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-On 10/18/2012 11:21 PM, Andrew Morton wrote:
-> On Thu, 18 Oct 2012 20:51:05 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
-> 
->> On 10/18/2012 02:11 AM, Andrew Morton wrote:
->>> On Tue, 16 Oct 2012 14:16:37 +0400
->>> Glauber Costa <glommer@parallels.com> wrote:
->>>
->>>> ...
->>>>
->>>> A general explanation of what this is all about follows:
->>>>
->>>> The kernel memory limitation mechanism for memcg concerns itself with
->>>> disallowing potentially non-reclaimable allocations to happen in exaggerate
->>>> quantities by a particular set of processes (cgroup). Those allocations could
->>>> create pressure that affects the behavior of a different and unrelated set of
->>>> processes.
->>>>
->>>> Its basic working mechanism is to annotate some allocations with the
->>>> _GFP_KMEMCG flag. When this flag is set, the current process allocating will
->>>> have its memcg identified and charged against. When reaching a specific limit,
->>>> further allocations will be denied.
->>>
->>> The need to set _GFP_KMEMCG is rather unpleasing, and makes one wonder
->>> "why didn't it just track all allocations".
->>>
->> This was raised as well by Peter Zijlstra during the memcg summit.
-> 
-> Firstly: please treat any question from a reviewer as an indication
-> that information was missing from the changelog or from code comments. 
-> Ideally all such queries are addressed in later version of the patch
-> and changelog.
-> 
-This is in no opposition with me telling a bit that this has been raised
-before! =)
+From: Wen Congyang <wency@cn.fujitsu.com>
 
->> The
->> answer I gave to him still stands: There is a cost associated with it.
->> We believe it comes down to a trade off situation. How much tracking a
->> particular kind of allocation help vs how much does it cost.
->>
->> The free path is specially more expensive, since it will always incur in
->> a page_cgroup lookup.
-> 
-> OK.  But that is a quantitative argument, without any quantities!  Do
-> we have even an estimate of what this cost will be?  Perhaps it's the
-> case that, if well implemented, that cost will be acceptable.  How do
-> we tell?
->
+The patch-set implements a framework for hot removing memory.
 
-There are two ways:
-1) Measuring on various workloads. The workload I measured particularly
-in here (link in the beginning of this e-mail), showed a 2 - 3 % penalty
-with the whole thing applied. Truth be told, this was mostly pin-pointed
-to the slab part, which gets most of its cost from a relay function, and
-not from the page allocation per-se. But for me, this is enough to tell
-that there is a cost high enough to bother some.
+The memory device can be removed by 2 ways:
+1. send eject request by SCI
+2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
 
-2) We can infer from past behavior of memcg. It always shown itself as
-quite an expensive beast. Making it suck faster is a completely separate
-endeavor. It seems only natural to me to reduce its reach even without
-specific number for each of the to-be-tracked candidates.
+In the 1st case, acpi_memory_disable_device() will be called.
+In the 2nd case, acpi_memory_device_remove() will be called.
+acpi_memory_device_remove() will also be called when we unbind the
+memory device from the driver acpi_memhotplug or a driver initialization
+fails.
 
-Moreover, there is the cost question, but cost is not *the only*
-question, as I underlined a few paragraphs below. It is not always
-obvious how to pinpoint a kernel page to a specific process, so this
-need to be analyzed on a case-by-case basis. The slab is the hardest
-one, and it is done. But even then...
+acpi_memory_disable_device() has already implemented a code which
+offlines memory and releases acpi_memory_info struct . But
+acpi_memory_device_remove() has not implemented it yet.
 
-If this is still not good enough, and you would like me to measure
-something else, just let me know.
+So the patch prepares the framework for hot removing memory and
+adds the framework into acpi_memory_device_remove().
 
->>> Does this mean that over time we can expect more sites to get the
->>> _GFP_KMEMCG tagging?  
->>
->> We have being doing kernel memory limitation for OpenVZ for a lot of
->> times, using a quite different mechanism. What we do in this work (with
->> slab included), allows us to achieve feature parity with that. It means
->> it is good enough for production environments.
-> 
-> That's really good info.
->  
->> Whether or not more people will want other allocations to be tracked, I
->> can't predict. What I do can say is that stack + slab is a very
->> significant part of the memory one potentially cares about, and if
->> anyone else ever have the need for more, it will come down to a
->> trade-off calculation.
-> 
-> OK.
->  
->>> If so, are there any special implications, or do
->>> we just go in, do the one-line patch and expect everything to work? 
->>
->> With the infrastructure in place, it shouldn't be hard. But it's not
->> necessarily a one-liner either. It depends on what are the pratical
->> considerations for having that specific kind of allocation tied to a
->> memcg. The slab, for instance, that follows this series, is far away
->> from a one-liner: it is in fact, a 19-patch patch series.
->>
->>
->>
->>>
->>> And how *accurate* is the proposed code?  What percentage of kernel
->>> memory allocations are unaccounted, typical case and worst case?
->>
->> With both patchsets applied, all memory used for the stack and most of
->> the memory used for slab objects allocated in userspace process contexts
->> are accounted.
->>
->> I honestly don't know which percentage of the total kernel memory this
->> represents.
-> 
-> It sounds like the coverage will be good.  What's left over?  Random
-> get_free_pages() calls and interrupt-time slab allocations?
-> 
+The last version of this patchset is here:
+https://lkml.org/lkml/2012/10/3/126
 
-random get_free_pages, vmalloc, ptes. interrupt is left out on purpose,
-because we can't cgroup-track something that doesn't have a process context.
+Changelos from v1 to v2:
+  Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
+  Patch2: new patch, introduce a lock to protect the list
+  Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
+  Note: I don't send [Patch2-4 v1] in this series because they
+  are no logical changes in these 3 patches.
 
+Wen Congyang (2):
+  acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
+  acpi,memory-hotplug: introduce a mutex lock to protect the list in
+    acpi_memory_device
 
-> I suppose that there are situations in which network rx could consume
-> significant amounts of unaccounted memory?
-> 
+Yasuaki Ishimatsu (1):
+  acpi,memory-hotplug : add memory offline code to
+    acpi_memory_device_remove()
 
-Not unaccounted. This is merged already =)
+ drivers/acpi/acpi_memhotplug.c |   51 ++++++++++++++++++++++++++++++++--------
+ 1 files changed, 41 insertions(+), 10 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
