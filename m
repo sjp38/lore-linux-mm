@@ -1,167 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 4F7FB6B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:09:37 -0400 (EDT)
-Message-ID: <50812830.8080904@cn.fujitsu.com>
-Date: Fri, 19 Oct 2012 18:15:12 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 02E176B0072
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:20:20 -0400 (EDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 968563EE0BC
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 19:20:19 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 78BE045DE56
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 19:20:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 5BB1745DE53
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 19:20:19 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 49C961DB8044
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 19:20:19 +0900 (JST)
+Received: from g01jpexchkw12.g01.fujitsu.local (g01jpexchkw12.g01.fujitsu.local [10.0.194.51])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id F40C51DB803E
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 19:20:18 +0900 (JST)
+Message-ID: <50812949.6040005@jp.fujitsu.com>
+Date: Fri, 19 Oct 2012 19:19:53 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 0/9] bugfix for memory hotplug
-References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <508109F2.1080402@jp.fujitsu.com> <50810D14.8020609@jp.fujitsu.com> <50811336.7070704@cn.fujitsu.com> <50811FE1.4080606@jp.fujitsu.com>
-In-Reply-To: <50811FE1.4080606@jp.fujitsu.com>
+Subject: Re: [PATCH v2 0/3] acpi,memory-hotplug : implement framework for
+ hot removing memory
+References: <1350641040-19434-1-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1350641040-19434-1-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, muneda.takahiro@jp.fujitsu.com, rjw@sisk.pl
 
-At 10/19/2012 05:39 PM, Yasuaki Ishimatsu Wrote:
-> 2012/10/19 17:45, Wen Congyang wrote:
->> At 10/19/2012 04:19 PM, Yasuaki Ishimatsu Wrote:
->>> 2012/10/19 17:06, Yasuaki Ishimatsu wrote:
->>>> Hi Wen,
->>>>
->>>> Some bug fix patches have been merged into linux-next.
->>>> So the patches confuse me.
->>
->> Sorry, I don't check linux-next tree.
->>
->>>
->>> The following patches have been already merged into linux-next
->>> and mm-tree as long as I know.
->>>
->>>>> Wen Congyang (6):
->>>>>      clear the memory to store struct page
->>>
->>>
->>>>>      memory-hotplug: skip HWPoisoned page when offlining pages
->>>
->>> mm-tree
->>
->> Hmm, I don't find this patch in this URL:
->> http://www.ozlabs.org/~akpm/mmotm/broken-out/
->>
->> Do I miss something?
-> 
-> But Andrew announced that the patch was merged in mm-tree.
-> And you received the announcement.
+CCing Rafael, because he become ACPI Maintainer.
 
-I search my mail, and don't find such announcement. Maybe I miss
-it.
+Hi Wen,
 
-Thanks
-Wen Congyang
+If you update the patch-set, please CCing Rafael from the next time.
 
+Thanks,
+Yasuaki Ishimatsu
+
+2012/10/19 19:03, wency@cn.fujitsu.com wrote:
+> From: Wen Congyang <wency@cn.fujitsu.com>
 > 
->>>
->>>>>      memory-hotplug: update mce_bad_pages when removing the memory
->>>
->>>>>      memory-hotplug: auto offline page_cgroup when onlining memory block
->>>>>        failed
->>>
->>> mm-tree
->>>
->>>>>      memory-hotplug: fix NR_FREE_PAGES mismatch
->>>
->>> mm-tree
->>>
->>>>>      memory-hotplug: allocate zone's pcp before onlining pages
->>>
->>> mm-tree
->>>
->>>>>
->>>>> Yasuaki Ishimatsu (3):
->>>>>      suppress "Device memoryX does not have a release() function" warning
->>>
->>> linux-next
->>>
->>>>>      suppress "Device nodeX does not have a release() function" warning
->>>>>      memory-hotplug: flush the work for the node when the node is offlined
->>>
->>> linux-next
->>
->> I split this patch to two patches according to kosaki's comment.
+> The patch-set implements a framework for hot removing memory.
 > 
-> Yeah, I know. But is the patch really need now?
+> The memory device can be removed by 2 ways:
+> 1. send eject request by SCI
+> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
 > 
-> Thanks,
-> Yasuaki Ishimatsu
+> In the 1st case, acpi_memory_disable_device() will be called.
+> In the 2nd case, acpi_memory_device_remove() will be called.
+> acpi_memory_device_remove() will also be called when we unbind the
+> memory device from the driver acpi_memhotplug or a driver initialization
+> fails.
 > 
->>
->> Thanks
->> Wen Congyang
->>
->>>
->>> Thanks,
->>> Yasuaki Ishimatsu
->>>
->>>> Why did you send same patches again?
->>>>
->>>> Thanks,
->>>> Yasuaki Ishimatsu
->>>>
->>>> 2012/10/19 15:46, wency@cn.fujitsu.com wrote:
->>>>> From: Wen Congyang <wency@cn.fujitsu.com>
->>>>>
->>>>> Changes from v2 to v3:
->>>>>      Merge the bug fix from ishimatsu to this patchset(Patch 1-3)
->>>>>      Patch 3: split it from patch as it fixes another bug.
->>>>>      Patch 4: new patch, and fix bad-page state when hotadding a memory
->>>>>               device after hotremoving it. I forgot to post this patch in v2.
->>>>>      Patch 6: update it according to Dave Hansen's comment.
->>>>>
->>>>> Changes from v1 to v2:
->>>>>      Patch 1: updated according to kosaki's suggestion
->>>>>
->>>>>      Patch 2: new patch, and update mce_bad_pages when removing memory.
->>>>>
->>>>>      Patch 4: new patch, and fix a NR_FREE_PAGES mismatch, and this bug
->>>>>               cause oom in my test.
->>>>>
->>>>>      Patch 5: new patch, and fix a new bug. When repeating to online/offline
->>>>>               pages, the free pages will continue to decrease.
->>>>>
->>>>> Wen Congyang (6):
->>>>>      clear the memory to store struct page
->>>>>      memory-hotplug: skip HWPoisoned page when offlining pages
->>>>>      memory-hotplug: update mce_bad_pages when removing the memory
->>>>>      memory-hotplug: auto offline page_cgroup when onlining memory block
->>>>>        failed
->>>>>      memory-hotplug: fix NR_FREE_PAGES mismatch
->>>>>      memory-hotplug: allocate zone's pcp before onlining pages
->>>>>
->>>>> Yasuaki Ishimatsu (3):
->>>>>      suppress "Device memoryX does not have a release() function" warning
->>>>>      suppress "Device nodeX does not have a release() function" warning
->>>>>      memory-hotplug: flush the work for the node when the node is offlined
->>>>>
->>>>>     drivers/base/memory.c          |    9 ++++++++-
->>>>>     drivers/base/node.c            |   11 +++++++++++
->>>>>     include/linux/page-isolation.h |   10 ++++++----
->>>>>     mm/memory-failure.c            |    2 +-
->>>>>     mm/memory_hotplug.c            |   14 ++++++++------
->>>>>     mm/page_alloc.c                |   37 ++++++++++++++++++++++++++++---------
->>>>>     mm/page_cgroup.c               |    3 +++
->>>>>     mm/page_isolation.c            |   27 ++++++++++++++++++++-------
->>>>>     mm/sparse.c                    |   22 +++++++++++++++++++++-
->>>>>     9 files changed, 106 insertions(+), 29 deletions(-)
->>>>>
->>>>
->>>>
->>>> --
->>>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->>>> the body of a message to majordomo@vger.kernel.org
->>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>> Please read the FAQ at  http://www.tux.org/lkml/
->>>>
->>>
->>>
->>>
->>
+> acpi_memory_disable_device() has already implemented a code which
+> offlines memory and releases acpi_memory_info struct . But
+> acpi_memory_device_remove() has not implemented it yet.
 > 
+> So the patch prepares the framework for hot removing memory and
+> adds the framework into acpi_memory_device_remove().
 > 
+> The last version of this patchset is here:
+> https://lkml.org/lkml/2012/10/3/126
 > 
+> Changelos from v1 to v2:
+>    Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
+>    Patch2: new patch, introduce a lock to protect the list
+>    Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
+>    Note: I don't send [Patch2-4 v1] in this series because they
+>    are no logical changes in these 3 patches.
+> 
+> Wen Congyang (2):
+>    acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
+>    acpi,memory-hotplug: introduce a mutex lock to protect the list in
+>      acpi_memory_device
+> 
+> Yasuaki Ishimatsu (1):
+>    acpi,memory-hotplug : add memory offline code to
+>      acpi_memory_device_remove()
+> 
+>   drivers/acpi/acpi_memhotplug.c |   51 ++++++++++++++++++++++++++++++++--------
+>   1 files changed, 41 insertions(+), 10 deletions(-)
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
