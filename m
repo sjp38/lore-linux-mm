@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id AEC266B005A
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:33:31 -0400 (EDT)
-Message-ID: <50819CED.30803@redhat.com>
-Date: Fri, 19 Oct 2012 14:33:17 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 19A296B005D
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 14:33:39 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so906746oag.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 11:33:38 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: question on NUMA page migration
-References: <5081777A.8050104@redhat.com> <1350664742.2768.40.camel@twins>  <50818A41.7030909@redhat.com> <1350669236.2768.66.camel@twins>
-In-Reply-To: <1350669236.2768.66.camel@twins>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5081609C.9080702@gmail.com>
+References: <506E43E0.70507@jp.fujitsu.com> <506E451E.1050403@jp.fujitsu.com>
+ <CAHGf_=rVDm-JygjPoLHbmF28Dgd52HFc4-b5KCxhEieG60okuw@mail.gmail.com>
+ <50812F13.20503@cn.fujitsu.com> <5081609C.9080702@gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Fri, 19 Oct 2012 14:33:17 -0400
+Message-ID: <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
+Subject: Re: [PATCH 1/10] memory-hotplug : check whether memory is offline or
+ not when removing memory
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Wen Congyang <wencongyang@gmail.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On 10/19/2012 01:53 PM, Peter Zijlstra wrote:
-> On Fri, 2012-10-19 at 13:13 -0400, Rik van Riel wrote:
-
->> Another alternative might be to do the put_page inside
->> do_prot_none_numa().  That would be analogous to do_wp_page
->> disposing of the old page for the caller.
+> I think it again, and found that this check is necessary. Because we only
+> lock memory hotplug when offlining pages. Here is the steps to offline and
+> remove memory:
 >
-> It'd have to be inside migrate_misplaced_page(), can't do before
-> isolate_lru_page() or the page might disappear. Doing it after is
-> (obviously) too late.
-
-Keeping an extra refcount on the page might _still_
-result in it disappearing from the process by some
-other means, in-between you grabbing the refcount
-and invoking migration of the page.
-
->> I am not real happy about NUMA migration introducing its own
->> migration mode...
+> 1. lock memory hotplug
+> 2. offline a memory section
+> 3. unlock memory hotplug
+> 4. repeat 1-3 to offline all memory sections
+> 5. lock memory hotplug
+> 6. remove memory
+> 7. unlock memory hotplug
 >
-> You didn't seem to mind too much earlier, but I can remove it if you
-> want.
+> All memory sections must be offlined before removing memory. But we don't
+> hold
+> the lock in the whole operation. So we should check whether all memory
+> sections
+> are offlined before step6.
 
-Could have been reviewing fatigue :)
-
-And yes, it would have been nice to not have a special
-migration mode for sched/numa.
-
-Speaking of, when do you guys plan to submit a (cleaned up)
-version of the sched/numa patch series for review on lkml?
-
--- 
-All rights reversed
+You should describe the race scenario in the patch description. OK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
