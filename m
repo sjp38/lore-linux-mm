@@ -1,220 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 0DF416B0070
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:15:59 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so290228dad.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 07:15:59 -0700 (PDT)
-Message-ID: <5081609C.9080702@gmail.com>
-Date: Fri, 19 Oct 2012 22:15:56 +0800
-From: Wen Congyang <wencongyang@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/10] memory-hotplug : check whether memory is offline
- or not when removing memory
-References: <506E43E0.70507@jp.fujitsu.com> <506E451E.1050403@jp.fujitsu.com> <CAHGf_=rVDm-JygjPoLHbmF28Dgd52HFc4-b5KCxhEieG60okuw@mail.gmail.com> <50812F13.20503@cn.fujitsu.com>
-In-Reply-To: <50812F13.20503@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 219626B0070
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 10:21:15 -0400 (EDT)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v5 00/18] slab accounting for memcg
+Date: Fri, 19 Oct 2012 18:20:24 +0400
+Message-Id: <1350656442-1523-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org
 
-At 2012/10/19 18:44, Wen Congyang Wrote:
-> At 10/06/2012 03:27 AM, KOSAKI Motohiro Wrote:
->> On Thu, Oct 4, 2012 at 10:25 PM, Yasuaki Ishimatsu
->> <isimatu.yasuaki@jp.fujitsu.com>  wrote:
->>> When calling remove_memory(), the memory should be offline. If the function
->>> is used to online memory, kernel panic may occur.
->>>
->>> So the patch checks whether memory is offline or not.
->>
->> You don't explain WHY we need the check.
->
-> This patch is no necessary now, because the newest kernel has checked
-> it.
+Note: This is basically the same as v4. During this week, I made some changes
+to this series in advance based on the feedback I had in the kmemcg-stack
+last submission. Although the last series was not yet extensively reviewed,
+I opted for sending this out so you guys have the most up2date code to review.
+So please review this one instead.
 
-I think it again, and found that this check is necessary. Because we only
-lock memory hotplug when offlining pages. Here is the steps to offline and
-remove memory:
+This is a followup to the previous kmem series. I divided them logically
+so it gets easier for reviewers. But I believe they are ready to be merged
+together (although we can do a two-pass merge if people would prefer)
 
-1. lock memory hotplug
-2. offline a memory section
-3. unlock memory hotplug
-4. repeat 1-3 to offline all memory sections
-5. lock memory hotplug
-6. remove memory
-7. unlock memory hotplug
+Throwaway git tree found at:
 
-All memory sections must be offlined before removing memory. But we 
-don't hold
-the lock in the whole operation. So we should check whether all memory 
-sections
-are offlined before step6.
+	git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git kmemcg-slab
 
->
-> Thanks
-> Wen Congyang
->
->>
->>
->>> CC: David Rientjes<rientjes@google.com>
->>> CC: Jiang Liu<liuj97@gmail.com>
->>> CC: Len Brown<len.brown@intel.com>
->>> CC: Christoph Lameter<cl@linux.com>
->>> Cc: Minchan Kim<minchan.kim@gmail.com>
->>> CC: Andrew Morton<akpm@linux-foundation.org>
->>> CC: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->>> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
->>> Signed-off-by: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
->>>
->>> ---
->>>   drivers/base/memory.c  |   39 +++++++++++++++++++++++++++++++++++++++
->>>   include/linux/memory.h |    5 +++++
->>>   mm/memory_hotplug.c    |   17 +++++++++++++++--
->>>   3 files changed, 59 insertions(+), 2 deletions(-)
->>>
->>> Index: linux-3.6/drivers/base/memory.c
->>> ===================================================================
->>> --- linux-3.6.orig/drivers/base/memory.c        2012-10-04 14:22:57.000000000 +0900
->>> +++ linux-3.6/drivers/base/memory.c     2012-10-04 14:45:46.653585860 +0900
->>> @@ -70,6 +70,45 @@ void unregister_memory_isolate_notifier(
->>>   }
->>>   EXPORT_SYMBOL(unregister_memory_isolate_notifier);
->>>
->>> +bool is_memblk_offline(unsigned long start, unsigned long size)
->>
->> Don't use memblk. Usually memblk mean struct numa_meminfo for x86/numa.
->> Maybe memory_range_offlined() is better.
->>
->> And, this function don't take struct memory_block, then this file may be no good
->> place.
->>
->> And you need to write down function comment.
->>
->>
->>> +{
->>> +       struct memory_block *mem = NULL;
->>> +       struct mem_section *section;
->>> +       unsigned long start_pfn, end_pfn;
->>> +       unsigned long pfn, section_nr;
->>> +
->>> +       start_pfn = PFN_DOWN(start);
->>> +       end_pfn = PFN_UP(start + size);
->>> +
->>> +       for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
->>> +               section_nr = pfn_to_section_nr(pfn);
->>> +               if (!present_section_nr(section_nr))
->>> +                       continue;
->>> +
->>> +               section = __nr_to_section(section_nr);
->>> +               /* same memblock? */
->>> +               if (mem)
->>> +                       if ((section_nr>= mem->start_section_nr)&&
->>> +                           (section_nr<= mem->end_section_nr))
->>> +                               continue;
->>> +
->>> +               mem = find_memory_block_hinted(section, mem);
->>> +               if (!mem)
->>> +                       continue;
->>> +               if (mem->state == MEM_OFFLINE)
->>> +                       continue;
->>> +
->>> +               kobject_put(&mem->dev.kobj);
->>> +               return false;
->>> +       }
->>> +
->>> +       if (mem)
->>> +               kobject_put(&mem->dev.kobj);
->>> +
->>> +       return true;
->>> +}
->>> +EXPORT_SYMBOL(is_memblk_offline);
->>> +
->>>   /*
->>>    * register_memory - Setup a sysfs device for a memory block
->>>    */
->>> Index: linux-3.6/include/linux/memory.h
->>> ===================================================================
->>> --- linux-3.6.orig/include/linux/memory.h       2012-10-02 18:00:22.000000000 +0900
->>> +++ linux-3.6/include/linux/memory.h    2012-10-04 14:44:40.902581028 +0900
->>> @@ -106,6 +106,10 @@ static inline int memory_isolate_notify(
->>>   {
->>>          return 0;
->>>   }
->>> +static inline bool is_memblk_offline(unsigned long start, unsigned long size)
->>> +{
->>> +       return false;
->>> +}
->>>   #else
->>>   extern int register_memory_notifier(struct notifier_block *nb);
->>>   extern void unregister_memory_notifier(struct notifier_block *nb);
->>> @@ -120,6 +124,7 @@ extern int memory_isolate_notify(unsigne
->>>   extern struct memory_block *find_memory_block_hinted(struct mem_section *,
->>>                                                          struct memory_block *);
->>>   extern struct memory_block *find_memory_block(struct mem_section *);
->>> +extern bool is_memblk_offline(unsigned long start, unsigned long size);
->>>   #define CONFIG_MEM_BLOCK_SIZE  (PAGES_PER_SECTION<<PAGE_SHIFT)
->>>   enum mem_add_context { BOOT, HOTPLUG };
->>>   #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
->>> Index: linux-3.6/mm/memory_hotplug.c
->>> ===================================================================
->>> --- linux-3.6.orig/mm/memory_hotplug.c  2012-10-04 14:31:08.000000000 +0900
->>> +++ linux-3.6/mm/memory_hotplug.c       2012-10-04 14:58:22.449687986 +0900
->>> @@ -1045,8 +1045,21 @@ int offline_memory(u64 start, u64 size)
->>>
->>>   int remove_memory(int nid, u64 start, u64 size)
->>>   {
->>
->> Your remove_memory() don't remove anything. that's strange.
+v5:
+* code reorganization, name changes, etc.
+v4:
+* no more messing with the cache name after destruction: aggregated figures
+  are shown in /proc/slabinfo.
+* memory.kmem.slabinfo file with memcg-specific cache information during its
+  lifespan.
+* full slub attribute propagation.
+* reusing the standard workqueue mechanism.
+* cache-side indexing, instead of memcg-side indexing. The memcg css_id serves
+  as an index, and we don't need extra indexes for that.
+* struct memcg_cache_params no longer bundled in struct kmem_cache: We now will
+  have only a pointer in the struct, allowing memory consumption when disable to
+  fall down ever further.
 
-IIUC, this batch is based on another patchset.
+Patches need to be adjusted to cope with those changes, but other than that,
+look the same - just a lot simpler.
 
->>
->>
->>> -       /* It is not implemented yet*/
->>> -       return 0;
->>> +       int ret = 0;
->>> +       lock_memory_hotplug();
->>> +       /*
->>> +        * The memory might become online by other task, even if you offine it.
->>> +        * So we check whether the memory has been onlined or not.
->>> +        */
->>> +       if (!is_memblk_offline(start, size)) {
->>> +               pr_warn("memory removing [mem %#010llx-%#010llx] failed, "
->>> +                       "because the memmory range is online\n",
->>> +                       start, start + size);
->>
->> No good warning. You should output which memory block can't be
->> offlined, I think.
+I also put quite some effort to overcome my writing disability and get some
+decent changelogs in place.
 
-OK. I'll update it.
+For a detailed explanation about this whole effort, please refer to my previous
+post (https://lkml.org/lkml/2012/10/8/119)
 
-Thanks
-Wen Congyang
+Glauber Costa (18):
+  move slabinfo processing to slab_common.c
+  move print_slabinfo_header to slab_common.c
+  sl[au]b: process slabinfo_show in common code
+  slab: don't preemptively remove element from list in cache destroy
+  slab/slub: struct memcg_params
+  consider a memcg parameter in kmem_create_cache
+  Allocate memory for memcg caches whenever a new memcg appears
+  memcg: infrastructure to match an allocation to the right cache
+  memcg: skip memcg kmem allocations in specified code regions
+  sl[au]b: always get the cache from its page in kfree
+  sl[au]b: Allocate objects from memcg cache
+  memcg: destroy memcg caches
+  memcg/sl[au]b Track all the memcg children of a kmem_cache.
+  memcg/sl[au]b: shrink dead caches
+  Aggregate memcg cache values in slabinfo
+  slab: propagate tunables values
+  slub: slub-specific propagation changes.
+  Add slab-specific documentation about the kmem controller
 
->>
->>
->>> +               ret = -EAGAIN;
->>> +       }
->>> +
->>> +       unlock_memory_hotplug();
->>> +       return ret;
->>>   }
->>>   EXPORT_SYMBOL_GPL(remove_memory);
->>>   #else
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email:<a href=mailto:"dont@kvack.org">  email@kvack.org</a>
->>
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
+ Documentation/cgroups/memory.txt |   7 +
+ include/linux/memcontrol.h       |  86 ++++++
+ include/linux/sched.h            |   1 +
+ include/linux/slab.h             |  46 +++
+ include/linux/slab_def.h         |   3 +
+ include/linux/slub_def.h         |  19 +-
+ init/Kconfig                     |   2 +-
+ mm/memcontrol.c                  | 613 +++++++++++++++++++++++++++++++++++++--
+ mm/slab.c                        | 188 ++++++------
+ mm/slab.h                        | 132 ++++++++-
+ mm/slab_common.c                 | 217 +++++++++++++-
+ mm/slub.c                        | 195 ++++++++-----
+ 12 files changed, 1294 insertions(+), 215 deletions(-)
+
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
