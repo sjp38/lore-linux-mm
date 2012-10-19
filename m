@@ -1,56 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id F08B76B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:00:37 -0400 (EDT)
-Message-ID: <508124B7.2050002@parallels.com>
-Date: Fri, 19 Oct 2012 14:00:23 +0400
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 6B4E46B0069
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 06:08:51 -0400 (EDT)
+Message-ID: <5081269B.5000603@parallels.com>
+Date: Fri, 19 Oct 2012 14:08:27 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
-References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <20121017151214.e3d2aa3b.akpm@linux-foundation.org> <507FC8E3.8020006@parallels.com> <alpine.DEB.2.00.1210181502270.30894@chino.kir.corp.google.com> <50811903.9000105@parallels.com> <alpine.DEB.2.00.1210190229450.26815@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1210190229450.26815@chino.kir.corp.google.com>
+References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210171515290.20712@chino.kir.corp.google.com> <507FCA90.8060307@parallels.com> <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On 10/19/2012 01:31 PM, David Rientjes wrote:
-> On Fri, 19 Oct 2012, Glauber Costa wrote:
+On 10/19/2012 01:59 AM, David Rientjes wrote:
+> On Thu, 18 Oct 2012, Glauber Costa wrote:
 > 
->>>>> Do we actually need to test PF_KTHREAD when current->mm == NULL? 
->>>>> Perhaps because of aio threads whcih temporarily adopt a userspace mm?
->>>>
->>>> I believe so. I remember I discussed this in the past with David
->>>> Rientjes and he advised me to test for both.
->>>>
+>>>> @@ -2630,6 +2634,171 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>>>>  	memcg_check_events(memcg, page);
+>>>>  }
+>>>>  
+>>>> +#ifdef CONFIG_MEMCG_KMEM
+>>>> +static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+>>>> +{
+>>>> +	return !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg) &&
+>>>> +		(memcg->kmem_accounted & KMEM_ACCOUNTED_MASK);
+>>>> +}
+>>>> +
+>>>> +static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
+>>>> +{
+>>>> +	struct res_counter *fail_res;
+>>>> +	struct mem_cgroup *_memcg;
+>>>> +	int ret = 0;
+>>>> +	bool may_oom;
+>>>> +
+>>>> +	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
+>>>> +	if (ret)
+>>>> +		return ret;
+>>>> +
+>>>> +	/*
+>>>> +	 * Conditions under which we can wait for the oom_killer.
+>>>> +	 * We have to be able to wait, but also, if we can't retry,
+>>>> +	 * we obviously shouldn't go mess with oom.
+>>>> +	 */
+>>>> +	may_oom = (gfp & __GFP_WAIT) && !(gfp & __GFP_NORETRY);
 >>>
->>> PF_KTHREAD can do use_mm() to assume an ->mm but hopefully they aren't 
->>> allocating slab while doing so.  Have you considered actually charging 
->>> current->mm->owner for that memory, though, since the kthread will have 
->>> freed the memory before unuse_mm() or otherwise have charged it on behalf 
->>> of a user process, i.e. only exempting PF_KTHREAD?
+>>> What about gfp & __GFP_FS?
 >>>
->> I always charge current->mm->owner.
+>>
+>> Do you intend to prevent or allow OOM under that flag? I personally
+>> think that anything that accepts to be OOM-killed should have GFP_WAIT
+>> set, so that ought to be enough.
 >>
 > 
-> Yeah, I'm asking have you considered charging current->mm->owner for the 
-> memory when a kthread (current) assumes the mm of a user process via 
-> use_mm()?  It may free the memory before calling unuse_mm(), but it's also 
-> allocating the memory on behalf of a user so this exemption might be 
-> dangerous if use_mm() becomes more popular.  I don't think there's 
-> anything that prevents that charge, I'm just wondering if you considered 
-> doing it even for kthreads with an mm.
+> The oom killer in the page allocator cannot trigger without __GFP_FS 
+> because direct reclaim has little chance of being very successful and 
+> thus we end up needlessly killing processes, and that tends to happen 
+> quite a bit if we dont check for it.  Seems like this would also happen 
+> with memcg if mem_cgroup_reclaim() has a large probability of failing?
 > 
-Well, I thought about it.
 
-And I personally don't like it. I think all kthreads should be treated
-the same. We have control over it, unlike any userspace application. We
-never expect its memory consumption to explode.
+I can indeed see tests for GFP_FS in some key locations in mm/ before
+calling the OOM Killer.
 
-Specially considering that those allocations are supposed to be
-short-lived, we are only paying the res_counters count for no reason.
+Should I test for GFP_IO as well? If the idea is preventing OOM to
+trigger for allocations that can write their pages back, how would you
+feel about the following test:
+
+may_oom = (gfp & GFP_KERNEL) && !(gfp & __GFP_NORETRY) ?
+
+Michal, what is your take in here?
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
