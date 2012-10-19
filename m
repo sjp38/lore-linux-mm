@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0D66B0092
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 16:24:10 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so688161pad.14
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 13:24:09 -0700 (PDT)
-Date: Fri, 19 Oct 2012 13:24:05 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
-Message-ID: <20121019202405.GR13370@google.com>
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
- <1350480648-10905-5-git-send-email-mhocko@suse.cz>
- <20121018224148.GR13370@google.com>
- <20121019133244.GE799@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 81D406B0095
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 16:34:07 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so763152pbb.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 13:34:06 -0700 (PDT)
+Date: Fri, 19 Oct 2012 13:34:04 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5 06/14] memcg: kmem controller infrastructure
+In-Reply-To: <5081269B.5000603@parallels.com>
+Message-ID: <alpine.DEB.2.00.1210191331400.17804@chino.kir.corp.google.com>
+References: <1350382611-20579-1-git-send-email-glommer@parallels.com> <1350382611-20579-7-git-send-email-glommer@parallels.com> <alpine.DEB.2.00.1210171515290.20712@chino.kir.corp.google.com> <507FCA90.8060307@parallels.com>
+ <alpine.DEB.2.00.1210181454100.30894@chino.kir.corp.google.com> <5081269B.5000603@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121019133244.GE799@dhcp22.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hello, Michal.
+On Fri, 19 Oct 2012, Glauber Costa wrote:
 
-On Fri, Oct 19, 2012 at 03:32:45PM +0200, Michal Hocko wrote:
-> On Thu 18-10-12 15:41:48, Tejun Heo wrote:
-> > Hello, Michal.
+> >>> What about gfp & __GFP_FS?
+> >>>
+> >>
+> >> Do you intend to prevent or allow OOM under that flag? I personally
+> >> think that anything that accepts to be OOM-killed should have GFP_WAIT
+> >> set, so that ought to be enough.
+> >>
 > > 
-> > On Wed, Oct 17, 2012 at 03:30:46PM +0200, Michal Hocko wrote:
-> > > Now that mem_cgroup_pre_destroy callback doesn't fail finally we can
-> > > safely move on and forbit all the callbacks to fail. The last missing
-> > > piece is moving cgroup_call_pre_destroy after cgroup_clear_css_refs so
-> > > that css_tryget fails so no new charges for the memcg can happen.
-> > > The callbacks are also called from within cgroup_lock to guarantee that
-> > > no new tasks show up. We could theoretically call them outside of the
-> > > lock but then we have to move after CGRP_REMOVED flag is set.
-> > > 
-> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > The oom killer in the page allocator cannot trigger without __GFP_FS 
+> > because direct reclaim has little chance of being very successful and 
+> > thus we end up needlessly killing processes, and that tends to happen 
+> > quite a bit if we dont check for it.  Seems like this would also happen 
+> > with memcg if mem_cgroup_reclaim() has a large probability of failing?
 > > 
-> > So, the plan is to do something like the following once memcg is
-> > ready.
-> > 
-> >   http://thread.gmane.org/gmane.linux.kernel.containers/22559/focus=75251
-> > 
-> > Note that the patch is broken in a couple places but it does show the
-> > general direction.  I'd prefer if patch #3 simply makes pre_destroy()
-> > return 0 and drop __DEPRECATED_clear_css_refs from mem_cgroup_subsys.
 > 
-> We can still fail inn #3 without this patch becasuse there are is no
-> guarantee that a new task is attached to the group. And I wanted to keep
-> memcg and generic cgroup parts separated.
+> I can indeed see tests for GFP_FS in some key locations in mm/ before
+> calling the OOM Killer.
+> 
+> Should I test for GFP_IO as well?
 
-Yes, but all other controllers are broken that way too and the worst
-thing which will hapen is triggering WARN_ON_ONCE().  Let's note the
-failure in the commit and remove DEPREDATED_clear_css_refs in the
-previous patch.  Then, I can pull from you, clean up pre_destroy mess
-and then you can pull back for further cleanups.
+It's not really necessary, if __GFP_IO isn't set then it wouldn't make 
+sense for __GFP_FS to be set.
 
-Thanks.
+> If the idea is preventing OOM to
+> trigger for allocations that can write their pages back, how would you
+> feel about the following test:
+> 
+> may_oom = (gfp & GFP_KERNEL) && !(gfp & __GFP_NORETRY) ?
+> 
 
--- 
-tejun
+I would simply copy the logic from the page allocator and only trigger oom 
+for __GFP_FS and !__GFP_NORETRY.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
