@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 7D05F6B0073
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id D4AD86B0069
 	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 02:41:12 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH v3 6/9] memory-hotplug: update mce_bad_pages when removing the memory
-Date: Fri, 19 Oct 2012 14:46:39 +0800
-Message-Id: <1350629202-9664-7-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 7/9] memory-hotplug: auto offline page_cgroup when onlining memory block failed
+Date: Fri, 19 Oct 2012 14:46:40 +0800
+Message-Id: <1350629202-9664-8-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
 References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,9 +15,14 @@ Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.cras
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-When we hotremove a memory device, we will free the memory to store
-struct page. If the page is hwpoisoned page, we should decrease
-mce_bad_pages.
+When a memory block is onlined, we will try allocate memory on that node
+to store page_cgroup. If onlining the memory block failed, we don't
+offline the page cgroup, and we have no chance to offline this page cgroup
+unless the memory block is onlined successfully again. It will cause
+that we can't hot-remove the memory device on that node, because some
+memory is used to store page cgroup. If onlining the memory block
+is failed, there is no need to stort page cgroup for this memory. So
+auto offline page_cgroup when onlining memory block failed.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -30,47 +35,25 @@ CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 ---
- mm/sparse.c |   19 +++++++++++++++++++
- 1 files changed, 19 insertions(+), 0 deletions(-)
+ mm/page_cgroup.c |    3 +++
+ 1 files changed, 3 insertions(+), 0 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 0021265..77d6a93 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -774,6 +774,24 @@ out:
- 	return ret;
- }
- 
-+#ifdef CONFIG_MEMORY_FAILURE
-+static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-+{
-+	int i;
-+
-+	for (i = 0; i < PAGES_PER_SECTION; i++) {
-+		if (PageHWPoison(&memmap[i])) {
-+			atomic_long_sub(1, &mce_bad_pages);
-+			ClearPageHWPoison(&memmap[i]);
-+		}
-+	}
-+}
-+#else
-+static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-+{
-+}
-+#endif
-+
- void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
- {
- 	struct page *memmap = NULL;
-@@ -785,6 +803,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
- 						__section_nr(ms));
- 		ms->section_mem_map = 0;
- 		ms->pageblock_flags = NULL;
-+		clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
- 	}
- 
- 	free_section_usemap(memmap, usemap);
+diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
+index 5ddad0c..44db00e 100644
+--- a/mm/page_cgroup.c
++++ b/mm/page_cgroup.c
+@@ -251,6 +251,9 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
+ 				mn->nr_pages, mn->status_change_nid);
+ 		break;
+ 	case MEM_CANCEL_ONLINE:
++		offline_page_cgroup(mn->start_pfn,
++				mn->nr_pages, mn->status_change_nid);
++		break;
+ 	case MEM_GOING_OFFLINE:
+ 		break;
+ 	case MEM_ONLINE:
 -- 
 1.7.1
 
