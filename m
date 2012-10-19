@@ -1,14 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id DEC996B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 15:44:51 -0400 (EDT)
-Date: Fri, 19 Oct 2012 19:44:49 +0000
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id B45B36B0075
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 15:46:07 -0400 (EDT)
+Date: Fri, 19 Oct 2012 19:46:06 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v5 10/18] sl[au]b: always get the cache from its page in
- kfree
-In-Reply-To: <1350656442-1523-11-git-send-email-glommer@parallels.com>
-Message-ID: <0000013a7a8e764d-5cef2c85-993f-4600-85c7-ce3fe137f16f-000000@email.amazonses.com>
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-11-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v5 11/18] sl[au]b: Allocate objects from memcg cache
+In-Reply-To: <1350656442-1523-12-git-send-email-glommer@parallels.com>
+Message-ID: <0000013a7a8fa99f-7e29b325-7cd3-4295-a568-dcfd536d92e6-000000@email.amazonses.com>
+References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-12-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,15 +17,13 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, M
 
 On Fri, 19 Oct 2012, Glauber Costa wrote:
 
-> struct page already have this information. If we start chaining
-> caches, this information will always be more trustworthy than
-> whatever is passed into the function
+> We are able to match a cache allocation to a particular memcg.  If the
+> task doesn't change groups during the allocation itself - a rare event,
+> this will give us a good picture about who is the first group to touch a
+> cache page.
 
-Yes it does but the information is not standardized between the allocators
-yet. Coul you unify that? Come out with a struct page overlay that is as
-much the same as possible. Then kfree can also be unified because the
-lookup is always the same. That way you can move kfree into slab_common
-and avoid modifying multiple allocators.
+No that the infrastructure is being reworked currently which will allow
+you to do this without much of a modification of individual allocators.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
