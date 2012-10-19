@@ -1,142 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id E8FB36B005D
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 04:19:56 -0400 (EDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 804DD3EE0C0
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 17:19:55 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 678A945DE4F
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 17:19:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 460A045DE4E
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 17:19:55 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1FFB11DB802F
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 17:19:55 +0900 (JST)
-Received: from g01jpexchkw32.g01.fujitsu.local (g01jpexchkw32.g01.fujitsu.local [10.0.193.115])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A2DDA1DB803B
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 17:19:54 +0900 (JST)
-Message-ID: <50810D14.8020609@jp.fujitsu.com>
-Date: Fri, 19 Oct 2012 17:19:32 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 748DF6B0062
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 04:35:42 -0400 (EDT)
+Message-ID: <5081122D.1030906@cn.fujitsu.com>
+Date: Fri, 19 Oct 2012 16:41:17 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 0/9] bugfix for memory hotplug
-References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <508109F2.1080402@jp.fujitsu.com>
-In-Reply-To: <508109F2.1080402@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH v3 8/9] memory-hotplug: fix NR_FREE_PAGES mismatch
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-9-git-send-email-wency@cn.fujitsu.com> <CAHGf_=ohk--=AKesgm+3U2qsSvjaVFBXn9c1KDru40GEpbM7gA@mail.gmail.com>
+In-Reply-To: <CAHGf_=ohk--=AKesgm+3U2qsSvjaVFBXn9c1KDru40GEpbM7gA@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wency@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, Christoph Lameter <cl@linux.com>
 
-2012/10/19 17:06, Yasuaki Ishimatsu wrote:
-> Hi Wen,
-> 
-> Some bug fix patches have been merged into linux-next.
-> So the patches confuse me.
-
-The following patches have been already merged into linux-next
-and mm-tree as long as I know. 
-
->> Wen Congyang (6):
->>     clear the memory to store struct page
-
-
->>     memory-hotplug: skip HWPoisoned page when offlining pages
-
-mm-tree
-
->>     memory-hotplug: update mce_bad_pages when removing the memory
-
->>     memory-hotplug: auto offline page_cgroup when onlining memory block
->>       failed
-
-mm-tree
-
->>     memory-hotplug: fix NR_FREE_PAGES mismatch
-
-mm-tree
-
->>     memory-hotplug: allocate zone's pcp before onlining pages
-
-mm-tree
-
->>
->> Yasuaki Ishimatsu (3):
->>     suppress "Device memoryX does not have a release() function" warning
-
-linux-next
-
->>     suppress "Device nodeX does not have a release() function" warning
->>     memory-hotplug: flush the work for the node when the node is offlined
-
-linux-next
-
-Thanks,
-Yasuaki Ishimatsu
-
-> Why did you send same patches again?
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
-> 2012/10/19 15:46, wency@cn.fujitsu.com wrote:
+At 10/19/2012 03:41 PM, KOSAKI Motohiro Wrote:
+> On Fri, Oct 19, 2012 at 2:46 AM,  <wency@cn.fujitsu.com> wrote:
 >> From: Wen Congyang <wency@cn.fujitsu.com>
 >>
->> Changes from v2 to v3:
->>     Merge the bug fix from ishimatsu to this patchset(Patch 1-3)
->>     Patch 3: split it from patch as it fixes another bug.
->>     Patch 4: new patch, and fix bad-page state when hotadding a memory
->>              device after hotremoving it. I forgot to post this patch in v2.
->>     Patch 6: update it according to Dave Hansen's comment.
+>> NR_FREE_PAGES will be wrong after offlining pages. We add/dec NR_FREE_PAGES
+>> like this now:
+>> 1. mova all pages in buddy system to MIGRATE_ISOLATE, and dec NR_FREE_PAGES
+> 
+> move?
+
+Yes.
+__offline_pages()
+    start_isolate_page_range()
+        set_migratetype_isolate()
+            move_freepages_block()  // move all pages in buddy system to MIGRATE_ISOLATE
+            __mod_zone_freepage_state() // dec NR_FREE_PAGES
+
+> 
+>> 2. don't add NR_FREE_PAGES when it is freed and the migratetype is MIGRATE_ISOLATE
+>> 3. dec NR_FREE_PAGES when offlining isolated pages.
+>> 4. add NR_FREE_PAGES when undoing isolate pages.
 >>
->> Changes from v1 to v2:
->>     Patch 1: updated according to kosaki's suggestion
->>
->>     Patch 2: new patch, and update mce_bad_pages when removing memory.
->>
->>     Patch 4: new patch, and fix a NR_FREE_PAGES mismatch, and this bug
->>              cause oom in my test.
->>
->>     Patch 5: new patch, and fix a new bug. When repeating to online/offline
->>              pages, the free pages will continue to decrease.
->>
->> Wen Congyang (6):
->>     clear the memory to store struct page
->>     memory-hotplug: skip HWPoisoned page when offlining pages
->>     memory-hotplug: update mce_bad_pages when removing the memory
->>     memory-hotplug: auto offline page_cgroup when onlining memory block
->>       failed
->>     memory-hotplug: fix NR_FREE_PAGES mismatch
->>     memory-hotplug: allocate zone's pcp before onlining pages
->>
->> Yasuaki Ishimatsu (3):
->>     suppress "Device memoryX does not have a release() function" warning
->>     suppress "Device nodeX does not have a release() function" warning
->>     memory-hotplug: flush the work for the node when the node is offlined
->>
->>    drivers/base/memory.c          |    9 ++++++++-
->>    drivers/base/node.c            |   11 +++++++++++
->>    include/linux/page-isolation.h |   10 ++++++----
->>    mm/memory-failure.c            |    2 +-
->>    mm/memory_hotplug.c            |   14 ++++++++------
->>    mm/page_alloc.c                |   37 ++++++++++++++++++++++++++++---------
->>    mm/page_cgroup.c               |    3 +++
->>    mm/page_isolation.c            |   27 ++++++++++++++++++++-------
->>    mm/sparse.c                    |   22 +++++++++++++++++++++-
->>    9 files changed, 106 insertions(+), 29 deletions(-)
->>
+>> When we come to step 3, all pages are in MIGRATE_ISOLATE list, and NR_FREE_PAGES
+>> are right. When we come to step4, all pages are not in buddy system, so we don't
+>> change NR_FREE_PAGES in this step, but we change NR_FREE_PAGES in step3. So
+>> NR_FREE_PAGES is wrong after offlining pages. So there is no need to change
+>> NR_FREE_PAGES in step3.
+> 
+> Sorry, I don't understand this two paragraph. Can  you please elaborate more?
+
+OK.
+
+If we don't online/offline memory, we add NR_FREE_PAGES when we free a page,
+and dec it when allocate a page. If we put the page into pcp, we don't add
+NR_FREE_PAGES. We will add it when the page is moved to buddy system from pcp.
+
+When we offline a memory section, we should dec NR_FREE_PAGES(we will add it
+when onlining memory section). The pages may be freed or inuse:
+1. If the page is freed, and in buddy system. We move it to MIGRATE_ISOLATE,
+   and dec NR_FREE_PAGES
+2. If the page is inuse, we will migrate them to other memory section and free
+   them. We don't dec NR_FREE_PAGES when it is freed because we have decreased
+   it when it is allocated. We just put them in MIGRATE_ISOLATE.
+3. If the page is in pcp, we call drain_all_pages() to put them to MIGRATE_ISOLATE.
+   We have decreased NR_FREE_PAGES when we allocate a page and put it in pcp.
+   So we just put them in MIGRATE_ISOLATE.
+
+Step1 deals with case1, and step2 deals with case2,3
+
+So NR_FREE_PAGES is right after all pages are put into MIGRATE_ISOLATE list.
+Now offline_isolated_pages() will be called after all pages are put in
+MIGRATE_ISOLATE list. So we should not change NR_FREE_PAGES now, but
+we dec NR_FREE_PAGES in offline_isolated_pages().
+
+> 
+> and one more trivial question: why do we need to call
+> undo_isolate_page_range() from
+> __offline_pages()?
+
+We need to restore the page's migrate type to MIGRATE_MOVABLE.
+
 > 
 > 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>>
+>> This patch also fixs a problem in step2: if the migratetype is MIGRATE_ISOLATE,
+>> we should not add NR_FRR_PAGES when we remove pages from pcppages.
+> 
+> Why drain_all_pages doesn't work?
 > 
 
+drain_all_pages() deals with case3, and it should not touch NR_FREE_PAGES if it
+put a page to MIGRATE_ISOLATE list. But we touch NR_FREE_PAGES without checking
+where the page is put.
+
+Thanks
+Wen Congyang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
