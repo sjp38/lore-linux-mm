@@ -1,87 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id BCA7A6B0062
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 10:50:09 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id p5so1003610lag.14
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2012 07:50:07 -0700 (PDT)
-Date: Sat, 20 Oct 2012 20:49:58 +0600
-From: Mike Kazantsev <mk.fraggod@gmail.com>
-Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
- (xfrm) in 3.5+ kernels
-Message-ID: <20121020204958.4bc8e293@sacrilege>
-In-Reply-To: <CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
-References: <20121019205055.2b258d09@sacrilege>
-	<20121019233632.26cf96d8@sacrilege>
-	<CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/eS_.8PEyJyRd2zX1TbgKDk5"; protocol="application/pgp-signature"
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id C55136B0062
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 11:49:30 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1115607pad.14
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2012 08:49:30 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH for-v3.7 1/2] slub: optimize poorly inlined kmalloc* functions
+Date: Sun, 21 Oct 2012 00:48:12 +0900
+Message-Id: <1350748093-7868-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <Yes>
+References: <Yes>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Moore <paul@paul-moore.com>
-Cc: netdev@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
---Sig_/eS_.8PEyJyRd2zX1TbgKDk5
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+kmalloc() and kmalloc_node() is always inlined into generic code.
+However, there is a mistake in implemention of the SLUB.
 
-On Sat, 20 Oct 2012 08:42:33 -0400
-Paul Moore <paul@paul-moore.com> wrote:
+In kmalloc() and kmalloc_node() of the SLUB,
+we try to compare kmalloc_caches[index] with NULL.
+As it cannot be known at compile time,
+this comparison is inserted into generic code invoking kmalloc*.
+This may decrease system performance, so we should fix it.
 
-> Thanks for the problem report.  I'm not going to be in a position to start
-> looking into this until late Sunday, but hopefully it will be a quick fix.
->=20
-> Two quick questions (my apologies, I'm not able to dig through your logs
-> right now): do you see this leak on kernels < 3.5.0, and are you using any
-> labeled IPsec connections?
->=20
+Below is the result of "size vmlinux"
+text size is decreased roughly 20KB
 
-As I understand, labelled connections are only used in SELinux
-and SMACK LSM, which are not enabled (in Kconfig, i.e. not built) in any
-of the kernels I use.
+Before:
+   text	   data	    bss	    dec	    hex	filename
+10044177        1443168 5722112 17209457        1069871 vmlinux
+After:
+   text	   data	    bss	    dec	    hex	filename
+10022627        1443136 5722112 17187875        1064423 vmlinux
 
-The only LSM I have enabled (and actually use on 2/4 of these machines)
-is AppArmor, and though I think it doesn't attach any labels to network
-connections yet (there's a "Wishlist" bug at
-https://bugs.launchpad.net/ubuntu/+source/apparmor/+bug/796588, but I
-can't seem to find an existing implementation).
+Cc: Christoph Lameter <cl@linux.com>
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+---
+With Christoph's patchset(common kmalloc caches:
+'[15/15] Common Kmalloc cache determination') which is not merged into mainline yet,
+this issue will be fixed.
+As it takes some time, I send this patch for v3.7
 
-I believe it has started with 3.5.0, according to all available logs I
-have. I'm afraid laziness and other tasks have prevented me from
-looking into and reporting the issue back then, but memory graph trends
-start at the exact time of reboot into 3.5.0 kernels, and before that,
-there're no such trends for slab memory usage.
+This patch is based on v3.7-rc1
 
-I've been able to ignore and work around the problem for months now, so
-I don't think there's any rush at all ;)
-
-But that said, currently I've started git bisect process between v3.5
-and v3.4 tags, so hopefully I'll get good-enough results of it before
-you'll get to it (probably in a few hours to a few days).
-
-Also, I've found that switching to "slab" allocator from "slub" doesn't
-help the problem at all, so I guess something doesn't get freed in the
-code indeed, though I hasn't been able to find anything relevant in the
-logs for the sources where secpath_put and secpath_dup are used, and
-decided to try bisect.
-
-
---=20
-Mike Kazantsev // fraggod.net
-
---Sig_/eS_.8PEyJyRd2zX1TbgKDk5
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
-
-iEYEARECAAYFAlCCuhkACgkQASbOZpzyXnHUJQCg6MAW5gCL0Ewhk0bc1/nOKhMr
-PQYAn0JnR6ta8Ku7OncjUS9lE4l1QR2q
-=5wtI
------END PGP SIGNATURE-----
-
---Sig_/eS_.8PEyJyRd2zX1TbgKDk5--
+diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+index df448ad..4c75f2b 100644
+--- a/include/linux/slub_def.h
++++ b/include/linux/slub_def.h
+@@ -271,9 +271,10 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ 			return kmalloc_large(size, flags);
+ 
+ 		if (!(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++			int index = kmalloc_index(size);
++			struct kmem_cache *s = kmalloc_caches[index];
+ 
+-			if (!s)
++			if (!index)
+ 				return ZERO_SIZE_PTR;
+ 
+ 			return kmem_cache_alloc_trace(s, flags, size);
+@@ -304,9 +305,10 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+ {
+ 	if (__builtin_constant_p(size) &&
+ 		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++		int index = kmalloc_index(size);
++		struct kmem_cache *s = kmalloc_caches[index];
+ 
+-		if (!s)
++		if (!index)
+ 			return ZERO_SIZE_PTR;
+ 
+ 		return kmem_cache_alloc_node_trace(s, flags, node, size);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
