@@ -1,67 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id BAC866B005A
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 21:23:51 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id hq7so674287wib.8
-        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 18:23:50 -0700 (PDT)
-Date: Sat, 20 Oct 2012 03:23:46 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: question on NUMA page migration
-Message-ID: <20121020012345.GA24667@gmail.com>
-References: <5081777A.8050104@redhat.com>
- <1350664742.2768.40.camel@twins>
- <50818A41.7030909@redhat.com>
- <1350669236.2768.66.camel@twins>
- <50819CED.30803@redhat.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 69F416B0069
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 21:47:40 -0400 (EDT)
+Message-ID: <5081F565.8020605@cn.fujitsu.com>
+Date: Sat, 20 Oct 2012 08:50:45 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50819CED.30803@redhat.com>
+Subject: Re: [PATCH 1/10] memory-hotplug : check whether memory is offline
+ or not when removing memory
+References: <506E43E0.70507@jp.fujitsu.com> <506E451E.1050403@jp.fujitsu.com> <CAHGf_=rVDm-JygjPoLHbmF28Dgd52HFc4-b5KCxhEieG60okuw@mail.gmail.com> <50812F13.20503@cn.fujitsu.com> <5081609C.9080702@gmail.com> <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
+In-Reply-To: <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Wen Congyang <wencongyang@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-
-* Rik van Riel <riel@redhat.com> wrote:
-
-> On 10/19/2012 01:53 PM, Peter Zijlstra wrote:
-> >On Fri, 2012-10-19 at 13:13 -0400, Rik van Riel wrote:
+At 10/20/2012 02:33 AM, KOSAKI Motohiro Wrote:
+>> I think it again, and found that this check is necessary. Because we only
+>> lock memory hotplug when offlining pages. Here is the steps to offline and
+>> remove memory:
+>>
+>> 1. lock memory hotplug
+>> 2. offline a memory section
+>> 3. unlock memory hotplug
+>> 4. repeat 1-3 to offline all memory sections
+>> 5. lock memory hotplug
+>> 6. remove memory
+>> 7. unlock memory hotplug
+>>
+>> All memory sections must be offlined before removing memory. But we don't
+>> hold
+>> the lock in the whole operation. So we should check whether all memory
+>> sections
+>> are offlined before step6.
 > 
-> >>Another alternative might be to do the put_page inside
-> >>do_prot_none_numa().  That would be analogous to do_wp_page
-> >>disposing of the old page for the caller.
-> >
-> >It'd have to be inside migrate_misplaced_page(), can't do before
-> >isolate_lru_page() or the page might disappear. Doing it after is
-> >(obviously) too late.
+> You should describe the race scenario in the patch description. OK?
 > 
-> Keeping an extra refcount on the page might _still_
-> result in it disappearing from the process by some
-> other means, in-between you grabbing the refcount
-> and invoking migration of the page.
-> 
-> >>I am not real happy about NUMA migration introducing its own
-> >>migration mode...
-> >
-> >You didn't seem to mind too much earlier, but I can remove it if you
-> >want.
-> 
-> Could have been reviewing fatigue :)
 
-:-)
+OK
 
-> And yes, it would have been nice to not have a special
-> migration mode for sched/numa.
-> 
-> Speaking of, when do you guys plan to submit a (cleaned up)
-> version of the sched/numa patch series for review on lkml?
-
-Which commit(s) worry you specifically?
-
-Thanks,
-
-	Ingo
+Thanks
+Wen Congyang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
