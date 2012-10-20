@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id D03736B0062
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 08:36:41 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id u3so828701wey.14
-        for <linux-mm@kvack.org>; Sat, 20 Oct 2012 05:36:40 -0700 (PDT)
-Message-ID: <5082994B.9090500@gmail.com>
-Date: Sat, 20 Oct 2012 14:30:03 +0200
-From: Marco Stornelli <marco.stornelli@gmail.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 32CAE6B0062
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 08:42:34 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so905632qcq.14
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2012 05:42:33 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH 20/21] mm: drop vmtruncate
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121019233632.26cf96d8@sacrilege>
+References: <20121019205055.2b258d09@sacrilege>
+	<20121019233632.26cf96d8@sacrilege>
+Date: Sat, 20 Oct 2012 08:42:33 -0400
+Message-ID: <CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
+Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
+ (xfrm) in 3.5+ kernels
+From: Paul Moore <paul@paul-moore.com>
+Content-Type: multipart/alternative; boundary=047d7bdc04fa47e61d04cc7cf468
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux FS Devel <linux-fsdevel@vger.kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kazantsev <mk.fraggod@gmail.com>
+Cc: netdev@vger.kernel.org, linux-mm@kvack.org
 
-Removed vmtruncate
+--047d7bdc04fa47e61d04cc7cf468
+Content-Type: text/plain; charset=ISO-8859-1
 
-Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
----
- include/linux/mm.h |    1 -
- mm/truncate.c      |   23 -----------------------
- 2 files changed, 0 insertions(+), 24 deletions(-)
+Thanks for the problem report.  I'm not going to be in a position to start
+looking into this until late Sunday, but hopefully it will be a quick fix.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fa06804..95f70bb 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -977,7 +977,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
- 
- extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
- extern void truncate_setsize(struct inode *inode, loff_t newsize);
--extern int vmtruncate(struct inode *inode, loff_t offset);
- void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
- int truncate_inode_page(struct address_space *mapping, struct page *page);
- int generic_error_remove_page(struct address_space *mapping, struct page *page);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index d51ce92..c75b736 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -577,29 +577,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
- EXPORT_SYMBOL(truncate_setsize);
- 
- /**
-- * vmtruncate - unmap mappings "freed" by truncate() syscall
-- * @inode: inode of the file used
-- * @newsize: file offset to start truncating
-- *
-- * This function is deprecated and truncate_setsize or truncate_pagecache
-- * should be used instead, together with filesystem specific block truncation.
-- */
--int vmtruncate(struct inode *inode, loff_t newsize)
--{
--	int error;
--
--	error = inode_newsize_ok(inode, newsize);
--	if (error)
--		return error;
--
--	truncate_setsize(inode, newsize);
--	if (inode->i_op->truncate)
--		inode->i_op->truncate(inode);
--	return 0;
--}
--EXPORT_SYMBOL(vmtruncate);
--
--/**
-  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
-  * @inode: inode
-  * @lstart: offset of beginning of hole
--- 
-1.7.3.4
+Two quick questions (my apologies, I'm not able to dig through your logs
+right now): do you see this leak on kernels < 3.5.0, and are you using any
+labeled IPsec connections?
+
+--
+paul moore
+www.paul-moore.com
+
+--047d7bdc04fa47e61d04cc7cf468
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<p dir=3D"ltr">Thanks for the problem report.=A0 I&#39;m not going to be in=
+ a position to start looking into this until late Sunday, but hopefully it =
+will be a quick fix.</p>
+<p dir=3D"ltr">Two quick questions (my apologies, I&#39;m not able to dig t=
+hrough your logs right now): do you see this leak on kernels &lt; 3.5.0, an=
+d are you using any labeled IPsec connections?</p>
+<p dir=3D"ltr">--<br>
+paul moore<br>
+<a href=3D"http://www.paul-moore.com">www.paul-moore.com</a></p>
+
+--047d7bdc04fa47e61d04cc7cf468--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
