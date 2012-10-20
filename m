@@ -1,48 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 69F416B0069
-	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 21:47:40 -0400 (EDT)
-Message-ID: <5081F565.8020605@cn.fujitsu.com>
-Date: Sat, 20 Oct 2012 08:50:45 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 3A3166B0062
+	for <linux-mm@kvack.org>; Fri, 19 Oct 2012 23:39:53 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id v13so1469429vbk.14
+        for <linux-mm@kvack.org>; Fri, 19 Oct 2012 20:39:52 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/10] memory-hotplug : check whether memory is offline
- or not when removing memory
-References: <506E43E0.70507@jp.fujitsu.com> <506E451E.1050403@jp.fujitsu.com> <CAHGf_=rVDm-JygjPoLHbmF28Dgd52HFc4-b5KCxhEieG60okuw@mail.gmail.com> <50812F13.20503@cn.fujitsu.com> <5081609C.9080702@gmail.com> <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
-In-Reply-To: <CAHGf_=q=Agidyj_j6jhBdhNmJBy2u1dP+UMAoXbM=_=DyZJs_w@mail.gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
+References: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
+Date: Sat, 20 Oct 2012 11:39:52 +0800
+Message-ID: <CAJd=RBAABS5Vt7pquAxfbhPZzAb1n-qM_VRTwXUc0uQRU1Ky0A@mail.gmail.com>
+Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v6
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: Wen Congyang <wencongyang@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-At 10/20/2012 02:33 AM, KOSAKI Motohiro Wrote:
->> I think it again, and found that this check is necessary. Because we only
->> lock memory hotplug when offlining pages. Here is the steps to offline and
->> remove memory:
->>
->> 1. lock memory hotplug
->> 2. offline a memory section
->> 3. unlock memory hotplug
->> 4. repeat 1-3 to offline all memory sections
->> 5. lock memory hotplug
->> 6. remove memory
->> 7. unlock memory hotplug
->>
->> All memory sections must be offlined before removing memory. But we don't
->> hold
->> the lock in the whole operation. So we should check whether all memory
->> sections
->> are offlined before step6.
-> 
-> You should describe the race scenario in the patch description. OK?
-> 
+On Sat, Oct 20, 2012 at 12:48 AM, Andi Kleen <andi@firstfloor.org> wrote:
+> From: Andi Kleen <ak@linux.intel.com>
+>
+> There was some desire in large applications using MAP_HUGETLB/SHM_HUGETLB
+> to use 1GB huge pages on some mappings, and stay with 2MB on others. This
+> is useful together with NUMA policy: use 2MB interleaving on some mappings,
+> but 1GB on local mappings.
+>
+> This patch extends the IPC/SHM syscall interfaces slightly to allow specifying
+> the page size.
+>
+> It borrows some upper bits in the existing flag arguments and allows encoding
+> the log of the desired page size in addition to the *_HUGETLB flag.
+> When 0 is specified the default size is used, this makes the change fully
+> compatible.
+>
+> Extending the internal hugetlb code to handle this is straight forward. Instead
+> of a single mount it just keeps an array of them and selects the right
+> mount based on the specified page size. When no page size is specified
+> it uses the mount of the default page size.
+>
+> The change is not visible in /proc/mounts because internal mounts
+> don't appear there. It also has very little overhead: the additional
+> mounts just consume a super block, but not more memory when not used.
+>
+> I also exported the new flags to the user headers
+> (they were previously under __KERNEL__). Right now only symbols
+> for x86 and some other architecture for 1GB and 2MB are defined.
+> The interface should already work for all other architectures
+> though.  Only architectures that define multiple hugetlb sizes
+> actually need it (that is currently x86, tile, powerpc). However
+> tile and powerpc have user configurable hugetlb sizes, so it's
+> not easy to add defines. A program on those architectures would
+> need to query sysfs and use the appropiate log2.
+>
+> v2: Port to new tree. Fix unmount.
+> v3: Ported to latest tree.
+> v4: Ported to latest tree. Minor changes for review feedback. Updated
+> description.
+> v5: Remove unnecessary prototypes to fix merge error (Hillf Danton)
+> v6: Rebased. Fix some unlikely error paths (Hillf Danton)
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Hillf Danton <dhillf@gmail.com>
+> Signed-off-by: Andi Kleen <ak@linux.intel.com>
+> ---
 
-OK
+Thanks:)
 
-Thanks
-Wen Congyang
+Acked-by: Hillf Danton <dhillf@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
