@@ -1,100 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 01C806B0062
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 04:36:44 -0400 (EDT)
-Date: Sat, 20 Oct 2012 09:29:25 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
-Message-ID: <20121020082858.GA2698@suse.de>
-References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
- <20121008151656.GM29125@suse.de>
- <1349794597.29752.10.camel@MikesLinux.fc.hp.com>
- <1350676398.1169.6.camel@MikesLinux.fc.hp.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id D03736B0062
+	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 08:36:41 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so828701wey.14
+        for <linux-mm@kvack.org>; Sat, 20 Oct 2012 05:36:40 -0700 (PDT)
+Message-ID: <5082994B.9090500@gmail.com>
+Date: Sat, 20 Oct 2012 14:30:03 +0200
+From: Marco Stornelli <marco.stornelli@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1350676398.1169.6.camel@MikesLinux.fc.hp.com>
+Subject: [PATCH 20/21] mm: drop vmtruncate
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Yoknis <mike.yoknis@hp.com>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux FS Devel <linux-fsdevel@vger.kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 19, 2012 at 01:53:18PM -0600, Mike Yoknis wrote:
-> On Tue, 2012-10-09 at 08:56 -0600, Mike Yoknis wrote:
-> > On Mon, 2012-10-08 at 16:16 +0100, Mel Gorman wrote:
-> > > On Wed, Oct 03, 2012 at 08:56:14AM -0600, Mike Yoknis wrote:
-> > > > memmap_init_zone() loops through every Page Frame Number (pfn),
-> > > > including pfn values that are within the gaps between existing
-> > > > memory sections.  The unneeded looping will become a boot
-> > > > performance issue when machines configure larger memory ranges
-> > > > that will contain larger and more numerous gaps.
-> > > > 
-> > > > The code will skip across invalid sections to reduce the
-> > > > number of loops executed.
-> > > > 
-> > > > Signed-off-by: Mike Yoknis <mike.yoknis@hp.com>
-> > > 
-> > > I do not see the need for
-> > > the additional complexity unless you can show it makes a big difference
-> > > to boot times.
-> > > 
-> > 
-> > Mel,
-> > 
-> > Let me pass along the numbers I have.  We have what we call an
-> > "architectural simulator".  It is a computer program that pretends that
-> > it is a computer system.  We use it to test the firmware before real
-> > hardware is available.  We have booted Linux on our simulator.  As you
-> > would expect it takes longer to boot on the simulator than it does on
-> > real hardware.
-> > 
-> > With my patch - boot time 41 minutes
-> > Without patch - boot time 94 minutes
-> > 
-> > These numbers do not scale linearly to real hardware.  But indicate to
-> > me a place where Linux can be improved.
-> > 
-> > Mike Yoknis
-> > 
-> Mel,
-> I finally got access to prototype hardware.  
-> It is a relatively small machine with only 64GB of RAM.
->  
-> I put in a time measurement by reading the TSC register.
-> I booted both with and without my patch -
->  
-> Without patch -
-> [    0.000000]   Normal zone: 13400064 pages, LIFO batch:31
-> [    0.000000] memmap_init_zone() enter 1404184834218
-> [    0.000000] memmap_init_zone() exit  1411174884438  diff = 6990050220
->  
-> With patch -
-> [    0.000000]   Normal zone: 13400064 pages, LIFO batch:31
-> [    0.000000] memmap_init_zone() enter 1555530050778
-> [    0.000000] memmap_init_zone() exit  1559379204643  diff = 3849153865
->  
-> This shows that without the patch the routine spends 45% 
-> of its time spinning unnecessarily.
->  
+Removed vmtruncate
 
-I'm travelling at the moment so apologies that I have not followed up on
-this. My problem is still the same with the patch - it changes more
-headers than is necessary and it is sparsemem specific. At minimum, try
-the suggestion of 
+Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
+---
+ include/linux/mm.h |    1 -
+ mm/truncate.c      |   23 -----------------------
+ 2 files changed, 0 insertions(+), 24 deletions(-)
 
-if (!early_pfn_valid(pfn)) {
-      pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
-      continue;
-}
-
-and see how much it gains you as it should work on all memory models. If
-it turns out that you really need to skip whole sections then the strice
-could MAX_ORDER_NR_PAGES on all memory models except sparsemem where the
-stride would be PAGES_PER_SECTION
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fa06804..95f70bb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -977,7 +977,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
+ 
+ extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
+ extern void truncate_setsize(struct inode *inode, loff_t newsize);
+-extern int vmtruncate(struct inode *inode, loff_t offset);
+ void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
+ int truncate_inode_page(struct address_space *mapping, struct page *page);
+ int generic_error_remove_page(struct address_space *mapping, struct page *page);
+diff --git a/mm/truncate.c b/mm/truncate.c
+index d51ce92..c75b736 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -577,29 +577,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+ EXPORT_SYMBOL(truncate_setsize);
+ 
+ /**
+- * vmtruncate - unmap mappings "freed" by truncate() syscall
+- * @inode: inode of the file used
+- * @newsize: file offset to start truncating
+- *
+- * This function is deprecated and truncate_setsize or truncate_pagecache
+- * should be used instead, together with filesystem specific block truncation.
+- */
+-int vmtruncate(struct inode *inode, loff_t newsize)
+-{
+-	int error;
+-
+-	error = inode_newsize_ok(inode, newsize);
+-	if (error)
+-		return error;
+-
+-	truncate_setsize(inode, newsize);
+-	if (inode->i_op->truncate)
+-		inode->i_op->truncate(inode);
+-	return 0;
+-}
+-EXPORT_SYMBOL(vmtruncate);
+-
+-/**
+  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
+  * @inode: inode
+  * @lstart: offset of beginning of hole
 -- 
-Mel Gorman
-SUSE Labs
+1.7.3.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
