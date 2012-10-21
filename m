@@ -1,105 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 6EE416B0062
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 08:30:14 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hq4so1506575wib.2
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 05:30:12 -0700 (PDT)
-Date: Sun, 21 Oct 2012 14:30:08 +0200
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 6F0486B0062
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 08:31:53 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so1319477wgb.26
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 05:31:51 -0700 (PDT)
+Date: Sun, 21 Oct 2012 14:31:47 +0200
 From: Ingo Molnar <mingo@kernel.org>
 Subject: Re: question on NUMA page migration
-Message-ID: <20121021123008.GA19229@gmail.com>
+Message-ID: <20121021123147.GB19229@gmail.com>
 References: <5081777A.8050104@redhat.com>
- <1350664742.2768.40.camel@twins>
- <50818A41.7030909@redhat.com>
- <1350669236.2768.66.camel@twins>
- <50819CED.30803@redhat.com>
- <20121020012345.GA24667@gmail.com>
- <5082CB18.6060300@redhat.com>
+ <50836060.4050408@gmail.com>
+ <5083608E.6040209@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5082CB18.6060300@redhat.com>
+In-Reply-To: <5083608E.6040209@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Thomas Gleixner <tglx@linutronix.de>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Ni zhan Chen <nizhan.chen@gmail.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
 
 
 * Rik van Riel <riel@redhat.com> wrote:
 
-> On 10/19/2012 09:23 PM, Ingo Molnar wrote:
-> >
-> >* Rik van Riel <riel@redhat.com> wrote:
-> >
-> >>On 10/19/2012 01:53 PM, Peter Zijlstra wrote:
-> >>>On Fri, 2012-10-19 at 13:13 -0400, Rik van Riel wrote:
+> On 10/20/2012 10:39 PM, Ni zhan Chen wrote:
+> >On 10/19/2012 11:53 PM, Rik van Riel wrote:
+> >>Hi Andrea, Peter,
 > >>
-> >>>>Another alternative might be to do the put_page inside
-> >>>>do_prot_none_numa().  That would be analogous to do_wp_page
-> >>>>disposing of the old page for the caller.
-> >>>
-> >>>It'd have to be inside migrate_misplaced_page(), can't do before
-> >>>isolate_lru_page() or the page might disappear. Doing it after is
-> >>>(obviously) too late.
+> >>I have a question on page refcounting in your NUMA
+> >>page migration code.
 > >>
-> >>Keeping an extra refcount on the page might _still_
-> >>result in it disappearing from the process by some
-> >>other means, in-between you grabbing the refcount
-> >>and invoking migration of the page.
-> >>
-> >>>>I am not real happy about NUMA migration introducing its own
-> >>>>migration mode...
-> >>>
-> >>>You didn't seem to mind too much earlier, but I can remove it if you
-> >>>want.
-> >>
-> >>Could have been reviewing fatigue :)
+> >>In Peter's case, I wonder why you introduce a new
+> >>MIGRATE_FAULT migration mode. If the normal page
+> >>migration / compaction logic can do without taking
+> >>an extra reference count, why does your code need it?
 > >
-> >:-)
+> >Hi Rik van Riel,
 > >
-> >>And yes, it would have been nice to not have a special
-> >>migration mode for sched/numa.
-> >>
-> >>Speaking of, when do you guys plan to submit a (cleaned up)
-> >>version of the sched/numa patch series for review on lkml?
-> >
-> >Which commit(s) worry you specifically?
+> >This is which part of codes? Why I can't find MIGRATE_FAULT in latest
+> >v3.7-rc2?
 > 
-> One of them would be the commit that introduces MIGRATE_FAULT.
+> It is in tip.git in the numa/core branch.
 
-MIGRATE_FAULT is still used.
+The Git access URI is:
 
-> Adding it in one patch, and removing it into a next just makes
-> things harder on the reviewers.
-
-Yes.
-
-> 03a040f6c17ab81659579ba6abe267c0562097e4
-
-It's still used:
-
-comet:~/tip> git grep MIGRATE_FAULT
-include/linux/migrate_mode.h: * MIGRATE_FAULT called from the fault path to migrate-on-fault for mempolicy
-include/linux/migrate_mode.h:	MIGRATE_FAULT,
-mm/migrate.c:	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT) {
-mm/migrate.c:	if (mode == MIGRATE_FAULT) {
-mm/migrate.c:		 * MIGRATE_FAULT has an extra reference on the page and
-mm/migrate.c:	if ((mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT) && head &&
-mm/migrate.c:	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT)
-mm/migrate.c:		if (!force || mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT)
-mm/migrate.c:	ret = __unmap_and_move(page, newpage, 0, 0, MIGRATE_FAULT);
-
-> If the changesets with NUMA syscalls are still in your tree's 
-> history, they should not be submitted as part of the patch 
-> series, either.
-
-No, the syscalls have not been there for quite some time.
-
-If you have trouble with any specific commit, please quote the 
-specific SHA1 so that I can have a look and resolve any specific 
-concerns.
-
-Otherwise, lets continue with the integration?
+  git pull  git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/core
+  git clone git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/core
 
 Thanks,
 
