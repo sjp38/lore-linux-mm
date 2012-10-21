@@ -1,43 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id ED9406B0062
-	for <linux-mm@kvack.org>; Sat, 20 Oct 2012 22:40:26 -0400 (EDT)
-Message-ID: <5083608E.6040209@redhat.com>
-Date: Sat, 20 Oct 2012 22:40:14 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 952E06B0062
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 03:51:33 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1429232pbb.14
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 00:51:32 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: question on NUMA page migration
-References: <5081777A.8050104@redhat.com> <50836060.4050408@gmail.com>
-In-Reply-To: <50836060.4050408@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Sun, 21 Oct 2012 15:51:32 +0800
+Message-ID: <CAPQBkrObdTM7eKiUaDz89sURCYsx8dXPtXrnB-CVq7Xu2R8bdA@mail.gmail.com>
+Subject: 
+From: Runzhen Wang <icycoder@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b10c82f67067004cc8d01eb
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Mel Gorman <mel@csn.ul.ie>, Linux kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 
-On 10/20/2012 10:39 PM, Ni zhan Chen wrote:
-> On 10/19/2012 11:53 PM, Rik van Riel wrote:
->> Hi Andrea, Peter,
->>
->> I have a question on page refcounting in your NUMA
->> page migration code.
->>
->> In Peter's case, I wonder why you introduce a new
->> MIGRATE_FAULT migration mode. If the normal page
->> migration / compaction logic can do without taking
->> an extra reference count, why does your code need it?
->
-> Hi Rik van Riel,
->
-> This is which part of codes? Why I can't find MIGRATE_FAULT in latest
-> v3.7-rc2?
-
-It is in tip.git in the numa/core branch.
+--047d7b10c82f67067004cc8d01eb
+Content-Type: text/plain; charset=ISO-8859-1
 
 
--- 
-All rights reversed
+
+--047d7b10c82f67067004cc8d01eb
+Content-Type: text/html; charset=ISO-8859-1
+
+<br>
+
+--047d7b10c82f67067004cc8d01eb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
