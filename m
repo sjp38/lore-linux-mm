@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 2BD2F6B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 06:30:26 -0400 (EDT)
-Date: Mon, 22 Oct 2012 12:30:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
-Message-ID: <20121022103021.GA6367@dhcp22.suse.cz>
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
- <1350480648-10905-5-git-send-email-mhocko@suse.cz>
- <20121018224148.GR13370@google.com>
- <20121019133244.GE799@dhcp22.suse.cz>
- <20121019202405.GR13370@google.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id C252A6B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 06:35:13 -0400 (EDT)
+Date: Mon, 22 Oct 2012 11:35:03 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-ID: <20121022103503.GA26619@mudshark.cambridge.arm.com>
+References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
+ <20121002150104.da57fa94.akpm@linux-foundation.org>
+ <20121017130125.GH5973@mudshark.cambridge.arm.com>
+ <20121017.112620.1865348978594874782.davem@davemloft.net>
+ <20121017155401.GJ5973@mudshark.cambridge.arm.com>
+ <20121018150502.3dee7899.akpm@linux-foundation.org>
+ <20121019091016.GA4582@mudshark.cambridge.arm.com>
+ <20121019114955.3a0c2b66.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121019202405.GR13370@google.com>
+In-Reply-To: <20121019114955.3a0c2b66.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
 
-On Fri 19-10-12 13:24:05, Tejun Heo wrote:
-> Hello, Michal.
+On Fri, Oct 19, 2012 at 07:49:55PM +0100, Andrew Morton wrote:
+> On Fri, 19 Oct 2012 10:10:16 +0100
+> Will Deacon <will.deacon@arm.com> wrote:
 > 
-> On Fri, Oct 19, 2012 at 03:32:45PM +0200, Michal Hocko wrote:
-> > On Thu 18-10-12 15:41:48, Tejun Heo wrote:
-> > > Hello, Michal.
+> > On Thu, Oct 18, 2012 at 11:05:02PM +0100, Andrew Morton wrote:
+> > > On Wed, 17 Oct 2012 16:54:02 +0100
+> > > Will Deacon <will.deacon@arm.com> wrote:
 > > > 
-> > > On Wed, Oct 17, 2012 at 03:30:46PM +0200, Michal Hocko wrote:
-> > > > Now that mem_cgroup_pre_destroy callback doesn't fail finally we can
-> > > > safely move on and forbit all the callbacks to fail. The last missing
-> > > > piece is moving cgroup_call_pre_destroy after cgroup_clear_css_refs so
-> > > > that css_tryget fails so no new charges for the memcg can happen.
-> > > > The callbacks are also called from within cgroup_lock to guarantee that
-> > > > no new tasks show up. We could theoretically call them outside of the
-> > > > lock but then we have to move after CGRP_REMOVED flag is set.
+> > > > On x86 memory accesses to pages without the ACCESSED flag set result in the
+> > > > ACCESSED flag being set automatically. With the ARM architecture a page access
+> > > > fault is raised instead (and it will continue to be raised until the ACCESSED
+> > > > flag is set for the appropriate PTE/PMD).
 > > > > 
-> > > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > > > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> > > > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> > > > be called for a write fault.
+> > > > 
+> > > > This patch ensures that faults on transparent hugepages which do not result
+> > > > in a CoW update the access flags for the faulting pmd.
 > > > 
-> > > So, the plan is to do something like the following once memcg is
-> > > ready.
-> > > 
-> > >   http://thread.gmane.org/gmane.linux.kernel.containers/22559/focus=75251
-> > > 
-> > > Note that the patch is broken in a couple places but it does show the
-> > > general direction.  I'd prefer if patch #3 simply makes pre_destroy()
-> > > return 0 and drop __DEPRECATED_clear_css_refs from mem_cgroup_subsys.
+> > > Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
 > > 
-> > We can still fail inn #3 without this patch becasuse there are is no
-> > guarantee that a new task is attached to the group. And I wanted to keep
-> > memcg and generic cgroup parts separated.
+> > Right at the end of this patch, which was posted to the ARM list yesterday:
+> > 
+> >   http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126387.html
 > 
-> Yes, but all other controllers are broken that way too
+> I received and then merged a patch which won't compile!
 
-It's just hugetlb and memcg that have pre_destroy.
+Eek, that certainly wasn't intentional and it's compiling fine for me on
+-rc1 and -rc2 for both ARM (no THP) and x86 (with and without THP).
 
-> and the worst thing which will hapen is triggering WARN_ON_ONCE().
+Please can you send the build failure?
 
-The patch does BUG_ON(ss->pre_destroy(cgrp)). I am not sure WARN_ON_ONCE is
-appropriate here because we would like to have it at least per
-controller warning. I do not see any reason why to make this more
-complicated but I am open to suggestions.
+> Ho hum.  I'll drop
+> mm-thp-set-the-accessed-flag-for-old-pages-on-access-fault.patch and
+> shall assume that you'll sort things out at the appropriate time.
 
-> Let's note the failure in the commit and remove
-> DEPREDATED_clear_css_refs in the previous patch.  Then, I can pull
-> from you, clean up pre_destroy mess and then you can pull back for
-> further cleanups.
+Happy to sort it out once I work out what's going wrong!
 
-Well this will get complicated as there are dependencies between memcg
-parts (based on Andrew's tree) and your tree. My tree is not pullable as
-all the patches go via Andrew. I am not sure how to get out of this.
-There is only one cgroup patch so what about pushing all of this via
-Andrew and do the follow up cleanups once they get merged? We are not in
-hurry, are we?
+Cheers,
 
-Anyway does it really make sense to drop DEPREDATED_clear_css_refs
-already in the previous patch when it is _not_ guaranteed that
-pre_destroy succeeds?
--- 
-Michal Hocko
-SUSE Labs
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
