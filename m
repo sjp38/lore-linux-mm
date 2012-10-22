@@ -1,112 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id BD1296B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:06:55 -0400 (EDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on s390
-Date: Mon, 22 Oct 2012 17:06:46 +0200
-Message-Id: <1350918406-11369-1-git-send-email-jack@suse.cz>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 72FE06B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:10:33 -0400 (EDT)
+Message-ID: <508561E0.5000406@parallels.com>
+Date: Mon, 22 Oct 2012 19:10:24 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
+References: <1350914737-4097-1-git-send-email-glommer@parallels.com> <1350914737-4097-3-git-send-email-glommer@parallels.com> <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com>
+In-Reply-To: <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On s390 any write to a page (even from kernel itself) sets architecture
-specific page dirty bit. Thus when a page is written to via buffered write, HW
-dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
-finds the dirty bit and calls set_page_dirty().
+On 10/22/2012 06:45 PM, Christoph Lameter wrote:
+> On Mon, 22 Oct 2012, Glauber Costa wrote:
+> 
+>> + * kmem_cache_free - Deallocate an object
+>> + * @cachep: The cache the allocation was from.
+>> + * @objp: The previously allocated object.
+>> + *
+>> + * Free an object which was previously allocated from this
+>> + * cache.
+>> + */
+>> +void kmem_cache_free(struct kmem_cache *s, void *x)
+>> +{
+>> +	__kmem_cache_free(s, x);
+>> +	trace_kmem_cache_free(_RET_IP_, x);
+>> +}
+>> +EXPORT_SYMBOL(kmem_cache_free);
+>> +
+> 
+> This results in an additional indirection if tracing is off. Wonder if
+> there is a performance impact?
+> 
+if tracing is on, you mean?
 
-Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
-filesystems. The bug we observed in practice is that buffers from the page get
-freed, so when the page gets later marked as dirty and writeback writes it, XFS
-crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
-from xfs_count_page_state().
+Tracing already incurs overhead, not sure how much a function call would
+add to the tracing overhead.
 
-Similar problem can also happen when zero_user_segment() call from
-xfs_vm_writepage() (or block_write_full_page() for that matter) set the
-hardware dirty bit during writeback, later buffers get freed, and then page
-unmapped.
-
-Fix the issue by ignoring s390 HW dirty bit for page cache pages of mappings
-with mapping_cap_account_dirty(). This is safe because for such mappings when a
-page gets marked as writeable in PTE it is also marked dirty in do_wp_page() or
-do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
-the page gets writeprotected in page_mkclean(). So pagecache page is writeable
-if and only if it is dirty.
-
-Thanks to Hugh Dickins <hughd@google.com> for pointing out mapping has to have
-mapping_cap_account_dirty() for things to work and proposing a cleaned up
-variant of the patch.
-
-The patch has survived about two hours of running fsx-linux on tmpfs while
-heavily swapping and several days of running on out build machines where the
-original problem was triggered.
-
-CC: Martin Schwidefsky <schwidefsky@de.ibm.com>
-CC: Mel Gorman <mgorman@suse.de>
-CC: linux-s390@vger.kernel.org
-CC: Hugh Dickins <hughd@google.com>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- mm/rmap.c |   20 +++++++++++++++-----
- 1 files changed, 15 insertions(+), 5 deletions(-)
-
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 7df7984..2ee1ef0 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -56,6 +56,7 @@
- #include <linux/mmu_notifier.h>
- #include <linux/migrate.h>
- #include <linux/hugetlb.h>
-+#include <linux/backing-dev.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -926,11 +927,8 @@ int page_mkclean(struct page *page)
- 
- 	if (page_mapped(page)) {
- 		struct address_space *mapping = page_mapping(page);
--		if (mapping) {
-+		if (mapping)
- 			ret = page_mkclean_file(mapping, page);
--			if (page_test_and_clear_dirty(page_to_pfn(page), 1))
--				ret = 1;
--		}
- 	}
- 
- 	return ret;
-@@ -1116,6 +1114,7 @@ void page_add_file_rmap(struct page *page)
-  */
- void page_remove_rmap(struct page *page)
- {
-+	struct address_space *mapping = page_mapping(page);
- 	bool anon = PageAnon(page);
- 	bool locked;
- 	unsigned long flags;
-@@ -1138,8 +1137,19 @@ void page_remove_rmap(struct page *page)
- 	 * this if the page is anon, so about to be freed; but perhaps
- 	 * not if it's in swapcache - there might be another pte slot
- 	 * containing the swap entry, but page not yet written to swap.
-+	 *
-+	 * And we can skip it on file pages, so long as the filesystem
-+	 * participates in dirty tracking; but need to catch shm and tmpfs
-+	 * and ramfs pages which have been modified since creation by read
-+	 * fault.
-+	 *
-+	 * Note that mapping must be decided above, before decrementing
-+	 * mapcount (which luckily provides a barrier): once page is unmapped,
-+	 * it could be truncated and page->mapping reset to NULL at any moment.
-+	 * Note also that we are relying on page_mapping(page) to set mapping
-+	 * to &swapper_space when PageSwapCache(page).
- 	 */
--	if ((!anon || PageSwapCache(page)) &&
-+	if (mapping && !mapping_cap_account_dirty(mapping) &&
- 	    page_test_and_clear_dirty(page_to_pfn(page), 1))
- 		set_page_dirty(page);
- 	/*
--- 
-1.7.1
+I would not be concerned with this, but I can measure, if you have any
+specific workload in mind.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
