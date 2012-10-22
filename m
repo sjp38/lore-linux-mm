@@ -1,72 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 5DCEB6B005A
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:28:19 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id jm1so1057867bkc.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:28:17 -0700 (PDT)
-Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
- (xfrm) in 3.5+ kernels
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1350919337.8609.869.camel@edumazet-glaptop>
-References: <20121019205055.2b258d09@sacrilege>
-	 <20121019233632.26cf96d8@sacrilege>
-	 <CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
-	 <20121020204958.4bc8e293@sacrilege> <20121021044540.12e8f4b7@sacrilege>
-	 <20121021062402.7c4c4cb8@sacrilege>
-	 <1350826183.13333.2243.camel@edumazet-glaptop>
-	 <20121021195701.7a5872e7@sacrilege> <20121022004332.7e3f3f29@sacrilege>
-	 <20121022015134.4de457b9@sacrilege>
-	 <1350856053.8609.217.camel@edumazet-glaptop>
-	 <20121022045850.788df346@sacrilege>
-	 <1350893743.8609.424.camel@edumazet-glaptop>
-	 <20121022180655.50a50401@sacrilege>
-	 <1350918997.8609.858.camel@edumazet-glaptop>
-	 <1350919337.8609.869.camel@edumazet-glaptop>
-Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 22 Oct 2012 17:28:02 +0200
-Message-ID: <1350919682.8609.877.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8857D6B005A
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:35:11 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so3142075oag.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:35:10 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAHGf_=rYgA=yAjcvziGbN0k48zTZn8+5XQJxoMwZ4wvrX6x4sA@mail.gmail.com>
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
+ <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
+ <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
+ <507E77D1.3030709@cn.fujitsu.com> <CAHGf_=rxGeb0RsgEFF2FRRfdX0wiE9cDyVaftsG3E8AgyzYi1g@mail.gmail.com>
+ <508118A6.80804@cn.fujitsu.com> <CAHGf_=qfzEJ0VjeYkKFVtyew+wYM-rHS4nqmXU4t7HYGuv8k9w@mail.gmail.com>
+ <5082305A.2050108@cn.fujitsu.com> <CAHGf_=rYgA=yAjcvziGbN0k48zTZn8+5XQJxoMwZ4wvrX6x4sA@mail.gmail.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 22 Oct 2012 11:34:49 -0400
+Message-ID: <CAHGf_=qK=mAAwor7iXxDtwTtW2Qhui_8GmtHGreMuFuQVGWAvQ@mail.gmail.com>
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kazantsev <mk.fraggod@gmail.com>
-Cc: Paul Moore <paul@paul-moore.com>, netdev@vger.kernel.org, linux-mm@kvack.org
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On Mon, 2012-10-22 at 17:22 +0200, Eric Dumazet wrote:
-> On Mon, 2012-10-22 at 17:16 +0200, Eric Dumazet wrote:
-> 
-> > OK, I believe I found the bug in IPv4 defrag / IPv6 reasm
-> > 
-> > Please test the following patch.
-> > 
-> > Thanks !
-> 
-> I'll send a more generic patch in a few minutes, changing
-> kfree_skb_partial() to call skb_release_head_state()
-> 
+On Mon, Oct 22, 2012 at 11:11 AM, KOSAKI Motohiro
+<kosaki.motohiro@jp.fujitsu.com> wrote:
+>>> ??
+>>> If resource was not allocated a driver, a driver doesn't need to
+>>> deallocate it when
+>>> error path. I haven't caught your point.
+>>>
+>>
+>> REMOVAL_NORMAL can be in 2 cases:
+>> 1. error path. If init call fails, we don't call it. We call this function
+>>    only when something fails after init.
+>> 2. unbind the device from the driver.
+>>    If we don't offline and remove memory when unbinding the device from the driver,
+>>    the device may be out of control. When we eject this driver, we don't offline and
+>
+> Memory never be out of control by driver unloading. It is controled
+> from kernel core. It is an exception from regular linux driver model.
 
-Here it is :
-
-diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-index 6e04b1f..4007c14 100644
---- a/net/core/skbuff.c
-+++ b/net/core/skbuff.c
-@@ -3379,10 +3379,12 @@ EXPORT_SYMBOL(__skb_warn_lro_forwarding);
- 
- void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
- {
--	if (head_stolen)
-+	if (head_stolen) {
-+		skb_release_head_state(skb);
- 		kmem_cache_free(skbuff_head_cache, skb);
--	else
-+	} else {
- 		__kfree_skb(skb);
-+	}
- }
- EXPORT_SYMBOL(kfree_skb_partial);
- 
-
+Ah, got it.
+acpi_bus_hot_remove_device() evaluate PS3 before EJ0. Then
+your first patch may cause memory lost.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
