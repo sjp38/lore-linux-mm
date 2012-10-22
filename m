@@ -1,78 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 7CB0F6B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 03:57:45 -0400 (EDT)
-Message-ID: <5084FC73.1030302@parallels.com>
-Date: Mon, 22 Oct 2012 11:57:39 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: CK2 [01/15] slab: Simplify bootstrap
-References: <20121019142254.724806786@linux.com> <0000013a796a77f9-b0c5beb7-21e0-4e62-bc08-5b909617f678-000000@email.amazonses.com>
-In-Reply-To: <0000013a796a77f9-b0c5beb7-21e0-4e62-bc08-5b909617f678-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 271AF6B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 04:07:37 -0400 (EDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [RFC PATCH 0/5] vmstats for compaction, migration and autonuma
+Date: Mon, 22 Oct 2012 08:59:46 +0100
+Message-Id: <1350892791-2682-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Linux-MM <linux-mm@kvack.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>
 
-On 10/19/2012 06:25 PM, Christoph Lameter wrote:
-> The nodelists field in kmem_cache is pointing to the first unused
-> object in the array field when bootstrap is complete.
-> 
-> A problem with the current approach is that the statically sized
-> kmem_cache structure use on boot can only contain NR_CPUS entries.
-> If the number of nodes plus the number of cpus is greater then we
-> would overwrite memory following the kmem_cache_boot definition.
-> 
-> Increase the size of the array field to ensure that also the node
-> pointers fit into the array field.
-> 
-> Once we do that we no longer need the kmem_cache_nodelists
-> array and we can then also use that structure elsewhere.
+I'm travelling for a conference at the moment so these patches are not
+tested but with the ongoing NUMA migration work I figured it was best to
+post these sooner rather than later.
 
-Fair.
+This series adds vmstat counters and tracepoints for migration, compaction
+and autonuma. Using them it's possible to create a basic cost model to
+estimate the overhead due to compaction or autonuma. Using the stats it
+is also possible to measure if a workload is converging on autonuma or
+not and potentially measure how quickly it is converging.
 
-One comment:
+Ideally the same stats would be available for schednuma but I did not
+review the series when it was last posted in July and had not seen a
+recent posting. I only recently heard they were in the -tip tree but will
+not get the chance to look at them until I've finished travelling in a
+weeks time.  If schednuma had similar stats it would then be possible to
+compare schednuma and autonuma in terms of how quickly a workload converges
+with either approach.
 
->  /*
-> + * The memory after the last cpu cache pointer is used for the
-> + * the nodelists pointer.
-> + */
-> +static void setup_nodelists_pointer(struct kmem_cache *s)
-> +{
-> +	s->nodelists = (struct kmem_list3 **)&s->array[nr_cpu_ids];
-> +}
-> +
-> +/*
->   * Initialisation.  Called after the page allocator have been initialised and
->   * before smp_init().
->   */
-> @@ -1590,13 +1597,15 @@ void __init kmem_cache_init(void)
->  	int node;
->  
->  	kmem_cache = &kmem_cache_boot;
-> +	setup_nodelists_pointer(kmem_cache);
->  
->  	if (num_possible_nodes() == 1)
->  		use_alien_caches = 0;
->  
-> +
->  	for (i = 0; i < NUM_INIT_LISTS; i++) {
->  		kmem_list3_init(&initkmem_list3[i]);
-> -		if (i < MAX_NUMNODES)
-> +		if (i < nr_node_ids)
->  			kmem_cache->nodelists[i] = NULL;
->  	}
+ include/linux/migrate.h        |   14 +++++++++-
+ include/linux/vm_event_item.h  |   12 ++++++++-
+ include/trace/events/migrate.h |   52 ++++++++++++++++++++++++++++++++++++++++
+ mm/autonuma.c                  |   22 +++++++++++++----
+ mm/compaction.c                |   15 +++++++----
+ mm/memory-failure.c            |    3 +-
+ mm/memory_hotplug.c            |    3 +-
+ mm/mempolicy.c                 |    6 +++-
+ mm/migrate.c                   |   16 ++++++++++-
+ mm/page_alloc.c                |    3 +-
+ mm/vmstat.c                    |   16 ++++++++++--
+ 11 files changed, 139 insertions(+), 23 deletions(-)
+ create mode 100644 include/trace/events/migrate.h
 
-With nodelists being part of kmem_cache, and kmem_cache being allocated
-with kmem_cache_zalloc, it seems to me that you can actually just get
-rid of the inner loop instead of patching it. But this is orthogonal to
-this patch...
-
-So:
-
-Acked-by: Glauber Costa <glommer@parallels.com>
+-- 
+1.7.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
