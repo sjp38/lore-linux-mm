@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 18C596B0062
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 37B1F6B0069
 	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 04:09:14 -0400 (EDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/5] mm: compaction: Move migration fail/success stats to migrate.c
-Date: Mon, 22 Oct 2012 08:59:47 +0100
-Message-Id: <1350892791-2682-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 2/5] mm: migrate: Add a tracepoint for migrate_pages
+Date: Mon, 22 Oct 2012 08:59:48 +0100
+Message-Id: <1350892791-2682-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1350892791-2682-1-git-send-email-mgorman@suse.de>
 References: <1350892791-2682-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,106 +13,241 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>
 Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>
 
-The compact_pages_moved and compact_pagemigrate_failed events are
-convenient for determining if compaction is active and to what
-degree migration is succeeding but it's at the wrong level. Other
-users of migration may also want to know if migration is working
-properly and this will be particularly true for any automated
-NUMA migration. This patch moves the counters down to migration
-with the new events called pgmigrate_success and pgmigrate_fail.
-The compact_blocks_moved counter is removed because while it was
-useful for debugging initially, it's worthless now as no meaningful
-conclusions can be drawn from its value.
+The pgmigrate_success and pgmigrate_fail vmstat counters tells the user
+about migration activity but not the type or the reason. This patch adds
+a tracepoint to identify the type of page migration and why the page is
+being migrated.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/vm_event_item.h |    4 +++-
- mm/compaction.c               |    4 ----
- mm/migrate.c                  |    6 ++++++
- mm/vmstat.c                   |    7 ++++---
- 4 files changed, 13 insertions(+), 8 deletions(-)
+ include/linux/migrate.h        |   13 ++++++++-
+ include/trace/events/migrate.h |   51 ++++++++++++++++++++++++++++++++++++++++
+ mm/compaction.c                |    3 +-
+ mm/memory-failure.c            |    3 +-
+ mm/memory_hotplug.c            |    3 +-
+ mm/mempolicy.c                 |    6 +++-
+ mm/migrate.c                   |   10 ++++++-
+ mm/page_alloc.c                |    3 +-
+ 8 files changed, 82 insertions(+), 10 deletions(-)
+ create mode 100644 include/trace/events/migrate.h
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 57f7b10..5ce5c5f 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -38,8 +38,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_MIGRATION
-+		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
-+#endif
- #ifdef CONFIG_COMPACTION
--		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
- 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
- #endif
- #ifdef CONFIG_HUGETLB_PAGE
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ce7e667..9d1c159 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -7,6 +7,15 @@
+ 
+ typedef struct page *new_page_t(struct page *, unsigned long private, int **);
+ 
++enum migrate_reason {
++	MR_COMPACTION,
++	MR_MEMORY_FAILURE,
++	MR_MEMORY_HOTPLUG,
++	MR_SYSCALL,		/* also applies to cpusets */
++	MR_MEMPOLICY_MBIND,
++	MR_CMA
++};
++
+ #ifdef CONFIG_MIGRATION
+ 
+ extern void putback_lru_pages(struct list_head *l);
+@@ -14,7 +23,7 @@ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+ extern int migrate_pages(struct list_head *l, new_page_t x,
+ 			unsigned long private, bool offlining,
+-			enum migrate_mode mode);
++			enum migrate_mode mode, int reason);
+ extern int migrate_huge_page(struct page *, new_page_t x,
+ 			unsigned long private, bool offlining,
+ 			enum migrate_mode mode);
+@@ -35,7 +44,7 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ static inline void putback_lru_pages(struct list_head *l) {}
+ static inline int migrate_pages(struct list_head *l, new_page_t x,
+ 		unsigned long private, bool offlining,
+-		enum migrate_mode mode) { return -ENOSYS; }
++		enum migrate_mode mode, int reason) { return -ENOSYS; }
+ static inline int migrate_huge_page(struct page *page, new_page_t x,
+ 		unsigned long private, bool offlining,
+ 		enum migrate_mode mode) { return -ENOSYS; }
+diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
+new file mode 100644
+index 0000000..ec2a6cc
+--- /dev/null
++++ b/include/trace/events/migrate.h
+@@ -0,0 +1,51 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM migrate
++
++#if !defined(_TRACE_MIGRATE_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_MIGRATE_H
++
++#define MIGRATE_MODE						\
++	{MIGRATE_ASYNC,		"MIGRATE_ASYNC"},		\
++	{MIGRATE_SYNC_LIGHT,	"MIGRATE_SYNC_LIGHT"},		\
++	{MIGRATE_SYNC,		"MIGRATE_SYNC"}		
++
++#define MIGRATE_REASON						\
++	{MR_COMPACTION,		"compaction"},			\
++	{MR_MEMORY_FAILURE,	"memory_failure"},		\
++	{MR_MEMORY_HOTPLUG,	"memory_hotplug"},		\
++	{MR_SYSCALL,		"syscall_or_cpuset"},		\
++	{MR_MEMPOLICY_MBIND,	"mempolicy_mbind"},		\
++	{MR_CMA,		"cma"}
++
++TRACE_EVENT(mm_migrate_pages,
++
++	TP_PROTO(unsigned long succeeded, unsigned long failed,
++		 enum migrate_mode mode, int reason),
++
++	TP_ARGS(succeeded, failed, mode, reason),
++
++	TP_STRUCT__entry(
++		__field(	unsigned long,		succeeded)
++		__field(	unsigned long,		failed)
++		__field(	enum migrate_mode,	mode)
++		__field(	int,			reason)
++	),
++
++	TP_fast_assign(
++		__entry->succeeded	= succeeded;
++		__entry->failed		= failed;
++		__entry->mode		= mode;
++		__entry->reason		= reason;
++	),
++
++	TP_printk("nr_succeeded=%lu nr_failed=%lu mode=%s reason=%s",
++		__entry->succeeded,
++		__entry->failed,
++		__print_symbolic(__entry->mode, MIGRATE_MODE),
++		__print_symbolic(__entry->reason, MIGRATE_REASON))
++);
++
++#endif /* _TRACE_MIGRATE_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 7fcd3a5..8c1a53a 100644
+index 8c1a53a..11b455b 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -801,10 +801,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+@@ -797,7 +797,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		nr_migrate = cc->nr_migratepages;
+ 		err = migrate_pages(&cc->migratepages, compaction_alloc,
+ 				(unsigned long)cc, false,
+-				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC);
++				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
++				MR_COMPACTION);
  		update_nr_listpages(cc);
  		nr_remaining = cc->nr_migratepages;
  
--		count_vm_event(COMPACTBLOCKS);
--		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
--		if (nr_remaining)
--			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
- 		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
- 						nr_remaining);
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index a6e2141..9d4489c 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1556,7 +1556,8 @@ int soft_offline_page(struct page *page, int flags)
+ 					    page_is_file_cache(page));
+ 		list_add(&page->lru, &pagelist);
+ 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
+-							false, MIGRATE_SYNC);
++							false, MIGRATE_SYNC,
++							MR_MEMORY_FAILURE);
+ 		if (ret) {
+ 			putback_lru_pages(&pagelist);
+ 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 6a5b90d..b299e83 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -815,7 +815,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 		}
+ 		/* this function returns # of failed pages */
+ 		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
+-							true, MIGRATE_SYNC);
++							true, MIGRATE_SYNC,
++							MR_MEMORY_HOTPLUG);
+ 		if (ret)
+ 			putback_lru_pages(&source);
+ 	}
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 5cffcb6..bd4fc4c 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -936,7 +936,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
  
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_node_page, dest,
+-							false, MIGRATE_SYNC);
++							false, MIGRATE_SYNC,
++							MR_SYSCALL);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
+ 	}
+@@ -1177,7 +1178,8 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 		if (!list_empty(&pagelist)) {
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+ 						(unsigned long)vma,
+-						false, MIGRATE_SYNC);
++						false, MIGRATE_SYNC,
++						MR_MEMPOLICY_MBIND);
+ 			if (nr_failed)
+ 				putback_lru_pages(&pagelist);
+ 		}
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 77ed2d7..04687f6 100644
+index 04687f6..27be9c9 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -962,6 +962,7 @@ int migrate_pages(struct list_head *from,
+@@ -38,6 +38,9 @@
+ 
+ #include <asm/tlbflush.h>
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/migrate.h>
++
+ #include "internal.h"
+ 
+ /*
+@@ -958,7 +961,7 @@ out:
+  */
+ int migrate_pages(struct list_head *from,
+ 		new_page_t get_new_page, unsigned long private, bool offlining,
+-		enum migrate_mode mode)
++		enum migrate_mode mode, int reason)
  {
  	int retry = 1;
  	int nr_failed = 0;
-+	int nr_succeeded = 0;
- 	int pass = 0;
- 	struct page *page;
- 	struct page *page2;
-@@ -988,6 +989,7 @@ int migrate_pages(struct list_head *from,
- 				retry++;
- 				break;
- 			case 0:
-+				nr_succeeded++;
- 				break;
- 			default:
- 				/* Permanent failure */
-@@ -998,6 +1000,10 @@ int migrate_pages(struct list_head *from,
- 	}
- 	rc = 0;
- out:
-+	if (nr_succeeded)
-+		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
-+	if (nr_failed)
-+		count_vm_events(PGMIGRATE_FAIL, nr_failed);
+@@ -1004,6 +1007,8 @@ out:
+ 		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
+ 	if (nr_failed)
+ 		count_vm_events(PGMIGRATE_FAIL, nr_failed);
++	trace_mm_migrate_pages(nr_succeeded, nr_failed, mode, reason);
++
  	if (!swapwrite)
  		current->flags &= ~PF_SWAPWRITE;
  
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index df7a674..4849241 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -761,10 +761,11 @@ const char * const vmstat_text[] = {
+@@ -1145,7 +1150,8 @@ set_status:
+ 	err = 0;
+ 	if (!list_empty(&pagelist)) {
+ 		err = migrate_pages(&pagelist, new_page_node,
+-				(unsigned long)pm, 0, MIGRATE_SYNC);
++				(unsigned long)pm, 0, MIGRATE_SYNC,
++				MR_SYSCALL);
+ 		if (err)
+ 			putback_lru_pages(&pagelist);
+ 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 55df691..3d361f6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5677,7 +5677,8 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
  
- 	"pgrotated",
+ 		ret = migrate_pages(&cc.migratepages,
+ 				    __alloc_contig_migrate_alloc,
+-				    0, false, MIGRATE_SYNC);
++				    0, false, MIGRATE_SYNC,
++				    MR_CMA);
+ 	}
  
-+#ifdef CONFIG_MIGRATION
-+	"pgmigrate_success",
-+	"pgmigrate_fail",
-+#endif
- #ifdef CONFIG_COMPACTION
--	"compact_blocks_moved",
--	"compact_pages_moved",
--	"compact_pagemigrate_failed",
- 	"compact_stall",
- 	"compact_fail",
- 	"compact_success",
+ 	putback_lru_pages(&cc.migratepages);
 -- 
 1.7.7
 
