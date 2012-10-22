@@ -1,51 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id ED7026B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:11:42 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so3082091obc.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:11:42 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 2C3FC6B0069
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:11:44 -0400 (EDT)
+Message-ID: <5085621C.3040904@parallels.com>
+Date: Mon, 22 Oct 2012 19:11:24 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <5082305A.2050108@cn.fujitsu.com>
-References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
- <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
- <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
- <507E77D1.3030709@cn.fujitsu.com> <CAHGf_=rxGeb0RsgEFF2FRRfdX0wiE9cDyVaftsG3E8AgyzYi1g@mail.gmail.com>
- <508118A6.80804@cn.fujitsu.com> <CAHGf_=qfzEJ0VjeYkKFVtyew+wYM-rHS4nqmXU4t7HYGuv8k9w@mail.gmail.com>
- <5082305A.2050108@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Mon, 22 Oct 2012 11:11:20 -0400
-Message-ID: <CAHGf_=rYgA=yAjcvziGbN0k48zTZn8+5XQJxoMwZ4wvrX6x4sA@mail.gmail.com>
-Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v5 15/18] Aggregate memcg cache values in slabinfo
+References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-16-git-send-email-glommer@parallels.com> <0000013a7a93cb72-588b2a69-ebb0-4b5f-9040-102800d3bef4-000000@email.amazonses.com>
+In-Reply-To: <0000013a7a93cb72-588b2a69-ebb0-4b5f-9040-102800d3bef4-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
->> ??
->> If resource was not allocated a driver, a driver doesn't need to
->> deallocate it when
->> error path. I haven't caught your point.
->>
->
-> REMOVAL_NORMAL can be in 2 cases:
-> 1. error path. If init call fails, we don't call it. We call this function
->    only when something fails after init.
-> 2. unbind the device from the driver.
->    If we don't offline and remove memory when unbinding the device from the driver,
->    the device may be out of control. When we eject this driver, we don't offline and
+On 10/19/2012 11:50 PM, Christoph Lameter wrote:
+> On Fri, 19 Oct 2012, Glauber Costa wrote:
+> 
+>> +
+>> +/*
+>> + * We use suffixes to the name in memcg because we can't have caches
+>> + * created in the system with the same name. But when we print them
+>> + * locally, better refer to them with the base name
+>> + */
+>> +static inline const char *cache_name(struct kmem_cache *s)
+>> +{
+>> +	if (!is_root_cache(s))
+>> +		return s->memcg_params->root_cache->name;
+>> +	return s->name;
+>> +}
+> 
+> Could we avoid this uglyness? You can ID a slab cache by combining a memcg
+> pointer and a slabname.
+> 
+But that is not what I want.
 
-Memory never be out of control by driver unloading. It is controled
-from kernel core. It is an exception from regular linux driver model.
+What I want is to show the cache by its root name in memcg-specific
+slabinfo.
 
-
->    remove it, but we will eject and poweroff the device. It is very dangerous because
->    the kernel uses the memory but we poweroff it.
->
->    acpi_bus_hot_remove_device()
->        acpi_bus_trim() // this function successes because the device has no driver
->        _PS3 // poweroff
->        _EJ0 // eject
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
