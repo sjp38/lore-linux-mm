@@ -1,98 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id D58986B008C
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 19:00:37 -0400 (EDT)
-Date: Mon, 22 Oct 2012 16:00:35 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH v3 2/9] suppress "Device nodeX does not have a release()
- function" warning
-Message-ID: <20121022230035.GA25817@kroah.com>
-References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
- <1350629202-9664-3-git-send-email-wency@cn.fujitsu.com>
- <20121022155224.e8f306f9.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id C427E6B0093
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 19:48:05 -0400 (EDT)
+Date: Tue, 23 Oct 2012 08:53:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121022235321.GK13817@bbox>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+ <20121015144412.GA2173@barrios>
+ <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
+ <20121016061854.GB3934@barrios>
+ <CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
+ <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121022155224.e8f306f9.akpm@linux-foundation.org>
+In-Reply-To: <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Oct 22, 2012 at 03:52:24PM -0700, Andrew Morton wrote:
-> On Fri, 19 Oct 2012 14:46:35 +0800
-> wency@cn.fujitsu.com wrote:
+Hi, 
+
+Sorry for late response. I was traveling at that time and still suffer from
+training course I never want. :(
+
+On Fri, Oct 19, 2012 at 10:49:22AM -0700, Luigi Semenzato wrote:
+> I found the source, and maybe the cause, of the problem I am
+> experiencing when running out of memory with zram enabled.  It may be
+> a known problem.  The OOM killer doesn't find any killable process
+> because select_bad_process() keeps returning -1 here:
 > 
-> > From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> > 
-> > When calling unregister_node(), the function shows following message at
-> > device_release().
-> > 
-> > "Device 'node2' does not have a release() function, it is broken and must
-> > be fixed."
-> > 
-> > The reason is node's device struct does not have a release() function.
-> > 
-> > So the patch registers node_device_release() to the device's release()
-> > function for suppressing the warning message. Additionally, the patch adds
-> > memset() to initialize a node struct into register_node(). Because the node
-> > struct is part of node_devices[] array and it cannot be freed by
-> > node_device_release(). So if system reuses the node struct, it has a garbage.
-> > 
-> > ...
-> >
-> > --- a/drivers/base/node.c
-> > +++ b/drivers/base/node.c
-> > @@ -252,6 +252,9 @@ static inline void hugetlb_register_node(struct node *node) {}
-> >  static inline void hugetlb_unregister_node(struct node *node) {}
-> >  #endif
-> >  
-> > +static void node_device_release(struct device *dev)
-> > +{
-> > +}
-> >  
-> >  /*
-> >   * register_node - Setup a sysfs device for a node.
-> > @@ -263,8 +266,11 @@ int register_node(struct node *node, int num, struct node *parent)
-> >  {
-> >  	int error;
-> >  
-> > +	memset(node, 0, sizeof(*node));
-> > +
-> >  	node->dev.id = num;
-> >  	node->dev.bus = &node_subsys;
-> > +	node->dev.release = node_device_release;
-> >  	error = device_register(&node->dev);
-> >  
-> >  	if (!error){
+>     /*
+>      * This task already has access to memory reserves and is
+>      * being killed. Don't allow any other task access to the
+>      * memory reserve.
+>      *
+>      * Note: this may have a chance of deadlock if it gets
+>      * blocked waiting for another task which itself is waiting
+>      * for memory. Is there a better alternative?
+>      */
+>     if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
+>         if (unlikely(frozen(p)))
+>             __thaw_task(p);
+>         if (!force_kill)
+>             return ERR_PTR(-1UL);
+>     }
 > 
-> Greg won't like that empty ->release function ;)
+> select_bad_process() is called by out_of_memory() in __alloc_page_may_oom().
+
+I think it's not a zram problem but general problem of OOM killer.
+Above code's intention is to prevent shortage of ememgency memory pool for avoding
+deadlock. If we already killed any task and the task are in the middle of exiting,
+OOM killer will wait for him to be exited. But the problem in here is that
+killed task might wait any mutex which are held to another task which are
+stuck for the memory allocation and can't use emergency memory pool. :(
+It's a another deadlock, too. AFAIK, it's known problem and I'm not sure
+OOM guys have a good idea. Cc'ed them.
+I think one of solution is that if it takes some seconed(ex, 3 sec) after we already
+kill some task but still looping with above code, we can allow accessing of
+ememgency memory pool for another task. It may happen deadlock due to burn out memory
+pool but otherwise, we still suffer from deadlock.
+
 > 
-> As you say, this device item does not reside in per-device dynamically
-> allocated memory - it is part of an externally managed array.
+> If this is the problem, I'd love to hear about solutions!
 > 
-> So a proper fix here would be to convert this storage so that it *is*
-> dynamically allocated on a per-device basis.
+> <BEGIN SHAMELESS PLUG>
+> if we can get this to work, it will help keep the cost of laptops down!
+> http://www.google.com/intl/en/chrome/devices/
+> <END SHAMELESS PLUG>
+> 
+> P.S. Chromebooks are sweet things for kernel debugging because they
+> boot so quickly (5-10s depending on the model).
 
-I thought we had this fixed up already?
+But I think mainline kernel doesn't boot on that. :(
 
-> Or perhaps we should recognize that the whole kobject
-> get/put/release-on-last-put model is inappropriate for these objects,
-> and stop using it entirely.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Yes, you can do the same thing with dynamic struct devices for what you
-need to do here, it should be easy to convert the code to use it.
-
-> From Kosaki's comment, it does sound that we plan to take the first
-> option: convert to per-device dynamically allocated memory?  If so, I
-> suggest that we just leave the warning as-is for now, until we fix
-> things proprely.
-
-Sounds good to me.
-
-thanks,
-
-greg k-h
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
