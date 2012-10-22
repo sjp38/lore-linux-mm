@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 523166B0071
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 12:42:43 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so2802679iak.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 09:42:42 -0700 (PDT)
-MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20121022162929.GN2095@tassilo.jf.intel.com>
-References: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
- <CAHO5Pa0W-WGBaPvzdRJxYPdrg-K9guChswo3KJheK4BaRzsRwQ@mail.gmail.com>
- <20121022132733.GQ16230@one.firstfloor.org> <20121022133534.GR16230@one.firstfloor.org>
- <CAKgNAkgQ6JZdwOsCAQ4Ak_gVXtav=TzgzW2tbk5jMUwxtMqOAg@mail.gmail.com>
- <20121022153633.GK2095@tassilo.jf.intel.com> <CAKgNAki=AL+KdYDdYnE8ZhjK-tUf5cZ163BWPe6GRM0rpi-z7w@mail.gmail.com>
- <20121022161151.GS16230@one.firstfloor.org> <CAKgNAkjsGp9HUpvhUfqbXnfrLbBsQRAKvOs=41-w3ZAE7yX+cA@mail.gmail.com>
- <20121022162929.GN2095@tassilo.jf.intel.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Mon, 22 Oct 2012 18:42:22 +0200
-Message-ID: <CAKgNAkhn+kTAq6_VKB3GjwwZGD-YOKE67=4fp+SR=1Lbhz7Bxg@mail.gmail.com>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v6
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id A99396B0073
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 12:59:30 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id k6so2153287lbo.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 09:59:28 -0700 (PDT)
+Date: Mon, 22 Oct 2012 22:59:18 +0600
+From: Mike Kazantsev <mk.fraggod@gmail.com>
+Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
+ (xfrm) in 3.5+ kernels
+Message-ID: <20121022225918.32d86a5f@sacrilege>
+In-Reply-To: <1350919682.8609.877.camel@edumazet-glaptop>
+References: <20121019205055.2b258d09@sacrilege>
+	<20121019233632.26cf96d8@sacrilege>
+	<CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
+	<20121020204958.4bc8e293@sacrilege>
+	<20121021044540.12e8f4b7@sacrilege>
+	<20121021062402.7c4c4cb8@sacrilege>
+	<1350826183.13333.2243.camel@edumazet-glaptop>
+	<20121021195701.7a5872e7@sacrilege>
+	<20121022004332.7e3f3f29@sacrilege>
+	<20121022015134.4de457b9@sacrilege>
+	<1350856053.8609.217.camel@edumazet-glaptop>
+	<20121022045850.788df346@sacrilege>
+	<1350893743.8609.424.camel@edumazet-glaptop>
+	<20121022180655.50a50401@sacrilege>
+	<1350918997.8609.858.camel@edumazet-glaptop>
+	<1350919337.8609.869.camel@edumazet-glaptop>
+	<1350919682.8609.877.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/UxAzq4Uj91O1.bZz7APT8Ss"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Paul Moore <paul@paul-moore.com>, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 22, 2012 at 6:29 PM, Andi Kleen <ak@linux.intel.com> wrote:
->> Since PowerPC already allows 16GB page sizes, doesn't there need to be
->> allowance for the possibility of future expansion? Choosing a larger
->> minimum size (like 2^16) would allow that. Does the minimum size need
->> to be 16k? (Surely, if you want a HUGEPAGE, you want a bigger page
->> than that? I am not sure.)
->
-> Some architectures have configurable huge page sizes, so it depends on
-> the user. I thought 16K is reasonable.  Can make it larger too.
->
-> But I personally consider even 16GB pages somewhat too big.
+--Sig_/UxAzq4Uj91O1.bZz7APT8Ss
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-I do not know the answer course ;-). Just thought that it was worth
-emphasizing that some system already allows the upper limit you
-propose. It seems inevitable that some other system will allow
-something even bigger.
+On Mon, 22 Oct 2012 17:28:02 +0200
+Eric Dumazet <eric.dumazet@gmail.com> wrote:
 
-Anyway, I got distracted from my earlier more important point. This
-proposed change will chew up most (all?) of the remaining bit-space in
-'flags'. This seems like a mistake from a future extensibility point
-of view... It sounds a lot like you'll force someone else to write and
-deploy mmap3()...
+> On Mon, 2012-10-22 at 17:22 +0200, Eric Dumazet wrote:
+> > On Mon, 2012-10-22 at 17:16 +0200, Eric Dumazet wrote:
+> >=20
+> > > OK, I believe I found the bug in IPv4 defrag / IPv6 reasm
+> > >=20
+> > > Please test the following patch.
+> > >=20
+> > > Thanks !
+> >=20
+> > I'll send a more generic patch in a few minutes, changing
+> > kfree_skb_partial() to call skb_release_head_state()
+> >=20
+>=20
+> Here it is :
+>=20
+...
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Author of "The Linux Programming Interface"; http://man7.org/tlpi/
+Problem is indeed gone in v3.7-rc2 with the proposed generic patch, I
+haven't read the mail in time to test the first one, but I guess it's
+not relevant now that the latter one works.
+
+Thank you for taking your time to look into the problem and actually
+fix it.
+
+I'm unclear about policies in place on the matter, but I think this
+patch might be a good candidate to backport into 3.5 and 3.6 kernels,
+because they seem to suffer from the issue as well.
+
+
+--=20
+Mike Kazantsev // fraggod.net
+
+--Sig_/UxAzq4Uj91O1.bZz7APT8Ss
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.19 (GNU/Linux)
+
+iEYEARECAAYFAlCFe2kACgkQASbOZpzyXnFOQwCg24cpgvqGpfLm1OZEJG5EIKyB
+gR8AnA7P4/bCq4VY5mtWZa5grXmKWXhS
+=OqIv
+-----END PGP SIGNATURE-----
+
+--Sig_/UxAzq4Uj91O1.bZz7APT8Ss--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
