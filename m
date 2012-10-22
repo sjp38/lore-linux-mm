@@ -1,60 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id D02196B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 01:38:41 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id v13so3032981vbk.14
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 22:38:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 0A33E6B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 03:37:08 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1844092pad.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 00:37:08 -0700 (PDT)
+Date: Mon, 22 Oct 2012 15:36:54 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH RFC] mm/swap: automatic tuning for swapin readahead
+Message-ID: <20121022073654.GA7821@kernel.org>
+References: <50460CED.6060006@redhat.com>
+ <20120906110836.22423.17638.stgit@zurg>
+ <alpine.LSU.2.00.1210011418270.2940@eggly.anvils>
+ <506AACAC.2010609@openvz.org>
+ <alpine.LSU.2.00.1210031337320.1415@eggly.anvils>
+ <506DB816.9090107@openvz.org>
+ <alpine.LSU.2.00.1210081451410.1384@eggly.anvils>
+ <20121016005049.GA1467@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <CAKWKT+Z-SZb1=3rwLm+urs3fghQ3M6pdOR_rzXKCevoad11a5g@mail.gmail.com>
-References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
-	<20121019160425.GA10175@dhcp22.suse.cz>
-	<CAKWKT+Z-SZb1=3rwLm+urs3fghQ3M6pdOR_rzXKCevoad11a5g@mail.gmail.com>
-Date: Mon, 22 Oct 2012 11:08:40 +0530
-Message-ID: <CAKTCnzmDhSd-POHSC0wx-ziVPUg9wFverK33Q1_SvCx3Gzuugg@mail.gmail.com>
-Subject: Re: process hangs on do_exit when oom happens
-From: Balbir Singh <bsingharora@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121016005049.GA1467@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiang Gao <gaoqiangscut@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Oct 22, 2012 at 7:46 AM, Qiang Gao <gaoqiangscut@gmail.com> wrote:
-> I don't know whether  the process will exit finally, bug this stack lasts
-> for hours, which is obviously unnormal.
-> The situation:  we use a command calld "cglimit" to fork-and-exec the worker
-> process,and the "cglimit" will
-> set some limitation on the worker with cgroup. for now,we limit the
-> memory,and we also use cpu cgroup,but with
-> no limiation,so when the worker is running, the cgroup directory looks like
-> following:
->
-> /cgroup/memory/worker : this directory limit the memory
-> /cgroup/cpu/worker :with no limit,but worker process is in.
->
-> for some reason(some other process we didn't consider),  the worker process
-> invoke global oom-killer,
-> not cgroup-oom-killer.  then the worker process hangs there.
->
-> Actually, if we didn't set the worker process into the cpu cgroup, this will
-> never happens.
->
+On Tue, Oct 16, 2012 at 08:50:49AM +0800, Shaohua Li wrote:
+> On Mon, Oct 08, 2012 at 03:09:58PM -0700, Hugh Dickins wrote:
+> > On Thu, 4 Oct 2012, Konstantin Khlebnikov wrote:
+> > 
+> > > Here results of my test. Workload isn't very realistic, but at least it
+> > > threaded: compiling linux-3.6 with defconfig in 16 threads on tmpfs,
+> > > 512mb ram, dualcore cpu, ordinary hard disk. (test script in attachment)
+> > > 
+> > > average results for ten runs:
+> > > 
+> > > 		RA=3	RA=0	RA=1	RA=2	RA=4	Hugh	Shaohua
+> > > real time	500	542	528	519	500	523	522
+> > > user time	738	737	735	737	739	737	739
+> > > sys time	93	93	91	92	96	92	93
+> > > pgmajfault	62918	110533	92454	78221	54342	86601	77229
+> > > pgpgin	2070372	795228	1034046	1471010	3177192	1154532	1599388
+> > > pgpgout	2597278	2022037	2110020	2350380	2802670	2286671	2526570
+> > > pswpin	462747	138873	202148	310969	739431	232710	341320
+> > > pswpout	646363	502599	524613	584731	697797	568784	628677
+> > > 
+> > > So, last two columns shows mostly equal results: +4.6% and +4.4% in
+> > > comparison to vanilla kernel with RA=3, but your version shows more stable
+> > > results (std-error 2.7% against 4.8%) (all this numbers in huge table in
+> > > attachment)
+> > 
+> > Thanks for doing this, Konstantin, but I'm stuck for anything much to say!
+> > Shaohua and I are both about 4.5% bad for this particular test, but I'm
+> > more consistently bad - hurrah!
+> > 
+> > I suspect (not a convincing argument) that if the test were just slightly
+> > different (a little more or a little less memory, SSD instead of hard
+> > disk, diskcache instead of tmpfs), then it would come out differently.
+> > 
+> > Did you draw any conclusions from the numbers you found?
+> > 
+> > I haven't done any more on this in the last few days, except to verify
+> > that once an anon_vma is judged random with Shaohua's, then it appears
+> > to be condemned to no-readahead ever after.
+> > 
+> > That's probably something that a hack like I had in mine would fix,
+> > but that addition might change its balance further (and increase vma
+> > or anon_vma size) - not tried yet.
+> > 
+> > All I want to do right now, is suggest to Andrew that he hold Shaohua's
+> > patch back from 3.7 for the moment: I'll send a response to Sep 7th's
+> > mm-commits mail to suggest that - but no great disaster if he ignores me.
+> 
+> Ok, I tested Hugh's patch. My test is a multithread random write workload.
+> With Hugh's patch, 49:28.06elapsed
+> With mine, 43:23.39elapsed
+> There is 12% more time used with Hugh's patch.
+> 
+> In the stable state of this workload, SI:SO ratio should be roughly 1:1. With
+> Hugh's patch, it's around 1.6:1, there is still unnecessary swapin.
+> 
+> I also tried a workload with seqential/random write mixed, Hugh's patch is 10%
+> bad too.
 
-You said you don't use CPU limits right? can you also send in the
-output of /proc/sched_debug. Can you also send in your
-/etc/cgconfig.conf? If the OOM is not caused by cgroup memory limit
-and the global system is under pressure in 2.6.32, it can trigger an
-OOM.
+With below change, the si/so ratio is back to around 1:1 in my workload. Guess
+the run time of my test will be reduced too, though I didn't test yet.
+-	used = atomic_xchg(&swapra_hits, 0) + 1;
++	used = atomic_xchg(&swapra_hits, 0);
 
-Also
+I'm wondering how could a global counter based method detect readahead
+correctly. For example, if there are a sequential access thread and a random
+access thread, doesn't this method always make wrong decision?
 
-1. Have you turned off swapping (seems like it) right?
-2. Do you have a NUMA policy setup for this task?
-
-Can you also share the .config (not sure if any special patches are
-being used) in the version you've mentioned.
-
-Balbir
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
