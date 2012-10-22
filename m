@@ -1,71 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id C252A6B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 06:35:13 -0400 (EDT)
-Date: Mon, 22 Oct 2012 11:35:03 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121022103503.GA26619@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
- <20121002150104.da57fa94.akpm@linux-foundation.org>
- <20121017130125.GH5973@mudshark.cambridge.arm.com>
- <20121017.112620.1865348978594874782.davem@davemloft.net>
- <20121017155401.GJ5973@mudshark.cambridge.arm.com>
- <20121018150502.3dee7899.akpm@linux-foundation.org>
- <20121019091016.GA4582@mudshark.cambridge.arm.com>
- <20121019114955.3a0c2b66.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A4E836B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 07:22:26 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so2061805pbb.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 04:22:26 -0700 (PDT)
+Date: Mon, 22 Oct 2012 04:19:28 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: [RFC v2 0/2] vmevent: A bit reworked pressure attribute + docs + man
+ page
+Message-ID: <20121022111928.GA12396@lizard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20121019114955.3a0c2b66.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-On Fri, Oct 19, 2012 at 07:49:55PM +0100, Andrew Morton wrote:
-> On Fri, 19 Oct 2012 10:10:16 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> 
-> > On Thu, Oct 18, 2012 at 11:05:02PM +0100, Andrew Morton wrote:
-> > > On Wed, 17 Oct 2012 16:54:02 +0100
-> > > Will Deacon <will.deacon@arm.com> wrote:
-> > > 
-> > > > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > > > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > > > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > > > flag is set for the appropriate PTE/PMD).
-> > > > 
-> > > > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > > > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > > > be called for a write fault.
-> > > > 
-> > > > This patch ensures that faults on transparent hugepages which do not result
-> > > > in a CoW update the access flags for the faulting pmd.
-> > > 
-> > > Confused.  Where is the arm implementation of update_mmu_cache_pmd()?
-> > 
-> > Right at the end of this patch, which was posted to the ARM list yesterday:
-> > 
-> >   http://lists.infradead.org/pipermail/linux-arm-kernel/2012-October/126387.html
-> 
-> I received and then merged a patch which won't compile!
+Hi all,
 
-Eek, that certainly wasn't intentional and it's compiling fine for me on
--rc1 and -rc2 for both ARM (no THP) and x86 (with and without THP).
+So this is the second RFC. The main change is that I decided to go with
+discrete levels of the pressure.
 
-Please can you send the build failure?
+When I started writing the man page, I had to describe the 'reclaimer
+inefficiency index', and while doing this I realized that I'm describing
+how the kernel is doing the memory management, which we try to avoid in
+the vmevent. And applications don't really care about these details:
+reclaimers, its inefficiency indexes, scanning window sizes, priority
+levels, etc. -- it's all "not interesting", and purely kernel's stuff. So
+I guess Mel Gorman was right, we need some sort of levels.
 
-> Ho hum.  I'll drop
-> mm-thp-set-the-accessed-flag-for-old-pages-on-access-fault.patch and
-> shall assume that you'll sort things out at the appropriate time.
+What applications (well, activity managers) are really interested in is
+this:
 
-Happy to sort it out once I work out what's going wrong!
+1. Do we we sacrifice resources for new memory allocations (e.g. files
+   cache)?
+2. Does the new memory allocations' cost becomes too high, and the system
+   hurts because of this?
+3. Are we about to OOM soon?
 
-Cheers,
+And here are the answers:
 
-Will
+1. VMEVENT_PRESSURE_LOW
+2. VMEVENT_PRESSURE_MED
+3. VMEVENT_PRESSURE_OOM
+
+There is no "high" pressure, since I really don't see any definition of
+it, but it's possible to introduce new levels without breaking ABI. The
+levels described in more details in the patches, and the stuff is still
+tunable, but now via sysctls, not the vmevent_fd() call itself (i.e. we
+don't need to rebuild applications to adjust window size or other mm
+"details").
+
+What I couldn't fix in this RFC is making vmevent_{scanned,reclaimed}
+stuff per-CPU (there's a comment describing the problem with this). But I
+made it lockless and tried to make it very lightweight (plus I moved the
+vmevent_pressure() call to a more "cold" path).
+
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
