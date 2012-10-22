@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 4C01D6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:22:22 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id jm1so1054110bkc.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:22:20 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 5DCEB6B005A
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:28:19 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id jm1so1057867bkc.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:28:17 -0700 (PDT)
 Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
  (xfrm) in 3.5+ kernels
 From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <1350918997.8609.858.camel@edumazet-glaptop>
+In-Reply-To: <1350919337.8609.869.camel@edumazet-glaptop>
 References: <20121019205055.2b258d09@sacrilege>
 	 <20121019233632.26cf96d8@sacrilege>
 	 <CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
@@ -21,9 +21,10 @@ References: <20121019205055.2b258d09@sacrilege>
 	 <1350893743.8609.424.camel@edumazet-glaptop>
 	 <20121022180655.50a50401@sacrilege>
 	 <1350918997.8609.858.camel@edumazet-glaptop>
+	 <1350919337.8609.869.camel@edumazet-glaptop>
 Content-Type: text/plain; charset="UTF-8"
-Date: Mon, 22 Oct 2012 17:22:17 +0200
-Message-ID: <1350919337.8609.869.camel@edumazet-glaptop>
+Date: Mon, 22 Oct 2012 17:28:02 +0200
+Message-ID: <1350919682.8609.877.camel@edumazet-glaptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -31,19 +32,40 @@ List-ID: <linux-mm.kvack.org>
 To: Mike Kazantsev <mk.fraggod@gmail.com>
 Cc: Paul Moore <paul@paul-moore.com>, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2012-10-22 at 17:16 +0200, Eric Dumazet wrote:
-
-> OK, I believe I found the bug in IPv4 defrag / IPv6 reasm
+On Mon, 2012-10-22 at 17:22 +0200, Eric Dumazet wrote:
+> On Mon, 2012-10-22 at 17:16 +0200, Eric Dumazet wrote:
 > 
-> Please test the following patch.
+> > OK, I believe I found the bug in IPv4 defrag / IPv6 reasm
+> > 
+> > Please test the following patch.
+> > 
+> > Thanks !
 > 
-> Thanks !
+> I'll send a more generic patch in a few minutes, changing
+> kfree_skb_partial() to call skb_release_head_state()
+> 
 
-I'll send a more generic patch in a few minutes, changing
-kfree_skb_partial() to call skb_release_head_state()
+Here it is :
 
-
-
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 6e04b1f..4007c14 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -3379,10 +3379,12 @@ EXPORT_SYMBOL(__skb_warn_lro_forwarding);
+ 
+ void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
+ {
+-	if (head_stolen)
++	if (head_stolen) {
++		skb_release_head_state(skb);
+ 		kmem_cache_free(skbuff_head_cache, skb);
+-	else
++	} else {
+ 		__kfree_skb(skb);
++	}
+ }
+ EXPORT_SYMBOL(kfree_skb_partial);
+ 
 
 
 --
