@@ -1,36 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id D0BC56B0078
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 16:57:00 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so1670611dad.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 13:57:00 -0700 (PDT)
-Date: Mon, 22 Oct 2012 13:56:56 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch for-3.7 v3] mm, mempolicy: hold task->mempolicy refcount
- while reading numa_maps.
-In-Reply-To: <5084B3C3.3070906@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1210221356340.30085@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com> <20121017040515.GA13505@redhat.com>
- <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com> <20121017181413.GA16805@redhat.com> <alpine.DEB.2.00.1210171219010.28214@chino.kir.corp.google.com> <20121017193229.GC16805@redhat.com> <alpine.DEB.2.00.1210171237130.28214@chino.kir.corp.google.com>
- <20121017194501.GA24400@redhat.com> <alpine.DEB.2.00.1210171318400.28214@chino.kir.corp.google.com> <alpine.DEB.2.00.1210171428540.20712@chino.kir.corp.google.com> <507F803A.8000900@jp.fujitsu.com> <507F86BD.7070201@jp.fujitsu.com>
- <alpine.DEB.2.00.1210181255470.26994@chino.kir.corp.google.com> <508110C4.6030805@jp.fujitsu.com> <alpine.DEB.2.00.1210190227240.26815@chino.kir.corp.google.com> <5084B3C3.3070906@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 3DD8C6B007D
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 17:10:23 -0400 (EDT)
+Date: Mon, 22 Oct 2012 14:10:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 1/2]swap: add a simple buddy allocator
+Message-Id: <20121022141021.40cac432.akpm@linux-foundation.org>
+In-Reply-To: <20121022023051.GA20255@kernel.org>
+References: <20121022023051.GA20255@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com
 
-On Mon, 22 Oct 2012, Kamezawa Hiroyuki wrote:
+On Mon, 22 Oct 2012 10:30:51 +0800
+Shaohua Li <shli@kernel.org> wrote:
 
-> > Looks good, but the patch is whitespace damaged so it doesn't apply.  When
-> > that's fixed:
-> > 
-> > Acked-by: David Rientjes <rientjes@google.com>
+> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
+> CPU time (when cluster is hard to find), which becomes a bottleneck.
+> scan_swap_map() scans a byte array to search a 256 page cluster, which is very
+> slow.
 > 
-> Sorry, I hope this one is not broken...
+> Here I introduced a simple buddy allocator. Since we only care about 256 pages
+> cluster, we can just use a counter to implement the buddy allocator. Every 256
+> pages use one int to store the counter, so searching cluster is very efficient.
+> With this, scap_swap_map() overhead disappears.
+> 
+> This might help low end SD card swap too. Because if the cluster is aligned, SD
+> firmware can do flash erase more efficiently.
+> 
+> The downside is the cluster must be aligned to 256 pages, which will reduce the
+> chance to find a cluster.
+> 
 
-Looks like Linus picked this up directly, thanks Kame!
+hm.  How serious is this downside?
+
+>
+> ...
+>
+> @@ -2020,12 +2052,19 @@ SYSCALL_DEFINE2(swapon, const char __use
+>  		goto bad_swap;
+>  	}
+>  
+> +	swap_cluster_count = vzalloc(DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER) *
+> +					sizeof(int));
+
+[ Actually sizeof(unsigned int).  Or, probably safer, sizeof(*swap_cluster_count)]
+
+How large is this allocation?  swap-size-in-bytes/256k, methinks.  So
+64kbytes for a 16G swap partition?  That sounds acceptable.  Something
+like lib/flex_array.c could be used here perhaps, although that would
+involve memory allocations at awkward times.
+
+> +	if (!swap_cluster_count) {
+> +		error = -ENOMEM;
+> +		goto bad_swap;
+> +	}
+
+I shall await Hugh review on this patchset ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
