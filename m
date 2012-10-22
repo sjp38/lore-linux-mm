@@ -1,187 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id C23FE6B0062
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 21:27:21 -0400 (EDT)
-Date: Mon, 22 Oct 2012 12:25:55 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi
- variable
-Message-ID: <20121022012555.GB2739@dastard>
-References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
- <20120920084422.GA5697@localhost>
- <20120925013658.GC23520@dastard>
- <CAKYAXd975U_n2SSFXz0VfEs6GrVCoc2S=3kQbfw_2uOtGXbGxA@mail.gmail.com>
- <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 831BF6B0062
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 22:16:44 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id v13so2907699vbk.14
+        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 19:16:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
+In-Reply-To: <20121019160425.GA10175@dhcp22.suse.cz>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+	<20121019160425.GA10175@dhcp22.suse.cz>
+Date: Mon, 22 Oct 2012 10:16:43 +0800
+Message-ID: <CAKWKT+Z-SZb1=3rwLm+urs3fghQ3M6pdOR_rzXKCevoad11a5g@mail.gmail.com>
+Subject: Re: process hangs on do_exit when oom happens
+From: Qiang Gao <gaoqiangscut@gmail.com>
+Content-Type: multipart/alternative; boundary=20cf3071c812d2c6b304cc9c7134
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namjae Jeon <linkinjeon@gmail.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Oct 19, 2012 at 04:51:05PM +0900, Namjae Jeon wrote:
-> Hi Dave.
-> 
-> Test Procedure:
-> 
-> 1) Local USB disk WRITE speed on NFS server is ~25 MB/s
-> 
-> 2) Run WRITE test(create 1 GB file) on NFS Client with default
-> writeback settings on NFS Server. By default
-> bdi->dirty_background_bytes = 0, that means no change in default
-> writeback behaviour
-> 
-> 3) Next we change bdi->dirty_background_bytes = 25 MB (almost equal to
-> local USB disk write speed on NFS Server)
-> *** only on NFS Server - not on NFS Client ***
+--20cf3071c812d2c6b304cc9c7134
+Content-Type: text/plain; charset=ISO-8859-1
 
-Ok, so the results look good, but it's not really addressing what I
-was asking, though.  A typical desktop PC has a disk that can do
-100MB/s and GbE, so I was expecting a test that showed throughput
-close to GbE maximums at least (ie. around that 100MB/s). I have 3
-year old, low end, low power hardware (atom) that hanles twice the
-throughput you are testing here, and most current consumer NAS
-devices are more powerful than this. IOWs, I think the rates you are
-testing at are probably too low even for the consumer NAS market to
-consider relevant...
+I don't know whether  the process will exit finally, bug this stack lasts
+for hours, which is obviously unnormal.
+The situation:  we use a command calld "cglimit" to fork-and-exec the
+worker process,and the "cglimit" will
+set some limitation on the worker with cgroup. for now,we limit the
+memory,and we also use cpu cgroup,but with
+no limiation,so when the worker is running, the cgroup directory looks like
+following:
 
-> ----------------------------------------------------------------------------------
-> Multiple NFS Client test:
-> -----------------------------------------------------------------------------------
-> Sorry - We could not arrange multiple PCs to verify this.
-> So, we tried 1 NFS Server + 2 NFS Clients using 3 target boards:
-> ARM Target + 512 MB RAM + ethernet - 100 Mbits/s, create 1 GB File
+/cgroup/memory/worker : this directory limit the memory
+/cgroup/cpu/worker :with no limit,but worker process is in.
 
-But this really doesn't tells us anything - it's still only 100Mb/s,
-which we'd expect is already getting very close to line rate even
-with low powered client hardware.
+for some reason(some other process we didn't consider),  the worker process
+invoke global oom-killer,
+not cgroup-oom-killer.  then the worker process hangs there.
 
-What I'm concerned about the NFS server "sweet spot" - a $10k server
-that exports 20TB of storage and can sustain close to a GB/s of NFS
-traffic over a single 10GbE link with tens to hundreds of clients.
-100MB/s and 10 clients is about the minimum needed to be able to
-extrapolate a litle and make an informed guess of how it will scale
-up....
+Actually, if we didn't set the worker process into the cpu cgroup, this
+will never happens.
 
-> > 1. what's the comparison in performance to typical NFS
-> > server writeback parameter tuning? i.e. dirty_background_ratio=5,
-> > dirty_ratio=10, dirty_expire_centiseconds=1000,
-> > dirty_writeback_centisecs=1? i.e. does this give change give any
-> > benefit over the current common practice for configuring NFS
-> > servers?
-> 
-> Agreed, that above improvement in write speed can be achieved by
-> tuning above write-back parameters.
-> But if we change these settings, it will change write-back behavior
-> system wide.
-> On the other hand, if we change proposed per bdi setting,
-> bdi->dirty_background_bytes it will change write-back behavior for the
-> block device exported on NFS server.
 
-I already know what the difference between global vs per-bdi tuning
-means.  What I want to know is how your results compare
-*numerically* to just having a tweaked global setting on a vanilla
-kernel.  i.e. is there really any performance benefit to per-bdi
-configuration that cannot be gained by existing methods?
 
-> > 2. what happens when you have 10 clients all writing to the server
-> > at once? Or a 100? NFS servers rarely have a single writer to a
-> > single file at a time, so what impact does this change have on
-> > multiple concurrent file write performance from multiple clients
-> 
-> Sorry, we could not arrange more than 2 PCs for verifying this.
+On Sat, Oct 20, 2012 at 12:04 AM, Michal Hocko <mhocko@suse.cz> wrote:
 
-Really? Well, perhaps there's some tools that might be useful for
-you here:
+> On Wed 17-10-12 18:23:34, gaoqiang wrote:
+> > I looked up nothing useful with google,so I'm here for help..
+> >
+> > when this happens:  I use memcg to limit the memory use of a
+> > process,and when the memcg cgroup was out of memory,
+> > the process was oom-killed   however,it cannot really complete the
+> > exiting. here is the some information
+>
+> How many tasks are in the group and what kind of memory do they use?
+> Is it possible that you were hit by the same issue as described in
+> 79dfdacc memcg: make oom_lock 0 and 1 based rather than counter.
+>
+> > OS version:  centos6.2    2.6.32.220.7.1
+>
+> Your kernel is quite old and you should be probably asking your
+> distribution to help you out. There were many fixes since 2.6.32.
+> Are you able to reproduce the same issue with the current vanila kernel?
+>
+> > /proc/pid/stack
+> > ---------------------------------------------------------------
+> >
+> > [<ffffffff810597ca>] __cond_resched+0x2a/0x40
+> > [<ffffffff81121569>] unmap_vmas+0xb49/0xb70
+> > [<ffffffff8112822e>] exit_mmap+0x7e/0x140
+> > [<ffffffff8105b078>] mmput+0x58/0x110
+> > [<ffffffff81061aad>] exit_mm+0x11d/0x160
+> > [<ffffffff81061c9d>] do_exit+0x1ad/0x860
+> > [<ffffffff81062391>] do_group_exit+0x41/0xb0
+> > [<ffffffff81077cd8>] get_signal_to_deliver+0x1e8/0x430
+> > [<ffffffff8100a4c4>] do_notify_resume+0xf4/0x8b0
+> > [<ffffffff8100b281>] int_signal+0x12/0x17
+> > [<ffffffffffffffff>] 0xffffffffffffffff
+>
+> This looks strange because this is just an exit part which shouldn't
+> deadlock or anything. Is this stack stable? Have you tried to take check
+> it more times?
+>
+> --
+> Michal Hocko
+> SUSE Labs
+>
 
-http://oss.sgi.com/projects/nfs/testtools/
+--20cf3071c812d2c6b304cc9c7134
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-"Weber
+<div>I don&#39;t know whether=A0 the process will exit finally, bug this st=
+ack lasts for hours, which is obviously unnormal.<br></div><div>The situati=
+on: =A0we use a command calld &quot;cglimit&quot; to fork-and-exec the work=
+er process,and the &quot;cglimit&quot; will=A0</div>
+<div>set some limitation on the worker with cgroup. for now,we limit the me=
+mory,and we also use cpu cgroup,but with</div><div>no limiation,so when the=
+ worker is running, the cgroup directory looks like following:</div><div>
+<br></div><div>/cgroup/memory/worker : this directory limit the memory</div=
+><div>/cgroup/cpu/worker :with no limit,but worker process is in.</div><div=
+><br></div><div>for some reason(some other process we didn&#39;t consider),=
+ =A0the worker process invoke global oom-killer, </div>
+<div>not cgroup-oom-killer. =A0then the worker process hangs there.</div><d=
+iv><br></div><div>Actually, if we didn&#39;t set the worker process into th=
+e cpu cgroup, this will never happens.</div><div><br></div><div><br></div>
+<br><div class=3D"gmail_quote">On Sat, Oct 20, 2012 at 12:04 AM, Michal Hoc=
+ko <span dir=3D"ltr">&lt;<a href=3D"mailto:mhocko@suse.cz" target=3D"_blank=
+">mhocko@suse.cz</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote"=
+ style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+On Wed 17-10-12 18:23:34, gaoqiang wrote:<br>
+&gt; I looked up nothing useful with google,so I&#39;m here for help..<br>
+&gt;<br>
+&gt; when this happens: =A0I use memcg to limit the memory use of a<br>
+&gt; process,and when the memcg cgroup was out of memory,<br>
+&gt; the process was oom-killed =A0 however,it cannot really complete the<b=
+r>
+&gt; exiting. here is the some information<br>
+<br>
+How many tasks are in the group and what kind of memory do they use?<br>
+Is it possible that you were hit by the same issue as described in<br>
+79dfdacc memcg: make oom_lock 0 and 1 based rather than counter.<br>
+<br>
+&gt; OS version: =A0centos6.2 =A0 =A02.6.32.220.7.1<br>
+<br>
+Your kernel is quite old and you should be probably asking your<br>
+distribution to help you out. There were many fixes since 2.6.32.<br>
+Are you able to reproduce the same issue with the current vanila kernel?<br=
+>
+<br>
+&gt; /proc/pid/stack<br>
+&gt; ---------------------------------------------------------------<br>
+&gt;<br>
+&gt; [&lt;ffffffff810597ca&gt;] __cond_resched+0x2a/0x40<br>
+&gt; [&lt;ffffffff81121569&gt;] unmap_vmas+0xb49/0xb70<br>
+&gt; [&lt;ffffffff8112822e&gt;] exit_mmap+0x7e/0x140<br>
+&gt; [&lt;ffffffff8105b078&gt;] mmput+0x58/0x110<br>
+&gt; [&lt;ffffffff81061aad&gt;] exit_mm+0x11d/0x160<br>
+&gt; [&lt;ffffffff81061c9d&gt;] do_exit+0x1ad/0x860<br>
+&gt; [&lt;ffffffff81062391&gt;] do_group_exit+0x41/0xb0<br>
+&gt; [&lt;ffffffff81077cd8&gt;] get_signal_to_deliver+0x1e8/0x430<br>
+&gt; [&lt;ffffffff8100a4c4&gt;] do_notify_resume+0xf4/0x8b0<br>
+&gt; [&lt;ffffffff8100b281&gt;] int_signal+0x12/0x17<br>
+&gt; [&lt;ffffffffffffffff&gt;] 0xffffffffffffffff<br>
+<br>
+This looks strange because this is just an exit part which shouldn&#39;t<br=
+>
+deadlock or anything. Is this stack stable? Have you tried to take check<br=
+>
+it more times?<br>
+<span class=3D"HOEnZb"><font color=3D"#888888"><br>
+--<br>
+Michal Hocko<br>
+SUSE Labs<br>
+</font></span></blockquote></div><br>
 
-Test load generator for NFS. Uses multiple threads, multiple
-sockets and multiple IP addresses to simulate loads from many
-machines, thus enabling testing of NFS server setups with larger
-client counts than can be tested with physical infrastructure (or
-Virtual Machine clients). Has been useful in automated NFS testing
-and as a pinpoint NFS load generator tool for performance
-development."
-
-> > 3. Following on from the multiple client test, what difference does it
-> > make to file fragmentation rates? Writing more frequently means
-> > smaller allocations and writes, and that tends to lead to higher
-> > fragmentation rates, especially when multiple files are being
-> > written concurrently. Higher fragmentation also means lower
-> > performance over time as fragmentation accelerates filesystem aging
-> > effects on performance.  IOWs, it may be faster when new, but it
-> > will be slower 3 months down the track and that's a bad tradeoff to
-> > make.
-> 
-> We agree that there could be bit more framentation. But as you know,
-> we are not changing writeback settings at NFS clients.
-> So, write-back behavior on NFS client will not change - IO requests
-> will be buffered at NFS client as per existing write-back behavior.
-
-I think you misunderstand - writeback settings on the server greatly
-impact the way the server writes data and therefore the way files
-are fragmented. It has nothing to do with client side tuning.
-
-Effectively, what you are presenting is best case numbers - empty
-filesystem, single client, streaming write, no fragmentation, no
-allocation contention, no competing IO load that causes write
-latency occurring.  Testing with lots of clients introduces all of
-these things, and that will greatly impact server behaviour.
-Aggregation in memory isolates a lot of this variation from
-writeback and hence smooths out a lot of the variability that leads
-to fragmentation, seeks, latency spikes and preamture filesystem
-aging.
-
-That is, if you set a 100MB dirty_bytes limit on a bdi it will give
-really good buffering for a single client doing a streaming write.
-If you've got 10 clients, then assuming fair distribution of server
-resources, then that is 10MB per client per writeback trigger.
-That's line ball as to whether it will cause fragmentation severe
-enough to impact server throughput. If you've got 100 clients,then
-that's only 1MB per client per writeback trigger, and that's
-definitely too low to maintain decent writeback behaviour.  i.e.
-you're now writing 100 files 1MB at a time, and that tends towards
-random IO patterns rather than sequential IO patterns. Seek time
-dertermines throughput, not IO bandwidth limits.
-
-IOWs, as the client count goes up, the writeback patterns will tends
-more towards random IO than sequential IO unless the amount of
-buffering allowed before writeback triggers also grows. That's
-important, because random IO is much slower than sequential IO.
-What I'd like to have is some insight into whether this patch
-changes that inflection point, for better or for worse. The only way
-to find that is to run multi-client testing....
-
-> > 5. Are the improvements consistent across different filesystem
-> > types?  We've had writeback changes in the past cause improvements
-> > on one filesystem but significant regressions on others.  I'd
-> > suggest that you need to present results for ext4, XFS and btrfs so
-> > that we have a decent idea of what we can expect from the change to
-> > the generic code.
-> 
-> As mentioned in the above Table 1 & 2, performance gain in WRITE speed
-> is different on different file systems i.e. different on NFS client
-> over XFS & EXT4.
-> We also tried BTRFS over NFS, but we could not see any WRITE speed
-> performance gain/degrade on BTRFS over NFS, so we are not posting
-> BTRFS results here.
-
-You should post btrfs numbers even if they show no change. It wasn't
-until I got this far that I even realised that you'd even tested
-BTRFS. I don't know what to make of this, because I don't know what
-the throughput rates compared to XFS and EXT4 are....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--20cf3071c812d2c6b304cc9c7134--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
