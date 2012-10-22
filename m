@@ -1,54 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id A37416B0083
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 17:39:41 -0400 (EDT)
-Date: Mon, 22 Oct 2012 14:39:40 -0700
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id EE1E96B0070
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 18:38:46 -0400 (EDT)
+Date: Mon, 22 Oct 2012 15:38:45 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB
- v6
-Message-Id: <20121022143940.6bf8103f.akpm@linux-foundation.org>
-In-Reply-To: <20121022132733.GQ16230@one.firstfloor.org>
-References: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
-	<CAHO5Pa0W-WGBaPvzdRJxYPdrg-K9guChswo3KJheK4BaRzsRwQ@mail.gmail.com>
-	<20121022132733.GQ16230@one.firstfloor.org>
+Subject: Re: [PATCH v3 0/9] bugfix for memory hotplug
+Message-Id: <20121022153845.4e059984.akpm@linux-foundation.org>
+In-Reply-To: <50811FE1.4080606@jp.fujitsu.com>
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
+	<508109F2.1080402@jp.fujitsu.com>
+	<50810D14.8020609@jp.fujitsu.com>
+	<50811336.7070704@cn.fujitsu.com>
+	<50811FE1.4080606@jp.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Hillf Danton <dhillf@gmail.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com
 
-On Mon, 22 Oct 2012 15:27:33 +0200
-Andi Kleen <andi@firstfloor.org> wrote:
+On Fri, 19 Oct 2012 18:39:45 +0900
+Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
 
-> BTW seriously MAP_UNINITIALIZED? Who came up with that? 
-> MAP_COMPLETELY_INSECURE or MAP_INSANE would have been more appropiate.
+> 2012/10/19 17:45, Wen Congyang wrote:
+> > At 10/19/2012 04:19 PM, Yasuaki Ishimatsu Wrote:
+> >> 2012/10/19 17:06, Yasuaki Ishimatsu wrote:
+> >>> Hi Wen,
+> >>>
+> >>> Some bug fix patches have been merged into linux-next.
+> >>> So the patches confuse me.
+> > 
+> > Sorry, I don't check linux-next tree.
+> > 
+> >>
+> >> The following patches have been already merged into linux-next
+> >> and mm-tree as long as I know.
+> >>
+> >>>> Wen Congyang (6):
+> >>>>      clear the memory to store struct page
+> >>
+> >>
+> >>>>      memory-hotplug: skip HWPoisoned page when offlining pages
+> >>
+> >> mm-tree
+> > 
+> > Hmm, I don't find this patch in this URL:
+> > http://www.ozlabs.org/~akpm/mmotm/broken-out/
+> > 
+> > Do I miss something?
+> 
+> But Andrew announced that the patch was merged in mm-tree.
+> And you received the announcement.
 
-heh.  It's a NOMMU-only thing.
+mmotm is updated less frequently than http://ozlabs.org/~akpm/mmots/ so
+it's best to check mmots to find out what's in there.  Even mmots is
+lagging recently, because of ongoing sched-numa damage (grump).  But
+that has all improved lately so we should be getting back on track.
 
+And yes, I merged
+memory-hotplug-skip-hwpoisoned-page-when-offlining-pages.patch on 18
+October.
 
-config MMAP_ALLOW_UNINITIALIZED
-	bool "Allow mmapped anonymous memory to be uninitialized"
-	depends on EXPERT && !MMU
-	default n
-	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
-	  from mmap() has it's contents cleared before it is passed to
-	  userspace.  Enabling this config option allows you to request that
-	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-	  providing a huge performance boost.  If this option is not enabled,
-	  then the flag will be ignored.
-
-	  This is taken advantage of by uClibc's malloc(), and also by
-	  ELF-FDPIC binfmt's brk and stack allocator.
-
-	  Because of the obvious security issues, this option should only be
-	  enabled on embedded devices where you control what is run in
-	  userspace.  Since that isn't generally a problem on no-MMU systems,
-	  it is normally safe to say Y here.
-
-	  See Documentation/nommu-mmap.txt for more information.
+The memory hotplug patching is somewhat confusing at present, so
+thanks for checking - please continue to do so!  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
