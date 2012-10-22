@@ -1,44 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 2C3FC6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:11:44 -0400 (EDT)
-Message-ID: <5085621C.3040904@parallels.com>
-Date: Mon, 22 Oct 2012 19:11:24 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 15/18] Aggregate memcg cache values in slabinfo
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-16-git-send-email-glommer@parallels.com> <0000013a7a93cb72-588b2a69-ebb0-4b5f-9040-102800d3bef4-000000@email.amazonses.com>
-In-Reply-To: <0000013a7a93cb72-588b2a69-ebb0-4b5f-9040-102800d3bef4-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+	by kanga.kvack.org (Postfix) with SMTP id 69DAE6B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:16:43 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id jm1so1050385bkc.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:16:41 -0700 (PDT)
+Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
+ (xfrm) in 3.5+ kernels
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20121022180655.50a50401@sacrilege>
+References: <20121019205055.2b258d09@sacrilege>
+	 <20121019233632.26cf96d8@sacrilege>
+	 <CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
+	 <20121020204958.4bc8e293@sacrilege> <20121021044540.12e8f4b7@sacrilege>
+	 <20121021062402.7c4c4cb8@sacrilege>
+	 <1350826183.13333.2243.camel@edumazet-glaptop>
+	 <20121021195701.7a5872e7@sacrilege> <20121022004332.7e3f3f29@sacrilege>
+	 <20121022015134.4de457b9@sacrilege>
+	 <1350856053.8609.217.camel@edumazet-glaptop>
+	 <20121022045850.788df346@sacrilege>
+	 <1350893743.8609.424.camel@edumazet-glaptop>
+	 <20121022180655.50a50401@sacrilege>
+Content-Type: text/plain; charset="UTF-8"
+Date: Mon, 22 Oct 2012 17:16:37 +0200
+Message-ID: <1350918997.8609.858.camel@edumazet-glaptop>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Mike Kazantsev <mk.fraggod@gmail.com>
+Cc: Paul Moore <paul@paul-moore.com>, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On 10/19/2012 11:50 PM, Christoph Lameter wrote:
-> On Fri, 19 Oct 2012, Glauber Costa wrote:
+On Mon, 2012-10-22 at 18:06 +0600, Mike Kazantsev wrote:
+> On Mon, 22 Oct 2012 10:15:43 +0200
+> Eric Dumazet <eric.dumazet@gmail.com> wrote:
 > 
->> +
->> +/*
->> + * We use suffixes to the name in memcg because we can't have caches
->> + * created in the system with the same name. But when we print them
->> + * locally, better refer to them with the base name
->> + */
->> +static inline const char *cache_name(struct kmem_cache *s)
->> +{
->> +	if (!is_root_cache(s))
->> +		return s->memcg_params->root_cache->name;
->> +	return s->name;
->> +}
+> > On Mon, 2012-10-22 at 04:58 +0600, Mike Kazantsev wrote:
+> > 
+> > > I've grepped for "/org/free" specifically and sure enough, same scraps
+> > > of data seem to be in some of the (varied) dumps there.
+> > 
+> > Content is not meaningful, as we dont initialize it.
+> > So you see previous content.
+> > 
+> > Could you try the following :
+> > 
+> ...
 > 
-> Could we avoid this uglyness? You can ID a slab cache by combining a memcg
-> pointer and a slabname.
-> 
-But that is not what I want.
+> With this patch on top of v3.7-rc2 (w/o patches from your previous
+> mail), leak seem to be still present.
 
-What I want is to show the cache by its root name in memcg-specific
-slabinfo.
+OK, I believe I found the bug in IPv4 defrag / IPv6 reasm
+
+Please test the following patch.
+
+Thanks !
+
+diff --git a/net/ipv4/ip_fragment.c b/net/ipv4/ip_fragment.c
+index 448e685..0a52771 100644
+--- a/net/ipv4/ip_fragment.c
++++ b/net/ipv4/ip_fragment.c
+@@ -48,6 +48,7 @@
+ #include <linux/inet.h>
+ #include <linux/netfilter_ipv4.h>
+ #include <net/inet_ecn.h>
++#include <net/xfrm.h>
+ 
+ /* NOTE. Logic of IP defragmentation is parallel to corresponding IPv6
+  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
+@@ -634,6 +635,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
+ 		else if (head->ip_summed == CHECKSUM_COMPLETE)
+ 			head->csum = csum_add(head->csum, fp->csum);
+ 
++		secpath_reset(fp);
+ 		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
+ 			kfree_skb_partial(fp, headstolen);
+ 		} else {
+diff --git a/net/ipv6/reassembly.c b/net/ipv6/reassembly.c
+index da8a4e3..4fcc463 100644
+--- a/net/ipv6/reassembly.c
++++ b/net/ipv6/reassembly.c
+@@ -55,6 +55,7 @@
+ #include <net/ndisc.h>
+ #include <net/addrconf.h>
+ #include <net/inet_frag.h>
++#include <net/xfrm.h>
+ 
+ struct ip6frag_skb_cb
+ {
+@@ -456,6 +457,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
+ 		else if (head->ip_summed == CHECKSUM_COMPLETE)
+ 			head->csum = csum_add(head->csum, fp->csum);
+ 
++		secpath_reset(fp);
+ 		if (skb_try_coalesce(head, fp, &headstolen, &delta)) {
+ 			kfree_skb_partial(fp, headstolen);
+ 		} else {
 
 
 --
