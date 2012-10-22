@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 72FE06B0062
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:10:33 -0400 (EDT)
-Message-ID: <508561E0.5000406@parallels.com>
-Date: Mon, 22 Oct 2012 19:10:24 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id ED7026B0062
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 11:11:42 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so3082091obc.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 08:11:42 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
-References: <1350914737-4097-1-git-send-email-glommer@parallels.com> <1350914737-4097-3-git-send-email-glommer@parallels.com> <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com>
-In-Reply-To: <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5082305A.2050108@cn.fujitsu.com>
+References: <506C0AE8.40702@jp.fujitsu.com> <506C0C53.60205@jp.fujitsu.com>
+ <CAHGf_=p7PaQs-kpnyB8uC1MntHQfL-CXhhq4QQP54mYiqOswqQ@mail.gmail.com>
+ <50727984.20401@cn.fujitsu.com> <CAHGf_=pCrx8AkL9eiSYVgwvT1v0SW2__P_DW-1Wwj_zskqcLXw@mail.gmail.com>
+ <507E77D1.3030709@cn.fujitsu.com> <CAHGf_=rxGeb0RsgEFF2FRRfdX0wiE9cDyVaftsG3E8AgyzYi1g@mail.gmail.com>
+ <508118A6.80804@cn.fujitsu.com> <CAHGf_=qfzEJ0VjeYkKFVtyew+wYM-rHS4nqmXU4t7HYGuv8k9w@mail.gmail.com>
+ <5082305A.2050108@cn.fujitsu.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Mon, 22 Oct 2012 11:11:20 -0400
+Message-ID: <CAHGf_=rYgA=yAjcvziGbN0k48zTZn8+5XQJxoMwZ4wvrX6x4sA@mail.gmail.com>
+Subject: Re: [PATCH 1/4] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org
 
-On 10/22/2012 06:45 PM, Christoph Lameter wrote:
-> On Mon, 22 Oct 2012, Glauber Costa wrote:
-> 
->> + * kmem_cache_free - Deallocate an object
->> + * @cachep: The cache the allocation was from.
->> + * @objp: The previously allocated object.
->> + *
->> + * Free an object which was previously allocated from this
->> + * cache.
->> + */
->> +void kmem_cache_free(struct kmem_cache *s, void *x)
->> +{
->> +	__kmem_cache_free(s, x);
->> +	trace_kmem_cache_free(_RET_IP_, x);
->> +}
->> +EXPORT_SYMBOL(kmem_cache_free);
->> +
-> 
-> This results in an additional indirection if tracing is off. Wonder if
-> there is a performance impact?
-> 
-if tracing is on, you mean?
+>> ??
+>> If resource was not allocated a driver, a driver doesn't need to
+>> deallocate it when
+>> error path. I haven't caught your point.
+>>
+>
+> REMOVAL_NORMAL can be in 2 cases:
+> 1. error path. If init call fails, we don't call it. We call this function
+>    only when something fails after init.
+> 2. unbind the device from the driver.
+>    If we don't offline and remove memory when unbinding the device from the driver,
+>    the device may be out of control. When we eject this driver, we don't offline and
 
-Tracing already incurs overhead, not sure how much a function call would
-add to the tracing overhead.
+Memory never be out of control by driver unloading. It is controled
+from kernel core. It is an exception from regular linux driver model.
 
-I would not be concerned with this, but I can measure, if you have any
-specific workload in mind.
+
+>    remove it, but we will eject and poweroff the device. It is very dangerous because
+>    the kernel uses the memory but we poweroff it.
+>
+>    acpi_bus_hot_remove_device()
+>        acpi_bus_trim() // this function successes because the device has no driver
+>        _PS3 // poweroff
+>        _EJ0 // eject
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
