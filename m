@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 6ECF06B0069
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 08A216B006E
 	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 10:05:57 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 1/2] slab: commonize slab_cache field in struct page
-Date: Mon, 22 Oct 2012 18:05:36 +0400
-Message-Id: <1350914737-4097-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH 2/2] slab: move kmem_cache_free to common code
+Date: Mon, 22 Oct 2012 18:05:37 +0400
+Message-Id: <1350914737-4097-3-git-send-email-glommer@parallels.com>
 In-Reply-To: <1350914737-4097-1-git-send-email-glommer@parallels.com>
 References: <1350914737-4097-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,146 +13,167 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-Right now, slab and slub have fields in struct page to derive which
-cache a page belongs to, but they do it slightly differently.
-
-slab uses a field called slab_cache, that lives in the third double
-word. slub, uses a field called "slab", living outside of the
-doublewords area.
-
-Ideally, we could use the same field for this. Since slub heavily makes
-use of the doubleword region, there isn't really much room to move
-slub's slab_cache field around. Since slab does not have such strict
-placement restrictions, we can move it outside the doubleword area.
-
-The naming used by slab, "slab_cache", is less confusing, and it is
-preferred over slub's generic "slab".
+In the effort of commonizing the slab allocators, it would be better if
+we had a single entry-point for kmem_cache_free. The low-level freeing
+is still left to the allocators, But at least the tracing can be done in
+slab_common.c
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@kernel.org>
 CC: David Rientjes <rientjes@google.com>
----
- include/linux/mm_types.h |  7 ++-----
- mm/slub.c                | 24 ++++++++++++------------
- 2 files changed, 14 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 31f8a3a..2fef4e7 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -128,10 +128,7 @@ struct page {
- 		};
- 
- 		struct list_head list;	/* slobs list of pages */
--		struct {		/* slab fields */
--			struct kmem_cache *slab_cache;
--			struct slab *slab_page;
--		};
-+		struct slab *slab_page; /* slab fields */
- 	};
- 
- 	/* Remainder is not double word aligned */
-@@ -146,7 +143,7 @@ struct page {
- #if USE_SPLIT_PTLOCKS
- 		spinlock_t ptl;
+---
+ mm/slab.c        | 13 +------------
+ mm/slab.h        |  1 +
+ mm/slab_common.c | 17 +++++++++++++++++
+ mm/slob.c        | 11 ++++-------
+ mm/slub.c        |  5 +----
+ 5 files changed, 24 insertions(+), 23 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index 98b3460..b8171ab 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3903,15 +3903,7 @@ void *__kmalloc(size_t size, gfp_t flags)
+ EXPORT_SYMBOL(__kmalloc);
  #endif
--		struct kmem_cache *slab;	/* SLUB: Pointer to slab */
-+		struct kmem_cache *slab_cache;	/* SL[AU]B: Pointer to slab */
- 		struct page *first_page;	/* Compound tail pages */
- 	};
  
+-/**
+- * kmem_cache_free - Deallocate an object
+- * @cachep: The cache the allocation was from.
+- * @objp: The previously allocated object.
+- *
+- * Free an object which was previously allocated from this
+- * cache.
+- */
+-void kmem_cache_free(struct kmem_cache *cachep, void *objp)
++void __kmem_cache_free(struct kmem_cache *cachep, void *objp)
+ {
+ 	unsigned long flags;
+ 
+@@ -3921,10 +3913,7 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
+ 		debug_check_no_obj_freed(objp, cachep->object_size);
+ 	__cache_free(cachep, objp, __builtin_return_address(0));
+ 	local_irq_restore(flags);
+-
+-	trace_kmem_cache_free(_RET_IP_, objp);
+ }
+-EXPORT_SYMBOL(kmem_cache_free);
+ 
+ /**
+  * kfree - free previously allocated memory
+diff --git a/mm/slab.h b/mm/slab.h
+index 66a62d3..dc1024f 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -34,6 +34,7 @@ extern struct kmem_cache *kmem_cache;
+ 
+ /* Functions provided by the slab allocators */
+ extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
++extern void __kmem_cache_free(struct kmem_cache *s, void *x);
+ 
+ #ifdef CONFIG_SLUB
+ struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index bf4b4f1..3b9d5c5 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -19,6 +19,8 @@
+ #include <asm/tlbflush.h>
+ #include <asm/page.h>
+ 
++#include <trace/events/kmem.h>
++
+ #include "slab.h"
+ 
+ enum slab_state slab_state;
+@@ -168,6 +170,21 @@ out_locked:
+ }
+ EXPORT_SYMBOL(kmem_cache_create);
+ 
++/**
++ * kmem_cache_free - Deallocate an object
++ * @cachep: The cache the allocation was from.
++ * @objp: The previously allocated object.
++ *
++ * Free an object which was previously allocated from this
++ * cache.
++ */
++void kmem_cache_free(struct kmem_cache *s, void *x)
++{
++	__kmem_cache_free(s, x);
++	trace_kmem_cache_free(_RET_IP_, x);
++}
++EXPORT_SYMBOL(kmem_cache_free);
++
+ void kmem_cache_destroy(struct kmem_cache *s)
+ {
+ 	get_online_cpus();
+diff --git a/mm/slob.c b/mm/slob.c
+index 3edfeaa..d131f75 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -555,7 +555,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ }
+ EXPORT_SYMBOL(kmem_cache_alloc_node);
+ 
+-static void __kmem_cache_free(void *b, int size)
++static void do_kmem_cache_free(void *b, int size)
+ {
+ 	if (size < PAGE_SIZE)
+ 		slob_free(b, size);
+@@ -568,10 +568,10 @@ static void kmem_rcu_free(struct rcu_head *head)
+ 	struct slob_rcu *slob_rcu = (struct slob_rcu *)head;
+ 	void *b = (void *)slob_rcu - (slob_rcu->size - sizeof(struct slob_rcu));
+ 
+-	__kmem_cache_free(b, slob_rcu->size);
++	do_kmem_cache_free(b, slob_rcu->size);
+ }
+ 
+-void kmem_cache_free(struct kmem_cache *c, void *b)
++void __kmem_cache_free(struct kmem_cache *c, void *b)
+ {
+ 	kmemleak_free_recursive(b, c->flags);
+ 	if (unlikely(c->flags & SLAB_DESTROY_BY_RCU)) {
+@@ -580,12 +580,9 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
+ 		slob_rcu->size = c->size;
+ 		call_rcu(&slob_rcu->head, kmem_rcu_free);
+ 	} else {
+-		__kmem_cache_free(b, c->size);
++		do_kmem_cache_free(b, c->size);
+ 	}
+-
+-	trace_kmem_cache_free(_RET_IP_, b);
+ }
+-EXPORT_SYMBOL(kmem_cache_free);
+ 
+ unsigned int kmem_cache_size(struct kmem_cache *c)
+ {
 diff --git a/mm/slub.c b/mm/slub.c
-index a34548e..259bc2c 100644
+index 259bc2c..0c512de 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1087,11 +1087,11 @@ static noinline struct kmem_cache_node *free_debug_processing(
- 	if (!check_object(s, page, object, SLUB_RED_ACTIVE))
- 		goto out;
+@@ -2606,7 +2606,7 @@ redo:
  
--	if (unlikely(s != page->slab)) {
-+	if (unlikely(s != page->slab_cache)) {
- 		if (!PageSlab(page)) {
- 			slab_err(s, page, "Attempt to free object(0x%p) "
- 				"outside of slab", object);
--		} else if (!page->slab) {
-+		} else if (!page->slab_cache) {
- 			printk(KERN_ERR
- 				"SLUB <none>: no slab for object 0x%p.\n",
- 						object);
-@@ -1352,7 +1352,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		goto out;
- 
- 	inc_slabs_node(s, page_to_nid(page), page->objects);
--	page->slab = s;
-+	page->slab_cache = s;
- 	__SetPageSlab(page);
- 	if (page->pfmemalloc)
- 		SetPageSlabPfmemalloc(page);
-@@ -1419,7 +1419,7 @@ static void rcu_free_slab(struct rcu_head *h)
- 	else
- 		page = container_of((struct list_head *)h, struct page, lru);
- 
--	__free_slab(page->slab, page);
-+	__free_slab(page->slab_cache, page);
  }
  
- static void free_slab(struct kmem_cache *s, struct page *page)
-@@ -2612,9 +2612,9 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
+-void kmem_cache_free(struct kmem_cache *s, void *x)
++void __kmem_cache_free(struct kmem_cache *s, void *x)
+ {
+ 	struct page *page;
  
- 	page = virt_to_head_page(x);
- 
--	if (kmem_cache_debug(s) && page->slab != s) {
-+	if (kmem_cache_debug(s) && page->slab_cache != s) {
- 		pr_err("kmem_cache_free: Wrong slab cache. %s but object"
--			" is from  %s\n", page->slab->name, s->name);
-+			" is from  %s\n", page->slab_cache->name, s->name);
- 		WARN_ON_ONCE(1);
- 		return;
- 	}
-@@ -3413,7 +3413,7 @@ size_t ksize(const void *object)
- 		return PAGE_SIZE << compound_order(page);
+@@ -2620,10 +2620,7 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
  	}
  
--	return slab_ksize(page->slab);
-+	return slab_ksize(page->slab_cache);
+ 	slab_free(s, page, x, _RET_IP_);
+-
+-	trace_kmem_cache_free(_RET_IP_, x);
  }
- EXPORT_SYMBOL(ksize);
+-EXPORT_SYMBOL(kmem_cache_free);
  
-@@ -3438,8 +3438,8 @@ bool verify_mem_not_deleted(const void *x)
- 	}
- 
- 	slab_lock(page);
--	if (on_freelist(page->slab, page, object)) {
--		object_err(page->slab, page, object, "Object is on free-list");
-+	if (on_freelist(page->slab_cache, page, object)) {
-+		object_err(page->slab_cache, page, object, "Object is on free-list");
- 		rv = false;
- 	} else {
- 		rv = true;
-@@ -3470,7 +3470,7 @@ void kfree(const void *x)
- 		__free_pages(page, compound_order(page));
- 		return;
- 	}
--	slab_free(page->slab, page, object, _RET_IP_);
-+	slab_free(page->slab_cache, page, object, _RET_IP_);
- }
- EXPORT_SYMBOL(kfree);
- 
-@@ -3681,11 +3681,11 @@ static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
- 
- 		if (n) {
- 			list_for_each_entry(p, &n->partial, lru)
--				p->slab = s;
-+				p->slab_cache = s;
- 
- #ifdef CONFIG_SLUB_DEBUG
- 			list_for_each_entry(p, &n->full, lru)
--				p->slab = s;
-+				p->slab_cache = s;
- #endif
- 		}
- 	}
+ /*
+  * Object placement in a slab is made very easy because we always start at
 -- 
 1.7.11.7
 
