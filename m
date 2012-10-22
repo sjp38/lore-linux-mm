@@ -1,255 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 37B1F6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 04:09:14 -0400 (EDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/5] mm: migrate: Add a tracepoint for migrate_pages
-Date: Mon, 22 Oct 2012 08:59:48 +0100
-Message-Id: <1350892791-2682-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1350892791-2682-1-git-send-email-mgorman@suse.de>
-References: <1350892791-2682-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 26C756B0069
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 04:09:51 -0400 (EDT)
+Message-ID: <5084FF48.9040001@parallels.com>
+Date: Mon, 22 Oct 2012 12:09:44 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: CK2 [04/15] slab: Use the new create_boot_cache function to simplify
+ bootstrap
+References: <20121019142254.724806786@linux.com> <0000013a7979e9c4-0f9a8d4b-34b4-45dd-baff-a4ccac7a51a6-000000@email.amazonses.com>
+In-Reply-To: <0000013a7979e9c4-0f9a8d4b-34b4-45dd-baff-a4ccac7a51a6-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-The pgmigrate_success and pgmigrate_fail vmstat counters tells the user
-about migration activity but not the type or the reason. This patch adds
-a tracepoint to identify the type of page migration and why the page is
-being migrated.
+On 10/19/2012 06:42 PM, Christoph Lameter wrote:
+> Simplify setup and reduce code in kmem_cache_init(). This allows us to
+> get rid of initarray_cache as well as the manual setup code for
+> the kmem_cache and kmem_cache_node arrays during bootstrap.
+> 
+> We introduce a new bootstrap state "PARTIAL" for slab that signals the
+> creation of a kmem_cache boot cache.
+> 
+> V1->V2: Get rid of initarray_cache as well.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> ---
+>  mm/slab.c |   51 ++++++++++++++++++---------------------------------
+>  1 file changed, 18 insertions(+), 33 deletions(-)
+> 
+> Index: linux/mm/slab.c
+> ===================================================================
+> --- linux.orig/mm/slab.c	2012-10-19 09:12:44.158404719 -0500
+> +++ linux/mm/slab.c	2012-10-19 09:12:49.046488276 -0500
+> @@ -564,8 +564,6 @@ static struct cache_names __initdata cac
+>  #undef CACHE
+>  };
+>  
+> -static struct arraycache_init initarray_cache __initdata =
+> -    { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+>  static struct arraycache_init initarray_generic =
+>      { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+>  
+> @@ -1589,12 +1587,9 @@ static void setup_nodelists_pointer(stru
+>   */
+>  void __init kmem_cache_init(void)
+>  {
+> -	size_t left_over;
+>  	struct cache_sizes *sizes;
+>  	struct cache_names *names;
+>  	int i;
+> -	int order;
+> -	int node;
+>  
+>  	kmem_cache = &kmem_cache_boot;
+>  	setup_nodelists_pointer(kmem_cache);
+> @@ -1638,36 +1633,17 @@ void __init kmem_cache_init(void)
+>  	 * 6) Resize the head arrays of the kmalloc caches to their final sizes.
+>  	 */
+>  
+> -	node = numa_mem_id();
+> -
+>  	/* 1) create the kmem_cache */
+> -	INIT_LIST_HEAD(&slab_caches);
+> -	list_add(&kmem_cache->list, &slab_caches);
+> -	kmem_cache->colour_off = cache_line_size();
+> -	kmem_cache->array[smp_processor_id()] = &initarray_cache.cache;
+>  
+>  	/*
+>  	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+>  	 */
+> -	kmem_cache->size = offsetof(struct kmem_cache, array[nr_cpu_ids]) +
+> -				  nr_node_ids * sizeof(struct kmem_list3 *);
+> -	kmem_cache->object_size = kmem_cache->size;
+> -	kmem_cache->size = ALIGN(kmem_cache->object_size,
+> -					cache_line_size());
+> -	kmem_cache->reciprocal_buffer_size =
+> -		reciprocal_value(kmem_cache->size);
+> -
+> -	for (order = 0; order < MAX_ORDER; order++) {
+> -		cache_estimate(order, kmem_cache->size,
+> -			cache_line_size(), 0, &left_over, &kmem_cache->num);
+> -		if (kmem_cache->num)
+> -			break;
+> -	}
+> -	BUG_ON(!kmem_cache->num);
+> -	kmem_cache->gfporder = order;
+> -	kmem_cache->colour = left_over / kmem_cache->colour_off;
+> -	kmem_cache->slab_size = ALIGN(kmem_cache->num * sizeof(kmem_bufctl_t) +
+> -				      sizeof(struct slab), cache_line_size());
+> +	create_boot_cache(kmem_cache, "kmem_cache",
+> +		offsetof(struct kmem_cache, array[nr_cpu_ids]) +
+> +				  nr_node_ids * sizeof(struct kmem_list3 *),
+> +				  SLAB_HWCACHE_ALIGN);
+> +
+> +	slab_state = PARTIAL;
+>  
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/migrate.h        |   13 ++++++++-
- include/trace/events/migrate.h |   51 ++++++++++++++++++++++++++++++++++++++++
- mm/compaction.c                |    3 +-
- mm/memory-failure.c            |    3 +-
- mm/memory_hotplug.c            |    3 +-
- mm/mempolicy.c                 |    6 +++-
- mm/migrate.c                   |   10 ++++++-
- mm/page_alloc.c                |    3 +-
- 8 files changed, 82 insertions(+), 10 deletions(-)
- create mode 100644 include/trace/events/migrate.h
+With this, plus the statement in setup_cpu_cache, it is possible that we
+set the state to PARTIAL from two different locations. Although it
+wouldn't be the first instance of it, I can't say I am a big fan.
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index ce7e667..9d1c159 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -7,6 +7,15 @@
- 
- typedef struct page *new_page_t(struct page *, unsigned long private, int **);
- 
-+enum migrate_reason {
-+	MR_COMPACTION,
-+	MR_MEMORY_FAILURE,
-+	MR_MEMORY_HOTPLUG,
-+	MR_SYSCALL,		/* also applies to cpusets */
-+	MR_MEMPOLICY_MBIND,
-+	MR_CMA
-+};
-+
- #ifdef CONFIG_MIGRATION
- 
- extern void putback_lru_pages(struct list_head *l);
-@@ -14,7 +23,7 @@ extern int migrate_page(struct address_space *,
- 			struct page *, struct page *, enum migrate_mode);
- extern int migrate_pages(struct list_head *l, new_page_t x,
- 			unsigned long private, bool offlining,
--			enum migrate_mode mode);
-+			enum migrate_mode mode, int reason);
- extern int migrate_huge_page(struct page *, new_page_t x,
- 			unsigned long private, bool offlining,
- 			enum migrate_mode mode);
-@@ -35,7 +44,7 @@ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- static inline void putback_lru_pages(struct list_head *l) {}
- static inline int migrate_pages(struct list_head *l, new_page_t x,
- 		unsigned long private, bool offlining,
--		enum migrate_mode mode) { return -ENOSYS; }
-+		enum migrate_mode mode, int reason) { return -ENOSYS; }
- static inline int migrate_huge_page(struct page *page, new_page_t x,
- 		unsigned long private, bool offlining,
- 		enum migrate_mode mode) { return -ENOSYS; }
-diff --git a/include/trace/events/migrate.h b/include/trace/events/migrate.h
-new file mode 100644
-index 0000000..ec2a6cc
---- /dev/null
-+++ b/include/trace/events/migrate.h
-@@ -0,0 +1,51 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM migrate
-+
-+#if !defined(_TRACE_MIGRATE_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_MIGRATE_H
-+
-+#define MIGRATE_MODE						\
-+	{MIGRATE_ASYNC,		"MIGRATE_ASYNC"},		\
-+	{MIGRATE_SYNC_LIGHT,	"MIGRATE_SYNC_LIGHT"},		\
-+	{MIGRATE_SYNC,		"MIGRATE_SYNC"}		
-+
-+#define MIGRATE_REASON						\
-+	{MR_COMPACTION,		"compaction"},			\
-+	{MR_MEMORY_FAILURE,	"memory_failure"},		\
-+	{MR_MEMORY_HOTPLUG,	"memory_hotplug"},		\
-+	{MR_SYSCALL,		"syscall_or_cpuset"},		\
-+	{MR_MEMPOLICY_MBIND,	"mempolicy_mbind"},		\
-+	{MR_CMA,		"cma"}
-+
-+TRACE_EVENT(mm_migrate_pages,
-+
-+	TP_PROTO(unsigned long succeeded, unsigned long failed,
-+		 enum migrate_mode mode, int reason),
-+
-+	TP_ARGS(succeeded, failed, mode, reason),
-+
-+	TP_STRUCT__entry(
-+		__field(	unsigned long,		succeeded)
-+		__field(	unsigned long,		failed)
-+		__field(	enum migrate_mode,	mode)
-+		__field(	int,			reason)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->succeeded	= succeeded;
-+		__entry->failed		= failed;
-+		__entry->mode		= mode;
-+		__entry->reason		= reason;
-+	),
-+
-+	TP_printk("nr_succeeded=%lu nr_failed=%lu mode=%s reason=%s",
-+		__entry->succeeded,
-+		__entry->failed,
-+		__print_symbolic(__entry->mode, MIGRATE_MODE),
-+		__print_symbolic(__entry->reason, MIGRATE_REASON))
-+);
-+
-+#endif /* _TRACE_MIGRATE_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8c1a53a..11b455b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -797,7 +797,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		nr_migrate = cc->nr_migratepages;
- 		err = migrate_pages(&cc->migratepages, compaction_alloc,
- 				(unsigned long)cc, false,
--				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC);
-+				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
-+				MR_COMPACTION);
- 		update_nr_listpages(cc);
- 		nr_remaining = cc->nr_migratepages;
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index a6e2141..9d4489c 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1556,7 +1556,8 @@ int soft_offline_page(struct page *page, int flags)
- 					    page_is_file_cache(page));
- 		list_add(&page->lru, &pagelist);
- 		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
--							false, MIGRATE_SYNC);
-+							false, MIGRATE_SYNC,
-+							MR_MEMORY_FAILURE);
- 		if (ret) {
- 			putback_lru_pages(&pagelist);
- 			pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6a5b90d..b299e83 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -815,7 +815,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 		}
- 		/* this function returns # of failed pages */
- 		ret = migrate_pages(&source, hotremove_migrate_alloc, 0,
--							true, MIGRATE_SYNC);
-+							true, MIGRATE_SYNC,
-+							MR_MEMORY_HOTPLUG);
- 		if (ret)
- 			putback_lru_pages(&source);
- 	}
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 5cffcb6..bd4fc4c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -936,7 +936,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
- 
- 	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_node_page, dest,
--							false, MIGRATE_SYNC);
-+							false, MIGRATE_SYNC,
-+							MR_SYSCALL);
- 		if (err)
- 			putback_lru_pages(&pagelist);
- 	}
-@@ -1177,7 +1178,8 @@ static long do_mbind(unsigned long start, unsigned long len,
- 		if (!list_empty(&pagelist)) {
- 			nr_failed = migrate_pages(&pagelist, new_vma_page,
- 						(unsigned long)vma,
--						false, MIGRATE_SYNC);
-+						false, MIGRATE_SYNC,
-+						MR_MEMPOLICY_MBIND);
- 			if (nr_failed)
- 				putback_lru_pages(&pagelist);
- 		}
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 04687f6..27be9c9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -38,6 +38,9 @@
- 
- #include <asm/tlbflush.h>
- 
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/migrate.h>
-+
- #include "internal.h"
- 
- /*
-@@ -958,7 +961,7 @@ out:
-  */
- int migrate_pages(struct list_head *from,
- 		new_page_t get_new_page, unsigned long private, bool offlining,
--		enum migrate_mode mode)
-+		enum migrate_mode mode, int reason)
- {
- 	int retry = 1;
- 	int nr_failed = 0;
-@@ -1004,6 +1007,8 @@ out:
- 		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
- 	if (nr_failed)
- 		count_vm_events(PGMIGRATE_FAIL, nr_failed);
-+	trace_mm_migrate_pages(nr_succeeded, nr_failed, mode, reason);
-+
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
- 
-@@ -1145,7 +1150,8 @@ set_status:
- 	err = 0;
- 	if (!list_empty(&pagelist)) {
- 		err = migrate_pages(&pagelist, new_page_node,
--				(unsigned long)pm, 0, MIGRATE_SYNC);
-+				(unsigned long)pm, 0, MIGRATE_SYNC,
-+				MR_SYSCALL);
- 		if (err)
- 			putback_lru_pages(&pagelist);
- 	}
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 55df691..3d361f6 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5677,7 +5677,8 @@ static int __alloc_contig_migrate_range(unsigned long start, unsigned long end)
- 
- 		ret = migrate_pages(&cc.migratepages,
- 				    __alloc_contig_migrate_alloc,
--				    0, false, MIGRATE_SYNC);
-+				    0, false, MIGRATE_SYNC,
-+				    MR_CMA);
- 	}
- 
- 	putback_lru_pages(&cc.migratepages);
--- 
-1.7.7
+Is there any reason why you need to initialize the state to PARTIAL from
+two different locations?
+
+I would just just get rid of the second and keep this one, which is
+called early enough and unconditionally.
+
+> +	} else
+> +	if (slab_state == PARTIAL) {
+> +		/*
+
+} else if ...
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
