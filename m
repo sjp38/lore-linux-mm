@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 3DD8C6B007D
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 17:10:23 -0400 (EDT)
-Date: Mon, 22 Oct 2012 14:10:21 -0700
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id A37416B0083
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 17:39:41 -0400 (EDT)
+Date: Mon, 22 Oct 2012 14:39:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 1/2]swap: add a simple buddy allocator
-Message-Id: <20121022141021.40cac432.akpm@linux-foundation.org>
-In-Reply-To: <20121022023051.GA20255@kernel.org>
-References: <20121022023051.GA20255@kernel.org>
+Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB
+ v6
+Message-Id: <20121022143940.6bf8103f.akpm@linux-foundation.org>
+In-Reply-To: <20121022132733.GQ16230@one.firstfloor.org>
+References: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
+	<CAHO5Pa0W-WGBaPvzdRJxYPdrg-K9guChswo3KJheK4BaRzsRwQ@mail.gmail.com>
+	<20121022132733.GQ16230@one.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Hillf Danton <dhillf@gmail.com>
 
-On Mon, 22 Oct 2012 10:30:51 +0800
-Shaohua Li <shli@kernel.org> wrote:
+On Mon, 22 Oct 2012 15:27:33 +0200
+Andi Kleen <andi@firstfloor.org> wrote:
 
-> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
-> CPU time (when cluster is hard to find), which becomes a bottleneck.
-> scan_swap_map() scans a byte array to search a 256 page cluster, which is very
-> slow.
-> 
-> Here I introduced a simple buddy allocator. Since we only care about 256 pages
-> cluster, we can just use a counter to implement the buddy allocator. Every 256
-> pages use one int to store the counter, so searching cluster is very efficient.
-> With this, scap_swap_map() overhead disappears.
-> 
-> This might help low end SD card swap too. Because if the cluster is aligned, SD
-> firmware can do flash erase more efficiently.
-> 
-> The downside is the cluster must be aligned to 256 pages, which will reduce the
-> chance to find a cluster.
-> 
+> BTW seriously MAP_UNINITIALIZED? Who came up with that? 
+> MAP_COMPLETELY_INSECURE or MAP_INSANE would have been more appropiate.
 
-hm.  How serious is this downside?
+heh.  It's a NOMMU-only thing.
 
->
-> ...
->
-> @@ -2020,12 +2052,19 @@ SYSCALL_DEFINE2(swapon, const char __use
->  		goto bad_swap;
->  	}
->  
-> +	swap_cluster_count = vzalloc(DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER) *
-> +					sizeof(int));
 
-[ Actually sizeof(unsigned int).  Or, probably safer, sizeof(*swap_cluster_count)]
+config MMAP_ALLOW_UNINITIALIZED
+	bool "Allow mmapped anonymous memory to be uninitialized"
+	depends on EXPERT && !MMU
+	default n
+	help
+	  Normally, and according to the Linux spec, anonymous memory obtained
+	  from mmap() has it's contents cleared before it is passed to
+	  userspace.  Enabling this config option allows you to request that
+	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
+	  providing a huge performance boost.  If this option is not enabled,
+	  then the flag will be ignored.
 
-How large is this allocation?  swap-size-in-bytes/256k, methinks.  So
-64kbytes for a 16G swap partition?  That sounds acceptable.  Something
-like lib/flex_array.c could be used here perhaps, although that would
-involve memory allocations at awkward times.
+	  This is taken advantage of by uClibc's malloc(), and also by
+	  ELF-FDPIC binfmt's brk and stack allocator.
 
-> +	if (!swap_cluster_count) {
-> +		error = -ENOMEM;
-> +		goto bad_swap;
-> +	}
+	  Because of the obvious security issues, this option should only be
+	  enabled on embedded devices where you control what is run in
+	  userspace.  Since that isn't generally a problem on no-MMU systems,
+	  it is normally safe to say Y here.
 
-I shall await Hugh review on this patchset ;)
+	  See Documentation/nommu-mmap.txt for more information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
