@@ -1,136 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 965436B0062
-	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 18:58:57 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id k6so1536308lbo.14
-        for <linux-mm@kvack.org>; Sun, 21 Oct 2012 15:58:55 -0700 (PDT)
-Date: Mon, 22 Oct 2012 04:58:50 +0600
-From: Mike Kazantsev <mk.fraggod@gmail.com>
-Subject: Re: PROBLEM: Memory leak (at least with SLUB) from "secpath_dup"
- (xfrm) in 3.5+ kernels
-Message-ID: <20121022045850.788df346@sacrilege>
-In-Reply-To: <1350856053.8609.217.camel@edumazet-glaptop>
-References: <20121019205055.2b258d09@sacrilege>
-	<20121019233632.26cf96d8@sacrilege>
-	<CAHC9VhQ+gkAaRmwDWqzQd1U-hwH__5yxrxWa5_=koz_XTSXpjQ@mail.gmail.com>
-	<20121020204958.4bc8e293@sacrilege>
-	<20121021044540.12e8f4b7@sacrilege>
-	<20121021062402.7c4c4cb8@sacrilege>
-	<1350826183.13333.2243.camel@edumazet-glaptop>
-	<20121021195701.7a5872e7@sacrilege>
-	<20121022004332.7e3f3f29@sacrilege>
-	<20121022015134.4de457b9@sacrilege>
-	<1350856053.8609.217.camel@edumazet-glaptop>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/KJEwoBm/Z5od+QgN2ZibF=E"; protocol="application/pgp-signature"
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id C23FE6B0062
+	for <linux-mm@kvack.org>; Sun, 21 Oct 2012 21:27:21 -0400 (EDT)
+Date: Mon, 22 Oct 2012 12:25:55 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi
+ variable
+Message-ID: <20121022012555.GB2739@dastard>
+References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
+ <20120920084422.GA5697@localhost>
+ <20120925013658.GC23520@dastard>
+ <CAKYAXd975U_n2SSFXz0VfEs6GrVCoc2S=3kQbfw_2uOtGXbGxA@mail.gmail.com>
+ <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Paul Moore <paul@paul-moore.com>, netdev@vger.kernel.org, linux-mm@kvack.org
+To: Namjae Jeon <linkinjeon@gmail.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
---Sig_/KJEwoBm/Z5od+QgN2ZibF=E
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Fri, Oct 19, 2012 at 04:51:05PM +0900, Namjae Jeon wrote:
+> Hi Dave.
+> 
+> Test Procedure:
+> 
+> 1) Local USB disk WRITE speed on NFS server is ~25 MB/s
+> 
+> 2) Run WRITE test(create 1 GB file) on NFS Client with default
+> writeback settings on NFS Server. By default
+> bdi->dirty_background_bytes = 0, that means no change in default
+> writeback behaviour
+> 
+> 3) Next we change bdi->dirty_background_bytes = 25 MB (almost equal to
+> local USB disk write speed on NFS Server)
+> *** only on NFS Server - not on NFS Client ***
 
-On Sun, 21 Oct 2012 23:47:33 +0200
-Eric Dumazet <eric.dumazet@gmail.com> wrote:
+Ok, so the results look good, but it's not really addressing what I
+was asking, though.  A typical desktop PC has a disk that can do
+100MB/s and GbE, so I was expecting a test that showed throughput
+close to GbE maximums at least (ie. around that 100MB/s). I have 3
+year old, low end, low power hardware (atom) that hanles twice the
+throughput you are testing here, and most current consumer NAS
+devices are more powerful than this. IOWs, I think the rates you are
+testing at are probably too low even for the consumer NAS market to
+consider relevant...
 
->=20
-> OK, so  some layer seems to have a bug if the skb->head is exactly
-> allocated, instead of having extra tailroom (because of kmalloc-powerof2
-> alignment)
->=20
-> Or some layer overwrites past skb->cb[] array
->=20
-> If you try to move sp field in sk_buff, does it change something ?
->=20
-...
->=20
-> Also try to increase tailroom in __netdev_alloc_skb()
->=20
+> ----------------------------------------------------------------------------------
+> Multiple NFS Client test:
+> -----------------------------------------------------------------------------------
+> Sorry - We could not arrange multiple PCs to verify this.
+> So, we tried 1 NFS Server + 2 NFS Clients using 3 target boards:
+> ARM Target + 512 MB RAM + ethernet - 100 Mbits/s, create 1 GB File
 
-Applied both patches, but unfortunately, the problem seem to be still
-there.
+But this really doesn't tells us anything - it's still only 100Mb/s,
+which we'd expect is already getting very close to line rate even
+with low powered client hardware.
 
-This time the leaking objects seem to show up as kmalloc-64.
+What I'm concerned about the NFS server "sweet spot" - a $10k server
+that exports 20TB of storage and can sustain close to a GB/s of NFS
+traffic over a single 10GbE link with tens to hundreds of clients.
+100MB/s and 10 clients is about the minimum needed to be able to
+extrapolate a litle and make an informed guess of how it will scale
+up....
 
-  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME                =
-  =20
-266760 265333  99%    0.30K  10260       26     82080K kmemleak_object
-157440 157440 100%    0.06K   2460       64      9840K kmalloc-64
- 94458  94458 100%    0.10K   2422       39      9688K buffer_head
- 27573  27573 100%    0.19K   1313       21      5252K dentry
+> > 1. what's the comparison in performance to typical NFS
+> > server writeback parameter tuning? i.e. dirty_background_ratio=5,
+> > dirty_ratio=10, dirty_expire_centiseconds=1000,
+> > dirty_writeback_centisecs=1? i.e. does this give change give any
+> > benefit over the current common practice for configuring NFS
+> > servers?
+> 
+> Agreed, that above improvement in write speed can be achieved by
+> tuning above write-back parameters.
+> But if we change these settings, it will change write-back behavior
+> system wide.
+> On the other hand, if we change proposed per bdi setting,
+> bdi->dirty_background_bytes it will change write-back behavior for the
+> block device exported on NFS server.
 
+I already know what the difference between global vs per-bdi tuning
+means.  What I want to know is how your results compare
+*numerically* to just having a tweaked global setting on a vanilla
+kernel.  i.e. is there really any performance benefit to per-bdi
+configuration that cannot be gained by existing methods?
 
-kmemleak traces:
+> > 2. what happens when you have 10 clients all writing to the server
+> > at once? Or a 100? NFS servers rarely have a single writer to a
+> > single file at a time, so what impact does this change have on
+> > multiple concurrent file write performance from multiple clients
+> 
+> Sorry, we could not arrange more than 2 PCs for verifying this.
 
-unreferenced object 0xffff88002f38ec80 (size 64):
-  comm "softirq", pid 0, jiffies 4294900815 (age 142.346s)
-  hex dump (first 32 bytes):
-    01 00 00 00 01 00 00 00 00 08 03 2e 00 88 ff ff  ................
-    2b 6f a0 ca 28 b2 4a f1 0a 74 33 74 5a 76 18 cb  +o..(.J..t3tZv..
-  backtrace:
-    [<ffffffff814da4e3>] kmemleak_alloc+0x21/0x3e
-    [<ffffffff810dc1f7>] kmem_cache_alloc+0xa5/0xb1
-    [<ffffffff81487bf5>] secpath_dup+0x1b/0x5a
-    [<ffffffff81487df9>] xfrm_input+0x64/0x484
-    [<ffffffff8147eec3>] xfrm4_rcv_encap+0x17/0x19
-    [<ffffffff8147eee4>] xfrm4_rcv+0x1f/0x21
-    [<ffffffff8143b4e4>] ip_local_deliver_finish+0x170/0x22a
-    [<ffffffff8143b6d6>] ip_local_deliver+0x46/0x78
-    [<ffffffff8143b35d>] ip_rcv_finish+0x295/0x2ac
-    [<ffffffff8143b936>] ip_rcv+0x22e/0x288
-    [<ffffffff8140a65d>] __netif_receive_skb+0x5ba/0x65a
-    [<ffffffff8140a898>] netif_receive_skb+0x47/0x78
-    [<ffffffff8140b4c3>] napi_skb_finish+0x21/0x54
-    [<ffffffff8140b5f3>] napi_gro_receive+0xfd/0x10a
-    [<ffffffff81372b47>] rtl8169_poll+0x326/0x4fc
-    [<ffffffff8140ad48>] net_rx_action+0x9f/0x188
+Really? Well, perhaps there's some tools that might be useful for
+you here:
 
-unreferenced object 0xffff880029b47580 (size 64):
-  comm "softirq", pid 0, jiffies 4294926900 (age 143.946s)
-  hex dump (first 32 bytes):
-    01 00 00 00 01 00 00 00 00 88 07 2e 00 88 ff ff  ................
-    00 00 00 00 2f 6f 72 67 2f 66 72 65 65 64 65 73  ..../org/freedes
-  backtrace:
-    [<ffffffff814da4e3>] kmemleak_alloc+0x21/0x3e
-    [<ffffffff810dc1f7>] kmem_cache_alloc+0xa5/0xb1
-    [<ffffffff81487bf5>] secpath_dup+0x1b/0x5a
-    [<ffffffff81487df9>] xfrm_input+0x64/0x484
-    [<ffffffff814bbd74>] xfrm6_rcv_spi+0x19/0x1b
-    [<ffffffff814bbd96>] xfrm6_rcv+0x20/0x22
-    [<ffffffff814960c7>] ip6_input_finish+0x203/0x31b
-    [<ffffffff81496546>] ip6_input+0x1e/0x50
-    [<ffffffff81496244>] ip6_rcv_finish+0x65/0x69
-    [<ffffffff814964c7>] ipv6_rcv+0x27f/0x2e0
-    [<ffffffff8140a65d>] __netif_receive_skb+0x5ba/0x65a
-    [<ffffffff8140a898>] netif_receive_skb+0x47/0x78
-    [<ffffffff8140b4c3>] napi_skb_finish+0x21/0x54
-    [<ffffffff8140b5f3>] napi_gro_receive+0xfd/0x10a
-    [<ffffffff81372b47>] rtl8169_poll+0x326/0x4fc
-    [<ffffffff8140ad48>] net_rx_action+0x9f/0x188
+http://oss.sgi.com/projects/nfs/testtools/
 
-I've grepped for "/org/free" specifically and sure enough, same scraps
-of data seem to be in some of the (varied) dumps there.
+"Weber
 
+Test load generator for NFS. Uses multiple threads, multiple
+sockets and multiple IP addresses to simulate loads from many
+machines, thus enabling testing of NFS server setups with larger
+client counts than can be tested with physical infrastructure (or
+Virtual Machine clients). Has been useful in automated NFS testing
+and as a pinpoint NFS load generator tool for performance
+development."
 
---=20
-Mike Kazantsev // fraggod.net
+> > 3. Following on from the multiple client test, what difference does it
+> > make to file fragmentation rates? Writing more frequently means
+> > smaller allocations and writes, and that tends to lead to higher
+> > fragmentation rates, especially when multiple files are being
+> > written concurrently. Higher fragmentation also means lower
+> > performance over time as fragmentation accelerates filesystem aging
+> > effects on performance.  IOWs, it may be faster when new, but it
+> > will be slower 3 months down the track and that's a bad tradeoff to
+> > make.
+> 
+> We agree that there could be bit more framentation. But as you know,
+> we are not changing writeback settings at NFS clients.
+> So, write-back behavior on NFS client will not change - IO requests
+> will be buffered at NFS client as per existing write-back behavior.
 
---Sig_/KJEwoBm/Z5od+QgN2ZibF=E
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+I think you misunderstand - writeback settings on the server greatly
+impact the way the server writes data and therefore the way files
+are fragmented. It has nothing to do with client side tuning.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.19 (GNU/Linux)
+Effectively, what you are presenting is best case numbers - empty
+filesystem, single client, streaming write, no fragmentation, no
+allocation contention, no competing IO load that causes write
+latency occurring.  Testing with lots of clients introduces all of
+these things, and that will greatly impact server behaviour.
+Aggregation in memory isolates a lot of this variation from
+writeback and hence smooths out a lot of the variability that leads
+to fragmentation, seeks, latency spikes and preamture filesystem
+aging.
 
-iEYEARECAAYFAlCEfioACgkQASbOZpzyXnEqogCbBQd43a//LI/p2waYJ4GCCUFr
-anAAoLRDzyOqgLtjQgKyrr4O9SMA35PN
-=PXfG
------END PGP SIGNATURE-----
+That is, if you set a 100MB dirty_bytes limit on a bdi it will give
+really good buffering for a single client doing a streaming write.
+If you've got 10 clients, then assuming fair distribution of server
+resources, then that is 10MB per client per writeback trigger.
+That's line ball as to whether it will cause fragmentation severe
+enough to impact server throughput. If you've got 100 clients,then
+that's only 1MB per client per writeback trigger, and that's
+definitely too low to maintain decent writeback behaviour.  i.e.
+you're now writing 100 files 1MB at a time, and that tends towards
+random IO patterns rather than sequential IO patterns. Seek time
+dertermines throughput, not IO bandwidth limits.
 
---Sig_/KJEwoBm/Z5od+QgN2ZibF=E--
+IOWs, as the client count goes up, the writeback patterns will tends
+more towards random IO than sequential IO unless the amount of
+buffering allowed before writeback triggers also grows. That's
+important, because random IO is much slower than sequential IO.
+What I'd like to have is some insight into whether this patch
+changes that inflection point, for better or for worse. The only way
+to find that is to run multi-client testing....
+
+> > 5. Are the improvements consistent across different filesystem
+> > types?  We've had writeback changes in the past cause improvements
+> > on one filesystem but significant regressions on others.  I'd
+> > suggest that you need to present results for ext4, XFS and btrfs so
+> > that we have a decent idea of what we can expect from the change to
+> > the generic code.
+> 
+> As mentioned in the above Table 1 & 2, performance gain in WRITE speed
+> is different on different file systems i.e. different on NFS client
+> over XFS & EXT4.
+> We also tried BTRFS over NFS, but we could not see any WRITE speed
+> performance gain/degrade on BTRFS over NFS, so we are not posting
+> BTRFS results here.
+
+You should post btrfs numbers even if they show no change. It wasn't
+until I got this far that I even realised that you'd even tested
+BTRFS. I don't know what to make of this, because I don't know what
+the throughput rates compared to XFS and EXT4 are....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
