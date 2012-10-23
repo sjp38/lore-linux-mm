@@ -1,36 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 7A0066B0070
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 18:42:20 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3328766pad.14
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 15:42:19 -0700 (PDT)
-Date: Tue, 23 Oct 2012 15:42:17 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Major performance regressions in 3.7rc1/2
-In-Reply-To: <CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1210231541350.1221@chino.kir.corp.google.com>
-References: <CAGPN=9Qx1JAr6CGO-JfoR2ksTJG_CLLZY_oBA_TFMzA_OSfiFg@mail.gmail.com> <20121022173315.7b0da762@ilfaris> <20121022214502.0fde3adc@ilfaris> <20121022170452.cc8cc629.akpm@linux-foundation.org> <alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
- <20121023110434.021d100b@ilfaris> <CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 8EBF16B0070
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 18:47:10 -0400 (EDT)
+Date: Wed, 24 Oct 2012 09:47:06 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+Message-ID: <20121023224706.GR4291@dastard>
+References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anca Emanuel <anca.emanuel@gmail.com>
-Cc: Julian Wollrath <jwollrath@web.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Patrik Kullman <patrik.kullman@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ying Zhu <casualfisher@gmail.com>
+Cc: akpm@linux-foundation.org, fengguang.wu@intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 23 Oct 2012, Anca Emanuel wrote:
+On Tue, Oct 23, 2012 at 08:46:51PM +0800, Ying Zhu wrote:
+> Hi,
+>   Recently we ran into the bug that an opened file's ra_pages does not
+> synchronize with it's backing device's when the latter is changed
+> with blockdev --setra, the application needs to reopen the file
+> to know the change,
 
-> I have the same problem.
-> Reverting
-> https://github.com/torvalds/linux/commit/957f822a0ab95e88b146638bad6209bbc315bedd
-> solves the problem for me.
-> 
+or simply call fadvise(fd, POSIX_FADV_NORMAL) to reset the readhead
+window to the (new) bdi default.
 
-If you don't revert anything and do
+> which is inappropriate under our circumstances.
 
-	echo 0 > /proc/sys/vm/zone_reclaim_mode
+Which are? We don't know your circumstances, so you need to tell us
+why you need this and why existing methods of handling such changes
+are insufficient...
 
-after boot, does this also fix the issue?
+Optimal readahead windows tend to be a physical property of the
+storage and that does not tend to change dynamically. Hence block
+device readahead should only need to be set up once, and generally
+that can be done before the filesystem is mounted and files are
+opened (e.g. via udev rules). Hence you need to explain why you need
+to change the default block device readahead on the fly, and why
+fadvise(POSIX_FADV_NORMAL) is "inappropriate" to set readahead
+windows to the new defaults.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
