@@ -1,58 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id C6EB76B0069
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:11:33 -0400 (EDT)
-Date: Tue, 23 Oct 2012 11:11:25 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121023101125.GA20210@mudshark.cambridge.arm.com>
-References: <1349197151-19645-1-git-send-email-will.deacon@arm.com>
- <20121002150104.da57fa94.akpm@linux-foundation.org>
- <20121017130125.GH5973@mudshark.cambridge.arm.com>
- <20121017.112620.1865348978594874782.davem@davemloft.net>
- <20121017155401.GJ5973@mudshark.cambridge.arm.com>
- <20121018150502.3dee7899.akpm@linux-foundation.org>
- <20121019091016.GA4582@mudshark.cambridge.arm.com>
- <20121019114955.3a0c2b66.akpm@linux-foundation.org>
- <20121022103503.GA26619@mudshark.cambridge.arm.com>
- <20121022111843.4406850d.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 8AFB56B0069
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:15:03 -0400 (EDT)
+Date: Tue, 23 Oct 2012 12:15:00 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: process hangs on do_exit when oom happens
+Message-ID: <20121023101500.GE15397@dhcp22.suse.cz>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+ <20121019160425.GA10175@dhcp22.suse.cz>
+ <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+ <CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
+ <CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
+ <20121023095028.GD15397@dhcp22.suse.cz>
+ <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121022111843.4406850d.akpm@linux-foundation.org>
+In-Reply-To: <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: Qiang Gao <gaoqiangscut@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Oct 22, 2012 at 07:18:43PM +0100, Andrew Morton wrote:
-> On Mon, 22 Oct 2012 11:35:03 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> 
-> > On Fri, Oct 19, 2012 at 07:49:55PM +0100, Andrew Morton wrote:
-> > > Ho hum.  I'll drop
-> > > mm-thp-set-the-accessed-flag-for-old-pages-on-access-fault.patch and
-> > > shall assume that you'll sort things out at the appropriate time.
-> > 
-> > Happy to sort it out once I work out what's going wrong!
-> 
-> The patch "ARM: mm: Transparent huge page support for LPAE systems" is
-> not present in linux-next, so this patch ("mm: thp: Set the accessed
-> flag for old pages on access fault") will not compile?
+On Tue 23-10-12 18:10:33, Qiang Gao wrote:
+> On Tue, Oct 23, 2012 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Tue 23-10-12 15:18:48, Qiang Gao wrote:
+> >> This process was moved to RT-priority queue when global oom-killer
+> >> happened to boost the recovery of the system..
+> >
+> > Who did that? oom killer doesn't boost the priority (scheduling class)
+> > AFAIK.
+> >
+> >> but it wasn't get properily dealt with. I still have no idea why where
+> >> the problem is ..
+> >
+> > Well your configuration says that there is no runtime reserved for the
+> > group.
+> > Please refer to Documentation/scheduler/sched-rt-group.txt for more
+> > information.
+> >
+[...]
+> maybe this is not a upstream-kernel bug. the centos/redhat kernel
+> would boost the process to RT prio when the process was selected
+> by oom-killer.
 
-This patch ("mm: thp: Set the accessed flag for old pages on access fault")
-doesn't depend on "ARM: mm: Transparent huge page support for LPAE systems"
-because currently transparent huge pages cannot be enabled for ARM in
-mainline (or linux-next). update_mmu_cache_pmd is only called from
-mm/huge_memory.c, which depends on CONFIG_TRANSPARENT_HUGEPAGE=y.
-
-As for the new huge_pmd_set_accessed function... there's a similar situation
-for the do_huge_pmd_wp_page function: it's called from mm/memory.c but is
-only defined in mm/huge_memory.c. Looks like the compiler optimises those
-calls away because pmd_trans_huge and friends constant-fold to 0.
-
-Will
+This still looks like your cpu controller is misconfigured. Even if the
+task is promoted to be realtime.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
