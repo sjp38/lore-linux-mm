@@ -1,57 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3926B0072
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 17:56:37 -0400 (EDT)
-Date: Tue, 23 Oct 2012 14:56:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-Id: <20121023145636.0a9b9a3e.akpm@linux-foundation.org>
-In-Reply-To: <20121023102153.GD3064@quack.suse.cz>
-References: <1350918406-11369-1-git-send-email-jack@suse.cz>
-	<20121022123852.a4bd5f2a.akpm@linux-foundation.org>
-	<20121023102153.GD3064@quack.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 7A0066B0070
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 18:42:20 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3328766pad.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 15:42:19 -0700 (PDT)
+Date: Tue, 23 Oct 2012 15:42:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Major performance regressions in 3.7rc1/2
+In-Reply-To: <CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210231541350.1221@chino.kir.corp.google.com>
+References: <CAGPN=9Qx1JAr6CGO-JfoR2ksTJG_CLLZY_oBA_TFMzA_OSfiFg@mail.gmail.com> <20121022173315.7b0da762@ilfaris> <20121022214502.0fde3adc@ilfaris> <20121022170452.cc8cc629.akpm@linux-foundation.org> <alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
+ <20121023110434.021d100b@ilfaris> <CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Anca Emanuel <anca.emanuel@gmail.com>
+Cc: Julian Wollrath <jwollrath@web.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Patrik Kullman <patrik.kullman@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, 23 Oct 2012 12:21:53 +0200
-Jan Kara <jack@suse.cz> wrote:
+On Tue, 23 Oct 2012, Anca Emanuel wrote:
 
-> > That seems a fairly serious problem.  To which kernel version(s) should
-> > we apply the fix?
->   Well, XFS will crash starting from 2.6.36 kernel where the assertion was
-> added. Previously XFS just silently added buffers (as other filesystems do
-> it) and wrote / redirtied the page (unnecessarily). So looking into
-> maintained -stable branches I think pushing the patch to -stable from 3.0
-> on should be enough.
+> I have the same problem.
+> Reverting
+> https://github.com/torvalds/linux/commit/957f822a0ab95e88b146638bad6209bbc315bedd
+> solves the problem for me.
+> 
 
-OK, thanks, I made it so.
+If you don't revert anything and do
 
-> > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > 
-> > It's a bit surprising that none of the added comments mention the s390
-> > pte-dirtying oddity.  I don't see an obvious place to mention this, but
-> > I for one didn't know about this and it would be good if we could
-> > capture the info _somewhere_?
->   As Hugh says, the comment before page_test_and_clear_dirty() is somewhat
-> updated. But do you mean recording somewhere the catch that s390 HW dirty
-> bit gets set also whenever we write to a page from kernel?
+	echo 0 > /proc/sys/vm/zone_reclaim_mode
 
-Yes, this.  It's surprising behaviour which we may trip over again, so
-how do we inform developers about it?
-
-> I guess we could
-> add that also to the comment before page_test_and_clear_dirty() in
-> page_remove_rmap() and also before definition of
-> page_test_and_clear_dirty(). So most people that will add / remove these
-> calls will be warned. OK?
-
-Sounds good, thanks.
+after boot, does this also fix the issue?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
