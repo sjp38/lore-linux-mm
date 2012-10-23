@@ -1,374 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id D50856B007B
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:25:22 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 325996B0080
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:25:23 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH v2 09/12] memory-hotplug: remove page table of x86_64 architecture
-Date: Tue, 23 Oct 2012 18:30:47 +0800
-Message-Id: <1350988250-31294-10-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v2 12/12] memory-hotplug: free node_data when a node is offlined
+Date: Tue, 23 Oct 2012 18:30:50 +0800
+Message-Id: <1350988250-31294-13-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1350988250-31294-1-git-send-email-wency@cn.fujitsu.com>
 References: <1350988250-31294-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
-Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>
+Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-For hot removing memory, we sholud remove page table about the memory.
-So the patch searches a page table about the removed memory, and clear
-page table.
+We call hotadd_new_pgdat() to allocate memory to store node_data. So we
+should free it when removing a node.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
 CC: Len Brown <len.brown@intel.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
 CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 ---
- arch/x86/include/asm/pgtable_types.h |    1 +
- arch/x86/mm/init_64.c                |  223 ++++++++++++++++++++++++++++++++++
- arch/x86/mm/pageattr.c               |   47 ++++----
- 3 files changed, 249 insertions(+), 22 deletions(-)
+ mm/memory_hotplug.c |   20 +++++++++++++++++++-
+ 1 files changed, 19 insertions(+), 1 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index ec8a1fc..fb0c24d 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -332,6 +332,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
-  * as a pte too.
-  */
- extern pte_t *lookup_address(unsigned long address, unsigned int *level);
-+extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
- 
- #endif	/* !__ASSEMBLY__ */
- 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 73b1b6a..4809a9f 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -675,6 +675,227 @@ int arch_add_memory(int nid, u64 start, u64 size)
- }
- EXPORT_SYMBOL_GPL(arch_add_memory);
- 
-+static inline void free_pagetable(struct page *page)
-+{
-+	struct zone *zone;
-+	bool bootmem = false;
-+
-+	/* bootmem page has reserved flag */
-+	if (PageReserved(page)) {
-+		__ClearPageReserved(page);
-+		bootmem = true;
-+	}
-+
-+	__free_page(page);
-+
-+	if (bootmem) {
-+		zone = page_zone(page);
-+		zone_span_writelock(zone);
-+		zone->present_pages++;
-+		zone_span_writeunlock(zone);
-+		totalram_pages++;
-+	}
-+}
-+
-+static void free_pte_table(pte_t *pte_start, pmd_t *pmd)
-+{
-+	pte_t *pte;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		pte = pte_start + i;
-+		if (pte_val(*pte))
-+			return;
-+	}
-+
-+	/* free a pte talbe */
-+	free_pagetable(pmd_page(*pmd));
-+	pmd_clear(pmd);
-+}
-+
-+static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
-+{
-+	pmd_t *pmd;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd = pmd_start + i;
-+		if (pmd_val(*pmd))
-+			return;
-+	}
-+
-+	/* free a pmd talbe */
-+	free_pagetable(pud_page(*pud));
-+	pud_clear(pud);
-+}
-+
-+static void free_pud_table(pud_t *pud_start, pgd_t *pgd)
-+{
-+	pud_t *pud;
-+	int i;
-+
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		pud = pud_start + i;
-+		if (pud_val(*pud))
-+			return;
-+	}
-+
-+	/* free a pud table */
-+	free_pagetable(pgd_page(*pgd));
-+	pgd_clear(pgd);
-+}
-+
-+static void __meminit
-+phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned pages = 0;
-+	int i = pte_index(addr);
-+
-+	pte_t *pte = pte_page + pte_index(addr);
-+
-+	for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
-+
-+		if (addr >= end)
-+			break;
-+
-+		if (!pte_present(*pte))
-+			continue;
-+
-+		pages++;
-+		set_pte(pte, __pte(0));
-+	}
-+
-+	update_page_count(PG_LEVEL_4K, -pages);
-+}
-+
-+static void __meminit
-+phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pmd_index(addr);
-+
-+	for (; i < PTRS_PER_PMD && addr < end; i++, addr = next) {
-+		unsigned long pte_phys;
-+		pmd_t *pmd = pmd_page + pmd_index(addr);
-+		pte_t *pte;
-+
-+		next = pmd_addr_end(addr, end);
-+
-+		if (!pmd_present(*pmd))
-+			continue;
-+
-+		if (pmd_large(*pmd)) {
-+			if (IS_ALIGNED(addr, PMD_SIZE) &&
-+			    IS_ALIGNED(next, PMD_SIZE)) {
-+				set_pmd(pmd, __pmd(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 2M page, but we need to remove part of them,
-+			 * so split 2M page to 4K page.
-+			 */
-+			pte = alloc_low_page(&pte_phys);
-+			BUG_ON(!pte);
-+			__split_large_page((pte_t *)pmd,
-+					   (unsigned long)__va(addr), pte);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+
-+			/* Do a global flush tlb after splitting a large page */
-+			flush_tlb_all();
-+		}
-+
-+		spin_lock(&init_mm.page_table_lock);
-+		pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
-+		phys_pte_remove(pte, addr, next);
-+		free_pte_table(pte, pmd);
-+		unmap_low_page(pte);
-+		spin_unlock(&init_mm.page_table_lock);
-+	}
-+	update_page_count(PG_LEVEL_2M, -pages);
-+}
-+
-+static void __meminit
-+phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
-+{
-+	unsigned long pages = 0, next;
-+	int i = pud_index(addr);
-+
-+	for (; i < PTRS_PER_PUD && addr < end; i++, addr = next) {
-+		unsigned long pmd_phys;
-+		pud_t *pud = pud_page + pud_index(addr);
-+		pmd_t *pmd;
-+
-+		next = pud_addr_end(addr, end);
-+
-+		if (!pud_present(*pud))
-+			continue;
-+
-+		if (pud_large(*pud)) {
-+			if (IS_ALIGNED(addr, PUD_SIZE) &&
-+			    IS_ALIGNED(next, PUD_SIZE)) {
-+				set_pud(pud, __pud(0));
-+				pages++;
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 1G page, but we need to remove part of them,
-+			 * so split 1G page to 2M page.
-+			 */
-+			pmd = alloc_low_page(&pmd_phys);
-+			BUG_ON(!pmd);
-+			__split_large_page((pte_t *)pud,
-+					   (unsigned long)__va(addr),
-+					   (pte_t *)pmd);
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pud_populate(&init_mm, pud, __va(pmd_phys));
-+			spin_unlock(&init_mm.page_table_lock);
-+
-+			/* Do a global flush tlb after splitting a large page */
-+			flush_tlb_all();
-+		}
-+
-+		pmd = map_low_page((pmd_t *)pud_page_vaddr(*pud));
-+		phys_pmd_remove(pmd, addr, next);
-+		free_pmd_table(pmd, pud);
-+		unmap_low_page(pmd);
-+	}
-+
-+	update_page_count(PG_LEVEL_1G, -pages);
-+}
-+
-+void __meminit
-+kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-+{
-+	unsigned long next;
-+
-+	start = (unsigned long)__va(start);
-+	end = (unsigned long)__va(end);
-+
-+	for (; start < end; start = next) {
-+		pgd_t *pgd = pgd_offset_k(start);
-+		pud_t *pud;
-+
-+		next = pgd_addr_end(start, end);
-+
-+		if (!pgd_present(*pgd))
-+			continue;
-+
-+		pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
-+		phys_pud_remove(pud, __pa(start), __pa(next));
-+		free_pud_table(pud, pgd);
-+		unmap_low_page(pud);
-+	}
-+
-+	flush_tlb_all();
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- int __ref arch_remove_memory(u64 start, u64 size)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b1fe41d..6b4cd53 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1320,9 +1320,12 @@ static int check_cpu_on_node(void *data)
+ /* offline the node if all memory sections of this node are removed */
+ static void try_offline_node(int nid)
  {
-@@ -687,6 +908,8 @@ int __ref arch_remove_memory(u64 start, u64 size)
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	WARN_ON_ONCE(ret);
++	pg_data_t *pgdat = NODE_DATA(nid);
+ 	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+-	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
++	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+ 	unsigned long pfn;
++	struct page *pgdat_page = virt_to_page(pgdat);
++	int i;
  
-+	kernel_physical_mapping_remove(start, start + size);
-+
- 	return ret;
- }
- #endif
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index a718e0d..7dcb6f9 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -501,21 +501,13 @@ out_unlock:
- 	return do_split;
- }
- 
--static int split_large_page(pte_t *kpte, unsigned long address)
-+int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
- {
- 	unsigned long pfn, pfninc = 1;
- 	unsigned int i, level;
--	pte_t *pbase, *tmp;
-+	pte_t *tmp;
- 	pgprot_t ref_prot;
--	struct page *base;
--
--	if (!debug_pagealloc)
--		spin_unlock(&cpa_lock);
--	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
--	if (!debug_pagealloc)
--		spin_lock(&cpa_lock);
--	if (!base)
--		return -ENOMEM;
-+	struct page *base = virt_to_page(pbase);
- 
- 	spin_lock(&pgd_lock);
- 	/*
-@@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
- 	 * up for us already:
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+ 		unsigned long section_nr = pfn_to_section_nr(pfn);
+@@ -1349,6 +1352,21 @@ static void try_offline_node(int nid)
  	 */
- 	tmp = lookup_address(address, &level);
--	if (tmp != kpte)
--		goto out_unlock;
-+	if (tmp != kpte) {
-+		spin_unlock(&pgd_lock);
-+		return 1;
+ 	node_set_offline(nid);
+ 	unregister_one_node(nid);
++
++	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
++		/* node data is allocated from boot memory */
++		return;
++
++	/* free waittable in each zone */
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		struct zone *zone = pgdat->node_zones + i;
++
++		if (zone->wait_table)
++			vfree(zone->wait_table);
 +	}
- 
--	pbase = (pte_t *)page_address(base);
- 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
- 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
- 	/*
-@@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
- 	 * going on.
- 	 */
- 	__flush_tlb_all();
-+	spin_unlock(&pgd_lock);
- 
--	base = NULL;
-+	return 0;
-+}
- 
--out_unlock:
--	/*
--	 * If we dropped out via the lookup_address check under
--	 * pgd_lock then stick the page back into the pool:
--	 */
--	if (base)
-+static int split_large_page(pte_t *kpte, unsigned long address)
-+{
-+	pte_t *pbase;
-+	struct page *base;
 +
-+	if (!debug_pagealloc)
-+		spin_unlock(&cpa_lock);
-+	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
-+	if (!debug_pagealloc)
-+		spin_lock(&cpa_lock);
-+	if (!base)
-+		return -ENOMEM;
-+
-+	pbase = (pte_t *)page_address(base);
-+	if (__split_large_page(kpte, address, pbase))
- 		__free_page(base);
--	spin_unlock(&pgd_lock);
- 
- 	return 0;
++	arch_refresh_nodedata(nid, NULL);
++	arch_free_nodedata(pgdat);
  }
+ 
+ int __ref remove_memory(int nid, u64 start, u64 size)
 -- 
 1.7.1
 
