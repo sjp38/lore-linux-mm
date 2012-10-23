@@ -1,34 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id D20546B005A
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 09:39:54 -0400 (EDT)
-Date: Tue, 23 Oct 2012 15:39:52 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v6
-Message-ID: <20121023133952.GC16230@one.firstfloor.org>
-References: <1350665289-7288-1-git-send-email-andi@firstfloor.org> <CAHO5Pa0W-WGBaPvzdRJxYPdrg-K9guChswo3KJheK4BaRzsRwQ@mail.gmail.com> <20121022132733.GQ16230@one.firstfloor.org> <20121022133534.GR16230@one.firstfloor.org> <CAKgNAkgQ6JZdwOsCAQ4Ak_gVXtav=TzgzW2tbk5jMUwxtMqOAg@mail.gmail.com> <20121022153633.GK2095@tassilo.jf.intel.com> <CAKgNAki=AL+KdYDdYnE8ZhjK-tUf5cZ163BWPe6GRM0rpi-z7w@mail.gmail.com> <1350956664.2728.19.camel@pasglop> <20121023022844.GQ2095@tassilo.jf.intel.com> <CAKgNAkh-OxXbc_s0yvF_SEce0JoTQhyPpGHwZikj9NpOjkJT4w@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgNAkh-OxXbc_s0yvF_SEce0JoTQhyPpGHwZikj9NpOjkJT4w@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with SMTP id 8F8B46B005A
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 09:41:10 -0400 (EDT)
+Message-ID: <50869E6C.1080907@redhat.com>
+Date: Tue, 23 Oct 2012 09:41:00 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH RFC] mm/swap: automatic tuning for swapin readahead
+References: <50460CED.6060006@redhat.com> <20120906110836.22423.17638.stgit@zurg> <alpine.LSU.2.00.1210011418270.2940@eggly.anvils> <506AACAC.2010609@openvz.org> <alpine.LSU.2.00.1210031337320.1415@eggly.anvils> <506DB816.9090107@openvz.org> <alpine.LSU.2.00.1210081451410.1384@eggly.anvils> <20121016005049.GA1467@kernel.org> <20121022073654.GA7821@kernel.org> <alpine.LNX.2.00.1210222141170.1136@eggly.anvils> <20121023055127.GA24239@kernel.org>
+In-Reply-To: <20121023055127.GA24239@kernel.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On 10/23/2012 01:51 AM, Shaohua Li wrote:
 
-I thought further about this and I think the whole issue is a non issue
-anyways: MAP_UNINITIALIZED is NOMMU only and HUGETLBFS is MMU only.
-My flags only make sense with HUGETLBFS.
+> I have no strong point against the global state method. But I'd agree making the
+> heuristic simple is preferred currently. I'm happy about the patch if the '+1'
+> is removed.
 
-So they can never coexist anyways. So there is no reason to not overlap.
+Without the +1, how will you figure out when to re-enable readahead?
 
-So I think the original patch is ok and doesn't need any change at all.
-
-Sorry guys, if you really want to invent new syscalls please do it
-yourself.
-
--Andi
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
