@@ -1,84 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 3CC7B6B0070
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 19:45:48 -0400 (EDT)
-Date: Tue, 23 Oct 2012 16:45:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-Id: <20121023164546.747e90f6.akpm@linux-foundation.org>
-In-Reply-To: <20121012125708.GJ10110@dhcp22.suse.cz>
-References: <20121012125708.GJ10110@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 9E8716B0070
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 19:54:00 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so7696214ied.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 16:54:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20121023224706.GR4291@dastard>
+References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
+	<20121023224706.GR4291@dastard>
+Date: Wed, 24 Oct 2012 07:53:59 +0800
+Message-ID: <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+From: YingHang Zhu <casualfisher@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: akpm@linux-foundation.org, Fengguang Wu <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 12 Oct 2012 14:57:08 +0200
-Michal Hocko <mhocko@suse.cz> wrote:
-
-> Hi,
-> I would like to resurrect the following Dave's patch. The last time it
-> has been posted was here https://lkml.org/lkml/2010/9/16/250 and there
-> didn't seem to be any strong opposition. 
-> Kosaki was worried about possible excessive logging when somebody drops
-> caches too often (but then he claimed he didn't have a strong opinion
-> on that) but I would say opposite. If somebody does that then I would
-> really like to know that from the log when supporting a system because
-> it almost for sure means that there is something fishy going on. It is
-> also worth mentioning that only root can write drop caches so this is
-> not an flooding attack vector.
-> I am bringing that up again because this can be really helpful when
-> chasing strange performance issues which (surprise surprise) turn out to
-> be related to artificially dropped caches done because the admin thinks
-> this would help...
-> 
-> I have just refreshed the original patch on top of the current mm tree
-> but I could live with KERN_INFO as well if people think that KERN_NOTICE
-> is too hysterical.
-> ---
-> >From 1f4058be9b089bc9d43d71bc63989335d7637d8d Mon Sep 17 00:00:00 2001
-> From: Dave Hansen <dave@linux.vnet.ibm.com>
-> Date: Fri, 12 Oct 2012 14:30:54 +0200
-> Subject: [PATCH] add some drop_caches documentation and info messsge
-> 
-> There is plenty of anecdotal evidence and a load of blog posts
-> suggesting that using "drop_caches" periodically keeps your system
-> running in "tip top shape".  Perhaps adding some kernel
-> documentation will increase the amount of accurate data on its use.
-> 
-> If we are not shrinking caches effectively, then we have real bugs.
-> Using drop_caches will simply mask the bugs and make them harder
-> to find, but certainly does not fix them, nor is it an appropriate
-> "workaround" to limit the size of the caches.
-> 
-> It's a great debugging tool, and is really handy for doing things
-> like repeatable benchmark runs.  So, add a bit more documentation
-> about it, and add a little KERN_NOTICE.  It should help developers
-> who are chasing down reclaim-related bugs.
-> 
-> ...
+Hi Dave,
+On Wed, Oct 24, 2012 at 6:47 AM, Dave Chinner <david@fromorbit.com> wrote:
+> On Tue, Oct 23, 2012 at 08:46:51PM +0800, Ying Zhu wrote:
+>> Hi,
+>>   Recently we ran into the bug that an opened file's ra_pages does not
+>> synchronize with it's backing device's when the latter is changed
+>> with blockdev --setra, the application needs to reopen the file
+>> to know the change,
 >
-> +		printk(KERN_NOTICE "%s (%d): dropped kernel caches: %d\n",
-> +			current->comm, task_pid_nr(current), sysctl_drop_caches);
-
-urgh.  Are we really sure we want to do this?  The system operators who
-are actually using this thing will hate us :(
-
-
-More friendly alternatives might be:
-
-- Taint the kernel.  But that will only become apparent with an oops
-  trace or similar.
-
-- Add a drop_caches counter and make that available in /proc/vmstat,
-  show_mem() output and perhaps other places.
-
-I suspect the /proc/vmstat counter will suffice - if someone is having
-vm issues, we'll be seeing their /proc/vmstat at some stage and if the
-drop_caches counter is high, that's enough to get suspicious?
+> or simply call fadvise(fd, POSIX_FADV_NORMAL) to reset the readhead
+> window to the (new) bdi default.
+>
+>> which is inappropriate under our circumstances.
+>
+> Which are? We don't know your circumstances, so you need to tell us
+> why you need this and why existing methods of handling such changes
+> are insufficient...
+>
+> Optimal readahead windows tend to be a physical property of the
+> storage and that does not tend to change dynamically. Hence block
+> device readahead should only need to be set up once, and generally
+> that can be done before the filesystem is mounted and files are
+> opened (e.g. via udev rules). Hence you need to explain why you need
+> to change the default block device readahead on the fly, and why
+> fadvise(POSIX_FADV_NORMAL) is "inappropriate" to set readahead
+> windows to the new defaults.
+Our system is a fuse-based file system, fuse creates a
+pseudo backing device for the user space file systems, the default readahead
+size is 128KB and it can't fully utilize the backing storage's read ability,
+so we should tune it.
+The above third-party application using our file system maintains
+some long-opened files, we does not have any chances
+to force them to call fadvise(POSIX_FADV_NORMAL). :(
+Thanks,
+      Ying Zhu
+>
+> Cheers,
+>
+> Dave.
+> --
+> Dave Chinner
+> david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
