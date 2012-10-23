@@ -1,46 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 00A2E6B0062
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 05:08:41 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id v13so4731623vbk.14
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:08:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 8F7F96B0069
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 05:08:46 -0400 (EDT)
+Received: from mail-wi0-f173.google.com ([209.85.212.173])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1TQaTd-00069x-MH
+	for linux-mm@kvack.org; Tue, 23 Oct 2012 09:08:45 +0000
+Received: by mail-wi0-f173.google.com with SMTP id hm4so2707397wib.8
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:08:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20121023083556.GB15397@dhcp22.suse.cz>
-References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
-	<20121019160425.GA10175@dhcp22.suse.cz>
-	<CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
-	<20121023083556.GB15397@dhcp22.suse.cz>
-Date: Tue, 23 Oct 2012 17:08:40 +0800
-Message-ID: <CAKWKT+ZG-Rw5spLUdn74H3QQ1RGrax2B4X_ksZB-OCHY5WXC6w@mail.gmail.com>
-Subject: Re: process hangs on do_exit when oom happens
-From: Qiang Gao <gaoqiangscut@gmail.com>
+In-Reply-To: <Pine.LNX.4.44L0.1210221023300.1724-100000@iolanthe.rowland.org>
+References: <1350894794-1494-3-git-send-email-ming.lei@canonical.com>
+	<Pine.LNX.4.44L0.1210221023300.1724-100000@iolanthe.rowland.org>
+Date: Tue, 23 Oct 2012 17:08:45 +0800
+Message-ID: <CACVXFVMmszZWHaeNS6LSG4nHR4wWBLwM_BvynRwUW8X=nO+JWA@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
+From: Ming Lei <ming.lei@canonical.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, bsingharora@gmail.com
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: linux-kernel@vger.kernel.org, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-this is just an example to show how to reproduce. actually,the first time I saw
-this situation was on a machine with 288G RAM with many tasks running and
-we limit 30G for each.  but finanlly, no one exceeds this limit the the system
-oom.
+On Mon, Oct 22, 2012 at 10:33 PM, Alan Stern <stern@rowland.harvard.edu> wrote:
+>
+> Tail recursion should be implemented as a loop, not as an explicit
+> recursion.  That is, the function should be:
+>
+> void pm_runtime_set_memalloc_noio(struct device *dev, bool enable)
+> {
+>         do {
+>                 dev->power.memalloc_noio_resume = enable;
+>
+>                 if (!enable) {
+>                         /*
+>                          * Don't clear the parent's flag if any of the
+>                          * parent's children have their flag set.
+>                          */
+>                         if (device_for_each_child(dev->parent, NULL,
+>                                           dev_memalloc_noio))
+>                                 return;
+>                 }
+>                 dev = dev->parent;
+>         } while (dev);
+> }
+
+OK, will take the non-recursion implementation for saving kernel
+stack space.
+
+>
+> except that you need to add locking, for two reasons:
+>
+>         There's a race.  What happens if another child sets the flag
+>         between the time device_for_each_child() runs and the next loop
+>         iteration?
+
+Yes, I know the race, and not adding a lock because the function
+is mostly called in .probe() or .remove() callback and its parent's device
+lock is held to avoid this race.
+
+Considered that it may be called in async probe() (scsi disk), one lock
+is needed, the simplest way is to add a global lock. Any suggestion?
+
+>
+>         Even without a race, access to bitfields is not SMP-safe
+>         without locking.
+
+You mean one ancestor device might not be in active when
+one of its descendants is being probed or removed?
 
 
-On Tue, Oct 23, 2012 at 4:35 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 23-10-12 11:35:52, Qiang Gao wrote:
->> I'm sure this is a global-oom,not cgroup-oom. [the dmesg output in the end]
->
-> Yes this is the global oom killer because:
->> cglimit -M 700M ./tt
->> then after global-oom,the process hangs..
->
->> 179184 pages RAM
->
-> So you have ~700M of RAM so the memcg limit is basically pointless as it
-> cannot be reached...
-> --
-> Michal Hocko
-> SUSE Labs
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
