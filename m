@@ -1,79 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 6C4C06B006E
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:03:50 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so196711pbb.14
-        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 23:03:49 -0700 (PDT)
-Date: Mon, 22 Oct 2012 23:03:47 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: zram OOM behavior
-In-Reply-To: <20121022235321.GK13817@bbox>
-Message-ID: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com> <20121015144412.GA2173@barrios> <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com> <20121016061854.GB3934@barrios> <CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
- <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com> <20121022235321.GK13817@bbox>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id B5B4F6B006E
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:16:59 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id c4so1481370eek.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 23:16:58 -0700 (PDT)
+Subject: Re: [PATCH for-v3.7 2/2] slub: optimize kmalloc* inlining for
+ GFP_DMA
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <CAAmzW4Nz_=_Tj-D=DXaO-SR5pRZ_n7-gfVbKHa+=DP0NQioAaQ@mail.gmail.com>
+References: <1350748093-7868-1-git-send-email-js1304@gmail.com>
+	 <1350748093-7868-2-git-send-email-js1304@gmail.com>
+	 <0000013a88e2e9dc-9f72abd3-9a31-454c-b70b-9937ba54c0ee-000000@email.amazonses.com>
+	 <CAAmzW4Nz_=_Tj-D=DXaO-SR5pRZ_n7-gfVbKHa+=DP0NQioAaQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Tue, 23 Oct 2012 08:16:55 +0200
+Message-ID: <1350973015.8609.1444.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 23 Oct 2012, Minchan Kim wrote:
-
-> > I found the source, and maybe the cause, of the problem I am
-> > experiencing when running out of memory with zram enabled.  It may be
-> > a known problem.  The OOM killer doesn't find any killable process
-> > because select_bad_process() keeps returning -1 here:
-> > 
-> >     /*
-> >      * This task already has access to memory reserves and is
-> >      * being killed. Don't allow any other task access to the
-> >      * memory reserve.
-> >      *
-> >      * Note: this may have a chance of deadlock if it gets
-> >      * blocked waiting for another task which itself is waiting
-> >      * for memory. Is there a better alternative?
-> >      */
-> >     if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
-> >         if (unlikely(frozen(p)))
-> >             __thaw_task(p);
-> >         if (!force_kill)
-> >             return ERR_PTR(-1UL);
-> >     }
-> > 
-> > select_bad_process() is called by out_of_memory() in __alloc_page_may_oom().
+On Tue, 2012-10-23 at 11:29 +0900, JoonSoo Kim wrote:
+> 2012/10/22 Christoph Lameter <cl@linux.com>:
+> > On Sun, 21 Oct 2012, Joonsoo Kim wrote:
+> >
+> >> kmalloc() and kmalloc_node() of the SLUB isn't inlined when @flags = __GFP_DMA.
+> >> This patch optimize this case,
+> >> so when @flags = __GFP_DMA, it will be inlined into generic code.
+> >
+> > __GFP_DMA is a rarely used flag for kmalloc allocators and so far it was
+> > not considered that it is worth to directly support it in the inlining
+> > code.
+> >
+> >
 > 
-> I think it's not a zram problem but general problem of OOM killer.
-> Above code's intention is to prevent shortage of ememgency memory pool for avoding
-> deadlock. If we already killed any task and the task are in the middle of exiting,
-> OOM killer will wait for him to be exited. But the problem in here is that
-> killed task might wait any mutex which are held to another task which are
-> stuck for the memory allocation and can't use emergency memory pool. :(
+> Hmm... but, the SLAB already did that optimization for __GFP_DMA.
+> Almost every kmalloc() is invoked with constant flags value,
+> so I think that overhead from this patch may be negligible.
+> With this patch, code size of vmlinux is reduced slightly.
 
-Yeah, there's always a problem if an oom killed process cannot exit 
-because it's waiting for some other eligible process.  This doesn't 
-normally happen for anything sharing the same mm, though, because we try 
-to kill anything sharing the same mm when we select a process for oom kill 
-and if those killed threads happen to call into the oom killer they 
-silently get TIF_MEMDIE so they may exit as well.  This addressed earlier 
-problems we had with things waiting on mm->mmap_sem in the exit path.
+Only because you asked a allyesconfig
 
-If the oom killed process cannot exit because it's waiting on another 
-eligible process that does not share the mm, then we'll potentially 
-livelock unless you do echo f > /proc/sysrq-trigger manually or turn on 
-/proc/sys/vm/oom_kill_allocating_task.
+GFP_DMA is used for less than 0.1 % of kmalloc() calls, for legacy
+hardware (from last century)
 
-> I think one of solution is that if it takes some seconed(ex, 3 sec) after we already
-> kill some task but still looping with above code, we can allow accessing of
-> ememgency memory pool for another task. It may happen deadlock due to burn out memory
-> pool but otherwise, we still suffer from deadlock.
-> 
 
-The problem there is that if the time limit expires (we used 10 seconds 
-before internally, we don't do it at all anymore) and there are no more 
-eligible threads that you unnecessarily panic, or open yourself up to a 
-complete depletion of memory reserves whereas not even the oom killer can 
-help.
+In fact if you want to reduce even more your vmlinux, you could test
+
+if (__builtin_constant_p(flags) && (flags & SLUB_DMA))
+    return kmem_cache_alloc_trace(s, flags, size);
+
+to force the call to out of line code.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
