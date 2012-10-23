@@ -1,113 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 85BF76B005A
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 11:43:10 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so4485358obc.14
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 08:43:09 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 09AF46B006E
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 12:12:36 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so4526170obc.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 09:12:36 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <508676FA.4000107@parallels.com>
-References: <1350914737-4097-1-git-send-email-glommer@parallels.com>
-	<1350914737-4097-3-git-send-email-glommer@parallels.com>
-	<0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com>
-	<508561E0.5000406@parallels.com>
-	<CAAmzW4PJkDbLJBKZ1zPNDw+dHPcgzX_25tMw3rWoX0ybpXACSQ@mail.gmail.com>
-	<50865024.60309@parallels.com>
-	<508676FA.4000107@parallels.com>
-Date: Wed, 24 Oct 2012 00:43:09 +0900
-Message-ID: <CAAmzW4M9Casm+b4TOe7MOuZMYf7PKmzOHs1wZOXvybhRxCqZRA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
+In-Reply-To: <1350973015.8609.1444.camel@edumazet-glaptop>
+References: <1350748093-7868-1-git-send-email-js1304@gmail.com>
+	<1350748093-7868-2-git-send-email-js1304@gmail.com>
+	<0000013a88e2e9dc-9f72abd3-9a31-454c-b70b-9937ba54c0ee-000000@email.amazonses.com>
+	<CAAmzW4Nz_=_Tj-D=DXaO-SR5pRZ_n7-gfVbKHa+=DP0NQioAaQ@mail.gmail.com>
+	<1350973015.8609.1444.camel@edumazet-glaptop>
+Date: Wed, 24 Oct 2012 01:12:36 +0900
+Message-ID: <CAAmzW4PyEB+GSPDGFV-B436wA+avTQ_1BomGaYDq-3s6wRZpjQ@mail.gmail.com>
+Subject: Re: [PATCH for-v3.7 2/2] slub: optimize kmalloc* inlining for GFP_DMA
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2012/10/23 Glauber Costa <glommer@parallels.com>:
-> On 10/23/2012 12:07 PM, Glauber Costa wrote:
->> On 10/23/2012 04:48 AM, JoonSoo Kim wrote:
->>> Hello, Glauber.
->>>
->>> 2012/10/23 Glauber Costa <glommer@parallels.com>:
->>>> On 10/22/2012 06:45 PM, Christoph Lameter wrote:
->>>>> On Mon, 22 Oct 2012, Glauber Costa wrote:
->>>>>
->>>>>> + * kmem_cache_free - Deallocate an object
->>>>>> + * @cachep: The cache the allocation was from.
->>>>>> + * @objp: The previously allocated object.
->>>>>> + *
->>>>>> + * Free an object which was previously allocated from this
->>>>>> + * cache.
->>>>>> + */
->>>>>> +void kmem_cache_free(struct kmem_cache *s, void *x)
->>>>>> +{
->>>>>> +    __kmem_cache_free(s, x);
->>>>>> +    trace_kmem_cache_free(_RET_IP_, x);
->>>>>> +}
->>>>>> +EXPORT_SYMBOL(kmem_cache_free);
->>>>>> +
->>>>>
->>>>> This results in an additional indirection if tracing is off. Wonder if
->>>>> there is a performance impact?
->>>>>
->>>> if tracing is on, you mean?
->>>>
->>>> Tracing already incurs overhead, not sure how much a function call would
->>>> add to the tracing overhead.
->>>>
->>>> I would not be concerned with this, but I can measure, if you have any
->>>> specific workload in mind.
->>>
->>> With this patch, kmem_cache_free() invokes __kmem_cache_free(),
->>> that is, it add one more "call instruction" than before.
->>>
->>> I think that Christoph's comment means above fact.
+Hi, Eric.
+
+2012/10/23 Eric Dumazet <eric.dumazet@gmail.com>:
+> On Tue, 2012-10-23 at 11:29 +0900, JoonSoo Kim wrote:
+>> 2012/10/22 Christoph Lameter <cl@linux.com>:
+>> > On Sun, 21 Oct 2012, Joonsoo Kim wrote:
+>> >
+>> >> kmalloc() and kmalloc_node() of the SLUB isn't inlined when @flags = __GFP_DMA.
+>> >> This patch optimize this case,
+>> >> so when @flags = __GFP_DMA, it will be inlined into generic code.
+>> >
+>> > __GFP_DMA is a rarely used flag for kmalloc allocators and so far it was
+>> > not considered that it is worth to directly support it in the inlining
+>> > code.
+>> >
+>> >
 >>
->> Ah, this. Ok, I got fooled by his mention to tracing.
->>
->> I do agree, but since freeing is ultimately dependent on the allocator
->> layout, I don't see a clean way of doing this without dropping tears of
->> sorrow around. The calls in slub/slab/slob would have to be somehow
->> inlined. Hum... maybe it is possible to do it from
->> include/linux/sl*b_def.h...
->>
->> Let me give it a try and see what I can come up with.
->>
+>> Hmm... but, the SLAB already did that optimization for __GFP_DMA.
+>> Almost every kmalloc() is invoked with constant flags value,
+>> so I think that overhead from this patch may be negligible.
+>> With this patch, code size of vmlinux is reduced slightly.
 >
-> Ok.
+> Only because you asked a allyesconfig
 >
-> I am attaching a PoC for this for your appreciation. This gets quite
-> ugly, but it's the way I found without including sl{a,u,o}b.c directly -
-> which would be even worse.
+> GFP_DMA is used for less than 0.1 % of kmalloc() calls, for legacy
+> hardware (from last century)
 
-Hmm...
-This is important issue for sl[aou]b common allocators.
-Because there are similar functions like as kmem_cache_alloc, ksize, kfree, ...
-So it is good time to resolve this issue.
+I'm not doing with allyesconfig,
+but localmodconfig on my ubuntu desktop system.
+On my system, 700 bytes of text of vmlinux is reduced
+which mean there may be more than 100 callsite with GFP_DMA.
 
-As far as I know, now, we have 3 solutions.
+> In fact if you want to reduce even more your vmlinux, you could test
+>
+> if (__builtin_constant_p(flags) && (flags & SLUB_DMA))
+>     return kmem_cache_alloc_trace(s, flags, size);
+>
+> to force the call to out of line code.
 
-1. include/linux/slab.h
-__always_inline kmem_cache_free()
-{
-__kmem_cache_free();
-blablabla...
-}
+The reason why I mention about code size is that I want to say it may
+be good for performance,
+although it has a just small impact.
+I'm not interest of reducing code size :)
 
-2. define macro like as Glauber's solution
-3. include sl[aou]b.c directly.
-
-Is there other good solution?
-Among them, I prefer "solution 3", because future developing cost may
-be minimum among them.
-
-"Solution 2" may be error-prone for future developing.
-"Solution 1" may make compile-time longer and larger code.
-
-Is my understanding right?
-Is "Solution 3" really ugly?
-
-Thanks.
+Thanks for comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
