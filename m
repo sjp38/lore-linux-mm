@@ -1,84 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id B72316B0062
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:21:55 -0400 (EDT)
-Date: Tue, 23 Oct 2012 12:21:53 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-ID: <20121023102153.GD3064@quack.suse.cz>
-References: <1350918406-11369-1-git-send-email-jack@suse.cz>
- <20121022123852.a4bd5f2a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121022123852.a4bd5f2a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id B5E666B005A
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 06:25:15 -0400 (EDT)
+From: wency@cn.fujitsu.com
+Subject: [PATCH v2 01/12] memory-hotplug: try to offline the memory twice to avoid dependence
+Date: Tue, 23 Oct 2012 18:30:39 +0800
+Message-Id: <1350988250-31294-2-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1350988250-31294-1-git-send-email-wency@cn.fujitsu.com>
+References: <1350988250-31294-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+Cc: rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
 
-On Mon 22-10-12 12:38:52, Andrew Morton wrote:
-> On Mon, 22 Oct 2012 17:06:46 +0200
-> Jan Kara <jack@suse.cz> wrote:
-> 
-> > On s390 any write to a page (even from kernel itself) sets architecture
-> > specific page dirty bit. Thus when a page is written to via buffered write, HW
-> > dirty bit gets set and when we later map and unmap the page, page_remove_rmap()
-> > finds the dirty bit and calls set_page_dirty().
-> > 
-> > Dirtying of a page which shouldn't be dirty can cause all sorts of problems to
-> > filesystems. The bug we observed in practice is that buffers from the page get
-> > freed, so when the page gets later marked as dirty and writeback writes it, XFS
-> > crashes due to an assertion BUG_ON(!PagePrivate(page)) in page_buffers() called
-> > from xfs_count_page_state().
-> > 
-> > Similar problem can also happen when zero_user_segment() call from
-> > xfs_vm_writepage() (or block_write_full_page() for that matter) set the
-> > hardware dirty bit during writeback, later buffers get freed, and then page
-> > unmapped.
-> > 
-> > Fix the issue by ignoring s390 HW dirty bit for page cache pages of mappings
-> > with mapping_cap_account_dirty(). This is safe because for such mappings when a
-> > page gets marked as writeable in PTE it is also marked dirty in do_wp_page() or
-> > do_page_fault(). When the dirty bit is cleared by clear_page_dirty_for_io(),
-> > the page gets writeprotected in page_mkclean(). So pagecache page is writeable
-> > if and only if it is dirty.
-> > 
-> > Thanks to Hugh Dickins <hughd@google.com> for pointing out mapping has to have
-> > mapping_cap_account_dirty() for things to work and proposing a cleaned up
-> > variant of the patch.
-> > 
-> > The patch has survived about two hours of running fsx-linux on tmpfs while
-> > heavily swapping and several days of running on out build machines where the
-> > original problem was triggered.
-> 
-> That seems a fairly serious problem.  To which kernel version(s) should
-> we apply the fix?
-  Well, XFS will crash starting from 2.6.36 kernel where the assertion was
-added. Previously XFS just silently added buffers (as other filesystems do
-it) and wrote / redirtied the page (unnecessarily). So looking into
-maintained -stable branches I think pushing the patch to -stable from 3.0
-on should be enough.
+From: Wen Congyang <wency@cn.fujitsu.com>
 
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> 
-> It's a bit surprising that none of the added comments mention the s390
-> pte-dirtying oddity.  I don't see an obvious place to mention this, but
-> I for one didn't know about this and it would be good if we could
-> capture the info _somewhere_?
-  As Hugh says, the comment before page_test_and_clear_dirty() is somewhat
-updated. But do you mean recording somewhere the catch that s390 HW dirty
-bit gets set also whenever we write to a page from kernel? I guess we could
-add that also to the comment before page_test_and_clear_dirty() in
-page_remove_rmap() and also before definition of
-page_test_and_clear_dirty(). So most people that will add / remove these
-calls will be warned. OK?
+memory can't be offlined when CONFIG_MEMCG is selected.
+For example: there is a memory device on node 1. The address range
+is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
+and memory11 under the directory /sys/devices/system/memory/.
 
-								Honza
+If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
+when we online pages. When we online memory8, the memory stored page cgroup
+is not provided by this memory device. But when we online memory9, the memory
+stored page cgroup may be provided by memory8. So we can't offline memory8
+now. We should offline the memory in the reversed order.
+
+When the memory device is hotremoved, we will auto offline memory provided
+by this memory device. But we don't know which memory is onlined first, so
+offlining memory may fail. In such case, iterate twice to offline the memory.
+1st iterate: offline every non primary memory block.
+2nd iterate: offline primary (i.e. first added) memory block.
+
+This idea is suggested by KOSAKI Motohiro.
+
+CC: David Rientjes <rientjes@google.com>
+CC: Jiang Liu <liuj97@gmail.com>
+CC: Len Brown <len.brown@intel.com>
+CC: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+---
+ mm/memory_hotplug.c |   16 ++++++++++++++--
+ 1 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 56b758a..600e200 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1019,10 +1019,13 @@ int remove_memory(u64 start, u64 size)
+ 	unsigned long start_pfn, end_pfn;
+ 	unsigned long pfn, section_nr;
+ 	int ret;
++	int return_on_error = 0;
++	int retry = 0;
+ 
+ 	start_pfn = PFN_DOWN(start);
+ 	end_pfn = start_pfn + PFN_DOWN(size);
+ 
++repeat:
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+ 		section_nr = pfn_to_section_nr(pfn);
+ 		if (!present_section_nr(section_nr))
+@@ -1041,14 +1044,23 @@ int remove_memory(u64 start, u64 size)
+ 
+ 		ret = offline_memory_block(mem);
+ 		if (ret) {
+-			kobject_put(&mem->dev.kobj);
+-			return ret;
++			if (return_on_error) {
++				kobject_put(&mem->dev.kobj);
++				return ret;
++			} else {
++				retry = 1;
++			}
+ 		}
+ 	}
+ 
+ 	if (mem)
+ 		kobject_put(&mem->dev.kobj);
+ 
++	if (retry) {
++		return_on_error = 1;
++		goto repeat;
++	}
++
+ 	return 0;
+ }
+ #else
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
