@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 594866B0070
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 18:59:22 -0400 (EDT)
-Date: Tue, 23 Oct 2012 15:59:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
-Message-Id: <20121023155915.7d5ef9d1.akpm@linux-foundation.org>
-In-Reply-To: <20121023070018.GA18381@otc-wbsnb-06>
-References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
-	<20121018164502.b32791e7.akpm@linux-foundation.org>
-	<20121018235941.GA32397@shutemov.name>
-	<20121023063532.GA15870@shutemov.name>
-	<20121022234349.27f33f62.akpm@linux-foundation.org>
-	<20121023070018.GA18381@otc-wbsnb-06>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 38F656B0070
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 19:15:36 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id v13so5829539vbk.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 16:15:35 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1210231541350.1221@chino.kir.corp.google.com>
+References: <CAGPN=9Qx1JAr6CGO-JfoR2ksTJG_CLLZY_oBA_TFMzA_OSfiFg@mail.gmail.com>
+	<20121022173315.7b0da762@ilfaris>
+	<20121022214502.0fde3adc@ilfaris>
+	<20121022170452.cc8cc629.akpm@linux-foundation.org>
+	<alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
+	<20121023110434.021d100b@ilfaris>
+	<CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com>
+	<alpine.DEB.2.00.1210231541350.1221@chino.kir.corp.google.com>
+Date: Wed, 24 Oct 2012 02:15:34 +0300
+Message-ID: <CAJL_dMtS-rc1b3s9YZ+9Eapc21vF06aCT23GV8eMp13ZxURvBA@mail.gmail.com>
+Subject: Re: Major performance regressions in 3.7rc1/2
+From: Anca Emanuel <anca.emanuel@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Julian Wollrath <jwollrath@web.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Patrik Kullman <patrik.kullman@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, 23 Oct 2012 10:00:18 +0300
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Wed, Oct 24, 2012 at 1:42 AM, David Rientjes <rientjes@google.com> wrote:
+> On Tue, 23 Oct 2012, Anca Emanuel wrote:
+>
+>> I have the same problem.
+>> Reverting
+>> https://github.com/torvalds/linux/commit/957f822a0ab95e88b146638bad6209bbc315bedd
+>> solves the problem for me.
+>>
+>
+> If you don't revert anything and do
+>
+>         echo 0 > /proc/sys/vm/zone_reclaim_mode
+>
+> after boot, does this also fix the issue?
 
-> > Well, how hard is it to trigger the bad behavior?  One can easily
-> > create a situation in which that page's refcount frequently switches
-> > from 0 to 1 and back again.  And one can easily create a situation in
-> > which the shrinkers are being called frequently.  Run both at the same
-> > time and what happens?
-> 
-> If the goal is to trigger bad behavior then:
-> 
-> 1. read from an area where a huge page can be mapped to get huge zero page
->    mapped. hzp is allocated here. refcounter == 2.
-> 2. write to the same page. refcounter == 1.
-> 3. echo 3 > /proc/sys/vm/drop_caches. refcounter == 0 -> free the hzp.
-> 4. goto 1.
-> 
-> But it's unrealistic. /proc/sys/vm/drop_caches is only root-accessible.
-
-Yes, drop_caches is uninteresting.
-
-> We can trigger shrinker only under memory pressure. But in this, most
-> likely we will get -ENOMEM on hzp allocation and will go to fallback path
-> (4k zero page).
-
-I disagree.  If, for example, there is a large amount of clean
-pagecache being generated then the shrinkers will be called frequently
-and memory reclaim will be running at a 100% success rate.  The
-hugepage allocation will be successful in such a situation?
+Yes.
+http://imgur.com/JJwiJ
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
