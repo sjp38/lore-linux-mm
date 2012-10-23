@@ -1,44 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 5EE336B0070
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 16:48:34 -0400 (EDT)
-Date: Tue, 23 Oct 2012 20:48:32 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: CK2 [07/15] Common kmalloc slab index determination
-In-Reply-To: <508515B4.1090303@parallels.com>
-Message-ID: <0000013a8f624485-3e5c3678-4534-4d2c-9546-97d62bbfd6f9-000000@email.amazonses.com>
-References: <20121019142254.724806786@linux.com> <0000013a798237ec-faa35541-43fa-4257-b7dc-da955393004f-000000@email.amazonses.com> <508515B4.1090303@parallels.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 2FB1B6B0044
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 17:11:33 -0400 (EDT)
+Message-ID: <508705BE.2020403@am.sony.com>
+Date: Tue, 23 Oct 2012 14:01:50 -0700
+From: Tim Bird <tim.bird@am.sony.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 1/2] mm/slob: Mark zone page state to get slab usage at
+ /proc/meminfo
+References: <1350907434-2202-1-git-send-email-elezegarcia@gmail.com> <0000013a88ebfa65-af0fc24b-13fd-400f-b7fc-32230ca70620-000000@email.amazonses.com> <CALF0-+VqGrcjw16rNPH459YAj7dubQnruzV-zOzYn6feOtQ4tQ@mail.gmail.com> <0000013a8ed646c2-4cc34bd5-19c3-4e99-9fa0-248cdbc24feb-000000@email.amazonses.com> <CALF0-+WASdSAT9rnLxx8OmHrNV5tjrDwpBTE9irCRd91QxMkBA@mail.gmail.com> <0000013a8f524097-4ebaed3b-0d77-4183-a6ad-f01b8855f9bf-000000@email.amazonses.com>
+In-Reply-To: <0000013a8f524097-4ebaed3b-0d77-4183-a6ad-f01b8855f9bf-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Mon, 22 Oct 2012, Glauber Costa wrote:
+On 10/23/2012 1:31 PM, Christoph Lameter wrote:
+> On Tue, 23 Oct 2012, Ezequiel Garcia wrote:
+>
+>> The issue is: with SLUB large kmallocs don't set NR_SLAB_UNRECLAIMABLE
+>> zone item.
+>> Thus, they don't show at /proc/meminfo. Is this okey?
+> Yes. Other large allocations that are done directly via __get_free_pages()
+> etc also do not show up there. Slab allocators are intended for small
+> allocation and are not effective for large scale allocs. People will
+> use multiple different ways of acquiring large memory areas. So there is
+> no consistent accounting for that memory.
+>
+>
+>
+There's a certain irony here.  In embedded, we get all worked
+up about efficiencies in the slab allocators, but don't have a good
+way to track the larger memory allocations.  Am I missing
+something, or is there really no way to track these large
+scale allocations?
+  -- Tim
 
-> It is still unclear to me if the above is really better than
-> ilog2(size -1) + 1
-
-Hmmm... We could change that if ilog2 is now supported on all platforms
-and works right. That was not the case a couple of years ago (I believe
-2008) when I tried to use ilog.
-
-> For that case, gcc seems to generate dec + brs + inc which at some point
-> will be faster than walking a jump table. At least for dynamically-sized
-> allocations. The code size is definitely smaller, and this is always
-> inline... Anyway, this is totally separate.
-
-Indeed I would favor that approach but it did not work out for all
-platforms the last time around. Compiler was getting into issues to do the
-constant folding too.
-
-> The patch also seem to have some churn for the slob for no reason: you
-> have a patch just to move the kmalloc definitions, would maybe be better
-> to do it in there to decrease the # of changes in this one, which is
-> more complicated.
-
-Ok. Will look at that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
