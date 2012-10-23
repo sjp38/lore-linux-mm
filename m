@@ -1,69 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id AFA6F6B0062
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 04:07:30 -0400 (EDT)
-Message-ID: <50865024.60309@parallels.com>
-Date: Tue, 23 Oct 2012 12:07:00 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id A18996B0062
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 04:36:02 -0400 (EDT)
+Date: Tue, 23 Oct 2012 10:35:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: process hangs on do_exit when oom happens
+Message-ID: <20121023083556.GB15397@dhcp22.suse.cz>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+ <20121019160425.GA10175@dhcp22.suse.cz>
+ <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
-References: <1350914737-4097-1-git-send-email-glommer@parallels.com> <1350914737-4097-3-git-send-email-glommer@parallels.com> <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com> <508561E0.5000406@parallels.com> <CAAmzW4PJkDbLJBKZ1zPNDw+dHPcgzX_25tMw3rWoX0ybpXACSQ@mail.gmail.com>
-In-Reply-To: <CAAmzW4PJkDbLJBKZ1zPNDw+dHPcgzX_25tMw3rWoX0ybpXACSQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David
- Rientjes <rientjes@google.com>
+To: Qiang Gao <gaoqiangscut@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, bsingharora@gmail.com
 
-On 10/23/2012 04:48 AM, JoonSoo Kim wrote:
-> Hello, Glauber.
-> 
-> 2012/10/23 Glauber Costa <glommer@parallels.com>:
->> On 10/22/2012 06:45 PM, Christoph Lameter wrote:
->>> On Mon, 22 Oct 2012, Glauber Costa wrote:
->>>
->>>> + * kmem_cache_free - Deallocate an object
->>>> + * @cachep: The cache the allocation was from.
->>>> + * @objp: The previously allocated object.
->>>> + *
->>>> + * Free an object which was previously allocated from this
->>>> + * cache.
->>>> + */
->>>> +void kmem_cache_free(struct kmem_cache *s, void *x)
->>>> +{
->>>> +    __kmem_cache_free(s, x);
->>>> +    trace_kmem_cache_free(_RET_IP_, x);
->>>> +}
->>>> +EXPORT_SYMBOL(kmem_cache_free);
->>>> +
->>>
->>> This results in an additional indirection if tracing is off. Wonder if
->>> there is a performance impact?
->>>
->> if tracing is on, you mean?
->>
->> Tracing already incurs overhead, not sure how much a function call would
->> add to the tracing overhead.
->>
->> I would not be concerned with this, but I can measure, if you have any
->> specific workload in mind.
-> 
-> With this patch, kmem_cache_free() invokes __kmem_cache_free(),
-> that is, it add one more "call instruction" than before.
-> 
-> I think that Christoph's comment means above fact.
+On Tue 23-10-12 11:35:52, Qiang Gao wrote:
+> I'm sure this is a global-oom,not cgroup-oom. [the dmesg output in the end]
 
-Ah, this. Ok, I got fooled by his mention to tracing.
+Yes this is the global oom killer because:
+> cglimit -M 700M ./tt 
+> then after global-oom,the process hangs..
 
-I do agree, but since freeing is ultimately dependent on the allocator
-layout, I don't see a clean way of doing this without dropping tears of
-sorrow around. The calls in slub/slab/slob would have to be somehow
-inlined. Hum... maybe it is possible to do it from
-include/linux/sl*b_def.h...
+> 179184 pages RAM
 
-Let me give it a try and see what I can come up with.
+So you have ~700M of RAM so the memcg limit is basically pointless as it
+cannot be reached...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
