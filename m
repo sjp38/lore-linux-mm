@@ -1,99 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id C46856B0044
-	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 22:28:48 -0400 (EDT)
-Date: Mon, 22 Oct 2012 19:28:44 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v6
-Message-ID: <20121023022844.GQ2095@tassilo.jf.intel.com>
-References: <1350665289-7288-1-git-send-email-andi@firstfloor.org>
- <CAHO5Pa0W-WGBaPvzdRJxYPdrg-K9guChswo3KJheK4BaRzsRwQ@mail.gmail.com>
- <20121022132733.GQ16230@one.firstfloor.org>
- <20121022133534.GR16230@one.firstfloor.org>
- <CAKgNAkgQ6JZdwOsCAQ4Ak_gVXtav=TzgzW2tbk5jMUwxtMqOAg@mail.gmail.com>
- <20121022153633.GK2095@tassilo.jf.intel.com>
- <CAKgNAki=AL+KdYDdYnE8ZhjK-tUf5cZ163BWPe6GRM0rpi-z7w@mail.gmail.com>
- <1350956664.2728.19.camel@pasglop>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 6BCCE6B0044
+	for <linux-mm@kvack.org>; Mon, 22 Oct 2012 22:29:45 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so3761281obc.14
+        for <linux-mm@kvack.org>; Mon, 22 Oct 2012 19:29:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1350956664.2728.19.camel@pasglop>
+In-Reply-To: <0000013a88e2e9dc-9f72abd3-9a31-454c-b70b-9937ba54c0ee-000000@email.amazonses.com>
+References: <1350748093-7868-1-git-send-email-js1304@gmail.com>
+	<1350748093-7868-2-git-send-email-js1304@gmail.com>
+	<0000013a88e2e9dc-9f72abd3-9a31-454c-b70b-9937ba54c0ee-000000@email.amazonses.com>
+Date: Tue, 23 Oct 2012 11:29:44 +0900
+Message-ID: <CAAmzW4Nz_=_Tj-D=DXaO-SR5pRZ_n7-gfVbKHa+=DP0NQioAaQ@mail.gmail.com>
+Subject: Re: [PATCH for-v3.7 2/2] slub: optimize kmalloc* inlining for GFP_DMA
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: mtk.manpages@gmail.com, Andi Kleen <andi@firstfloor.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hillf Danton <dhillf@gmail.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 23, 2012 at 12:44:24PM +1100, Benjamin Herrenschmidt wrote:
-> On Mon, 2012-10-22 at 17:53 +0200, Michael Kerrisk (man-pages) wrote:
-> 
-> > This is all seems to make an awful muck of the API...
-> 
->  .../...
-> 
-> > There seems to be a reasonable argument here for an mmap3() with a
-> > 64-bit flags argument...
-> 
-> I tend to agree. There's a similar issue happening when we try to shovel
+2012/10/22 Christoph Lameter <cl@linux.com>:
+> On Sun, 21 Oct 2012, Joonsoo Kim wrote:
+>
+>> kmalloc() and kmalloc_node() of the SLUB isn't inlined when @flags = __GFP_DMA.
+>> This patch optimize this case,
+>> so when @flags = __GFP_DMA, it will be inlined into generic code.
+>
+> __GFP_DMA is a rarely used flag for kmalloc allocators and so far it was
+> not considered that it is worth to directly support it in the inlining
+> code.
+>
+>
 
-Could you comment on the expect range of page sizes on PPC?
-
-I looked at this again and I don't think we have anywhere near true 28 flags
-so far.  The man page currently only lists 16 (including MAP_UNUS^INITIALIZED)
-
-So I don't see why I can't have 6 bits from that.
-
-I have no idea why the MAP_UNINITIALIZED flag was put into this strange 
-location anyways instead of directly after the existing flags or just
-into one of the unused slots. 
-
-I suppose I could put my bits before it, there's plenty of space.
-
-Existing flags on x86:
-
-#define MAP_SHARED      0x01            /* Share changes */
-#define MAP_PRIVATE     0x02            /* Changes are private */
-
-4 unused
-8 unused
-
-#define MAP_FIXED       0x10            /* Interpret addr exactly */
-#define MAP_ANONYMOUS   0x20            /* don't use a file */
-
-0x40 unused
-
-#define MAP_GROWSDOWN   0x0100          /* stack-like segment */
-
-0x200 unused
-0x400 unused
-
-#define MAP_DENYWRITE   0x0800          /* ETXTBSY */
-#define MAP_EXECUTABLE  0x1000          /* mark it as an executable */
-#define MAP_LOCKED      0x2000          /* pages are locked */
-#define MAP_NORESERVE   0x4000          /* don't check for reservations */
-#define MAP_POPULATE    0x8000          /* populate (prefault) pagetables */
-#define MAP_NONBLOCK    0x10000         /* do not block on IO */
-#define MAP_STACK       0x20000         /* give out an address that is best suited for process/thread stacks */
-#define MAP_HUGETLB     0x40000         /* create a huge page mapping */
-
-/* all free here: 6 bits for me? 0x80000..0x1000000 */
-
-# define MAP_UNINITIALIZED 0x4000000    /* For anonymous mmap, memory could be uninitialized */
-
-/* more free bits. */
-
-Overall it seems there's no real shortage of bits.
-
-> things into protection bits, like we do with SAO (strong access
-> ordering) and want to do with per-page endian on embedded.
-
-mprotect already does this.
-
-Unless someone finds a good reason why this can't work I'll just move
-the range to 0x80000..0x1000000.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only
+Hmm... but, the SLAB already did that optimization for __GFP_DMA.
+Almost every kmalloc() is invoked with constant flags value,
+so I think that overhead from this patch may be negligible.
+With this patch, code size of vmlinux is reduced slightly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
