@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 1A5C46B0062
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 05:04:41 -0400 (EDT)
-Date: Tue, 23 Oct 2012 11:04:34 +0200
-From: Julian Wollrath <jwollrath@web.de>
-Subject: Re: Major performance regressions in 3.7rc1/2
-Message-ID: <20121023110434.021d100b@ilfaris>
-In-Reply-To: <alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
-References: <CAGPN=9Qx1JAr6CGO-JfoR2ksTJG_CLLZY_oBA_TFMzA_OSfiFg@mail.gmail.com>
-	<20121022173315.7b0da762@ilfaris>
-	<20121022214502.0fde3adc@ilfaris>
-	<20121022170452.cc8cc629.akpm@linux-foundation.org>
-	<alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 00A2E6B0062
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 05:08:41 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id v13so4731623vbk.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:08:41 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20121023083556.GB15397@dhcp22.suse.cz>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+	<20121019160425.GA10175@dhcp22.suse.cz>
+	<CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+	<20121023083556.GB15397@dhcp22.suse.cz>
+Date: Tue, 23 Oct 2012 17:08:40 +0800
+Message-ID: <CAKWKT+ZG-Rw5spLUdn74H3QQ1RGrax2B4X_ksZB-OCHY5WXC6w@mail.gmail.com>
+Subject: Re: process hangs on do_exit when oom happens
+From: Qiang Gao <gaoqiangscut@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Julian Wollrath <jwollrath@web.de>, Patrik Kullman <patrik.kullman@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, bsingharora@gmail.com
 
-> > Thanks.  Let's add some cc's.  Can you please describe your workload
-> > and some estimate of the slowdown?
-I am using fluxbox with Iceweasel, Claws-Mail and urxvt on different
-workspaces on a Thinkpad X121e with an AMD E-450 APU. Loading some big
-pages in Iceweasel leades to a very sluggish rendering of the urxvt
-window when changing workspaces, the cursor movement falters. The
-falter in the cursor movement is from random length but I would
-estimate, that it is mostly under one second. But sometimes the time
-between the each falter is very short which results in a more or less
-unusable system.
-
-> I'm currently assuming that my clear_page_mlock() commit is innocent
-> of this: it went in just two before David's numa reclaim commit, and
-> I don't see how mine could have any such marked effect: I'm thinking
-> it was just a bisection hiccup that implicated it.
-Just tested v3.7-rc2 with your clear_page_mlock() and without the numa
-reclaim commit and everything worked fine. So you are right, most
-probable it was a bisection hiccup, the reclaim commit is the real bad
-commit. Nevertheless I am wondering why everything worked fine until
-39b5f29a (mm: remove vma arg from page_evictable) and then started to
-behave badly with your clear_page_mlock() commit but 3.7-rc2 works fine
-with only the numa reclaim commit revoked.
+this is just an example to show how to reproduce. actually,the first time I saw
+this situation was on a machine with 288G RAM with many tasks running and
+we limit 30G for each.  but finanlly, no one exceeds this limit the the system
+oom.
 
 
-With best regards,
-Julian Wollrath
+On Tue, Oct 23, 2012 at 4:35 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Tue 23-10-12 11:35:52, Qiang Gao wrote:
+>> I'm sure this is a global-oom,not cgroup-oom. [the dmesg output in the end]
+>
+> Yes this is the global oom killer because:
+>> cglimit -M 700M ./tt
+>> then after global-oom,the process hangs..
+>
+>> 179184 pages RAM
+>
+> So you have ~700M of RAM so the memcg limit is basically pointless as it
+> cannot be reached...
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
