@@ -1,137 +1,311 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 390E66B0062
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 02:59:30 -0400 (EDT)
-Date: Tue, 23 Oct 2012 10:00:18 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
-Message-ID: <20121023070018.GA18381@otc-wbsnb-06>
-References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
- <20121018164502.b32791e7.akpm@linux-foundation.org>
- <20121018235941.GA32397@shutemov.name>
- <20121023063532.GA15870@shutemov.name>
- <20121022234349.27f33f62.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id DBBF86B0069
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 03:03:21 -0400 (EDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [PATCH] mm: introduce mm_find_pmd()
+Date: Tue, 23 Oct 2012 15:02:51 +0800
+Message-ID: <1350975771-7930-1-git-send-email-lliubbo@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="k1lZvvs/B4yU6o8G"
-Content-Disposition: inline
-In-Reply-To: <20121022234349.27f33f62.akpm@linux-foundation.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, hughd@google.com, kamezawa.hiroyu@jp.fujitsu.com, aarcange@redhat.com, rientjes@google.com, mhocko@suse.cz, mgorman@suse.de, minchan@kernel.org, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>
 
+Several place need to find the pmd by(mm_struct, address), so introduce a
+function to simple it.
 
---k1lZvvs/B4yU6o8G
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Bob Liu <lliubbo@gmail.com>
+---
+ mm/huge_memory.c |   55 ++++++++++--------------------------------------------
+ mm/internal.h    |    5 +++++
+ mm/ksm.c         |   14 ++------------
+ mm/migrate.c     |   14 ++------------
+ mm/rmap.c        |   46 ++++++++++++++++++++++++---------------------
+ 5 files changed, 44 insertions(+), 90 deletions(-)
 
-On Mon, Oct 22, 2012 at 11:43:49PM -0700, Andrew Morton wrote:
-> On Tue, 23 Oct 2012 09:35:32 +0300 "Kirill A. Shutemov" <kirill@shutemov.=
-name> wrote:
->=20
-> > On Fri, Oct 19, 2012 at 02:59:41AM +0300, Kirill A. Shutemov wrote:
-> > > On Thu, Oct 18, 2012 at 04:45:02PM -0700, Andrew Morton wrote:
-> > > > On Mon, 15 Oct 2012 09:00:59 +0300
-> > > > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > >=20
-> > > > > H. Peter Anvin doesn't like huge zero page which sticks in memory=
- forever
-> > > > > after the first allocation. Here's implementation of lockless ref=
-counting
-> > > > > for huge zero page.
-> > > > >=20
-> > > > > We have two basic primitives: {get,put}_huge_zero_page(). They
-> > > > > manipulate reference counter.
-> > > > >=20
-> > > > > If counter is 0, get_huge_zero_page() allocates a new huge page a=
-nd
-> > > > > takes two references: one for caller and one for shrinker. We fre=
-e the
-> > > > > page only in shrinker callback if counter is 1 (only shrinker has=
- the
-> > > > > reference).
-> > > > >=20
-> > > > > put_huge_zero_page() only decrements counter. Counter is never ze=
-ro
-> > > > > in put_huge_zero_page() since shrinker holds on reference.
-> > > > >=20
-> > > > > Freeing huge zero page in shrinker callback helps to avoid freque=
-nt
-> > > > > allocate-free.
-> > > >=20
-> > > > I'd like more details on this please.  The cost of freeing then
-> > > > reinstantiating that page is tremendous, because it has to be zeroed
-> > > > out again.  If there is any way at all in which the kernel can be m=
-ade
-> > > > to enter a high-frequency free/reinstantiate pattern then I expect =
-the
-> > > > effects would be quite bad.
-> > > >=20
-> > > > Do we have sufficient mechanisms in there to prevent this from
-> > > > happening in all cases?  If so, what are they, because I'm not seei=
-ng
-> > > > them?
-> > >=20
-> > > We only free huge zero page in shrinker callback if nobody in the sys=
-tem
-> > > uses it. Never on put_huge_zero_page(). Shrinker runs only under memo=
-ry
-> > > pressure or if user asks (drop_caches).
-> > > Do you think we need an additional protection mechanism?
-> >=20
-> > Andrew?
-> >=20
->=20
-> Well, how hard is it to trigger the bad behavior?  One can easily
-> create a situation in which that page's refcount frequently switches
-> from 0 to 1 and back again.  And one can easily create a situation in
-> which the shrinkers are being called frequently.  Run both at the same
-> time and what happens?
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 96a2ccc..dcf5642 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1145,22 +1145,14 @@ pmd_t *page_check_address_pmd(struct page *page,
+ 			      unsigned long address,
+ 			      enum page_check_address_pmd_flag flag)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd, *ret = NULL;
+ 
+ 	if (address & ~HPAGE_PMD_MASK)
+ 		goto out;
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		goto out;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		goto out;
+-
+-	pmd = pmd_offset(pud, address);
+ 	if (pmd_none(*pmd))
+ 		goto out;
+ 	if (pmd_page(*pmd) != page)
+@@ -1907,8 +1899,6 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 				   struct vm_area_struct *vma,
+ 				   int node)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd, _pmd;
+ 	pte_t *pte;
+ 	pgtable_t pgtable;
+@@ -1954,17 +1944,10 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 		goto out;
+ 	VM_BUG_ON(vma->vm_flags & VM_NO_THP);
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		goto out;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		goto out;
+-
+-	pmd = pmd_offset(pud, address);
+-	/* pmd can't go away or become huge under us */
+-	if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
++	if (pmd_trans_huge(*pmd))
+ 		goto out;
+ 
+ 	anon_vma_lock(vma->anon_vma);
+@@ -2047,8 +2030,6 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 			       unsigned long address,
+ 			       struct page **hpage)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte, *_pte;
+ 	int ret = 0, referenced = 0, none = 0;
+@@ -2059,16 +2040,10 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		goto out;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		goto out;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd) || pmd_trans_huge(*pmd))
++	if (pmd_trans_huge(*pmd))
+ 		goto out;
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+@@ -2362,22 +2337,12 @@ void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd)
+ static void split_huge_page_address(struct mm_struct *mm,
+ 				    unsigned long address)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd;
+ 
+ 	VM_BUG_ON(!(address & ~HPAGE_PMD_MASK));
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		return;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		return;
+ 	/*
+ 	 * Caller holds the mmap_sem write mode, so a huge pmd cannot
+diff --git a/mm/internal.h b/mm/internal.h
+index a4fa284..52d1fa9 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -92,6 +92,11 @@ extern int isolate_lru_page(struct page *page);
+ extern void putback_lru_page(struct page *page);
+ 
+ /*
++ * in mm/rmap.c:
++ */
++extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
++
++/*
+  * in mm/page_alloc.c
+  */
+ extern void __free_pages_bootmem(struct page *page, unsigned int order);
+diff --git a/mm/ksm.c b/mm/ksm.c
+index ae539f0..31ae5ea 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -778,8 +778,6 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
+ 			struct page *kpage, pte_t orig_pte)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *ptep;
+ 	spinlock_t *ptl;
+@@ -792,18 +790,10 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
+ 	if (addr == -EFAULT)
+ 		goto out;
+ 
+-	pgd = pgd_offset(mm, addr);
+-	if (!pgd_present(*pgd))
++	pmd = mm_find_pmd(mm, addr);
++	if (!pmd)
+ 		goto out;
+-
+-	pud = pud_offset(pgd, addr);
+-	if (!pud_present(*pud))
+-		goto out;
+-
+-	pmd = pmd_offset(pud, addr);
+ 	BUG_ON(pmd_trans_huge(*pmd));
+-	if (!pmd_present(*pmd))
+-		goto out;
+ 
+ 	mmun_start = addr;
+ 	mmun_end   = addr + PAGE_SIZE;
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..1dc4598 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -91,8 +91,6 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	swp_entry_t entry;
+- 	pgd_t *pgd;
+- 	pud_t *pud;
+  	pmd_t *pmd;
+ 	pte_t *ptep, pte;
+  	spinlock_t *ptl;
+@@ -103,19 +101,11 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 			goto out;
+ 		ptl = &mm->page_table_lock;
+ 	} else {
+-		pgd = pgd_offset(mm, addr);
+-		if (!pgd_present(*pgd))
++		pmd = mm_find_pmd(mm, addr);
++		if (!pmd)
+ 			goto out;
+-
+-		pud = pud_offset(pgd, addr);
+-		if (!pud_present(*pud))
+-			goto out;
+-
+-		pmd = pmd_offset(pud, addr);
+ 		if (pmd_trans_huge(*pmd))
+ 			goto out;
+-		if (!pmd_present(*pmd))
+-			goto out;
+ 
+ 		ptep = pte_offset_map(pmd, addr);
+ 
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 7df7984..0f47993 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -561,6 +561,27 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+ 	return address;
+ }
+ 
++pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address)
++{
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd = NULL;
++
++	pgd = pgd_offset(mm, address);
++	if (!pgd_present(*pgd))
++		goto out;
++
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		goto out;
++
++	pmd = pmd_offset(pud, address);
++	if (!pmd_present(*pmd))
++		pmd = NULL;
++out:
++	return pmd;
++}
++
+ /*
+  * Check that @page is mapped at @address into @mm.
+  *
+@@ -573,8 +594,6 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
+ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
+ 			  unsigned long address, spinlock_t **ptlp, int sync)
+ {
+-	pgd_t *pgd;
+-	pud_t *pud;
+ 	pmd_t *pmd;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+@@ -585,17 +604,10 @@ pte_t *__page_check_address(struct page *page, struct mm_struct *mm,
+ 		goto check;
+ 	}
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return NULL;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		return NULL;
+ 
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
+-		return NULL;
+ 	if (pmd_trans_huge(*pmd))
+ 		return NULL;
+ 
+@@ -1356,16 +1368,8 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+ 	if (end > vma->vm_end)
+ 		end = vma->vm_end;
+ 
+-	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
+-		return ret;
+-
+-	pud = pud_offset(pgd, address);
+-	if (!pud_present(*pud))
+-		return ret;
+-
+-	pmd = pmd_offset(pud, address);
+-	if (!pmd_present(*pmd))
++	pmd = mm_find_pmd(mm, address);
++	if (!pmd)
+ 		return ret;
+ 
+ 	mmun_start = address;
+-- 
+1.7.9.5
 
-If the goal is to trigger bad behavior then:
-
-1. read from an area where a huge page can be mapped to get huge zero page
-   mapped. hzp is allocated here. refcounter =3D=3D 2.
-2. write to the same page. refcounter =3D=3D 1.
-3. echo 3 > /proc/sys/vm/drop_caches. refcounter =3D=3D 0 -> free the hzp.
-4. goto 1.
-
-But it's unrealistic. /proc/sys/vm/drop_caches is only root-accessible.
-We can trigger shrinker only under memory pressure. But in this, most
-likely we will get -ENOMEM on hzp allocation and will go to fallback path
-(4k zero page).
-
-I don't see a problem here.
-
---=20
- Kirill A. Shutemov
-
---k1lZvvs/B4yU6o8G
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQhkCCAAoJEAd+omnVudOMwv8QAKq2fmH/x1IY2xDaJCtKDmUP
-FnqRPz7CguHszBb1oRAk5xrJnKKZokB2ZlcLfxH+5HPPLW5iKf4988nbwMXMs9hd
-tpV5O4UlD7DfMwzyIGZNWwo70Fghy2J05NnbIBaitpubpSUrMFAF8U8diB89JBRB
-XB7SCVdiLuFLgP1zPRyRuxxwayBWNeqULREZX3E2fzOp0OkL+I0AfUdkC0MMWgco
-Pf7lP8ZJ5StFnJrkRvUYFREa1qhdG3wMQFPJfZeUdJalGgQ5loLzwx8WP9yqz0ml
-DckeR6q1X6tVivIYkRwgHOBIfTX1vzBfS1xiVI+AlPh61vta49FfDYAFl0AbEnrU
-HuJjLvdN9AR5zl4HFkMbLB+sjA2+U3KTisCOEMaVyH7JpOd+1KxdEDQtmvwYAaQH
-lyW1SQh9AGHib5pK1B3TwpmFJ2plaA4U9egFI1GCxnE0opcZLnIGyx6xAGeNSD6q
-z3m0qsQWEsjAW0Zb7RzTn2wZ+zWGGdhDVbiUrpWkbFfH4kp+T7VjCM2m4ndVueur
-6zw6XCUOKOIA7YfOpsn7Qtx4zPuBPFwIu4dUuB3n5VQ/do9DDkpO0fhhAFlFFqSk
-+8L7y90kuRSDWgwhi7EunB0EPhOwpjex2REgI0grfYLn4yjmOmWMKhEi5opSgoyj
-kj9M7V4jiPcmSipvXF7U
-=/yWz
------END PGP SIGNATURE-----
-
---k1lZvvs/B4yU6o8G--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
