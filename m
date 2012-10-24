@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 2D8956B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 16:19:26 -0400 (EDT)
-Date: Thu, 25 Oct 2012 07:19:21 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-Message-ID: <20121024201921.GX4291@dastard>
-References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
- <20121023224706.GR4291@dastard>
- <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 6B1A66B0071
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 16:25:54 -0400 (EDT)
+Date: Wed, 24 Oct 2012 13:25:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
+Message-Id: <20121024132552.5f9a5f5b.akpm@linux-foundation.org>
+In-Reply-To: <20121024194552.GA24460@otc-wbsnb-06>
+References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
+	<20121018164502.b32791e7.akpm@linux-foundation.org>
+	<20121018235941.GA32397@shutemov.name>
+	<20121023063532.GA15870@shutemov.name>
+	<20121022234349.27f33f62.akpm@linux-foundation.org>
+	<20121023070018.GA18381@otc-wbsnb-06>
+	<20121023155915.7d5ef9d1.akpm@linux-foundation.org>
+	<20121023233801.GA21591@shutemov.name>
+	<20121024122253.5ecea992.akpm@linux-foundation.org>
+	<20121024194552.GA24460@otc-wbsnb-06>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YingHang Zhu <casualfisher@gmail.com>
-Cc: akpm@linux-foundation.org, Fengguang Wu <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Wed, Oct 24, 2012 at 07:53:59AM +0800, YingHang Zhu wrote:
-> Hi Dave,
-> On Wed, Oct 24, 2012 at 6:47 AM, Dave Chinner <david@fromorbit.com> wrote:
-> > On Tue, Oct 23, 2012 at 08:46:51PM +0800, Ying Zhu wrote:
-> >> Hi,
-> >>   Recently we ran into the bug that an opened file's ra_pages does not
-> >> synchronize with it's backing device's when the latter is changed
-> >> with blockdev --setra, the application needs to reopen the file
-> >> to know the change,
-> >
-> > or simply call fadvise(fd, POSIX_FADV_NORMAL) to reset the readhead
-> > window to the (new) bdi default.
-> >
-> >> which is inappropriate under our circumstances.
-> >
-> > Which are? We don't know your circumstances, so you need to tell us
-> > why you need this and why existing methods of handling such changes
-> > are insufficient...
-> >
-> > Optimal readahead windows tend to be a physical property of the
-> > storage and that does not tend to change dynamically. Hence block
-> > device readahead should only need to be set up once, and generally
-> > that can be done before the filesystem is mounted and files are
-> > opened (e.g. via udev rules). Hence you need to explain why you need
-> > to change the default block device readahead on the fly, and why
-> > fadvise(POSIX_FADV_NORMAL) is "inappropriate" to set readahead
-> > windows to the new defaults.
-> Our system is a fuse-based file system, fuse creates a
-> pseudo backing device for the user space file systems, the default readahead
-> size is 128KB and it can't fully utilize the backing storage's read ability,
-> so we should tune it.
+On Wed, 24 Oct 2012 22:45:52 +0300
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-Sure, but that doesn't tell me anything about why you can't do this
-at mount time before the application opens any files. i.e.  you've
-simply stated the reason why readahead is tunable, not why you need
-to be fully dynamic.....
+> On Wed, Oct 24, 2012 at 12:22:53PM -0700, Andrew Morton wrote:
+> > 
+> > I'm thinking that such a workload would be the above dd in parallel
+> > with a small app which touches the huge page and then exits, then gets
+> > executed again.  That "small app" sounds realistic to me.  Obviously
+> > one could exercise the zero page's refcount at higher frequency with a
+> > tight map/touch/unmap loop, but that sounds less realistic.  It's worth
+> > trying that exercise as well though.
+> > 
+> > Or do something else.  But we should try to probe this code's
+> > worst-case behaviour, get an understanding of its effects and then
+> > decide whether any such workload is realisic enough to worry about.
+> 
+> Okay, I'll try few memory pressure scenarios.
 
-> The above third-party application using our file system maintains
-> some long-opened files, we does not have any chances
-> to force them to call fadvise(POSIX_FADV_NORMAL). :(
+Thanks.
 
-So raise a bug/feature request with the third party.  Modifying
-kernel code because you can't directly modify the application isn't
-the best solution for anyone. This really is an application problem
-- the kernel already provides the mechanisms to solve this
-problem...  :/
+> Meanwhile, could you take patches 01-09? Patch 09 implements simpler
+> allocation scheme. It would be nice to get all other code tested.
+> Or do you see any other blocker?
 
-Cheers,
+I think I would take them all, to get them tested while we're still
+poking at the code.  It's a matter of getting my lazy ass onto reviewing
+the patches.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The patches have a disturbing lack of reviewed-by's, acked-by's and
+tested-by's on them.  Have any other of the MM lazy asses actually
+spent some time with them yet?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
