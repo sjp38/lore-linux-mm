@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 00CE86B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 05:35:15 -0400 (EDT)
-Date: Wed, 24 Oct 2012 10:35:10 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v2] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121024093510.GB23775@mudshark.cambridge.arm.com>
-References: <20121017130125.GH5973@mudshark.cambridge.arm.com>
- <20121017.112620.1865348978594874782.davem@davemloft.net>
- <20121017155401.GJ5973@mudshark.cambridge.arm.com>
- <20121018150502.3dee7899.akpm@linux-foundation.org>
- <20121019091016.GA4582@mudshark.cambridge.arm.com>
- <20121019114955.3a0c2b66.akpm@linux-foundation.org>
- <20121022103503.GA26619@mudshark.cambridge.arm.com>
- <20121022111843.4406850d.akpm@linux-foundation.org>
- <20121023101125.GA20210@mudshark.cambridge.arm.com>
- <20121023145027.40710e7a.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121023145027.40710e7a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id B26BE6B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 05:41:57 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [PATCH 0/2 V2] memory_hotplug: fix memory hotplug bug
+Date: Wed, 24 Oct 2012 17:43:50 +0800
+Message-Id: <1351071840-5060-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Miller <davem@davemloft.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "kirill@shutemov.name" <kirill@shutemov.name>, "aarcange@redhat.com" <aarcange@redhat.com>, "cmetcalf@tilera.com" <cmetcalf@tilera.com>, Steve Capper <Steve.Capper@arm.com>
+To: linux-kernel@vger.kernel.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Mel Gorman <mgorman@suse.de>, 'FNST-Wen Congyang' <wency@cn.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 23, 2012 at 10:50:27PM +0100, Andrew Morton wrote:
-> On Tue, 23 Oct 2012 11:11:25 +0100
-> Will Deacon <will.deacon@arm.com> wrote:
-> > This patch ("mm: thp: Set the accessed flag for old pages on access fault")
-> > doesn't depend on "ARM: mm: Transparent huge page support for LPAE systems"
-> > because currently transparent huge pages cannot be enabled for ARM in
-> > mainline (or linux-next). update_mmu_cache_pmd is only called from
-> > mm/huge_memory.c, which depends on CONFIG_TRANSPARENT_HUGEPAGE=y.
-> > 
-> > As for the new huge_pmd_set_accessed function... there's a similar situation
-> > for the do_huge_pmd_wp_page function: it's called from mm/memory.c but is
-> > only defined in mm/huge_memory.c. Looks like the compiler optimises those
-> > calls away because pmd_trans_huge and friends constant-fold to 0.
-> 
-> Ah, OK.
-> 
-> "mm: thp: Set the accessed flag for old pages on access fault" clashes
-> in a non-trivial way with linux-next changes, due to the sched-numa
-> changes (sigh).  This is a problem for me, because I either need to
-> significantly alter your patch (so it isn't applicable to mainline) or
-> I need to stage your patch ahead of linux-next, then fix up linux-next
-> every day after I've pulled and re-merged it.
-> 
-> I'm unsure what your timing is.  Can you carry "mm: thp: Set the
-> accessed flag for old pages on access fault" until either the whole
-> patchset is ready to merge or until the sched-numa situation has been
-> cleared up?
+We found 2 bugs while we test and develop memory hotplug.
 
-I think DaveM may want this patch for sparc, so I'll keep it separate from
-the ARM patches and have a go at reworking it when the sched-numa stuff has
-settled down. Is that all in linux-next btw? If so, I can use that as a
-starting point to dealing with the mess.
+The hotplug code does not handle node_states[N_NORMAL_MEMORY] correctly,
+it may corrupt the memory.
 
-Cheers,
+And we ensure the SLUB do NOT respond when node_states[N_NORMAL_MEMORY]
+is not changed.
 
-Will
+The patchset is based on mainline(3d0ceac129f3ea0b125289055a3aa7519d38df77)
+
+
+CC: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Rob Landley <rob@landley.net>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Jiang Liu <jiang.liu@huawei.com>
+CC: Kay Sievers <kay.sievers@vrfy.org>
+CC: Greg Kroah-Hartman <gregkh@suse.de>
+CC: Mel Gorman <mgorman@suse.de>
+CC: 'FNST-Wen Congyang' <wency@cn.fujitsu.com>
+CC: linux-doc@vger.kernel.org
+CC: linux-kernel@vger.kernel.org
+CC: linux-mm@kvack.org
+
+Lai Jiangshan (2):
+  memory_hotplug: fix possible incorrect node_states[N_NORMAL_MEMORY]
+  slub, hotplug: ignore unrelated node's hot-adding and hot-removing
+
+ Documentation/memory-hotplug.txt |    5 +-
+ include/linux/memory.h           |    1 +
+ mm/memory_hotplug.c              |  136 +++++++++++++++++++++++++++++++++-----
+ mm/slub.c                        |    4 +-
+ 4 files changed, 127 insertions(+), 19 deletions(-)
+
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
