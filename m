@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB906B007B
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:42:48 -0400 (EDT)
-Message-ID: <5087A9F7.7070804@parallels.com>
-Date: Wed, 24 Oct 2012 12:42:31 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 27E916B006E
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:56:26 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so176929wgb.26
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 01:56:24 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 05/18] slab/slub: struct memcg_params
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-6-git-send-email-glommer@parallels.com> <CAAmzW4PVEb6WezFAjgNwYiAkNXE745ys6HejeNA4uRhUXqWe_g@mail.gmail.com>
-In-Reply-To: <CAAmzW4PVEb6WezFAjgNwYiAkNXE745ys6HejeNA4uRhUXqWe_g@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1350914737-4097-3-git-send-email-glommer@parallels.com>
+References: <1350914737-4097-1-git-send-email-glommer@parallels.com>
+	<1350914737-4097-3-git-send-email-glommer@parallels.com>
+Date: Wed, 24 Oct 2012 11:56:23 +0300
+Message-ID: <CAOJsxLEcUJzZnyYDPwzEkjirSKEWXcGM6PxY=nyrktFZgP7ztg@mail.gmail.com>
+Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-On 10/23/2012 09:25 PM, JoonSoo Kim wrote:
-> Hi, Glauber.
-> 
-> 2012/10/19 Glauber Costa <glommer@parallels.com>:
->> For the kmem slab controller, we need to record some extra
->> information in the kmem_cache structure.
->>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
->> CC: Christoph Lameter <cl@linux.com>
->> CC: Pekka Enberg <penberg@cs.helsinki.fi>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Tejun Heo <tj@kernel.org>
->> ---
->>  include/linux/slab.h     | 25 +++++++++++++++++++++++++
->>  include/linux/slab_def.h |  3 +++
->>  include/linux/slub_def.h |  3 +++
->>  mm/slab.h                | 13 +++++++++++++
->>  4 files changed, 44 insertions(+)
->>
->> diff --git a/include/linux/slab.h b/include/linux/slab.h
->> index 0dd2dfa..e4ea48a 100644
->> --- a/include/linux/slab.h
->> +++ b/include/linux/slab.h
->> @@ -177,6 +177,31 @@ unsigned int kmem_cache_size(struct kmem_cache *);
->>  #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
->>  #endif
->>
->> +#include <linux/workqueue.h>
-> 
-> Why workqueue.h is includede at this time?
-> It may be future use, so is it better to add it later?
-> Adding it at proper time makes git blame works better.
-> 
-It is for later, I missed this.
+On Mon, Oct 22, 2012 at 5:05 PM, Glauber Costa <glommer@parallels.com> wrote:
+> +/**
+> + * kmem_cache_free - Deallocate an object
+> + * @cachep: The cache the allocation was from.
+> + * @objp: The previously allocated object.
+> + *
+> + * Free an object which was previously allocated from this
+> + * cache.
+> + */
+> +void kmem_cache_free(struct kmem_cache *s, void *x)
+> +{
+> +       __kmem_cache_free(s, x);
+> +       trace_kmem_cache_free(_RET_IP_, x);
+> +}
+> +EXPORT_SYMBOL(kmem_cache_free);
 
-Thanks for spotting.
+As Christoph mentioned, this is going to hurt performance. The proper
+way to do this is to implement the *hook* in mm/slab_common.c and call
+that from all the allocator specific kmem_cache_free() functions.
+
+                        Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
