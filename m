@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 97DDD6B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 02:54:07 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id dq12so114863wgb.26
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 23:54:06 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 246BB6B006E
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 03:04:19 -0400 (EDT)
+Message-ID: <50879380.2080703@cn.fujitsu.com>
+Date: Wed, 24 Oct 2012 15:06:40 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <5085068E.5080304@parallels.com>
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com>
-	<1350656442-1523-5-git-send-email-glommer@parallels.com>
-	<0000013a7a84cb28-334eab12-33c4-4a92-bd9c-e5ad938f83d0-000000@email.amazonses.com>
-	<5085068E.5080304@parallels.com>
-Date: Wed, 24 Oct 2012 09:54:05 +0300
-Message-ID: <CAOJsxLFxQuC9mRb=ZMoqdxS6fyLHCg1LxyfF9wAR1hiOL5i93g@mail.gmail.com>
-Subject: Re: [PATCH v5 04/18] slab: don't preemptively remove element from
- list in cache destroy
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 2/3] slub, hotplug: ignore unrelated node's hot-adding
+ and hot-removing
+References: <1348728470-5580-1-git-send-email-laijs@cn.fujitsu.com> <1348728470-5580-3-git-send-email-laijs@cn.fujitsu.com> <5064CD7F.1040507@gmail.com> <0000013a09dec004-497e7afa-8c0f-46ff-bf8e-056f7df1ed0b-000000@email.amazonses.com> <50654F6E.7090000@cn.fujitsu.com> <CAHGf_=pUMDm2M2wGvnsqrDgnhj0oHUO4JVuG=u3Qcn3TLvGRgg@mail.gmail.com>
+In-Reply-To: <CAHGf_=pUMDm2M2wGvnsqrDgnhj0oHUO4JVuG=u3Qcn3TLvGRgg@mail.gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, devel@openvz.org, Suleiman Souhlal <suleiman@google.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Christoph <cl@linux.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Oct 22, 2012 at 11:40 AM, Glauber Costa <glommer@parallels.com> wrote:
-> On 10/19/2012 11:34 PM, Christoph Lameter wrote:
->> On Fri, 19 Oct 2012, Glauber Costa wrote:
+On 09/29/2012 06:26 AM, KOSAKI Motohiro wrote:
+> On Fri, Sep 28, 2012 at 3:19 AM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
+>> HI, Christoph, KOSAKI
 >>
->>> I, however, see no reason why we need to do so, since we are now locked
->>> during the whole deletion (which wasn't necessarily true before).  I
->>> propose a simplification in which we delete it only when there is no
->>> more going back, so we don't need to add it again.
+>> SLAB always allocates kmem_list3 for all nodes(N_HIGH_MEMORY), also node bug/bad things happens.
+>> SLUB always requires kmem_cache_node on the correct node, so these fix is needed.
 >>
->> Ok lets hope that holding the lock does not cause issues.
+>> SLAB uses for_each_online_node() to travel nodes and do maintain,
+>> and it tolerates kmem_list3 on alien nodes.
+>> SLUB uses for_each_node_state(node, N_NORMAL_MEMORY) to travel nodes and do maintain,
+>> and it does not tolerate kmem_cache_node on alien nodes.
 >>
->> Acked-by: Christoph Lameter <cl@linux.com>
->>
-> BTW: One of the good things about this set, is that we are naturally
-> exercising cache destruction a lot more than we did before. So if there
-> is any problem, either with this or anything related to cache
-> destruction, it should at least show up a lot more frequently. So far,
-> this does not seem to cause any problems.
+>> Maybe we need to change SLAB future and let it use
+>> for_each_node_state(node, N_NORMAL_MEMORY), But I don't want to change SLAB
+>> until I find something bad in SLAB.
+> 
+> SLAB can't use highmem. then traverse zones which don't have normal
+> memory is silly IMHO.
 
-We no longer hold the mutex the whole time after. See commit 210ed9d
-("mm, slab: release slab_mutex earlier in kmem_cache_destroy()") for
-details.
+SLAB tolerates dummy kmem_list3 on alien nodes.
+
+> If this is not bug, current slub behavior is also not bug. Is there
+> any difference?
+
+SLUB can't tolerates dummy kmem_cache_node on alien nodes, otherwise
+n->nr_slabs will be corrupted when we online a node which don't have normal memory,
+and trigger a WARN_ON(). And it will trigger BUG_ON() when we remove the node.
+
+Since SLUB always use for_each_node_state(node, N_NORMAL_MEMORY), we should make
+all the other code in slub.c be compatible with it. otherwise we will break the
+design of SLUB.
+
+Since SLAB always use for_each_online_node(), it means it accept some silly behavior
+in the design, we don't need to change it before we decide to remove the whole
+silly things at together. there is not waring and buggy in SLAB in this view.
+
+> 
+> If I understand correctly, current code may waste some additional
+> memory on corner case. but it doesn't make memory leak both when slab
+> and slub.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
