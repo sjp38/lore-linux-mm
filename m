@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 3B6FC6B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 18:32:31 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so758442pad.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 15:32:30 -0700 (PDT)
-Date: Wed, 24 Oct 2012 15:32:28 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: mmotm 2012-10-22-17-08 uploaded (memory_hotplug.c)
-In-Reply-To: <20121023102625.GA24265@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.00.1210241531540.3524@chino.kir.corp.google.com>
-References: <20121023000924.C56EF5C0050@hpza9.eem.corp.google.com> <50861FA9.2030506@xenotime.net> <20121023102625.GA24265@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id F0B6B6B0071
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 18:35:48 -0400 (EDT)
+Message-ID: <50886D3F.9050403@jp.fujitsu.com>
+Date: Wed, 24 Oct 2012 18:35:43 -0400
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
+References: <20121012125708.GJ10110@dhcp22.suse.cz> <20121023164546.747e90f6.akpm@linux-foundation.org> <20121024062938.GA6119@dhcp22.suse.cz> <20121024125439.c17a510e.akpm@linux-foundation.org> <50884F63.8030606@linux.vnet.ibm.com> <20121024134836.a28d223a.akpm@linux-foundation.org> <20121024210600.GA17037@liondog.tnic> <20121024141303.0797d6a1.akpm@linux-foundation.org>
+In-Reply-To: <20121024141303.0797d6a1.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, Randy Dunlap <rdunlap@xenotime.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>
+To: akpm@linux-foundation.org
+Cc: bp@alien8.de, dave@linux.vnet.ibm.com, mhocko@suse.cz, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, kosaki.motohiro@jp.fujitsu.com, linux-kernel@vger.kernel.org, rjw@sisk.pl
 
-On Tue, 23 Oct 2012, Michal Hocko wrote:
-
-> From e8d79e446b00e57c195c59570df0f2ec435ca39d Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Tue, 23 Oct 2012 11:07:11 +0200
-> Subject: [PATCH] mm: make zone_pcp_reset independ on MEMORY_HOTREMOVE
+>> I have drop_caches in my suspend-to-disk script so that the hibernation
+>> image is kept at minimum and suspend times are as small as possible.
 > 
-> 340175b7 (mm/hotplug: free zone->pageset when a zone becomes empty)
-> introduced zone_pcp_reset and hided it inside CONFIG_MEMORY_HOTREMOVE.
-> Since "memory-hotplug: allocate zone's pcp before onlining pages" the
-> function is also called from online_pages which is defined outside
-> CONFIG_MEMORY_HOTREMOVE which causes a linkage error.
+> hm, that sounds smart.
 > 
-> The function, although not used outside of MEMORY_{HOTPLUT,HOTREMOVE},
-> seems like universal enough so let's keep it at its current location
-> and only remove the HOTREMOVE guard.
+>> Would that be a valid use-case?
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Jiang Liu <liuj97@gmail.com>
-> Cc: Len Brown <len.brown@intel.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
+> I'd say so, unless we change the kernel to do that internally.  We do
+> have the hibernation-specific shrink_all_memory() in the vmscan code. 
+> We didn't see fit to document _why_ that exists, but IIRC it's there to
+> create enough free memory for hibernation to be able to successfully
+> complete, but no more.
 
-Acked-by: David Rientjes <rientjes@google.com>
+shrink_all_memory() drop minimum memory to be needed from hibernation.
+that's trade off matter.
 
-This fixes the build error on linux-next of this morning, thanks.
+- drop all page cache
+  pros.
+   speed up hibernation time
+  cons.
+   after go back from hibernation, system works very slow a while until
+   system will get enough file cache.
+
+- drop minimum page cache
+  pros.
+   system works quickly when go back from hibernation.
+  cons.
+   relative large hibernation time
+
+
+So, I'm not fun change hibernation default. hmmm... Does adding tracepint instead of printk
+makes sense?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
