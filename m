@@ -1,74 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 930B56B0070
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:16:10 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so704552ied.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 05:16:09 -0700 (PDT)
-Message-ID: <5087DC00.6070408@gmail.com>
-Date: Wed, 24 Oct 2012 20:16:00 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 8308E6B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:18:38 -0400 (EDT)
+From: Mario Smarduch <Mario.Smarduch@huawei.com>
+Subject: questions about free_area_init_core(), SPARSEMEM, DMA
+Date: Wed, 24 Oct 2012 12:18:34 +0000
+Message-ID: <2DDB038789B01B4B80B0D3F1FF7CBDC20645F788@lhreml509-mbb.china.huawei.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: ksm questions
-References: <5087CED1.2030307@gmail.com> <5087D50D.8000101@ravellosystems.com> <5087D817.7070106@gmail.com> <5087D8E3.6090900@ravellosystems.com>
-In-Reply-To: <5087D8E3.6090900@ravellosystems.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Izik Eidus <izik.eidus@ravellosystems.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Petr Holasek <pholasek@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 10/24/2012 08:02 PM, Izik Eidus wrote:
-> On 10/24/2012 01:59 PM, Ni zhan Chen wrote:
->> On 10/24/2012 07:46 PM, Izik Eidus wrote:
->>> On 10/24/2012 01:19 PM, Ni zhan Chen wrote:
->>>> Hi all,
->>>>
->>>> I have some questions about ksm.
->>>>
->>>> 1) khugepaged default nice value is 19, but ksmd default nice value 
->>>> is 5, why this big different?
->>>> 2) why ksm doesn't support pagecache and tmpfs now? What's the 
->>>> bottleneck?
->>>> 3) ksm kernel doc said that "KSM only merges anonymous(private) 
->>>> pages, never pagecache(file) pages". But where judege it should be 
->>>> private?
->>>> 4) ksm kernel doc said that "To avoid the instability and the 
->>>> resulting false negatives to be permanent, KSM re-initializes the 
->>>> unstable tree root node to an empty tree, at every KSM pass." But I 
->>>> can't find where re-initializes the unstable tree, could you 
->>>> explain me?
->>>
->>>
->>> in scan_get_next_rmap_item(), if (slot == &ksm_mm_head) then we do 
->>> root_unstable_tree = RB_ROOT; this will result in root_unstable_tree 
->>> being empty.
->>
->> thanks Izik, what about the other three questions?
->
-> Question number 2 is beacuse it is forced to work with anonymous 
-> pages, about question 3 - I will have to remember why from the very 
-> begining I wrote it to support only anonymous pages (few years have 
-> been passed), maybe Andrea/Huge have it more hot in their heads?
 
-The initialize goal of design ksm is for virtualization, but now it also 
-can be used for other apps. So can it also support tmpfs or pagecache in 
-the future?
+In frea_area_init_core()
+for each zone calculates=20
+memmap_pages=3DPAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
 
->
->>
->>>
->>>>
->>>> Thanks in advance. :-)
->>>>
->>>> Regards,
->>>> Chen
->>>>
->>>
->>>
->>
->
->
+Which is total memory range zone spans and then it subtracts that value fro=
+m
+realsize (memory present in zone). I'm bit confused for SPARSEMEM case
+where sections not occupied don't have memmap arrays (mem_section[] indexed=
+)
+allocated. Should not the calculation of memmap_pages above take that into
+consideration?
+
+Also related to same function I've notice 'dma_reserve' is hardly defined
+anywhere. The boards I've looked at (ARM PBX, PXA) have their kernel
+text, data, bss allocated in DMA zone, any reasons why 'dma_reserve' is
+not defined to correctly determine zone watermarks and other things later
+on?
+
+- Mario
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
