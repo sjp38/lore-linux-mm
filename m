@@ -1,58 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 0F9E46B0044
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 16:28:47 -0400 (EDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 24 Oct 2012 14:28:46 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 886773E4004E
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:28:42 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9OKSP4F085974
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:28:26 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9OKSOPC015442
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:28:24 -0600
-Message-ID: <50884F63.8030606@linux.vnet.ibm.com>
-Date: Wed, 24 Oct 2012 13:28:19 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id CB9DF6B0044
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 16:32:37 -0400 (EDT)
+Date: Wed, 24 Oct 2012 23:33:29 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
+Message-ID: <20121024203329.GA24716@otc-wbsnb-06>
+References: <20121018164502.b32791e7.akpm@linux-foundation.org>
+ <20121018235941.GA32397@shutemov.name>
+ <20121023063532.GA15870@shutemov.name>
+ <20121022234349.27f33f62.akpm@linux-foundation.org>
+ <20121023070018.GA18381@otc-wbsnb-06>
+ <20121023155915.7d5ef9d1.akpm@linux-foundation.org>
+ <20121023233801.GA21591@shutemov.name>
+ <20121024122253.5ecea992.akpm@linux-foundation.org>
+ <20121024194552.GA24460@otc-wbsnb-06>
+ <20121024132552.5f9a5f5b.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-References: <20121012125708.GJ10110@dhcp22.suse.cz> <20121023164546.747e90f6.akpm@linux-foundation.org> <20121024062938.GA6119@dhcp22.suse.cz> <20121024125439.c17a510e.akpm@linux-foundation.org>
-In-Reply-To: <20121024125439.c17a510e.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="y0ulUmNC+osPPQO6"
+Content-Disposition: inline
+In-Reply-To: <20121024132552.5f9a5f5b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On 10/24/2012 12:54 PM, Andrew Morton wrote:
-> hmpf.  This patch worries me.  If there are people out there who are
-> regularly using drop_caches because the VM sucks, it seems pretty
-> obnoxious of us to go dumping stuff into their syslog.  What are they
-> supposed to do?  Stop using drop_caches?
 
-People use drop_caches because they _think_ the VM sucks, or they
-_think_ they're "tuning" their system.  _They_ are supposed to stop
-using drop_caches. :)
+--y0ulUmNC+osPPQO6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-What kind of interface _is_ it in the first place?  Is it really a
-production-level thing that we expect users to be poking at?  Or, is it
-a rarely-used debugging and benchmarking knob which is fair game for us
-to tweak like this?
+On Wed, Oct 24, 2012 at 01:25:52PM -0700, Andrew Morton wrote:
+> On Wed, 24 Oct 2012 22:45:52 +0300
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+>=20
+> > On Wed, Oct 24, 2012 at 12:22:53PM -0700, Andrew Morton wrote:
+> > >=20
+> > > I'm thinking that such a workload would be the above dd in parallel
+> > > with a small app which touches the huge page and then exits, then gets
+> > > executed again.  That "small app" sounds realistic to me.  Obviously
+> > > one could exercise the zero page's refcount at higher frequency with a
+> > > tight map/touch/unmap loop, but that sounds less realistic.  It's wor=
+th
+> > > trying that exercise as well though.
+> > >=20
+> > > Or do something else.  But we should try to probe this code's
+> > > worst-case behaviour, get an understanding of its effects and then
+> > > decide whether any such workload is realisic enough to worry about.
+> >=20
+> > Okay, I'll try few memory pressure scenarios.
+>=20
+> Thanks.
+>=20
+> > Meanwhile, could you take patches 01-09? Patch 09 implements simpler
+> > allocation scheme. It would be nice to get all other code tested.
+> > Or do you see any other blocker?
+>=20
+> I think I would take them all, to get them tested while we're still
+> poking at the code.  It's a matter of getting my lazy ass onto reviewing
+> the patches.
+>=20
+> The patches have a disturbing lack of reviewed-by's, acked-by's and
+> tested-by's on them.  Have any other of the MM lazy asses actually
+> spent some time with them yet?
 
-Do we have any valid uses of drop_caches where the printk() would truly
-_be_ disruptive?  Are those cases where we _also_ have real kernel bugs
-or issues that we should be working?  If it disrupts them and they go to
-their vendor or the community directly, it gives us at least a shot at
-fixing the real problems (or fixing the "invalid" use).
+Andrea Revieved-by previous version of the patchset, but I've dropped the
+tag after rebase to v3.7-rc1 due not-so-trivial conflicts. Patches 2, 3,
+4, 7, 10 had conflicts. Mostly due new MMU notifiers interface.
 
-Adding taint, making this a single-shot printk, or adding vmstat
-counters are all good ideas.  I guess I think the disruption is a
-feature because I hope it will draw some folks out of the woodwork.
+I mentioned that in cover letter.
+
+--=20
+ Kirill A. Shutemov
+
+--y0ulUmNC+osPPQO6
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQiFCYAAoJEAd+omnVudOMw3sQAIcyQEn6ijiGBZvfOr2Ui6k1
+1eOdG61OmPjla2g4NZLmArK+8LAxZq0SQxmfl9TTOXhbBaJxp8tsFNuhvk/OgC1m
+BqOlQWmQ0lsKxgzSsO9azbeCWIdB85VopeEZtUzdFQqXiuknbL0Lofy+zrouRYJg
+rd+jNsgtNOU5yqQg4u+dj6UtQNH/kVFlOlAIOPHwKNOnIkgd7QpPk4nCGx7w0YEI
+ycYwhc9p+DPuSAst27udp+s2uQD5xhiMSDORrJbYZ3lpn5sZjpMrAXoZuqWHrCif
++iEJHe/V4DxEeAOXxpSsrwaflDqlNaOKlv0oN5Qp6ryps+BGUQi08ijFF6dHzf5b
+2XyV2/Ln8+DH3xAXV3N7no9x63rSvZwqZDn/TjL+wLbFZRhGq2ITzuTk5gWbljBY
+zX+9k5ZYo2HOOg/1A9lyVaYnxTUWzMdeEwsGBebaDcThDVEk/yDsT54ZX7mnbqNv
+4WqBNIeDJ9CwkW39uQ6/HtgQcAaKZuCYSG871vSfVmVFhM2c8Kp6NC2IXcWFJRg8
+g5jvSfr32fZbbgbd1+x9Anl3XwF+hdITPZjewn/Vk7czoTfL4a2rrNr5CtQlG63+
+laxGBtzilCuqs9+cRGEaa6Ar8nNIp3HAMTrTqO7uLjOp5yMO9uWQolKIY33TjG3n
+ZRH8ur3YvPAu4UICPDcK
+=lpHO
+-----END PGP SIGNATURE-----
+
+--y0ulUmNC+osPPQO6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
