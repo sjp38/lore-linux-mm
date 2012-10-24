@@ -1,52 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 6B2946B005A
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 21:55:52 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so14907pad.14
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 18:55:51 -0700 (PDT)
-Date: Tue, 23 Oct 2012 18:55:49 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.7] mm, numa: avoid setting zone_reclaim_mode unless a
- node is sufficiently distant
-In-Reply-To: <CAJL_dMtS-rc1b3s9YZ+9Eapc21vF06aCT23GV8eMp13ZxURvBA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1210231853360.11290@chino.kir.corp.google.com>
-References: <CAGPN=9Qx1JAr6CGO-JfoR2ksTJG_CLLZY_oBA_TFMzA_OSfiFg@mail.gmail.com> <20121022173315.7b0da762@ilfaris> <20121022214502.0fde3adc@ilfaris> <20121022170452.cc8cc629.akpm@linux-foundation.org> <alpine.LNX.2.00.1210222059120.1136@eggly.anvils>
- <20121023110434.021d100b@ilfaris> <CAJL_dMvUktOx9BqFm5jn2JbWbL_RWH412rdU+=rtDUvkuaPRUw@mail.gmail.com> <alpine.DEB.2.00.1210231541350.1221@chino.kir.corp.google.com> <CAJL_dMtS-rc1b3s9YZ+9Eapc21vF06aCT23GV8eMp13ZxURvBA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id E59EB6B0070
+	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 23:44:18 -0400 (EDT)
+Received: by mail-vb0-f41.google.com with SMTP id v13so103839vbk.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 20:44:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+	<20121019160425.GA10175@dhcp22.suse.cz>
+	<CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+	<CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
+	<CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
+	<20121023095028.GD15397@dhcp22.suse.cz>
+	<CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
+	<20121023101500.GE15397@dhcp22.suse.cz>
+	<CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
+Date: Wed, 24 Oct 2012 11:44:17 +0800
+Message-ID: <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
+Subject: Re: process hangs on do_exit when oom happens
+From: Qiang Gao <gaoqiangscut@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Julian Wollrath <jwollrath@web.de>, Hugh Dickins <hughd@google.com>, Patrik Kullman <patrik.kullman@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-Commit 957f822a0ab9 ("mm, numa: reclaim from all nodes within reclaim
-distance") caused zone_reclaim_mode to be set for all systems where two
-nodes are within RECLAIM_DISTANCE of each other.  This is the opposite of
-what we actually want: zone_reclaim_mode should be set if two nodes are
-sufficiently distant.
+On Wed, Oct 24, 2012 at 1:43 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+> On Tue, Oct 23, 2012 at 3:45 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>> On Tue 23-10-12 18:10:33, Qiang Gao wrote:
+>>> On Tue, Oct 23, 2012 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
+>>> > On Tue 23-10-12 15:18:48, Qiang Gao wrote:
+>>> >> This process was moved to RT-priority queue when global oom-killer
+>>> >> happened to boost the recovery of the system..
+>>> >
+>>> > Who did that? oom killer doesn't boost the priority (scheduling class)
+>>> > AFAIK.
+>>> >
+>>> >> but it wasn't get properily dealt with. I still have no idea why where
+>>> >> the problem is ..
+>>> >
+>>> > Well your configuration says that there is no runtime reserved for the
+>>> > group.
+>>> > Please refer to Documentation/scheduler/sched-rt-group.txt for more
+>>> > information.
+>>> >
+>> [...]
+>>> maybe this is not a upstream-kernel bug. the centos/redhat kernel
+>>> would boost the process to RT prio when the process was selected
+>>> by oom-killer.
+>>
+>> This still looks like your cpu controller is misconfigured. Even if the
+>> task is promoted to be realtime.
+>
+>
+> Precisely! You need to have rt bandwidth enabled for RT tasks to run,
+> as a workaround please give the groups some RT bandwidth and then work
+> out the migration to RT and what should be the defaults on the distro.
+>
+> Balbir
 
-Reported-by: Julian Wollrath <jwollrath@web.de>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1809,10 +1809,10 @@ static void __paginginit init_zone_allows_reclaim(int nid)
- 	int i;
- 
- 	for_each_online_node(i)
--		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
-+		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
- 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-+		else
- 			zone_reclaim_mode = 1;
--		}
- }
- 
- #else	/* CONFIG_NUMA */
+see https://patchwork.kernel.org/patch/719411/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
