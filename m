@@ -1,247 +1,312 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 318BA6B0078
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:06:14 -0400 (EDT)
-Message-Id: <0000013a934f2d45-2357d2ac-7924-4e6b-a40a-19f87be8803a-000000@email.amazonses.com>
-Date: Wed, 24 Oct 2012 15:06:11 +0000
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 3F05E6B0074
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:06:28 -0400 (EDT)
+Message-Id: <0000013a934f6a0e-2381341a-25c7-4fa7-96e5-1be6dffd79f4-000000@email.amazonses.com>
+Date: Wed, 24 Oct 2012 15:06:26 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: CK4 [05/15] Common alignment code
+Subject: CK4 [07/15] Common kmalloc slab index determination
 References: <20121024150518.156629201@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-Extract the code to do object alignment from the allocators.
-Do the alignment calculations in slab_common so that the
-__kmem_cache_create functions of the allocators do not have
-to deal with alignment.
+Extract the function to determine the index of the slab within
+the array of kmalloc caches as well as a function to determine
+maximum object size from the nr of the kmalloc slab.
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
----
- mm/slab.c        |   20 --------------------
- mm/slab.h        |    3 +++
- mm/slab_common.c |   32 ++++++++++++++++++++++++++++++--
- mm/slob.c        |   10 ----------
- mm/slub.c        |   38 +-------------------------------------
- 5 files changed, 34 insertions(+), 69 deletions(-)
+This is used here only to simplify slub bootstrap but will
+be used later also for SLAB.
 
-Index: linux/mm/slab.h
+Signed-off-by: Christoph Lameter <cl@linux.com> 
+
+Index: linux/include/linux/slab.h
 ===================================================================
---- linux.orig/mm/slab.h	2012-10-24 09:22:34.472650741 -0500
-+++ linux/mm/slab.h	2012-10-24 09:22:57.120974042 -0500
-@@ -32,6 +32,9 @@ extern struct list_head slab_caches;
- /* The slab cache that manages slab cache information */
- extern struct kmem_cache *kmem_cache;
- 
-+unsigned long calculate_alignment(unsigned long flags,
-+		unsigned long align, unsigned long size);
-+
- /* Functions provided by the slab allocators */
- extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
- 
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2012-10-24 09:22:48.368849107 -0500
-+++ linux/mm/slab_common.c	2012-10-24 09:22:57.120974042 -0500
-@@ -73,6 +73,34 @@ static inline int kmem_cache_sanity_chec
- #endif
+--- linux.orig/include/linux/slab.h	2012-10-15 16:10:36.726540724 -0500
++++ linux/include/linux/slab.h	2012-10-15 16:10:41.266623023 -0500
+@@ -93,30 +93,6 @@
+ 				(unsigned long)ZERO_SIZE_PTR)
  
  /*
-+ * Figure out what the alignment of the objects will be given a set of
-+ * flags, a user specified alignment and the size of the objects.
+- * Common fields provided in kmem_cache by all slab allocators
+- * This struct is either used directly by the allocator (SLOB)
+- * or the allocator must include definitions for all fields
+- * provided in kmem_cache_common in their definition of kmem_cache.
+- *
+- * Once we can do anonymous structs (C11 standard) we could put a
+- * anonymous struct definition in these allocators so that the
+- * separate allocations in the kmem_cache structure of SLAB and
+- * SLUB is no longer needed.
+- */
+-#ifdef CONFIG_SLOB
+-struct kmem_cache {
+-	unsigned int object_size;/* The original size of the object */
+-	unsigned int size;	/* The aligned/padded/added on size  */
+-	unsigned int align;	/* Alignment as calculated */
+-	unsigned long flags;	/* Active flags on the slab */
+-	const char *name;	/* Slab name for sysfs */
+-	int refcount;		/* Use counter */
+-	void (*ctor)(void *);	/* Called on object slot creation */
+-	struct list_head list;	/* List of all slab caches on the system */
+-};
+-#endif
+-
+-/*
+  * struct kmem_cache related prototypes
+  */
+ void __init kmem_cache_init(void);
+@@ -151,6 +127,35 @@ void kfree(const void *);
+ void kzfree(const void *);
+ size_t ksize(const void *);
+ 
++#ifdef CONFIG_SLOB
++/*
++ * Common fields provided in kmem_cache by all slab allocators
++ * This struct is either used directly by the allocator (SLOB)
++ * or the allocator must include definitions for all fields
++ * provided in kmem_cache_common in their definition of kmem_cache.
++ *
++ * Once we can do anonymous structs (C11 standard) we could put a
++ * anonymous struct definition in these allocators so that the
++ * separate allocations in the kmem_cache structure of SLAB and
++ * SLUB is no longer needed.
 + */
-+unsigned long calculate_alignment(unsigned long flags,
-+		unsigned long align, unsigned long size)
-+{
-+	/*
-+	 * If the user wants hardware cache aligned objects then follow that
-+	 * suggestion if the object is sufficiently large.
-+	 *
-+	 * The hardware cache alignment cannot override the specified
-+	 * alignment though. If that is greater then use it.
-+	 */
-+	if (flags & SLAB_HWCACHE_ALIGN) {
-+		unsigned long ralign = cache_line_size();
-+		while (size <= ralign / 2)
-+			ralign /= 2;
-+		align = max(align, ralign);
-+	}
++struct kmem_cache {
++	unsigned int object_size;/* The original size of the object */
++	unsigned int size;	/* The aligned/padded/added on size  */
++	unsigned int align;	/* Alignment as calculated */
++	unsigned long flags;	/* Active flags on the slab */
++	const char *name;	/* Slab name for sysfs */
++	int refcount;		/* Use counter */
++	void (*ctor)(void *);	/* Called on object slot creation */
++	struct list_head list;	/* List of all slab caches on the system */
++};
 +
-+	if (align < ARCH_SLAB_MINALIGN)
-+		align = ARCH_SLAB_MINALIGN;
++#define KMALLOC_MAX_SIZE (1UL << 30)
 +
-+	return ALIGN(align, sizeof(void *));
-+}
++#include <linux/slob_def.h>
 +
++#else /* CONFIG_SLOB */
++
+ /*
+  * The largest kmalloc size supported by the slab allocators is
+  * 32 megabyte (2^25) or the maximum allocatable page order if that is
+@@ -167,6 +172,99 @@ size_t ksize(const void *);
+ #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
+ 
+ /*
++ * Kmalloc subsystem.
++ */
++#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
++#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
++#else
++#ifdef CONFIG_SLAB
++#define KMALLOC_MIN_SIZE 32
++#else
++#define KMALLOC_MIN_SIZE 8
++#endif
++#endif
++
++#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 +
 +/*
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-  * @size: The size of objects to be created in this cache.
-@@ -117,7 +145,7 @@ struct kmem_cache *kmem_cache_create(con
- 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
- 	if (s) {
- 		s->object_size = s->size = size;
--		s->align = align;
-+		s->align = calculate_alignment(flags, align, size);
- 		s->ctor = ctor;
- 		s->name = kstrdup(name, GFP_KERNEL);
- 		if (!s->name) {
-@@ -204,7 +232,7 @@ void __init create_boot_cache(struct kme
- 
- 	s->name = name;
- 	s->size = s->object_size = size;
--	s->align = ARCH_KMALLOC_MINALIGN;
-+	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
- 	err = __kmem_cache_create(s, flags);
- 
- 	if (err)
-Index: linux/mm/slob.c
-===================================================================
---- linux.orig/mm/slob.c	2012-10-24 09:21:28.295706077 -0500
-+++ linux/mm/slob.c	2012-10-24 09:22:57.120974042 -0500
-@@ -124,7 +124,6 @@ static inline void clear_slob_page_free(
- 
- #define SLOB_UNIT sizeof(slob_t)
- #define SLOB_UNITS(size) (((size) + SLOB_UNIT - 1)/SLOB_UNIT)
--#define SLOB_ALIGN L1_CACHE_BYTES
- 
- /*
-  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
-@@ -531,20 +530,11 @@ EXPORT_SYMBOL(ksize);
- 
- int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
- {
--	size_t align = c->size;
--
- 	if (flags & SLAB_DESTROY_BY_RCU) {
- 		/* leave room for rcu footer at the end of object */
- 		c->size += sizeof(struct slob_rcu);
- 	}
- 	c->flags = flags;
--	/* ignore alignment unless it's forced */
--	c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
--	if (c->align < ARCH_SLAB_MINALIGN)
--		c->align = ARCH_SLAB_MINALIGN;
--	if (c->align < align)
--		c->align = align;
--
- 	return 0;
- }
- 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2012-10-24 09:22:53.352920253 -0500
-+++ linux/mm/slub.c	2012-10-24 09:22:57.120974042 -0500
-@@ -2763,32 +2763,6 @@ static inline int calculate_order(int si
- 	return -ENOSYS;
- }
- 
--/*
-- * Figure out what the alignment of the objects will be.
-- */
--static unsigned long calculate_alignment(unsigned long flags,
--		unsigned long align, unsigned long size)
--{
--	/*
--	 * If the user wants hardware cache aligned objects then follow that
--	 * suggestion if the object is sufficiently large.
--	 *
--	 * The hardware cache alignment cannot override the specified
--	 * alignment though. If that is greater then use it.
--	 */
--	if (flags & SLAB_HWCACHE_ALIGN) {
--		unsigned long ralign = cache_line_size();
--		while (size <= ralign / 2)
--			ralign /= 2;
--		align = max(align, ralign);
--	}
--
--	if (align < ARCH_SLAB_MINALIGN)
--		align = ARCH_SLAB_MINALIGN;
--
--	return ALIGN(align, sizeof(void *));
--}
--
- static void
- init_kmem_cache_node(struct kmem_cache_node *n)
- {
-@@ -2922,7 +2896,6 @@ static int calculate_sizes(struct kmem_c
- {
- 	unsigned long flags = s->flags;
- 	unsigned long size = s->object_size;
--	unsigned long align = s->align;
- 	int order;
- 
- 	/*
-@@ -2994,19 +2967,11 @@ static int calculate_sizes(struct kmem_c
++ * Figure out which kmalloc slab an allocation of a certain size
++ * belongs to.
++ * 0 = zero alloc
++ * 1 =  65 .. 96 bytes
++ * 2 = 120 .. 192 bytes
++ * n = 2^(n-1) .. 2^n -1
++ */
++static __always_inline int kmalloc_index(size_t size)
++{
++	if (!size)
++		return 0;
++
++	if (size <= KMALLOC_MIN_SIZE)
++		return KMALLOC_SHIFT_LOW;
++
++	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
++		return 1;
++	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
++		return 2;
++	if (size <=          8) return 3;
++	if (size <=         16) return 4;
++	if (size <=         32) return 5;
++	if (size <=         64) return 6;
++	if (size <=        128) return 7;
++	if (size <=        256) return 8;
++	if (size <=        512) return 9;
++	if (size <=       1024) return 10;
++	if (size <=   2 * 1024) return 11;
++	if (size <=   4 * 1024) return 12;
++	if (size <=   8 * 1024) return 13;
++	if (size <=  16 * 1024) return 14;
++	if (size <=  32 * 1024) return 15;
++	if (size <=  64 * 1024) return 16;
++	if (size <= 128 * 1024) return 17;
++	if (size <= 256 * 1024) return 18;
++	if (size <= 512 * 1024) return 19;
++	if (size <= 1024 * 1024) return 20;
++	if (size <=  2 * 1024 * 1024) return 21;
++	if (size <=  4 * 1024 * 1024) return 22;
++	if (size <=  8 * 1024 * 1024) return 23;
++	if (size <=  16 * 1024 * 1024) return 24;
++	if (size <=  32 * 1024 * 1024) return 25;
++	if (size <=  64 * 1024 * 1024) return 26;
++	BUG();
++
++	/* Will never be reached. Needed because the compiler may complain */
++	return -1;
++}
++
++#ifdef CONFIG_SLAB
++#include <linux/slab_def.h>
++#elif defined(CONFIG_SLUB)
++#include <linux/slub_def.h>
++#else
++#error "Unknown slab allocator"
++#endif
++
++/*
++ * Determine size used for the nth kmalloc cache.
++ * return size or 0 if a kmalloc cache for that
++ * size does not exist
++ */
++static __always_inline int kmalloc_size(int n)
++{
++	if (n > 2)
++		return 1 << n;
++
++	if (n == 1 && KMALLOC_MIN_SIZE <= 32)
++		return 96;
++
++	if (n == 2 && KMALLOC_MIN_SIZE <= 64)
++		return 192;
++
++	return 0;
++}
++#endif /* !CONFIG_SLOB */
++
++/*
+  * Some archs want to perform DMA into kmalloc caches and need a guaranteed
+  * alignment larger than the alignment of a 64-bit integer.
+  * Setting ARCH_KMALLOC_MINALIGN in arch headers allows that.
+@@ -186,33 +284,6 @@ size_t ksize(const void *);
+ #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
  #endif
  
- 	/*
--	 * Determine the alignment based on various parameters that the
--	 * user specified and the dynamic determination of cache line size
--	 * on bootup.
--	 */
--	align = calculate_alignment(flags, align, s->object_size);
--	s->align = align;
+-/*
+- * Allocator specific definitions. These are mainly used to establish optimized
+- * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
+- * selecting the appropriate general cache at compile time.
+- *
+- * Allocators must define at least:
+- *
+- *	kmem_cache_alloc()
+- *	__kmalloc()
+- *	kmalloc()
+- *
+- * Those wishing to support NUMA must also define:
+- *
+- *	kmem_cache_alloc_node()
+- *	kmalloc_node()
+- *
+- * See each allocator definition file for additional comments and
+- * implementation notes.
+- */
+-#ifdef CONFIG_SLUB
+-#include <linux/slub_def.h>
+-#elif defined(CONFIG_SLOB)
+-#include <linux/slob_def.h>
+-#else
+-#include <linux/slab_def.h>
+-#endif
 -
--	/*
- 	 * SLUB stores one object immediately after another beginning from
- 	 * offset 0. In order to align the objects we have to simply size
- 	 * each object to conform to the alignment.
- 	 */
--	size = ALIGN(size, align);
-+	size = ALIGN(size, s->align);
- 	s->size = size;
- 	if (forced_order >= 0)
- 		order = forced_order;
-@@ -3035,7 +3000,6 @@ static int calculate_sizes(struct kmem_c
- 		s->max = s->oo;
- 
- 	return !!oo_objects(s->oo);
--
- }
- 
- static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
-Index: linux/mm/slab.c
+ /**
+  * kmalloc_array - allocate memory for an array.
+  * @n: number of elements.
+Index: linux/include/linux/slub_def.h
 ===================================================================
---- linux.orig/mm/slab.c	2012-10-24 09:22:55.408949602 -0500
-+++ linux/mm/slab.c	2012-10-24 09:22:57.124974099 -0500
-@@ -2361,22 +2361,6 @@ __kmem_cache_create (struct kmem_cache *
- 		size &= ~(BYTES_PER_WORD - 1);
- 	}
+--- linux.orig/include/linux/slub_def.h	2012-10-05 13:26:56.383488873 -0500
++++ linux/include/linux/slub_def.h	2012-10-15 16:10:41.266623023 -0500
+@@ -112,17 +112,6 @@ struct kmem_cache {
+ };
  
--	/* calculate the final buffer alignment: */
+ /*
+- * Kmalloc subsystem.
+- */
+-#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
+-#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
+-#else
+-#define KMALLOC_MIN_SIZE 8
+-#endif
 -
--	/* 1) arch recommendation: can be overridden for debug */
--	if (flags & SLAB_HWCACHE_ALIGN) {
--		/*
--		 * Default alignment: as specified by the arch code.  Except if
--		 * an object is really small, then squeeze multiple objects into
--		 * one cacheline.
--		 */
--		ralign = cache_line_size();
--		while (size <= ralign / 2)
--			ralign /= 2;
--	} else {
--		ralign = BYTES_PER_WORD;
--	}
+-#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 -
- 	/*
- 	 * Redzoning and user store require word alignment or possibly larger.
- 	 * Note this will be overridden by architecture or caller mandated
-@@ -2393,10 +2377,6 @@ __kmem_cache_create (struct kmem_cache *
- 		size &= ~(REDZONE_ALIGN - 1);
- 	}
+-/*
+  * Maximum kmalloc object size handled by SLUB. Larger object allocations
+  * are passed through to the page allocator. The page allocator "fastpath"
+  * is relatively slow so we need this value sufficiently high so that
+@@ -149,58 +138,6 @@ struct kmem_cache {
+ extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
  
--	/* 2) arch mandated alignment */
--	if (ralign < ARCH_SLAB_MINALIGN) {
--		ralign = ARCH_SLAB_MINALIGN;
--	}
- 	/* 3) caller mandated alignment */
- 	if (ralign < cachep->align) {
- 		ralign = cachep->align;
+ /*
+- * Sorry that the following has to be that ugly but some versions of GCC
+- * have trouble with constant propagation and loops.
+- */
+-static __always_inline int kmalloc_index(size_t size)
+-{
+-	if (!size)
+-		return 0;
+-
+-	if (size <= KMALLOC_MIN_SIZE)
+-		return KMALLOC_SHIFT_LOW;
+-
+-	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
+-		return 1;
+-	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
+-		return 2;
+-	if (size <=          8) return 3;
+-	if (size <=         16) return 4;
+-	if (size <=         32) return 5;
+-	if (size <=         64) return 6;
+-	if (size <=        128) return 7;
+-	if (size <=        256) return 8;
+-	if (size <=        512) return 9;
+-	if (size <=       1024) return 10;
+-	if (size <=   2 * 1024) return 11;
+-	if (size <=   4 * 1024) return 12;
+-/*
+- * The following is only needed to support architectures with a larger page
+- * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
+- * size we would have to go up to 128k.
+- */
+-	if (size <=   8 * 1024) return 13;
+-	if (size <=  16 * 1024) return 14;
+-	if (size <=  32 * 1024) return 15;
+-	if (size <=  64 * 1024) return 16;
+-	if (size <= 128 * 1024) return 17;
+-	if (size <= 256 * 1024) return 18;
+-	if (size <= 512 * 1024) return 19;
+-	if (size <= 1024 * 1024) return 20;
+-	if (size <=  2 * 1024 * 1024) return 21;
+-	BUG();
+-	return -1; /* Will never be reached */
+-
+-/*
+- * What we really wanted to do and cannot do because of compiler issues is:
+- *	int i;
+- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
+- *		if (size <= (1 << i))
+- *			return i;
+- */
+-}
+-
+-/*
+  * Find the slab cache for a given combination of allocation flags and size.
+  *
+  * This ought to end up with a global pointer to the right cache
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
