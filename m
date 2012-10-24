@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 627BE6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:35:50 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so491826oag.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 05:35:49 -0700 (PDT)
-Message-ID: <5087E09A.3080101@gmail.com>
-Date: Wed, 24 Oct 2012 20:35:38 +0800
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1C06B0071
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:40:35 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so442936iak.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 05:40:35 -0700 (PDT)
+Message-ID: <5087E1B6.9000002@gmail.com>
+Date: Wed, 24 Oct 2012 20:40:22 +0800
 From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
 Subject: Re: ksm questions
 References: <5087CED1.2030307@gmail.com> <5087D50D.8000101@ravellosystems.com>
 In-Reply-To: <5087D50D.8000101@ravellosystems.com>
 Content-Type: multipart/alternative;
- boundary="------------040709060605010809040507"
+ boundary="------------040906000804030607070003"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Izik Eidus <izik.eidus@ravellosystems.com>
 Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, Petr Holasek <pholasek@redhat.com>, Hugh Dickins <hughd@google.com>, Chris Wright <chrisw@sous-sol.org>, Rik van Riel <riel@redhat.com>
 
 This is a multi-part message in MIME format.
---------------040709060605010809040507
+--------------040906000804030607070003
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 
@@ -88,7 +88,7 @@ Chen
 >
 
 
---------------040709060605010809040507
+--------------040906000804030607070003
 Content-Type: text/html; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 
@@ -166,8 +166,6 @@ Content-Transfer-Encoding: 7bit
     can figure out "how many pages changing too fast to be placed in a
     tree"?<br>
     <br>
-    <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
     <span style="color: rgb(34, 34, 34); font-family: arial, sans-serif;
       font-size: 14px; font-style: normal; font-variant: normal;
       font-weight: normal; letter-spacing: normal; line-height: normal;
@@ -199,7 +197,7 @@ Content-Transfer-Encoding: 7bit
   </body>
 </html>
 
---------------040709060605010809040507--
+--------------040906000804030607070003--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
