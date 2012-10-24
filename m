@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id B27736B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:19:18 -0400 (EDT)
-Message-ID: <50881500.9030604@parallels.com>
-Date: Wed, 24 Oct 2012 20:19:12 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 04/18] slab: don't preemptively remove element from
- list in cache destroy
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-5-git-send-email-glommer@parallels.com> <0000013a7a84cb28-334eab12-33c4-4a92-bd9c-e5ad938f83d0-000000@email.amazonses.com> <5085068E.5080304@parallels.com> <CAOJsxLFxQuC9mRb=ZMoqdxS6fyLHCg1LxyfF9wAR1hiOL5i93g@mail.gmail.com>
-In-Reply-To: <CAOJsxLFxQuC9mRb=ZMoqdxS6fyLHCg1LxyfF9wAR1hiOL5i93g@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D426F6B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:30:23 -0400 (EDT)
+Received: from /spool/local
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Wed, 24 Oct 2012 09:30:22 +0100
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9O8UDpb56295470
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:30:13 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9O8UKZY028772
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 02:30:20 -0600
+Date: Wed, 24 Oct 2012 10:30:18 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
+ s390
+Message-ID: <20121024103018.1c9039b9@mschwide>
+In-Reply-To: <20121023145636.0a9b9a3e.akpm@linux-foundation.org>
+References: <1350918406-11369-1-git-send-email-jack@suse.cz>
+	<20121022123852.a4bd5f2a.akpm@linux-foundation.org>
+	<20121023102153.GD3064@quack.suse.cz>
+	<20121023145636.0a9b9a3e.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, David Rientjes <rientjes@google.com>, devel@openvz.org, Suleiman Souhlal <suleiman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-On 10/24/2012 10:54 AM, Pekka Enberg wrote:
-> On Mon, Oct 22, 2012 at 11:40 AM, Glauber Costa <glommer@parallels.com> wrote:
->> On 10/19/2012 11:34 PM, Christoph Lameter wrote:
->>> On Fri, 19 Oct 2012, Glauber Costa wrote:
->>>
->>>> I, however, see no reason why we need to do so, since we are now locked
->>>> during the whole deletion (which wasn't necessarily true before).  I
->>>> propose a simplification in which we delete it only when there is no
->>>> more going back, so we don't need to add it again.
->>>
->>> Ok lets hope that holding the lock does not cause issues.
->>>
->>> Acked-by: Christoph Lameter <cl@linux.com>
->>>
->> BTW: One of the good things about this set, is that we are naturally
->> exercising cache destruction a lot more than we did before. So if there
->> is any problem, either with this or anything related to cache
->> destruction, it should at least show up a lot more frequently. So far,
->> this does not seem to cause any problems.
-> 
-> We no longer hold the mutex the whole time after. See commit 210ed9d
-> ("mm, slab: release slab_mutex earlier in kmem_cache_destroy()") for
-> details.
-> 
-I will resubmit then.
+On Tue, 23 Oct 2012 14:56:36 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-It doesn't really change the spirit of the patch. I took a look at that
-fix, and what it does, is it releases the mutex right after
-kmem_cache_shutdown() succeeds. Removing from the list in there would do
-the trick.
+> On Tue, 23 Oct 2012 12:21:53 +0200
+> Jan Kara <jack@suse.cz> wrote:
+> 
+> > > > diff --git a/mm/rmap.c b/mm/rmap.c
+> > > 
+> > > It's a bit surprising that none of the added comments mention the s390
+> > > pte-dirtying oddity.  I don't see an obvious place to mention this, but
+> > > I for one didn't know about this and it would be good if we could
+> > > capture the info _somewhere_?
+> >   As Hugh says, the comment before page_test_and_clear_dirty() is somewhat
+> > updated. But do you mean recording somewhere the catch that s390 HW dirty
+> > bit gets set also whenever we write to a page from kernel?
+> 
+> Yes, this.  It's surprising behaviour which we may trip over again, so
+> how do we inform developers about it?
+
+That is what I worry about as well. It is not the first time we tripped over
+the per-page dirty bit and I guess it won't be the last time. Therefore I
+created a patch to switch s390 over to fault based dirty bits, the sneak
+performance test are promising. If we do not find any major performance
+degradation this would be my preferred way to fix this problem for good.
+
+-- 
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
