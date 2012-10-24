@@ -1,40 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id EE0B76B0072
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 10:35:14 -0400 (EDT)
-Message-ID: <5087FC97.6080100@parallels.com>
-Date: Wed, 24 Oct 2012 18:35:03 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/2] kmem_cache: include allocators code directly into
- slab_common
-References: <1351087158-8524-1-git-send-email-glommer@parallels.com> <1351087158-8524-2-git-send-email-glommer@parallels.com> <0000013a932d456c-8f0cbbce-e3f7-4f2a-b051-7b093a8cfc7e-000000@email.amazonses.com>
-In-Reply-To: <0000013a932d456c-8f0cbbce-e3f7-4f2a-b051-7b093a8cfc7e-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 88B516B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:05:55 -0400 (EDT)
+Message-Id: <0000013a934eed6d-a9c1b247-dbbc-485d-b7cf-89aa36dcca57-000000@email.amazonses.com>
+Date: Wed, 24 Oct 2012 15:05:54 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: CK4 [00/15] Sl[auo]b: Common kmalloc caches V4
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On 10/24/2012 06:29 PM, Christoph Lameter wrote:
-> On Wed, 24 Oct 2012, Glauber Costa wrote:
-> 
->> Because of that, we either have to move all the entry points to the
->> mm/slab.h and rely heavily on the pre-processor, or include all .c files
->> in here.
-> 
-> Hmm... That is a bit of a radical solution. The global optimizations now
-> possible with the new gcc compiler include the ability to fold functions
-> across different linkable objects. Andi, is that usable for kernel builds?
-> 
+V3->V4:
+ - Further fixes of issues pointed out by Joonsoo and Glauber.
 
-In general, it takes quite a lot of time to take all those optimizations
-for granted. We still live a lot of time with multiple compiler versions
-building distros, etc, for quite some time.
+V2-V3:
+- Further cleanup and reordering as suggested by Glauber
 
-I would expect the end result for anyone not using such a compiler to be
-a sudden performance drop when using a new kernel. Not really pleasant.
+V1-V2:
+- Clean up numerous things as suggested by Glauber.
+- Add two more patches that extract more kmalloc stuff
+  into common files.
+
+This patchset cleans up the bootstrap of the allocators
+and creates a common functions to handle the kmalloc
+array. The results are more common data structures and
+functions that will simplify further work
+on having common functions for all allocators.
+
+This patchset is against Pekka's slab/next tree as of today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
