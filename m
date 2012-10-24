@@ -1,65 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id D426F6B0070
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:30:23 -0400 (EDT)
-Received: from /spool/local
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Wed, 24 Oct 2012 09:30:22 +0100
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9O8UDpb56295470
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 08:30:13 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9O8UKZY028772
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 02:30:20 -0600
-Date: Wed, 24 Oct 2012 10:30:18 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-ID: <20121024103018.1c9039b9@mschwide>
-In-Reply-To: <20121023145636.0a9b9a3e.akpm@linux-foundation.org>
-References: <1350918406-11369-1-git-send-email-jack@suse.cz>
-	<20121022123852.a4bd5f2a.akpm@linux-foundation.org>
-	<20121023102153.GD3064@quack.suse.cz>
-	<20121023145636.0a9b9a3e.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 9FB036B0072
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:31:36 -0400 (EDT)
+Message-ID: <5087A75F.1050401@parallels.com>
+Date: Wed, 24 Oct 2012 12:31:27 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
+References: <1350914737-4097-1-git-send-email-glommer@parallels.com> <1350914737-4097-3-git-send-email-glommer@parallels.com> <0000013a88eff593-50da3bb8-3294-41db-9c32-4e890ef6940a-000000@email.amazonses.com> <508561E0.5000406@parallels.com> <CAAmzW4PJkDbLJBKZ1zPNDw+dHPcgzX_25tMw3rWoX0ybpXACSQ@mail.gmail.com> <50865024.60309@parallels.com> <508676FA.4000107@parallels.com> <CAAmzW4M9Casm+b4TOe7MOuZMYf7PKmzOHs1wZOXvybhRxCqZRA@mail.gmail.com>
+In-Reply-To: <CAAmzW4M9Casm+b4TOe7MOuZMYf7PKmzOHs1wZOXvybhRxCqZRA@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, David
+ Rientjes <rientjes@google.com>
 
-On Tue, 23 Oct 2012 14:56:36 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
-
-> On Tue, 23 Oct 2012 12:21:53 +0200
-> Jan Kara <jack@suse.cz> wrote:
+On 10/23/2012 07:43 PM, JoonSoo Kim wrote:
+> 2012/10/23 Glauber Costa <glommer@parallels.com>:
+>> On 10/23/2012 12:07 PM, Glauber Costa wrote:
+>>> On 10/23/2012 04:48 AM, JoonSoo Kim wrote:
+>>>> Hello, Glauber.
+>>>>
+>>>> 2012/10/23 Glauber Costa <glommer@parallels.com>:
+>>>>> On 10/22/2012 06:45 PM, Christoph Lameter wrote:
+>>>>>> On Mon, 22 Oct 2012, Glauber Costa wrote:
+>>>>>>
+>>>>>>> + * kmem_cache_free - Deallocate an object
+>>>>>>> + * @cachep: The cache the allocation was from.
+>>>>>>> + * @objp: The previously allocated object.
+>>>>>>> + *
+>>>>>>> + * Free an object which was previously allocated from this
+>>>>>>> + * cache.
+>>>>>>> + */
+>>>>>>> +void kmem_cache_free(struct kmem_cache *s, void *x)
+>>>>>>> +{
+>>>>>>> +    __kmem_cache_free(s, x);
+>>>>>>> +    trace_kmem_cache_free(_RET_IP_, x);
+>>>>>>> +}
+>>>>>>> +EXPORT_SYMBOL(kmem_cache_free);
+>>>>>>> +
+>>>>>>
+>>>>>> This results in an additional indirection if tracing is off. Wonder if
+>>>>>> there is a performance impact?
+>>>>>>
+>>>>> if tracing is on, you mean?
+>>>>>
+>>>>> Tracing already incurs overhead, not sure how much a function call would
+>>>>> add to the tracing overhead.
+>>>>>
+>>>>> I would not be concerned with this, but I can measure, if you have any
+>>>>> specific workload in mind.
+>>>>
+>>>> With this patch, kmem_cache_free() invokes __kmem_cache_free(),
+>>>> that is, it add one more "call instruction" than before.
+>>>>
+>>>> I think that Christoph's comment means above fact.
+>>>
+>>> Ah, this. Ok, I got fooled by his mention to tracing.
+>>>
+>>> I do agree, but since freeing is ultimately dependent on the allocator
+>>> layout, I don't see a clean way of doing this without dropping tears of
+>>> sorrow around. The calls in slub/slab/slob would have to be somehow
+>>> inlined. Hum... maybe it is possible to do it from
+>>> include/linux/sl*b_def.h...
+>>>
+>>> Let me give it a try and see what I can come up with.
+>>>
+>>
+>> Ok.
+>>
+>> I am attaching a PoC for this for your appreciation. This gets quite
+>> ugly, but it's the way I found without including sl{a,u,o}b.c directly -
+>> which would be even worse.
 > 
-> > > > diff --git a/mm/rmap.c b/mm/rmap.c
-> > > 
-> > > It's a bit surprising that none of the added comments mention the s390
-> > > pte-dirtying oddity.  I don't see an obvious place to mention this, but
-> > > I for one didn't know about this and it would be good if we could
-> > > capture the info _somewhere_?
-> >   As Hugh says, the comment before page_test_and_clear_dirty() is somewhat
-> > updated. But do you mean recording somewhere the catch that s390 HW dirty
-> > bit gets set also whenever we write to a page from kernel?
+> Hmm...
+> This is important issue for sl[aou]b common allocators.
+> Because there are similar functions like as kmem_cache_alloc, ksize, kfree, ...
+> So it is good time to resolve this issue.
 > 
-> Yes, this.  It's surprising behaviour which we may trip over again, so
-> how do we inform developers about it?
+> As far as I know, now, we have 3 solutions.
+> 
+> 1. include/linux/slab.h
+> __always_inline kmem_cache_free()
+> {
+> __kmem_cache_free();
+> blablabla...
+> }
+> 
+> 2. define macro like as Glauber's solution
+> 3. include sl[aou]b.c directly.
+> 
+> Is there other good solution?
+> Among them, I prefer "solution 3", because future developing cost may
+> be minimum among them.
+> 
+> "Solution 2" may be error-prone for future developing.
+> "Solution 1" may make compile-time longer and larger code.
+> 
+> Is my understanding right?
+> Is "Solution 3" really ugly?
+> 
 
-That is what I worry about as well. It is not the first time we tripped over
-the per-page dirty bit and I guess it won't be the last time. Therefore I
-created a patch to switch s390 over to fault based dirty bits, the sneak
-performance test are promising. If we do not find any major performance
-degradation this would be my preferred way to fix this problem for good.
+As much as I agree my proposed solution is ugly (I wouldn't necessarily
+call it error-prone, it's just that that doesn't belong in there, and it
+is hard for people to figure out what is going on at first look), I
+don't like "Solution 3" either.
 
--- 
-blue skies,
-   Martin.
+The main reason is that over time, .c files tend to grow with more code.
+You are not necessarily seeing what are in the other files, and the
+opportunities for name clashes become abundant. Among others...
 
-"Reality continues to ruin my life." - Calvin.
+So what I coded, at least has the advantage of restricting this to only
+a selected subset of user-visible functions.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
