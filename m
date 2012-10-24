@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 9E5746B0071
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:56:27 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id hq7so192459wib.8
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 01:56:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1350914737-4097-3-git-send-email-glommer@parallels.com>
-References: <1350914737-4097-1-git-send-email-glommer@parallels.com>
-	<1350914737-4097-3-git-send-email-glommer@parallels.com>
-Date: Wed, 24 Oct 2012 11:56:25 +0300
-Message-ID: <CAOJsxLHuQxZ8Hh_bhidaZRMqKssRc=h3RRPPPYD=unoJU-G4AA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] slab: move kmem_cache_free to common code
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 80DB06B006E
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 04:58:39 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id p5so204753lag.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 01:58:37 -0700 (PDT)
+Date: Wed, 24 Oct 2012 11:58:33 +0300 (EEST)
 From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/2] slab: commonize slab_cache field in struct page
+In-Reply-To: <1350914737-4097-2-git-send-email-glommer@parallels.com>
+Message-ID: <alpine.LFD.2.02.1210241158190.13035@tux.localdomain>
+References: <1350914737-4097-1-git-send-email-glommer@parallels.com> <1350914737-4097-2-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-On Mon, Oct 22, 2012 at 5:05 PM, Glauber Costa <glommer@parallels.com> wrote:
-> +/**
-> + * kmem_cache_free - Deallocate an object
-> + * @cachep: The cache the allocation was from.
-> + * @objp: The previously allocated object.
-> + *
-> + * Free an object which was previously allocated from this
-> + * cache.
-> + */
-> +void kmem_cache_free(struct kmem_cache *s, void *x)
-> +{
-> +       __kmem_cache_free(s, x);
-> +       trace_kmem_cache_free(_RET_IP_, x);
-> +}
-> +EXPORT_SYMBOL(kmem_cache_free);
+On Mon, 22 Oct 2012, Glauber Costa wrote:
+> Right now, slab and slub have fields in struct page to derive which
+> cache a page belongs to, but they do it slightly differently.
+> 
+> slab uses a field called slab_cache, that lives in the third double
+> word. slub, uses a field called "slab", living outside of the
+> doublewords area.
+> 
+> Ideally, we could use the same field for this. Since slub heavily makes
+> use of the doubleword region, there isn't really much room to move
+> slub's slab_cache field around. Since slab does not have such strict
+> placement restrictions, we can move it outside the doubleword area.
+> 
+> The naming used by slab, "slab_cache", is less confusing, and it is
+> preferred over slub's generic "slab".
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@kernel.org>
+> CC: David Rientjes <rientjes@google.com>
 
-As Christoph mentioned, this is going to hurt performance. The proper
-way to do this is to implement the *hook* in mm/slab_common.c and call
-that from all the allocator specific kmem_cache_free() functions.
-
-                        Pekka
+Applied, thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
