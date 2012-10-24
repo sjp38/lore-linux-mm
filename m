@@ -1,49 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id E68426B0062
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:18:51 -0400 (EDT)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 24 Oct 2012 15:18:51 -0600
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 4824C1FF003C
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 15:18:47 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9OLIkYu229244
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 15:18:46 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9OLIjiI026140
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 15:18:46 -0600
-Message-ID: <50885B2E.5050500@linux.vnet.ibm.com>
-Date: Wed, 24 Oct 2012 14:18:38 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-References: <20121012125708.GJ10110@dhcp22.suse.cz> <20121023164546.747e90f6.akpm@linux-foundation.org> <20121024062938.GA6119@dhcp22.suse.cz> <20121024125439.c17a510e.akpm@linux-foundation.org> <50884F63.8030606@linux.vnet.ibm.com> <20121024134836.a28d223a.akpm@linux-foundation.org> <20121024210600.GA17037@liondog.tnic>
-In-Reply-To: <20121024210600.GA17037@liondog.tnic>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 03BE56B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:26:38 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1653506pbb.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:26:38 -0700 (PDT)
+From: raghu.prabhu13@gmail.com
+Subject: [PATCH v2] Change the check for PageReadahead into an else-if
+Date: Thu, 25 Oct 2012 02:56:04 +0530
+Message-Id: <05ff4f71283e84be8ab1b312864168d89535239f.1351113536.git.rprabhu@wnohang.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: kosaki.motohiro@gmail.com, fengguang.wu@intel.com, zheng.z.yan@intel.com
+Cc: linux-mm@kvack.org, linux-btrfs@vger.kernel.org, Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-On 10/24/2012 02:06 PM, Borislav Petkov wrote:
-> On Wed, Oct 24, 2012 at 01:48:36PM -0700, Andrew Morton wrote:
->> Well who knows. Could be that people's vm *does* suck. Or they have
->> some particularly peculiar worklosd or requirement[*]. Or their VM
->> *used* to suck, and the drop_caches is not really needed any more but
->> it's there in vendor-provided code and they can't practically prevent
->> it.
-> 
-> I have drop_caches in my suspend-to-disk script so that the hibernation
-> image is kept at minimum and suspend times are as small as possible.
-> 
-> Would that be a valid use-case?
+From: Raghavendra D Prabhu <rprabhu@wnohang.net>
 
-Sounds fairly valid to me.  But, it's also one that would not be harmed
-or disrupted in any way because of a single additional printk() during
-each suspend-to-disk operation.
+>From 51daa88ebd8e0d437289f589af29d4b39379ea76, page_sync_readahead coalesces
+async readahead into its readahead window, so another checking for that again is
+not required.
+
+Version 2: Fixed the incorrect indentation.
+
+Signed-off-by: Raghavendra D Prabhu <rprabhu@wnohang.net>
+---
+ fs/btrfs/relocation.c | 4 +---
+ mm/filemap.c          | 3 +--
+ 2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/fs/btrfs/relocation.c b/fs/btrfs/relocation.c
+index 776f0aa..8cfa1ab 100644
+--- a/fs/btrfs/relocation.c
++++ b/fs/btrfs/relocation.c
+@@ -2996,9 +2996,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
+ 				ret = -ENOMEM;
+ 				goto out;
+ 			}
+-		}
+-
+-		if (PageReadahead(page)) {
++		} else if (PageReadahead(page)) {
+ 			page_cache_async_readahead(inode->i_mapping,
+ 						   ra, NULL, page, index,
+ 						   last_index + 1 - index);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 83efee7..aa440f16 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1113,8 +1113,7 @@ find_page:
+ 			page = find_get_page(mapping, index);
+ 			if (unlikely(page == NULL))
+ 				goto no_cached_page;
+-		}
+-		if (PageReadahead(page)) {
++		} else if (PageReadahead(page)) {
+ 			page_cache_async_readahead(mapping,
+ 					ra, filp, page,
+ 					index, last_index - index);
+--
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
