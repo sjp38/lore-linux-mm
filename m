@@ -1,141 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 318A26B0074
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:06:13 -0400 (EDT)
-Message-Id: <0000013a934f2b3e-d3b1d3f9-7b5c-4e4b-bedc-b8dc864a7c65-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 318BA6B0078
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:06:14 -0400 (EDT)
+Message-Id: <0000013a934f2d45-2357d2ac-7924-4e6b-a40a-19f87be8803a-000000@email.amazonses.com>
 Date: Wed, 24 Oct 2012 15:06:11 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: CK4 [03/15] slub: Use a statically allocated kmem_cache boot structure for bootstrap
+Subject: CK4 [05/15] Common alignment code
 References: <20121024150518.156629201@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-Simplify bootstrap by statically allocated two kmem_cache structures. These are
-freed after bootup is complete. Allows us to no longer worry about calculations
-of sizes of kmem_cache structures during bootstrap.
+Extract the code to do object alignment from the allocators.
+Do the alignment calculations in slab_common so that the
+__kmem_cache_create functions of the allocators do not have
+to deal with alignment.
 
-V1->V2:
-	- Use kmem_cache_zalloc to properly zero structures.
-	- Simplify setup by introducing a new boottime
-		function "bootstrap()".
-
-Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slub.c |   41 +++++++++++------------------------------
- 1 file changed, 11 insertions(+), 30 deletions(-)
+ mm/slab.c        |   20 --------------------
+ mm/slab.h        |    3 +++
+ mm/slab_common.c |   32 ++++++++++++++++++++++++++++++--
+ mm/slob.c        |   10 ----------
+ mm/slub.c        |   38 +-------------------------------------
+ 5 files changed, 34 insertions(+), 69 deletions(-)
 
-Index: linux/mm/slub.c
+Index: linux/mm/slab.h
 ===================================================================
---- linux.orig/mm/slub.c	2012-10-24 09:33:17.773804951 -0500
-+++ linux/mm/slub.c	2012-10-24 09:49:55.791858212 -0500
-@@ -3644,15 +3644,16 @@ static int slab_memory_callback(struct n
+--- linux.orig/mm/slab.h	2012-10-24 09:22:34.472650741 -0500
++++ linux/mm/slab.h	2012-10-24 09:22:57.120974042 -0500
+@@ -32,6 +32,9 @@ extern struct list_head slab_caches;
+ /* The slab cache that manages slab cache information */
+ extern struct kmem_cache *kmem_cache;
+ 
++unsigned long calculate_alignment(unsigned long flags,
++		unsigned long align, unsigned long size);
++
+ /* Functions provided by the slab allocators */
+ extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
+ 
+Index: linux/mm/slab_common.c
+===================================================================
+--- linux.orig/mm/slab_common.c	2012-10-24 09:22:48.368849107 -0500
++++ linux/mm/slab_common.c	2012-10-24 09:22:57.120974042 -0500
+@@ -73,6 +73,34 @@ static inline int kmem_cache_sanity_chec
+ #endif
  
  /*
-  * Used for early kmem_cache structures that were allocated using
-- * the page allocator
-+ * the page allocator. Allocate them properly then fix up the pointers
-+ * that may be pointing to the wrong kmem_cache structure.
-  */
++ * Figure out what the alignment of the objects will be given a set of
++ * flags, a user specified alignment and the size of the objects.
++ */
++unsigned long calculate_alignment(unsigned long flags,
++		unsigned long align, unsigned long size)
++{
++	/*
++	 * If the user wants hardware cache aligned objects then follow that
++	 * suggestion if the object is sufficiently large.
++	 *
++	 * The hardware cache alignment cannot override the specified
++	 * alignment though. If that is greater then use it.
++	 */
++	if (flags & SLAB_HWCACHE_ALIGN) {
++		unsigned long ralign = cache_line_size();
++		while (size <= ralign / 2)
++			ralign /= 2;
++		align = max(align, ralign);
++	}
++
++	if (align < ARCH_SLAB_MINALIGN)
++		align = ARCH_SLAB_MINALIGN;
++
++	return ALIGN(align, sizeof(void *));
++}
++
++
++/*
+  * kmem_cache_create - Create a cache.
+  * @name: A string which is used in /proc/slabinfo to identify this cache.
+  * @size: The size of objects to be created in this cache.
+@@ -117,7 +145,7 @@ struct kmem_cache *kmem_cache_create(con
+ 	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+ 	if (s) {
+ 		s->object_size = s->size = size;
+-		s->align = align;
++		s->align = calculate_alignment(flags, align, size);
+ 		s->ctor = ctor;
+ 		s->name = kstrdup(name, GFP_KERNEL);
+ 		if (!s->name) {
+@@ -204,7 +232,7 @@ void __init create_boot_cache(struct kme
  
--static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
-+static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
+ 	s->name = name;
+ 	s->size = s->object_size = size;
+-	s->align = ARCH_KMALLOC_MINALIGN;
++	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+ 	err = __kmem_cache_create(s, flags);
+ 
+ 	if (err)
+Index: linux/mm/slob.c
+===================================================================
+--- linux.orig/mm/slob.c	2012-10-24 09:21:28.295706077 -0500
++++ linux/mm/slob.c	2012-10-24 09:22:57.120974042 -0500
+@@ -124,7 +124,6 @@ static inline void clear_slob_page_free(
+ 
+ #define SLOB_UNIT sizeof(slob_t)
+ #define SLOB_UNITS(size) (((size) + SLOB_UNIT - 1)/SLOB_UNIT)
+-#define SLOB_ALIGN L1_CACHE_BYTES
+ 
+ /*
+  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
+@@ -531,20 +530,11 @@ EXPORT_SYMBOL(ksize);
+ 
+ int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
  {
- 	int node;
-+	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
- 
--	list_add(&s->list, &slab_caches);
--	s->refcount = -1;
-+	memcpy(s, static_cache, kmem_size);
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
-@@ -3668,70 +3669,44 @@ static void __init kmem_cache_bootstrap_
- #endif
- 		}
+-	size_t align = c->size;
+-
+ 	if (flags & SLAB_DESTROY_BY_RCU) {
+ 		/* leave room for rcu footer at the end of object */
+ 		c->size += sizeof(struct slob_rcu);
  	}
-+	return s;
+ 	c->flags = flags;
+-	/* ignore alignment unless it's forced */
+-	c->align = (flags & SLAB_HWCACHE_ALIGN) ? SLOB_ALIGN : 0;
+-	if (c->align < ARCH_SLAB_MINALIGN)
+-		c->align = ARCH_SLAB_MINALIGN;
+-	if (c->align < align)
+-		c->align = align;
+-
+ 	return 0;
  }
  
-+static __initdata struct kmem_cache boot_kmem_cache,
-+			boot_kmem_cache_node;
-+
- void __init kmem_cache_init(void)
- {
- 	int i;
--	int caches = 0;
--	struct kmem_cache *temp_kmem_cache;
--	int order;
--	struct kmem_cache *temp_kmem_cache_node;
--	unsigned long kmalloc_size;
-+	int caches = 2;
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-10-24 09:22:53.352920253 -0500
++++ linux/mm/slub.c	2012-10-24 09:22:57.120974042 -0500
+@@ -2763,32 +2763,6 @@ static inline int calculate_order(int si
+ 	return -ENOSYS;
+ }
  
- 	if (debug_guardpage_minorder())
- 		slub_max_order = 0;
- 
-+	kmem_cache_node = &boot_kmem_cache_node;
-+	kmem_cache = &boot_kmem_cache;
- 	kmem_size = offsetof(struct kmem_cache, node) +
- 			nr_node_ids * sizeof(struct kmem_cache_node *);
- 
--	/* Allocate two kmem_caches from the page allocator */
--	kmalloc_size = ALIGN(kmem_size, cache_line_size());
--	order = get_order(2 * kmalloc_size);
--	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
--
+-/*
+- * Figure out what the alignment of the objects will be.
+- */
+-static unsigned long calculate_alignment(unsigned long flags,
+-		unsigned long align, unsigned long size)
+-{
 -	/*
--	 * Must first have the slab cache available for the allocations of the
--	 * struct kmem_cache_node's. There is special bootstrap code in
--	 * kmem_cache_open for slab_state == DOWN.
+-	 * If the user wants hardware cache aligned objects then follow that
+-	 * suggestion if the object is sufficiently large.
+-	 *
+-	 * The hardware cache alignment cannot override the specified
+-	 * alignment though. If that is greater then use it.
 -	 */
--	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
+-	if (flags & SLAB_HWCACHE_ALIGN) {
+-		unsigned long ralign = cache_line_size();
+-		while (size <= ralign / 2)
+-			ralign /= 2;
+-		align = max(align, ralign);
+-	}
 -
--	kmem_cache_node->name = "kmem_cache_node";
--	kmem_cache_node->size = kmem_cache_node->object_size =
--		sizeof(struct kmem_cache_node);
--	kmem_cache_open(kmem_cache_node, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-+	create_boot_cache(kmem_cache_node, "kmem_cache_node",
-+		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
- 
- 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
- 
--	temp_kmem_cache = kmem_cache;
--	kmem_cache->name = "kmem_cache";
--	kmem_cache->size = kmem_cache->object_size = kmem_size;
--	kmem_cache_open(kmem_cache, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-+	create_boot_cache(kmem_cache, "kmem_cache", kmem_size,
-+		       SLAB_HWCACHE_ALIGN);
- 
--	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
-+	kmem_cache = bootstrap(&boot_kmem_cache);
+-	if (align < ARCH_SLAB_MINALIGN)
+-		align = ARCH_SLAB_MINALIGN;
+-
+-	return ALIGN(align, sizeof(void *));
+-}
+-
+ static void
+ init_kmem_cache_node(struct kmem_cache_node *n)
+ {
+@@ -2922,7 +2896,6 @@ static int calculate_sizes(struct kmem_c
+ {
+ 	unsigned long flags = s->flags;
+ 	unsigned long size = s->object_size;
+-	unsigned long align = s->align;
+ 	int order;
  
  	/*
- 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
- 	 * kmem_cache_node is separately allocated so no need to
- 	 * update any list pointers.
+@@ -2994,19 +2967,11 @@ static int calculate_sizes(struct kmem_c
+ #endif
+ 
+ 	/*
+-	 * Determine the alignment based on various parameters that the
+-	 * user specified and the dynamic determination of cache line size
+-	 * on bootup.
+-	 */
+-	align = calculate_alignment(flags, align, s->object_size);
+-	s->align = align;
+-
+-	/*
+ 	 * SLUB stores one object immediately after another beginning from
+ 	 * offset 0. In order to align the objects we have to simply size
+ 	 * each object to conform to the alignment.
  	 */
--	temp_kmem_cache_node = kmem_cache_node;
--
--	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
--
--	kmem_cache_bootstrap_fixup(kmem_cache_node);
--
--	caches++;
--	kmem_cache_bootstrap_fixup(kmem_cache);
--	caches++;
--	/* Free temporary boot structure */
--	free_pages((unsigned long)temp_kmem_cache, order);
-+	kmem_cache_node = bootstrap(&boot_kmem_cache_node);
+-	size = ALIGN(size, align);
++	size = ALIGN(size, s->align);
+ 	s->size = size;
+ 	if (forced_order >= 0)
+ 		order = forced_order;
+@@ -3035,7 +3000,6 @@ static int calculate_sizes(struct kmem_c
+ 		s->max = s->oo;
  
- 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+ 	return !!oo_objects(s->oo);
+-
+ }
  
+ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
+Index: linux/mm/slab.c
+===================================================================
+--- linux.orig/mm/slab.c	2012-10-24 09:22:55.408949602 -0500
++++ linux/mm/slab.c	2012-10-24 09:22:57.124974099 -0500
+@@ -2361,22 +2361,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		size &= ~(BYTES_PER_WORD - 1);
+ 	}
+ 
+-	/* calculate the final buffer alignment: */
+-
+-	/* 1) arch recommendation: can be overridden for debug */
+-	if (flags & SLAB_HWCACHE_ALIGN) {
+-		/*
+-		 * Default alignment: as specified by the arch code.  Except if
+-		 * an object is really small, then squeeze multiple objects into
+-		 * one cacheline.
+-		 */
+-		ralign = cache_line_size();
+-		while (size <= ralign / 2)
+-			ralign /= 2;
+-	} else {
+-		ralign = BYTES_PER_WORD;
+-	}
+-
+ 	/*
+ 	 * Redzoning and user store require word alignment or possibly larger.
+ 	 * Note this will be overridden by architecture or caller mandated
+@@ -2393,10 +2377,6 @@ __kmem_cache_create (struct kmem_cache *
+ 		size &= ~(REDZONE_ALIGN - 1);
+ 	}
+ 
+-	/* 2) arch mandated alignment */
+-	if (ralign < ARCH_SLAB_MINALIGN) {
+-		ralign = ARCH_SLAB_MINALIGN;
+-	}
+ 	/* 3) caller mandated alignment */
+ 	if (ralign < cachep->align) {
+ 		ralign = cachep->align;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
