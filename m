@@ -1,123 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id C36476B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:10:30 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so945494oag.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:10:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1350656442-1523-9-git-send-email-glommer@parallels.com>
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com>
-	<1350656442-1523-9-git-send-email-glommer@parallels.com>
-Date: Thu, 25 Oct 2012 03:10:29 +0900
-Message-ID: <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
-Subject: Re: [PATCH v5 08/18] memcg: infrastructure to match an allocation to
- the right cache
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id CF7EB6B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 15:22:55 -0400 (EDT)
+Date: Wed, 24 Oct 2012 12:22:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
+Message-Id: <20121024122253.5ecea992.akpm@linux-foundation.org>
+In-Reply-To: <20121023233801.GA21591@shutemov.name>
+References: <1350280859-18801-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1350280859-18801-11-git-send-email-kirill.shutemov@linux.intel.com>
+	<20121018164502.b32791e7.akpm@linux-foundation.org>
+	<20121018235941.GA32397@shutemov.name>
+	<20121023063532.GA15870@shutemov.name>
+	<20121022234349.27f33f62.akpm@linux-foundation.org>
+	<20121023070018.GA18381@otc-wbsnb-06>
+	<20121023155915.7d5ef9d1.akpm@linux-foundation.org>
+	<20121023233801.GA21591@shutemov.name>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
 
-2012/10/19 Glauber Costa <glommer@parallels.com>:
-> @@ -2930,9 +2937,188 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s)
->
->  void memcg_release_cache(struct kmem_cache *s)
->  {
-> +       struct kmem_cache *root;
-> +       int id = memcg_css_id(s->memcg_params->memcg);
-> +
-> +       if (s->memcg_params->is_root_cache)
-> +               goto out;
-> +
-> +       root = s->memcg_params->root_cache;
-> +       root->memcg_params->memcg_caches[id] = NULL;
-> +       mem_cgroup_put(s->memcg_params->memcg);
-> +out:
->         kfree(s->memcg_params);
->  }
+On Wed, 24 Oct 2012 02:38:01 +0300
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-memcg_css_id should be called after checking "s->memcg_params->is_root_cache".
-Because when is_root_cache == true, memcg_params has no memcg object.
+> On Tue, Oct 23, 2012 at 03:59:15PM -0700, Andrew Morton wrote:
+> > On Tue, 23 Oct 2012 10:00:18 +0300
+> > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> > 
+> > > > Well, how hard is it to trigger the bad behavior?  One can easily
+> > > > create a situation in which that page's refcount frequently switches
+> > > > from 0 to 1 and back again.  And one can easily create a situation in
+> > > > which the shrinkers are being called frequently.  Run both at the same
+> > > > time and what happens?
+> > > 
+> > > If the goal is to trigger bad behavior then:
+> > > 
+> > > 1. read from an area where a huge page can be mapped to get huge zero page
+> > >    mapped. hzp is allocated here. refcounter == 2.
+> > > 2. write to the same page. refcounter == 1.
+> > > 3. echo 3 > /proc/sys/vm/drop_caches. refcounter == 0 -> free the hzp.
+> > > 4. goto 1.
+> > > 
+> > > But it's unrealistic. /proc/sys/vm/drop_caches is only root-accessible.
+> > 
+> > Yes, drop_caches is uninteresting.
+> > 
+> > > We can trigger shrinker only under memory pressure. But in this, most
+> > > likely we will get -ENOMEM on hzp allocation and will go to fallback path
+> > > (4k zero page).
+> > 
+> > I disagree.  If, for example, there is a large amount of clean
+> > pagecache being generated then the shrinkers will be called frequently
+> > and memory reclaim will be running at a 100% success rate.  The
+> > hugepage allocation will be successful in such a situation?
+> 
+> Yes.
+> 
+> Shrinker callbacks are called from shrink_slab() which happens after page
+> cache reclaim, so on next reclaim round page cache will reclaim first and
+> we will avoid frequent alloc-free pattern.
 
+I don't understand this.  If reclaim is running continuously (which can
+happen pretty easily: "dd if=/fast-disk/large-file") then the zero page
+will be whipped away very shortly after its refcount has fallen to
+zero.
 
-> +/*
-> + * This lock protects updaters, not readers. We want readers to be as fast as
-> + * they can, and they will either see NULL or a valid cache value. Our model
-> + * allow them to see NULL, in which case the root memcg will be selected.
-> + *
-> + * We need this lock because multiple allocations to the same cache from a non
-> + * GFP_WAIT area will span more than one worker. Only one of them can create
-> + * the cache.
-> + */
-> +static DEFINE_MUTEX(memcg_cache_mutex);
-> +static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
-> +                                                 struct kmem_cache *cachep)
-> +{
-> +       struct kmem_cache *new_cachep;
-> +       int idx;
-> +
-> +       BUG_ON(!memcg_can_account_kmem(memcg));
-> +
-> +       idx = memcg_css_id(memcg);
-> +
-> +       mutex_lock(&memcg_cache_mutex);
-> +       new_cachep = cachep->memcg_params->memcg_caches[idx];
-> +       if (new_cachep)
-> +               goto out;
-> +
-> +       new_cachep = kmem_cache_dup(memcg, cachep);
-> +
-> +       if (new_cachep == NULL) {
-> +               new_cachep = cachep;
-> +               goto out;
-> +       }
-> +
-> +       mem_cgroup_get(memcg);
-> +       cachep->memcg_params->memcg_caches[idx] = new_cachep;
-> +       wmb(); /* the readers won't lock, make sure everybody sees it */
+> One more thing we can do: increase shrinker->seeks to something like
+> DEFAULT_SEEKS * 4. In this case shrink_slab() will call our callback after
+> callbacks with DEFAULT_SEEKS.
 
-Is there any rmb() pair?
-As far as I know, without rmb(), wmb() doesn't guarantee anything.
+It would be useful if you could try to make this scenario happen.  If
+for some reason it doesn't happen then let's understand *why* it
+doesn't happen.
 
-> +       new_cachep->memcg_params->memcg = memcg;
-> +       new_cachep->memcg_params->root_cache = cachep;
+I'm thinking that such a workload would be the above dd in parallel
+with a small app which touches the huge page and then exits, then gets
+executed again.  That "small app" sounds realistic to me.  Obviously
+one could exercise the zero page's refcount at higher frequency with a
+tight map/touch/unmap loop, but that sounds less realistic.  It's worth
+trying that exercise as well though.
 
-It may be better these assignment before the statement
-"cachep->memcg_params->memcg_caches[idx] = new_cachep".
-Otherwise, it may produce race situation.
-
-And assigning value to memcg_params->memcg and root_cache is redundant,
-because it is already done in memcg_register_cache().
-
-> +/*
-> + * Return the kmem_cache we're supposed to use for a slab allocation.
-> + * We try to use the current memcg's version of the cache.
-> + *
-> + * If the cache does not exist yet, if we are the first user of it,
-> + * we either create it immediately, if possible, or create it asynchronously
-> + * in a workqueue.
-> + * In the latter case, we will let the current allocation go through with
-> + * the original cache.
-> + *
-> + * Can't be called in interrupt context or from kernel threads.
-> + * This function needs to be called with rcu_read_lock() held.
-> + */
-> +struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
-> +                                         gfp_t gfp)
-> +{
-> +       struct mem_cgroup *memcg;
-> +       int idx;
-> +
-> +       if (cachep->memcg_params && cachep->memcg_params->memcg)
-> +               return cachep;
-
-In __memcg_kmem_get_cache, cachep may be always root cache.
-So checking "cachep->memcg_params->memcg" is somewhat strange.
-Is it right?
-
-
-Thanks.
+Or do something else.  But we should try to probe this code's
+worst-case behaviour, get an understanding of its effects and then
+decide whether any such workload is realisic enough to worry about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
