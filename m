@@ -1,66 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id E59EB6B0070
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2012 23:44:18 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id v13so103839vbk.14
-        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 20:44:17 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id A994D6B0062
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 01:54:01 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1071368pbb.14
+        for <linux-mm@kvack.org>; Tue, 23 Oct 2012 22:54:00 -0700 (PDT)
+Date: Tue, 23 Oct 2012 22:53:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [Bug 49361] New: configuring TRANSPARENT_HUGEPAGE_ALWAYS can
+ make system unresponsive and reboot
+In-Reply-To: <20121023123613.1bcdf3ab.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1210232242590.22652@chino.kir.corp.google.com>
+References: <bug-49361-27@https.bugzilla.kernel.org/> <20121023123613.1bcdf3ab.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
-References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
-	<20121019160425.GA10175@dhcp22.suse.cz>
-	<CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
-	<CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
-	<CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
-	<20121023095028.GD15397@dhcp22.suse.cz>
-	<CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
-	<20121023101500.GE15397@dhcp22.suse.cz>
-	<CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
-Date: Wed, 24 Oct 2012 11:44:17 +0800
-Message-ID: <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
-Subject: Re: process hangs on do_exit when oom happens
-From: Qiang Gao <gaoqiangscut@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
+To: marc@offline.be
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
 
-On Wed, Oct 24, 2012 at 1:43 AM, Balbir Singh <bsingharora@gmail.com> wrote:
-> On Tue, Oct 23, 2012 at 3:45 PM, Michal Hocko <mhocko@suse.cz> wrote:
->> On Tue 23-10-12 18:10:33, Qiang Gao wrote:
->>> On Tue, Oct 23, 2012 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
->>> > On Tue 23-10-12 15:18:48, Qiang Gao wrote:
->>> >> This process was moved to RT-priority queue when global oom-killer
->>> >> happened to boost the recovery of the system..
->>> >
->>> > Who did that? oom killer doesn't boost the priority (scheduling class)
->>> > AFAIK.
->>> >
->>> >> but it wasn't get properily dealt with. I still have no idea why where
->>> >> the problem is ..
->>> >
->>> > Well your configuration says that there is no runtime reserved for the
->>> > group.
->>> > Please refer to Documentation/scheduler/sched-rt-group.txt for more
->>> > information.
->>> >
->> [...]
->>> maybe this is not a upstream-kernel bug. the centos/redhat kernel
->>> would boost the process to RT prio when the process was selected
->>> by oom-killer.
->>
->> This still looks like your cpu controller is misconfigured. Even if the
->> task is promoted to be realtime.
->
->
-> Precisely! You need to have rt bandwidth enabled for RT tasks to run,
-> as a workaround please give the groups some RT bandwidth and then work
-> out the migration to RT and what should be the defaults on the distro.
->
-> Balbir
+On Tue, 23 Oct 2012, Andrew Morton wrote:
 
+> >  I run a bleeding edge gentoo with 2 6-core AMD CPUs. I daily updated
+> > 3 gentoo systems on this computer all using -j13. Until recently, I
+> > never experienced issues, CPUs may all go neer 100%, no problem.
+> > 
+> >  Now, when building icedtea-7, for example, regardless of -j13 or -j1,
+> > about 10 javac instances run threaded (either spreaded on multiple or
+> > one core) and go to about 1000% CPU together.
+> > 
+> >  Nothing else can be started. This can take 24 hours, no improvement.
+> > 
+> >  Only one way to recover: kill -9 javac.
+> > 
+> >  One time kernel rebooted, I could not find any relevant kernel logs
+> > before reboot.
+> > 
+> > 
+> >  I hd noticed khugepaged on top in top (just below 1000% CPU javac)
+> > which made me look at HUGEPAGE settings.
+> > 
+> >  FWIW, an strace on javac PID showed it doing nothing in futex
+> > 
+> >  As said, MADVISE fixes issue.
+> > 
 
-see https://patchwork.kernel.org/patch/719411/
+We'll need to collect some information before we can figure out what the 
+problem is with 3.5.2.
+
+First, let's take a look at khugepaged.  By default, it's supposed to wake 
+up rarely (10s at minimum) and only scan 4K pages before going back to 
+sleep.  Having a consistent and very high cpu usage suggests the settings 
+aren't the default.  Can you do
+
+	cat /sys/kernel/mm/transparent_hugepage/khugepaged/{alloc,scan}_sleep_millisecs
+
+The defaults should be 60000 and 10000, respectively.  Then can you do
+
+	cat /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
+
+which should be 4096.  If those are your settings, then it seems like 
+khugepaged in 3.5.2 is going crazy and we'll need to look into that.  Try 
+collecting
+
+	grep -e "thp|compact" /proc/vmstat
+
+and
+
+	cat /proc/$(pidof khugepaged)/stack
+
+appended to a logfile at regular intervals after your start the build with 
+transparent hugepages enabled always.  After the machine becomes 
+unresponsive and reboots, post that log.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
