@@ -1,68 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 3A03F6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 13:47:16 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so919130obc.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 10:47:15 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id EBC1D6B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 14:02:33 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so531230wgb.26
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 11:02:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <0000013a8f59a08d-c08e9180-a368-4edd-b9ac-d512e2a3ce19-000000@email.amazonses.com>
-References: <20121019142254.724806786@linux.com>
-	<0000013a797cda39-907d3721-264e-4d75-8d4d-4122eb0a981c-000000@email.amazonses.com>
-	<CAAmzW4Pmb5uFGC=qaC0WfM_pZ1s+x4Knz0QJogZZ8vesnkF6qw@mail.gmail.com>
-	<0000013a8f59a08d-c08e9180-a368-4edd-b9ac-d512e2a3ce19-000000@email.amazonses.com>
-Date: Thu, 25 Oct 2012 02:47:15 +0900
-Message-ID: <CAAmzW4PZOJHE96zyG+mNSMpVo95nEwgdwM+sK-UK+HKLTicXbA@mail.gmail.com>
-Subject: Re: CK2 [08/15] slab: Use common kmalloc_index/kmalloc_size functions
-From: JoonSoo Kim <js1304@gmail.com>
+In-Reply-To: <1351087158-8524-2-git-send-email-glommer@parallels.com>
+References: <1351087158-8524-1-git-send-email-glommer@parallels.com>
+	<1351087158-8524-2-git-send-email-glommer@parallels.com>
+Date: Wed, 24 Oct 2012 21:02:32 +0300
+Message-ID: <CAOJsxLHxo7zJk=aWrjmuaYsEkaChTCgXowtHxtuiabaOP3W3-Q@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] kmem_cache: include allocators code directly into slab_common
+From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>
 
-2012/10/24 Christoph Lameter <cl@linux.com>:
-> On Sun, 21 Oct 2012, JoonSoo Kim wrote:
+On Wed, Oct 24, 2012 at 4:59 PM, Glauber Costa <glommer@parallels.com> wrote:
+> While the goal of slab_common.c is to have a common place for all
+> allocators, we face two different goals that are in opposition to each
+> other:
 >
->> 2012/10/19 Christoph Lameter <cl@linux.com>:
->>
->> > @@ -693,20 +657,19 @@ static inline struct array_cache *cpu_ca
->> >  static inline struct kmem_cache *__find_general_cachep(size_t size,
->> >                                                         gfp_t gfpflags)
->> >  {
->> > -       struct cache_sizes *csizep = malloc_sizes;
->> > +       int i;
->> >
->> >  #if DEBUG
->> >         /* This happens if someone tries to call
->> >          * kmem_cache_create(), or __kmalloc(), before
->> >          * the generic caches are initialized.
->> >          */
->> > -       BUG_ON(malloc_sizes[INDEX_AC].cs_cachep == NULL);
->> > +       BUG_ON(kmalloc_caches[INDEX_AC] == NULL);
->> >  #endif
->> >         if (!size)
->> >                 return ZERO_SIZE_PTR;
->> >
->> > -       while (size > csizep->cs_size)
->> > -               csizep++;
->> > +       i = kmalloc_index(size);
->>
->> Above kmalloc_index(size) is called with arbitrary size, therefore it
->> cannot be folded.
+> 1) Have the different layouts be the business of each allocator, in
+> their .c
+> 2) inline as much as we can for fast paths
 >
-> The size is passed into an inline function that is folded and therefore
-> the kmalloc_index function can also be folded if the size passed into
-> __find_general_cachep was constant.
+> Because of that, we either have to move all the entry points to the
+> mm/slab.h and rely heavily on the pre-processor, or include all .c files
+> in here.
 >
+> The pre-processor solution has the disadvantage that some quite
+> non-trivial code gets even more non-trivial, and we end up leaving for
+> readers a non-pleasant indirection.
+>
+> To keep this sane, we'll include the allocators .c files in here.  Which
+> means we will be able to inline any code they produced, but never the
+> other way around!
+>
+> Doing this produced a name clash. This was resolved in this patch
+> itself.
+>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Joonsoo Kim <js1304@gmail.com>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Pekka Enberg <penberg@kernel.org>
+> CC: Christoph Lameter <cl@linux.com>
 
-__find_general_cachep() is called by __do_kmalloc().
-And __do_kmalloc() is called by __kmalloc().
-__kmalloc() is called by kmalloc() when buildin_constant_p is failed.
-Therefore __find_general_cachep() is called with arbitrary size value
-and kmalloc_index() cannot be folded.
-But, I think it doesn't matter, because CK2[15/15] also solve this problem.
+So I hate this patch with a passion. We don't have any fastpaths in
+mm/slab_common.c nor should we. Those should be allocator specific.
 
-Thanks.
+                         Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
