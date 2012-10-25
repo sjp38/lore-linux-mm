@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 27F196B0070
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:57:06 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so1351275oag.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:57:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 84DC46B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 21:15:14 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1767795pbb.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 18:15:13 -0700 (PDT)
+Date: Wed, 24 Oct 2012 18:15:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+In-Reply-To: <CAHGf_=p7kFau=pMYLkGffA=ak1Jhhm7NzaPg6mSWQYQK3erQuA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210241814100.28233@chino.kir.corp.google.com>
+References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com> <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com> <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com> <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com> <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com> <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com> <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com> <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>
+ <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com> <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com> <CAHGf_=p7kFau=pMYLkGffA=ak1Jhhm7NzaPg6mSWQYQK3erQuA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <5088725B.2090700@linux.vnet.ibm.com>
-References: <20121012125708.GJ10110@dhcp22.suse.cz> <20121023164546.747e90f6.akpm@linux-foundation.org>
- <20121024062938.GA6119@dhcp22.suse.cz> <20121024125439.c17a510e.akpm@linux-foundation.org>
- <50884F63.8030606@linux.vnet.ibm.com> <20121024134836.a28d223a.akpm@linux-foundation.org>
- <20121024210600.GA17037@liondog.tnic> <50885B2E.5050500@linux.vnet.ibm.com>
- <20121024224817.GB8828@liondog.tnic> <5088725B.2090700@linux.vnet.ibm.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Wed, 24 Oct 2012 20:56:45 -0400
-Message-ID: <CAHGf_=pfdgoeG5pPJb+UgjqfieU1yxt=46FGW1=th0RbgVKNRQ@mail.gmail.com>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 24, 2012 at 6:57 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> On 10/24/2012 03:48 PM, Borislav Petkov wrote:
->> On Wed, Oct 24, 2012 at 02:18:38PM -0700, Dave Hansen wrote:
->>> Sounds fairly valid to me. But, it's also one that would not be harmed
->>> or disrupted in any way because of a single additional printk() during
->>> each suspend-to-disk operation.
->>
->> back to the drop_caches patch. How about we hide the drop_caches
->> interface behind some mm debugging option in "Kernel Hacking"? Assuming
->> we don't need it otherwise on production kernels. Probably make it
->> depend on CONFIG_DEBUG_VM like CONFIG_DEBUG_VM_RB or so.
->>
->> And then also add it to /proc/vmstat, in addition.
->
-> That effectively means removing it from the kernel since distros ship
-> with those config options off.  We don't want to do that since there
-> _are_ valid, occasional uses like benchmarking that we want to be
-> consistent.
+On Wed, 24 Oct 2012, KOSAKI Motohiro wrote:
 
-Agreed. we don't want to remove valid interface never.
+> Hrm. I haven't noticed there is mpol_misplaced() in linux-next. Peter,
+> I guess you commited it, right? If so, may I review your mempolicy
+> changes? Now mempolicy has a lot of horrible buggy code and I hope to
+> maintain carefully. Which tree should i see?
+> 
+
+Check out sched/numa from 
+git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git
+
+$ git diff v3.7-rc2.. mm/mempolicy.c | diffstat
+ mempolicy.c |  444 +++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 277 insertions(+), 167 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
