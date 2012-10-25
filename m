@@ -1,117 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 55CEC6B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 06:47:02 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so1516630iak.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 03:47:01 -0700 (PDT)
-Message-ID: <5089189D.4050401@gmail.com>
-Date: Thu, 25 Oct 2012 18:46:53 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 3BC4A6B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 07:05:50 -0400 (EDT)
+Message-ID: <50891CF2.3030400@parallels.com>
+Date: Thu, 25 Oct 2012 15:05:22 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: MMTests 0.06
-References: <20121012145114.GZ29125@suse.de> <CALF0-+UBq8kgC-uUkuk_akoyBgvkytgn0v+2uBTDLZcFCPeHrQ@mail.gmail.com> <20121025102028.GB2558@suse.de>
-In-Reply-To: <20121025102028.GB2558@suse.de>
-Content-Type: multipart/alternative;
- boundary="------------010706030301070401060909"
+Subject: Re: [PATCH v5 08/18] memcg: infrastructure to match an allocation
+ to the right cache
+References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-9-git-send-email-glommer@parallels.com> <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
+In-Reply-To: <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ezequiel Garcia <elezegarcia@gmail.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David
+ Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-This is a multi-part message in MIME format.
---------------010706030301070401060909
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
-
-On 10/25/2012 06:20 PM, Mel Gorman wrote:
-> On Wed, Oct 24, 2012 at 05:14:31PM -0300, Ezequiel Garcia wrote:
->>> The stats reporting still needs work because while some tests know how
->>> to make a better estimate of mean by filtering outliers it is not being
->>> handled consistently and the methodology needs work. I know filtering
->>> statistics like this is a major flaw in the methodology but the decision
->>> was made in this case in the interest of the benchmarks with unstable
->>> results completing in a reasonable time.
->>>
->> FWIW, I found a minor problem with sudo and yum incantation when trying this.
+On 10/24/2012 10:10 PM, JoonSoo Kim wrote:
+> 2012/10/19 Glauber Costa <glommer@parallels.com>:
+>> @@ -2930,9 +2937,188 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s)
 >>
->> I'm attaching a patch.
->>
-> Thanks very much. I've picked it up and it'll be in MMTests 0.07.
+>>  void memcg_release_cache(struct kmem_cache *s)
+>>  {
+>> +       struct kmem_cache *root;
+>> +       int id = memcg_css_id(s->memcg_params->memcg);
+>> +
+>> +       if (s->memcg_params->is_root_cache)
+>> +               goto out;
+>> +
+>> +       root = s->memcg_params->root_cache;
+>> +       root->memcg_params->memcg_caches[id] = NULL;
+>> +       mem_cgroup_put(s->memcg_params->memcg);
+>> +out:
+>>         kfree(s->memcg_params);
+>>  }
+> 
+> memcg_css_id should be called after checking "s->memcg_params->is_root_cache".
+> Because when is_root_cache == true, memcg_params has no memcg object.
+> 
 
-Hi Gorman,
+Good catch.
 
-Could MMTests 0.07 auto download related packages for different 
-distributions?
+>> +/*
+>> + * This lock protects updaters, not readers. We want readers to be as fast as
+>> + * they can, and they will either see NULL or a valid cache value. Our model
+>> + * allow them to see NULL, in which case the root memcg will be selected.
+>> + *
+>> + * We need this lock because multiple allocations to the same cache from a non
+>> + * GFP_WAIT area will span more than one worker. Only one of them can create
+>> + * the cache.
+>> + */
+>> +static DEFINE_MUTEX(memcg_cache_mutex);
+>> +static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+>> +                                                 struct kmem_cache *cachep)
+>> +{
+>> +       struct kmem_cache *new_cachep;
+>> +       int idx;
+>> +
+>> +       BUG_ON(!memcg_can_account_kmem(memcg));
+>> +
+>> +       idx = memcg_css_id(memcg);
+>> +
+>> +       mutex_lock(&memcg_cache_mutex);
+>> +       new_cachep = cachep->memcg_params->memcg_caches[idx];
+>> +       if (new_cachep)
+>> +               goto out;
+>> +
+>> +       new_cachep = kmem_cache_dup(memcg, cachep);
+>> +
+>> +       if (new_cachep == NULL) {
+>> +               new_cachep = cachep;
+>> +               goto out;
+>> +       }
+>> +
+>> +       mem_cgroup_get(memcg);
+>> +       cachep->memcg_params->memcg_caches[idx] = new_cachep;
+>> +       wmb(); /* the readers won't lock, make sure everybody sees it */
+> 
+> Is there any rmb() pair?
+> As far as I know, without rmb(), wmb() doesn't guarantee anything.
+> 
 
-Regards,
-Chen
+There should be. But it seems I missed it. Speaking of which, I should
+wmb() after the NULL assignment in release cache as well.
 
->
+Thanks
+>> +       new_cachep->memcg_params->memcg = memcg;
+>> +       new_cachep->memcg_params->root_cache = cachep;
+> 
+> It may be better these assignment before the statement
+> "cachep->memcg_params->memcg_caches[idx] = new_cachep".
+> Otherwise, it may produce race situation.
+> 
+> And assigning value to memcg_params->memcg and root_cache is redundant,
+> because it is already done in memcg_register_cache().
+> 
 
+Thanks.
 
---------------010706030301070401060909
-Content-Type: text/html; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+As for the redundancy, for memcg you are right. For root cache,
+unfortunately not. Up to this patch, this is the only reference to it.
+This reference will be moved to a different location in a further patch.
+But then, IIRC, I delete it from here.
 
-<html>
-  <head>
-    <meta content="text/html; charset=ISO-8859-15"
-      http-equiv="Content-Type">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <div class="moz-cite-prefix">On 10/25/2012 06:20 PM, Mel Gorman
-      wrote:<br>
-    </div>
-    <blockquote cite="mid:20121025102028.GB2558@suse.de" type="cite">
-      <pre wrap="">On Wed, Oct 24, 2012 at 05:14:31PM -0300, Ezequiel Garcia wrote:
-</pre>
-      <blockquote type="cite">
-        <blockquote type="cite">
-          <pre wrap="">The stats reporting still needs work because while some tests know how
-to make a better estimate of mean by filtering outliers it is not being
-handled consistently and the methodology needs work. I know filtering
-statistics like this is a major flaw in the methodology but the decision
-was made in this case in the interest of the benchmarks with unstable
-results completing in a reasonable time.
+>> +/*
+>> + * Return the kmem_cache we're supposed to use for a slab allocation.
+>> + * We try to use the current memcg's version of the cache.
+>> + *
+>> + * If the cache does not exist yet, if we are the first user of it,
+>> + * we either create it immediately, if possible, or create it asynchronously
+>> + * in a workqueue.
+>> + * In the latter case, we will let the current allocation go through with
+>> + * the original cache.
+>> + *
+>> + * Can't be called in interrupt context or from kernel threads.
+>> + * This function needs to be called with rcu_read_lock() held.
+>> + */
+>> +struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+>> +                                         gfp_t gfp)
+>> +{
+>> +       struct mem_cgroup *memcg;
+>> +       int idx;
+>> +
+>> +       if (cachep->memcg_params && cachep->memcg_params->memcg)
+>> +               return cachep;
+> 
+> In __memcg_kmem_get_cache, cachep may be always root cache.
+> So checking "cachep->memcg_params->memcg" is somewhat strange.
+> Is it right?
+> 
+> 
+Yes, this is somewhat paranoid, and a bit historical. We were
+anticipating that we could call the allocation already with the right
+cache set, and in this case we would just return it.
 
-</pre>
-        </blockquote>
-        <pre wrap="">
-FWIW, I found a minor problem with sudo and yum incantation when trying this.
+I think I'll just VM_BUG_ON this.
 
-I'm attaching a patch.
+Thanks for you review here.
 
-</pre>
-      </blockquote>
-      <pre wrap="">
-Thanks very much. I've picked it up and it'll be in MMTests 0.07.</pre>
-    </blockquote>
-    <br>
-    Hi Gorman,<br>
-    <br>
-    Could MMTests 0.07 auto download related packages for different
-    distribution<span style="color: rgb(0, 0, 0); font-family: arial,
-      sans-serif; font-size: 12px; font-style: normal; font-variant:
-      normal; font-weight: normal; letter-spacing: normal; line-height:
-      15px; orphans: 2; text-align: -webkit-auto; text-indent: 0px;
-      text-transform: none; white-space: normal; widows: 2;
-      word-spacing: 0px; -webkit-text-size-adjust: auto;
-      -webkit-text-stroke-width: 0px; background-color: rgb(250, 250,
-      250); display: inline !important; float: none; "></span>s?<br>
-    <br>
-    Regards,<br>
-    Chen<br>
-    <br>
-    <blockquote cite="mid:20121025102028.GB2558@suse.de" type="cite">
-      <pre wrap="">
-
-</pre>
-    </blockquote>
-    <br>
-  </body>
-</html>
-
---------------010706030301070401060909--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
