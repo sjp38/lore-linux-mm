@@ -1,145 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 3BC4A6B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 07:05:50 -0400 (EDT)
-Message-ID: <50891CF2.3030400@parallels.com>
-Date: Thu, 25 Oct 2012 15:05:22 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 850996B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 07:14:15 -0400 (EDT)
+Date: Thu, 25 Oct 2012 07:14:11 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
+Message-ID: <20121025111411.GB24886@redhat.com>
+References: <20121025023738.GA27001@redhat.com>
+ <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 08/18] memcg: infrastructure to match an allocation
- to the right cache
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-9-git-send-email-glommer@parallels.com> <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
-In-Reply-To: <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David
- Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/24/2012 10:10 PM, JoonSoo Kim wrote:
-> 2012/10/19 Glauber Costa <glommer@parallels.com>:
->> @@ -2930,9 +2937,188 @@ int memcg_register_cache(struct mem_cgroup *memcg, struct kmem_cache *s)
->>
->>  void memcg_release_cache(struct kmem_cache *s)
->>  {
->> +       struct kmem_cache *root;
->> +       int id = memcg_css_id(s->memcg_params->memcg);
->> +
->> +       if (s->memcg_params->is_root_cache)
->> +               goto out;
->> +
->> +       root = s->memcg_params->root_cache;
->> +       root->memcg_params->memcg_caches[id] = NULL;
->> +       mem_cgroup_put(s->memcg_params->memcg);
->> +out:
->>         kfree(s->memcg_params);
->>  }
-> 
-> memcg_css_id should be called after checking "s->memcg_params->is_root_cache".
-> Because when is_root_cache == true, memcg_params has no memcg object.
-> 
+On Wed, Oct 24, 2012 at 09:36:27PM -0700, Hugh Dickins wrote:
 
-Good catch.
+ > > 1148                         error = shmem_add_to_page_cache(page, mapping, index,
+ > > 1149                                                 gfp, swp_to_radix_entry(swap));
+ > > 1150                         /* We already confirmed swap, and make no allocation */
+ > > 1151                         VM_BUG_ON(error);
+ > > 1152                 }
+ > 
+ > That's very surprising.  Easy enough to handle an error there, but
+ > of course I made it a VM_BUG_ON because it violates my assumptions:
+ > I rather need to understand how this can be, and I've no idea.
+ > 
+ > Clutching at straws, I expect this is entirely irrelevant, but:
+ > there isn't a warning on line 1151 of mm/shmem.c in 3.7.0-rc2 nor
+ > in current linux.git; rather, there's a VM_BUG_ON on line 1149.
+ > 
+ > So you've inserted a couple of lines for some reason (more useful
+ > trinity behaviour, perhaps)? 
 
->> +/*
->> + * This lock protects updaters, not readers. We want readers to be as fast as
->> + * they can, and they will either see NULL or a valid cache value. Our model
->> + * allow them to see NULL, in which case the root memcg will be selected.
->> + *
->> + * We need this lock because multiple allocations to the same cache from a non
->> + * GFP_WAIT area will span more than one worker. Only one of them can create
->> + * the cache.
->> + */
->> +static DEFINE_MUTEX(memcg_cache_mutex);
->> +static struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
->> +                                                 struct kmem_cache *cachep)
->> +{
->> +       struct kmem_cache *new_cachep;
->> +       int idx;
->> +
->> +       BUG_ON(!memcg_can_account_kmem(memcg));
->> +
->> +       idx = memcg_css_id(memcg);
->> +
->> +       mutex_lock(&memcg_cache_mutex);
->> +       new_cachep = cachep->memcg_params->memcg_caches[idx];
->> +       if (new_cachep)
->> +               goto out;
->> +
->> +       new_cachep = kmem_cache_dup(memcg, cachep);
->> +
->> +       if (new_cachep == NULL) {
->> +               new_cachep = cachep;
->> +               goto out;
->> +       }
->> +
->> +       mem_cgroup_get(memcg);
->> +       cachep->memcg_params->memcg_caches[idx] = new_cachep;
->> +       wmb(); /* the readers won't lock, make sure everybody sees it */
-> 
-> Is there any rmb() pair?
-> As far as I know, without rmb(), wmb() doesn't guarantee anything.
-> 
+detritus from the recent mpol_to_str bug that I was chasing.
+Shouldn't be relevant...
 
-There should be. But it seems I missed it. Speaking of which, I should
-wmb() after the NULL assignment in release cache as well.
+diff -durpN '--exclude-from=/home/davej/.exclude' src/git-trees/kernel/linux/mm>
+--- src/git-trees/kernel/linux/mm/shmem.c       2012-10-12 10:01:46.613408580 ->
++++ linux-dj/mm/shmem.c 2012-10-15 12:31:32.979653309 -0400
+@@ -885,13 +885,15 @@ redirty:
+ static void shmem_show_mpol(struct seq_file *seq, struct mempolicy *mpol)
+ {
+        char buffer[64];
++       int ret;
+ 
+        if (!mpol || mpol->mode == MPOL_DEFAULT)
+                return;         /* show nothing */
+ 
+-       mpol_to_str(buffer, sizeof(buffer), mpol, 1);
+-
+-       seq_printf(seq, ",mpol=%s", buffer);
++       memset(buffer, 0, sizeof(buffer));
++       ret = mpol_to_str(buffer, sizeof(buffer), mpol, 1);
++       if (ret > 0)
++               seq_printf(seq, ",mpol=%s", buffer);
+ }
 
-Thanks
->> +       new_cachep->memcg_params->memcg = memcg;
->> +       new_cachep->memcg_params->root_cache = cachep;
-> 
-> It may be better these assignment before the statement
-> "cachep->memcg_params->memcg_caches[idx] = new_cachep".
-> Otherwise, it may produce race situation.
-> 
-> And assigning value to memcg_params->memcg and root_cache is redundant,
-> because it is already done in memcg_register_cache().
-> 
 
-Thanks.
+ > And have some config option I'm
+ > unfamiliar with, that mutates a BUG_ON or VM_BUG_ON into a warning?
 
-As for the redundancy, for memcg you are right. For root cache,
-unfortunately not. Up to this patch, this is the only reference to it.
-This reference will be moved to a different location in a further patch.
-But then, IIRC, I delete it from here.
+Yes, I do have this..
 
->> +/*
->> + * Return the kmem_cache we're supposed to use for a slab allocation.
->> + * We try to use the current memcg's version of the cache.
->> + *
->> + * If the cache does not exist yet, if we are the first user of it,
->> + * we either create it immediately, if possible, or create it asynchronously
->> + * in a workqueue.
->> + * In the latter case, we will let the current allocation go through with
->> + * the original cache.
->> + *
->> + * Can't be called in interrupt context or from kernel threads.
->> + * This function needs to be called with rcu_read_lock() held.
->> + */
->> +struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
->> +                                         gfp_t gfp)
->> +{
->> +       struct mem_cgroup *memcg;
->> +       int idx;
->> +
->> +       if (cachep->memcg_params && cachep->memcg_params->memcg)
->> +               return cachep;
-> 
-> In __memcg_kmem_get_cache, cachep may be always root cache.
-> So checking "cachep->memcg_params->memcg" is somewhat strange.
-> Is it right?
-> 
-> 
-Yes, this is somewhat paranoid, and a bit historical. We were
-anticipating that we could call the allocation already with the right
-cache set, and in this case we would just return it.
+-#define VM_BUG_ON(cond) BUG_ON(cond)
++#define VM_BUG_ON(cond) WARN_ON(cond)
 
-I think I'll just VM_BUG_ON this.
+because I got tired of things not going over my usb serial port when I hit them
+a while ago. BUG_ON is pretty unfriendly to bug finding.
 
-Thanks for you review here.
-
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
