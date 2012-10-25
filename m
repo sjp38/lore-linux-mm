@@ -1,95 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 9B2736B0074
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 12:47:25 -0400 (EDT)
-Date: Thu, 25 Oct 2012 12:47:22 -0400
-Subject: spinning in isolate_migratepages_range on busy nfs server
-Message-ID: <20121025164722.GE6846@fieldses.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id F04826B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:24:03 -0400 (EDT)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so2561418vcb.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:24:02 -0700 (PDT)
+Message-ID: <508975A4.50203@gmail.com>
+Date: Thu, 25 Oct 2012 13:23:48 -0400
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-From: "J. Bruce Fields" <bfields@fieldses.org>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
+ numa_maps
+References: <20121008150949.GA15130@redhat.com>  <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>  <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>  <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>  <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>  <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>  <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>  <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>  <20121017040515.GA13505@redhat.com>  <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>  <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com>  <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>  <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com>  <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>  <1351167554.23337.14.camel@twins> <1351175972.12171.14.camel@twins>
+In-Reply-To: <1351175972.12171.14.camel@twins>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, bmarson@redhat.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We're seeing an nfs server on a 3.6-ish kernel lock up after running
-specfs for a while.
+On 10/25/2012 10:39 AM, Peter Zijlstra wrote:
+> On Thu, 2012-10-25 at 14:19 +0200, Peter Zijlstra wrote:
+>> On Wed, 2012-10-24 at 17:08 -0700, David Rientjes wrote:
+>>> Ok, this looks the same but it's actually a different issue: 
+>>> mpol_misplaced(), which now only exists in linux-next and not in 3.7-rc2, 
+>>> calls get_vma_policy() which may take the shared policy mutex.  This 
+>>> happens while holding page_table_lock from do_huge_pmd_numa_page() but 
+>>> also from do_numa_page() while holding a spinlock on the ptl, which is 
+>>> coming from the sched/numa branch.
+>>>
+>>> Is there anyway that we can avoid changing the shared policy mutex back 
+>>> into a spinlock (it was converted in b22d127a39dd ["mempolicy: fix a race 
+>>> in shared_policy_replace()"])?
+>>>
+>>> Adding Peter, Rik, and Mel to the cc. 
+>>
+>> Urgh, crud I totally missed that.
+>>
+>> So the problem is that we need to compute if the current page is placed
+>> 'right' while holding pte_lock in order to avoid multiple pte_lock
+>> acquisitions on the 'fast' path.
+>>
+>> I'll look into this in a bit, but one thing that comes to mind is having
+>> both a spnilock and a mutex and require holding both for modification
+>> while either one is sufficient for read.
+>>
+>> That would allow sp_lookup() to use the spinlock, while insert and
+>> replace can hold both.
+>>
+>> Not sure it will work for this, need to stare at this code a little
+>> more.
+> 
+> So I think the below should work, we hold the spinlock over both rb-tree
+> modification as sp free, this makes mpol_shared_policy_lookup() which
+> returns the policy with an incremented refcount work with just the
+> spinlock.
+> 
+> Comments?
+> 
+> ---
 
-Looking at the logs, there are some hung task warnings showing nfsd
-threads stuck on directory i_mutexes trying to do lookups.
+It made the warnings I've reported go away.
 
-A sysrq-t dump showed there were also lots of threads holding those
-i_mutexes while trying to allocate xfs inodes:
 
- 	nfsd            R running task        0  6517      2 0x00000080
- 	 ffff880f925074c0 0000000000000046 ffff880fe4718000 ffff880f92507fd8
- 	 ffff880f92507fd8 ffff880f92507fd8 ffff880fd7920000 ffff880fe4718000
- 	 0000000000000000 ffff880f92506000 ffff88102ffd96c0 ffff88102ffd9b40
- 	Call Trace:
- 	[<ffffffff81091aaa>] __cond_resched+0x2a/0x40
- 	[<ffffffff815d3750>] _cond_resched+0x30/0x40
- 	[<ffffffff81150e92>] isolate_migratepages_range+0xb2/0x550
- 	[<ffffffff811507c0>] ?  compact_checklock_irqsave.isra.17+0xe0/0xe0
- 	[<ffffffff81151536>] compact_zone+0x146/0x3f0
- 	[<ffffffff81151a92>] compact_zone_order+0x82/0xc0
- 	[<ffffffff81151bb1>] try_to_compact_pages+0xe1/0x110
- 	[<ffffffff815c99e2>] __alloc_pages_direct_compact+0xaa/0x190
- 	[<ffffffff81138317>] __alloc_pages_nodemask+0x517/0x980
- 	[<ffffffff81088a00>] ? __synchronize_srcu+0xf0/0x110
- 	[<ffffffff81171e30>] alloc_pages_current+0xb0/0x120
- 	[<ffffffff8117b015>] new_slab+0x265/0x310
- 	[<ffffffff815caefc>] __slab_alloc+0x358/0x525
- 	[<ffffffffa05625a7>] ? kmem_zone_alloc+0x67/0xf0 [xfs]
- 	[<ffffffff81088c72>] ? up+0x32/0x50
- 	[<ffffffffa05625a7>] ? kmem_zone_alloc+0x67/0xf0 [xfs]
- 	[<ffffffff8117b4ef>] kmem_cache_alloc+0xff/0x130
- 	[<ffffffffa05625a7>] kmem_zone_alloc+0x67/0xf0 [xfs]
- 	[<ffffffffa0552f49>] xfs_inode_alloc+0x29/0x270 [xfs]
- 	[<ffffffffa0553801>] xfs_iget+0x231/0x6c0 [xfs]
- 	[<ffffffffa0560687>] xfs_lookup+0xe7/0x110 [xfs]
- 	[<ffffffffa05583e1>] xfs_vn_lookup+0x51/0x90 [xfs]
- 	[<ffffffff81193e9d>] lookup_real+0x1d/0x60
- 	[<ffffffff811940b8>] __lookup_hash+0x38/0x50
- 	[<ffffffff81197e26>] lookup_one_len+0xd6/0x110
- 	[<ffffffffa034667b>] nfsd_lookup_dentry+0x12b/0x4a0 [nfsd]
- 	[<ffffffffa0346a69>] nfsd_lookup+0x79/0x140 [nfsd]
- 	[<ffffffffa034fb5f>] nfsd3_proc_lookup+0xef/0x1c0 [nfsd]
- 	[<ffffffffa0341bbb>] nfsd_dispatch+0xeb/0x230 [nfsd]
- 	[<ffffffffa02ee3a8>] svc_process_common+0x328/0x6d0 [sunrpc]
- 	[<ffffffffa02eeaa2>] svc_process+0x102/0x150 [sunrpc]
- 	[<ffffffffa0341115>] nfsd+0xb5/0x1a0 [nfsd]
- 	[<ffffffffa0341060>] ? nfsd_get_default_max_blksize+0x60/0x60 [nfsd]
- 	[<ffffffff81082613>] kthread+0x93/0xa0
- 	[<ffffffff815ddc34>] kernel_thread_helper+0x4/0x10
- 	[<ffffffff81082580>] ? kthread_freezable_should_stop+0x70/0x70
- 	[<ffffffff815ddc30>] ? gs_change+0x13/0x13
-
-And perf --call-graph also shows we're spending all our time in the same
-place, spinning on a lock (zone->lru_lock, I assume):
-
- -  92.65%           nfsd  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
-    - _raw_spin_lock_irqsave
-       - 99.86% isolate_migratepages_range
-
-Just grepping through logs, I ran across 2a1402aa04 "mm: compaction:
-acquire the zone->lru_lock as late as possible", in v3.7-rc1, which
-looks relevant:
-
-	Richard Davies and Shaohua Li have both reported lock contention
-	problems in compaction on the zone and LRU locks as well as
-	significant amounts of time being spent in compaction.  This
-	series aims to reduce lock contention and scanning rates to
-	reduce that CPU usage.  Richard reported at
-	https://lkml.org/lkml/2012/9/21/91 that this series made a big
-	different to a problem he reported in August:
-			        
-		http://marc.info/?l=kvm&m=134511507015614&w=2
-
-So we're trying that.  Is there anything else we should try?
-
---b.
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
