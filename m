@@ -1,129 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 245736B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 12:45:01 -0400 (EDT)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH v3] mm: thp: Set the accessed flag for old pages on access fault.
-Date: Thu, 25 Oct 2012 17:44:31 +0100
-Message-Id: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9B2736B0074
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 12:47:25 -0400 (EDT)
+Date: Thu, 25 Oct 2012 12:47:22 -0400
+Subject: spinning in isolate_migratepages_range on busy nfs server
+Message-ID: <20121025164722.GE6846@fieldses.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+From: "J. Bruce Fields" <bfields@fieldses.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Will Deacon <will.deacon@arm.com>, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, bmarson@redhat.com
 
-On x86 memory accesses to pages without the ACCESSED flag set result in the
-ACCESSED flag being set automatically. With the ARM architecture a page access
-fault is raised instead (and it will continue to be raised until the ACCESSED
-flag is set for the appropriate PTE/PMD).
+We're seeing an nfs server on a 3.6-ish kernel lock up after running
+specfs for a while.
 
-For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-be called for a write fault.
+Looking at the logs, there are some hung task warnings showing nfsd
+threads stuck on directory i_mutexes trying to do lookups.
 
-This patch ensures that faults on transparent hugepages which do not result
-in a CoW update the access flags for the faulting pmd.
+A sysrq-t dump showed there were also lots of threads holding those
+i_mutexes while trying to allocate xfs inodes:
 
-Cc: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Kirill A. Shutemov <kirill@shutemov.name>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
+ 	nfsd            R running task        0  6517      2 0x00000080
+ 	 ffff880f925074c0 0000000000000046 ffff880fe4718000 ffff880f92507fd8
+ 	 ffff880f92507fd8 ffff880f92507fd8 ffff880fd7920000 ffff880fe4718000
+ 	 0000000000000000 ffff880f92506000 ffff88102ffd96c0 ffff88102ffd9b40
+ 	Call Trace:
+ 	[<ffffffff81091aaa>] __cond_resched+0x2a/0x40
+ 	[<ffffffff815d3750>] _cond_resched+0x30/0x40
+ 	[<ffffffff81150e92>] isolate_migratepages_range+0xb2/0x550
+ 	[<ffffffff811507c0>] ?  compact_checklock_irqsave.isra.17+0xe0/0xe0
+ 	[<ffffffff81151536>] compact_zone+0x146/0x3f0
+ 	[<ffffffff81151a92>] compact_zone_order+0x82/0xc0
+ 	[<ffffffff81151bb1>] try_to_compact_pages+0xe1/0x110
+ 	[<ffffffff815c99e2>] __alloc_pages_direct_compact+0xaa/0x190
+ 	[<ffffffff81138317>] __alloc_pages_nodemask+0x517/0x980
+ 	[<ffffffff81088a00>] ? __synchronize_srcu+0xf0/0x110
+ 	[<ffffffff81171e30>] alloc_pages_current+0xb0/0x120
+ 	[<ffffffff8117b015>] new_slab+0x265/0x310
+ 	[<ffffffff815caefc>] __slab_alloc+0x358/0x525
+ 	[<ffffffffa05625a7>] ? kmem_zone_alloc+0x67/0xf0 [xfs]
+ 	[<ffffffff81088c72>] ? up+0x32/0x50
+ 	[<ffffffffa05625a7>] ? kmem_zone_alloc+0x67/0xf0 [xfs]
+ 	[<ffffffff8117b4ef>] kmem_cache_alloc+0xff/0x130
+ 	[<ffffffffa05625a7>] kmem_zone_alloc+0x67/0xf0 [xfs]
+ 	[<ffffffffa0552f49>] xfs_inode_alloc+0x29/0x270 [xfs]
+ 	[<ffffffffa0553801>] xfs_iget+0x231/0x6c0 [xfs]
+ 	[<ffffffffa0560687>] xfs_lookup+0xe7/0x110 [xfs]
+ 	[<ffffffffa05583e1>] xfs_vn_lookup+0x51/0x90 [xfs]
+ 	[<ffffffff81193e9d>] lookup_real+0x1d/0x60
+ 	[<ffffffff811940b8>] __lookup_hash+0x38/0x50
+ 	[<ffffffff81197e26>] lookup_one_len+0xd6/0x110
+ 	[<ffffffffa034667b>] nfsd_lookup_dentry+0x12b/0x4a0 [nfsd]
+ 	[<ffffffffa0346a69>] nfsd_lookup+0x79/0x140 [nfsd]
+ 	[<ffffffffa034fb5f>] nfsd3_proc_lookup+0xef/0x1c0 [nfsd]
+ 	[<ffffffffa0341bbb>] nfsd_dispatch+0xeb/0x230 [nfsd]
+ 	[<ffffffffa02ee3a8>] svc_process_common+0x328/0x6d0 [sunrpc]
+ 	[<ffffffffa02eeaa2>] svc_process+0x102/0x150 [sunrpc]
+ 	[<ffffffffa0341115>] nfsd+0xb5/0x1a0 [nfsd]
+ 	[<ffffffffa0341060>] ? nfsd_get_default_max_blksize+0x60/0x60 [nfsd]
+ 	[<ffffffff81082613>] kthread+0x93/0xa0
+ 	[<ffffffff815ddc34>] kernel_thread_helper+0x4/0x10
+ 	[<ffffffff81082580>] ? kthread_freezable_should_stop+0x70/0x70
+ 	[<ffffffff815ddc30>] ? gs_change+0x13/0x13
 
-Ok chaps, I rebased this thing onto today's next (which basically
-necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-ask if you could eyeball the new code, especially where the locking is
-concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-that the page is not splitting, but I can't see why that is required.
+And perf --call-graph also shows we're spending all our time in the same
+place, spinning on a lock (zone->lru_lock, I assume):
 
-Cheers,
+ -  92.65%           nfsd  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
+    - _raw_spin_lock_irqsave
+       - 99.86% isolate_migratepages_range
 
-Will
+Just grepping through logs, I ran across 2a1402aa04 "mm: compaction:
+acquire the zone->lru_lock as late as possible", in v3.7-rc1, which
+looks relevant:
 
- include/linux/huge_mm.h |    4 ++++
- mm/huge_memory.c        |   22 ++++++++++++++++++++++
- mm/memory.c             |    7 ++++++-
- 3 files changed, 32 insertions(+), 1 deletions(-)
+	Richard Davies and Shaohua Li have both reported lock contention
+	problems in compaction on the zone and LRU locks as well as
+	significant amounts of time being spent in compaction.  This
+	series aims to reduce lock contention and scanning rates to
+	reduce that CPU usage.  Richard reported at
+	https://lkml.org/lkml/2012/9/21/91 that this series made a big
+	different to a problem he reported in August:
+			        
+		http://marc.info/?l=kvm&m=134511507015614&w=2
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 4f0f948..766fb27 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -8,6 +8,10 @@ extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
- extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
- 			 struct vm_area_struct *vma);
-+extern void huge_pmd_set_accessed(struct mm_struct *mm,
-+				  struct vm_area_struct *vma,
-+				  unsigned long address, pmd_t *pmd,
-+				  pmd_t orig_pmd, int dirty);
- extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			       unsigned long address, pmd_t *pmd,
- 			       pmd_t orig_pmd);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3c14a96..f024d98 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -932,6 +932,28 @@ out:
- 	return ret;
- }
- 
-+void huge_pmd_set_accessed(struct mm_struct *mm,
-+			   struct vm_area_struct *vma,
-+			   unsigned long address,
-+			   pmd_t *pmd, pmd_t orig_pmd,
-+			   int dirty)
-+{
-+	pmd_t entry;
-+	unsigned long haddr;
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+		goto unlock;
-+
-+	entry = pmd_mkyoung(orig_pmd);
-+	haddr = address & HPAGE_PMD_MASK;
-+	if (pmdp_set_access_flags(vma, haddr, pmd, entry, dirty))
-+		update_mmu_cache_pmd(vma, address, pmd);
-+
-+unlock:
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
- static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
- 					unsigned long address,
-diff --git a/mm/memory.c b/mm/memory.c
-index f21ac1c..bcbc084 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3650,12 +3650,14 @@ retry:
- 
- 		barrier();
- 		if (pmd_trans_huge(orig_pmd) && !pmd_trans_splitting(orig_pmd)) {
-+			unsigned int dirty = flags & FAULT_FLAG_WRITE;
-+
- 			if (pmd_numa(vma, orig_pmd)) {
- 				do_huge_pmd_numa_page(mm, vma, address, pmd,
- 						      flags, orig_pmd);
- 			}
- 
--			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
-+			if (dirty && !pmd_write(orig_pmd)) {
- 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
- 							  orig_pmd);
- 				/*
-@@ -3665,6 +3667,9 @@ retry:
- 				 */
- 				if (unlikely(ret & VM_FAULT_OOM))
- 					goto retry;
-+			} else {
-+				huge_pmd_set_accessed(mm, vma, address, pmd,
-+						      orig_pmd, dirty);
- 			}
- 
- 			return ret;
--- 
-1.7.4.1
+So we're trying that.  Is there anything else we should try?
+
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
