@@ -1,71 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 70A2B6B0071
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:10:49 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id hq7so1616532wib.8
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:10:47 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id C8E2D6B0071
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:13:02 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
+Date: Thu, 25 Oct 2012 22:16:58 +0200
+Message-ID: <1484035.7aMAWXqOf7@vostro.rjw.lan>
+In-Reply-To: <20121024181752.de011615.akpm@linux-foundation.org>
+References: <20121012125708.GJ10110@dhcp22.suse.cz> <1787395.7AzIesGUbB@vostro.rjw.lan> <20121024181752.de011615.akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20121025124832.770994193@chello.nl>
-References: <20121025121617.617683848@chello.nl> <20121025124832.770994193@chello.nl>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 25 Oct 2012 13:10:27 -0700
-Message-ID: <CA+55aFxSihF0RHc8npWcMdHOo8LOx+d=aV4G6_577REn=OXsQw@mail.gmail.com>
-Subject: Re: [PATCH 04/31] x86/mm: Introduce pte_accessible()
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Borislav Petkov <bp@alien8.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-NAK NAK NAK.
+On Wednesday, October 24, 2012 06:17:52 PM Andrew Morton wrote:
+> On Thu, 25 Oct 2012 00:04:46 +0200 "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+> 
+> > On Wednesday 24 of October 2012 14:13:03 Andrew Morton wrote:
+> > > On Wed, 24 Oct 2012 23:06:00 +0200
+> > > Borislav Petkov <bp@alien8.de> wrote:
+> > > 
+> > > > On Wed, Oct 24, 2012 at 01:48:36PM -0700, Andrew Morton wrote:
+> > > > > Well who knows. Could be that people's vm *does* suck. Or they have
+> > > > > some particularly peculiar worklosd or requirement[*]. Or their VM
+> > > > > *used* to suck, and the drop_caches is not really needed any more but
+> > > > > it's there in vendor-provided code and they can't practically prevent
+> > > > > it.
+> > > > 
+> > > > I have drop_caches in my suspend-to-disk script so that the hibernation
+> > > > image is kept at minimum and suspend times are as small as possible.
+> > > 
+> > > hm, that sounds smart.
+> > > 
+> > > > Would that be a valid use-case?
+> > > 
+> > > I'd say so, unless we change the kernel to do that internally.  We do
+> > > have the hibernation-specific shrink_all_memory() in the vmscan code. 
+> > > We didn't see fit to document _why_ that exists, but IIRC it's there to
+> > > create enough free memory for hibernation to be able to successfully
+> > > complete, but no more.
+> > 
+> > That's correct.
+> 
+> Well, my point was: how about the idea of reclaiming clean pagecache
+> (and inodes, dentries, etc) before hibernation so we read/write less
+> disk data?
 
-On Thu, Oct 25, 2012 at 5:16 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->
-> +#define __HAVE_ARCH_PTE_ACCESSIBLE
-> +static inline int pte_accessible(pte_t a)
+We may actually want to write more into the image to improve post-resume
+responsiveness.
 
-Stop doing this f*cking crazy ad-hoc "I have some other name
-available" #defines.
+> Given that it's so easy to do from the hibernation script, I guess
+> there's not much point...
 
-Use the same name, for chissake! Don't make up new random names.
+Well, I'd say so. :-)
 
-Just do
-
-   #define pte_accessible pte_accessible
-
-and then you can use
-
-   #ifndef pte_accessible
-
-to define the generic thing. Instead of having this INSANE "two
-different names for the same f*cking thing" crap.
-
-Stop it. Really.
-
-Also, this:
-
-> +#ifndef __HAVE_ARCH_PTE_ACCESSIBLE
-> +#define pte_accessible(pte)            pte_present(pte)
-> +#endif
-
-looks unsafe and like a really bad idea.
-
-You should probably do
-
-  #ifndef pte_accessible
-    #define pte_accessible(pte) ((void)(pte),1)
-  #endif
-
-because you have no idea if other architectures do
-
- (a) the same trick as x86 does for PROT_NONE (I can already tell you
-from a quick grep that ia64, m32r, m68k and sh do it)
- (b) might not perhaps be caching non-present pte's anyway
-
-So NAK on this whole patch. It's bad. It's ugly, it's wrong, and it's
-actively buggy.
-
-                Linus
+ 
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
