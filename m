@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 326996B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 05:21:50 -0400 (EDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MCF00IL6ZASRNX0@mailout4.samsung.com> for
- linux-mm@kvack.org; Thu, 25 Oct 2012 18:21:35 +0900 (KST)
-Received: from DOJG1HAN02 ([12.23.120.99])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MCF00EC5ZBY5B20@mmp2.samsung.com> for linux-mm@kvack.org;
- Thu, 25 Oct 2012 18:21:35 +0900 (KST)
-From: Jingoo Han <jg1.han@samsung.com>
-Subject: [PATCH] mm: fix build warning in try_to_unmap_cluster()
-Date: Thu, 25 Oct 2012 18:21:34 +0900
-Message-id: <000f01cdb292$20df5910$629e0b30$%han@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id BD87E6B0071
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 05:24:27 -0400 (EDT)
+Date: Thu, 25 Oct 2012 11:24:24 +0200
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
+Message-ID: <20121025092424.GA16601@liondog.tnic>
+References: <20121023164546.747e90f6.akpm@linux-foundation.org>
+ <20121024062938.GA6119@dhcp22.suse.cz>
+ <20121024125439.c17a510e.akpm@linux-foundation.org>
+ <50884F63.8030606@linux.vnet.ibm.com>
+ <20121024134836.a28d223a.akpm@linux-foundation.org>
+ <20121024210600.GA17037@liondog.tnic>
+ <50885B2E.5050500@linux.vnet.ibm.com>
+ <20121024224817.GB8828@liondog.tnic>
+ <5088725B.2090700@linux.vnet.ibm.com>
+ <CAHGf_=pfdgoeG5pPJb+UgjqfieU1yxt=46FGW1=th0RbgVKNRQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAHGf_=pfdgoeG5pPJb+UgjqfieU1yxt=46FGW1=th0RbgVKNRQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Andrew Morton' <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, 'Bob Liu' <lliubbo@gmail.com>, 'Jingoo Han' <jg1.han@samsung.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-Fix build warning in try_to_unmap_cluster() as below:
+On Wed, Oct 24, 2012 at 08:56:45PM -0400, KOSAKI Motohiro wrote:
+> > That effectively means removing it from the kernel since distros ship
+> > with those config options off.  We don't want to do that since there
+> > _are_ valid, occasional uses like benchmarking that we want to be
+> > consistent.
+> 
+> Agreed. we don't want to remove valid interface never.
 
-mm/rmap.c: In function 'try_to_unmap_cluster':
-mm/rmap.c:1364:9: warning: unused variable 'pud' [-Wunused-variable]
-mm/rmap.c:1363:9: warning: unused variable 'pgd' [-Wunused-variable]
+Ok, duly noted.
 
-This build warning is introduced by commit 0981230
-"mm: introduce mm_find_pmd()".
+But let's discuss this a bit further. So, for the benchmarking aspect,
+you're either going to have to always require dmesg along with
+benchmarking results or /proc/vmstat, depending on where the drop_caches
+stats end up.
 
-Signed-off-by: Jingoo Han <jg1.han@samsung.com>
-Cc: Bob Liu <lliubbo@gmail.com>
----
-This patch is based on linux-next-20121025 code tree.
+Is this how you envision it?
 
- mm/rmap.c |    2 --
- 1 files changed, 0 insertions(+), 2 deletions(-)
+And then there are the VM bug cases, where you might not always get
+full dmesg from a panicked system. In that case, you'd want the kernel
+tainting thing too, so that it at least appears in the oops backtrace.
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 6c686c2..98b100e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1360,8 +1360,6 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 		struct vm_area_struct *vma, struct page *check_page)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	pgd_t *pgd;
--	pud_t *pud;
- 	pmd_t *pmd;
- 	pte_t *pte;
- 	pte_t pteval;
+Although the tainting thing might not be enough - a user could
+drop_caches at some point in time and the oops happening much later
+could be unrelated but that can't be expressed in taint flags.
+
+So you'd need some sort of a drop_caches counter, I'd guess. Or a last
+drop_caches timestamp something.
+
+Am I understanding the intent correctly?
+
+Thanks.
+
 -- 
-1.7.1
-
+Regards/Gruss,
+    Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
