@@ -1,56 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id CA9AA6B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 15:51:23 -0400 (EDT)
-Date: Thu, 25 Oct 2012 15:51:10 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121025195110.GA4771@cmpxchg.org>
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id A9A3F6B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:01:44 -0400 (EDT)
+Date: Thu, 25 Oct 2012 22:01:41 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
+ s390
+Message-ID: <20121025200141.GF3262@quack.suse.cz>
+References: <1350918406-11369-1-git-send-email-jack@suse.cz>
+ <20121022123852.a4bd5f2a.akpm@linux-foundation.org>
+ <20121023102153.GD3064@quack.suse.cz>
+ <20121023145636.0a9b9a3e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="zYM0uCDKw75PZbzx"
 Content-Disposition: inline
-In-Reply-To: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
+In-Reply-To: <20121023145636.0a9b9a3e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org, Hugh Dickins <hughd@google.com>
 
-On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
-> On x86 memory accesses to pages without the ACCESSED flag set result in the
-> ACCESSED flag being set automatically. With the ARM architecture a page access
-> fault is raised instead (and it will continue to be raised until the ACCESSED
-> flag is set for the appropriate PTE/PMD).
+
+--zYM0uCDKw75PZbzx
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Tue 23-10-12 14:56:36, Andrew Morton wrote:
+> On Tue, 23 Oct 2012 12:21:53 +0200
+> Jan Kara <jack@suse.cz> wrote:
 > 
-> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> be called for a write fault.
+> > > That seems a fairly serious problem.  To which kernel version(s) should
+> > > we apply the fix?
+> >   Well, XFS will crash starting from 2.6.36 kernel where the assertion was
+> > added. Previously XFS just silently added buffers (as other filesystems do
+> > it) and wrote / redirtied the page (unnecessarily). So looking into
+> > maintained -stable branches I think pushing the patch to -stable from 3.0
+> > on should be enough.
 > 
-> This patch ensures that faults on transparent hugepages which do not result
-> in a CoW update the access flags for the faulting pmd.
+> OK, thanks, I made it so.
 > 
-> Cc: Chris Metcalf <cmetcalf@tilera.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> > > > diff --git a/mm/rmap.c b/mm/rmap.c
+> > > 
+> > > It's a bit surprising that none of the added comments mention the s390
+> > > pte-dirtying oddity.  I don't see an obvious place to mention this, but
+> > > I for one didn't know about this and it would be good if we could
+> > > capture the info _somewhere_?
+> >   As Hugh says, the comment before page_test_and_clear_dirty() is somewhat
+> > updated. But do you mean recording somewhere the catch that s390 HW dirty
+> > bit gets set also whenever we write to a page from kernel?
+> 
+> Yes, this.  It's surprising behaviour which we may trip over again, so
+> how do we inform developers about it?
+> 
+> > I guess we could
+> > add that also to the comment before page_test_and_clear_dirty() in
+> > page_remove_rmap() and also before definition of
+> > page_test_and_clear_dirty(). So most people that will add / remove these
+> > calls will be warned. OK?
+> 
+> Sounds good, thanks.
+  OK, the patch is attached. As Martin says, it may be obsolete soon but just
+in case Martin's patch set gets delayed...
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
-> Ok chaps, I rebased this thing onto today's next (which basically
-> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-> ask if you could eyeball the new code, especially where the locking is
-> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-> that the page is not splitting, but I can't see why that is required.
+--zYM0uCDKw75PZbzx
+Content-Type: text/x-patch; charset=us-ascii
+Content-Disposition: attachment; filename="0001-mm-Comment-on-storage-key-dirty-bit-semantics.patch"
 
-I don't either.  If the thing was splitting when the fault happened,
-that path is not taken.  And the locked pmd_same() check should rule
-out splitting setting in after testing pmd_trans_huge_splitting().
 
-Peter?
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--zYM0uCDKw75PZbzx--
