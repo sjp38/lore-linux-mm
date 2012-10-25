@@ -1,80 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 4DF576B0080
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:08 -0400 (EDT)
-Message-Id: <20121025124833.161298145@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:26 +0200
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id A094A6B0080
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:13 -0400 (EDT)
+Message-Id: <20121025124832.545895263@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:18 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 09/31] mm/pgprot: Move the pgprot_modify() fallback definition to mm.h
+Subject: [PATCH 01/31] sched, numa, mm: Make find_busiest_queue() a method
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0009-mm-pgprot-Move-the-pgprot_modify-fallback-definition.patch
+Content-Disposition: inline; filename=0001-sched-numa-mm-Make-find_busiest_queue-a-method.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>
 
-From: Ingo Molnar <mingo@kernel.org>
+Its a bit awkward but it was the least painful means of modifying the
+queue selection. Used in a later patch to conditionally use a random
+queue.
 
-pgprot_modify() is available on x86, but on other architectures it only
-gets defined in mm/mprotect.c - breaking the build if anything outside
-of mprotect.c tries to make use of this function.
-
-Move it to the generic pgprot area in mm.h, so that an upcoming patch
-can make use of it.
-
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Paul Turner <pjt@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Rik van Riel <riel@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm.h |   13 +++++++++++++
- mm/mprotect.c      |    7 -------
- 2 files changed, 13 insertions(+), 7 deletions(-)
+ kernel/sched/fair.c |   20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
 
-Index: tip/include/linux/mm.h
+Index: tip/kernel/sched/fair.c
 ===================================================================
---- tip.orig/include/linux/mm.h
-+++ tip/include/linux/mm.h
-@@ -164,6 +164,19 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_TRIED	0x40	/* second try */
+--- tip.orig/kernel/sched/fair.c
++++ tip/kernel/sched/fair.c
+@@ -3063,6 +3063,9 @@ struct lb_env {
+ 	unsigned int		loop;
+ 	unsigned int		loop_break;
+ 	unsigned int		loop_max;
++
++	struct rq *		(*find_busiest_queue)(struct lb_env *,
++						      struct sched_group *);
+ };
  
  /*
-+ * Some architectures (such as x86) may need to preserve certain pgprot
-+ * bits, without complicating generic pgprot code.
-+ *
-+ * Most architectures don't care:
-+ */
-+#ifndef pgprot_modify
-+static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
-+{
-+	return newprot;
-+}
-+#endif
-+
-+/*
-  * vm_fault is filled by the the pagefault handler and passed to the vma's
-  * ->fault function. The vma's ->fault is responsible for returning a bitmask
-  * of VM_FAULT_xxx flags that give details about how the fault was handled.
-Index: tip/mm/mprotect.c
-===================================================================
---- tip.orig/mm/mprotect.c
-+++ tip/mm/mprotect.c
-@@ -28,13 +28,6 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+@@ -4236,13 +4239,14 @@ static int load_balance(int this_cpu, st
+ 	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
  
--#ifndef pgprot_modify
--static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
--{
--	return newprot;
--}
--#endif
--
- static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
+ 	struct lb_env env = {
+-		.sd		= sd,
+-		.dst_cpu	= this_cpu,
+-		.dst_rq		= this_rq,
+-		.dst_grpmask    = sched_group_cpus(sd->groups),
+-		.idle		= idle,
+-		.loop_break	= sched_nr_migrate_break,
+-		.cpus		= cpus,
++		.sd		    = sd,
++		.dst_cpu	    = this_cpu,
++		.dst_rq		    = this_rq,
++		.dst_grpmask        = sched_group_cpus(sd->groups),
++		.idle		    = idle,
++		.loop_break	    = sched_nr_migrate_break,
++		.cpus		    = cpus,
++		.find_busiest_queue = find_busiest_queue,
+ 	};
+ 
+ 	cpumask_copy(cpus, cpu_active_mask);
+@@ -4261,7 +4265,7 @@ redo:
+ 		goto out_balanced;
+ 	}
+ 
+-	busiest = find_busiest_queue(&env, group);
++	busiest = env.find_busiest_queue(&env, group);
+ 	if (!busiest) {
+ 		schedstat_inc(sd, lb_nobusyq[idle]);
+ 		goto out_balanced;
 
 
 --
