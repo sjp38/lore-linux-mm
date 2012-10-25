@@ -1,93 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id B56E16B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:54:54 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so1349772oag.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:54:54 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 27F196B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:57:06 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so1351275oag.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:57:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>
-References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
- <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
- <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
- <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
- <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
- <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
- <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
- <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com>
- <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>
- <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com> <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 24 Oct 2012 20:54:33 -0400
-Message-ID: <CAHGf_=p7kFau=pMYLkGffA=ak1Jhhm7NzaPg6mSWQYQK3erQuA@mail.gmail.com>
-Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in numa_maps
+In-Reply-To: <5088725B.2090700@linux.vnet.ibm.com>
+References: <20121012125708.GJ10110@dhcp22.suse.cz> <20121023164546.747e90f6.akpm@linux-foundation.org>
+ <20121024062938.GA6119@dhcp22.suse.cz> <20121024125439.c17a510e.akpm@linux-foundation.org>
+ <50884F63.8030606@linux.vnet.ibm.com> <20121024134836.a28d223a.akpm@linux-foundation.org>
+ <20121024210600.GA17037@liondog.tnic> <50885B2E.5050500@linux.vnet.ibm.com>
+ <20121024224817.GB8828@liondog.tnic> <5088725B.2090700@linux.vnet.ibm.com>
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date: Wed, 24 Oct 2012 20:56:45 -0400
+Message-ID: <CAHGf_=pfdgoeG5pPJb+UgjqfieU1yxt=46FGW1=th0RbgVKNRQ@mail.gmail.com>
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Borislav Petkov <bp@alien8.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 24, 2012 at 8:08 PM, David Rientjes <rientjes@google.com> wrote:
-> On Wed, 24 Oct 2012, Sasha Levin wrote:
->
->> > This should be fixed by 9e7814404b77 ("hold task->mempolicy while
->> > numa_maps scans.") in 3.7-rc2, can you reproduce any issues reading
->> > /proc/pid/numa_maps on that kernel?
+On Wed, Oct 24, 2012 at 6:57 PM, Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> On 10/24/2012 03:48 PM, Borislav Petkov wrote:
+>> On Wed, Oct 24, 2012 at 02:18:38PM -0700, Dave Hansen wrote:
+>>> Sounds fairly valid to me. But, it's also one that would not be harmed
+>>> or disrupted in any way because of a single additional printk() during
+>>> each suspend-to-disk operation.
 >>
->> I was actually referring to the warnings Dave Jones saw when fuzzing
->> with trinity after the
->> original patch was applied.
+>> back to the drop_caches patch. How about we hide the drop_caches
+>> interface behind some mm debugging option in "Kernel Hacking"? Assuming
+>> we don't need it otherwise on production kernels. Probably make it
+>> depend on CONFIG_DEBUG_VM like CONFIG_DEBUG_VM_RB or so.
 >>
->> I still see the following when fuzzing:
->>
->> [  338.467156] BUG: sleeping function called from invalid context at
->> kernel/mutex.c:269
->> [  338.473719] in_atomic(): 1, irqs_disabled(): 0, pid: 6361, name: trinity-main
->> [  338.481199] 2 locks held by trinity-main/6361:
->> [  338.486629]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff810aa314>]
->> __do_page_fault+0x1e4/0x4f0
->> [  338.498783]  #1:  (&(&mm->page_table_lock)->rlock){+.+...}, at:
->> [<ffffffff8122f017>] handle_pte_fault+0x3f7/0x6a0
->> [  338.511409] Pid: 6361, comm: trinity-main Tainted: G        W
->> 3.7.0-rc2-next-20121024-sasha-00001-gd95ef01-dirty #74
->> [  338.530318] Call Trace:
->> [  338.534088]  [<ffffffff8114e393>] __might_sleep+0x1c3/0x1e0
->> [  338.539358]  [<ffffffff83ae5209>] mutex_lock_nested+0x29/0x50
->> [  338.545253]  [<ffffffff8124fc3e>] mpol_shared_policy_lookup+0x2e/0x90
->> [  338.545258]  [<ffffffff81219ebe>] shmem_get_policy+0x2e/0x30
->> [  338.545264]  [<ffffffff8124e99a>] get_vma_policy+0x5a/0xa0
->> [  338.545267]  [<ffffffff8124fce1>] mpol_misplaced+0x41/0x1d0
->> [  338.545272]  [<ffffffff8122f085>] handle_pte_fault+0x465/0x6a0
->> [  338.545278]  [<ffffffff81131e04>] ? __rcu_read_unlock+0x44/0xb0
->> [  338.545282]  [<ffffffff81230baa>] handle_mm_fault+0x32a/0x360
->> [  338.545286]  [<ffffffff810aa5b0>] __do_page_fault+0x480/0x4f0
->> [  338.545293]  [<ffffffff8111a706>] ? del_timer+0x26/0x80
->> [  338.545298]  [<ffffffff811c7313>] ? rcu_cleanup_after_idle+0x23/0x170
->> [  338.545302]  [<ffffffff811ca9a4>] ? rcu_eqs_exit_common+0x64/0x3a0
->> [  338.545305]  [<ffffffff811c8c66>] ? rcu_eqs_enter_common+0x7c6/0x970
->> [  338.545309]  [<ffffffff811cafdc>] ? rcu_eqs_exit+0x9c/0xb0
->> [  338.545312]  [<ffffffff810aa666>] do_page_fault+0x26/0x40
->> [  338.545317]  [<ffffffff810a3a40>] do_async_page_fault+0x30/0xa0
->> [  338.545321]  [<ffffffff83ae9268>] async_page_fault+0x28/0x30
->>
+>> And then also add it to /proc/vmstat, in addition.
 >
-> Ok, this looks the same but it's actually a different issue:
-> mpol_misplaced(), which now only exists in linux-next and not in 3.7-rc2,
-> calls get_vma_policy() which may take the shared policy mutex.  This
-> happens while holding page_table_lock from do_huge_pmd_numa_page() but
-> also from do_numa_page() while holding a spinlock on the ptl, which is
-> coming from the sched/numa branch.
->
-> Is there anyway that we can avoid changing the shared policy mutex back
-> into a spinlock (it was converted in b22d127a39dd ["mempolicy: fix a race
-> in shared_policy_replace()"])?
->
-> Adding Peter, Rik, and Mel to the cc.
+> That effectively means removing it from the kernel since distros ship
+> with those config options off.  We don't want to do that since there
+> _are_ valid, occasional uses like benchmarking that we want to be
+> consistent.
 
-Hrm. I haven't noticed there is mpol_misplaced() in linux-next. Peter,
-I guess you commited it, right? If so, may I review your mempolicy
-changes? Now mempolicy has a lot of horrible buggy code and I hope to
-maintain carefully. Which tree should i see?
+Agreed. we don't want to remove valid interface never.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
