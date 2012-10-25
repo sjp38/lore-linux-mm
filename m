@@ -1,76 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9249E6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:52:19 -0400 (EDT)
-Date: Thu, 25 Oct 2012 16:52:13 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-Message-ID: <20121025205213.GB4771@cmpxchg.org>
-References: <20121025023738.GA27001@redhat.com>
- <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id B4FE16B0073
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:53:27 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so1392186wgb.26
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:53:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
+In-Reply-To: <20121025124834.467791319@chello.nl>
+References: <20121025121617.617683848@chello.nl> <20121025124834.467791319@chello.nl>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 25 Oct 2012 13:53:05 -0700
+Message-ID: <CA+55aFwJdn8Kz9UByuRfGNtf9Hkv-=8xB+WRd47uHZU1YMagZw@mail.gmail.com>
+Subject: Re: [PATCH 26/31] sched, numa, mm: Add fault driven placement and
+ migration policy
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Wed, Oct 24, 2012 at 09:36:27PM -0700, Hugh Dickins wrote:
-> On Wed, 24 Oct 2012, Dave Jones wrote:
-> 
-> > Machine under significant load (4gb memory used, swap usage fluctuating)
-> > triggered this...
-> > 
-> > WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
-> > Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
-> > Call Trace:
-> >  [<ffffffff8107100f>] warn_slowpath_common+0x7f/0xc0
-> >  [<ffffffff8107106a>] warn_slowpath_null+0x1a/0x20
-> >  [<ffffffff811903fc>] shmem_getpage_gfp+0xa5c/0xa70
-> >  [<ffffffff8118fc3e>] ? shmem_getpage_gfp+0x29e/0xa70
-> >  [<ffffffff81190e4f>] shmem_fault+0x4f/0xa0
-> >  [<ffffffff8119f391>] __do_fault+0x71/0x5c0
-> >  [<ffffffff810e1ac6>] ? __lock_acquire+0x306/0x1ba0
-> >  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
-> >  [<ffffffff811a2767>] handle_pte_fault+0x97/0xae0
-> >  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
-> >  [<ffffffff8136d68e>] ? delay_tsc+0xae/0x120
-> >  [<ffffffff8136d578>] ? __const_udelay+0x28/0x30
-> >  [<ffffffff811a4a39>] handle_mm_fault+0x289/0x350
-> >  [<ffffffff816d091e>] __do_page_fault+0x18e/0x530
-> >  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
-> >  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
-> >  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
-> >  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
-> >  [<ffffffff8112d389>] ? rcu_user_exit+0xc9/0xf0
-> >  [<ffffffff816d0ceb>] do_page_fault+0x2b/0x50
-> >  [<ffffffff816cd3b8>] page_fault+0x28/0x30
-> >  [<ffffffff8136d259>] ? copy_user_enhanced_fast_string+0x9/0x20
-> >  [<ffffffff8121c181>] ? sys_futimesat+0x41/0xe0
-> >  [<ffffffff8102bf35>] ? syscall_trace_enter+0x25/0x2c0
-> >  [<ffffffff816d5625>] ? tracesys+0x7e/0xe6
-> >  [<ffffffff816d5688>] tracesys+0xe1/0xe6
-> > 
-> > 
-> > 
-> > 1148                         error = shmem_add_to_page_cache(page, mapping, index,
-> > 1149                                                 gfp, swp_to_radix_entry(swap));
-> > 1150                         /* We already confirmed swap, and make no allocation */
-> > 1151                         VM_BUG_ON(error);
-> > 1152                 }
-> 
-> That's very surprising.  Easy enough to handle an error there, but
-> of course I made it a VM_BUG_ON because it violates my assumptions:
-> I rather need to understand how this can be, and I've no idea.
+On Thu, Oct 25, 2012 at 5:16 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> +       /*
+> +        * Using runtime rather than walltime has the dual advantage that
+> +        * we (mostly) drive the selection from busy threads and that the
+> +        * task needs to have done some actual work before we bother with
+> +        * NUMA placement.
+> +        */
 
-Could it be concurrent truncation clearing out the entry between
-shmem_confirm_swap() and shmem_add_to_page_cache()?  I don't see
-anything preventing that.
+That explanation makes sense..
 
-The empty slot would not match the expected swap entry this call
-passes in and the returned error would be -ENOENT.
+> +       now = curr->se.sum_exec_runtime;
+> +       period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
+> +
+> +       if (now - curr->node_stamp > period) {
+> +               curr->node_stamp = now;
+> +
+> +               if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+
+.. but then the whole "numa_next_scan" thing ends up being about
+real-time anyway?
+
+So 'numa_scan_period' in in CPU time (msec, converted to nsec at
+runtime rather than when setting it), but 'numa_next_scan' is in
+wallclock time (jiffies)?
+
+But *both* of them are based on the same 'numa_scan_period' thing that
+the user sets in ms.
+
+So numa_scan_period is interpreted as both wallclock *and* as runtime?
+
+Maybe this works, but it doesn't really make much sense. And what is
+the impact of this on machines that run lots of loads with delays
+(whether due to IO or timers)?
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
