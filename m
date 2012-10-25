@@ -1,105 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id C8B176B0092
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 7F92A6B0075
 	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:30 -0400 (EDT)
-Message-Id: <20121025124833.400431442@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:29 +0200
+Message-Id: <20121025124833.630507608@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:32 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 12/31] mm/mpol: Add MPOL_MF_NOOP
+Subject: [PATCH 15/31] mm/mpol: Add MPOL_MF_LAZY
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0012-mm-mpol-Add-MPOL_MF_NOOP.patch
+Content-Disposition: inline; filename=0015-mm-mpol-Add-MPOL_MF_LAZY.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lee Schermerhorn <lee.schermerhorn@hp.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
 
 From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-This patch augments the MPOL_MF_LAZY feature by adding a "NOOP" policy
-to mbind().  When the NOOP policy is used with the 'MOVE and 'LAZY
-flags, mbind() will map the pages PROT_NONE so that they will be
-migrated on the next touch.
+This patch adds another mbind() flag to request "lazy migration".  The
+flag, MPOL_MF_LAZY, modifies MPOL_MF_MOVE* such that the selected
+pages are marked PROT_NONE. The pages will be migrated in the fault
+path on "first touch", if the policy dictates at that time.
 
-This allows an application to prepare for a new phase of operation
-where different regions of shared storage will be assigned to
-worker threads, w/o changing policy.  Note that we could just use
-"default" policy in this case.  However, this also allows an
-application to request that pages be migrated, only if necessary,
-to follow any arbitrary policy that might currently apply to a
-range of pages, without knowing the policy, or without specifying
-multiple mbind()s for ranges with different policies.
+"Lazy Migration" will allow testing of migrate-on-fault via mbind().
+Also allows applications to specify that only subsequently touched
+pages be migrated to obey new policy, instead of all pages in range.
+This can be useful for multi-threaded applications working on a
+large shared data area that is initialized by an initial thread
+resulting in all pages on one [or a few, if overflowed] nodes.
+After PROT_NONE, the pages in regions assigned to the worker threads
+will be automatically migrated local to the threads on 1st touch.
 
-[ Bug in early version of mpol_parse_str() reported by Fengguang Wu. ]
-
-Bug-Reported-by: Reported-by: Fengguang Wu <fengguang.wu@intel.com>
 Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+[ nearly complete rewrite.. ]
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/uapi/linux/mempolicy.h |    1 +
- mm/mempolicy.c                 |   11 ++++++-----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ include/uapi/linux/mempolicy.h |   13 ++++++++--
+ mm/mempolicy.c                 |   49 ++++++++++++++++++++++++++---------------
+ 2 files changed, 42 insertions(+), 20 deletions(-)
 
 Index: tip/include/uapi/linux/mempolicy.h
 ===================================================================
 --- tip.orig/include/uapi/linux/mempolicy.h
 +++ tip/include/uapi/linux/mempolicy.h
-@@ -21,6 +21,7 @@ enum {
- 	MPOL_BIND,
- 	MPOL_INTERLEAVE,
- 	MPOL_LOCAL,
-+	MPOL_NOOP,		/* retain existing policy for range */
- 	MPOL_MAX,	/* always last member of enum */
- };
+@@ -49,9 +49,16 @@ enum mpol_rebind_step {
  
+ /* Flags for mbind */
+ #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
+-#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform to mapping */
+-#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to mapping */
+-#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
++#define MPOL_MF_MOVE	 (1<<1)	/* Move pages owned by this process to conform
++				   to policy */
++#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
++#define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
++#define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
++
++#define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
++			 MPOL_MF_MOVE     | 	\
++			 MPOL_MF_MOVE_ALL |	\
++			 MPOL_MF_LAZY)
+ 
+ /*
+  * Internal flags that share the struct mempolicy flags word with
 Index: tip/mm/mempolicy.c
 ===================================================================
 --- tip.orig/mm/mempolicy.c
 +++ tip/mm/mempolicy.c
-@@ -251,10 +251,10 @@ static struct mempolicy *mpol_new(unsign
- 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
- 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
- 
--	if (mode == MPOL_DEFAULT) {
-+	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP) {
- 		if (nodes && !nodes_empty(*nodes))
- 			return ERR_PTR(-EINVAL);
--		return NULL;	/* simply delete any existing policy */
-+		return NULL;
- 	}
- 	VM_BUG_ON(!nodes);
- 
-@@ -1146,7 +1146,7 @@ static long do_mbind(unsigned long start
- 	if (start & ~PAGE_MASK)
- 		return -EINVAL;
- 
--	if (mode == MPOL_DEFAULT)
-+	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
- 		flags &= ~MPOL_MF_STRICT;
- 
- 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
-@@ -2381,7 +2381,8 @@ static const char * const policy_modes[]
- 	[MPOL_PREFERRED]  = "prefer",
- 	[MPOL_BIND]       = "bind",
- 	[MPOL_INTERLEAVE] = "interleave",
--	[MPOL_LOCAL]      = "local"
-+	[MPOL_LOCAL]      = "local",
-+	[MPOL_NOOP]	  = "noop",	/* should not actually be used */
- };
- 
- 
-@@ -2432,7 +2433,7 @@ int mpol_parse_str(char *str, struct mem
- 			break;
+@@ -583,22 +583,32 @@ check_range(struct mm_struct *mm, unsign
+ 		return ERR_PTR(-EFAULT);
+ 	prev = NULL;
+ 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
++		unsigned long endvma = vma->vm_end;
++
++		if (endvma > end)
++			endvma = end;
++		if (vma->vm_start > start)
++			start = vma->vm_start;
++
+ 		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
+ 			if (!vma->vm_next && vma->vm_end < end)
+ 				return ERR_PTR(-EFAULT);
+ 			if (prev && prev->vm_end < vma->vm_start)
+ 				return ERR_PTR(-EFAULT);
  		}
- 	}
--	if (mode >= MPOL_MAX)
-+	if (mode >= MPOL_MAX || mode == MPOL_NOOP)
- 		goto out;
+-		if (!is_vm_hugetlb_page(vma) &&
+-		    ((flags & MPOL_MF_STRICT) ||
++
++		if (is_vm_hugetlb_page(vma))
++			goto next;
++
++		if (flags & MPOL_MF_LAZY) {
++			change_prot_none(vma, start, endvma);
++			goto next;
++		}
++
++		if ((flags & MPOL_MF_STRICT) ||
+ 		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+-				vma_migratable(vma)))) {
+-			unsigned long endvma = vma->vm_end;
++		      vma_migratable(vma))) {
  
- 	switch (mode) {
+-			if (endvma > end)
+-				endvma = end;
+-			if (vma->vm_start > start)
+-				start = vma->vm_start;
+ 			err = check_pgd_range(vma, start, endvma, nodes,
+ 						flags, private);
+ 			if (err) {
+@@ -606,6 +616,7 @@ check_range(struct mm_struct *mm, unsign
+ 				break;
+ 			}
+ 		}
++next:
+ 		prev = vma;
+ 	}
+ 	return first;
+@@ -1137,8 +1148,7 @@ static long do_mbind(unsigned long start
+ 	int err;
+ 	LIST_HEAD(pagelist);
+ 
+-	if (flags & ~(unsigned long)(MPOL_MF_STRICT |
+-				     MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++  	if (flags & ~(unsigned long)MPOL_MF_VALID)
+ 		return -EINVAL;
+ 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
+ 		return -EPERM;
+@@ -1161,6 +1171,9 @@ static long do_mbind(unsigned long start
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+ 
++	if (flags & MPOL_MF_LAZY)
++		new->flags |= MPOL_F_MOF;
++
+ 	/*
+ 	 * If we are using the default policy then operation
+ 	 * on discontinuous address spaces is okay after all
+@@ -1197,21 +1210,23 @@ static long do_mbind(unsigned long start
+ 	vma = check_range(mm, start, end, nmask,
+ 			  flags | MPOL_MF_INVERT, &pagelist);
+ 
+-	err = PTR_ERR(vma);
+-	if (!IS_ERR(vma)) {
+-		int nr_failed = 0;
+-
++	err = PTR_ERR(vma);	/* maybe ... */
++	if (!IS_ERR(vma) && mode != MPOL_NOOP)
+ 		err = mbind_range(mm, start, end, new);
+ 
++	if (!err) {
++		int nr_failed = 0;
++
+ 		if (!list_empty(&pagelist)) {
++			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+-						(unsigned long)vma,
+-						false, MIGRATE_SYNC);
++						  (unsigned long)vma,
++						  false, MIGRATE_SYNC);
+ 			if (nr_failed)
+ 				putback_lru_pages(&pagelist);
+ 		}
+ 
+-		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
++		if (nr_failed && (flags & MPOL_MF_STRICT))
+ 			err = -EIO;
+ 	} else
+ 		putback_lru_pages(&pagelist);
 
 
 --
