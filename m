@@ -1,59 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 030F86B0068
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 21:18:04 -0400 (EDT)
-Date: Wed, 24 Oct 2012 18:17:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-Id: <20121024181752.de011615.akpm@linux-foundation.org>
-In-Reply-To: <1787395.7AzIesGUbB@vostro.rjw.lan>
-References: <20121012125708.GJ10110@dhcp22.suse.cz>
-	<20121024210600.GA17037@liondog.tnic>
-	<20121024141303.0797d6a1.akpm@linux-foundation.org>
-	<1787395.7AzIesGUbB@vostro.rjw.lan>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id E0FFE6B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 21:48:58 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so1158688iak.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 18:48:58 -0700 (PDT)
+Message-ID: <50889A7E.8010104@gmail.com>
+Date: Thu, 25 Oct 2012 09:48:46 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com> <20121023224706.GR4291@dastard> <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com> <20121024201921.GX4291@dastard> <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com>
+In-Reply-To: <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Borislav Petkov <bp@alien8.de>, Dave Hansen <dave@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: YingHang Zhu <casualfisher@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 25 Oct 2012 00:04:46 +0200 "Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+On 10/25/2012 08:17 AM, YingHang Zhu wrote:
+> On Thu, Oct 25, 2012 at 4:19 AM, Dave Chinner <david@fromorbit.com> wrote:
+>> On Wed, Oct 24, 2012 at 07:53:59AM +0800, YingHang Zhu wrote:
+>>> Hi Dave,
+>>> On Wed, Oct 24, 2012 at 6:47 AM, Dave Chinner <david@fromorbit.com> wrote:
+>>>> On Tue, Oct 23, 2012 at 08:46:51PM +0800, Ying Zhu wrote:
+>>>>> Hi,
+>>>>>    Recently we ran into the bug that an opened file's ra_pages does not
+>>>>> synchronize with it's backing device's when the latter is changed
+>>>>> with blockdev --setra, the application needs to reopen the file
+>>>>> to know the change,
+>>>> or simply call fadvise(fd, POSIX_FADV_NORMAL) to reset the readhead
+>>>> window to the (new) bdi default.
+>>>>
+>>>>> which is inappropriate under our circumstances.
+>>>> Which are? We don't know your circumstances, so you need to tell us
+>>>> why you need this and why existing methods of handling such changes
+>>>> are insufficient...
+>>>>
+>>>> Optimal readahead windows tend to be a physical property of the
+>>>> storage and that does not tend to change dynamically. Hence block
+>>>> device readahead should only need to be set up once, and generally
+>>>> that can be done before the filesystem is mounted and files are
+>>>> opened (e.g. via udev rules). Hence you need to explain why you need
+>>>> to change the default block device readahead on the fly, and why
+>>>> fadvise(POSIX_FADV_NORMAL) is "inappropriate" to set readahead
+>>>> windows to the new defaults.
+>>> Our system is a fuse-based file system, fuse creates a
+>>> pseudo backing device for the user space file systems, the default readahead
+>>> size is 128KB and it can't fully utilize the backing storage's read ability,
+>>> so we should tune it.
+>> Sure, but that doesn't tell me anything about why you can't do this
+>> at mount time before the application opens any files. i.e.  you've
+>> simply stated the reason why readahead is tunable, not why you need
+>> to be fully dynamic.....
+> We store our file system's data on different disks so we need to change ra_pages
+> dynamically according to where the data resides, it can't be fixed at mount time
+> or when we open files.
+> The abstract bdi of fuse and btrfs provides some dynamically changing
+> bdi.ra_pages
+> based on the real backing device. IMHO this should not be ignored.
 
-> On Wednesday 24 of October 2012 14:13:03 Andrew Morton wrote:
-> > On Wed, 24 Oct 2012 23:06:00 +0200
-> > Borislav Petkov <bp@alien8.de> wrote:
-> > 
-> > > On Wed, Oct 24, 2012 at 01:48:36PM -0700, Andrew Morton wrote:
-> > > > Well who knows. Could be that people's vm *does* suck. Or they have
-> > > > some particularly peculiar worklosd or requirement[*]. Or their VM
-> > > > *used* to suck, and the drop_caches is not really needed any more but
-> > > > it's there in vendor-provided code and they can't practically prevent
-> > > > it.
-> > > 
-> > > I have drop_caches in my suspend-to-disk script so that the hibernation
-> > > image is kept at minimum and suspend times are as small as possible.
-> > 
-> > hm, that sounds smart.
-> > 
-> > > Would that be a valid use-case?
-> > 
-> > I'd say so, unless we change the kernel to do that internally.  We do
-> > have the hibernation-specific shrink_all_memory() in the vmscan code. 
-> > We didn't see fit to document _why_ that exists, but IIRC it's there to
-> > create enough free memory for hibernation to be able to successfully
-> > complete, but no more.
-> 
-> That's correct.
+And how to tune ra_pages if one big file distribution in different 
+disks, I think Fengguang Wu can answer these questions,
 
-Well, my point was: how about the idea of reclaiming clean pagecache
-(and inodes, dentries, etc) before hibernation so we read/write less
-disk data?
+Hi Fengguang,
 
-Given that it's so easy to do from the hibernation script, I guess
-there's not much point...
-
+>>> The above third-party application using our file system maintains
+>>> some long-opened files, we does not have any chances
+>>> to force them to call fadvise(POSIX_FADV_NORMAL). :(
+>> So raise a bug/feature request with the third party.  Modifying
+>> kernel code because you can't directly modify the application isn't
+>> the best solution for anyone. This really is an application problem
+>> - the kernel already provides the mechanisms to solve this
+>> problem...  :/
+> Thanks for advice, I will consult the above application's developers
+> for more information.
+> Now from the code itself should we merge the gap between the real
+> device's ra_pages and the file's?
+> Obviously the ra_pages is duplicated, otherwise each time we run into this
+> problem, someone will do the same work as I have done here.
+>
+> Thanks,
+>           Ying Zhu
+>> Cheers,
+>>
+>> Dave.
+>> --
+>> Dave Chinner
+>> david@fromorbit.com
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
