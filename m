@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 2E07C6B0071
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:09:34 -0400 (EDT)
-Date: Thu, 25 Oct 2012 16:09:31 +0200
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id C88FA6B0073
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:21:57 -0400 (EDT)
+Date: Thu, 25 Oct 2012 16:21:53 +0200
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-ID: <20121025140930.GF11105@dhcp22.suse.cz>
+Message-ID: <20121025142153.GG11105@dhcp22.suse.cz>
 References: <20121012125708.GJ10110@dhcp22.suse.cz>
  <20121023164546.747e90f6.akpm@linux-foundation.org>
  <20121024062938.GA6119@dhcp22.suse.cz>
  <20121024125439.c17a510e.akpm@linux-foundation.org>
+ <50884F63.8030606@linux.vnet.ibm.com>
+ <20121024134836.a28d223a.akpm@linux-foundation.org>
+ <20121024210600.GA17037@liondog.tnic>
+ <20121024141303.0797d6a1.akpm@linux-foundation.org>
+ <50886D3F.9050403@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121024125439.c17a510e.akpm@linux-foundation.org>
+In-Reply-To: <50886D3F.9050403@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, bp@alien8.de, dave@linux.vnet.ibm.com, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, linux-kernel@vger.kernel.org, rjw@sisk.pl
 
-On Wed 24-10-12 12:54:39, Andrew Morton wrote:
-> On Wed, 24 Oct 2012 08:29:45 +0200
-> Michal Hocko <mhocko@suse.cz> wrote:
-[...]
-> hmpf.  This patch worries me.  If there are people out there who are
-> regularly using drop_caches because the VM sucks, it seems pretty
-> obnoxious of us to go dumping stuff into their syslog.  What are they
-> supposed to do?  Stop using drop_caches?  But that would unfix the
-> problem which they fixed with drop_caches in the first case.
-> 
-> And they might not even have control over the code - they need to go
-> back to their supplier and say "please send me a new version", along
-> with all the additional costs and risks involed in an update.
-
-I understand your worries and that's why I suggested a higher log level
-which is under admin's control. Does even that sound too excessive?
-
-> > > More friendly alternatives might be:
-> > > 
-> > > - Taint the kernel.  But that will only become apparent with an oops
-> > >   trace or similar.
-> > > 
-> > > - Add a drop_caches counter and make that available in /proc/vmstat,
-> > >   show_mem() output and perhaps other places.
+On Wed 24-10-12 18:35:43, KOSAKI Motohiro wrote:
+> >> I have drop_caches in my suspend-to-disk script so that the hibernation
+> >> image is kept at minimum and suspend times are as small as possible.
 > > 
-> > We would loose timing and originating process name in both cases which
-> > can be really helpful while debugging. It is fair to say that we could
-> > deduce the timing if we are collecting /proc/meminfo or /proc/vmstat
-> > already and we do collect them often but this is not the case all of the
-> > time and sometimes it is important to know _who_ is doing all this.
+> > hm, that sounds smart.
+> > 
+> >> Would that be a valid use-case?
+> > 
+> > I'd say so, unless we change the kernel to do that internally.  We do
+> > have the hibernation-specific shrink_all_memory() in the vmscan code. 
+> > We didn't see fit to document _why_ that exists, but IIRC it's there to
+> > create enough free memory for hibernation to be able to successfully
+> > complete, but no more.
 > 
-> But how important is all that?  The main piece of information the
-> kernel developer wants is "this guy is using drop_caches a lot".  All
-> the other info is peripheral and can be gathered by other means if so
-> desired.
+> shrink_all_memory() drop minimum memory to be needed from hibernation.
+> that's trade off matter.
+> 
+> - drop all page cache
+>   pros.
+>    speed up hibernation time
+>   cons.
+>    after go back from hibernation, system works very slow a while until
+>    system will get enough file cache.
+> 
+> - drop minimum page cache
+>   pros.
+>    system works quickly when go back from hibernation.
+>   cons.
+>    relative large hibernation time
+> 
+> 
+> So, I'm not fun change hibernation default. hmmm... Does adding
+> tracepint instead of printk makes sense?
 
-Well, I have experienced a debugging session where I suspected that an
-excessive drop_caches is going on but I had hard time to prove who is
-doing that (customer, of course, claimed they are not doing anything
-like that) so we went through many loops until we could point the
-finger.
+I guess you mean trace_printk. I have seen that one for debugging
+purposes only but it seems like it could be used here. CONFIG_TRACING
+seems to be enabled on the most distribution kernels.
+
+I am just worried it needs debugfs mounted and my recollection is that
+this has some security implications so there might be some pushback on
+mounting it on production systems which would defeat the primary
+motivation.
+Maybe this concern is not that important wrt. excessive logging, though.
+I can live with this solution as well if people really hate logging
+approach.
 -- 
 Michal Hocko
 SUSE Labs
