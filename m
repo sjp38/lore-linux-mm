@@ -1,65 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id D0E046B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 15:32:55 -0400 (EDT)
-Date: Thu, 25 Oct 2012 21:32:49 +0200
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D99736B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 15:39:14 -0400 (EDT)
+Date: Thu, 25 Oct 2012 21:39:11 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/3] mm: print out information of file affected by
- memory error
-Message-ID: <20121025193249.GC3262@quack.suse.cz>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Message-ID: <20121025193911.GD3262@quack.suse.cz>
 References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1351177969-893-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351177969-893-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Andi Kleen <andi.kleen@intel.com>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-On Thu 25-10-12 11:12:47, Naoya Horiguchi wrote:
-> Printing out the information about which file can be affected by a
-> memory error in generic_error_remove_page() is helpful for user to
-> estimate the impact of the error.
+On Thu 25-10-12 11:12:48, Naoya Horiguchi wrote:
+> Ext4 has its own configurable error handling policy, so it's helpful
+> if we can use it also in the context of memory error handling.
+> With this patch, when we detect a memory error on a dirty pagecache in
+> ext4 filesystem, we can allow users to choose to trigger kernel panic
+> to avoid consuming corrupted data.
+  OK, I've checked and memory_failure() function guarantees page->mapping
+is !NULL. So I'm OK with this patch. You can add:
+  Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
 > 
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > ---
->  mm/truncate.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
+>  fs/ext4/inode.c | 35 +++++++++++++++++++++++++++++++----
+>  1 file changed, 31 insertions(+), 4 deletions(-)
 > 
-> diff --git v3.7-rc2.orig/mm/truncate.c v3.7-rc2/mm/truncate.c
-> index d51ce92..df0c6ab7 100644
-> --- v3.7-rc2.orig/mm/truncate.c
-> +++ v3.7-rc2/mm/truncate.c
-> @@ -151,14 +151,20 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
->   */
->  int generic_error_remove_page(struct address_space *mapping, struct page *page)
->  {
-> +	int ret;
-> +	struct inode *inode = mapping->host;
-> +
-  This will oops if mapping == NULL. Currently the only caller seems to
-check beforehand but still, it's better keep the code as robust as it it.
-
->  	if (!mapping)
->  		return -EINVAL;
->  	/*
->  	 * Only punch for normal data pages for now.
->  	 * Handling other types like directories would need more auditing.
->  	 */
-> -	if (!S_ISREG(mapping->host->i_mode))
-> +	if (!S_ISREG(inode->i_mode))
->  		return -EIO;
-> +	pr_info("MCE %#lx: file info pgoff:%lu, inode:%lu, dev:%s\n",
-> +		page_to_pfn(page), page_index(page),
-> +		inode->i_ino, inode->i_sb->s_id);
->  	return truncate_inode_page(mapping, page);
+> diff --git v3.7-rc2.orig/fs/ext4/inode.c v3.7-rc2/fs/ext4/inode.c
+> index b3c243b..513badb 100644
+> --- v3.7-rc2.orig/fs/ext4/inode.c
+> +++ v3.7-rc2/fs/ext4/inode.c
+> @@ -3163,6 +3163,33 @@ static int ext4_journalled_set_page_dirty(struct page *page)
+>  	return __set_page_dirty_nobuffers(page);
 >  }
->  EXPORT_SYMBOL(generic_error_remove_page);
-  Otherwise the patch looks OK.
-
-								Honza
+>  
+> +static int ext4_error_remove_page(struct address_space *mapping,
+> +				struct page *page)
+> +{
+> +	struct inode *inode = mapping->host;
+> +	struct buffer_head *bh, *head;
+> +	ext4_fsblk_t block;
+> +
+> +	if (!PageDirty(page) || !page_has_buffers(page))
+> +		goto remove_page;
+> +
+> +	/* Lost data. Handle as critical fs error. */
+> +	bh = head = page_buffers(page);
+> +	do {
+> +		if (buffer_dirty(bh) && !buffer_delay(bh)) {
+> +			block = bh->b_blocknr;
+> +			EXT4_ERROR_INODE_BLOCK(inode, block,
+> +						"Removing dirty pagecache page");
+> +		} else
+> +			EXT4_ERROR_INODE(inode,
+> +					"Removing dirty pagecache page");
+> +		bh = bh->b_this_page;
+> +	} while (bh != head);
+> +
+> +remove_page:
+> +	return generic_error_remove_page(mapping, page);
+> +}
+> +
+>  static const struct address_space_operations ext4_ordered_aops = {
+>  	.readpage		= ext4_readpage,
+>  	.readpages		= ext4_readpages,
+> @@ -3175,7 +3202,7 @@ static const struct address_space_operations ext4_ordered_aops = {
+>  	.direct_IO		= ext4_direct_IO,
+>  	.migratepage		= buffer_migrate_page,
+>  	.is_partially_uptodate  = block_is_partially_uptodate,
+> -	.error_remove_page	= generic_error_remove_page,
+> +	.error_remove_page	= ext4_error_remove_page,
+>  };
+>  
+>  static const struct address_space_operations ext4_writeback_aops = {
+> @@ -3190,7 +3217,7 @@ static const struct address_space_operations ext4_writeback_aops = {
+>  	.direct_IO		= ext4_direct_IO,
+>  	.migratepage		= buffer_migrate_page,
+>  	.is_partially_uptodate  = block_is_partially_uptodate,
+> -	.error_remove_page	= generic_error_remove_page,
+> +	.error_remove_page	= ext4_error_remove_page,
+>  };
+>  
+>  static const struct address_space_operations ext4_journalled_aops = {
+> @@ -3205,7 +3232,7 @@ static const struct address_space_operations ext4_journalled_aops = {
+>  	.releasepage		= ext4_releasepage,
+>  	.direct_IO		= ext4_direct_IO,
+>  	.is_partially_uptodate  = block_is_partially_uptodate,
+> -	.error_remove_page	= generic_error_remove_page,
+> +	.error_remove_page	= ext4_error_remove_page,
+>  };
+>  
+>  static const struct address_space_operations ext4_da_aops = {
+> @@ -3221,7 +3248,7 @@ static const struct address_space_operations ext4_da_aops = {
+>  	.direct_IO		= ext4_direct_IO,
+>  	.migratepage		= buffer_migrate_page,
+>  	.is_partially_uptodate  = block_is_partially_uptodate,
+> -	.error_remove_page	= generic_error_remove_page,
+> +	.error_remove_page	= ext4_error_remove_page,
+>  };
+>  
+>  void ext4_set_aops(struct inode *inode)
+> -- 
+> 1.7.11.7
+> 
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
