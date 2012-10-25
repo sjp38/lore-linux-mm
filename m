@@ -1,211 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 795646B009E
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:10:25 -0400 (EDT)
-Message-Id: <20121025124833.861587584@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:35 +0200
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 9E5FC6B0088
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:10:26 -0400 (EDT)
+Message-Id: <20121025124834.651572752@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:46 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 18/31] mm/mpol: Use special PROT_NONE to migrate pages
+Subject: [PATCH 29/31] sched, numa, mm: Add NUMA_MIGRATION feature flag
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0018-mm-mpol-Use-special-PROT_NONE-to-migrate-pages.patch
+Content-Disposition: inline; filename=0029-sched-numa-mm-Add-NUMA_MIGRATION-feature-flag.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Combine our previous PROT_NONE, mpol_misplaced and
-migrate_misplaced_page() pieces into an effective migrate on fault
-scheme.
+From: Ingo Molnar <mingo@kernel.org>
 
-Note that (on x86) we rely on PROT_NONE pages being !present and avoid
-the TLB flush from try_to_unmap(TTU_MIGRATION). This greatly improves
-the page-migration performance.
+After this patch, doing:
 
-Suggested-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Paul Turner <pjt@google.com>
+   # echo NO_NUMA_MIGRATION > /sys/kernel/debug/sched_features
+
+Will turn off the NUMA placement logic/policy - but keeps the
+working set sampling faults in place.
+
+This allows the debugging of the WSS facility, by using it
+but keeping vanilla, non-NUMA CPU and memory placement
+policies.
+
+Default enabled. Generates on extra code on !CONFIG_SCHED_DEBUG.
+
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
 ---
- mm/huge_memory.c |   41 ++++++++++++++++++++++++++++++++++-
- mm/memory.c      |   63 +++++++++++++++++++++++++++++++++++++++----------------
- 2 files changed, 85 insertions(+), 19 deletions(-)
+ kernel/sched/core.c     |    3 +++
+ kernel/sched/features.h |    3 +++
+ 2 files changed, 6 insertions(+)
 
-Index: tip/mm/huge_memory.c
+Index: tip/kernel/sched/core.c
 ===================================================================
---- tip.orig/mm/huge_memory.c
-+++ tip/mm/huge_memory.c
-@@ -18,6 +18,7 @@
- #include <linux/freezer.h>
- #include <linux/mman.h>
- #include <linux/pagemap.h>
-+#include <linux/migrate.h>
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
- #include "internal.h"
-@@ -741,12 +742,48 @@ void do_huge_pmd_numa_page(struct mm_str
- 			   unsigned int flags, pmd_t entry)
- {
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
-+	struct page *page = NULL;
-+	int node;
+--- tip.orig/kernel/sched/core.c
++++ tip/kernel/sched/core.c
+@@ -6002,6 +6002,9 @@ void sched_setnode(struct task_struct *p
+ 	int on_rq, running;
+ 	struct rq *rq;
  
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(*pmd, entry)))
- 		goto out_unlock;
- 
--	/* do fancy stuff */
-+	if (unlikely(pmd_trans_splitting(entry))) {
-+		spin_unlock(&mm->page_table_lock);
-+		wait_split_huge_page(vma->anon_vma, pmd);
++	if (!sched_feat(NUMA_MIGRATION))
 +		return;
-+	}
 +
-+#ifdef CONFIG_NUMA
-+	page = pmd_page(entry);
-+	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
-+
-+	get_page(page);
-+	spin_unlock(&mm->page_table_lock);
-+
-+	/*
-+	 * XXX should we serialize against split_huge_page ?
-+	 */
-+
-+	node = mpol_misplaced(page, vma, haddr);
-+	if (node == -1)
-+		goto do_fixup;
-+
-+	/*
-+	 * Due to lacking code to migrate thp pages, we'll split
-+	 * (which preserves the special PROT_NONE) and re-take the
-+	 * fault on the normal pages.
-+	 */
-+	split_huge_page(page);
-+	put_page(page);
-+	return;
-+
-+do_fixup:
-+	spin_lock(&mm->page_table_lock);
-+	if (unlikely(!pmd_same(*pmd, entry)))
-+		goto out_unlock;
-+#endif
- 
- 	/* change back to regular protection */
- 	entry = pmd_modify(entry, vma->vm_page_prot);
-@@ -755,6 +792,8 @@ void do_huge_pmd_numa_page(struct mm_str
- 
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
-+	if (page)
-+		put_page(page);
- }
- 
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-Index: tip/mm/memory.c
+ 	rq = task_rq_lock(p, &flags);
+ 	on_rq = p->on_rq;
+ 	running = task_current(rq, p);
+Index: tip/kernel/sched/features.h
 ===================================================================
---- tip.orig/mm/memory.c
-+++ tip/mm/memory.c
-@@ -57,6 +57,7 @@
- #include <linux/swapops.h>
- #include <linux/elf.h>
- #include <linux/gfp.h>
-+#include <linux/migrate.h>
+--- tip.orig/kernel/sched/features.h
++++ tip/kernel/sched/features.h
+@@ -63,7 +63,10 @@ SCHED_FEAT(RT_RUNTIME_SHARE, true)
+ SCHED_FEAT(LB_MIN, false)
  
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -1467,8 +1468,10 @@ EXPORT_SYMBOL_GPL(zap_vma_ptes);
- static bool pte_numa(struct vm_area_struct *vma, pte_t pte)
- {
- 	/*
--	 * If we have the normal vma->vm_page_prot protections we're not a
--	 * 'special' PROT_NONE page.
-+	 * For NUMA page faults, we use PROT_NONE ptes in VMAs with
-+	 * "normal" vma->vm_page_prot protections.  Genuine PROT_NONE
-+	 * VMAs should never get here, because the fault handling code
-+	 * will notice that the VMA has no read or write permissions.
- 	 *
- 	 * This means we cannot get 'special' PROT_NONE faults from genuine
- 	 * PROT_NONE maps, nor from PROT_WRITE file maps that do dirty
-@@ -3473,35 +3476,59 @@ static int do_numa_page(struct mm_struct
- 			unsigned long address, pte_t *ptep, pmd_t *pmd,
- 			unsigned int flags, pte_t entry)
- {
-+	struct page *page = NULL;
-+	int node, page_nid = -1;
- 	spinlock_t *ptl;
--	int ret = 0;
--
--	if (!pte_unmap_same(mm, pmd, ptep, entry))
--		goto out;
- 
--	/*
--	 * Do fancy stuff...
--	 */
--
--	/*
--	 * OK, nothing to do,.. change the protection back to what it
--	 * ought to be.
--	 */
--	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	ptl = pte_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pte_same(*ptep, entry)))
--		goto unlock;
-+		goto out_unlock;
-+
-+	page = vm_normal_page(vma, address, entry);
-+	if (page) {
-+		get_page(page);
-+		page_nid = page_to_nid(page);
-+		node = mpol_misplaced(page, vma, address);
-+		if (node != -1)
-+			goto migrate;
-+	}
- 
-+out_pte_upgrade_unlock:
- 	flush_cache_page(vma, address, pte_pfn(entry));
- 
- 	ptep_modify_prot_start(mm, address, ptep);
- 	entry = pte_modify(entry, vma->vm_page_prot);
- 	ptep_modify_prot_commit(mm, address, ptep, entry);
- 
-+	/* No TLB flush needed because we upgraded the PTE */
-+
- 	update_mmu_cache(vma, address, ptep);
--unlock:
-+
-+out_unlock:
- 	pte_unmap_unlock(ptep, ptl);
- out:
--	return ret;
-+	if (page)
-+		put_page(page);
-+
-+	return 0;
-+
-+migrate:
-+	pte_unmap_unlock(ptep, ptl);
-+
-+	if (!migrate_misplaced_page(page, node)) {
-+		page_nid = node;
-+		goto out;
-+	}
-+
-+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	if (!pte_same(*ptep, entry)) {
-+		put_page(page);
-+		page = NULL;
-+		goto out_unlock;
-+	}
-+
-+	goto out_pte_upgrade_unlock;
- }
- 
- /*
+ #ifdef CONFIG_SCHED_NUMA
++/* Do the working set probing faults: */
+ SCHED_FEAT(NUMA,           true)
++/* Do actual migration/placement based on the working set information: */
++SCHED_FEAT(NUMA_MIGRATION, true)
+ SCHED_FEAT(NUMA_HOT,       true)
+ SCHED_FEAT(NUMA_TTWU_BIAS, false)
+ SCHED_FEAT(NUMA_TTWU_TO,   false)
 
 
 --
