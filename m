@@ -1,104 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 029106B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 15:45:53 -0400 (EDT)
-Date: Thu, 25 Oct 2012 21:45:51 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 3/3] ext3: introduce ext3_error_remove_page
-Message-ID: <20121025194551.GE3262@quack.suse.cz>
-References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1351177969-893-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id CA9AA6B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 15:51:23 -0400 (EDT)
+Date: Thu, 25 Oct 2012 15:51:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-ID: <20121025195110.GA4771@cmpxchg.org>
+References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351177969-893-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andi Kleen <andi.kleen@intel.com>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu 25-10-12 11:12:49, Naoya Horiguchi wrote:
-> What I suggested in the previous patch for ext4 is ditto with ext3,
-> so do the same thing for ext3.
+On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
+> On x86 memory accesses to pages without the ACCESSED flag set result in the
+> ACCESSED flag being set automatically. With the ARM architecture a page access
+> fault is raised instead (and it will continue to be raised until the ACCESSED
+> flag is set for the appropriate PTE/PMD).
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  fs/ext3/inode.c | 33 ++++++++++++++++++++++++++++++---
->  1 file changed, 30 insertions(+), 3 deletions(-)
+> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> be called for a write fault.
 > 
-> diff --git v3.7-rc2.orig/fs/ext3/inode.c v3.7-rc2/fs/ext3/inode.c
-> index 7e87e37..7f708bf 100644
-> --- v3.7-rc2.orig/fs/ext3/inode.c
-> +++ v3.7-rc2/fs/ext3/inode.c
-> @@ -1967,6 +1967,33 @@ static int ext3_journalled_set_page_dirty(struct page *page)
->  	return __set_page_dirty_nobuffers(page);
->  }
->  
-> +static int ext3_error_remove_page(struct address_space *mapping,
-> +				struct page *page)
-> +{
-> +	struct inode *inode = mapping->host;
-> +	struct buffer_head *bh, *head;
-> +	ext3_fsblk_t block = 0;
-> +
-> +	if (!PageDirty(page) || !page_has_buffers(page))
-> +		goto remove_page;
-> +
-> +	/* Lost data. Handle as critical fs error. */
-> +	bh = head = page_buffers(page);
-> +	do {
-> +		if (buffer_dirty(bh)) {
-  For ext3, you should check that buffer_mapped() is set because we can
-have dirty and unmapped buffers. Otherwise the patch looks OK.
+> This patch ensures that faults on transparent hugepages which do not result
+> in a CoW update the access flags for the faulting pmd.
+> 
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
 
-> +			block = bh->b_blocknr;
-> +			ext3_error(inode->i_sb, "ext3_error_remove_page",
-> +				"inode #%lu: block %lu: "
-> +				"Removing dirty pagecache page",
-> +				inode->i_ino, block);
-> +		}
-> +		bh = bh->b_this_page;
-> +	} while (bh != head);
-> +
-> +remove_page:
-> +	return generic_error_remove_page(mapping, page);
-> +}
-> +
->  static const struct address_space_operations ext3_ordered_aops = {
->  	.readpage		= ext3_readpage,
->  	.readpages		= ext3_readpages,
-> @@ -1979,7 +2006,7 @@ static const struct address_space_operations ext3_ordered_aops = {
->  	.direct_IO		= ext3_direct_IO,
->  	.migratepage		= buffer_migrate_page,
->  	.is_partially_uptodate  = block_is_partially_uptodate,
-> -	.error_remove_page	= generic_error_remove_page,
-> +	.error_remove_page	= ext3_error_remove_page,
->  };
->  
->  static const struct address_space_operations ext3_writeback_aops = {
-> @@ -1994,7 +2021,7 @@ static const struct address_space_operations ext3_writeback_aops = {
->  	.direct_IO		= ext3_direct_IO,
->  	.migratepage		= buffer_migrate_page,
->  	.is_partially_uptodate  = block_is_partially_uptodate,
-> -	.error_remove_page	= generic_error_remove_page,
-> +	.error_remove_page	= ext3_error_remove_page,
->  };
->  
->  static const struct address_space_operations ext3_journalled_aops = {
-> @@ -2008,7 +2035,7 @@ static const struct address_space_operations ext3_journalled_aops = {
->  	.invalidatepage		= ext3_invalidatepage,
->  	.releasepage		= ext3_releasepage,
->  	.is_partially_uptodate  = block_is_partially_uptodate,
-> -	.error_remove_page	= generic_error_remove_page,
-> +	.error_remove_page	= ext3_error_remove_page,
->  };
->  
->  void ext3_set_aops(struct inode *inode)
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> Ok chaps, I rebased this thing onto today's next (which basically
+> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
+> ask if you could eyeball the new code, especially where the locking is
+> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
+> that the page is not splitting, but I can't see why that is required.
+
+I don't either.  If the thing was splitting when the fault happened,
+that path is not taken.  And the locked pmd_same() check should rule
+out splitting setting in after testing pmd_trans_huge_splitting().
+
+Peter?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
