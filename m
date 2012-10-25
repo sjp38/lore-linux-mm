@@ -1,110 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 6D62A6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:49:09 -0400 (EDT)
-Date: Thu, 25 Oct 2012 23:49:59 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v4 10/10] thp: implement refcounting for huge zero page
-Message-ID: <20121025204959.GA27251@otc-wbsnb-06>
-References: <20121018164502.b32791e7.akpm@linux-foundation.org>
- <20121018235941.GA32397@shutemov.name>
- <20121023063532.GA15870@shutemov.name>
- <20121022234349.27f33f62.akpm@linux-foundation.org>
- <20121023070018.GA18381@otc-wbsnb-06>
- <20121023155915.7d5ef9d1.akpm@linux-foundation.org>
- <20121023233801.GA21591@shutemov.name>
- <20121024122253.5ecea992.akpm@linux-foundation.org>
- <20121024194552.GA24460@otc-wbsnb-06>
- <20121024132552.5f9a5f5b.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 9249E6B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:52:19 -0400 (EDT)
+Date: Thu, 25 Oct 2012 16:52:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
+Message-ID: <20121025205213.GB4771@cmpxchg.org>
+References: <20121025023738.GA27001@redhat.com>
+ <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="C7zPtVaVf+AK4Oqc"
-Content-Disposition: inline
-In-Reply-To: <20121024132552.5f9a5f5b.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org
-
-
---C7zPtVaVf+AK4Oqc
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 24, 2012 at 01:25:52PM -0700, Andrew Morton wrote:
-> On Wed, 24 Oct 2012 22:45:52 +0300
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
->=20
-> > On Wed, Oct 24, 2012 at 12:22:53PM -0700, Andrew Morton wrote:
-> > >=20
-> > > I'm thinking that such a workload would be the above dd in parallel
-> > > with a small app which touches the huge page and then exits, then gets
-> > > executed again.  That "small app" sounds realistic to me.  Obviously
-> > > one could exercise the zero page's refcount at higher frequency with a
-> > > tight map/touch/unmap loop, but that sounds less realistic.  It's wor=
-th
-> > > trying that exercise as well though.
-> > >=20
-> > > Or do something else.  But we should try to probe this code's
-> > > worst-case behaviour, get an understanding of its effects and then
-> > > decide whether any such workload is realisic enough to worry about.
-> >=20
-> > Okay, I'll try few memory pressure scenarios.
+On Wed, Oct 24, 2012 at 09:36:27PM -0700, Hugh Dickins wrote:
+> On Wed, 24 Oct 2012, Dave Jones wrote:
+> 
+> > Machine under significant load (4gb memory used, swap usage fluctuating)
+> > triggered this...
+> > 
+> > WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
+> > Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
+> > Call Trace:
+> >  [<ffffffff8107100f>] warn_slowpath_common+0x7f/0xc0
+> >  [<ffffffff8107106a>] warn_slowpath_null+0x1a/0x20
+> >  [<ffffffff811903fc>] shmem_getpage_gfp+0xa5c/0xa70
+> >  [<ffffffff8118fc3e>] ? shmem_getpage_gfp+0x29e/0xa70
+> >  [<ffffffff81190e4f>] shmem_fault+0x4f/0xa0
+> >  [<ffffffff8119f391>] __do_fault+0x71/0x5c0
+> >  [<ffffffff810e1ac6>] ? __lock_acquire+0x306/0x1ba0
+> >  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
+> >  [<ffffffff811a2767>] handle_pte_fault+0x97/0xae0
+> >  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
+> >  [<ffffffff8136d68e>] ? delay_tsc+0xae/0x120
+> >  [<ffffffff8136d578>] ? __const_udelay+0x28/0x30
+> >  [<ffffffff811a4a39>] handle_mm_fault+0x289/0x350
+> >  [<ffffffff816d091e>] __do_page_fault+0x18e/0x530
+> >  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
+> >  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
+> >  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
+> >  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
+> >  [<ffffffff8112d389>] ? rcu_user_exit+0xc9/0xf0
+> >  [<ffffffff816d0ceb>] do_page_fault+0x2b/0x50
+> >  [<ffffffff816cd3b8>] page_fault+0x28/0x30
+> >  [<ffffffff8136d259>] ? copy_user_enhanced_fast_string+0x9/0x20
+> >  [<ffffffff8121c181>] ? sys_futimesat+0x41/0xe0
+> >  [<ffffffff8102bf35>] ? syscall_trace_enter+0x25/0x2c0
+> >  [<ffffffff816d5625>] ? tracesys+0x7e/0xe6
+> >  [<ffffffff816d5688>] tracesys+0xe1/0xe6
+> > 
+> > 
+> > 
+> > 1148                         error = shmem_add_to_page_cache(page, mapping, index,
+> > 1149                                                 gfp, swp_to_radix_entry(swap));
+> > 1150                         /* We already confirmed swap, and make no allocation */
+> > 1151                         VM_BUG_ON(error);
+> > 1152                 }
+> 
+> That's very surprising.  Easy enough to handle an error there, but
+> of course I made it a VM_BUG_ON because it violates my assumptions:
+> I rather need to understand how this can be, and I've no idea.
 
-A test program:
+Could it be concurrent truncation clearing out the entry between
+shmem_confirm_swap() and shmem_add_to_page_cache()?  I don't see
+anything preventing that.
 
-        while (1) {
-                posix_memalign((void **)&p, 2 * MB, 2 * MB);
-                assert(*p =3D=3D 0);
-                free(p);
-        }
-
-With this code in background we have pretty good chance to have huge zero
-page freeable (refcount =3D=3D 1) when shrinker callback called - roughly o=
-ne
-of two.
-
-Pagecache hog (dd if=3Dhugefile of=3D/dev/null bs=3D1M) creates enough pres=
-sure
-to get shrinker callback called, but it was only asked about cache size
-(nr_to_scan =3D=3D 0).
-I was not able to get it called with nr_to_scan > 0 on this scenario, so
-hzp never freed.
-
-I also tried another scenario: usemem -n16 100M -r 1000. It creates real
-memory pressure - no easy reclaimable memory. This time callback called
-with nr_to_scan > 0 and we freed hzp. Under pressure we fails to allocate
-hzp and code goes to fallback path as it supposed to.
-
-Do I need to check any other scenario?
-
---=20
- Kirill A. Shutemov
-
---C7zPtVaVf+AK4Oqc
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQiaX3AAoJEAd+omnVudOMlHYQAI7UBvsRBlttc1GBnjhUM7tM
-fzYzIB7sni9A9DVdBK0y8dkRL5tuYch3Y4k+Pr7XBsckgzTWtgX5KZbB+0jxX6OU
-GsZaggCqv0lSSVAcZaIT09/6a9CVq2GxbVm4rt0fjt38Y1QnTljf5drOkljgKLij
-gB8eGzi4GiRoZHJvckIGcSnVr3gxxHa/YPycr3w4A0mVCRjPLvq1oPNUxoXXiq+u
-lTOtkPCtJ8BskH5bk/ddsODFkVoZzpUKb2I5jts1n2o4fNxxOpB+Eise0/qInXTn
-oVeE3tRFKIWFQ5uJjSwtyVJvrmyMbSPIBJH+iRyC0Q5Pvfcnk5aDEz1ArE60+kVj
-tT51SdQYyNpbk40+BjqTxsgi3UoU3NXhNwZNisRYB4a/6ju4oXVA8Pugno4zptLD
-7QqOip3b02zy0So/n//86sC7JG0lyCU3c4oM/GmF0KMlAWr+Gp3GiKNIiw9UvnXh
-ng13xmsYU0WT4cr3i5aSc8fOWeAz9p4ebyYoadGyJL30ok6WHsDMPaIh4RE7S6uL
-v/bIQy+nqzOKQ/r/U+bDvYqudpcf7Q5BpxUCTFBLSxLMGc+cnHaFp/6N5YkmXmhs
-p4tHfha++PGHZLbmhoGV2P+DJT90ud1TRMdoPYjX3NGcfzWXM6zIuy+nYoHz7z8h
-DiUetA+r06cMIIzrXvSN
-=h0lA
------END PGP SIGNATURE-----
-
---C7zPtVaVf+AK4Oqc--
+The empty slot would not match the expected swap entry this call
+passes in and the returned error would be -ENOENT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
