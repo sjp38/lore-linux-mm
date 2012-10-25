@@ -1,61 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id EDE076B0073
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:42:25 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so984293dad.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:42:25 -0700 (PDT)
-Date: Thu, 25 Oct 2012 10:42:20 -0700
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id E30476B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 14:07:00 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1493381pad.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 11:07:00 -0700 (PDT)
+Date: Thu, 25 Oct 2012 11:06:52 -0700
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
-Message-ID: <20121025174220.GJ11442@htj.dyndns.org>
-References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
- <1350480648-10905-5-git-send-email-mhocko@suse.cz>
- <20121018224148.GR13370@google.com>
- <20121019133244.GE799@dhcp22.suse.cz>
- <20121019202405.GR13370@google.com>
- <20121022103021.GA6367@dhcp22.suse.cz>
- <20121024192535.GG12182@atj.dyndns.org>
- <20121025143756.GI11105@dhcp22.suse.cz>
+Subject: Re: [PATCH v5 08/18] memcg: infrastructure to match an allocation to
+ the right cache
+Message-ID: <20121025180652.GM11442@htj.dyndns.org>
+References: <1350656442-1523-1-git-send-email-glommer@parallels.com>
+ <1350656442-1523-9-git-send-email-glommer@parallels.com>
+ <CAAmzW4N40MedsCfcj+eiM-i6cU65n3z7uy08YFyknXbBKj7Z-g@mail.gmail.com>
+ <50891CF2.3030400@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121025143756.GI11105@dhcp22.suse.cz>
+In-Reply-To: <50891CF2.3030400@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: JoonSoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-Hey, Michal.
+Hello, Glauber.
 
-On Thu, Oct 25, 2012 at 04:37:56PM +0200, Michal Hocko wrote:
-> I am not sure I understand you here. So are you suggesting
-> s/BUG_ON/WARN_ON_ONCE/ in this patch?
-
-Oh, no, I meant that we can do upto patch 3 of this series and then
-follow up with proper cgroup core update and then stack further
-memcg cleanups on top.
-
-> > Let's create a cgroup branch and build things there.  I don't think
-> > cgroup changes are gonna be a single patch and expect to see at least
-> > some bug fixes afterwards and don't wanna keep them floating separate
-> > from other cgroup changes.  
+On Thu, Oct 25, 2012 at 03:05:22PM +0400, Glauber Costa wrote:
+> > Is there any rmb() pair?
+> > As far as I know, without rmb(), wmb() doesn't guarantee anything.
+> > 
 > 
-> > mm being based on top of -next, that should work, right?
-> 
-> Well, a tree based on -next is, ehm, impractical. I can create a bug on
-> top of my -mm git branch (where I merge your cgroup common changes) for
-> development and then when we are ready we can send it as a series and
-> push it via Andrew. Would that work for you?
-> Or we can push the core part via Andrew, wait for the merge and work on
-> the follow up cleanups later?
-> It is not like the follow up part is really urgent, isn't it? I would
-> just like the memcg part settled first because this can potentially
-> conflict with other memcg work.
+> There should be. But it seems I missed it. Speaking of which, I should
 
-Argh... can we pretty *please* just do a plain git branch?  I don't
-care where it is but I want to be able to pull it into cgroup core and
-yes I do wanna make this happen in this devel cycle.  We've been
-sitting on it far too long waiting for memcg.
+You probably can use read_barrier_depends().
+
+> wmb() after the NULL assignment in release cache as well.
+
+And you probably don't need that.  dangling pointer is protected by
+RCU and there isn't any memory accesses which can paired with that
+anyway.
 
 Thanks.
 
