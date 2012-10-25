@@ -1,243 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id D97F76B0062
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 05:53:21 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so2466308ied.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 02:53:21 -0700 (PDT)
-Message-ID: <50890C06.5060305@gmail.com>
-Date: Thu, 25 Oct 2012 17:53:10 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 042036B0071
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 05:57:21 -0400 (EDT)
+Date: Thu, 25 Oct 2012 11:57:19 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: process hangs on do_exit when oom happens
+Message-ID: <20121025095719.GA11105@dhcp22.suse.cz>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+ <20121019160425.GA10175@dhcp22.suse.cz>
+ <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+ <CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
+ <CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
+ <20121023095028.GD15397@dhcp22.suse.cz>
+ <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
+ <20121023101500.GE15397@dhcp22.suse.cz>
+ <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
+ <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <5088C51D.3060009@gmail.com> <alpine.LNX.2.00.1210242338030.2688@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1210242338030.2688@eggly.anvils>
-Content-Type: multipart/alternative;
- boundary="------------090709030502040204030605"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Qiang Gao <gaoqiangscut@gmail.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-This is a multi-part message in MIME format.
---------------090709030502040204030605
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+On Wed 24-10-12 11:44:17, Qiang Gao wrote:
+> On Wed, Oct 24, 2012 at 1:43 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+> > On Tue, Oct 23, 2012 at 3:45 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> On Tue 23-10-12 18:10:33, Qiang Gao wrote:
+> >>> On Tue, Oct 23, 2012 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> >>> > On Tue 23-10-12 15:18:48, Qiang Gao wrote:
+> >>> >> This process was moved to RT-priority queue when global oom-killer
+> >>> >> happened to boost the recovery of the system..
+> >>> >
+> >>> > Who did that? oom killer doesn't boost the priority (scheduling class)
+> >>> > AFAIK.
+> >>> >
+> >>> >> but it wasn't get properily dealt with. I still have no idea why where
+> >>> >> the problem is ..
+> >>> >
+> >>> > Well your configuration says that there is no runtime reserved for the
+> >>> > group.
+> >>> > Please refer to Documentation/scheduler/sched-rt-group.txt for more
+> >>> > information.
+> >>> >
+> >> [...]
+> >>> maybe this is not a upstream-kernel bug. the centos/redhat kernel
+> >>> would boost the process to RT prio when the process was selected
+> >>> by oom-killer.
+> >>
+> >> This still looks like your cpu controller is misconfigured. Even if the
+> >> task is promoted to be realtime.
+> >
+> >
+> > Precisely! You need to have rt bandwidth enabled for RT tasks to run,
+> > as a workaround please give the groups some RT bandwidth and then work
+> > out the migration to RT and what should be the defaults on the distro.
+> >
+> > Balbir
+> 
+> 
+> see https://patchwork.kernel.org/patch/719411/
 
-On 10/25/2012 02:59 PM, Hugh Dickins wrote:
-> On Thu, 25 Oct 2012, Ni zhan Chen wrote:
->> On 10/25/2012 12:36 PM, Hugh Dickins wrote:
->>> On Wed, 24 Oct 2012, Dave Jones wrote:
->>>
->>>> Machine under significant load (4gb memory used, swap usage fluctuating)
->>>> triggered this...
->>>>
->>>> WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
->>>> Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
->>>>
->>>> 1148                         error = shmem_add_to_page_cache(page,
->>>> mapping, index,
->>>> 1149                                                 gfp,
->>>> swp_to_radix_entry(swap));
->>>> 1150                         /* We already confirmed swap, and make no
->>>> allocation */
->>>> 1151                         VM_BUG_ON(error);
->>>> 1152                 }
->>> That's very surprising.  Easy enough to handle an error there, but
->>> of course I made it a VM_BUG_ON because it violates my assumptions:
->>> I rather need to understand how this can be, and I've no idea.
->>>
->>> Clutching at straws, I expect this is entirely irrelevant, but:
->>> there isn't a warning on line 1151 of mm/shmem.c in 3.7.0-rc2 nor
->>> in current linux.git; rather, there's a VM_BUG_ON on line 1149.
->>>
->>> So you've inserted a couple of lines for some reason (more useful
->>> trinity behaviour, perhaps)?  And have some config option I'm
->>> unfamiliar with, that mutates a BUG_ON or VM_BUG_ON into a warning?
->> Hi Hugh,
->>
->> I think it maybe caused by your commit [d189922862e03ce: shmem: fix negative
->> rss in memcg memory.stat], one question:
-> Well, yes, I added the VM_BUG_ON in that commit.
->
->> if function shmem_confirm_swap confirm the entry has already brought back
->> from swap by a racing thread,
-> The reverse: true confirms that the swap entry has not been brought back
-> from swap by a racing thread; false indicates that there has been a race.
->
->> then why call shmem_add_to_page_cache to add
->> page from swapcache to pagecache again?
-> Adding it to pagecache again, after such a race, would set error to
-> -EEXIST (originating from radix_tree_insert); but we don't do that,
-> we add it to pagecache when it has not already been added.
->
-> Or that's the intention: but Dave seems to have found an unexpected
-> exception, despite us holding the page lock across all this.
->
-> (But if it weren't for the memcg and replace_page issues, I'd much
-> prefer to let shmem_add_to_page_cache discover the race as before.)
->
-> Hugh
+The patch surely "fixes" your problem but the primary fault here is the
+mis-configured cpu cgroup. If the value for the bandwidth is zero by
+default then all realtime processes in the group a screwed. The value
+should be set to something more reasonable.
+I am not familiar with the cpu controller but it seems that
+alloc_rt_sched_group needs some treat. Care to look into it and send a
+patch to the cpu controller and cgroup maintainers, please?
 
-Hi Hugh
-
-Thanks for your response. You mean the -EEXIST originating from 
-radix_tree_insert, in radix_tree_insert:
-if (slot != NULL)
-     return -EEXIST;
-But why slot should be NULL? if no race, the pagecache related radix 
-tree entry should be RADIX_TREE_EXCEPTIONAL_ENTRY+swap_entry_t.val, 
-where I miss?
-
-Regards,
-Chen
-
->
->> otherwise, will goto unlock and then go to repeat? where I miss?
->>
->> Regards,
->> Chen
-
-
---------------090709030502040204030605
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-
-<html>
-  <head>
-    <meta content="text/html; charset=ISO-8859-1"
-      http-equiv="Content-Type">
-  </head>
-  <body bgcolor="#FFFFFF" text="#000000">
-    <div class="moz-cite-prefix">On 10/25/2012 02:59 PM, Hugh Dickins
-      wrote:<br>
-    </div>
-    <blockquote
-      cite="mid:alpine.LNX.2.00.1210242338030.2688@eggly.anvils"
-      type="cite">
-      <pre wrap="">On Thu, 25 Oct 2012, Ni zhan Chen wrote:
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">On 10/25/2012 12:36 PM, Hugh Dickins wrote:
-</pre>
-        <blockquote type="cite">
-          <pre wrap="">On Wed, 24 Oct 2012, Dave Jones wrote:
-
-</pre>
-          <blockquote type="cite">
-            <pre wrap="">Machine under significant load (4gb memory used, swap usage fluctuating)
-triggered this...
-
-WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
-Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
-
-1148                         error = shmem_add_to_page_cache(page,
-mapping, index,
-1149                                                 gfp,
-swp_to_radix_entry(swap));
-1150                         /* We already confirmed swap, and make no
-allocation */
-1151                         VM_BUG_ON(error);
-1152                 }
-</pre>
-          </blockquote>
-          <pre wrap="">That's very surprising.  Easy enough to handle an error there, but
-of course I made it a VM_BUG_ON because it violates my assumptions:
-I rather need to understand how this can be, and I've no idea.
-
-Clutching at straws, I expect this is entirely irrelevant, but:
-there isn't a warning on line 1151 of mm/shmem.c in 3.7.0-rc2 nor
-in current linux.git; rather, there's a VM_BUG_ON on line 1149.
-
-So you've inserted a couple of lines for some reason (more useful
-trinity behaviour, perhaps)?  And have some config option I'm
-unfamiliar with, that mutates a BUG_ON or VM_BUG_ON into a warning?
-</pre>
-        </blockquote>
-        <pre wrap="">
-Hi Hugh,
-
-I think it maybe caused by your commit [d189922862e03ce: shmem: fix negative
-rss in memcg memory.stat], one question:
-</pre>
-      </blockquote>
-      <pre wrap="">
-Well, yes, I added the VM_BUG_ON in that commit.
-
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">
-if function shmem_confirm_swap confirm the entry has already brought back
-from swap by a racing thread,
-</pre>
-      </blockquote>
-      <pre wrap="">
-The reverse: true confirms that the swap entry has not been brought back
-from swap by a racing thread; false indicates that there has been a race.
-
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">then why call shmem_add_to_page_cache to add
-page from swapcache to pagecache again?
-</pre>
-      </blockquote>
-      <pre wrap="">
-Adding it to pagecache again, after such a race, would set error to
--EEXIST (originating from radix_tree_insert); but we don't do that,
-we add it to pagecache when it has not already been added.
-
-Or that's the intention: but Dave seems to have found an unexpected
-exception, despite us holding the page lock across all this.
-
-(But if it weren't for the memcg and replace_page issues, I'd much
-prefer to let shmem_add_to_page_cache discover the race as before.)
-
-Hugh</pre>
-    </blockquote>
-    <br>
-    Hi Hugh<br>
-    <br>
-    Thanks for your response. You mean the -EEXIST originating from
-    radix_tree_insert, in radix_tree_insert:<br>
-    if (slot != NULL)<br>
-    &nbsp;&nbsp;&nbsp; return -EEXIST;<br>
-    But why slot should be NULL? if no race, the pagecache related radix
-    tree entry should be
-    <meta http-equiv="content-type" content="text/html;
-      charset=ISO-8859-1">
-    <span style="color: rgb(0, 0, 0); font-family: song, Verdana;
-      font-size: 14px; font-style: normal; font-variant: normal;
-      font-weight: normal; letter-spacing: normal; line-height: 22px;
-      orphans: 2; text-align: -webkit-auto; text-indent: 0px;
-      text-transform: none; white-space: normal; widows: 2;
-      word-spacing: 0px; -webkit-text-size-adjust: auto;
-      -webkit-text-stroke-width: 0px; background-color: rgb(255, 255,
-      255); display: inline !important; float: none; ">RADIX_TREE_EXCEPTIONAL_ENTRY+swap_entry_t.val,
-      where I miss?<br>
-      <br>
-      Regards,<br>
-      Chen<br>
-    </span><br>
-    <blockquote
-      cite="mid:alpine.LNX.2.00.1210242338030.2688@eggly.anvils"
-      type="cite">
-      <pre wrap="">
-
-</pre>
-      <blockquote type="cite">
-        <pre wrap="">otherwise, will goto unlock and then go to repeat? where I miss?
-
-Regards,
-Chen
-</pre>
-      </blockquote>
-      <pre wrap="">
-</pre>
-    </blockquote>
-    <br>
-  </body>
-</html>
-
---------------090709030502040204030605--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
