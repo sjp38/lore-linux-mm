@@ -1,57 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id DB1476B005D
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 00:18:03 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so1472998obc.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 21:18:03 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 2CAF96B0062
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 00:36:34 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so1265245iak.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 21:36:33 -0700 (PDT)
+Date: Wed, 24 Oct 2012 21:36:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
+In-Reply-To: <20121025023738.GA27001@redhat.com>
+Message-ID: <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
+References: <20121025023738.GA27001@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1351071840-5060-2-git-send-email-laijs@cn.fujitsu.com>
-References: <1351071840-5060-1-git-send-email-laijs@cn.fujitsu.com> <1351071840-5060-2-git-send-email-laijs@cn.fujitsu.com>
-From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date: Thu, 25 Oct 2012 00:17:42 -0400
-Message-ID: <CAHGf_=rvDf56EjMv0vLsxDfHQzuSoXF6Yzx=wCCoQ+Z+3Ov+=w@mail.gmail.com>
-Subject: Re: [PATCH 1/2 V2] memory_hotplug: fix possible incorrect node_states[N_NORMAL_MEMORY]
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Mel Gorman <mgorman@suse.de>, FNST-Wen Congyang <wency@cn.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Jianguo Wu <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
+To: Dave Jones <davej@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 24, 2012 at 5:43 AM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
-> Currently memory_hotplug only manages the node_states[N_HIGH_MEMORY],
-> it forgets to manage node_states[N_NORMAL_MEMORY]. it may cause
-> node_states[N_NORMAL_MEMORY] becomes incorrect.
->
-> Example, if a node is empty before online, and we online a memory
-> which is in ZONE_NORMAL. And after online,  node_states[N_HIGH_MEMORY]
-> is correct, but node_states[N_NORMAL_MEMORY] is incorrect,
-> the online code don't set the new online node to
-> node_states[N_NORMAL_MEMORY].
->
-> The same things like it will happen when offline(the offline code
-> don't clear the node from node_states[N_NORMAL_MEMORY] when needed).
-> Some memory managment code depends node_states[N_NORMAL_MEMORY],
-> so we have to fix up the node_states[N_NORMAL_MEMORY].
->
-> We add node_states_check_changes_online() and node_states_check_changes_offline()
-> to detect whether node_states[N_HIGH_MEMORY] and node_states[N_NORMAL_MEMORY]
-> are changed while hotpluging.
->
-> Also add @status_change_nid_normal to struct memory_notify, thus
-> the memory hotplug callbacks know whether the node_states[N_NORMAL_MEMORY]
-> are changed. (We can add a @flags and reuse @status_change_nid instead of
-> introducing @status_change_nid_normal, but it will add much more complicated
-> in memory hotplug callback in every subsystem. So introdcing
-> @status_change_nid_normal is better and it don't change the sematic
-> of @status_change_nid)
->
-> Changed from V1:
->         add more comments
->         change the function name
+On Wed, 24 Oct 2012, Dave Jones wrote:
 
-Your patch didn't fix my previous comments and don't works correctly.
-Please test your own patch before resubmitting. You should consider both
-zone normal only node and zone high only node.
+> Machine under significant load (4gb memory used, swap usage fluctuating)
+> triggered this...
+> 
+> WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
+> Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
+> Call Trace:
+>  [<ffffffff8107100f>] warn_slowpath_common+0x7f/0xc0
+>  [<ffffffff8107106a>] warn_slowpath_null+0x1a/0x20
+>  [<ffffffff811903fc>] shmem_getpage_gfp+0xa5c/0xa70
+>  [<ffffffff8118fc3e>] ? shmem_getpage_gfp+0x29e/0xa70
+>  [<ffffffff81190e4f>] shmem_fault+0x4f/0xa0
+>  [<ffffffff8119f391>] __do_fault+0x71/0x5c0
+>  [<ffffffff810e1ac6>] ? __lock_acquire+0x306/0x1ba0
+>  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
+>  [<ffffffff811a2767>] handle_pte_fault+0x97/0xae0
+>  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
+>  [<ffffffff8136d68e>] ? delay_tsc+0xae/0x120
+>  [<ffffffff8136d578>] ? __const_udelay+0x28/0x30
+>  [<ffffffff811a4a39>] handle_mm_fault+0x289/0x350
+>  [<ffffffff816d091e>] __do_page_fault+0x18e/0x530
+>  [<ffffffff810b6ff9>] ? local_clock+0x89/0xa0
+>  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
+>  [<ffffffff810b0e51>] ? get_parent_ip+0x11/0x50
+>  [<ffffffff816d1069>] ? sub_preempt_count+0x79/0xd0
+>  [<ffffffff8112d389>] ? rcu_user_exit+0xc9/0xf0
+>  [<ffffffff816d0ceb>] do_page_fault+0x2b/0x50
+>  [<ffffffff816cd3b8>] page_fault+0x28/0x30
+>  [<ffffffff8136d259>] ? copy_user_enhanced_fast_string+0x9/0x20
+>  [<ffffffff8121c181>] ? sys_futimesat+0x41/0xe0
+>  [<ffffffff8102bf35>] ? syscall_trace_enter+0x25/0x2c0
+>  [<ffffffff816d5625>] ? tracesys+0x7e/0xe6
+>  [<ffffffff816d5688>] tracesys+0xe1/0xe6
+> 
+> 
+> 
+> 1148                         error = shmem_add_to_page_cache(page, mapping, index,
+> 1149                                                 gfp, swp_to_radix_entry(swap));
+> 1150                         /* We already confirmed swap, and make no allocation */
+> 1151                         VM_BUG_ON(error);
+> 1152                 }
+
+That's very surprising.  Easy enough to handle an error there, but
+of course I made it a VM_BUG_ON because it violates my assumptions:
+I rather need to understand how this can be, and I've no idea.
+
+Clutching at straws, I expect this is entirely irrelevant, but:
+there isn't a warning on line 1151 of mm/shmem.c in 3.7.0-rc2 nor
+in current linux.git; rather, there's a VM_BUG_ON on line 1149.
+
+So you've inserted a couple of lines for some reason (more useful
+trinity behaviour, perhaps)?  And have some config option I'm
+unfamiliar with, that mutates a BUG_ON or VM_BUG_ON into a warning?
+
+Hugh
+
+> 
+> 
+>              total       used       free     shared    buffers     cached
+> Mem:       3885528    2854064    1031464          0       9624      19208
+> -/+ buffers/cache:    2825232    1060296
+> Swap:      6029308      30656    5998652
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
