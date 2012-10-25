@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id CDEB76B005D
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 22:57:12 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so891238pad.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 19:57:12 -0700 (PDT)
-Date: Wed, 24 Oct 2012 19:57:10 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/5] mm: compaction: Move migration fail/success stats
- to migrate.c
-In-Reply-To: <1350892791-2682-2-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.DEB.2.00.1210241953280.2294@chino.kir.corp.google.com>
-References: <1350892791-2682-1-git-send-email-mgorman@suse.de> <1350892791-2682-2-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 03D0F6B005D
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 22:58:28 -0400 (EDT)
+Date: Thu, 25 Oct 2012 10:58:26 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+Message-ID: <20121025025826.GB23462@localhost>
+References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
+ <20121023224706.GR4291@dastard>
+ <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
+ <20121024201921.GX4291@dastard>
+ <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com>
+ <20121025015014.GC29378@dastard>
+ <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
+ <50889FF1.9030107@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50889FF1.9030107@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Ni zhan Chen <nizhan.chen@gmail.com>
+Cc: YingHang Zhu <casualfisher@gmail.com>, Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 22 Oct 2012, Mel Gorman wrote:
+Hi Chen,
 
-> The compact_pages_moved and compact_pagemigrate_failed events are
-> convenient for determining if compaction is active and to what
-> degree migration is succeeding but it's at the wrong level. Other
-> users of migration may also want to know if migration is working
-> properly and this will be particularly true for any automated
-> NUMA migration. This patch moves the counters down to migration
-> with the new events called pgmigrate_success and pgmigrate_fail.
-> The compact_blocks_moved counter is removed because while it was
-> useful for debugging initially, it's worthless now as no meaningful
-> conclusions can be drawn from its value.
-> 
+> But how can bdi related ra_pages reflect different files' readahead
+> window? Maybe these different files are sequential read, random read
+> and so on.
 
-Agreed, "compact_blocks_moved" should have been named 
-"compact_blocks_scanned" to accurately describe what it was representing.
+It's simple: sequential reads will get ra_pages readahead size while
+random reads will not get readahead at all.
 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Talking about the below chunk, it might hurt someone that explicitly
+takes advantage of the behavior, however the ra_pages*2 seems more
+like a hack than general solution to me: if the user will need
+POSIX_FADV_SEQUENTIAL to double the max readahead window size for
+improving IO performance, then why not just increase bdi->ra_pages and
+benefit all reads? One may argue that it offers some differential
+behavior to specific applications, however it may also present as a
+counter-optimization: if the root already tuned bdi->ra_pages to the
+optimal size, the doubled readahead size will only cost more memory
+and perhaps IO latency.
 
-Acked-by: David Rientjes <rientjes@google.com>
+--- a/mm/fadvise.c
++++ b/mm/fadvise.c
+@@ -87,7 +86,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+                spin_unlock(&file->f_lock);
+                break;
+        case POSIX_FADV_SEQUENTIAL:
+-               file->f_ra.ra_pages = bdi->ra_pages * 2;
+                spin_lock(&file->f_lock);
+                file->f_mode &= ~FMODE_RANDOM;
+                spin_unlock(&file->f_lock);
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
