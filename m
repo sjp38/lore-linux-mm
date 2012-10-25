@@ -1,57 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id F11206B0075
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:25:08 -0400 (EDT)
-Date: Thu, 25 Oct 2012 16:25:06 +0200
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 925A66B0071
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:38:27 -0400 (EDT)
+Date: Thu, 25 Oct 2012 16:37:56 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-ID: <20121025142506.GH11105@dhcp22.suse.cz>
-References: <20121024125439.c17a510e.akpm@linux-foundation.org>
- <50884F63.8030606@linux.vnet.ibm.com>
- <20121024134836.a28d223a.akpm@linux-foundation.org>
- <20121024210600.GA17037@liondog.tnic>
- <50885B2E.5050500@linux.vnet.ibm.com>
- <20121024224817.GB8828@liondog.tnic>
- <5088725B.2090700@linux.vnet.ibm.com>
- <CAHGf_=pfdgoeG5pPJb+UgjqfieU1yxt=46FGW1=th0RbgVKNRQ@mail.gmail.com>
- <20121025092424.GA16601@liondog.tnic>
- <50892917.30201@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
+Message-ID: <20121025143756.GI11105@dhcp22.suse.cz>
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+ <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+ <20121018224148.GR13370@google.com>
+ <20121019133244.GE799@dhcp22.suse.cz>
+ <20121019202405.GR13370@google.com>
+ <20121022103021.GA6367@dhcp22.suse.cz>
+ <20121024192535.GG12182@atj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50892917.30201@linux.vnet.ibm.com>
+In-Reply-To: <20121024192535.GG12182@atj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Borislav Petkov <bp@alien8.de>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Thu 25-10-12 04:57:11, Dave Hansen wrote:
+On Wed 24-10-12 12:25:35, Tejun Heo wrote:
+> Hello, Michal.
+> 
+> On Mon, Oct 22, 2012 at 12:30:21PM +0200, Michal Hocko wrote:
+> > > > We can still fail inn #3 without this patch becasuse there are is no
+> > > > guarantee that a new task is attached to the group. And I wanted to keep
+> > > > memcg and generic cgroup parts separated.
+> > > 
+> > > Yes, but all other controllers are broken that way too
+> > 
+> > It's just hugetlb and memcg that have pre_destroy.
+> > 
+> > > and the worst thing which will hapen is triggering WARN_ON_ONCE().
+> > 
+> > The patch does BUG_ON(ss->pre_destroy(cgrp)). I am not sure WARN_ON_ONCE is
+> > appropriate here because we would like to have it at least per
+> > controller warning. I do not see any reason why to make this more
+> > complicated but I am open to suggestions.
+> 
+> Once it's dropped from memcg, the next patch can update cgroup core
+> accordingly and the bug will exist for a single commit and the failure
+> mode would be triggering of WARN_ON_ONCE().  Seems pretty simple to
+> me.
+
+I am not sure I understand you here. So are you suggesting
+s/BUG_ON/WARN_ON_ONCE/ in this patch?
+It is true that this will not break bisectability but it is still not
+correct (strictly speaking because any load that can race group removal
+with new tasks addition would hit BUG/WARN and we will remove a group
+with a task inside).
+The patchset as posted makes sure that none of the stages adds a
+regression and I would like to stick with that as much as possible if it
+doesn't cause too much of a hassle.
+
+> > > Let's note the failure in the commit and remove
+> > > DEPREDATED_clear_css_refs in the previous patch.  Then, I can pull
+> > > from you, clean up pre_destroy mess and then you can pull back for
+> > > further cleanups.
+> > 
+> > Well this will get complicated as there are dependencies between memcg
+> > parts (based on Andrew's tree) and your tree. My tree is not pullable as
+> > all the patches go via Andrew. I am not sure how to get out of this.
+> > There is only one cgroup patch so what about pushing all of this via
+> > Andrew and do the follow up cleanups once they get merged? We are not in
+> > hurry, are we?
+> 
+> Let's create a cgroup branch and build things there.  I don't think
+> cgroup changes are gonna be a single patch and expect to see at least
+> some bug fixes afterwards and don't wanna keep them floating separate
+> from other cgroup changes.  
+
+> mm being based on top of -next, that should work, right?
+
+Well, a tree based on -next is, ehm, impractical. I can create a bug on
+top of my -mm git branch (where I merge your cgroup common changes) for
+development and then when we are ready we can send it as a series and
+push it via Andrew. Would that work for you?
+Or we can push the core part via Andrew, wait for the merge and work on
+the follow up cleanups later?
+It is not like the follow up part is really urgent, isn't it? I would
+just like the memcg part settled first because this can potentially
+conflict with other memcg work.
+
 [...]
-> Here's the problem: Joe Kernel Developer gets a bug report, usually
-> something like "the kernel is slow", or "the kernel is eating up all my
-> memory".  We then start going and digging in to the problem with the
-> usual tools.  We almost *ALWAYS* get dmesg, and it's reasonably common,
-> but less likely, that we get things like vmstat along with such a bug
-> report.
-> 
-> Joe Kernel Developer digs in the statistics or the dmesg and tries to
-> figure out what happened.  I've run in to a couple of cases in practice
-> (and I assume Michal has too) where the bug reporter was using
-> drop_caches _heavily_ and did not realize the implications.  It was
-> quite hard to track down exactly how the page cache and dentries/inodes
-> were getting purged.
-
-Yes, very same here. Not that I would meet issues like that often but it
-happened in the past few times and it was always a lot of burnt time.
-
-> There are rarely oopses involved in these scenarios.
-> 
-> The primary goal of this patch is to make debugging those scenarios
-> easier so that we can quickly realize that drop_caches is the reason our
-> caches went away, not some anomalous VM activity.  A secondary goal is
-> to tell the user: "Hey, maybe this isn't something you want to be doing
-> all the time."
-
 -- 
 Michal Hocko
 SUSE Labs
