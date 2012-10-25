@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 35DBA6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:35:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id D20576B0074
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 16:35:08 -0400 (EDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/3] mm: print out information of file affected by memory error
-Date: Thu, 25 Oct 2012 16:34:49 -0400
-Message-Id: <1351197289-13946-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20121025193249.GC3262@quack.suse.cz>
+Subject: Re: [PATCH 3/3] ext3: introduce ext3_error_remove_page
+Date: Thu, 25 Oct 2012 16:35:02 -0400
+Message-Id: <1351197302-14134-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20121025194551.GE3262@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-Hi Jan,
-
-Thank you for taking time for the review.
-
-On Thu, Oct 25, 2012 at 09:32:49PM +0200, Jan Kara wrote:
-> On Thu 25-10-12 11:12:47, Naoya Horiguchi wrote:
-> > Printing out the information about which file can be affected by a
-> > memory error in generic_error_remove_page() is helpful for user to
-> > estimate the impact of the error.
+On Thu, Oct 25, 2012 at 09:45:51PM +0200, Jan Kara wrote:
+> On Thu 25-10-12 11:12:49, Naoya Horiguchi wrote:
+> > What I suggested in the previous patch for ext4 is ditto with ext3,
+> > so do the same thing for ext3.
 > > 
 > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > > ---
-> >  mm/truncate.c | 8 +++++++-
-> >  1 file changed, 7 insertions(+), 1 deletion(-)
+> >  fs/ext3/inode.c | 33 ++++++++++++++++++++++++++++++---
+> >  1 file changed, 30 insertions(+), 3 deletions(-)
 > > 
-> > diff --git v3.7-rc2.orig/mm/truncate.c v3.7-rc2/mm/truncate.c
-> > index d51ce92..df0c6ab7 100644
-> > --- v3.7-rc2.orig/mm/truncate.c
-> > +++ v3.7-rc2/mm/truncate.c
-> > @@ -151,14 +151,20 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
-> >   */
-> >  int generic_error_remove_page(struct address_space *mapping, struct page *page)
-> >  {
-> > +	int ret;
+> > diff --git v3.7-rc2.orig/fs/ext3/inode.c v3.7-rc2/fs/ext3/inode.c
+> > index 7e87e37..7f708bf 100644
+> > --- v3.7-rc2.orig/fs/ext3/inode.c
+> > +++ v3.7-rc2/fs/ext3/inode.c
+> > @@ -1967,6 +1967,33 @@ static int ext3_journalled_set_page_dirty(struct page *page)
+> >  	return __set_page_dirty_nobuffers(page);
+> >  }
+> >  
+> > +static int ext3_error_remove_page(struct address_space *mapping,
+> > +				struct page *page)
+> > +{
 > > +	struct inode *inode = mapping->host;
+> > +	struct buffer_head *bh, *head;
+> > +	ext3_fsblk_t block = 0;
 > > +
->   This will oops if mapping == NULL. Currently the only caller seems to
-> check beforehand but still, it's better keep the code as robust as it it.
+> > +	if (!PageDirty(page) || !page_has_buffers(page))
+> > +		goto remove_page;
+> > +
+> > +	/* Lost data. Handle as critical fs error. */
+> > +	bh = head = page_buffers(page);
+> > +	do {
+> > +		if (buffer_dirty(bh)) {
+>   For ext3, you should check that buffer_mapped() is set because we can
+> have dirty and unmapped buffers. Otherwise the patch looks OK.
 
-OK. Adding a comment about it will be helpful for that purpose.
+OK, I'll add it.
 
 Thanks,
 Naoya
