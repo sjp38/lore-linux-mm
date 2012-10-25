@@ -1,316 +1,302 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 5B1266B0072
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:15:13 -0400 (EDT)
-Date: Thu, 25 Oct 2012 09:20:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 1/2]swap: add a simple buddy allocator
-Message-ID: <20121025002037.GA3838@bbox>
-References: <20121022023051.GA20255@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121022023051.GA20255@kernel.org>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id D327D6B0072
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:16:29 -0400 (EDT)
+Received: by mail-qa0-f73.google.com with SMTP id 6so284050qam.2
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:16:28 -0700 (PDT)
+Subject: mmotm 2012-10-24-17-15 uploaded
+From: akpm@linux-foundation.org
+Date: Wed, 24 Oct 2012 17:16:27 -0700
+Message-Id: <20121025001628.1DEDE100047@wpzn3.hot.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-Hi Shaohua,
+The mm-of-the-moment snapshot 2012-10-24-17-15 has been uploaded to
 
-Your idea does make sense to me.
-Below just a few nitpick.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-On Mon, Oct 22, 2012 at 10:30:51AM +0800, Shaohua Li wrote:
-> I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
-> CPU time (when cluster is hard to find), which becomes a bottleneck.
-> scan_swap_map() scans a byte array to search a 256 page cluster, which is very
-> slow.
-> 
-> Here I introduced a simple buddy allocator. Since we only care about 256 pages
-> cluster, we can just use a counter to implement the buddy allocator. Every 256
-> pages use one int to store the counter, so searching cluster is very efficient.
-> With this, scap_swap_map() overhead disappears.
-> 
-> This might help low end SD card swap too. Because if the cluster is aligned, SD
-> firmware can do flash erase more efficiently.
+mmotm-readme.txt says
 
-Indeed.
+README for mm-of-the-moment:
 
-> 
-> The downside is the cluster must be aligned to 256 pages, which will reduce the
-> chance to find a cluster.
+http://www.ozlabs.org/~akpm/mmotm/
 
-It would be not good for roration device. Can't we make it for only discardable
-device?
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
-> ---
->  include/linux/swap.h |    1 
->  mm/swapfile.c        |   74 +++++++++++++++++++++++++++++++++++++++------------
->  2 files changed, 58 insertions(+), 17 deletions(-)
-> 
-> Index: linux/include/linux/swap.h
-> ===================================================================
-> --- linux.orig/include/linux/swap.h	2012-10-22 09:20:40.802165198 +0800
-> +++ linux/include/linux/swap.h	2012-10-22 09:20:50.462043746 +0800
-> @@ -185,6 +185,7 @@ struct swap_info_struct {
->  	signed char	next;		/* next type on the swap list */
->  	unsigned int	max;		/* extent of the swap_map */
->  	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
-> +	unsigned int *swap_cluster_count; /* cluster counter */
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-swap_cluster_count is rather awkward.
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-How about this?
-        unsigned int *inuse_pages_in_cluster; /* used pages in a cluster */
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
->  	unsigned int lowest_bit;	/* index of first free in swap_map */
->  	unsigned int highest_bit;	/* index of last free in swap_map */
->  	unsigned int pages;		/* total of usable pages of swap */
-> Index: linux/mm/swapfile.c
-> ===================================================================
-> --- linux.orig/mm/swapfile.c	2012-10-22 09:20:40.794165269 +0800
-> +++ linux/mm/swapfile.c	2012-10-22 09:21:34.317493506 +0800
-> @@ -182,6 +182,22 @@ static int wait_for_discard(void *word)
->  #define SWAPFILE_CLUSTER	256
->  #define LATENCY_LIMIT		256
->  
-> +static inline void inc_swap_cluster_count(unsigned int *swap_cluster_count,
-> +					unsigned long page_nr)
-> +{
-> +	swap_cluster_count += page_nr/SWAPFILE_CLUSTER;
-> +	VM_BUG_ON(*swap_cluster_count >= SWAPFILE_CLUSTER);
-> +	(*swap_cluster_count)++;
-> +}
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-How about this?
 
-static inline void inc_swap_map(struct swap_info_struct *si, unsigned long offset)
-{
-        int cluster_idx = offset / SWAPFILE_CLUSTER;
-        si->inuse_pages_in_cluster[cluster_idx]++;
-}
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-> +
-> +static inline void dec_swap_cluster_count(unsigned int *swap_cluster_count,
-> +					unsigned long page_nr)
-> +{
-> +	swap_cluster_count += page_nr/SWAPFILE_CLUSTER;
-> +	VM_BUG_ON(*swap_cluster_count == 0);
-> +	(*swap_cluster_count)--;
-> +}
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
 
-static inline void dec_swap_map(struct swap_info_struct *si, unsigned long offset)
-{
-        int cluster_idx = offset / SWAPFILE_CLUSTER;
-        si->inuse_pages_in_cluster[cluster_idx]--;
-}
+To develop on top of mmotm git:
 
-> +
->  static unsigned long scan_swap_map(struct swap_info_struct *si,
->  				   unsigned char usage)
->  {
-> @@ -206,6 +222,8 @@ static unsigned long scan_swap_map(struc
->  	scan_base = offset = si->cluster_next;
->  
->  	if (unlikely(!si->cluster_nr--)) {
-> +		unsigned long base;
-> +
->  		if (si->pages - si->inuse_pages < SWAPFILE_CLUSTER) {
->  			si->cluster_nr = SWAPFILE_CLUSTER - 1;
->  			goto checks;
-> @@ -235,15 +253,14 @@ static unsigned long scan_swap_map(struc
->  		 */
->  		if (!(si->flags & SWP_SOLIDSTATE))
->  			scan_base = offset = si->lowest_bit;
-> -		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
->  
-> -		/* Locate the first empty (unaligned) cluster */
-> -		for (; last_in_cluster <= si->highest_bit; offset++) {
-> -			if (si->swap_map[offset])
-> -				last_in_cluster = offset + SWAPFILE_CLUSTER;
-> -			else if (offset == last_in_cluster) {
-> +		/* Locate the first empty (aligned) cluster */
-> +		for (base = round_up(offset, SWAPFILE_CLUSTER);
-> +		     base <= si->highest_bit; base += SWAPFILE_CLUSTER) {
-> +			if (!si->swap_cluster_count[base/SWAPFILE_CLUSTER]) {
-> +				offset = base;
-> +				last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
->  				spin_lock(&swap_lock);
-> -				offset -= SWAPFILE_CLUSTER - 1;
->  				si->cluster_next = offset;
->  				si->cluster_nr = SWAPFILE_CLUSTER - 1;
->  				found_free_cluster = 1;
-> @@ -256,15 +273,14 @@ static unsigned long scan_swap_map(struc
->  		}
->  
->  		offset = si->lowest_bit;
-> -		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
->  
-> -		/* Locate the first empty (unaligned) cluster */
-> -		for (; last_in_cluster < scan_base; offset++) {
-> -			if (si->swap_map[offset])
-> -				last_in_cluster = offset + SWAPFILE_CLUSTER;
-> -			else if (offset == last_in_cluster) {
-> +		/* Locate the first empty (aligned) cluster */
-> +		for (base = round_up(offset, SWAPFILE_CLUSTER);
-> +		     base < scan_base; base += SWAPFILE_CLUSTER) {
-> +			if (!si->swap_cluster_count[base/SWAPFILE_CLUSTER]) {
-> +				offset = base;
-> +				last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
->  				spin_lock(&swap_lock);
-> -				offset -= SWAPFILE_CLUSTER - 1;
->  				si->cluster_next = offset;
->  				si->cluster_nr = SWAPFILE_CLUSTER - 1;
->  				found_free_cluster = 1;
-> @@ -315,6 +331,7 @@ checks:
->  		si->highest_bit = 0;
->  	}
->  	si->swap_map[offset] = usage;
-> +	inc_swap_cluster_count(si->swap_cluster_count, offset);
->  	si->cluster_next = offset + 1;
->  	si->flags -= SWP_SCANNING;
->  
-> @@ -549,6 +566,7 @@ static unsigned char swap_entry_free(str
->  
->  	/* free if no reference */
->  	if (!usage) {
-> +		dec_swap_cluster_count(p->swap_cluster_count, offset);
->  		if (offset < p->lowest_bit)
->  			p->lowest_bit = offset;
->  		if (offset > p->highest_bit)
-> @@ -1445,6 +1463,7 @@ static int setup_swap_extents(struct swa
->  
->  static void enable_swap_info(struct swap_info_struct *p, int prio,
->  				unsigned char *swap_map,
-> +				unsigned int *swap_cluster_count,
->  				unsigned long *frontswap_map)
->  {
->  	int i, prev;
-> @@ -1455,6 +1474,7 @@ static void enable_swap_info(struct swap
->  	else
->  		p->prio = --least_priority;
->  	p->swap_map = swap_map;
-> +	p->swap_cluster_count = swap_cluster_count;
->  	frontswap_map_set(p, frontswap_map);
->  	p->flags |= SWP_WRITEOK;
->  	nr_swap_pages += p->pages;
-> @@ -1480,6 +1500,7 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  {
->  	struct swap_info_struct *p = NULL;
->  	unsigned char *swap_map;
-> +	unsigned int *swap_cluster_count;
->  	struct file *swap_file, *victim;
->  	struct address_space *mapping;
->  	struct inode *inode;
-> @@ -1556,7 +1577,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  		 * sys_swapoff for this swap_info_struct at this point.
->  		 */
->  		/* re-insert swap space back into swap_list */
-> -		enable_swap_info(p, p->prio, p->swap_map, frontswap_map_get(p));
-> +		enable_swap_info(p, p->prio, p->swap_map, p->swap_cluster_count,
-> +				frontswap_map_get(p));
->  		goto out_dput;
->  	}
->  
-> @@ -1581,11 +1603,14 @@ SYSCALL_DEFINE1(swapoff, const char __us
->  	p->max = 0;
->  	swap_map = p->swap_map;
->  	p->swap_map = NULL;
-> +	swap_cluster_count = p->swap_cluster_count;
-> +	p->swap_cluster_count = NULL;
->  	p->flags = 0;
->  	frontswap_invalidate_area(type);
->  	spin_unlock(&swap_lock);
->  	mutex_unlock(&swapon_mutex);
->  	vfree(swap_map);
-> +	vfree(swap_cluster_count);
->  	vfree(frontswap_map_get(p));
->  	/* Destroy swap account informatin */
->  	swap_cgroup_swapoff(type);
-> @@ -1896,6 +1921,7 @@ static unsigned long read_swap_header(st
->  static int setup_swap_map_and_extents(struct swap_info_struct *p,
->  					union swap_header *swap_header,
->  					unsigned char *swap_map,
-> +					unsigned int *swap_cluster_count,
->  					unsigned long maxpages,
->  					sector_t *span)
->  {
-> @@ -1912,11 +1938,16 @@ static int setup_swap_map_and_extents(st
->  		if (page_nr < maxpages) {
->  			swap_map[page_nr] = SWAP_MAP_BAD;
->  			nr_good_pages--;
-> +			inc_swap_cluster_count(swap_cluster_count, page_nr);
->  		}
->  	}
->  
-> +	for (i = maxpages; i < round_up(maxpages, SWAPFILE_CLUSTER); i++)
-> +		inc_swap_cluster_count(swap_cluster_count, i);
-> +
->  	if (nr_good_pages) {
->  		swap_map[0] = SWAP_MAP_BAD;
-> +		inc_swap_cluster_count(swap_cluster_count, 0);
->  		p->max = maxpages;
->  		p->pages = nr_good_pages;
->  		nr_extents = setup_swap_extents(p, span);
-> @@ -1946,6 +1977,7 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	sector_t span;
->  	unsigned long maxpages;
->  	unsigned char *swap_map = NULL;
-> +	unsigned int *swap_cluster_count = NULL;
->  	unsigned long *frontswap_map = NULL;
->  	struct page *page = NULL;
->  	struct inode *inode = NULL;
-> @@ -2020,12 +2052,19 @@ SYSCALL_DEFINE2(swapon, const char __use
->  		goto bad_swap;
->  	}
->  
-> +	swap_cluster_count = vzalloc(DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER) *
-> +					sizeof(int));
-> +	if (!swap_cluster_count) {
-> +		error = -ENOMEM;
-> +		goto bad_swap;
-> +	}
-> +
->  	error = swap_cgroup_swapon(p->type, maxpages);
->  	if (error)
->  		goto bad_swap;
->  
->  	nr_extents = setup_swap_map_and_extents(p, swap_header, swap_map,
-> -		maxpages, &span);
-> +		swap_cluster_count, maxpages, &span);
->  	if (unlikely(nr_extents < 0)) {
->  		error = nr_extents;
->  		goto bad_swap;
-> @@ -2048,7 +2087,7 @@ SYSCALL_DEFINE2(swapon, const char __use
->  	if (swap_flags & SWAP_FLAG_PREFER)
->  		prio =
->  		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
-> -	enable_swap_info(p, prio, swap_map, frontswap_map);
-> +	enable_swap_info(p, prio, swap_map, swap_cluster_count, frontswap_map);
->  
->  	printk(KERN_INFO "Adding %uk swap on %s.  "
->  			"Priority:%d extents:%d across:%lluk %s%s%s\n",
-> @@ -2078,6 +2117,7 @@ bad_swap:
->  	p->flags = 0;
->  	spin_unlock(&swap_lock);
->  	vfree(swap_map);
-> +	vfree(swap_cluster_count);
->  	if (swap_file) {
->  		if (inode && S_ISREG(inode->i_mode)) {
->  			mutex_unlock(&inode->i_mutex);
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
--- 
-Kind regards,
-Minchan Kim
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+
+
+This mmotm tree contains the following patches against 3.7-rc2:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* mm-fix-xfs-oops-due-to-dirty-pages-without-buffers-on-s390.patch
+* cgroup-fix-invalid-rcu-dereference.patch
+* device_cgroup-rename-deny_all-to-behavior.patch
+* device_cgroup-stop-using-simple_strtoul.patch
+* device_cgroup-add-proper-checking-when-changing-default-behavior.patch
+* backlight-ili9320-add-missing-spi-dependency.patch
+* genalloc-stop-crashing-the-system-when-destroying-a-pool.patch
+* rbtree-include-linux-compilerh-for-definition-of-__always_inline.patch
+* mm-page_allocc-alloc_contig_range-return-early-for-err-path.patch
+* uapi-fix-tools-vm-page-typesc.patch
+* tools-testing-selftests-epoll-test_epollc-fix-build.patch
+* mm-mmu_notifier-allocate-mmu_notifier-in-advance.patch
+* drivers-dma-dw_dmac-make-drivers-endianness-configurable.patch
+* pidns-limit-the-nesting-depth-of-pid-namespaces.patch
+* pidns-limit-the-nesting-depth-of-pid-namespaces-fix.patch
+* mm-numa-avoid-setting-zone_reclaim_mode-unless-a-node-is-sufficiently-distant.patch
+* drivers-rtc-rtc-imxdic-add-missing-spin-lock-initialization.patch
+* gen_init_cpio-avoid-stack-overflow-when-expanding.patch
+* fs-compat_ioctlc-video_set_spu_palette-missing-error-check.patch
+* revert-tools-testing-selftests-epoll-test_epollc-fix-build.patch
+* revert-epoll-support-for-disabling-items-and-a-self-test-app.patch
+  linux-next.patch
+  linux-next-git-rejects.patch
+  i-need-old-gcc.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+* mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-only-in-direct-reclaim.patch
+* proc-check-vma-vm_file-before-dereferencing.patch
+* include-linux-tickh-fix-warning.patch
+* memstick-remove-unused-field-from-state-struct.patch
+* memstick-ms_block-fix-complile-issue.patch
+* memstick-use-after-free-in-msb_disk_release.patch
+* memstick-memory-leak-on-error-in-msb_ftl_scan.patch
+* cris-fix-i-o-macros.patch
+* selinux-fix-sel_netnode_insert-suspicious-rcu-dereference.patch
+* vfs-d_obtain_alias-needs-to-use-as-default-name.patch
+* fs-block_devc-page-cache-wrongly-left-invalidated-after-revalidate_disk.patch
+* cpu_hotplug-unmap-cpu2node-when-the-cpu-is-hotremoved.patch
+* cpu_hotplug-unmap-cpu2node-when-the-cpu-is-hotremoved-fix.patch
+* acpi_memhotplugc-fix-memory-leak-when-memory-device-is-unbound-from-the-module-acpi_memhotplug.patch
+* acpi_memhotplugc-free-memory-device-if-acpi_memory_enable_device-failed.patch
+* acpi_memhotplugc-remove-memory-info-from-list-before-freeing-it.patch
+* acpi_memhotplugc-dont-allow-to-eject-the-memory-device-if-it-is-being-used.patch
+* acpi_memhotplugc-bind-the-memory-device-when-the-driver-is-being-loaded.patch
+* acpi_memhotplugc-auto-bind-the-memory-device-which-is-hotplugged-before-the-driver-is-loaded.patch
+* arch-x86-platform-iris-irisc-register-a-platform-device-and-a-platform-driver.patch
+* x86-numa-dont-check-if-node-is-numa_no_node.patch
+* arch-x86-tools-insn_sanityc-identify-source-of-messages.patch
+* uv-fix-incorrect-tlb-flush-all-issue.patch
+* olpc-fix-olpc-xo1-scic-build-errors.patch
+* fs-debugsfs-remove-unnecessary-inode-i_private-initialization.patch
+* pcmcia-move-unbind-rebind-into-dev_pm_opscomplete.patch
+* drm-i915-optimize-div_round_closest-call.patch
+  cyber2000fb-avoid-palette-corruption-at-higher-clocks.patch
+* timeconstpl-remove-deprecated-defined-array.patch
+* time-dont-inline-export_symbol-functions.patch
+* fs-pstore-ramc-fix-up-section-annotations.patch
+* h8300-select-generic-atomic64_t-support.patch
+* drivers-message-fusion-mptscsihc-missing-break.patch
+* cciss-cleanup-bitops-usage.patch
+* cciss-use-check_signature.patch
+* block-store-partition_meta_infouuid-as-a-string.patch
+* init-reduce-partuuid-min-length-to-1-from-36.patch
+* block-partition-msdos-provide-uuids-for-partitions.patch
+* drbd-use-copy_highpage.patch
+* vfs-increment-iversion-when-a-file-is-truncated.patch
+* fs-change-return-values-from-eacces-to-eperm.patch
+* fs-block_devc-need-not-to-check-inode-i_bdev-in-bd_forget.patch
+* mm-slab-remove-duplicate-check.patch
+  mm.patch
+* writeback-remove-nr_pages_dirtied-arg-from-balance_dirty_pages_ratelimited_nr.patch
+* mm-show-migration-types-in-show_mem.patch
+* memory-hotplug-suppress-device-memoryx-does-not-have-a-release-function-warning.patch
+* memory-hotplug-suppress-device-nodex-does-not-have-a-release-function-warning.patch
+* mm-memcg-make-mem_cgroup_out_of_memory-static.patch
+* mm-use-is_enabledconfig_numa-instead-of-numa_build.patch
+* mm-use-is_enabledconfig_compaction-instead-of-compaction_build.patch
+* thp-clean-up-__collapse_huge_page_isolate.patch
+* thp-clean-up-__collapse_huge_page_isolate-v2.patch
+* mm-introduce-mm_find_pmd.patch
+* thp-introduce-hugepage_vma_check.patch
+* thp-cleanup-introduce-mk_huge_pmd.patch
+* memory-hotplug-skip-hwpoisoned-page-when-offlining-pages.patch
+* memory-hotplug-update-mce_bad_pages-when-removing-the-memory.patch
+* memory-hotplug-update-mce_bad_pages-when-removing-the-memory-fix.patch
+* memory-hotplug-auto-offline-page_cgroup-when-onlining-memory-block-failed.patch
+* memory-hotplug-fix-nr_free_pages-mismatch.patch
+* memory-hotplug-allocate-zones-pcp-before-onlining-pages.patch
+* memory-hotplug-allocate-zones-pcp-before-onlining-pages-fix.patch
+* memory-hotplug-allocate-zones-pcp-before-onlining-pages-fix-2.patch
+* memory_hotplug-fix-possible-incorrect-node_states.patch
+* slub-hotplug-ignore-unrelated-nodes-hot-adding-and-hot-removing.patch
+* slab-ignore-internal-flags-in-cache-creation.patch
+* drop_caches-add-some-documentation-and-info-messsge.patch
+* drop_caches-add-some-documentation-and-info-messsge-checkpatch-fixes.patch
+* swap-add-a-simple-detector-for-inappropriate-swapin-readahead.patch
+* swap-add-a-simple-detector-for-inappropriate-swapin-readahead-fix.patch
+* mm-memblock-reduce-overhead-in-binary-search.patch
+* scripts-pnmtologo-fix-for-plain-pbm.patch
+* scripts-pnmtologo-fix-for-plain-pbm-checkpatch-fixes.patch
+* include-linux-inith-use-the-stringify-operator-for-the-__define_initcall-macro.patch
+* scripts-tagssh-add-magic-for-declarations-of-popular-kernel-type.patch
+* backlight-da903x_bl-use-dev_get_drvdata-instead-of-platform_get_drvdata.patch
+* backlight-88pm860x_bl-fix-checkpatch-warning.patch
+* backlight-atmel-pwm-bl-fix-checkpatch-warning.patch
+* backlight-corgi_lcd-fix-checkpatch-error-and-warning.patch
+* backlight-da903x_bl-fix-checkpatch-warning.patch
+* backlight-generic_bl-fix-checkpatch-warning.patch
+* backlight-hp680_bl-fix-checkpatch-error-and-warning.patch
+* backlight-ili9320-fix-checkpatch-error-and-warning.patch
+* backlight-jornada720-fix-checkpatch-error-and-warning.patch
+* backlight-l4f00242t03-fix-checkpatch-warning.patch
+* backlight-lm3630-fix-checkpatch-warning.patch
+* backlight-locomolcd-fix-checkpatch-error-and-warning.patch
+* backlight-omap1-fix-checkpatch-warning.patch
+* backlight-pcf50633-fix-checkpatch-warning.patch
+* backlight-platform_lcd-fix-checkpatch-error.patch
+* backlight-tdo24m-fix-checkpatch-warning.patch
+* backlight-tosa-fix-checkpatch-error-and-warning.patch
+* backlight-vgg2432a4-fix-checkpatch-warning.patch
+* backlight-lms283gf05-use-devm_gpio_request_one.patch
+* backlight-tosa-use-devm_gpio_request_one.patch
+* drivers-video-backlight-lp855x_blc-use-generic-pwm-functions.patch
+* drivers-video-backlight-lp855x_blc-use-generic-pwm-functions-fix.patch
+* drivers-video-backlight-lp855x_blc-remove-unnecessary-mutex-code.patch
+* drivers-video-backlight-da9052_blc-add-missing-const.patch
+* drivers-video-backlight-lms283gf05c-add-missing-const.patch
+* drivers-video-backlight-tdo24mc-add-missing-const.patch
+* drivers-video-backlight-vgg2432a4c-add-missing-const.patch
+* drivers-video-backlight-s6e63m0c-remove-unnecessary-cast-of-void-pointer.patch
+* string-introduce-helper-to-get-base-file-name-from-given-path.patch
+* lib-dynamic_debug-use-kbasename.patch
+* staging-rts_pstor-use-kbasename.patch
+* mm-use-kbasename.patch
+* procfs-use-kbasename.patch
+* trace-use-kbasename.patch
+* compat-generic-compat_sys_sched_rr_get_interval-implementation.patch
+* drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid.patch
+* drivers-firmware-dmi_scanc-check-dmi-version-when-get-system-uuid-fix.patch
+* drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists.patch
+* drivers-firmware-dmi_scanc-fetch-dmi-version-from-smbios-if-it-exists-checkpatch-fixes.patch
+* checkpatch-improve-network-block-comment-style-checking.patch
+* drivers-edac-amd64_edacc-__amd64_set_scrub_rate-avoid-overindexing-scrubrates.patch
+* binfmt_elf-fix-corner-case-kfree-of-uninitialized-data.patch
+* binfmt_elf-fix-corner-case-kfree-of-uninitialized-data-checkpatch-fixes.patch
+* rtc-omap-kicker-mechanism-support.patch
+* arm-davinci-remove-rtc-kicker-release.patch
+* rtc-omap-dt-support.patch
+* rtc-omap-depend-on-am33xx.patch
+* rtc-omap-add-runtime-pm-support.patch
+* rtc-imxdi-support-for-imx53.patch
+* rtc-imxdi-add-devicetree-support.patch
+* arm-mach-imx-support-for-dryice-rtc-in-imx53.patch
+* hfsplus-add-on-disk-layout-declarations-related-to-attributes-tree.patch
+* hfsplus-add-functionality-of-manipulating-by-records-in-attributes-tree.patch
+* hfsplus-rework-functionality-of-getting-setting-and-deleting-of-extended-attributes.patch
+* hfsplus-add-support-of-manipulation-by-attributes-file.patch
+* hfsplus-add-support-of-manipulation-by-attributes-file-checkpatch-fixes.patch
+* hfsplus-code-style-fixes-reworked-support-of-extended-attributes.patch
+* fat-modify-nfs-mount-option.patch
+* fat-exportfs-rebuild-inode-if-ilookup-fails.patch
+* fat-exportfs-rebuild-inode-if-ilookup-fails-fix.patch
+* fat-exportfs-rebuild-directory-inode-if-fat_dget-fails.patch
+* documentation-update-nfs-option-in-filesystem-vfattxt.patch
+* kstrto-add-documentation.patch
+* simple_strto-annotate-function-as-obsolete.patch
+* proc-dont-show-nonexistent-capabilities.patch
+* procfs-add-vmflags-field-in-smaps-output-v4.patch
+* procfs-add-vmflags-field-in-smaps-output-v4-fix.patch
+* ipc-remove-forced-assignment-of-selected-message.patch
+* ipc-add-sysctl-to-specify-desired-next-object-id.patch
+* ipc-add-sysctl-to-specify-desired-next-object-id-checkpatch-fixes.patch
+* ipc-message-queue-receive-cleanup.patch
+* ipc-message-queue-receive-cleanup-checkpatch-fixes.patch
+* ipc-message-queue-copy-feature-introduced.patch
+* selftests-ipc-message-queue-copy-feature-test.patch
+* selftests-ipc-message-queue-copy-feature-test-checkpatch-fixes.patch
+* ipc-semc-alternatives-to-preempt_disable.patch
+* linux-compilerh-add-__must_hold-macro-for-functions-called-with-a-lock-held.patch
+* documentation-sparsetxt-document-context-annotations-for-lock-checking.patch
+* aoe-describe-the-behavior-of-the-err-character-device.patch
+* aoe-print-warning-regarding-a-common-reason-for-dropped-transmits.patch
+* aoe-print-warning-regarding-a-common-reason-for-dropped-transmits-v2.patch
+* aoe-print-warning-regarding-a-common-reason-for-dropped-transmits-fix.patch
+* aoe-update-cap-on-outstanding-commands-based-on-config-query-response.patch
+* aoe-support-the-forgetting-flushing-of-a-user-specified-aoe-target.patch
+* aoe-support-larger-i-o-requests-via-aoe_maxsectors-module-param.patch
+* aoe-payload-sysfs-file-exports-per-aoe-command-data-transfer-size.patch
+* aoe-cleanup-remove-unused-ata_scnt-function.patch
+* aoe-whitespace-cleanup.patch
+* aoe-update-driver-internal-version-number-to-60.patch
+* random-make-it-possible-to-enable-debugging-without-rebuild.patch
+* random-make-it-possible-to-enable-debugging-without-rebuild-fix.patch
+* dma-debug-new-interfaces-to-debug-dma-mapping-errors.patch
+* dma-debug-new-interfaces-to-debug-dma-mapping-errors-fix.patch
+* dma-debug-new-interfaces-to-debug-dma-mapping-errors-fix-fix.patch
+* include-linux-kfifoh-replace-open-coded-type-check-code-with-typecheck.patch
+* tools-testing-selftests-kcmp-kcmp_testc-print-reason-for-failure-in-kcmp_test.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  mutex-subsystem-synchro-test-module-fix.patch
+  mutex-subsystem-synchro-test-module-fix-2.patch
+  mutex-subsystem-synchro-test-module-fix-3.patch
+  slab-leaks3-default-y.patch
+  put_bh-debug.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  single_open-seq_release-leak-diagnostics.patch
+  add-a-refcount-check-in-dput.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
