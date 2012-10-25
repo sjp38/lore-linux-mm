@@ -1,201 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id AE9876B009B
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:35 -0400 (EDT)
-Message-Id: <20121025124834.592333415@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:45 +0200
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 531996B009B
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:10:22 -0400 (EDT)
+Message-Id: <20121025124834.161540645@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:39 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 28/31] sched, numa, mm: Implement constant, per task Working Set Sampling (WSS) rate
+Subject: [PATCH 22/31] sched, numa, mm: Implement THP migration
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0028-sched-numa-mm-Implement-constant-per-task-Working-Se.patch
+Content-Disposition: inline; filename=0022-sched-numa-mm-Implement-THP-migration.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>
 
-Previously, to probe the working set of a task, we'd use
-a very simple and crude method: mark all of its address
-space PROT_NONE.
+Add THP migration for the NUMA working set scanning fault case.
 
-That method has various (obvious) disadvantages:
+It uses the page lock to serialize. No migration pte dance is
+necessary because the pte is already unmapped when we decide
+to migrate.
 
- - it samples the working set at dissimilar rates,
-   giving some tasks a sampling quality advantage
-   over others.
-
- - creates performance problems for tasks with very
-   large working sets
-
- - over-samples processes with large address spaces but
-   which only very rarely execute
-
-Improve that method by keeping a rotating offset into the
-address space that marks the current position of the scan,
-and advance it by a constant rate (in a CPU cycles execution
-proportional manner). If the offset reaches the last mapped
-address of the mm then it then it starts over at the first
-address.
-
-The per-task nature of the working set sampling functionality
-in this tree allows such constant rate, per task,
-execution-weight proportional sampling of the working set,
-with an adaptive sampling interval/frequency that goes from
-once per 100 msecs up to just once per 1.6 seconds.
-The current sampling volume is 256 MB per interval.
-
-As tasks mature and converge their working set, so does the
-sampling rate slow down to just a trickle, 256 MB per 1.6
-seconds of CPU time executed.
-
-This, beyond being adaptive, also rate-limits rarely
-executing systems and does not over-sample on overloaded
-systems.
-
-[ In AutoNUMA speak, this patch deals with the effective sampling
-  rate of the 'hinting page fault'. AutoNUMA's scanning is
-  currently rate-limited, but it is also fundamentally
-  single-threaded, executing in the knuma_scand kernel thread,
-  so the limit in AutoNUMA is global and does not scale up with
-  the number of CPUs, nor does it scan tasks in an execution
-  proportional manner.
-
-  So the idea of rate-limiting the scanning was first implemented
-  in the AutoNUMA tree via a global rate limit. This patch goes
-  beyond that by implementing an execution rate proportional
-  working set sampling rate that is not implemented via a single
-  global scanning daemon. ]
-
-[ Dan Carpenter pointed out a possible NULL pointer dereference in the
-  first version of this patch. ]
-
-Based-on-idea-by: Andrea Arcangeli <aarcange@redhat.com>
-Bug-Found-By: Dan Carpenter <dan.carpenter@oracle.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-[ Wrote changelog and fixed bug. ]
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+[ Significant fixes and changelog. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm_types.h |    1 +
- include/linux/sched.h    |    1 +
- kernel/sched/fair.c      |   43 ++++++++++++++++++++++++++++++-------------
- kernel/sysctl.c          |    7 +++++++
- 4 files changed, 39 insertions(+), 13 deletions(-)
+ mm/huge_memory.c |  133 ++++++++++++++++++++++++++++++++++++++++++-------------
+ mm/migrate.c     |    2 
+ 2 files changed, 104 insertions(+), 31 deletions(-)
 
-Index: tip/include/linux/mm_types.h
+Index: tip/mm/huge_memory.c
 ===================================================================
---- tip.orig/include/linux/mm_types.h
-+++ tip/include/linux/mm_types.h
-@@ -405,6 +405,7 @@ struct mm_struct {
- #endif
- #ifdef CONFIG_SCHED_NUMA
- 	unsigned long numa_next_scan;
-+	unsigned long numa_scan_offset;
- 	int numa_scan_seq;
- #endif
- 	struct uprobes_state uprobes_state;
-Index: tip/include/linux/sched.h
-===================================================================
---- tip.orig/include/linux/sched.h
-+++ tip/include/linux/sched.h
-@@ -2022,6 +2022,7 @@ extern enum sched_tunable_scaling sysctl
+--- tip.orig/mm/huge_memory.c
++++ tip/mm/huge_memory.c
+@@ -742,12 +742,13 @@ void do_huge_pmd_numa_page(struct mm_str
+ 			   unsigned int flags, pmd_t entry)
+ {
+ 	unsigned long haddr = address & HPAGE_PMD_MASK;
++	struct page *new_page = NULL;
+ 	struct page *page = NULL;
+-	int node;
++	int node, lru;
  
- extern unsigned int sysctl_sched_numa_scan_period_min;
- extern unsigned int sysctl_sched_numa_scan_period_max;
-+extern unsigned int sysctl_sched_numa_scan_size;
- extern unsigned int sysctl_sched_numa_settle_count;
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(*pmd, entry)))
+-		goto out_unlock;
++		goto unlock;
  
- #ifdef CONFIG_SCHED_DEBUG
-Index: tip/kernel/sched/fair.c
-===================================================================
---- tip.orig/kernel/sched/fair.c
-+++ tip/kernel/sched/fair.c
-@@ -829,8 +829,9 @@ static void account_numa_dequeue(struct
- /*
-  * numa task sample period in ms: 5s
-  */
--unsigned int sysctl_sched_numa_scan_period_min = 5000;
--unsigned int sysctl_sched_numa_scan_period_max = 5000*16;
-+unsigned int sysctl_sched_numa_scan_period_min = 100;
-+unsigned int sysctl_sched_numa_scan_period_max = 100*16;
-+unsigned int sysctl_sched_numa_scan_size = 256;   /* MB */
- 
- /*
-  * Wait for the 2-sample stuff to settle before migrating again
-@@ -904,6 +905,9 @@ void task_numa_work(struct callback_head
- 	unsigned long migrate, next_scan, now = jiffies;
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
-+	struct vm_area_struct *vma;
-+	unsigned long offset, end;
-+	long length;
- 
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
- 
-@@ -930,18 +934,31 @@ void task_numa_work(struct callback_head
- 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
+ 	if (unlikely(pmd_trans_splitting(entry))) {
+ 		spin_unlock(&mm->page_table_lock);
+@@ -755,45 +756,117 @@ void do_huge_pmd_numa_page(struct mm_str
  		return;
- 
--	ACCESS_ONCE(mm->numa_scan_seq)++;
--	{
--		struct vm_area_struct *vma;
--
--		down_write(&mm->mmap_sem);
--		for (vma = mm->mmap; vma; vma = vma->vm_next) {
--			if (!vma_migratable(vma))
--				continue;
--			change_protection(vma, vma->vm_start, vma->vm_end, vma_prot_none(vma), 0);
--		}
--		up_write(&mm->mmap_sem);
-+	offset = mm->numa_scan_offset;
-+	length = sysctl_sched_numa_scan_size;
-+	length <<= 20;
-+
-+	down_write(&mm->mmap_sem);
-+	vma = find_vma(mm, offset);
-+	if (!vma) {
-+		ACCESS_ONCE(mm->numa_scan_seq)++;
-+		offset = 0;
-+		vma = mm->mmap;
-+	}
-+	for (; vma && length > 0; vma = vma->vm_next) {
-+		if (!vma_migratable(vma))
-+			continue;
-+
-+		offset = max(offset, vma->vm_start);
-+		end = min(ALIGN(offset + length, HPAGE_SIZE), vma->vm_end);
-+		length -= end - offset;
-+
-+		change_prot_none(vma, offset, end);
-+
-+		offset = end;
  	}
-+	mm->numa_scan_offset = offset;
-+	up_write(&mm->mmap_sem);
+ 
+-#ifdef CONFIG_NUMA
+ 	page = pmd_page(entry);
+-	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
++	if (page) {
++		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+ 
+-	get_page(page);
++		get_page(page);
++		node = mpol_misplaced(page, vma, haddr);
++		if (node != -1)
++			goto migrate;
++	}
++
++fixup:
++	/* change back to regular protection */
++	entry = pmd_modify(entry, vma->vm_page_prot);
++	set_pmd_at(mm, haddr, pmd, entry);
++	update_mmu_cache_pmd(vma, address, entry);
++
++unlock:
+ 	spin_unlock(&mm->page_table_lock);
++	if (page)
++		put_page(page);
+ 
+-	/*
+-	 * XXX should we serialize against split_huge_page ?
+-	 */
+-
+-	node = mpol_misplaced(page, vma, haddr);
+-	if (node == -1)
+-		goto do_fixup;
+-
+-	/*
+-	 * Due to lacking code to migrate thp pages, we'll split
+-	 * (which preserves the special PROT_NONE) and re-take the
+-	 * fault on the normal pages.
+-	 */
+-	split_huge_page(page);
+-	put_page(page);
+ 	return;
+ 
+-do_fixup:
++migrate:
++	spin_unlock(&mm->page_table_lock);
++
++	lock_page(page);
+ 	spin_lock(&mm->page_table_lock);
+-	if (unlikely(!pmd_same(*pmd, entry)))
+-		goto out_unlock;
+-#endif
++	if (unlikely(!pmd_same(*pmd, entry))) {
++		spin_unlock(&mm->page_table_lock);
++		unlock_page(page);
++		put_page(page);
++		return;
++	}
++	spin_unlock(&mm->page_table_lock);
+ 
+-	/* change back to regular protection */
+-	entry = pmd_modify(entry, vma->vm_page_prot);
+-	if (pmdp_set_access_flags(vma, haddr, pmd, entry, 1))
+-		update_mmu_cache_pmd(vma, address, entry);
++	new_page = alloc_pages_node(node,
++	    (GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT,
++	    HPAGE_PMD_ORDER);
++
++	if (!new_page)
++		goto alloc_fail;
++
++	lru = PageLRU(page);
++
++	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
++		goto alloc_fail;
++
++	if (!trylock_page(new_page))
++		BUG();
++
++	/* anon mapping, we can simply copy page->mapping to the new page: */
++	new_page->mapping = page->mapping;
++	new_page->index = page->index;
+ 
+-out_unlock:
++	migrate_page_copy(new_page, page);
++
++	WARN_ON(PageLRU(new_page));
++
++	spin_lock(&mm->page_table_lock);
++	if (unlikely(!pmd_same(*pmd, entry))) {
++		spin_unlock(&mm->page_table_lock);
++		if (lru)
++			putback_lru_page(page);
++
++		unlock_page(new_page);
++		ClearPageActive(new_page);	/* Set by migrate_page_copy() */
++		new_page->mapping = NULL;
++		put_page(new_page);		/* Free it */
++
++		unlock_page(page);
++		put_page(page);			/* Drop the local reference */
++
++		return;
++	}
++
++	entry = mk_pmd(new_page, vma->vm_page_prot);
++	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++	entry = pmd_mkhuge(entry);
++
++	page_add_new_anon_rmap(new_page, vma, haddr);
++
++	set_pmd_at(mm, haddr, pmd, entry);
++	update_mmu_cache_pmd(vma, address, entry);
++	page_remove_rmap(page);
+ 	spin_unlock(&mm->page_table_lock);
+-	if (page)
++
++	put_page(page);			/* Drop the rmap reference */
++
++	if (lru)
++		put_page(page);		/* drop the LRU isolation reference */
++
++	unlock_page(new_page);
++	unlock_page(page);
++	put_page(page);			/* Drop the local reference */
++
++	return;
++
++alloc_fail:
++	if (new_page)
++		put_page(new_page);
++
++	unlock_page(page);
++
++	spin_lock(&mm->page_table_lock);
++	if (unlikely(!pmd_same(*pmd, entry))) {
+ 		put_page(page);
++		page = NULL;
++		goto unlock;
++	}
++	goto fixup;
  }
  
- /*
-Index: tip/kernel/sysctl.c
+ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+Index: tip/mm/migrate.c
 ===================================================================
---- tip.orig/kernel/sysctl.c
-+++ tip/kernel/sysctl.c
-@@ -367,6 +367,13 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= proc_dointvec,
- 	},
- 	{
-+		.procname	= "sched_numa_scan_size_mb",
-+		.data		= &sysctl_sched_numa_scan_size,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
- 		.procname	= "sched_numa_settle_count",
- 		.data		= &sysctl_sched_numa_settle_count,
- 		.maxlen		= sizeof(unsigned int),
+--- tip.orig/mm/migrate.c
++++ tip/mm/migrate.c
+@@ -417,7 +417,7 @@ int migrate_huge_page_move_mapping(struc
+  */
+ void migrate_page_copy(struct page *newpage, struct page *page)
+ {
+-	if (PageHuge(page))
++	if (PageHuge(page) || PageTransHuge(page))
+ 		copy_huge_page(newpage, page);
+ 	else
+ 		copy_highpage(newpage, page);
 
 
 --
