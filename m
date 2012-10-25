@@ -1,192 +1,333 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 89F7F6B0083
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:18 -0400 (EDT)
-Message-Id: <20121025124833.247790041@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:27 +0200
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id F14436B0075
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:09:22 -0400 (EDT)
+Message-Id: <20121025124833.552083105@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:31 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 10/31] mm/mpol: Remove NUMA_INTERLEAVE_HIT
+Subject: [PATCH 14/31] mm/mpol: Create special PROT_NONE infrastructure
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0010-mm-mpol-Remove-NUMA_INTERLEAVE_HIT.patch
+Content-Disposition: inline; filename=0014-mm-mpol-Create-special-PROT_NONE-infrastructure.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Ingo Molnar <mingo@kernel.org>
 
-Since the NUMA_INTERLEAVE_HIT statistic is useless on its own; it wants
-to be compared to either a total of interleave allocations or to a miss
-count, remove it.
+In order to facilitate a lazy -- fault driven -- migration of pages,
+create a special transient PROT_NONE variant, we can then use the
+'spurious' protection faults to drive our migrations from.
 
-Fixing it would be possible, but since we've gone years without these
-statistics I figure we can continue that way.
+Pages that already had an effective PROT_NONE mapping will not
+be detected to generate these 'spuriuos' faults for the simple reason
+that we cannot distinguish them on their protection bits, see
+pte_numa().
 
-Also NUMA_HIT fully includes NUMA_INTERLEAVE_HIT so users might
-switch to using that.
+This isn't a problem since PROT_NONE (and possible PROT_WRITE with
+dirty tracking) aren't used or are rare enough for us to not care
+about their placement.
 
-This cleans up some of the weird MPOL_INTERLEAVE allocation exceptions.
-
+Suggested-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paul Turner <pjt@google.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+[ fixed various cross-arch and THP/!THP details ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- drivers/base/node.c    |    2 -
- include/linux/mmzone.h |    1 
- mm/mempolicy.c         |   68 +++++++++++++++----------------------------------
- mm/vmstat.c            |    1 
- 4 files changed, 22 insertions(+), 50 deletions(-)
+ include/linux/huge_mm.h |   19 ++++++++++++
+ include/linux/mm.h      |   18 +++++++++++
+ mm/huge_memory.c        |   32 ++++++++++++++++++++
+ mm/memory.c             |   75 +++++++++++++++++++++++++++++++++++++++++++-----
+ mm/mprotect.c           |   24 ++++++++++-----
+ 5 files changed, 154 insertions(+), 14 deletions(-)
 
-Index: tip/drivers/base/node.c
+Index: tip/include/linux/huge_mm.h
 ===================================================================
---- tip.orig/drivers/base/node.c
-+++ tip/drivers/base/node.c
-@@ -169,7 +169,7 @@ static ssize_t node_read_numastat(struct
- 		       node_page_state(dev->id, NUMA_HIT),
- 		       node_page_state(dev->id, NUMA_MISS),
- 		       node_page_state(dev->id, NUMA_FOREIGN),
--		       node_page_state(dev->id, NUMA_INTERLEAVE_HIT),
-+		       0UL,
- 		       node_page_state(dev->id, NUMA_LOCAL),
- 		       node_page_state(dev->id, NUMA_OTHER));
+--- tip.orig/include/linux/huge_mm.h
++++ tip/include/linux/huge_mm.h
+@@ -159,6 +159,13 @@ static inline struct page *compound_tran
+ 	}
+ 	return page;
  }
-Index: tip/include/linux/mmzone.h
-===================================================================
---- tip.orig/include/linux/mmzone.h
-+++ tip/include/linux/mmzone.h
-@@ -137,7 +137,6 @@ enum zone_stat_item {
- 	NUMA_HIT,		/* allocated in intended node */
- 	NUMA_MISS,		/* allocated in non intended node */
- 	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
--	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-Index: tip/mm/mempolicy.c
-===================================================================
---- tip.orig/mm/mempolicy.c
-+++ tip/mm/mempolicy.c
-@@ -1587,11 +1587,29 @@ static nodemask_t *policy_nodemask(gfp_t
- 	return NULL;
- }
- 
-+/* Do dynamic interleaving for a process */
-+static unsigned interleave_nodes(struct mempolicy *policy)
-+{
-+	unsigned nid, next;
-+	struct task_struct *me = current;
 +
-+	nid = me->il_next;
-+	next = next_node(nid, policy->v.nodes);
-+	if (next >= MAX_NUMNODES)
-+		next = first_node(policy->v.nodes);
-+	if (next < MAX_NUMNODES)
-+		me->il_next = next;
-+	return nid;
++extern bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd);
++
++extern void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmd,
++				  unsigned int flags, pmd_t orig_pmd);
++
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+ #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
+@@ -195,6 +202,18 @@ static inline int pmd_trans_huge_lock(pm
+ {
+ 	return 0;
+ }
++
++static inline bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd)
++{
++	return false;
 +}
 +
- /* Return a zonelist indicated by gfp for node representing a mempolicy */
- static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
- 	int nd)
- {
- 	switch (policy->mode) {
-+	case MPOL_INTERLEAVE:
-+		nd = interleave_nodes(policy);
-+		break;
- 	case MPOL_PREFERRED:
- 		if (!(policy->flags & MPOL_F_LOCAL))
- 			nd = policy->v.preferred_node;
-@@ -1613,21 +1631,6 @@ static struct zonelist *policy_zonelist(
- 	return node_zonelist(nd, gfp);
- }
++static inline void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++				  unsigned long address, pmd_t *pmd,
++				  unsigned int flags, pmd_t orig_pmd)
++{
++}
++
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
--/* Do dynamic interleaving for a process */
--static unsigned interleave_nodes(struct mempolicy *policy)
--{
--	unsigned nid, next;
--	struct task_struct *me = current;
--
--	nid = me->il_next;
--	next = next_node(nid, policy->v.nodes);
--	if (next >= MAX_NUMNODES)
--		next = first_node(policy->v.nodes);
--	if (next < MAX_NUMNODES)
--		me->il_next = next;
--	return nid;
--}
--
- /*
-  * Depending on the memory policy provide a node from which to allocate the
-  * next slab entry.
-@@ -1864,21 +1867,6 @@ out:
- 	return ret;
- }
- 
--/* Allocate a page in interleaved policy.
--   Own path because it needs to do special accounting. */
--static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
--					unsigned nid)
--{
--	struct zonelist *zl;
--	struct page *page;
--
--	zl = node_zonelist(nid, gfp);
--	page = __alloc_pages(gfp, order, zl);
--	if (page && page_zone(page) == zonelist_zone(&zl->_zonerefs[0]))
--		inc_zone_page_state(page, NUMA_INTERLEAVE_HIT);
--	return page;
--}
--
- /**
-  * 	alloc_pages_vma	- Allocate a page for a VMA.
-  *
-@@ -1915,17 +1903,6 @@ retry_cpuset:
- 	pol = get_vma_policy(current, vma, addr);
- 	cpuset_mems_cookie = get_mems_allowed();
- 
--	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
--		unsigned nid;
--
--		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
--		mpol_cond_put(pol);
--		page = alloc_page_interleave(gfp, order, nid);
--		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
--			goto retry_cpuset;
--
--		return page;
--	}
- 	zl = policy_zonelist(gfp, pol, node);
- 	if (unlikely(mpol_needs_cond_ref(pol))) {
- 		/*
-@@ -1983,12 +1960,9 @@ retry_cpuset:
- 	 * No reference counting needed for current->mempolicy
- 	 * nor system default_policy
- 	 */
--	if (pol->mode == MPOL_INTERLEAVE)
--		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
--	else
--		page = __alloc_pages_nodemask(gfp, order,
--				policy_zonelist(gfp, pol, numa_node_id()),
--				policy_nodemask(gfp, pol));
-+	page = __alloc_pages_nodemask(gfp, order,
-+			policy_zonelist(gfp, pol, numa_node_id()),
-+			policy_nodemask(gfp, pol));
- 
- 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
- 		goto retry_cpuset;
-Index: tip/mm/vmstat.c
+ #endif /* _LINUX_HUGE_MM_H */
+Index: tip/include/linux/mm.h
 ===================================================================
---- tip.orig/mm/vmstat.c
-+++ tip/mm/vmstat.c
-@@ -729,7 +729,6 @@ const char * const vmstat_text[] = {
- 	"numa_hit",
- 	"numa_miss",
- 	"numa_foreign",
--	"numa_interleave",
- 	"numa_local",
- 	"numa_other",
+--- tip.orig/include/linux/mm.h
++++ tip/include/linux/mm.h
+@@ -1091,6 +1091,9 @@ extern unsigned long move_page_tables(st
+ extern unsigned long do_mremap(unsigned long addr,
+ 			       unsigned long old_len, unsigned long new_len,
+ 			       unsigned long flags, unsigned long new_addr);
++extern void change_protection(struct vm_area_struct *vma, unsigned long start,
++			      unsigned long end, pgprot_t newprot,
++			      int dirty_accountable);
+ extern int mprotect_fixup(struct vm_area_struct *vma,
+ 			  struct vm_area_struct **pprev, unsigned long start,
+ 			  unsigned long end, unsigned long newflags);
+@@ -1561,6 +1564,21 @@ static inline pgprot_t vm_get_page_prot(
+ }
  #endif
+ 
++static inline pgprot_t vma_prot_none(struct vm_area_struct *vma)
++{
++	/*
++	 * obtain PROT_NONE by removing READ|WRITE|EXEC privs
++	 */
++	vm_flags_t vmflags = vma->vm_flags & ~(VM_READ|VM_WRITE|VM_EXEC);
++	return pgprot_modify(vma->vm_page_prot, vm_get_page_prot(vmflags));
++}
++
++static inline void
++change_prot_none(struct vm_area_struct *vma, unsigned long start, unsigned long end)
++{
++	change_protection(vma, start, end, vma_prot_none(vma), 0);
++}
++
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
+Index: tip/mm/huge_memory.c
+===================================================================
+--- tip.orig/mm/huge_memory.c
++++ tip/mm/huge_memory.c
+@@ -725,6 +725,38 @@ out:
+ 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
+ }
+ 
++bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd)
++{
++	/*
++	 * See pte_numa().
++	 */
++	if (pmd_same(pmd, pmd_modify(pmd, vma->vm_page_prot)))
++		return false;
++
++	return pmd_same(pmd, pmd_modify(pmd, vma_prot_none(vma)));
++}
++
++void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++			   unsigned long address, pmd_t *pmd,
++			   unsigned int flags, pmd_t entry)
++{
++	unsigned long haddr = address & HPAGE_PMD_MASK;
++
++	spin_lock(&mm->page_table_lock);
++	if (unlikely(!pmd_same(*pmd, entry)))
++		goto out_unlock;
++
++	/* do fancy stuff */
++
++	/* change back to regular protection */
++	entry = pmd_modify(entry, vma->vm_page_prot);
++	if (pmdp_set_access_flags(vma, haddr, pmd, entry, 1))
++		update_mmu_cache_pmd(vma, address, entry);
++
++out_unlock:
++	spin_unlock(&mm->page_table_lock);
++}
++
+ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+ 		  struct vm_area_struct *vma)
+Index: tip/mm/memory.c
+===================================================================
+--- tip.orig/mm/memory.c
++++ tip/mm/memory.c
+@@ -1464,6 +1464,25 @@ int zap_vma_ptes(struct vm_area_struct *
+ }
+ EXPORT_SYMBOL_GPL(zap_vma_ptes);
+ 
++static bool pte_numa(struct vm_area_struct *vma, pte_t pte)
++{
++	/*
++	 * If we have the normal vma->vm_page_prot protections we're not a
++	 * 'special' PROT_NONE page.
++	 *
++	 * This means we cannot get 'special' PROT_NONE faults from genuine
++	 * PROT_NONE maps, nor from PROT_WRITE file maps that do dirty
++	 * tracking.
++	 *
++	 * Neither case is really interesting for our current use though so we
++	 * don't care.
++	 */
++	if (pte_same(pte, pte_modify(pte, vma->vm_page_prot)))
++		return false;
++
++	return pte_same(pte, pte_modify(pte, vma_prot_none(vma)));
++}
++
+ /**
+  * follow_page - look up a page descriptor from a user-virtual address
+  * @vma: vm_area_struct mapping @address
+@@ -3433,6 +3452,41 @@ static int do_nonlinear_fault(struct mm_
+ 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
+ }
+ 
++static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++			unsigned long address, pte_t *ptep, pmd_t *pmd,
++			unsigned int flags, pte_t entry)
++{
++	spinlock_t *ptl;
++	int ret = 0;
++
++	if (!pte_unmap_same(mm, pmd, ptep, entry))
++		goto out;
++
++	/*
++	 * Do fancy stuff...
++	 */
++
++	/*
++	 * OK, nothing to do,.. change the protection back to what it
++	 * ought to be.
++	 */
++	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
++	if (unlikely(!pte_same(*ptep, entry)))
++		goto unlock;
++
++	flush_cache_page(vma, address, pte_pfn(entry));
++
++	ptep_modify_prot_start(mm, address, ptep);
++	entry = pte_modify(entry, vma->vm_page_prot);
++	ptep_modify_prot_commit(mm, address, ptep, entry);
++
++	update_mmu_cache(vma, address, ptep);
++unlock:
++	pte_unmap_unlock(ptep, ptl);
++out:
++	return ret;
++}
++
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+@@ -3471,6 +3525,9 @@ int handle_pte_fault(struct mm_struct *m
+ 					pte, pmd, flags, entry);
+ 	}
+ 
++	if (pte_numa(vma, entry))
++		return do_numa_page(mm, vma, address, pte, pmd, flags, entry);
++
+ 	ptl = pte_lockptr(mm, pmd);
+ 	spin_lock(ptl);
+ 	if (unlikely(!pte_same(*pte, entry)))
+@@ -3535,13 +3592,16 @@ retry:
+ 							  pmd, flags);
+ 	} else {
+ 		pmd_t orig_pmd = *pmd;
+-		int ret;
++		int ret = 0;
+ 
+ 		barrier();
+-		if (pmd_trans_huge(orig_pmd)) {
+-			if (flags & FAULT_FLAG_WRITE &&
+-			    !pmd_write(orig_pmd) &&
+-			    !pmd_trans_splitting(orig_pmd)) {
++		if (pmd_trans_huge(orig_pmd) && !pmd_trans_splitting(orig_pmd)) {
++			if (pmd_numa(vma, orig_pmd)) {
++				do_huge_pmd_numa_page(mm, vma, address, pmd,
++						      flags, orig_pmd);
++			}
++
++			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
+ 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+ 							  orig_pmd);
+ 				/*
+@@ -3551,12 +3611,13 @@ retry:
+ 				 */
+ 				if (unlikely(ret & VM_FAULT_OOM))
+ 					goto retry;
+-				return ret;
+ 			}
+-			return 0;
++
++			return ret;
+ 		}
+ 	}
+ 
++
+ 	/*
+ 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+ 	 * run pte_offset_map on the pmd, if an huge pmd could
+Index: tip/mm/mprotect.c
+===================================================================
+--- tip.orig/mm/mprotect.c
++++ tip/mm/mprotect.c
+@@ -112,7 +112,7 @@ static inline void change_pud_range(stru
+ 	} while (pud++, addr = next, addr != end);
+ }
+ 
+-static void change_protection(struct vm_area_struct *vma,
++static void change_protection_range(struct vm_area_struct *vma,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+@@ -134,6 +134,20 @@ static void change_protection(struct vm_
+ 	flush_tlb_range(vma, start, end);
+ }
+ 
++void change_protection(struct vm_area_struct *vma, unsigned long start,
++		       unsigned long end, pgprot_t newprot,
++		       int dirty_accountable)
++{
++	struct mm_struct *mm = vma->vm_mm;
++
++	mmu_notifier_invalidate_range_start(mm, start, end);
++	if (is_vm_hugetlb_page(vma))
++		hugetlb_change_protection(vma, start, end, newprot);
++	else
++		change_protection_range(vma, start, end, newprot, dirty_accountable);
++	mmu_notifier_invalidate_range_end(mm, start, end);
++}
++
+ int
+ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ 	unsigned long start, unsigned long end, unsigned long newflags)
+@@ -206,12 +220,8 @@ success:
+ 		dirty_accountable = 1;
+ 	}
+ 
+-	mmu_notifier_invalidate_range_start(mm, start, end);
+-	if (is_vm_hugetlb_page(vma))
+-		hugetlb_change_protection(vma, start, end, vma->vm_page_prot);
+-	else
+-		change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
+-	mmu_notifier_invalidate_range_end(mm, start, end);
++	change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
++
+ 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
+ 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
+ 	perf_event_mmap(vma);
 
 
 --
