@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 9E5FC6B0088
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:10:26 -0400 (EDT)
-Message-Id: <20121025124834.651572752@chello.nl>
-Date: Thu, 25 Oct 2012 14:16:46 +0200
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 959AB6B0088
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 09:10:35 -0400 (EDT)
+Message-Id: <20121025124834.091119747@chello.nl>
+Date: Thu, 25 Oct 2012 14:16:38 +0200
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 29/31] sched, numa, mm: Add NUMA_MIGRATION feature flag
+Subject: [PATCH 21/31] sched, numa, mm: Introduce sched_feat_numa()
 References: <20121025121617.617683848@chello.nl>
-Content-Disposition: inline; filename=0029-sched-numa-mm-Add-NUMA_MIGRATION-feature-flag.patch
+Content-Disposition: inline; filename=0021-sched-numa-mm-Introduce-sched_feat_numa.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Ingo Molnar <mingo@kernel.org>
 
-From: Ingo Molnar <mingo@kernel.org>
+Avoid a few #ifdef's later on.
 
-After this patch, doing:
-
-   # echo NO_NUMA_MIGRATION > /sys/kernel/debug/sched_features
-
-Will turn off the NUMA placement logic/policy - but keeps the
-working set sampling faults in place.
-
-This allows the debugging of the WSS facility, by using it
-but keeping vanilla, non-NUMA CPU and memory placement
-policies.
-
-Default enabled. Generates on extra code on !CONFIG_SCHED_DEBUG.
-
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Paul Turner <pjt@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/core.c     |    3 +++
- kernel/sched/features.h |    3 +++
- 2 files changed, 6 insertions(+)
+ kernel/sched/sched.h |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Index: tip/kernel/sched/core.c
+Index: tip/kernel/sched/sched.h
 ===================================================================
---- tip.orig/kernel/sched/core.c
-+++ tip/kernel/sched/core.c
-@@ -6002,6 +6002,9 @@ void sched_setnode(struct task_struct *p
- 	int on_rq, running;
- 	struct rq *rq;
+--- tip.orig/kernel/sched/sched.h
++++ tip/kernel/sched/sched.h
+@@ -648,6 +648,12 @@ extern struct static_key sched_feat_keys
+ #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
+ #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
  
-+	if (!sched_feat(NUMA_MIGRATION))
-+		return;
++#ifdef CONFIG_SCHED_NUMA
++#define sched_feat_numa(x) sched_feat(x)
++#else
++#define sched_feat_numa(x) (0)
++#endif
 +
- 	rq = task_rq_lock(p, &flags);
- 	on_rq = p->on_rq;
- 	running = task_current(rq, p);
-Index: tip/kernel/sched/features.h
-===================================================================
---- tip.orig/kernel/sched/features.h
-+++ tip/kernel/sched/features.h
-@@ -63,7 +63,10 @@ SCHED_FEAT(RT_RUNTIME_SHARE, true)
- SCHED_FEAT(LB_MIN, false)
- 
- #ifdef CONFIG_SCHED_NUMA
-+/* Do the working set probing faults: */
- SCHED_FEAT(NUMA,           true)
-+/* Do actual migration/placement based on the working set information: */
-+SCHED_FEAT(NUMA_MIGRATION, true)
- SCHED_FEAT(NUMA_HOT,       true)
- SCHED_FEAT(NUMA_TTWU_BIAS, false)
- SCHED_FEAT(NUMA_TTWU_TO,   false)
+ static inline u64 global_rt_period(void)
+ {
+ 	return (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
 
 
 --
