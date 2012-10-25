@@ -1,200 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 424BE6B0071
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:52:13 -0400 (EDT)
-Date: Thu, 25 Oct 2012 09:57:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 2/2]swap: make swap discard async
-Message-ID: <20121025005738.GA13043@bbox>
-References: <20121022023113.GB20255@kernel.org>
- <20121025005539.GB3838@bbox>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id B56E16B0068
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 20:54:54 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so1349772oag.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 17:54:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121025005539.GB3838@bbox>
+In-Reply-To: <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>
+References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
+ <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
+ <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
+ <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
+ <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
+ <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
+ <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
+ <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com>
+ <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>
+ <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com> <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Wed, 24 Oct 2012 20:54:33 -0400
+Message-ID: <CAHGf_=p7kFau=pMYLkGffA=ak1Jhhm7NzaPg6mSWQYQK3erQuA@mail.gmail.com>
+Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in numa_maps
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Oct 25, 2012 at 09:55:39AM +0900, Minchan Kim wrote:
-> On Mon, Oct 22, 2012 at 10:31:13AM +0800, Shaohua Li wrote:
-> > swap can do cluster discard for SSD, which is good, but there are some problems
-> > here:
-> > 1. swap do the discard just before page reclaim gets a swap entry and writes
-> > the disk sectors. This is useless for high end SSD, because an overwrite to a
-> > sector implies a discard to original nand flash too. A discard + overwrite ==
-> > overwrite.
-> > 2. the purpose of doing discard is to improve SSD firmware garbage collection.
-> > Doing discard just before write doesn't help, because the interval between
-> > discard and write is too short. Doing discard async and just after a swap entry
-> > is freed can make the interval longer, so SSD firmware has more time to do gc.
-> > 3. block discard is a sync API, which will delay scan_swap_map() significantly.
-> > 4. Write and discard command can be executed parallel in PCIe SSD. Making
-> > swap discard async can make execution more efficiently.
-> 
-> Great!
-> 
-> > 
-> > This patch makes swap discard async, and move discard to where swap entry is
-> > freed. Idealy we should do discard for any freed sectors, but some SSD discard
-> 
-> Yes. It's ideal but most of small storage(ex, eMMC) can't do it due to shortage of
-> internal resource.
-> 
-> > is very slow. This patch still does discard for a whole cluster. 
-> 
-> That's good for small nonration storage.
-> 
-> > 
-> > My test does a several round of 'mmap, write, unmap', which will trigger a lot
-> > of swap discard. In a fusionio card, with this patch, the test runtime is
-> > reduced to 18% of the time without it, so around 5.5x faster.
-> 
-> Could you share your test program?
-> 
-> > 
-> > Signed-off-by: Shaohua Li <shli@fusionio.com>
-> > ---
-> >  include/linux/swap.h |    3 
-> >  mm/swapfile.c        |  177 +++++++++++++++++++++++++++------------------------
-> >  2 files changed, 98 insertions(+), 82 deletions(-)
-> > 
-> > Index: linux/include/linux/swap.h
-> > ===================================================================
-> > --- linux.orig/include/linux/swap.h	2012-10-22 09:20:50.462043746 +0800
-> > +++ linux/include/linux/swap.h	2012-10-22 09:23:27.720066736 +0800
-> > @@ -192,8 +192,6 @@ struct swap_info_struct {
-> >  	unsigned int inuse_pages;	/* number of those currently in use */
-> >  	unsigned int cluster_next;	/* likely index for next allocation */
-> >  	unsigned int cluster_nr;	/* countdown to next cluster search */
-> > -	unsigned int lowest_alloc;	/* while preparing discard cluster */
-> > -	unsigned int highest_alloc;	/* while preparing discard cluster */
-> >  	struct swap_extent *curr_swap_extent;
-> >  	struct swap_extent first_swap_extent;
-> >  	struct block_device *bdev;	/* swap device or bdev of swap file */
-> > @@ -203,6 +201,7 @@ struct swap_info_struct {
-> >  	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
-> >  	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
-> >  #endif
-> > +	struct work_struct discard_work;
-> >  };
-> >  
-> >  struct swap_list_t {
-> > Index: linux/mm/swapfile.c
-> > ===================================================================
-> > --- linux.orig/mm/swapfile.c	2012-10-22 09:21:34.317493506 +0800
-> > +++ linux/mm/swapfile.c	2012-10-22 09:56:17.379304667 +0800
-> > @@ -173,15 +173,82 @@ static void discard_swap_cluster(struct
-> >  	}
-> >  }
-> >  
-> > -static int wait_for_discard(void *word)
-> > -{
-> > -	schedule();
-> > -	return 0;
-> > -}
-> > -
-> > -#define SWAPFILE_CLUSTER	256
-> > +#define SWAPFILE_CLUSTER_SHIFT	8
-> > +#define SWAPFILE_CLUSTER	(1<<SWAPFILE_CLUSTER_SHIFT)
-> >  #define LATENCY_LIMIT		256
-> >  
-> > +/* magic number to indicate the cluster is discardable */
-> > +#define CLUSTER_COUNT_DISCARDABLE (SWAPFILE_CLUSTER * 2)
-> > +#define CLUSTER_COUNT_DISCARDING (SWAPFILE_CLUSTER * 2 + 1)
-> 
-> #define CLUSTER_COUNT_DISCARDING (CLUSTER_COUNT_DISCARDABLE + 1)
-> 
-> > +static void swap_cluster_check_discard(struct swap_info_struct *si,
-> > +		unsigned long offset)
-> > +{
-> > +	unsigned long cluster = offset/SWAPFILE_CLUSTER;
-> > +
-> > +	if (!(si->flags & SWP_DISCARDABLE))
-> > +		return;
-> > +	if (si->swap_cluster_count[cluster] > 0)
-> > +		return;
-> > +	si->swap_cluster_count[cluster] = CLUSTER_COUNT_DISCARDABLE;
-> > +	/* Just mark the swap entries occupied */
-> > +	memset(si->swap_map + (cluster << SWAPFILE_CLUSTER_SHIFT),
-> > +			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
-> 
-> You should explain why we need SWAP_MAP_BAD.
-> 
-> > +	schedule_work(&si->discard_work);
-> > +}
-> > +
-> > +static void swap_discard_work(struct work_struct *work)
-> > +{
-> > +	struct swap_info_struct *si = container_of(work,
-> > +		struct swap_info_struct, discard_work);
-> > +	unsigned int *counter = si->swap_cluster_count;
-> > +	int i;
-> > +
-> > +	for (i = round_up(si->cluster_next, SWAPFILE_CLUSTER) /
-> 
-> Why do we always start si->cluster_next?
-> IMHO, It would be better to start offset where swap_entry_free free.
-> 
-> > +	     SWAPFILE_CLUSTER; i < round_down(si->highest_bit,
-> > +	     SWAPFILE_CLUSTER) / SWAPFILE_CLUSTER; i++) {
-> > +		if (counter[i] == CLUSTER_COUNT_DISCARDABLE) {
-> > +			spin_lock(&swap_lock);
-> > +			if (counter[i] != CLUSTER_COUNT_DISCARDABLE) {
-> > +				spin_unlock(&swap_lock);
-> > +				continue;
-> > +			}
-> > +			counter[i] = CLUSTER_COUNT_DISCARDING;
-> > +			spin_unlock(&swap_lock);
-> > +
-> > +			discard_swap_cluster(si, i << SWAPFILE_CLUSTER_SHIFT,
-> > +				SWAPFILE_CLUSTER);
-> > +
-> > +			spin_lock(&swap_lock);
-> > +			counter[i] = 0;
-> > +			memset(si->swap_map + (i << SWAPFILE_CLUSTER_SHIFT),
-> > +					0, SWAPFILE_CLUSTER);
-> > +			spin_unlock(&swap_lock);
-> > +		}
-> > +	}
-> > +	for (i = round_up(si->lowest_bit, SWAPFILE_CLUSTER) /
-> > +	     SWAPFILE_CLUSTER; i < round_down(si->cluster_next,
-> > +	     SWAPFILE_CLUSTER) / SWAPFILE_CLUSTER; i++) {
-> > +		if (counter[i] == CLUSTER_COUNT_DISCARDABLE) {
-> > +			spin_lock(&swap_lock);
-> > +			if (counter[i] != CLUSTER_COUNT_DISCARDABLE) {
-> > +				spin_unlock(&swap_lock);
-> > +				continue;
-> > +			}
-> > +			counter[i] = CLUSTER_COUNT_DISCARDING;
-> > +			spin_unlock(&swap_lock);
-> > +
-> > +			discard_swap_cluster(si, i << SWAPFILE_CLUSTER_SHIFT,
-> > +				SWAPFILE_CLUSTER);
-> > +
-> > +			spin_lock(&swap_lock);
-> > +			counter[i] = 0;
-> > +			memset(si->swap_map + (i << SWAPFILE_CLUSTER_SHIFT),
-> > +					0, SWAPFILE_CLUSTER);
-> > +			spin_unlock(&swap_lock);
-> > +		}
-> > +	}
-> > +}
-> 
-> Whole searching for finding discardable cluster is rather overkill if we use
-> big swap device.
-> Couldn't we make global discarable cluster counter and loop until it is zero?
-> Anyway, it's just optimization point and could add up based on this patch.
-> It shouldn't merge your patch. :)
+On Wed, Oct 24, 2012 at 8:08 PM, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 24 Oct 2012, Sasha Levin wrote:
+>
+>> > This should be fixed by 9e7814404b77 ("hold task->mempolicy while
+>> > numa_maps scans.") in 3.7-rc2, can you reproduce any issues reading
+>> > /proc/pid/numa_maps on that kernel?
+>>
+>> I was actually referring to the warnings Dave Jones saw when fuzzing
+>> with trinity after the
+>> original patch was applied.
+>>
+>> I still see the following when fuzzing:
+>>
+>> [  338.467156] BUG: sleeping function called from invalid context at
+>> kernel/mutex.c:269
+>> [  338.473719] in_atomic(): 1, irqs_disabled(): 0, pid: 6361, name: trinity-main
+>> [  338.481199] 2 locks held by trinity-main/6361:
+>> [  338.486629]  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff810aa314>]
+>> __do_page_fault+0x1e4/0x4f0
+>> [  338.498783]  #1:  (&(&mm->page_table_lock)->rlock){+.+...}, at:
+>> [<ffffffff8122f017>] handle_pte_fault+0x3f7/0x6a0
+>> [  338.511409] Pid: 6361, comm: trinity-main Tainted: G        W
+>> 3.7.0-rc2-next-20121024-sasha-00001-gd95ef01-dirty #74
+>> [  338.530318] Call Trace:
+>> [  338.534088]  [<ffffffff8114e393>] __might_sleep+0x1c3/0x1e0
+>> [  338.539358]  [<ffffffff83ae5209>] mutex_lock_nested+0x29/0x50
+>> [  338.545253]  [<ffffffff8124fc3e>] mpol_shared_policy_lookup+0x2e/0x90
+>> [  338.545258]  [<ffffffff81219ebe>] shmem_get_policy+0x2e/0x30
+>> [  338.545264]  [<ffffffff8124e99a>] get_vma_policy+0x5a/0xa0
+>> [  338.545267]  [<ffffffff8124fce1>] mpol_misplaced+0x41/0x1d0
+>> [  338.545272]  [<ffffffff8122f085>] handle_pte_fault+0x465/0x6a0
+>> [  338.545278]  [<ffffffff81131e04>] ? __rcu_read_unlock+0x44/0xb0
+>> [  338.545282]  [<ffffffff81230baa>] handle_mm_fault+0x32a/0x360
+>> [  338.545286]  [<ffffffff810aa5b0>] __do_page_fault+0x480/0x4f0
+>> [  338.545293]  [<ffffffff8111a706>] ? del_timer+0x26/0x80
+>> [  338.545298]  [<ffffffff811c7313>] ? rcu_cleanup_after_idle+0x23/0x170
+>> [  338.545302]  [<ffffffff811ca9a4>] ? rcu_eqs_exit_common+0x64/0x3a0
+>> [  338.545305]  [<ffffffff811c8c66>] ? rcu_eqs_enter_common+0x7c6/0x970
+>> [  338.545309]  [<ffffffff811cafdc>] ? rcu_eqs_exit+0x9c/0xb0
+>> [  338.545312]  [<ffffffff810aa666>] do_page_fault+0x26/0x40
+>> [  338.545317]  [<ffffffff810a3a40>] do_async_page_fault+0x30/0xa0
+>> [  338.545321]  [<ffffffff83ae9268>] async_page_fault+0x28/0x30
+>>
+>
+> Ok, this looks the same but it's actually a different issue:
+> mpol_misplaced(), which now only exists in linux-next and not in 3.7-rc2,
+> calls get_vma_policy() which may take the shared policy mutex.  This
+> happens while holding page_table_lock from do_huge_pmd_numa_page() but
+> also from do_numa_page() while holding a spinlock on the ptl, which is
+> coming from the sched/numa branch.
+>
+> Is there anyway that we can avoid changing the shared policy mutex back
+> into a spinlock (it was converted in b22d127a39dd ["mempolicy: fix a race
+> in shared_policy_replace()"])?
+>
+> Adding Peter, Rik, and Mel to the cc.
 
-Typo
-
-  It shouldn't prevent merging your patch. :)
-
--- 
-Kind regards,
-Minchan Kim
+Hrm. I haven't noticed there is mpol_misplaced() in linux-next. Peter,
+I guess you commited it, right? If so, may I review your mempolicy
+changes? Now mempolicy has a lot of horrible buggy code and I hope to
+maintain carefully. Which tree should i see?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
