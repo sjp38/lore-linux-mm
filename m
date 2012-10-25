@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id F04826B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:24:03 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so2561418vcb.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:24:02 -0700 (PDT)
-Message-ID: <508975A4.50203@gmail.com>
-Date: Thu, 25 Oct 2012 13:23:48 -0400
-From: Sasha Levin <levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id EDE076B0073
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 13:42:25 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so984293dad.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 10:42:25 -0700 (PDT)
+Date: Thu, 25 Oct 2012 10:42:20 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 4/6] cgroups: forbid pre_destroy callback to fail
+Message-ID: <20121025174220.GJ11442@htj.dyndns.org>
+References: <1350480648-10905-1-git-send-email-mhocko@suse.cz>
+ <1350480648-10905-5-git-send-email-mhocko@suse.cz>
+ <20121018224148.GR13370@google.com>
+ <20121019133244.GE799@dhcp22.suse.cz>
+ <20121019202405.GR13370@google.com>
+ <20121022103021.GA6367@dhcp22.suse.cz>
+ <20121024192535.GG12182@atj.dyndns.org>
+ <20121025143756.GI11105@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in
- numa_maps
-References: <20121008150949.GA15130@redhat.com>  <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>  <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>  <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>  <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>  <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>  <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>  <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>  <20121017040515.GA13505@redhat.com>  <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>  <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com>  <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>  <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com>  <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>  <1351167554.23337.14.camel@twins> <1351175972.12171.14.camel@twins>
-In-Reply-To: <1351175972.12171.14.camel@twins>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121025143756.GI11105@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 10/25/2012 10:39 AM, Peter Zijlstra wrote:
-> On Thu, 2012-10-25 at 14:19 +0200, Peter Zijlstra wrote:
->> On Wed, 2012-10-24 at 17:08 -0700, David Rientjes wrote:
->>> Ok, this looks the same but it's actually a different issue: 
->>> mpol_misplaced(), which now only exists in linux-next and not in 3.7-rc2, 
->>> calls get_vma_policy() which may take the shared policy mutex.  This 
->>> happens while holding page_table_lock from do_huge_pmd_numa_page() but 
->>> also from do_numa_page() while holding a spinlock on the ptl, which is 
->>> coming from the sched/numa branch.
->>>
->>> Is there anyway that we can avoid changing the shared policy mutex back 
->>> into a spinlock (it was converted in b22d127a39dd ["mempolicy: fix a race 
->>> in shared_policy_replace()"])?
->>>
->>> Adding Peter, Rik, and Mel to the cc. 
->>
->> Urgh, crud I totally missed that.
->>
->> So the problem is that we need to compute if the current page is placed
->> 'right' while holding pte_lock in order to avoid multiple pte_lock
->> acquisitions on the 'fast' path.
->>
->> I'll look into this in a bit, but one thing that comes to mind is having
->> both a spnilock and a mutex and require holding both for modification
->> while either one is sufficient for read.
->>
->> That would allow sp_lookup() to use the spinlock, while insert and
->> replace can hold both.
->>
->> Not sure it will work for this, need to stare at this code a little
->> more.
+Hey, Michal.
+
+On Thu, Oct 25, 2012 at 04:37:56PM +0200, Michal Hocko wrote:
+> I am not sure I understand you here. So are you suggesting
+> s/BUG_ON/WARN_ON_ONCE/ in this patch?
+
+Oh, no, I meant that we can do upto patch 3 of this series and then
+follow up with proper cgroup core update and then stack further
+memcg cleanups on top.
+
+> > Let's create a cgroup branch and build things there.  I don't think
+> > cgroup changes are gonna be a single patch and expect to see at least
+> > some bug fixes afterwards and don't wanna keep them floating separate
+> > from other cgroup changes.  
 > 
-> So I think the below should work, we hold the spinlock over both rb-tree
-> modification as sp free, this makes mpol_shared_policy_lookup() which
-> returns the policy with an incremented refcount work with just the
-> spinlock.
+> > mm being based on top of -next, that should work, right?
 > 
-> Comments?
-> 
-> ---
+> Well, a tree based on -next is, ehm, impractical. I can create a bug on
+> top of my -mm git branch (where I merge your cgroup common changes) for
+> development and then when we are ready we can send it as a series and
+> push it via Andrew. Would that work for you?
+> Or we can push the core part via Andrew, wait for the merge and work on
+> the follow up cleanups later?
+> It is not like the follow up part is really urgent, isn't it? I would
+> just like the memcg part settled first because this can potentially
+> conflict with other memcg work.
 
-It made the warnings I've reported go away.
+Argh... can we pretty *please* just do a plain git branch?  I don't
+care where it is but I want to be able to pull it into cgroup core and
+yes I do wanna make this happen in this devel cycle.  We've been
+sitting on it far too long waiting for memcg.
 
+Thanks.
 
-Thanks,
-Sasha
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
