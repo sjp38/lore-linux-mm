@@ -1,115 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9AB776B0073
-	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 22:12:22 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so1797589pbb.14
-        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 19:12:21 -0700 (PDT)
-Message-ID: <50889FF1.9030107@gmail.com>
-Date: Thu, 25 Oct 2012 10:12:01 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id D6EA56B0070
+	for <linux-mm@kvack.org>; Wed, 24 Oct 2012 22:26:22 -0400 (EDT)
+Received: by mail-ye0-f169.google.com with SMTP id q11so222146yen.14
+        for <linux-mm@kvack.org>; Wed, 24 Oct 2012 19:26:22 -0700 (PDT)
+Date: Wed, 24 Oct 2012 19:23:21 -0700
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC 1/2] vmevent: Implement pressure attribute
+Message-ID: <20121025022321.GA8892@lizard>
+References: <20121022111928.GA12396@lizard>
+ <20121022112149.GA29325@lizard>
+ <alpine.LFD.2.02.1210241159590.13035@tux.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com> <20121023224706.GR4291@dastard> <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com> <20121024201921.GX4291@dastard> <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com> <20121025015014.GC29378@dastard> <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
-In-Reply-To: <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.02.1210241159590.13035@tux.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YingHang Zhu <casualfisher@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, Fengguang Wu <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-On 10/25/2012 10:04 AM, YingHang Zhu wrote:
-> On Thu, Oct 25, 2012 at 9:50 AM, Dave Chinner <david@fromorbit.com> wrote:
->> On Thu, Oct 25, 2012 at 08:17:05AM +0800, YingHang Zhu wrote:
->>> On Thu, Oct 25, 2012 at 4:19 AM, Dave Chinner <david@fromorbit.com> wrote:
->>>> On Wed, Oct 24, 2012 at 07:53:59AM +0800, YingHang Zhu wrote:
->>>>> Hi Dave,
->>>>> On Wed, Oct 24, 2012 at 6:47 AM, Dave Chinner <david@fromorbit.com> wrote:
->>>>>> On Tue, Oct 23, 2012 at 08:46:51PM +0800, Ying Zhu wrote:
->>>>>>> Hi,
->>>>>>>    Recently we ran into the bug that an opened file's ra_pages does not
->>>>>>> synchronize with it's backing device's when the latter is changed
->>>>>>> with blockdev --setra, the application needs to reopen the file
->>>>>>> to know the change,
->>>>>> or simply call fadvise(fd, POSIX_FADV_NORMAL) to reset the readhead
->>>>>> window to the (new) bdi default.
->>>>>>
->>>>>>> which is inappropriate under our circumstances.
->>>>>> Which are? We don't know your circumstances, so you need to tell us
->>>>>> why you need this and why existing methods of handling such changes
->>>>>> are insufficient...
->>>>>>
->>>>>> Optimal readahead windows tend to be a physical property of the
->>>>>> storage and that does not tend to change dynamically. Hence block
->>>>>> device readahead should only need to be set up once, and generally
->>>>>> that can be done before the filesystem is mounted and files are
->>>>>> opened (e.g. via udev rules). Hence you need to explain why you need
->>>>>> to change the default block device readahead on the fly, and why
->>>>>> fadvise(POSIX_FADV_NORMAL) is "inappropriate" to set readahead
->>>>>> windows to the new defaults.
->>>>> Our system is a fuse-based file system, fuse creates a
->>>>> pseudo backing device for the user space file systems, the default readahead
->>>>> size is 128KB and it can't fully utilize the backing storage's read ability,
->>>>> so we should tune it.
->>>> Sure, but that doesn't tell me anything about why you can't do this
->>>> at mount time before the application opens any files. i.e.  you've
->>>> simply stated the reason why readahead is tunable, not why you need
->>>> to be fully dynamic.....
->>> We store our file system's data on different disks so we need to change ra_pages
->>> dynamically according to where the data resides, it can't be fixed at mount time
->>> or when we open files.
->> That doesn't make a whole lot of sense to me. let me try to get this
->> straight.
->>
->> There is data that resides on two devices (A + B), and a fuse
->> filesystem to access that data. There is a single file in the fuse
->> fs has data on both devices. An app has the file open, and when the
->> data it is accessing is on device A you need to set the readahead to
->> what is best for device A? And when the app tries to access data for
->> that file that is on device B, you need to set the readahead to what
->> is best for device B? And you are changing the fuse BDI readahead
->> settings according to where the data in the back end lies?
->>
->> It seems to me that you should be setting the fuse readahead to the
->> maximum of the readahead windows the data devices have configured at
->> mount time and leaving it at that....
-> Then it may not fully utilize some device's read IO bandwidth and put too much
-> burden on other devices.
->>> The abstract bdi of fuse and btrfs provides some dynamically changing
->>> bdi.ra_pages
->>> based on the real backing device. IMHO this should not be ignored.
->> btrfs simply takes into account the number of disks it has for a
->> given storage pool when setting up the default bdi ra_pages during
->> mount.  This is basically doing what I suggested above.  Same with
->> the generic fuse code - it's simply setting a sensible default value
->> for the given fuse configuration.
->>
->> Neither are dynamic in the sense you are talking about, though.
-> Actually I've talked about it with Fengguang, he advised we should unify the
+Hello Pekka,
 
-But how can bdi related ra_pages reflect different files' readahead 
-window? Maybe these different files are sequential read, random read and 
-so on.
+Thanks for taking a look into this!
 
-> ra_pages in struct bdi and file_ra_state and leave the issue that
-> spreading data
-> across disks as it is.
-> Fengguang, what's you opinion about this?
->
-> Thanks,
->           Ying Zhu
->> Cheers,
->>
->> Dave.
->> --
->> Dave Chinner
->> david@fromorbit.com
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+On Wed, Oct 24, 2012 at 12:03:10PM +0300, Pekka Enberg wrote:
+> On Mon, 22 Oct 2012, Anton Vorontsov wrote:
+> > This patch introduces VMEVENT_ATTR_PRESSURE, the attribute reports Linux
+> > virtual memory management pressure. There are three discrete levels:
+> > 
+> > VMEVENT_PRESSURE_LOW: Notifies that the system is reclaiming memory for
+> > new allocations. Monitoring reclaiming activity might be useful for
+> > maintaining overall system's cache level.
+> > 
+> > VMEVENT_PRESSURE_MED: The system is experiencing medium memory pressure,
+> > there is some mild swapping activity. Upon this event applications may
+> > decide to free any resources that can be easily reconstructed or re-read
+> > from a disk.
+> 
+> Nit:
+> 
+> s/VMEVENT_PRESSURE_MED/VMEVENT_PRESSUDE_MEDIUM/
+
+Sure thing, will change.
+
+> Other than that, I'm OK with this. Mel and others, what are your thoughts 
+> on this?
+> 
+> Anton, have you tested this with real world scenarios?
+
+Yup, I was mostly testing it on a desktop. I.e. in a KVM instance I was
+running a full fedora17 desktop w/ a lot of apps opened. The pressure
+index was pretty good in the sense that it was indeed reflecting the
+sluggishness in the system during swap activity. It's not ideal, i.e. the
+index might drop slightly for some time, but we usually interested in
+"above some value" threshold, so it should be fine.
+
+The _LOW level is defined very strictly, and cannot be tuned anyhow. So
+it's very solid, and that's what we mostly use for Android.
+
+The _OOM level is also defined quite strict, so from the API point of
+view, it's also solid, and should not be a problem.
+
+Although the problem with _OOM is delivering the event in time (i.e. we
+must be quick in predicting it, before OOMK triggers). Today the patch has
+a shortcut for _OOM level: we send _OOM notification when reclaimer's
+priority is below empirically found value '3' (we might make it tunable
+via sysctl too, but that would expose another mm detail -- although sysctl
+sounds not that bad as exposing something in the C API; we have plenty of
+mm knobs in /proc/sys/vm/ already).
+
+The real tunable is _MED level, and this should be tuned based on the
+desired system's behaviour that I described in more detail in this long
+post: http://lkml.org/lkml/2012/10/7/29.
+
+Based on my observations, I wouldn't say that we have plenty of room to
+tune the value, though. Usual swapping activity causes index to rise to
+say to 30%, and when the system can't keep up, it raises to 50..90 (but we
+still have plenty of swap space, so the system is far away from OOM,
+although it is thrashing. Ideally I'd prefer to not have any sysctl, but I
+believe _MED level is really based on user's definition of "medium".
+
+> How does it stack up against Android's low memory killer, for example?
+
+The LMK driver is effectively using what we call _LOW pressure
+notifications here, so by definition it is enough to build a full
+replacement for the in-kernel LMK using just the _LOW level. But in the
+future, we might want to use _MED as well, e.g. kill unneeded services
+based not on the cache level, but based on the pressure.
+
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
