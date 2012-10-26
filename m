@@ -1,102 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 4BF8B6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 16:04:06 -0400 (EDT)
-Message-ID: <1351281877.16639.98.camel@maggy.simpson.net>
-Subject: Re: process hangs on do_exit when oom happens
-From: Mike Galbraith <efault@gmx.de>
-Date: Fri, 26 Oct 2012 13:04:37 -0700
-In-Reply-To: <1351270990.16639.92.camel@maggy.simpson.net>
-References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
-	 <20121019160425.GA10175@dhcp22.suse.cz>
-	 <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
-	 <CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
-	 <CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
-	 <20121023095028.GD15397@dhcp22.suse.cz>
-	 <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
-	 <20121023101500.GE15397@dhcp22.suse.cz>
-	 <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
-	 <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
-	 <20121025095719.GA11105@dhcp22.suse.cz>
-	 <CAKWKT+ZRTUwer8qhjWGjkra63e10R67UQzezdaCaStz+rvGjxw@mail.gmail.com>
-	 <1351270990.16639.92.camel@maggy.simpson.net>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 317AC6B005D
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 17:08:14 -0400 (EDT)
+Date: Fri, 26 Oct 2012 22:12:54 +0100
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+Message-ID: <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
+In-Reply-To: <20121026144502.6e94643e@dull>
+References: <20121025121617.617683848@chello.nl>
+	<20121025124832.840241082@chello.nl>
+	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
+	<5089F5B5.1050206@redhat.com>
+	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+	<508A0A0D.4090001@redhat.com>
+	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+	<m2pq45qu0s.fsf@firstfloor.org>
+	<508A8D31.9000106@redhat.com>
+	<20121026132601.GC9886@gmail.com>
+	<20121026144502.6e94643e@dull>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiang Gao <gaoqiangscut@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2012-10-26 at 10:03 -0700, Mike Galbraith wrote:
+On Fri, 26 Oct 2012 14:45:02 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-> The bug is in the patch that used sched_setscheduler_nocheck().  Plain
-> sched_setscheduler() would have replied -EGOAWAY.
+> Intel has an architectural guarantee that the TLB entry causing
+> a page fault gets invalidated automatically. This means
+> we should be able to drop the local TLB invalidation.
+> 
+> Because of the way other areas of the page fault code work,
+> chances are good that all x86 CPUs do this.  However, if
+> someone somewhere has an x86 CPU that does not invalidate
+> the TLB entry causing a page fault, this one-liner should
+> be easy to revert.
 
-sched_setscheduler_nocheck() should say go away too methinks.  This
-isn't about permissions, it's about not being stupid in general.
+This does not strike me as a good standard of validation for such a change
 
-sched: fix __sched_setscheduler() RT_GROUP_SCHED conditionals
+At the very least we should have an ACK from AMD and from VIA, and
+preferably ping RDC and some of the other embedded folks. Given an AMD
+and VIA ACK I'd be fine. I doubt anyone knows any more what Cyrix CPUs
+did or cared about and I imagine H Peter or Linus can answer for
+Transmeta ;-)
 
-Remove user and rt_bandwidth_enabled() RT_GROUP_SCHED conditionals in
-__sched_setscheduler().  The end result of kernel OR user promoting a
-task in a group with zero rt_runtime allocated is the same bad thing,
-and throttle switch position matters little.  It's safer to just say
-no solely based upon bandwidth existence, may save the user a nasty
-surprise if he later flips the throttle switch to 'on'.
-
-The commit below came about due to sched_setscheduler_nocheck()
-allowing a task in a task group with zero rt_runtime allocated to
-be promoted by the kernel oom logic, thus marooning it forever.
-
-<quote>
-commit 341aea2bc48bf652777fb015cc2b3dfa9a451817
-Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Date:   Thu Apr 14 15:22:13 2011 -0700
-
-    oom-kill: remove boost_dying_task_prio()
-    
-    This is an almost-revert of commit 93b43fa ("oom: give the dying task a
-    higher priority").
-    
-    That commit dramatically improved oom killer logic when a fork-bomb
-    occurs.  But I've found that it has nasty corner case.  Now cpu cgroup has
-    strange default RT runtime.  It's 0!  That said, if a process under cpu
-    cgroup promote RT scheduling class, the process never run at all.
-</quote>
-
-Signed-off-by: Mike Galbraith <efault@gmx.de>
-
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 2d8927f..d3a35f8 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3810,17 +3810,14 @@ recheck:
- 	}
- 
- #ifdef CONFIG_RT_GROUP_SCHED
--	if (user) {
--		/*
--		 * Do not allow realtime tasks into groups that have no runtime
--		 * assigned.
--		 */
--		if (rt_bandwidth_enabled() && rt_policy(policy) &&
--				task_group(p)->rt_bandwidth.rt_runtime == 0 &&
--				!task_group_is_autogroup(task_group(p))) {
--			task_rq_unlock(rq, p, &flags);
--			return -EPERM;
--		}
-+	/*
-+	 * Do not allow realtime tasks into groups that have no runtime
-+	 * assigned.
-+	 */
-+	if (rt_policy(policy) && task_group(p)->rt_bandwidth.rt_runtime == 0 &&
-+			!task_group_is_autogroup(task_group(p))) {
-+		task_rq_unlock(rq, p, &flags);
-+		return -EPERM;
- 	}
- #endif
- 
+Alan
 
 
 --
