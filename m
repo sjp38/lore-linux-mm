@@ -1,69 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 14F886B0071
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 05:34:15 -0400 (EDT)
-Date: Fri, 26 Oct 2012 10:34:08 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121026093407.GD20914@mudshark.cambridge.arm.com>
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
- <508A2B8B.7020608@gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id EA0556B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 05:38:31 -0400 (EDT)
+Message-ID: <508A5B66.7000309@cn.fujitsu.com>
+Date: Fri, 26 Oct 2012 17:44:06 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <508A2B8B.7020608@gmail.com>
+Subject: Re: [PATCH v3 4/9] clear the memory to store struct page
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com> <1350629202-9664-5-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1350629202-9664-5-git-send-email-wency@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "peterz@infradead.org" <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On Fri, Oct 26, 2012 at 07:19:55AM +0100, Ni zhan Chen wrote:
-> On 10/26/2012 12:44 AM, Will Deacon wrote:
-> > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > flag is set for the appropriate PTE/PMD).
-> >
-> > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > be called for a write fault.
-> >
-> > This patch ensures that faults on transparent hugepages which do not result
-> > in a CoW update the access flags for the faulting pmd.
+Hi, andrew morton:
+
+This patch has been acked by kosaki motohiro. Is it OK to be merged
+into -mm tree?
+
+Thanks
+Wen Congyang
+
+At 10/19/2012 02:46 PM, wency@cn.fujitsu.com Wrote:
+> From: Wen Congyang <wency@cn.fujitsu.com>
 > 
-> Could you write changlog?
-
->From v2? I included something below my SoB. The code should do exactly the
-same as before, it's just rebased onto next so that I can play nicely with
-Peter's patches.
-
-> >
-> > Cc: Chris Metcalf <cmetcalf@tilera.com>
-> > Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Signed-off-by: Will Deacon <will.deacon@arm.com>
-> > ---
-> >
-> > Ok chaps, I rebased this thing onto today's next (which basically
-> > necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-> > ask if you could eyeball the new code, especially where the locking is
-> > concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-> > that the page is not splitting, but I can't see why that is required.
-> >
-> > Cheers,
-> >
-> > Will
+> If sparse memory vmemmap is enabled, we can't free the memory to store
+> struct page when a memory device is hotremoved, because we may store
+> struct page in the memory to manage the memory which doesn't belong
+> to this memory device. When we hotadded this memory device again, we
+> will reuse this memory to store struct page, and struct page may
+> contain some obsolete information, and we will get bad-page state:
 > 
-> Could you explain why you not call pmd_trans_huge_lock to confirm the 
-> pmd is splitting or stable as Andrea point out?
-
-The way handle_mm_fault is now structured after the numa changes means that
-we only enter the huge pmd page aging code if the entry wasn't splitting
-before taking the lock, so it seemed a bit gratuitous to jump through those
-hoops again in pmd_trans_huge_lock.
-
-Will
+> [   59.611278] init_memory_mapping: [mem 0x80000000-0x9fffffff]
+> [   59.637836] Built 2 zonelists in Node order, mobility grouping on.  Total pages: 547617
+> [   59.638739] Policy zone: Normal
+> [   59.650840] BUG: Bad page state in process bash  pfn:9b6dc
+> [   59.651124] page:ffffea0002200020 count:0 mapcount:0 mapping:          (null) index:0xfdfdfdfdfdfdfdfd
+> [   59.651494] page flags: 0x2fdfdfdfd5df9fd(locked|referenced|uptodate|dirty|lru|active|slab|owner_priv_1|private|private_2|writeback|head|tail|swapcache|reclaim|swapbacked|unevictable|uncached|compound_lock)
+> [   59.653604] Modules linked in: netconsole acpiphp pci_hotplug acpi_memhotplug loop kvm_amd kvm microcode tpm_tis tpm tpm_bios evdev psmouse serio_raw i2c_piix4 i2c_core parport_pc parport processor button thermal_sys ext3 jbd mbcache sg sr_mod cdrom ata_generic virtio_net ata_piix virtio_blk libata virtio_pci virtio_ring virtio scsi_mod
+> [   59.656998] Pid: 988, comm: bash Not tainted 3.6.0-rc7-guest #12
+> [   59.657172] Call Trace:
+> [   59.657275]  [<ffffffff810e9b30>] ? bad_page+0xb0/0x100
+> [   59.657434]  [<ffffffff810ea4c3>] ? free_pages_prepare+0xb3/0x100
+> [   59.657610]  [<ffffffff810ea668>] ? free_hot_cold_page+0x48/0x1a0
+> [   59.657787]  [<ffffffff8112cc08>] ? online_pages_range+0x68/0xa0
+> [   59.657961]  [<ffffffff8112cba0>] ? __online_page_increment_counters+0x10/0x10
+> [   59.658162]  [<ffffffff81045561>] ? walk_system_ram_range+0x101/0x110
+> [   59.658346]  [<ffffffff814c4f95>] ? online_pages+0x1a5/0x2b0
+> [   59.658515]  [<ffffffff8135663d>] ? __memory_block_change_state+0x20d/0x270
+> [   59.658710]  [<ffffffff81356756>] ? store_mem_state+0xb6/0xf0
+> [   59.658878]  [<ffffffff8119e482>] ? sysfs_write_file+0xd2/0x160
+> [   59.659052]  [<ffffffff8113769a>] ? vfs_write+0xaa/0x160
+> [   59.659212]  [<ffffffff81137977>] ? sys_write+0x47/0x90
+> [   59.659371]  [<ffffffff814e2f25>] ? async_page_fault+0x25/0x30
+> [   59.659543]  [<ffffffff814ea239>] ? system_call_fastpath+0x16/0x1b
+> [   59.659720] Disabling lock debugging due to kernel taint
+> 
+> This patch clears the memory to store struct page to avoid unexpected error.
+> 
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Reported-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
+>  mm/sparse.c |    3 ++-
+>  1 files changed, 2 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index fac95f2..0021265 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -638,7 +638,6 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+>  got_map_page:
+>  	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
+>  got_map_ptr:
+> -	memset(ret, 0, memmap_size);
+>  
+>  	return ret;
+>  }
+> @@ -760,6 +759,8 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+>  		goto out;
+>  	}
+>  
+> +	memset(memmap, 0, sizeof(struct page) * nr_pages);
+> +
+>  	ms->section_mem_map |= SECTION_MARKED_PRESENT;
+>  
+>  	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
