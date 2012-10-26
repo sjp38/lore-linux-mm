@@ -1,101 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 28B1F6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:52:05 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so2725621pbb.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 20:52:04 -0700 (PDT)
-Message-ID: <508A08D3.1000208@gmail.com>
-Date: Fri, 26 Oct 2012 11:51:47 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id D63236B0074
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:54:34 -0400 (EDT)
+Message-ID: <508A0A0D.4090001@redhat.com>
+Date: Thu, 25 Oct 2012 23:57:01 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com> <20121023224706.GR4291@dastard> <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com> <20121024201921.GX4291@dastard> <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com> <20121025015014.GC29378@dastard> <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com> <50889FF1.9030107@gmail.com> <20121025025826.GB23462@localhost> <20121026002544.GI29378@dastard> <20121026012758.GA6282@localhost> <5089F5AD.5040708@gmail.com> <CAA9v8mHXVwR_vUQqsHrxfwzd3PbjO9r5W3JYC8wSFQN6X0LC9w@mail.gmail.com>
-In-Reply-To: <CAA9v8mHXVwR_vUQqsHrxfwzd3PbjO9r5W3JYC8wSFQN6X0LC9w@mail.gmail.com>
+Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
+References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+In-Reply-To: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: YingHang Zhu <casualfisher@gmail.com>
-Cc: akpm@linux-foundation.org, Fengguang Wu <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 10/26/2012 11:28 AM, YingHang Zhu wrote:
-> On Fri, Oct 26, 2012 at 10:30 AM, Ni zhan Chen <nizhan.chen@gmail.com> wrote:
->> On 10/26/2012 09:27 AM, Fengguang Wu wrote:
->>> On Fri, Oct 26, 2012 at 11:25:44AM +1100, Dave Chinner wrote:
->>>> On Thu, Oct 25, 2012 at 10:58:26AM +0800, Fengguang Wu wrote:
->>>>> Hi Chen,
->>>>>
->>>>>> But how can bdi related ra_pages reflect different files' readahead
->>>>>> window? Maybe these different files are sequential read, random read
->>>>>> and so on.
->>>>> It's simple: sequential reads will get ra_pages readahead size while
->>>>> random reads will not get readahead at all.
->>>>>
->>>>> Talking about the below chunk, it might hurt someone that explicitly
->>>>> takes advantage of the behavior, however the ra_pages*2 seems more
->>>>> like a hack than general solution to me: if the user will need
->>>>> POSIX_FADV_SEQUENTIAL to double the max readahead window size for
->>>>> improving IO performance, then why not just increase bdi->ra_pages and
->>>>> benefit all reads? One may argue that it offers some differential
->>>>> behavior to specific applications, however it may also present as a
->>>>> counter-optimization: if the root already tuned bdi->ra_pages to the
->>>>> optimal size, the doubled readahead size will only cost more memory
->>>>> and perhaps IO latency.
->>>>>
->>>>> --- a/mm/fadvise.c
->>>>> +++ b/mm/fadvise.c
->>>>> @@ -87,7 +86,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset,
->>>>> loff_t len, int advice)
->>>>>                   spin_unlock(&file->f_lock);
->>>>>                   break;
->>>>>           case POSIX_FADV_SEQUENTIAL:
->>>>> -               file->f_ra.ra_pages = bdi->ra_pages * 2;
->>>> I think we really have to reset file->f_ra.ra_pages here as it is
->>>> not a set-and-forget value. e.g.  shrink_readahead_size_eio() can
->>>> reduce ra_pages as a result of IO errors. Hence if you have had io
->>>> errors, telling the kernel that you are now going to do  sequential
->>>> IO should reset the readahead to the maximum ra_pages value
->>>> supported....
->>> Good point!
->>>
->>> .... but wait .... this patch removes file->f_ra.ra_pages in all other
->>> places too, so there will be no file->f_ra.ra_pages to be reset here...
->>
->> In his patch,
->>
->>
->>   static void shrink_readahead_size_eio(struct file *filp,
->>                                          struct file_ra_state *ra)
->>   {
->> -       ra->ra_pages /= 4;
->> +       spin_lock(&filp->f_lock);
->> +       filp->f_mode |= FMODE_RANDOM;
->> +       spin_unlock(&filp->f_lock);
->>
->> As the example in comment above this function, the read maybe still
->> sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
->> directly.
-> I've considered about this. On the first try I modified file_ra_state.size and
-> file_ra_state.async_size directly, like
->
-> file_ra_state.async_size = 0;
-> file_ra_state.size /= 4;
->
-> but as what I comment here, we can not
-> predict whether the bad sectors will trash the readahead window, maybe the
-> following sectors after current one are ok to go in normal readahead,
-> it's hard to know,
-> the current approach gives us a chance to slow down softly.
+On 10/25/2012 10:56 PM, Linus Torvalds wrote:
 
-Then when will check filp->f_mode |= FMODE_RANDOM; ? Does it will 
-influence ra->ra_pages?
-
+> Guess what? If you want to optimize the function to not do remote TLB
+> flushes, then just do that! None of the garbage. Just change the
 >
-> Thanks,
->          Ying Zhu
->>> Thanks,
->>> Fengguang
->>>
+>      flush_tlb_page(vma, address);
+>
+> line to
+>
+>      __flush_tlb_one(address);
+
+That may not even be needed.  Apparently Intel chips
+automatically flush an entry from the TLB when it
+causes a page fault.  I assume AMD chips do the same,
+because flush_tlb_fix_spurious_fault evaluates to
+nothing on x86.
+
+> and it should damn well work. Because everything I see about
+> "flush_remote" looks just wrong, wrong, wrong.
+
+Are there architectures where we do need to flush
+remote TLBs on upgrading the permissions on a PTE?
+
+Because that is what the implementation in
+pgtable-generic.c seems to be doing as well...
+
+> And if there really is some reason for that whole flush_remote
+> braindamage, then we have much bigger problems, namely the fact that
+> we've broken the documented semantics of that function, and we're
+> doing various other things that are completely and utterly invalid
+> unless the above semantics hold.
+
+Want to just remove the TLB flush entirely and see
+if anything breaks in 3.8-rc1?
+
+ From reading the code again, it looks like things
+should indeed work ok.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
