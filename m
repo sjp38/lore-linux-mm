@@ -1,46 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id C4A9E6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:41:38 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id hm4so567732wib.8
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 11:41:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <508AD2FF.5020306@redhat.com>
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl>
- <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
- <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
- <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
- <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
- <CA+55aFwpZ5pO2G7gs3Pga5et1DQZ4qMoe1CLFkSrVQK_4K4rhA@mail.gmail.com>
- <508ACE6E.8060303@redhat.com> <CA+55aFyYvu20qHtJ2SuNK3Dd466Hs9m9U3_41E8HtQ6KiRVRKw@mail.gmail.com>
- <508AD2FF.5020306@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 26 Oct 2012 11:41:17 -0700
-Message-ID: <CA+55aFy7LvPP+DAENWftMpL=H_M5Pn9mVCHiEP7YVbFHcmbVbQ@mail.gmail.com>
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 3724B6B0073
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:46:10 -0400 (EDT)
+Date: Fri, 26 Oct 2012 14:46:15 -0400
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH 3/3] mm,generic: only flush the local TLB in
+ ptep_set_access_flags
+Message-ID: <20121026144615.2276cd59@dull>
+In-Reply-To: <20121026132601.GC9886@gmail.com>
+References: <20121025121617.617683848@chello.nl>
+	<20121025124832.840241082@chello.nl>
+	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
+	<5089F5B5.1050206@redhat.com>
+	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+	<508A0A0D.4090001@redhat.com>
+	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+	<m2pq45qu0s.fsf@firstfloor.org>
+	<508A8D31.9000106@redhat.com>
+	<20121026132601.GC9886@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Oct 26, 2012 at 11:14 AM, Rik van Riel <riel@redhat.com> wrote:
->
-> I suspect the next context switch would flush out the TLB,
-> making it a slowdown, not a lockup.
+The function ptep_set_access_flags is only ever used to upgrade
+access permissions to a page. That means the only negative side
+effect of not flushing remote TLBs is that other CPUs may incur
+spurious page faults, if they happen to access the same address,
+and still have a PTE with the old permissions cached in their
+TLB.
 
-Common case, yes. But the page fault might happen in kernel space (due
-to a "put_user()" call, say), and with CONFIG_PREEMPT=n.
+Having another CPU maybe incur a spurious page fault is faster
+than always incurring the cost of a remote TLB flush, so replace
+the remote TLB flush with a purely local one.
 
-Sure, put_user() is always done in a context where blocking (and
-scheduling) is legal, but that doesn't necessarily equate scheduling
-actually happening. If we're returning to kernel space and don't have
-any IO, it might never happen.
+This should be safe on every architecture that correctly
+implements flush_tlb_fix_spurious_fault() to actually invalidate
+the local TLB entry that caused a page fault, as well as on
+architectures where the hardware invalidates TLB entries that
+cause page faults.
 
-Anyway, I suspect such behavior it's almost impossible to trigger.
-Which would just make it rather hard to find.
+In the unlikely event that you are hitting what appears to be
+an infinite loop of page faults, and 'git bisect' took you to
+this changeset, your architecture needs to implement
+flush_tlb_fix_spurious_fault to actually flush the TLB entry.
 
-             Linus
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+---
+ mm/pgtable-generic.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index e642627..0361369 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	int changed = !pte_same(*ptep, entry);
+ 	if (changed) {
+ 		set_pte_at(vma->vm_mm, address, ptep, entry);
+-		flush_tlb_page(vma, address);
++		flush_tlb_fix_spurious_fault(vma, address);
+ 	}
+ 	return changed;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
