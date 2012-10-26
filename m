@@ -1,58 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 8A82B6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:28:59 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so1272830eek.14
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:28:57 -0700 (PDT)
-Date: Fri, 26 Oct 2012 15:28:53 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from
- ptep_set_access_flags()
-Message-ID: <20121026132853.GA11178@gmail.com>
-References: <20121025124832.840241082@chello.nl>
- <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
- <5089F5B5.1050206@redhat.com>
- <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
- <508A0A0D.4090001@redhat.com>
- <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
- <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
- <m2pq45qu0s.fsf@firstfloor.org>
- <508A8D31.9000106@redhat.com>
- <20121026132601.GC9886@gmail.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id F2D166B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:40:37 -0400 (EDT)
+Date: Fri, 26 Oct 2012 16:41:29 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 1/2] numa, mm: drop redundant check in
+ do_huge_pmd_numa_page()
+Message-ID: <20121026134129.GA31306@otc-wbsnb-06>
+References: <1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1351256885.16863.62.camel@twins>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="SLDf9lqlvOQaIe6s"
 Content-Disposition: inline
-In-Reply-To: <20121026132601.GC9886@gmail.com>
+In-Reply-To: <1351256885.16863.62.camel@twins>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org
 
 
-* Ingo Molnar <mingo@kernel.org> wrote:
+--SLDf9lqlvOQaIe6s
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> [...]
-> 
-> Rik, mind sending an updated patch that addresses Linus's 
-> concerns, or should I code it up if you are busy?
-> 
-> We can also certainly try the second patch, but I'd do it at 
-> the end of the series, to put some tree distance between the 
-> two patches, to not concentrate regression risks too tightly 
-> in the Git space, to help out with hard to bisect problems...
+On Fri, Oct 26, 2012 at 03:08:05PM +0200, Peter Zijlstra wrote:
+> On Fri, 2012-10-26 at 15:54 +0300, Kirill A. Shutemov wrote:
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> >=20
+> > We check if the pmd entry is the same as on pmd_trans_huge() in
+> > handle_mm_fault(). That's enough.
+> >=20
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>=20
+> Ah indeed, Will mentioned something like this on IRC as well, I hadn't
+> gotten around to looking at it -- now have, thanks!
+>=20
+> Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>=20
+> That said, where in handle_mm_fault() do we wait for a split to
+> complete? We have a pmd_trans_huge() && !pmd_trans_splitting(), so a
+> fault on a currently splitting pmd will fall through.
+>=20
+> Is it the return from the fault on unlikely(pmd_trans_huge()) ?
 
-I'd also like to have the second patch separately because I'd 
-like to measure spurious fault frequency before and after the 
-change, with a reference workload.
+Yes, this code will catch it:
 
-Just a single page fault, even it's a minor one, might make a 
-micro-optimization a net loss. INVLPG might be the cheaper 
-option on average - it needs to be measured. (I'll do that, just 
-please keep it separate from the main TLB-flush optimization.)
+	/* if an huge pmd materialized from under us just retry later */
+	if (unlikely(pmd_trans_huge(*pmd)))
+		return 0;
 
-Thanks,
+If the pmd is under splitting it's still a pmd_trans_huge().
 
-	Ingo
+--=20
+ Kirill A. Shutemov
+
+--SLDf9lqlvOQaIe6s
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQipMJAAoJEAd+omnVudOM8j8P/jV7FrXY1JE5OmKg6Po19tiD
+k0TGEYfJvgmpmyX6eNwutMUkZFXit8zBVnqXXLW9RTQivVn/EPRopbh05eq7ulUU
++0i6jNvyrbUaxk7PviW+iejfEkMVlVSOcP4DxRTr8g4LsJmTceKrnCSJCi3mOGj1
+Ls9OBxN828xrlSo5d2yX6Keg6TMQL4Ij3fU49cDDruIstcrRQzgq5OLkEK2UDHBY
+cvHD4w8ef92eV+x1Z2bj2FITRcEg7oyYkMLretQs7pv+QwfazfRiScGd08pz5uk4
+VXplZI55HpqnMElKluYt5LyFvi1pTf0yM7hOulCbb2DXiSciO6WX6hQ0Baljn6t8
+WDQ6CkqGgLM3zbicqcfXksv7ST5GJmH9bZuUuhKjjzACMjqgawfombAKBgHWVApo
+Q1K91tmUmfYtsakRos4ChbyAjIgg7iUqpGQ9uYNnjEegMgTvdp0OIO3QygbI2IcW
+3mmjcbiAWr6J9bbaZ1+cYAt8S0QM8ZXm6dvpLCqYG/6TMsjRNsqpv05GCmDHpX+T
+LbBxHA+CaUHMBhPTriDflJFyL2AuUiOTXiNYueD0qQmAGDpfG1I+GI6B0GZwmM8o
+HT86DFvoxi0l0JLi8lmrgNve6LT7890i8foavFPAGPTTpK2YIQztKtv8TT1spJ9u
+4p85DVfL0h+R2OdAIOZw
+=wObX
+-----END PGP SIGNATURE-----
+
+--SLDf9lqlvOQaIe6s--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
