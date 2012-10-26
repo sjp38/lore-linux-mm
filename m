@@ -1,68 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id A24976B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 22:27:47 -0400 (EDT)
-Message-ID: <5089F5B5.1050206@redhat.com>
-Date: Thu, 25 Oct 2012 22:30:13 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 076646B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 22:29:21 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1762198pad.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 19:29:21 -0700 (PDT)
+Date: Fri, 26 Oct 2012 10:29:05 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [RFC 1/2]swap: add a simple buddy allocator
+Message-ID: <20121026022905.GA1546@kernel.org>
+References: <20121022023051.GA20255@kernel.org>
+ <20121025002037.GA3838@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
-In-Reply-To: <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121025002037.GA3838@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
 
-On 10/25/2012 04:17 PM, Linus Torvalds wrote:
-> On Thu, Oct 25, 2012 at 5:16 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
->> From: Rik van Riel <riel@redhat.com>
->>
->> @@ -306,11 +306,26 @@ int ptep_set_access_flags(struct vm_area
->>                            pte_t entry, int dirty)
->>   {
->>          int changed = !pte_same(*ptep, entry);
->> +       /*
->> +        * If the page used to be inaccessible (_PAGE_PROTNONE), or
->> +        * this call upgrades the access permissions on the same page,
->> +        * it is safe to skip the remote TLB flush.
->> +        */
->> +       bool flush_remote = false;
->> +       if (!pte_accessible(*ptep))
->> +               flush_remote = false;
->> +       else if (pte_pfn(*ptep) != pte_pfn(entry) ||
->> +                       (pte_write(*ptep) && !pte_write(entry)) ||
->> +                       (pte_exec(*ptep) && !pte_exec(entry)))
->> +               flush_remote = true;
->>
->>          if (changed && dirty) {
->
-> Did anybody ever actually look at this sh*t-for-brains patch?
->
-> Yeah, I'm grumpy. But I'm wasting time looking at patches that have
-> new code in them that is stupid and retarded.
->
-> This is the VM, guys, we don't add stupid and retarded code.
->
-> LOOK at the code, for chrissake. Just look at it. And if you don't see
-> why the above is stupid and retarded, you damn well shouldn't be
-> touching VM code.
+On Thu, Oct 25, 2012 at 09:20:37AM +0900, Minchan Kim wrote:
+> Hi Shaohua,
+> 
+> Your idea does make sense to me.
+> Below just a few nitpick.
 
-I agree it is pretty ugly.  However, the above patch
-did get rid of a gigantic performance regression with
-Peter's code.
+Thanks for your time.
+ 
+> On Mon, Oct 22, 2012 at 10:30:51AM +0800, Shaohua Li wrote:
+> > I'm using a fast SSD to do swap. scan_swap_map() sometimes uses up to 20~30%
+> > CPU time (when cluster is hard to find), which becomes a bottleneck.
+> > scan_swap_map() scans a byte array to search a 256 page cluster, which is very
+> > slow.
+> > 
+> > Here I introduced a simple buddy allocator. Since we only care about 256 pages
+> > cluster, we can just use a counter to implement the buddy allocator. Every 256
+> > pages use one int to store the counter, so searching cluster is very efficient.
+> > With this, scap_swap_map() overhead disappears.
+> > 
+> > This might help low end SD card swap too. Because if the cluster is aligned, SD
+> > firmware can do flash erase more efficiently.
+> 
+> Indeed.
+> 
+> > 
+> > The downside is the cluster must be aligned to 256 pages, which will reduce the
+> > chance to find a cluster.
+> 
+> It would be not good for roration device. Can't we make it for only discardable
+> device?
 
-Doing unnecessary remote TLB flushes was costing about
-90% performance with specjbb on a 4 node system.
+This is the biggest concern. Andrew raised it too. If most swap space isn't
+full, this isn't a problem. Otherwise, might be. But I didn't find a way to
+evaluate how big the chance is reduced. I can try if anybody has ideal
+workload. If can't evaluate the chance, I'll choose to only enable it for
+discardable device.
 
-However, if we can guarantee that ptep_set_access_flags
-is only ever called for pte permission _upgrades_, we
-can simply get rid of the remote TLB flush on x86, and
-skip the paranoia tests we are doing above.
+Other comments make sense, I'll update in next post.
 
-Do we have that kind of guarantee?
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
