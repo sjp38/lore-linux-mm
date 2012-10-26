@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 317AC6B005D
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 17:08:14 -0400 (EDT)
-Date: Fri, 26 Oct 2012 22:12:54 +0100
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
-Message-ID: <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
-In-Reply-To: <20121026144502.6e94643e@dull>
-References: <20121025121617.617683848@chello.nl>
-	<20121025124832.840241082@chello.nl>
-	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
-	<5089F5B5.1050206@redhat.com>
-	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-	<508A0A0D.4090001@redhat.com>
-	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
-	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-	<m2pq45qu0s.fsf@firstfloor.org>
-	<508A8D31.9000106@redhat.com>
-	<20121026132601.GC9886@gmail.com>
-	<20121026144502.6e94643e@dull>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 357AC6B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 17:45:22 -0400 (EDT)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 26 Oct 2012 15:45:21 -0600
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 36F2D1FF0026
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 15:45:18 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9QLjInn207222
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 15:45:19 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9QLjIi6022898
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 15:45:18 -0600
+Message-ID: <508B046A.6050006@linux.vnet.ibm.com>
+Date: Fri, 26 Oct 2012 16:45:14 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] mm: add support for zsmalloc and zcache
+References: <1346794486-12107-1-git-send-email-sjenning@linux.vnet.ibm.com> <20120921161252.GV11266@suse.de> <20120921180222.GA7220@phenom.dumpdata.com> <505CB9BC.8040905@linux.vnet.ibm.com> <42d62a30-bd6c-4bd7-97d1-bec2f237756b@default> <50609794.8030508@linux.vnet.ibm.com> <b34c65c9-4b25-431d-8b82-cbe911126be9@default> <5064B647.3000906@linux.vnet.ibm.com> <76d1a3f1-efc5-48b5-b485-604a94adcc1d@default> <506B2C4B.3080508@linux.vnet.ibm.com> <771b722f-3036-451a-a416-e6ab5b4a05f7@default>
+In-Reply-To: <771b722f-3036-451a-a416-e6ab5b4a05f7@default>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Konrad Wilk <konrad.wilk@oracle.com>, Mel Gorman <mgorman@suse.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, James Bottomley <James.Bottomley@HansenPartnership.com>
 
-On Fri, 26 Oct 2012 14:45:02 -0400
-Rik van Riel <riel@redhat.com> wrote:
+On 10/02/2012 01:17 PM, Dan Magenheimer wrote:
+> If so, <shake hands> and move forward?  What do you see as next steps?
 
-> Intel has an architectural guarantee that the TLB entry causing
-> a page fault gets invalidated automatically. This means
-> we should be able to drop the local TLB invalidation.
-> 
-> Because of the way other areas of the page fault code work,
-> chances are good that all x86 CPUs do this.  However, if
-> someone somewhere has an x86 CPU that does not invalidate
-> the TLB entry causing a page fault, this one-liner should
-> be easy to revert.
+I've been reviewing the changes between zcache and zcache2 and getting
+a feel for the scope and direction of those changes.
 
-This does not strike me as a good standard of validation for such a change
+- Getting the community engaged to review zcache1 at ~2300SLOC was
+  difficult.
+- Adding RAMSter has meant adding RAMSter-specific code broadly across
+  zcache and increases the size of code to review to ~7600SLOC.
+- The changes have blurred zcache's internal layering and increased
+  complexity beyond what a simple SLOC metric can reflect.
+- Getting the community engaged in reviewing zcache2 will be difficult
+  and will require an exceptional amount of effort for maintainer and
+  reviewer.
 
-At the very least we should have an ACK from AMD and from VIA, and
-preferably ping RDC and some of the other embedded folks. Given an AMD
-and VIA ACK I'd be fine. I doubt anyone knows any more what Cyrix CPUs
-did or cared about and I imagine H Peter or Linus can answer for
-Transmeta ;-)
+It is difficult for me to know when it could be ready for mainline and
+production use.  While zcache2 isn't getting broad code reviews yet,
+how do suggest managing that complexity to make the code maintainable
+and get it reviewed?
 
-Alan
-
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
