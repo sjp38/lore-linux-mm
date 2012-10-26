@@ -1,56 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 1EE4A6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:43:29 -0400 (EDT)
-Message-ID: <1351258992.16863.77.camel@twins>
-Subject: Re: [PATCH 1/2] numa, mm: drop redundant check in
- do_huge_pmd_numa_page()
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 26 Oct 2012 15:43:12 +0200
-In-Reply-To: <20121026134129.GA31306@otc-wbsnb-06>
-References: 
-	<1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
-	 <1351256885.16863.62.camel@twins> <20121026134129.GA31306@otc-wbsnb-06>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: quoted-printable
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id EA8686B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:50:31 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id c4so1287430eek.14
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:50:30 -0700 (PDT)
+Date: Fri, 26 Oct 2012 15:50:24 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 26/31] sched, numa, mm: Add fault driven placement and
+ migration policy
+Message-ID: <20121026135024.GA11640@gmail.com>
+References: <20121025121617.617683848@chello.nl>
+ <20121025124834.467791319@chello.nl>
+ <CA+55aFwJdn8Kz9UByuRfGNtf9Hkv-=8xB+WRd47uHZU1YMagZw@mail.gmail.com>
+ <20121026071532.GC8141@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121026071532.GC8141@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2012-10-26 at 16:41 +0300, Kirill A. Shutemov wrote:
-> On Fri, Oct 26, 2012 at 03:08:05PM +0200, Peter Zijlstra wrote:
-> > On Fri, 2012-10-26 at 15:54 +0300, Kirill A. Shutemov wrote:
-> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > >=20
-> > > We check if the pmd entry is the same as on pmd_trans_huge() in
-> > > handle_mm_fault(). That's enough.
-> > >=20
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >=20
-> > Ah indeed, Will mentioned something like this on IRC as well, I hadn't
-> > gotten around to looking at it -- now have, thanks!
-> >=20
-> > Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >=20
-> > That said, where in handle_mm_fault() do we wait for a split to
-> > complete? We have a pmd_trans_huge() && !pmd_trans_splitting(), so a
-> > fault on a currently splitting pmd will fall through.
-> >=20
-> > Is it the return from the fault on unlikely(pmd_trans_huge()) ?
->=20
-> Yes, this code will catch it:
->=20
-> 	/* if an huge pmd materialized from under us just retry later */
-> 	if (unlikely(pmd_trans_huge(*pmd)))
-> 		return 0;
->=20
-> If the pmd is under splitting it's still a pmd_trans_huge().
 
-OK, so then we simply keep taking the same fault until the split is
-complete? Wouldn't it be better to wait for it instead of spin on
-faults?
+* Ingo Molnar <mingo@kernel.org> wrote:
+
+> [
+>   task_numa_work() performance side note:
+> 
+>   We are also *very* close to be able to use down_read() instead
+>   of down_write() in the sampling-unmap code in 
+>   task_numa_work(), as it should be safe in theory to call 
+>   change_protection(PROT_NONE) in parallel - but there's one 
+>   regression that disagrees with this theory so we use 
+>   down_write() at the moment.
+> 
+>   Maybe you could help us there: can you see a reason why the
+>   change_prot_none()->change_protection() call in
+>   task_numa_work() can not occur in parallel to a page fault in
+>   another thread on another CPU? It should be safe - yet if we 
+>   change it I can see occasional corruption of user-space state: 
+>   segfaults and register corruption.
+> ]
+
+Oh, just found the reason:
+
+the ptep_modify_prot_start()/modify()/commit() sequence is 
+SMP-unsafe - it has to be done under the mmap_sem write-locked.
+
+It is safe against *hardware* updates to the PTE, but not safe 
+against itself.
+
+This is apparently a hidden cost of paravirt, it is forcing that 
+weird sequence and thus the down_write() ...
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
