@@ -1,37 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 211146B0074
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id A94396B0073
 	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:48:09 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH v3 3/3] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
-Date: Fri, 26 Oct 2012 18:31:03 +0800
-Message-Id: <1351247463-5653-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 2/3] acpi,memory-hotplug: introduce a mutex lock to protect the list in acpi_memory_device
+Date: Fri, 26 Oct 2012 18:31:02 +0800
+Message-Id: <1351247463-5653-3-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
-Cc: liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, laijs@cn.fujitsu.com, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>
+Cc: liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, laijs@cn.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+From: Wen Congyang <wency@cn.fujitsu.com>
 
 The memory device can be removed by 2 ways:
 1. send eject request by SCI
 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
 
-In the 1st case, acpi_memory_disable_device() will be called.
-In the 2nd case, acpi_memory_device_remove() will be called.
-acpi_memory_device_remove() will also be called when we unbind the
-memory device from the driver acpi_memhotplug or a driver initialization
-fails.
-
-acpi_memory_disable_device() has already implemented a code which
-offlines memory and releases acpi_memory_info struct. But
-acpi_memory_device_remove() has not implemented it yet.
-
-So the patch move offlining memory and releasing acpi_memory_info struct
-codes to a new function acpi_memory_remove_memory(). And it is used by both
-acpi_memory_device_remove() and acpi_memory_disable_device().
+This 2 events may happen at the same time, so we may touch
+acpi_memory_device.res_list at the same time. This patch
+introduce a lock to protect this list.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -40,81 +30,111 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c | 31 ++++++++++++++++++++++++-------
- 1 file changed, 24 insertions(+), 7 deletions(-)
+ drivers/acpi/acpi_memhotplug.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index 666dac6..92c973a 100644
+index 1e90e8f..666dac6 100644
 --- a/drivers/acpi/acpi_memhotplug.c
 +++ b/drivers/acpi/acpi_memhotplug.c
-@@ -316,16 +316,11 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
- 	return 0;
+@@ -83,7 +83,8 @@ struct acpi_memory_info {
+ struct acpi_memory_device {
+ 	struct acpi_device * device;
+ 	unsigned int state;	/* State of the memory device */
+-	struct list_head res_list;
++	struct mutex list_lock;
++	struct list_head res_list;	/* protected by list_lock */
+ };
+ 
+ static int acpi_hotmem_initialized;
+@@ -101,19 +102,23 @@ acpi_memory_get_resource(struct acpi_resource *resource, void *context)
+ 	    (address64.resource_type != ACPI_MEMORY_RANGE))
+ 		return AE_OK;
+ 
++	mutex_lock(&mem_device->list_lock);
+ 	list_for_each_entry(info, &mem_device->res_list, list) {
+ 		/* Can we combine the resource range information? */
+ 		if ((info->caching == address64.info.mem.caching) &&
+ 		    (info->write_protect == address64.info.mem.write_protect) &&
+ 		    (info->start_addr + info->length == address64.minimum)) {
+ 			info->length += address64.address_length;
++			mutex_unlock(&mem_device->list_lock);
+ 			return AE_OK;
+ 		}
+ 	}
+ 
+ 	new = kzalloc(sizeof(struct acpi_memory_info), GFP_KERNEL);
+-	if (!new)
++	if (!new) {
++		mutex_unlock(&mem_device->list_lock);
+ 		return AE_ERROR;
++	}
+ 
+ 	INIT_LIST_HEAD(&new->list);
+ 	new->caching = address64.info.mem.caching;
+@@ -121,6 +126,7 @@ acpi_memory_get_resource(struct acpi_resource *resource, void *context)
+ 	new->start_addr = address64.minimum;
+ 	new->length = address64.address_length;
+ 	list_add_tail(&new->list, &mem_device->res_list);
++	mutex_unlock(&mem_device->list_lock);
+ 
+ 	return AE_OK;
  }
+@@ -138,9 +144,11 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
+ 	status = acpi_walk_resources(mem_device->device->handle, METHOD_NAME__CRS,
+ 				     acpi_memory_get_resource, mem_device);
+ 	if (ACPI_FAILURE(status)) {
++		mutex_lock(&mem_device->list_lock);
+ 		list_for_each_entry_safe(info, n, &mem_device->res_list, list)
+ 			kfree(info);
+ 		INIT_LIST_HEAD(&mem_device->res_list);
++		mutex_unlock(&mem_device->list_lock);
+ 		return -EINVAL;
+ 	}
  
--static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-+static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
- {
- 	int result;
- 	struct acpi_memory_info *info, *n;
- 
--
--	/*
--	 * Ask the VM to offline this memory range.
--	 * Note: Assume that this function returns zero on success
--	 */
- 	mutex_lock(&mem_device->list_lock);
+@@ -236,6 +244,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 	 * We don't have memory-hot-add rollback function,now.
+ 	 * (i.e. memory-hot-remove function)
+ 	 */
++	mutex_lock(&mem_device->list_lock);
+ 	list_for_each_entry(info, &mem_device->res_list, list) {
+ 		if (info->enabled) { /* just sanity check...*/
+ 			num_enabled++;
+@@ -256,6 +265,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 		info->enabled = 1;
+ 		num_enabled++;
+ 	}
++	mutex_unlock(&mem_device->list_lock);
+ 	if (!num_enabled) {
+ 		printk(KERN_ERR PREFIX "add_memory failed\n");
+ 		mem_device->state = MEMORY_INVALID_STATE;
+@@ -316,6 +326,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+ 	 * Ask the VM to offline this memory range.
+ 	 * Note: Assume that this function returns zero on success
+ 	 */
++	mutex_lock(&mem_device->list_lock);
  	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
  		if (info->enabled) {
-@@ -333,10 +328,27 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
- 			if (result)
- 				return result;
+ 			result = remove_memory(info->start_addr, info->length);
+@@ -324,6 +335,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
  		}
-+
-+		list_del(&info->list);
  		kfree(info);
  	}
- 	mutex_unlock(&mem_device->list_lock);
++	mutex_unlock(&mem_device->list_lock);
  
-+	return 0;
-+}
-+
-+static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-+{
-+	int result;
-+
-+	/*
-+	 * Ask the VM to offline this memory range.
-+	 * Note: Assume that this function returns zero on success
-+	 */
-+	result = acpi_memory_remove_memory(mem_device);
-+	if (result)
-+		return result;
-+
  	/* Power-off and eject the device */
  	result = acpi_memory_powerdown_device(mem_device);
- 	if (result) {
-@@ -487,12 +499,17 @@ static int acpi_memory_device_add(struct acpi_device *device)
- static int acpi_memory_device_remove(struct acpi_device *device, int type)
- {
- 	struct acpi_memory_device *mem_device = NULL;
--
-+	int result;
+@@ -438,6 +450,7 @@ static int acpi_memory_device_add(struct acpi_device *device)
+ 	mem_device->device = device;
+ 	sprintf(acpi_device_name(device), "%s", ACPI_MEMORY_DEVICE_NAME);
+ 	sprintf(acpi_device_class(device), "%s", ACPI_MEMORY_DEVICE_CLASS);
++	mutex_init(&mem_device->list_lock);
+ 	device->driver_data = mem_device;
  
- 	if (!device || !acpi_driver_data(device))
- 		return -EINVAL;
- 
- 	mem_device = acpi_driver_data(device);
-+
-+	result = acpi_memory_remove_memory(mem_device);
-+	if (result)
-+		return result;
-+
- 	kfree(mem_device);
- 
- 	return 0;
+ 	/* Get the range from the _CRS */
 -- 
 1.8.0
 
