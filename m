@@ -1,12 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 3D1CA6B007B
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:48:26 -0400 (EDT)
-Date: Fri, 26 Oct 2012 14:44:19 -0400
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id B5E3A6B007D
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:48:29 -0400 (EDT)
+Date: Fri, 26 Oct 2012 14:45:02 -0400
 From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 1/3] x86/mm: only do a local TLB flush in
- ptep_set_access_flags()
-Message-ID: <20121026144419.7e666023@dull>
+Subject: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+Message-ID: <20121026144502.6e94643e@dull>
 In-Reply-To: <20121026132601.GC9886@gmail.com>
 References: <20121025121617.617683848@chello.nl>
 	<20121025124832.840241082@chello.nl>
@@ -27,41 +26,38 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Here are the TLB patches as requested:
----8<---
-    
-The function ptep_set_access_flags() is only ever invoked to upgrade
-access permissions on a PTE. That makes it safe to skip flushing the
-TLBs on remote TLBs. The worst that can happen is a spurious page
-fault on other CPUs, which would flush that TLB entry.
+Intel has an architectural guarantee that the TLB entry causing
+a page fault gets invalidated automatically. This means
+we should be able to drop the local TLB invalidation.
 
-Lazily letting another CPU incur a spurious page fault occasionally
-is (much!) cheaper than aggressively flushing everybody else's TLB.
+Because of the way other areas of the page fault code work,
+chances are good that all x86 CPUs do this.  However, if
+someone somewhere has an x86 CPU that does not invalidate
+the TLB entry causing a page fault, this one-liner should
+be easy to revert.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>
 ---
- arch/x86/mm/pgtable.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/pgtable.c | 1 -
+ 1 file changed, 1 deletion(-)
 
 diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 8573b83..b3b852c 100644
+index b3b852c..15e5953 100644
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -310,7 +310,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+@@ -310,7 +310,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
  	if (changed && dirty) {
  		*ptep = entry;
  		pte_update_defer(vma->vm_mm, address, ptep);
--		flush_tlb_page(vma, address);
-+		__flush_tlb_one(address);
+-		__flush_tlb_one(address);
  	}
  
  	return changed;
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
