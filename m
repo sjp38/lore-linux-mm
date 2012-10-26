@@ -1,73 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 63E7C6B0071
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 05:49:22 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so2607665iak.14
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 02:49:21 -0700 (PDT)
-Message-ID: <508A5C94.3030003@gmail.com>
-Date: Fri, 26 Oct 2012 17:49:08 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on access
- fault.
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com> <508A2B8B.7020608@gmail.com> <20121026093407.GD20914@mudshark.cambridge.arm.com>
-In-Reply-To: <20121026093407.GD20914@mudshark.cambridge.arm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 73C896B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 05:57:58 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [PATCH] page_alloc: fix the incorrect adjustment to zone->present_pages
+Date: Fri, 26 Oct 2012 17:59:31 +0800
+Message-Id: <1351245581-16652-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "peterz@infradead.org" <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
 
-On 10/26/2012 05:34 PM, Will Deacon wrote:
-> On Fri, Oct 26, 2012 at 07:19:55AM +0100, Ni zhan Chen wrote:
->> On 10/26/2012 12:44 AM, Will Deacon wrote:
->>> On x86 memory accesses to pages without the ACCESSED flag set result in the
->>> ACCESSED flag being set automatically. With the ARM architecture a page access
->>> fault is raised instead (and it will continue to be raised until the ACCESSED
->>> flag is set for the appropriate PTE/PMD).
->>>
->>> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
->>> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
->>> be called for a write fault.
->>>
->>> This patch ensures that faults on transparent hugepages which do not result
->>> in a CoW update the access flags for the faulting pmd.
->> Could you write changlog?
-> >From v2? I included something below my SoB. The code should do exactly the
-> same as before, it's just rebased onto next so that I can play nicely with
-> Peter's patches.
->
->>> Cc: Chris Metcalf <cmetcalf@tilera.com>
->>> Cc: Kirill A. Shutemov <kirill@shutemov.name>
->>> Cc: Andrea Arcangeli <aarcange@redhat.com>
->>> Signed-off-by: Will Deacon <will.deacon@arm.com>
->>> ---
->>>
->>> Ok chaps, I rebased this thing onto today's next (which basically
->>> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
->>> ask if you could eyeball the new code, especially where the locking is
->>> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
->>> that the page is not splitting, but I can't see why that is required.
->>>
->>> Cheers,
->>>
->>> Will
->> Could you explain why you not call pmd_trans_huge_lock to confirm the
->> pmd is splitting or stable as Andrea point out?
-> The way handle_mm_fault is now structured after the numa changes means that
-> we only enter the huge pmd page aging code if the entry wasn't splitting
+Current free_area_init_core() has incorrect adjustment code to adjust
+->present_pages. It will cause ->present_pages overflow, make the
+system unusable(can't create any process/thread in our test) and cause further problem.
 
-Why you call it huge pmd page *aging* code?
+Details:
+1) Some/many ZONEs don't have memory which is used by memmap.
+   { Or all the actual memory used for memmap is much less than the "memmap_pages"
+   (memmap_pages = PAGE_ALIGN(span_size * sizeof(struct page)) >> PAGE_SHIFT)
+   CONFIG_SPARSEMEM is an example. }
 
-Regards,
-Chen
+2) incorrect adjustment in free_area_init_core(): zone->present_pages -= memmap_pages
+3) but the zone has big hole, it causes the result of zone->present_pages become much smaller
+4) when we offline a/several memory section of the zone: zone->present_pages -= offline_size
+5) Now, zone->present_pages will/may be *OVERFLOW*.
 
-> before taking the lock, so it seemed a bit gratuitous to jump through those
-> hoops again in pmd_trans_huge_lock.
->
-> Will
->
+So the adjustment is dangerous and incorrect.
+
+Addition 1:
+And in current kernel, the memmaps have nothing related/bound to any ZONE:
+	FLATMEM: global memmap
+	CONFIG_DISCONTIGMEM: node-specific memmap
+	CONFIG_SPARSEMEM: memorysection-specific memmap
+None of them is ZONE-specific memmap, and the memory used for memmap is not bound to any ZONE.
+So the adjustment "zone->present_pages -= memmap_pages" subtracts unrelated value
+and makes no sense.
+
+Addition 2:
+We introduced this adjustment and tried to make page-reclaim/watermark happier,
+but the adjustment is wrong in current kernel, and even makes page-reclaim/watermark
+worse. It is against its original purpose/reason.
+
+This adjustment is incorrect/buggy, subtracts unrelated value and violates its original
+purpose, so we simply remove the adjustment.
+
+CC: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+---
+ mm/page_alloc.c |   20 +-------------------
+ 1 files changed, 1 insertions(+), 19 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bb90971..6bf72e3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4455,30 +4455,12 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
+ 
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+-		unsigned long size, realsize, memmap_pages;
++		unsigned long size, realsize;
+ 
+ 		size = zone_spanned_pages_in_node(nid, j, zones_size);
+ 		realsize = size - zone_absent_pages_in_node(nid, j,
+ 								zholes_size);
+ 
+-		/*
+-		 * Adjust realsize so that it accounts for how much memory
+-		 * is used by this zone for memmap. This affects the watermark
+-		 * and per-cpu initialisations
+-		 */
+-		memmap_pages =
+-			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
+-		if (realsize >= memmap_pages) {
+-			realsize -= memmap_pages;
+-			if (memmap_pages)
+-				printk(KERN_DEBUG
+-				       "  %s zone: %lu pages used for memmap\n",
+-				       zone_names[j], memmap_pages);
+-		} else
+-			printk(KERN_WARNING
+-				"  %s zone: %lu pages exceeds realsize %lu\n",
+-				zone_names[j], memmap_pages, realsize);
+-
+ 		/* Account for reserved pages */
+ 		if (j == 0 && realsize > dma_reserve) {
+ 			realsize -= dma_reserve;
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
