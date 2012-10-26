@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 4D2F16B0071
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:45:50 -0400 (EDT)
-Date: Fri, 26 Oct 2012 10:45:47 +0300
-From: Mika =?utf-8?Q?Bostr=C3=B6m?= <bostik@bostik.iki.fi>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-ID: <20121026074547.GA25935@bostik.iki.fi>
-Reply-To: Mika =?utf-8?Q?Bostr=C3=B6m?= <bostik@bostik.iki.fi>
-References: <20121012125708.GJ10110@dhcp22.suse.cz>
- <20121023164546.747e90f6.akpm@linux-foundation.org>
- <20121024062938.GA6119@dhcp22.suse.cz>
- <20121024125439.c17a510e.akpm@linux-foundation.org>
- <50884F63.8030606@linux.vnet.ibm.com>
- <20121024134836.a28d223a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id BB9016B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:47:32 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so2954270obc.14
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 00:47:31 -0700 (PDT)
+Message-ID: <508A4007.5080906@gmail.com>
+Date: Fri, 26 Oct 2012 15:47:19 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20121024134836.a28d223a.akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+References: <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com> <50889FF1.9030107@gmail.com> <20121025025826.GB23462@localhost> <20121026002544.GI29378@dastard> <20121026012758.GA6282@localhost> <5089F5AD.5040708@gmail.com> <20121026065855.GA9179@localhost> <508A35B0.30106@gmail.com> <20121026070936.GA12282@localhost> <508A399D.6000506@gmail.com> <20121026073630.GA12886@localhost>
+In-Reply-To: <20121026073630.GA12886@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Dave Chinner <david@fromorbit.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 24, 2012 at 01:48:36PM -0700, Andrew Morton wrote:
-> Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-> > What kind of interface _is_ it in the first place?  Is it really a
-> > production-level thing that we expect users to be poking at?  Or, is it
-> > a rarely-used debugging and benchmarking knob which is fair game for us
-> > to tweak like this?
-> 
-> It was a rarely-used mainly-developer-only thing which, apparently, real
-> people found useful at some point in the past.  Perhaps we should never
-> have offered it.
+On 10/26/2012 03:36 PM, Fengguang Wu wrote:
+> On Fri, Oct 26, 2012 at 03:19:57PM +0800, Ni zhan Chen wrote:
+>> On 10/26/2012 03:09 PM, Fengguang Wu wrote:
+>>> On Fri, Oct 26, 2012 at 03:03:12PM +0800, Ni zhan Chen wrote:
+>>>> On 10/26/2012 02:58 PM, Fengguang Wu wrote:
+>>>>>>   static void shrink_readahead_size_eio(struct file *filp,
+>>>>>>                                          struct file_ra_state *ra)
+>>>>>>   {
+>>>>>> -       ra->ra_pages /= 4;
+>>>>>> +       spin_lock(&filp->f_lock);
+>>>>>> +       filp->f_mode |= FMODE_RANDOM;
+>>>>>> +       spin_unlock(&filp->f_lock);
+>>>>>>
+>>>>>> As the example in comment above this function, the read maybe still
+>>>>>> sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
+>>>>>> directly.
+>>>>> Yes immediately disabling readahead may hurt IO performance, the
+>>>>> original '/ 4' may perform better when there are only 1-3 IO errors
+>>>>> encountered.
+>>>> Hi Fengguang,
+>>>>
+>>>> Why the number should be 1-3?
+>>> The original behavior is '/= 4' on each error.
+>>>
+>>> After 1 errors, readahead size will be shrinked by 1/4
+>>> After 2 errors, readahead size will be shrinked by 1/16
+>>> After 3 errors, readahead size will be shrinked by 1/64
+>>> After 4 errors, readahead size will be effectively 0 (disabled)
+>> But from function shrink_readahead_size_eio and its caller
+>> filemap_fault I can't find the behavior you mentioned. How you
+>> figure out it?
+> It's this line in shrink_readahead_size_eio():
+>
+>          ra->ra_pages /= 4;
 
-I've found it useful on occasion when generating large public keys.
-When key generation hangs due to not-enough-entropy, dropping all
-caches (followed by an intensive read) has allowed the system to
-collect enough entropy to let the key generation finish.
+Yeah, I mean why the 4th readahead size will be 0(disabled)? What's the 
+original value of ra->ra_pages? How can guarantee the 4th shrink 
+readahead size can be 0?
 
-Usefulness of the trick is probably going the way of the dodo, thanks to
-SSD's becoming more common.
+Regards,
+Chen
 
--- 
- Mika BostrA?m                       Individualisti, eksistentialisti,
- www.iki.fi/bostik                  rationalisti ja mulkvisti
- GPG: 0x2AED22CC; 6FC9 8375 31B7 3BA2 B5DC  484E F19F 8AD6 2AED 22CC
+>
+> That ra_pages will keep shrinking by 4 on each error. The only way to
+> restore it is to reopen the file, or POSIX_FADV_SEQUENTIAL.
+>
+> Thanks,
+> Fengguang
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
