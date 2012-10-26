@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 2FC966B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 08:53:46 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 6B9C16B0073
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 08:53:47 -0400 (EDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/2] numa, mm: drop redundant check in do_huge_pmd_numa_page()
-Date: Fri, 26 Oct 2012 15:54:34 +0300
-Message-Id: <1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/2] numa, mm: consolidate error path in do_huge_pmd_numa_page()
+Date: Fri, 26 Oct 2012 15:54:35 +0300
+Message-Id: <1351256077-1594-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -13,31 +15,77 @@ Cc: Will Deacon <will.deacon@arm.com>, "Kirill A. Shutemov" <kirill.shutemov@lin
 
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We check if the pmd entry is the same as on pmd_trans_huge() in
-handle_mm_fault(). That's enough.
+Let's move all error path code to the end if the function. It makes code
+more straight-forward.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/huge_memory.c |    6 ------
- 1 file changed, 6 deletions(-)
+ mm/huge_memory.c |   44 ++++++++++++++++++++------------------------
+ 1 file changed, 20 insertions(+), 24 deletions(-)
 
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 3c14a96..9bb2c23 100644
+index 9bb2c23..95ec485 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -758,12 +758,6 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(!pmd_same(*pmd, entry)))
+@@ -759,30 +759,14 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
  		goto unlock;
  
--	if (unlikely(pmd_trans_splitting(entry))) {
--		spin_unlock(&mm->page_table_lock);
--		wait_split_huge_page(vma->anon_vma, pmd);
--		return;
+ 	page = pmd_page(entry);
+-	if (page) {
+-		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+-
+-		get_page(page);
+-		node = mpol_misplaced(page, vma, haddr);
+-		if (node != -1)
+-			goto migrate;
 -	}
 -
- 	page = pmd_page(entry);
- 	if (page) {
- 		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+-fixup:
+-	/* change back to regular protection */
+-	entry = pmd_modify(entry, vma->vm_page_prot);
+-	set_pmd_at(mm, haddr, pmd, entry);
+-	update_mmu_cache_pmd(vma, address, entry);
+-
+-unlock:
+-	spin_unlock(&mm->page_table_lock);
+-	if (page) {
+-		task_numa_fault(page_to_nid(page), HPAGE_PMD_NR);
+-		put_page(page);
+-	}
+-	return;
++	if (!page)
++		goto fixup;
++	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+ 
+-migrate:
++	get_page(page);
++	node = mpol_misplaced(page, vma, haddr);
++	if (node == -1)
++		goto fixup;
+ 	spin_unlock(&mm->page_table_lock);
+ 
+ 	lock_page(page);
+@@ -871,7 +855,19 @@ alloc_fail:
+ 		page = NULL;
+ 		goto unlock;
+ 	}
+-	goto fixup;
++fixup:
++	/* change back to regular protection */
++	entry = pmd_modify(entry, vma->vm_page_prot);
++	set_pmd_at(mm, haddr, pmd, entry);
++	update_mmu_cache_pmd(vma, address, entry);
++
++unlock:
++	spin_unlock(&mm->page_table_lock);
++	if (page) {
++		task_numa_fault(page_to_nid(page), HPAGE_PMD_NR);
++		put_page(page);
++	}
++	return;
+ }
+ 
+ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 -- 
 1.7.10.4
 
