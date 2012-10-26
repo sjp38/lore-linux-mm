@@ -1,92 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 4B1226B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 15:54:46 -0400 (EDT)
-Date: Fri, 26 Oct 2012 15:33:10 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -v2 3/3] mm,generic: only flush the local TLB in
- ptep_set_access_flags
-Message-ID: <20121026153310.51ecdb7f@dull>
-In-Reply-To: <CA+55aFxo5jHREHS_ftmM6Vy5+rei2KzzCbrsYJwqSB2TfvA=7w@mail.gmail.com>
-References: <20121025121617.617683848@chello.nl>
-	<20121025124832.840241082@chello.nl>
-	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
-	<5089F5B5.1050206@redhat.com>
-	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-	<508A0A0D.4090001@redhat.com>
-	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
-	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-	<m2pq45qu0s.fsf@firstfloor.org>
-	<508A8D31.9000106@redhat.com>
-	<20121026132601.GC9886@gmail.com>
-	<20121026144615.2276cd59@dull>
-	<CA+55aFyS_iJcKz=-zSDK+bjYiNeEzy4T5FrrGL8HBsxTOSwpJQ@mail.gmail.com>
-	<508ADD2F.6030805@redhat.com>
-	<CA+55aFxo5jHREHS_ftmM6Vy5+rei2KzzCbrsYJwqSB2TfvA=7w@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4BF8B6B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 16:04:06 -0400 (EDT)
+Message-ID: <1351281877.16639.98.camel@maggy.simpson.net>
+Subject: Re: process hangs on do_exit when oom happens
+From: Mike Galbraith <efault@gmx.de>
+Date: Fri, 26 Oct 2012 13:04:37 -0700
+In-Reply-To: <1351270990.16639.92.camel@maggy.simpson.net>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+	 <20121019160425.GA10175@dhcp22.suse.cz>
+	 <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+	 <CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
+	 <CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
+	 <20121023095028.GD15397@dhcp22.suse.cz>
+	 <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
+	 <20121023101500.GE15397@dhcp22.suse.cz>
+	 <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
+	 <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
+	 <20121025095719.GA11105@dhcp22.suse.cz>
+	 <CAKWKT+ZRTUwer8qhjWGjkra63e10R67UQzezdaCaStz+rvGjxw@mail.gmail.com>
+	 <1351270990.16639.92.camel@maggy.simpson.net>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Qiang Gao <gaoqiangscut@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-The function ptep_set_access_flags is only ever used to upgrade
-access permissions to a page. That means the only negative side
-effect of not flushing remote TLBs is that other CPUs may incur
-spurious page faults, if they happen to access the same address,
-and still have a PTE with the old permissions cached in their
-TLB.
+On Fri, 2012-10-26 at 10:03 -0700, Mike Galbraith wrote:
 
-Having another CPU maybe incur a spurious page fault is faster
-than always incurring the cost of a remote TLB flush, so replace
-the remote TLB flush with a purely local one.
+> The bug is in the patch that used sched_setscheduler_nocheck().  Plain
+> sched_setscheduler() would have replied -EGOAWAY.
 
-This should be safe on every architecture that correctly
-implements flush_tlb_fix_spurious_fault() to actually invalidate
-the local TLB entry that caused a page fault, as well as on
-architectures where the hardware invalidates TLB entries that
-cause page faults.
+sched_setscheduler_nocheck() should say go away too methinks.  This
+isn't about permissions, it's about not being stupid in general.
 
-In the unlikely event that you are hitting what appears to be
-an infinite loop of page faults, and 'git bisect' took you to
-this changeset, your architecture needs to implement
-flush_tlb_fix_spurious_fault to actually flush the TLB entry.
+sched: fix __sched_setscheduler() RT_GROUP_SCHED conditionals
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>
----
- mm/pgtable-generic.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Remove user and rt_bandwidth_enabled() RT_GROUP_SCHED conditionals in
+__sched_setscheduler().  The end result of kernel OR user promoting a
+task in a group with zero rt_runtime allocated is the same bad thing,
+and throttle switch position matters little.  It's safer to just say
+no solely based upon bandwidth existence, may save the user a nasty
+surprise if he later flips the throttle switch to 'on'.
 
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index e642627..d8397da 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -12,8 +12,8 @@
- 
- #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
- /*
-- * Only sets the access flags (dirty, accessed, and
-- * writable). Furthermore, we know it always gets set to a "more
-+ * Only sets the access flags (dirty, accessed), as well as write 
-+ * permission. Furthermore, we know it always gets set to a "more
-  * permissive" setting, which allows most architectures to optimize
-  * this. We return whether the PTE actually changed, which in turn
-  * instructs the caller to do things like update__mmu_cache.  This
-@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	int changed = !pte_same(*ptep, entry);
- 	if (changed) {
- 		set_pte_at(vma->vm_mm, address, ptep, entry);
--		flush_tlb_page(vma, address);
-+		flush_tlb_fix_spurious_fault(vma, address);
+The commit below came about due to sched_setscheduler_nocheck()
+allowing a task in a task group with zero rt_runtime allocated to
+be promoted by the kernel oom logic, thus marooning it forever.
+
+<quote>
+commit 341aea2bc48bf652777fb015cc2b3dfa9a451817
+Author: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Date:   Thu Apr 14 15:22:13 2011 -0700
+
+    oom-kill: remove boost_dying_task_prio()
+    
+    This is an almost-revert of commit 93b43fa ("oom: give the dying task a
+    higher priority").
+    
+    That commit dramatically improved oom killer logic when a fork-bomb
+    occurs.  But I've found that it has nasty corner case.  Now cpu cgroup has
+    strange default RT runtime.  It's 0!  That said, if a process under cpu
+    cgroup promote RT scheduling class, the process never run at all.
+</quote>
+
+Signed-off-by: Mike Galbraith <efault@gmx.de>
+
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 2d8927f..d3a35f8 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3810,17 +3810,14 @@ recheck:
  	}
- 	return changed;
- }
+ 
+ #ifdef CONFIG_RT_GROUP_SCHED
+-	if (user) {
+-		/*
+-		 * Do not allow realtime tasks into groups that have no runtime
+-		 * assigned.
+-		 */
+-		if (rt_bandwidth_enabled() && rt_policy(policy) &&
+-				task_group(p)->rt_bandwidth.rt_runtime == 0 &&
+-				!task_group_is_autogroup(task_group(p))) {
+-			task_rq_unlock(rq, p, &flags);
+-			return -EPERM;
+-		}
++	/*
++	 * Do not allow realtime tasks into groups that have no runtime
++	 * assigned.
++	 */
++	if (rt_policy(policy) && task_group(p)->rt_bandwidth.rt_runtime == 0 &&
++			!task_group_is_autogroup(task_group(p))) {
++		task_rq_unlock(rq, p, &flags);
++		return -EPERM;
+ 	}
+ #endif
+ 
 
 
 --
