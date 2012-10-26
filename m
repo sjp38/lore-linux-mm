@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 9C8006B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:48:07 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 211146B0074
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:48:09 -0400 (EDT)
 From: wency@cn.fujitsu.com
-Subject: [PATCH v3 0/3] acpi,memory-hotplug : implement framework for hot removing memory
-Date: Fri, 26 Oct 2012 18:31:00 +0800
-Message-Id: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 3/3] acpi,memory-hotplug : add memory offline code to acpi_memory_device_remove()
+Date: Fri, 26 Oct 2012 18:31:03 +0800
+Message-Id: <1351247463-5653-4-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
+References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
-Cc: liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, laijs@cn.fujitsu.com, Wen Congyang <wency@cn.fujitsu.com>
+Cc: liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, laijs@cn.fujitsu.com, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Wen Congyang <wency@cn.fujitsu.com>
-
-The patch-set implements a framework for hot removing memory.
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 The memory device can be removed by 2 ways:
 1. send eject request by SCI
@@ -26,37 +26,95 @@ memory device from the driver acpi_memhotplug or a driver initialization
 fails.
 
 acpi_memory_disable_device() has already implemented a code which
-offlines memory and releases acpi_memory_info struct . But
+offlines memory and releases acpi_memory_info struct. But
 acpi_memory_device_remove() has not implemented it yet.
 
-So the patch prepares the framework for hot removing memory and
-adds the framework into acpi_memory_device_remove().
+So the patch move offlining memory and releasing acpi_memory_info struct
+codes to a new function acpi_memory_remove_memory(). And it is used by both
+acpi_memory_device_remove() and acpi_memory_disable_device().
 
-The last version of this patchset is here:
-https://lkml.org/lkml/2012/10/19/156
+CC: David Rientjes <rientjes@google.com>
+CC: Jiang Liu <liuj97@gmail.com>
+CC: Len Brown <len.brown@intel.com>
+CC: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+---
+ drivers/acpi/acpi_memhotplug.c | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)
 
-Changelogs from v2 to v3:
-  Patch2: rename lock to list_lock
-
-Changelogs from v1 to v2:
-  Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
-  Patch2: new patch, introduce a lock to protect the list
-  Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
-  Note: I don't send [Patch2-4 v1] in this series because they
-  are no logical changes in these 3 patches.
-
-Wen Congyang (2):
-  acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
-  acpi,memory-hotplug: introduce a mutex lock to protect the list in
-    acpi_memory_device
-
-Yasuaki Ishimatsu (1):
-  acpi,memory-hotplug : add memory offline code to
-    acpi_memory_device_remove()
-
- drivers/acpi/acpi_memhotplug.c | 51 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 41 insertions(+), 10 deletions(-)
-
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index 666dac6..92c973a 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -316,16 +316,11 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
+ 	return 0;
+ }
+ 
+-static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
++static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+ {
+ 	int result;
+ 	struct acpi_memory_info *info, *n;
+ 
+-
+-	/*
+-	 * Ask the VM to offline this memory range.
+-	 * Note: Assume that this function returns zero on success
+-	 */
+ 	mutex_lock(&mem_device->list_lock);
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (info->enabled) {
+@@ -333,10 +328,27 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+ 			if (result)
+ 				return result;
+ 		}
++
++		list_del(&info->list);
+ 		kfree(info);
+ 	}
+ 	mutex_unlock(&mem_device->list_lock);
+ 
++	return 0;
++}
++
++static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
++{
++	int result;
++
++	/*
++	 * Ask the VM to offline this memory range.
++	 * Note: Assume that this function returns zero on success
++	 */
++	result = acpi_memory_remove_memory(mem_device);
++	if (result)
++		return result;
++
+ 	/* Power-off and eject the device */
+ 	result = acpi_memory_powerdown_device(mem_device);
+ 	if (result) {
+@@ -487,12 +499,17 @@ static int acpi_memory_device_add(struct acpi_device *device)
+ static int acpi_memory_device_remove(struct acpi_device *device, int type)
+ {
+ 	struct acpi_memory_device *mem_device = NULL;
+-
++	int result;
+ 
+ 	if (!device || !acpi_driver_data(device))
+ 		return -EINVAL;
+ 
+ 	mem_device = acpi_driver_data(device);
++
++	result = acpi_memory_remove_memory(mem_device);
++	if (result)
++		return result;
++
+ 	kfree(mem_device);
+ 
+ 	return 0;
 -- 
 1.8.0
 
