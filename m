@@ -1,74 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id F0CF76B0071
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 21:38:03 -0400 (EDT)
-Date: Fri, 26 Oct 2012 09:27:58 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-Message-ID: <20121026012758.GA6282@localhost>
-References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com>
- <20121023224706.GR4291@dastard>
- <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
- <20121024201921.GX4291@dastard>
- <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com>
- <20121025015014.GC29378@dastard>
- <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
- <50889FF1.9030107@gmail.com>
- <20121025025826.GB23462@localhost>
- <20121026002544.GI29378@dastard>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 9DC246B0071
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 21:48:29 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so1160662dad.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 18:48:28 -0700 (PDT)
+Message-ID: <5089EBE1.1050009@gmail.com>
+Date: Fri, 26 Oct 2012 09:48:17 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121026002544.GI29378@dastard>
+Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <5088C51D.3060009@gmail.com> <alpine.LNX.2.00.1210242338030.2688@eggly.anvils> <508912B0.7080805@gmail.com> <alpine.LNX.2.00.1210251419260.3623@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1210251419260.3623@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ni zhan Chen <nizhan.chen@gmail.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 26, 2012 at 11:25:44AM +1100, Dave Chinner wrote:
-> On Thu, Oct 25, 2012 at 10:58:26AM +0800, Fengguang Wu wrote:
-> > Hi Chen,
-> > 
-> > > But how can bdi related ra_pages reflect different files' readahead
-> > > window? Maybe these different files are sequential read, random read
-> > > and so on.
-> > 
-> > It's simple: sequential reads will get ra_pages readahead size while
-> > random reads will not get readahead at all.
-> > 
-> > Talking about the below chunk, it might hurt someone that explicitly
-> > takes advantage of the behavior, however the ra_pages*2 seems more
-> > like a hack than general solution to me: if the user will need
-> > POSIX_FADV_SEQUENTIAL to double the max readahead window size for
-> > improving IO performance, then why not just increase bdi->ra_pages and
-> > benefit all reads? One may argue that it offers some differential
-> > behavior to specific applications, however it may also present as a
-> > counter-optimization: if the root already tuned bdi->ra_pages to the
-> > optimal size, the doubled readahead size will only cost more memory
-> > and perhaps IO latency.
-> > 
-> > --- a/mm/fadvise.c
-> > +++ b/mm/fadvise.c
-> > @@ -87,7 +86,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
-> >                 spin_unlock(&file->f_lock);
-> >                 break;
-> >         case POSIX_FADV_SEQUENTIAL:
-> > -               file->f_ra.ra_pages = bdi->ra_pages * 2;
-> 
-> I think we really have to reset file->f_ra.ra_pages here as it is
-> not a set-and-forget value. e.g.  shrink_readahead_size_eio() can
-> reduce ra_pages as a result of IO errors. Hence if you have had io
-> errors, telling the kernel that you are now going to do  sequential
-> IO should reset the readahead to the maximum ra_pages value
-> supported....
+On 10/26/2012 05:27 AM, Hugh Dickins wrote:
+> On Thu, 25 Oct 2012, Ni zhan Chen wrote:
+>> On 10/25/2012 02:59 PM, Hugh Dickins wrote:
+>>> On Thu, 25 Oct 2012, Ni zhan Chen wrote:
+>>>> I think it maybe caused by your commit [d189922862e03ce: shmem: fix
+>>>> negative
+>>>> rss in memcg memory.stat], one question:
+>>> Well, yes, I added the VM_BUG_ON in that commit.
+>>>
+>>>> if function shmem_confirm_swap confirm the entry has already brought back
+>>>> from swap by a racing thread,
+>>> The reverse: true confirms that the swap entry has not been brought back
+>>> from swap by a racing thread; false indicates that there has been a race.
+>>>
+>>>> then why call shmem_add_to_page_cache to add
+>>>> page from swapcache to pagecache again?
+>>> Adding it to pagecache again, after such a race, would set error to
+>>> -EEXIST (originating from radix_tree_insert); but we don't do that,
+>>> we add it to pagecache when it has not already been added.
+>>>
+>>> Or that's the intention: but Dave seems to have found an unexpected
+>>> exception, despite us holding the page lock across all this.
+>>>
+>>> (But if it weren't for the memcg and replace_page issues, I'd much
+>>> prefer to let shmem_add_to_page_cache discover the race as before.)
+>>>
+>>> Hugh
+>> Hi Hugh
+>>
+>> Thanks for your response. You mean the -EEXIST originating from
+>> radix_tree_insert, in radix_tree_insert:
+>> if (slot != NULL)
+>>      return -EEXIST;
+>> But why slot should be NULL? if no race, the pagecache related radix tree
+>> entry should be RADIX_TREE_EXCEPTIONAL_ENTRY+swap_entry_t.val, where I miss?
+> I was describing what would happen in a case that should not exist,
+> that you had thought the common case.  In actuality, the entry should
+> not be NULL, it should be as you say there.
 
-Good point!
+Thanks for your patience. So in the common case, the entry should be the 
+value I mentioned, then why has this check?
+if (slot != NULL)
+     return -EEXIST;
 
-.... but wait .... this patch removes file->f_ra.ra_pages in all other
-places too, so there will be no file->f_ra.ra_pages to be reset here... 
+the common case will return -EEXIST.
 
-Thanks,
-Fengguang
+>
+> Hugh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
