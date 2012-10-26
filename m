@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 14BAC6B0074
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:43:16 -0400 (EDT)
-Date: Fri, 26 Oct 2012 10:44:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121026074435.GA871@shutemov.name>
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 4D2F16B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:45:50 -0400 (EDT)
+Date: Fri, 26 Oct 2012 10:45:47 +0300
+From: Mika =?utf-8?Q?Bostr=C3=B6m?= <bostik@bostik.iki.fi>
+Subject: Re: [PATCH] add some drop_caches documentation and info messsge
+Message-ID: <20121026074547.GA25935@bostik.iki.fi>
+Reply-To: Mika =?utf-8?Q?Bostr=C3=B6m?= <bostik@bostik.iki.fi>
+References: <20121012125708.GJ10110@dhcp22.suse.cz>
+ <20121023164546.747e90f6.akpm@linux-foundation.org>
+ <20121024062938.GA6119@dhcp22.suse.cz>
+ <20121024125439.c17a510e.akpm@linux-foundation.org>
+ <50884F63.8030606@linux.vnet.ibm.com>
+ <20121024134836.a28d223a.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20121024134836.a28d223a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
-> On x86 memory accesses to pages without the ACCESSED flag set result in the
-> ACCESSED flag being set automatically. With the ARM architecture a page access
-> fault is raised instead (and it will continue to be raised until the ACCESSED
-> flag is set for the appropriate PTE/PMD).
+On Wed, Oct 24, 2012 at 01:48:36PM -0700, Andrew Morton wrote:
+> Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+> > What kind of interface _is_ it in the first place?  Is it really a
+> > production-level thing that we expect users to be poking at?  Or, is it
+> > a rarely-used debugging and benchmarking knob which is fair game for us
+> > to tweak like this?
 > 
-> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> be called for a write fault.
-> 
-> This patch ensures that faults on transparent hugepages which do not result
-> in a CoW update the access flags for the faulting pmd.
-> 
-> Cc: Chris Metcalf <cmetcalf@tilera.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
-> ---
-> 
-> Ok chaps, I rebased this thing onto today's next (which basically
-> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-> ask if you could eyeball the new code, especially where the locking is
-> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-> that the page is not splitting, but I can't see why that is required.
+> It was a rarely-used mainly-developer-only thing which, apparently, real
+> people found useful at some point in the past.  Perhaps we should never
+> have offered it.
 
-In handle_mm_fault() we check if the pmd is under splitting without
-page_table_lock. It's kind of speculative cheap check. We need to re-check
-if the PMD is really not under splitting after taking page_table_lock.
+I've found it useful on occasion when generating large public keys.
+When key generation hangs due to not-enough-entropy, dropping all
+caches (followed by an intensive read) has allowed the system to
+collect enough entropy to let the key generation finish.
 
-See section "Locking in hugepage aware code" in Documentation/vm/transhuge.txt
+Usefulness of the trick is probably going the way of the dodo, thanks to
+SSD's becoming more common.
 
 -- 
- Kirill A. Shutemov
+ Mika BostrA?m                       Individualisti, eksistentialisti,
+ www.iki.fi/bostik                  rationalisti ja mulkvisti
+ GPG: 0x2AED22CC; 6FC9 8375 31B7 3BA2 B5DC  484E F19F 8AD6 2AED 22CC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
