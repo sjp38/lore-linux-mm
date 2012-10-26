@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E2EA26B0071
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:14:00 -0400 (EDT)
-Date: Fri, 26 Oct 2012 13:15:20 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
- access fault.
-Message-ID: <20121026101520.GA1284@shutemov.name>
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
- <20121026074435.GA871@shutemov.name>
- <20121026090715.GB20914@mudshark.cambridge.arm.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id C9C426B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:18:09 -0400 (EDT)
+Message-ID: <508A63D7.1000704@redhat.com>
+Date: Fri, 26 Oct 2012 18:20:07 +0800
+From: Zhouping Liu <zliu@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121026090715.GB20914@mudshark.cambridge.arm.com>
+Subject: Re: [PATCH 00/31] numa/core patches
+References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121026092048.GA628@gmail.com>
+In-Reply-To: <20121026092048.GA628@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "mhocko@suse.cz" <mhocko@suse.cz>, "peterz@infradead.org" <peterz@infradead.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Chris Metcalf <cmetcalf@tilera.com>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, CAI Qian <caiqian@redhat.com>
 
-On Fri, Oct 26, 2012 at 10:07:15AM +0100, Will Deacon wrote:
-> On Fri, Oct 26, 2012 at 08:44:35AM +0100, Kirill A. Shutemov wrote:
-> > On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
-> > > On x86 memory accesses to pages without the ACCESSED flag set result in the
-> > > ACCESSED flag being set automatically. With the ARM architecture a page access
-> > > fault is raised instead (and it will continue to be raised until the ACCESSED
-> > > flag is set for the appropriate PTE/PMD).
-> > > 
-> > > For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> > > setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> > > be called for a write fault.
-> > > 
-> > > This patch ensures that faults on transparent hugepages which do not result
-> > > in a CoW update the access flags for the faulting pmd.
-> > > 
-> > > Cc: Chris Metcalf <cmetcalf@tilera.com>
-> > > Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> > > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > > Signed-off-by: Will Deacon <will.deacon@arm.com>
-> > > ---
-> > > 
-> > > Ok chaps, I rebased this thing onto today's next (which basically
-> > > necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-> > > ask if you could eyeball the new code, especially where the locking is
-> > > concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-> > > that the page is not splitting, but I can't see why that is required.
-> > 
-> > In handle_mm_fault() we check if the pmd is under splitting without
-> > page_table_lock. It's kind of speculative cheap check. We need to re-check
-> > if the PMD is really not under splitting after taking page_table_lock.
-> 
-> I appreciate the need to check whether the thing is splitting, but I thought
-> that the pmd_same(*pmd, orig_pmd) check after taking the page_table_lock
-> would be sufficient, because we know that the entry hasn't changed and that
-> it wasn't splitting before we took the lock. This also mirrors the approach
-> taken by do_huge_pmd_wp_page.
-> 
-> Is there something I'm missing?
+On 10/26/2012 05:20 PM, Ingo Molnar wrote:
+> * Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>
+>> On Fri, 2012-10-26 at 17:07 +0800, Zhouping Liu wrote:
+>>> [  180.918591] RIP: 0010:[<ffffffff8118c39a>]  [<ffffffff8118c39a>] mem_cgroup_prepare_migration+0xba/0xd0
+>>> [  182.681450]  [<ffffffff81183b60>] do_huge_pmd_numa_page+0x180/0x500
+>>> [  182.775090]  [<ffffffff811585c9>] handle_mm_fault+0x1e9/0x360
+>>> [  182.863038]  [<ffffffff81632b62>] __do_page_fault+0x172/0x4e0
+>>> [  182.950574]  [<ffffffff8101c283>] ? __switch_to_xtra+0x163/0x1a0
+>>> [  183.041512]  [<ffffffff8101281e>] ? __switch_to+0x3ce/0x4a0
+>>> [  183.126832]  [<ffffffff8162d686>] ? __schedule+0x3c6/0x7a0
+>>> [  183.211216]  [<ffffffff81632ede>] do_page_fault+0xe/0x10
+>>> [  183.293705]  [<ffffffff8162f518>] page_fault+0x28/0x30
+>> Johannes, this looks like the thp migration memcg hookery gone bad,
+>> could you have a look at this?
+> Meanwhile, Zhouping Liu, could you please not apply the last
+> patch:
+>
+>    [PATCH] sched, numa, mm: Add memcg support to do_huge_pmd_numa_page()
+>
+> and see whether it boots/works without that?
 
-Hm.. You're correct from my POV.
+Hi Ingo,
 
-Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
+your supposed is right, after reverting the 31st patch(sched, numa, mm: 
+Add memcg support to do_huge_pmd_numa_page())
+the issue is gone, thank you.
 
-I think the check in do_huge_pmd_prot_none() is redundant. It only add
-latency. I'll prepare patch to remove it.
 
--- 
- Kirill A. Shutemov
+Thanks,
+Zhouping
+
+>
+> Thanks,
+>
+> 	Ingo
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
