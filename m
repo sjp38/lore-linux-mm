@@ -1,22 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 255386B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:14:12 -0400 (EDT)
-Message-ID: <508A8D31.9000106@redhat.com>
-Date: Fri, 26 Oct 2012 09:16:33 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 1F7046B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:23:26 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so1665902qcq.14
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 06:23:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com> <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com> <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com> <m2pq45qu0s.fsf@firstfloor.org>
 In-Reply-To: <m2pq45qu0s.fsf@firstfloor.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <20121025121617.617683848@chello.nl>
+	<20121025124832.840241082@chello.nl>
+	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
+	<5089F5B5.1050206@redhat.com>
+	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+	<508A0A0D.4090001@redhat.com>
+	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+	<m2pq45qu0s.fsf@firstfloor.org>
+Date: Fri, 26 Oct 2012 06:23:24 -0700
+Message-ID: <CANN689GAwKJVeZ7LW-Mv-b_DopAMMrpZw8FBEgR+EQJiyZ-oHw@mail.gmail.com>
+Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andi Kleen <andi@firstfloor.org>
-Cc: Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 10/26/2012 08:48 AM, Andi Kleen wrote:
+On Fri, Oct 26, 2012 at 5:48 AM, Andi Kleen <andi@firstfloor.org> wrote:
 > Michel Lespinasse <walken@google.com> writes:
 >
 >> On Thu, Oct 25, 2012 at 9:23 PM, Linus Torvalds
@@ -42,13 +51,21 @@ On 10/26/2012 08:48 AM, Andi Kleen wrote:
 > This unfortunately would only work for processes with no threads
 > because it only works on the current logical CPU.
 
-That is fine.
+No, the point is, if we are only *increasing* permissions on a page,
+we can skip the remote TLB invalidations. Later on each remote CPU
+might possibly get a spurious fault on that page, but that spurious
+fault will resynchronize their TLBs for that page, so that the
+instruction retry after the fault won't fault again.
 
-Potentially triggering a spurious page fault on
-another CPU is bound to be better than always
-doing a synchronous remote TLB flush, waiting
-for who knows how many CPUs to acknowledge the
-IPI...
+It is often cheaper to let remote CPUs get an occasional spurious
+fault than to synchronize with them on every permission change.
+
+Of course, none of the above applies if we are *reducing* permissions
+on a page (we really can't skip TLB invalidations there)
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
