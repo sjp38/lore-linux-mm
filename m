@@ -1,108 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 375DE6B0073
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 04:00:10 -0400 (EDT)
-Date: Fri, 26 Oct 2012 09:00:05 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: MMTests 0.06
-Message-ID: <20121026080004.GA15591@suse.de>
-References: <20121012145114.GZ29125@suse.de>
- <508A4060.4060800@gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id D591E6B0071
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 04:02:43 -0400 (EDT)
+Date: Fri, 26 Oct 2012 16:02:40 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+Message-ID: <20121026080240.GA13662@localhost>
+References: <20121025025826.GB23462@localhost>
+ <20121026002544.GI29378@dastard>
+ <20121026012758.GA6282@localhost>
+ <5089F5AD.5040708@gmail.com>
+ <20121026065855.GA9179@localhost>
+ <508A35B0.30106@gmail.com>
+ <20121026070936.GA12282@localhost>
+ <508A399D.6000506@gmail.com>
+ <20121026073630.GA12886@localhost>
+ <508A4007.5080906@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <508A4060.4060800@gmail.com>
+In-Reply-To: <508A4007.5080906@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Oct 26, 2012 at 03:48:48PM +0800, Ni zhan Chen wrote:
-> On 10/12/2012 10:51 PM, Mel Gorman wrote:
-> >MMTests 0.06 is a configurable test suite that runs a number of common
-> >workloads of interest to MM developers. There are multiple additions
-> >all but in many respects the most useful will be automatic package
-> >installation. The package names are based on openSUSE but it's easy to
-> >create mappings in bin/install-depends where the package names differ. The
-> >very basics of monitoring NUMA efficiency is there as well and the autonuma
-> >benchmark has a test. The stats it reports for NUMA need significant
-> >improvement but for the most part that should be straight forward.
+On Fri, Oct 26, 2012 at 03:47:19PM +0800, Ni zhan Chen wrote:
+> On 10/26/2012 03:36 PM, Fengguang Wu wrote:
+> >On Fri, Oct 26, 2012 at 03:19:57PM +0800, Ni zhan Chen wrote:
+> >>On 10/26/2012 03:09 PM, Fengguang Wu wrote:
+> >>>On Fri, Oct 26, 2012 at 03:03:12PM +0800, Ni zhan Chen wrote:
+> >>>>On 10/26/2012 02:58 PM, Fengguang Wu wrote:
+> >>>>>>  static void shrink_readahead_size_eio(struct file *filp,
+> >>>>>>                                         struct file_ra_state *ra)
+> >>>>>>  {
+> >>>>>>-       ra->ra_pages /= 4;
+> >>>>>>+       spin_lock(&filp->f_lock);
+> >>>>>>+       filp->f_mode |= FMODE_RANDOM;
+> >>>>>>+       spin_unlock(&filp->f_lock);
+> >>>>>>
+> >>>>>>As the example in comment above this function, the read maybe still
+> >>>>>>sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
+> >>>>>>directly.
+> >>>>>Yes immediately disabling readahead may hurt IO performance, the
+> >>>>>original '/ 4' may perform better when there are only 1-3 IO errors
+> >>>>>encountered.
+> >>>>Hi Fengguang,
+> >>>>
+> >>>>Why the number should be 1-3?
+> >>>The original behavior is '/= 4' on each error.
+> >>>
+> >>>After 1 errors, readahead size will be shrinked by 1/4
+> >>>After 2 errors, readahead size will be shrinked by 1/16
+> >>>After 3 errors, readahead size will be shrinked by 1/64
+> >>>After 4 errors, readahead size will be effectively 0 (disabled)
+> >>But from function shrink_readahead_size_eio and its caller
+> >>filemap_fault I can't find the behavior you mentioned. How you
+> >>figure out it?
+> >It's this line in shrink_readahead_size_eio():
 > >
-> >Changelog since v0.05
-> >o Automatically install packages (need name mappings for other distros)
-> >o Add benchmark for autonumabench
-> >o Add support for benchmarking NAS with MPI
-> >o Add pgbench for autonumabench (may need a bit more work)
-> >o Upgrade postgres version to 9.2.1
-> >o Upgrade kernel verion used for kernbench to 3.0 for newer toolchains
-> >o Alter mailserver config to finish in a reasonable time
-> >o Add monitor for perf sched
-> >o Add moinitor that gathers ftrace information with trace-cmd
-> >o Add preliminary monitors for NUMA stats (very basic)
-> >o Specify ftrace events to monitor from config file
-> >o Remove the bulk of whats left of VMRegress
-> >o Convert shellpacks to a template format to auto-generate boilerplate code
-> >o Collect lock_stat information if enabled
-> >o Run multiple iterations of aim9
-> >o Add basic regression tests for Cross Memory Attach
-> >o Copy with preempt being enabled in highalloc stres tests
-> >o Have largedd cope with a missing large file to work with
-> >o Add a monitor-only mode to just capture logs
-> >o Report receive-side throughput in netperf for results
-> >
-> >At LSF/MM at some point a request was made that a series of tests
-> >be identified that were of interest to MM developers and that could be
-> >used for testing the Linux memory management subsystem. There is renewed
-> >interest in some sort of general testing framework during discussions for
-> >Kernel Summit 2012 so here is what I use.
-> >
-> >http://www.csn.ul.ie/~mel/projects/mmtests/
-> >http://www.csn.ul.ie/~mel/projects/mmtests/mmtests-0.06-mmtests-0.01.tar.gz
-> >
-> >There are a number of stock configurations stored in configs/.  For example
-> >config-global-dhp__pagealloc-performance runs a number of tests that
-> >may be able to identify performance regressions or gains in the page
-> >allocator. Similarly there network and scheduler configs. There are also
-> >more complex options. config-global-dhp__parallelio-memcachetest will run
-> >memcachetest in the foreground while doing IO of different sizes in the
-> >background to measure how much unrelated IO affects the throughput of an
-> >in-memory database.
-> >
-> >This release is also a little rough and the extraction scripts could
-> >have been tidier but they were mostly written in an airport and for the
-> >most part they work as advertised. I'll fix bugs as according as they are
-> >brought to my attention.
-> >
-> >The stats reporting still needs work because while some tests know how
-> >to make a better estimate of mean by filtering outliers it is not being
-> >handled consistently and the methodology needs work. I know filtering
-> >statistics like this is a major flaw in the methodology but the decision
-> >was made in this case in the interest of the benchmarks with unstable
-> >results completing in a reasonable time.
+> >         ra->ra_pages /= 4;
 > 
-> Hi Gorman,
-> 
-> Could MMTests 0.07 auto download related packages for different
-> distributions?
-> 
+> Yeah, I mean why the 4th readahead size will be 0(disabled)? What's
+> the original value of ra->ra_pages? How can guarantee the 4th shrink
+> readahead size can be 0?
 
-Sure. Look at bin/install-depends and you'll see near the top of the file
-this declaration.
+Ah OK, I'm talking about the typical case. The default readahead size
+is 128k, which will become 0 after / 256. The reasonable good ra size
+for hard disks is 1MB=256pages, which also becomes 1page after 4 errors.
 
-my %package_map = (
-        "debian::zlib-devel"  => "zlib1g-dev",
-        "debian::gcc-fortran" => "gfortran",
-        "debian::gcc-c++"     => "g++",
-        "debian::diffutils"   => "diff",
-);
-
-This says for example that the zlib-devel package in openSUSE is called
-zlib1g-dev in Debian. Send me the mappings of the different packages for your
-distribution or edit this file yourself, send me the patch and I'll add them.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
