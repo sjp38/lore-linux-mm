@@ -1,58 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id D63236B0074
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:54:34 -0400 (EDT)
-Message-ID: <508A0A0D.4090001@redhat.com>
-Date: Thu, 25 Oct 2012 23:57:01 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id AF99A6B0075
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:55:53 -0400 (EDT)
+Date: Fri, 26 Oct 2012 11:55:50 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+Message-ID: <20121026035550.GA8894@localhost>
+References: <20121023224706.GR4291@dastard>
+ <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com>
+ <20121024201921.GX4291@dastard>
+ <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com>
+ <20121025015014.GC29378@dastard>
+ <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
+ <50889FF1.9030107@gmail.com>
+ <20121025025826.GB23462@localhost>
+ <20121026002544.GI29378@dastard>
+ <CAA9v8mG4Sck=S4SGrorndzAgZzgDs1h9vWa1DhmC-2-FVF=Upg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-In-Reply-To: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA9v8mG4Sck=S4SGrorndzAgZzgDs1h9vWa1DhmC-2-FVF=Upg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: YingHang Zhu <casualfisher@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ni zhan Chen <nizhan.chen@gmail.com>
 
-On 10/25/2012 10:56 PM, Linus Torvalds wrote:
+On Fri, Oct 26, 2012 at 11:38:11AM +0800, YingHang Zhu wrote:
+> On Fri, Oct 26, 2012 at 8:25 AM, Dave Chinner <david@fromorbit.com> wrote:
+> > On Thu, Oct 25, 2012 at 10:58:26AM +0800, Fengguang Wu wrote:
+> >> Hi Chen,
+> >>
+> >> > But how can bdi related ra_pages reflect different files' readahead
+> >> > window? Maybe these different files are sequential read, random read
+> >> > and so on.
+> >>
+> >> It's simple: sequential reads will get ra_pages readahead size while
+> >> random reads will not get readahead at all.
+> >>
+> >> Talking about the below chunk, it might hurt someone that explicitly
+> >> takes advantage of the behavior, however the ra_pages*2 seems more
+> >> like a hack than general solution to me: if the user will need
+> >> POSIX_FADV_SEQUENTIAL to double the max readahead window size for
+> >> improving IO performance, then why not just increase bdi->ra_pages and
+> >> benefit all reads? One may argue that it offers some differential
+> >> behavior to specific applications, however it may also present as a
+> >> counter-optimization: if the root already tuned bdi->ra_pages to the
+> >> optimal size, the doubled readahead size will only cost more memory
+> >> and perhaps IO latency.
+> >>
+> >> --- a/mm/fadvise.c
+> >> +++ b/mm/fadvise.c
+> >> @@ -87,7 +86,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
+> >>                 spin_unlock(&file->f_lock);
+> >>                 break;
+> >>         case POSIX_FADV_SEQUENTIAL:
+> >> -               file->f_ra.ra_pages = bdi->ra_pages * 2;
+> >
+> > I think we really have to reset file->f_ra.ra_pages here as it is
+> > not a set-and-forget value. e.g.  shrink_readahead_size_eio() can
+> > reduce ra_pages as a result of IO errors. Hence if you have had io
+> > errors, telling the kernel that you are now going to do  sequential
+> > IO should reset the readahead to the maximum ra_pages value
+> > supported....
+> If we unify file->f_ra.ra_pages and its' bdi->ra_pages, then the error-prone
+> device's readahead can be directly tuned or turned off with blockdev
+> thus affect all files
+> using the device and without bring more complexity...
 
-> Guess what? If you want to optimize the function to not do remote TLB
-> flushes, then just do that! None of the garbage. Just change the
->
->      flush_tlb_page(vma, address);
->
-> line to
->
->      __flush_tlb_one(address);
+It's not really feasible/convenient for the end users to hand tune
+blockdev readahead size on IO errors. Even many administrators are
+totally unaware of the readahead size parameter.
 
-That may not even be needed.  Apparently Intel chips
-automatically flush an entry from the TLB when it
-causes a page fault.  I assume AMD chips do the same,
-because flush_tlb_fix_spurious_fault evaluates to
-nothing on x86.
-
-> and it should damn well work. Because everything I see about
-> "flush_remote" looks just wrong, wrong, wrong.
-
-Are there architectures where we do need to flush
-remote TLBs on upgrading the permissions on a PTE?
-
-Because that is what the implementation in
-pgtable-generic.c seems to be doing as well...
-
-> And if there really is some reason for that whole flush_remote
-> braindamage, then we have much bigger problems, namely the fact that
-> we've broken the documented semantics of that function, and we're
-> doing various other things that are completely and utterly invalid
-> unless the above semantics hold.
-
-Want to just remove the TLB flush entirely and see
-if anything breaks in 3.8-rc1?
-
- From reading the code again, it looks like things
-should indeed work ok.
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
