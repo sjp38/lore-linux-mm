@@ -1,143 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id CB5C76B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 02:20:07 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so2463390iak.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:20:07 -0700 (PDT)
-Message-ID: <508A2B8B.7020608@gmail.com>
-Date: Fri, 26 Oct 2012 14:19:55 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 4D9EC6B0074
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 02:24:08 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id hm4so84058wib.8
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:24:06 -0700 (PDT)
+Date: Fri, 26 Oct 2012 08:24:02 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 04/31, v2] x86/mm: Introduce pte_accessible()
+Message-ID: <20121026062402.GA8141@gmail.com>
+References: <20121025121617.617683848@chello.nl>
+ <20121025124832.770994193@chello.nl>
+ <CA+55aFxSihF0RHc8npWcMdHOo8LOx+d=aV4G6_577REn=OXsQw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on access
- fault.
-References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
-In-Reply-To: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxSihF0RHc8npWcMdHOo8LOx+d=aV4G6_577REn=OXsQw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/26/2012 12:44 AM, Will Deacon wrote:
-> On x86 memory accesses to pages without the ACCESSED flag set result in the
-> ACCESSED flag being set automatically. With the ARM architecture a page access
-> fault is raised instead (and it will continue to be raised until the ACCESSED
-> flag is set for the appropriate PTE/PMD).
->
-> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
-> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
-> be called for a write fault.
->
-> This patch ensures that faults on transparent hugepages which do not result
-> in a CoW update the access flags for the faulting pmd.
 
-Could you write changlog?
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
->
-> Cc: Chris Metcalf <cmetcalf@tilera.com>
-> Cc: Kirill A. Shutemov <kirill@shutemov.name>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Will Deacon <will.deacon@arm.com>
-> ---
->
-> Ok chaps, I rebased this thing onto today's next (which basically
-> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
-> ask if you could eyeball the new code, especially where the locking is
-> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
-> that the page is not splitting, but I can't see why that is required.
->
-> Cheers,
->
-> Will
+> NAK NAK NAK.
+> 
+> On Thu, Oct 25, 2012 at 5:16 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+> >
+> > +#define __HAVE_ARCH_PTE_ACCESSIBLE
+> > +static inline int pte_accessible(pte_t a)
+> 
+> Stop doing this f*cking crazy ad-hoc "I have some other name
+> available" #defines.
+> 
+> Use the same name, for chissake! Don't make up new random names.
+> 
+> Just do
+> 
+>    #define pte_accessible pte_accessible
+> 
+> and then you can use
+> 
+>    #ifndef pte_accessible
+> 
+> to define the generic thing. Instead of having this INSANE "two
+> different names for the same f*cking thing" crap.
 
-Could you explain why you not call pmd_trans_huge_lock to confirm the 
-pmd is splitting or stable as Andrea point out?
+Yeah...
 
->
->   include/linux/huge_mm.h |    4 ++++
->   mm/huge_memory.c        |   22 ++++++++++++++++++++++
->   mm/memory.c             |    7 ++++++-
->   3 files changed, 32 insertions(+), 1 deletions(-)
->
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 4f0f948..766fb27 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -8,6 +8,10 @@ extern int do_huge_pmd_anonymous_page(struct mm_struct *mm,
->   extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->   			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
->   			 struct vm_area_struct *vma);
-> +extern void huge_pmd_set_accessed(struct mm_struct *mm,
-> +				  struct vm_area_struct *vma,
-> +				  unsigned long address, pmd_t *pmd,
-> +				  pmd_t orig_pmd, int dirty);
->   extern int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->   			       unsigned long address, pmd_t *pmd,
->   			       pmd_t orig_pmd);
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 3c14a96..f024d98 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -932,6 +932,28 @@ out:
->   	return ret;
->   }
->   
-> +void huge_pmd_set_accessed(struct mm_struct *mm,
-> +			   struct vm_area_struct *vma,
-> +			   unsigned long address,
-> +			   pmd_t *pmd, pmd_t orig_pmd,
-> +			   int dirty)
-> +{
-> +	pmd_t entry;
-> +	unsigned long haddr;
-> +
-> +	spin_lock(&mm->page_table_lock);
-> +	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> +		goto unlock;
-> +
-> +	entry = pmd_mkyoung(orig_pmd);
-> +	haddr = address & HPAGE_PMD_MASK;
-> +	if (pmdp_set_access_flags(vma, haddr, pmd, entry, dirty))
-> +		update_mmu_cache_pmd(vma, address, pmd);
-> +
-> +unlock:
-> +	spin_unlock(&mm->page_table_lock);
-> +}
-> +
->   static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
->   					struct vm_area_struct *vma,
->   					unsigned long address,
-> diff --git a/mm/memory.c b/mm/memory.c
-> index f21ac1c..bcbc084 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3650,12 +3650,14 @@ retry:
->   
->   		barrier();
->   		if (pmd_trans_huge(orig_pmd) && !pmd_trans_splitting(orig_pmd)) {
-> +			unsigned int dirty = flags & FAULT_FLAG_WRITE;
-> +
->   			if (pmd_numa(vma, orig_pmd)) {
->   				do_huge_pmd_numa_page(mm, vma, address, pmd,
->   						      flags, orig_pmd);
->   			}
->   
-> -			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
-> +			if (dirty && !pmd_write(orig_pmd)) {
->   				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
->   							  orig_pmd);
->   				/*
-> @@ -3665,6 +3667,9 @@ retry:
->   				 */
->   				if (unlikely(ret & VM_FAULT_OOM))
->   					goto retry;
-> +			} else {
-> +				huge_pmd_set_accessed(mm, vma, address, pmd,
-> +						      orig_pmd, dirty);
->   			}
->   
->   			return ret;
+> Stop it. Really.
+> 
+> Also, this:
+> 
+> > +#ifndef __HAVE_ARCH_PTE_ACCESSIBLE
+> > +#define pte_accessible(pte)            pte_present(pte)
+> > +#endif
+> 
+> looks unsafe and like a really bad idea.
+> 
+> You should probably do
+> 
+>   #ifndef pte_accessible
+>     #define pte_accessible(pte) ((void)(pte),1)
+>   #endif
+> 
+> because you have no idea if other architectures do
+> 
+>  (a) the same trick as x86 does for PROT_NONE (I can already tell you
+> from a quick grep that ia64, m32r, m68k and sh do it)
+>  (b) might not perhaps be caching non-present pte's anyway
+
+Indeed that's much safer and each arch can opt-in consciously 
+instead of us offering a potentially unsafe optimization.
+
+> So NAK on this whole patch. It's bad. It's ugly, it's wrong, 
+> and it's actively buggy.
+
+I have fixed it as per the updated patch below. Only very 
+lightly tested.
+
+Thanks,
+
+	Ingo
+
+----------------------------->
+Subject: x86/mm: Introduce pte_accessible()
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 9 Oct 2012 15:31:12 +0200
+
+We need pte_present to return true for _PAGE_PROTNONE pages, to indicate that
+the pte is associated with a page.
+
+However, for TLB flushing purposes, we would like to know whether the pte
+points to an actually accessible page.  This allows us to skip remote TLB
+flushes for pages that are not actually accessible.
+
+Fill in this method for x86 and provide a safe (but slower) method
+on other architectures.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Fixed-by: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Link: http://lkml.kernel.org/n/tip-66p11te4uj23gevgh4j987ip@git.kernel.org
+[ Added Linus's review fixes. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/include/asm/pgtable.h |    6 ++++++
+ include/asm-generic/pgtable.h  |    4 ++++
+ 2 files changed, 10 insertions(+)
+
+Index: tip/arch/x86/include/asm/pgtable.h
+===================================================================
+--- tip.orig/arch/x86/include/asm/pgtable.h
++++ tip/arch/x86/include/asm/pgtable.h
+@@ -408,6 +408,12 @@ static inline int pte_present(pte_t a)
+ 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+ }
+ 
++#define pte_accessible pte_accessible
++static inline int pte_accessible(pte_t a)
++{
++	return pte_flags(a) & _PAGE_PRESENT;
++}
++
+ static inline int pte_hidden(pte_t pte)
+ {
+ 	return pte_flags(pte) & _PAGE_HIDDEN;
+Index: tip/include/asm-generic/pgtable.h
+===================================================================
+--- tip.orig/include/asm-generic/pgtable.h
++++ tip/include/asm-generic/pgtable.h
+@@ -219,6 +219,10 @@ static inline int pmd_same(pmd_t pmd_a,
+ #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+ #endif
+ 
++#ifndef pte_accessible
++# define pte_accessible(pte)		((void)(pte),1)
++#endif
++
+ #ifndef flush_tlb_fix_spurious_fault
+ #define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
