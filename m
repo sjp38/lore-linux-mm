@@ -1,71 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 729816B0074
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:36:34 -0400 (EDT)
-Date: Fri, 26 Oct 2012 15:36:30 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-Message-ID: <20121026073630.GA12886@localhost>
-References: <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com>
- <50889FF1.9030107@gmail.com>
- <20121025025826.GB23462@localhost>
- <20121026002544.GI29378@dastard>
- <20121026012758.GA6282@localhost>
- <5089F5AD.5040708@gmail.com>
- <20121026065855.GA9179@localhost>
- <508A35B0.30106@gmail.com>
- <20121026070936.GA12282@localhost>
- <508A399D.6000506@gmail.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 14BAC6B0074
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 03:43:16 -0400 (EDT)
+Date: Fri, 26 Oct 2012 10:44:35 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on
+ access fault.
+Message-ID: <20121026074435.GA871@shutemov.name>
+References: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <508A399D.6000506@gmail.com>
+In-Reply-To: <1351183471-14710-1-git-send-email-will.deacon@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ni zhan Chen <nizhan.chen@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Fri, Oct 26, 2012 at 03:19:57PM +0800, Ni zhan Chen wrote:
-> On 10/26/2012 03:09 PM, Fengguang Wu wrote:
-> >On Fri, Oct 26, 2012 at 03:03:12PM +0800, Ni zhan Chen wrote:
-> >>On 10/26/2012 02:58 PM, Fengguang Wu wrote:
-> >>>>  static void shrink_readahead_size_eio(struct file *filp,
-> >>>>                                         struct file_ra_state *ra)
-> >>>>  {
-> >>>>-       ra->ra_pages /= 4;
-> >>>>+       spin_lock(&filp->f_lock);
-> >>>>+       filp->f_mode |= FMODE_RANDOM;
-> >>>>+       spin_unlock(&filp->f_lock);
-> >>>>
-> >>>>As the example in comment above this function, the read maybe still
-> >>>>sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
-> >>>>directly.
-> >>>Yes immediately disabling readahead may hurt IO performance, the
-> >>>original '/ 4' may perform better when there are only 1-3 IO errors
-> >>>encountered.
-> >>Hi Fengguang,
-> >>
-> >>Why the number should be 1-3?
-> >The original behavior is '/= 4' on each error.
-> >
-> >After 1 errors, readahead size will be shrinked by 1/4
-> >After 2 errors, readahead size will be shrinked by 1/16
-> >After 3 errors, readahead size will be shrinked by 1/64
-> >After 4 errors, readahead size will be effectively 0 (disabled)
+On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
+> On x86 memory accesses to pages without the ACCESSED flag set result in the
+> ACCESSED flag being set automatically. With the ARM architecture a page access
+> fault is raised instead (and it will continue to be raised until the ACCESSED
+> flag is set for the appropriate PTE/PMD).
 > 
-> But from function shrink_readahead_size_eio and its caller
-> filemap_fault I can't find the behavior you mentioned. How you
-> figure out it?
+> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+> be called for a write fault.
+> 
+> This patch ensures that faults on transparent hugepages which do not result
+> in a CoW update the access flags for the faulting pmd.
+> 
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> ---
+> 
+> Ok chaps, I rebased this thing onto today's next (which basically
+> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
+> ask if you could eyeball the new code, especially where the locking is
+> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
+> that the page is not splitting, but I can't see why that is required.
 
-It's this line in shrink_readahead_size_eio():
+In handle_mm_fault() we check if the pmd is under splitting without
+page_table_lock. It's kind of speculative cheap check. We need to re-check
+if the PMD is really not under splitting after taking page_table_lock.
 
-        ra->ra_pages /= 4;
+See section "Locking in hugepage aware code" in Documentation/vm/transhuge.txt
 
-That ra_pages will keep shrinking by 4 on each error. The only way to
-restore it is to reopen the file, or POSIX_FADV_SEQUENTIAL.
-
-Thanks,
-Fengguang
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
