@@ -1,55 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id EA5466B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 10:14:36 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so1302379eek.14
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 07:14:35 -0700 (PDT)
-Date: Fri, 26 Oct 2012 16:14:30 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 26/31] sched, numa, mm: Add fault driven placement and
- migration policy
-Message-ID: <20121026141430.GA12158@gmail.com>
-References: <20121025121617.617683848@chello.nl>
- <20121025124834.467791319@chello.nl>
- <CA+55aFwJdn8Kz9UByuRfGNtf9Hkv-=8xB+WRd47uHZU1YMagZw@mail.gmail.com>
- <20121026071532.GC8141@gmail.com>
- <20121026135024.GA11640@gmail.com>
- <1351260672.16863.81.camel@twins>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 79A906B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 10:15:11 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so3398416oag.14
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 07:15:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1351260672.16863.81.camel@twins>
+In-Reply-To: <0000013a9444c6ba-d26e7627-1890-40da-ae91-91e7c4a3d7e9-000000@email.amazonses.com>
+References: <1351087158-8524-1-git-send-email-glommer@parallels.com>
+	<1351087158-8524-2-git-send-email-glommer@parallels.com>
+	<CAOJsxLHxo7zJk=aWrjmuaYsEkaChTCgXowtHxtuiabaOP3W3-Q@mail.gmail.com>
+	<0000013a9444c6ba-d26e7627-1890-40da-ae91-91e7c4a3d7e9-000000@email.amazonses.com>
+Date: Fri, 26 Oct 2012 23:15:10 +0900
+Message-ID: <CAAmzW4O1EAFxHf1tRaFzg-opPLzMboAdo-vbUFkyo=ZdQp9rmw@mail.gmail.com>
+Subject: Re: [PATCH v2 1/2] kmem_cache: include allocators code directly into slab_common
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
+2012/10/25 Christoph Lameter <cl@linux.com>:
+> On Wed, 24 Oct 2012, Pekka Enberg wrote:
+>
+>> So I hate this patch with a passion. We don't have any fastpaths in
+>> mm/slab_common.c nor should we. Those should be allocator specific.
+>
+> I have similar thoughts on the issue. Lets keep the fast paths allocator
+> specific until we find a better way to handle this issue.
 
-* Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
-
-> On Fri, 2012-10-26 at 15:50 +0200, Ingo Molnar wrote:
-> > 
-> > Oh, just found the reason:
-> > 
-> > the ptep_modify_prot_start()/modify()/commit() sequence is 
-> > SMP-unsafe - it has to be done under the mmap_sem 
-> > write-locked.
-> > 
-> > It is safe against *hardware* updates to the PTE, but not 
-> > safe against itself.
-> 
-> Shouldn't the pte_lock serialize all that still? All sites 
-> that modify PTE contents should hold the pte_lock (and do 
-> afaict).
-
-Hm, indeed.
-
-Is there no code under down_read() (in the page fault path) that 
-modifies the pte via just pure atomics?
-
-Thanks,
-
-	Ingo
+Okay. I see.
+How about applying LTO not to the whole kernel code, but just to
+slab_common.o + sl[aou]b.o?
+I think that it may be possible, isn't it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
