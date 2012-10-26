@@ -1,75 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 20EEE6B0071
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 04:08:27 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so2970198obc.14
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 01:08:25 -0700 (PDT)
-Message-ID: <508A44F0.4080606@gmail.com>
-Date: Fri, 26 Oct 2012 16:08:16 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id C90F06B0075
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 04:13:32 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so2540037iak.14
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 01:13:32 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-References: <20121025025826.GB23462@localhost> <20121026002544.GI29378@dastard> <20121026012758.GA6282@localhost> <5089F5AD.5040708@gmail.com> <20121026065855.GA9179@localhost> <508A35B0.30106@gmail.com> <20121026070936.GA12282@localhost> <508A399D.6000506@gmail.com> <20121026073630.GA12886@localhost> <508A4007.5080906@gmail.com> <20121026080240.GA13662@localhost>
 In-Reply-To: <20121026080240.GA13662@localhost>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <20121025025826.GB23462@localhost>
+	<20121026002544.GI29378@dastard>
+	<20121026012758.GA6282@localhost>
+	<5089F5AD.5040708@gmail.com>
+	<20121026065855.GA9179@localhost>
+	<508A35B0.30106@gmail.com>
+	<20121026070936.GA12282@localhost>
+	<508A399D.6000506@gmail.com>
+	<20121026073630.GA12886@localhost>
+	<508A4007.5080906@gmail.com>
+	<20121026080240.GA13662@localhost>
+Date: Fri, 26 Oct 2012 16:13:32 +0800
+Message-ID: <CAA9v8mF+D=bdn9QSNcMv81BSog1okkK=wCLHKGi6NBWoQzyC-w@mail.gmail.com>
+Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
+From: YingHang Zhu <casualfisher@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Dave Chinner <david@fromorbit.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Ni zhan Chen <nizhan.chen@gmail.com>
 
-On 10/26/2012 04:02 PM, Fengguang Wu wrote:
+Hi Fengguang,
+
+On Fri, Oct 26, 2012 at 4:02 PM, Fengguang Wu <fengguang.wu@intel.com> wrote:
 > On Fri, Oct 26, 2012 at 03:47:19PM +0800, Ni zhan Chen wrote:
 >> On 10/26/2012 03:36 PM, Fengguang Wu wrote:
->>> On Fri, Oct 26, 2012 at 03:19:57PM +0800, Ni zhan Chen wrote:
->>>> On 10/26/2012 03:09 PM, Fengguang Wu wrote:
->>>>> On Fri, Oct 26, 2012 at 03:03:12PM +0800, Ni zhan Chen wrote:
->>>>>> On 10/26/2012 02:58 PM, Fengguang Wu wrote:
->>>>>>>>   static void shrink_readahead_size_eio(struct file *filp,
->>>>>>>>                                          struct file_ra_state *ra)
->>>>>>>>   {
->>>>>>>> -       ra->ra_pages /= 4;
->>>>>>>> +       spin_lock(&filp->f_lock);
->>>>>>>> +       filp->f_mode |= FMODE_RANDOM;
->>>>>>>> +       spin_unlock(&filp->f_lock);
->>>>>>>>
->>>>>>>> As the example in comment above this function, the read maybe still
->>>>>>>> sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
->>>>>>>> directly.
->>>>>>> Yes immediately disabling readahead may hurt IO performance, the
->>>>>>> original '/ 4' may perform better when there are only 1-3 IO errors
->>>>>>> encountered.
->>>>>> Hi Fengguang,
->>>>>>
->>>>>> Why the number should be 1-3?
->>>>> The original behavior is '/= 4' on each error.
->>>>>
->>>>> After 1 errors, readahead size will be shrinked by 1/4
->>>>> After 2 errors, readahead size will be shrinked by 1/16
->>>>> After 3 errors, readahead size will be shrinked by 1/64
->>>>> After 4 errors, readahead size will be effectively 0 (disabled)
->>>> But from function shrink_readahead_size_eio and its caller
->>>> filemap_fault I can't find the behavior you mentioned. How you
->>>> figure out it?
->>> It's this line in shrink_readahead_size_eio():
->>>
->>>          ra->ra_pages /= 4;
+>> >On Fri, Oct 26, 2012 at 03:19:57PM +0800, Ni zhan Chen wrote:
+>> >>On 10/26/2012 03:09 PM, Fengguang Wu wrote:
+>> >>>On Fri, Oct 26, 2012 at 03:03:12PM +0800, Ni zhan Chen wrote:
+>> >>>>On 10/26/2012 02:58 PM, Fengguang Wu wrote:
+>> >>>>>>  static void shrink_readahead_size_eio(struct file *filp,
+>> >>>>>>                                         struct file_ra_state *ra)
+>> >>>>>>  {
+>> >>>>>>-       ra->ra_pages /= 4;
+>> >>>>>>+       spin_lock(&filp->f_lock);
+>> >>>>>>+       filp->f_mode |= FMODE_RANDOM;
+>> >>>>>>+       spin_unlock(&filp->f_lock);
+>> >>>>>>
+>> >>>>>>As the example in comment above this function, the read maybe still
+>> >>>>>>sequential, and it will waste IO bandwith if modify to FMODE_RANDOM
+>> >>>>>>directly.
+>> >>>>>Yes immediately disabling readahead may hurt IO performance, the
+>> >>>>>original '/ 4' may perform better when there are only 1-3 IO errors
+>> >>>>>encountered.
+>> >>>>Hi Fengguang,
+>> >>>>
+>> >>>>Why the number should be 1-3?
+>> >>>The original behavior is '/= 4' on each error.
+>> >>>
+>> >>>After 1 errors, readahead size will be shrinked by 1/4
+>> >>>After 2 errors, readahead size will be shrinked by 1/16
+>> >>>After 3 errors, readahead size will be shrinked by 1/64
+>> >>>After 4 errors, readahead size will be effectively 0 (disabled)
+>> >>But from function shrink_readahead_size_eio and its caller
+>> >>filemap_fault I can't find the behavior you mentioned. How you
+>> >>figure out it?
+>> >It's this line in shrink_readahead_size_eio():
+>> >
+>> >         ra->ra_pages /= 4;
+>>
 >> Yeah, I mean why the 4th readahead size will be 0(disabled)? What's
 >> the original value of ra->ra_pages? How can guarantee the 4th shrink
 >> readahead size can be 0?
+>
 > Ah OK, I'm talking about the typical case. The default readahead size
 > is 128k, which will become 0 after / 256. The reasonable good ra size
 > for hard disks is 1MB=256pages, which also becomes 1page after 4 errors.
 
-Then why default size is not set to reasonable size?
-
-Regards,
-Chen
+How do you feel about my previous mail of error statistics, in fact I
+prefer treating these files independently,  so do some check for FMODE_RANDOM
+before we change the readahead window to avoid trashing the read ahead window,
+If the user applications call fadvise but the media turn out to be
+error-prone, after one
+read we know the situation and set the file in FMODE_RANDOM, this should solve
+the issue Dave raised.
+Do I miss something? Thanks in advance.
 
 >
 > Thanks,
 > Fengguang
->
+
+
+
+-- 
+Thanks,
+     Ying Zhu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
