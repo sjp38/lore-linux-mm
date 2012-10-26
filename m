@@ -1,60 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 07E4C6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 12:55:04 -0400 (EDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH 2/3] ext4: introduce ext4_error_remove_page
-Date: Fri, 26 Oct 2012 16:55:01 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
-References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20121026061206.GA31139@thunk.org>
-In-Reply-To: <20121026061206.GA31139@thunk.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 723D06B0073
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 13:01:36 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id hq7so493738wib.8
+        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 10:01:34 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl>
+ <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
+ <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+ <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+ <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 26 Oct 2012 10:01:14 -0700
+Message-ID: <CA+55aFwpZ5pO2G7gs3Pga5et1DQZ4qMoe1CLFkSrVQK_4K4rhA@mail.gmail.com>
+Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-> If we go back to first principles, what do we want to do?  We want the
-> system administrator to know that a file might be potentially
-> corrupted.  And perhaps, if a program tries to read from that file, it
-> should get an error.  If we have a program that has that file mmap'ed
-> at the time of the error, perhaps we should kill the program with some
-> kind of signal.  But to force a reboot of the entire system?  Or to
-> remounte the file system read-only?  That seems to be completely
-> disproportionate for what might be 2 or 3 bits getting flipped in a
-> page cache for a file.
+On Fri, Oct 26, 2012 at 5:34 AM, Michel Lespinasse <walken@google.com> wrote:
+> On Thu, Oct 25, 2012 at 9:23 PM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>>
+>> Yes. It's not architected as far as I know, though. But I agree, it's
+>> possible - even likely - we could avoid TLB flushing entirely on x86.
+>
+> Actually, it is architected on x86. This was first described in the
+> intel appnote 317080 "TLBs, Paging-Structure Caches, and Their
+> Invalidation", last paragraph of section 5.1. Nowadays, the same
+> contents are buried somewhere in Volume 3 of the architecture manual
+> (in my copy: 4.10.4.1 Operations that Invalidate TLBs and
+> Paging-Structure Caches)
 
-I think that we know that the file *is* corrupted, not just "potentially".
-We probably know the location of the corruption to cache-line granularity.
-Perhaps better on systems where we have access to ecc syndrome bits,
-perhaps worse ... we do have some errors where the low bits of the address
-are not known.
+Good. I should have known it must be architected, because we've gone
+back-and-forth on this in the kernel historically. We used to have
+some TLB invalidates in the faulting path because I wasn't sure
+whether they were needed or not, but we clearly don't have them any
+more (and I suspect coverage was always spotty).
 
-I'm in total agreement that forcing a reboot or fsck is unhelpful here.
+And Intel (and AMD) have been very good at documenting as architected
+these kinds of details that people end up relying on even if they
+weren't necessarily originally explicitly documented.
 
-But what should we do?  We don't want to let the error be propagated. That
-could cause a cascade of more failures as applications make bad decisions
-based on the corrupted data.
+>> I *suspect* that whole TLB flush just magically became an SMP one
+>> without anybody ever really thinking about it.
+>
+> I would be very worried about assuming every non-x86 arch has similar
+> TLB semantics. However, if their fault handlers always invalidate TLB
+> for pages that get spurious faults, then skipping the remote
+> invalidation would be fine. (I believe this is what
+> tlb_fix_spurious_fault() is for ?)
 
-Perhaps we could ask the filesystem to move the file to a top-level
-"corrupted" directory (analogous to "lost+found") with some attached
-metadata to help recovery tools know where the file came from, and the
-range of corrupted bytes in the file? We'd also need to invalidate existing
-open file descriptors (or less damaging - flag them to avoid the corrupted
-area??). Whatever we do, it needs to be persistent across a reboot ... the
-lost bits are not going to magically heal themselves.
+Yes. Of course, there may be some case where we unintentionally don't
+necessarily flush a faulting address (on some architecture that needs
+it), and then removing the cross-cpu invalidate could expose that
+pre-existing bug-let, and cause an infinite loop of page faults due to
+a TLB entry that never gets invalidated even if the page tables are
+actually up-to-date.
 
-We already have code to send SIGBUS to applications that have the
-corrupted page mmap(2)'d (see mm/memory-failure.c).
+So changing the mm/pgtable-generic.c function sounds like the right
+thing to do, but would be a bit more scary.
 
-Other ideas?
+Changing the x86 version sounds safe, *especially* since you point out
+that the "fault-causes-tlb-invalidate" is architected behavior.
 
--Tony
+So I'd almost be willing to drop the invalidate in just one single
+commit, because it really should be safe. The only thing it does is
+guarantee that the accessed bit gets updated, and the accessed bit
+just isn't that important. If we never flush the TLB on another CPU
+that continues to use a TLB entry where the accessed bit is set (even
+if it's cleared in the in-memory page tables), the worst that can
+happen is that the accessed bit doesn't ever get set even if that CPU
+constantly uses the page.
+
+And nobody will *ever* care. The A bit is purely a heuristic for the
+page LRU thing, we don't care about irrelevant special cases that
+won't even affect correctness (much less performance - if that thing
+is really hot and stays in the TLB, if we evict it, it will
+immediately get reloaded anyway).
+
+And doing a TLB invalidate even locally is worthless: sure, setting
+the dirty bit and not invalidating the TLB can cause a local micro-tlb
+fault (not a software-visible one, just microarchitectural pipeline
+restart with TLB reload) on the next write access (because the TLB
+would still contain D=0), so *eve*if* the CPU didn't
+invalidate-on-fault, there's no reason we should invalidate in
+software on x86.
+
+Again, this can be different on non-x86 architectures with software
+dirty bits, where a stale TLB entry that never gets flushed could
+cause infinite TLB faults that never make progress, but that's really
+a TLB _walker_ issue, not a generic VM issue.
+
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
