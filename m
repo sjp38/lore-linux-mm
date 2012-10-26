@@ -1,100 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 723D06B0073
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 13:01:36 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id hq7so493738wib.8
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 10:01:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl>
- <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
- <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
- <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
- <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 26 Oct 2012 10:01:14 -0700
-Message-ID: <CA+55aFwpZ5pO2G7gs3Pga5et1DQZ4qMoe1CLFkSrVQK_4K4rhA@mail.gmail.com>
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 5C02C6B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 13:02:39 -0400 (EDT)
+Message-ID: <1351270990.16639.92.camel@maggy.simpson.net>
+Subject: Re: process hangs on do_exit when oom happens
+From: Mike Galbraith <efault@gmx.de>
+Date: Fri, 26 Oct 2012 10:03:10 -0700
+In-Reply-To: <CAKWKT+ZRTUwer8qhjWGjkra63e10R67UQzezdaCaStz+rvGjxw@mail.gmail.com>
+References: <op.wmbi5kbrn27o5l@gaoqiang-d1.corp.qihoo.net>
+	 <20121019160425.GA10175@dhcp22.suse.cz>
+	 <CAKWKT+ZRMHzgCLJ1quGnw-_T1b9OboYKnQdRc2_Z=rdU_PFVtw@mail.gmail.com>
+	 <CAKTCnzkMQQXRdx=ikydsD9Pm3LuRgf45_=m7ozuFmSZyxazXyA@mail.gmail.com>
+	 <CAKWKT+bYOf0cEDuiibf6eV2raMxe481y-D+nrBgPWR3R+53zvg@mail.gmail.com>
+	 <20121023095028.GD15397@dhcp22.suse.cz>
+	 <CAKWKT+b2s4E7Nne5d0UJwfLGiCXqAUgrCzuuZi6ZPdjszVSmWg@mail.gmail.com>
+	 <20121023101500.GE15397@dhcp22.suse.cz>
+	 <CAKTCnzkiabWK8tAORkhg6oW11VvXS-YqBwDzED_3=J1buhaQnQ@mail.gmail.com>
+	 <CAKWKT+ZahFTnPRJ4FCebxfcrcYEBf+PL9Wa_Foygep_gFst4_g@mail.gmail.com>
+	 <20121025095719.GA11105@dhcp22.suse.cz>
+	 <CAKWKT+ZRTUwer8qhjWGjkra63e10R67UQzezdaCaStz+rvGjxw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Qiang Gao <gaoqiangscut@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mmc@vger.kernel.org" <linux-mmc@vger.kernel.org>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Oct 26, 2012 at 5:34 AM, Michel Lespinasse <walken@google.com> wrote:
-> On Thu, Oct 25, 2012 at 9:23 PM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
->>
->> Yes. It's not architected as far as I know, though. But I agree, it's
->> possible - even likely - we could avoid TLB flushing entirely on x86.
->
-> Actually, it is architected on x86. This was first described in the
-> intel appnote 317080 "TLBs, Paging-Structure Caches, and Their
-> Invalidation", last paragraph of section 5.1. Nowadays, the same
-> contents are buried somewhere in Volume 3 of the architecture manual
-> (in my copy: 4.10.4.1 Operations that Invalidate TLBs and
-> Paging-Structure Caches)
+On Fri, 2012-10-26 at 10:42 +0800, Qiang Gao wrote: 
+> On Thu, Oct 25, 2012 at 5:57 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> > On Wed 24-10-12 11:44:17, Qiang Gao wrote:
+> >> On Wed, Oct 24, 2012 at 1:43 AM, Balbir Singh <bsingharora@gmail.com> wrote:
+> >> > On Tue, Oct 23, 2012 at 3:45 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> >> On Tue 23-10-12 18:10:33, Qiang Gao wrote:
+> >> >>> On Tue, Oct 23, 2012 at 5:50 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> >> >>> > On Tue 23-10-12 15:18:48, Qiang Gao wrote:
+> >> >>> >> This process was moved to RT-priority queue when global oom-killer
+> >> >>> >> happened to boost the recovery of the system..
+> >> >>> >
+> >> >>> > Who did that? oom killer doesn't boost the priority (scheduling class)
+> >> >>> > AFAIK.
+> >> >>> >
+> >> >>> >> but it wasn't get properily dealt with. I still have no idea why where
+> >> >>> >> the problem is ..
+> >> >>> >
+> >> >>> > Well your configuration says that there is no runtime reserved for the
+> >> >>> > group.
+> >> >>> > Please refer to Documentation/scheduler/sched-rt-group.txt for more
+> >> >>> > information.
+> >> >>> >
+> >> >> [...]
+> >> >>> maybe this is not a upstream-kernel bug. the centos/redhat kernel
+> >> >>> would boost the process to RT prio when the process was selected
+> >> >>> by oom-killer.
+> >> >>
+> >> >> This still looks like your cpu controller is misconfigured. Even if the
+> >> >> task is promoted to be realtime.
+> >> >
+> >> >
+> >> > Precisely! You need to have rt bandwidth enabled for RT tasks to run,
+> >> > as a workaround please give the groups some RT bandwidth and then work
+> >> > out the migration to RT and what should be the defaults on the distro.
+> >> >
+> >> > Balbir
+> >>
+> >>
+> >> see https://patchwork.kernel.org/patch/719411/
+> >
+> > The patch surely "fixes" your problem but the primary fault here is the
+> > mis-configured cpu cgroup. If the value for the bandwidth is zero by
+> > default then all realtime processes in the group a screwed. The value
+> > should be set to something more reasonable.
+> > I am not familiar with the cpu controller but it seems that
+> > alloc_rt_sched_group needs some treat. Care to look into it and send a
+> > patch to the cpu controller and cgroup maintainers, please?
+> >
+> > --
+> > Michal Hocko
+> > SUSE Labs
+> 
+> I'm trying to fix the problem. but no substantive progress yet.
 
-Good. I should have known it must be architected, because we've gone
-back-and-forth on this in the kernel historically. We used to have
-some TLB invalidates in the faulting path because I wasn't sure
-whether they were needed or not, but we clearly don't have them any
-more (and I suspect coverage was always spotty).
+The throttle tracks a finite resource for an arbitrary number of groups,
+so there's no sane rt_runtime default other than zero.
 
-And Intel (and AMD) have been very good at documenting as architected
-these kinds of details that people end up relying on even if they
-weren't necessarily originally explicitly documented.
+Most folks only want the top level throttle warm fuzzy, so a complete
+runtime RT_GROUP_SCHED on/off switch with default to off, ie rt tasks
+cannot be moved until switched on would fix some annoying "Oopsie, I
+forgot" allocation troubles.  If you turn it on, shame on you if you
+fail to allocate, you asked for it, you're not just stuck with it
+because your distro enabled it in their config.
 
->> I *suspect* that whole TLB flush just magically became an SMP one
->> without anybody ever really thinking about it.
->
-> I would be very worried about assuming every non-x86 arch has similar
-> TLB semantics. However, if their fault handlers always invalidate TLB
-> for pages that get spurious faults, then skipping the remote
-> invalidation would be fine. (I believe this is what
-> tlb_fix_spurious_fault() is for ?)
+Or, perhaps just make zero rt_runtime always mean traverse up to first
+non-zero rt_runtime, ie zero allocation children may consume parental
+runtime as they see fit on first come first served basis, when it's
+gone, tough, parent/children all wait for refill.
 
-Yes. Of course, there may be some case where we unintentionally don't
-necessarily flush a faulting address (on some architecture that needs
-it), and then removing the cross-cpu invalidate could expose that
-pre-existing bug-let, and cause an infinite loop of page faults due to
-a TLB entry that never gets invalidated even if the page tables are
-actually up-to-date.
+Or whatever, as long as you don't bust distribution/tracking for those
+crazy people who intentionally use RT_GROUP_SCHED ;-)
 
-So changing the mm/pgtable-generic.c function sounds like the right
-thing to do, but would be a bit more scary.
+The bug is in the patch that used sched_setscheduler_nocheck().  Plain
+sched_setscheduler() would have replied -EGOAWAY.
 
-Changing the x86 version sounds safe, *especially* since you point out
-that the "fault-causes-tlb-invalidate" is architected behavior.
-
-So I'd almost be willing to drop the invalidate in just one single
-commit, because it really should be safe. The only thing it does is
-guarantee that the accessed bit gets updated, and the accessed bit
-just isn't that important. If we never flush the TLB on another CPU
-that continues to use a TLB entry where the accessed bit is set (even
-if it's cleared in the in-memory page tables), the worst that can
-happen is that the accessed bit doesn't ever get set even if that CPU
-constantly uses the page.
-
-And nobody will *ever* care. The A bit is purely a heuristic for the
-page LRU thing, we don't care about irrelevant special cases that
-won't even affect correctness (much less performance - if that thing
-is really hot and stays in the TLB, if we evict it, it will
-immediately get reloaded anyway).
-
-And doing a TLB invalidate even locally is worthless: sure, setting
-the dirty bit and not invalidating the TLB can cause a local micro-tlb
-fault (not a software-visible one, just microarchitectural pipeline
-restart with TLB reload) on the next write access (because the TLB
-would still contain D=0), so *eve*if* the CPU didn't
-invalidate-on-fault, there's no reason we should invalidate in
-software on x86.
-
-Again, this can be different on non-x86 architectures with software
-dirty bits, where a stale TLB entry that never gets flushed could
-cause infinite TLB faults that never make progress, but that's really
-a TLB _walker_ issue, not a generic VM issue.
-
-          Linus
+-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
