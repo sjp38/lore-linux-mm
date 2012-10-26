@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 59BCD6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 22:25:09 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so2845094oag.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 19:25:08 -0700 (PDT)
-Message-ID: <5089F47E.5010405@gmail.com>
-Date: Fri, 26 Oct 2012 10:25:02 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id A24976B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 22:27:47 -0400 (EDT)
+Message-ID: <5089F5B5.1050206@redhat.com>
+Date: Thu, 25 Oct 2012 22:30:13 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: readahead: remove redundant ra_pages in file_ra_state
-References: <1350996411-5425-1-git-send-email-casualfisher@gmail.com> <20121023224706.GR4291@dastard> <CAA9v8mGjdi9Kj7p-yeLJx-nr8C+u4M=QcP5+WcA+5iDs6-thGw@mail.gmail.com> <20121024201921.GX4291@dastard> <CAA9v8mExDX1TYgCrRfYuh82SnNmNkqC4HjkmczSnz3Ca4zT_qw@mail.gmail.com> <20121025015014.GC29378@dastard> <CAA9v8mEULAEHn8qSsFokEue3c0hy8pK8bkYB+6xOtz_Tgbp0vw@mail.gmail.com> <50889FF1.9030107@gmail.com> <20121025025826.GB23462@localhost> <20121026002544.GI29378@dastard>
-In-Reply-To: <20121026002544.GI29378@dastard>
+Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
+References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
+In-Reply-To: <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, YingHang Zhu <casualfisher@gmail.com>, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 10/26/2012 08:25 AM, Dave Chinner wrote:
-> On Thu, Oct 25, 2012 at 10:58:26AM +0800, Fengguang Wu wrote:
->> Hi Chen,
+On 10/25/2012 04:17 PM, Linus Torvalds wrote:
+> On Thu, Oct 25, 2012 at 5:16 AM, Peter Zijlstra <a.p.zijlstra@chello.nl> wrote:
+>> From: Rik van Riel <riel@redhat.com>
 >>
->>> But how can bdi related ra_pages reflect different files' readahead
->>> window? Maybe these different files are sequential read, random read
->>> and so on.
->> It's simple: sequential reads will get ra_pages readahead size while
->> random reads will not get readahead at all.
+>> @@ -306,11 +306,26 @@ int ptep_set_access_flags(struct vm_area
+>>                            pte_t entry, int dirty)
+>>   {
+>>          int changed = !pte_same(*ptep, entry);
+>> +       /*
+>> +        * If the page used to be inaccessible (_PAGE_PROTNONE), or
+>> +        * this call upgrades the access permissions on the same page,
+>> +        * it is safe to skip the remote TLB flush.
+>> +        */
+>> +       bool flush_remote = false;
+>> +       if (!pte_accessible(*ptep))
+>> +               flush_remote = false;
+>> +       else if (pte_pfn(*ptep) != pte_pfn(entry) ||
+>> +                       (pte_write(*ptep) && !pte_write(entry)) ||
+>> +                       (pte_exec(*ptep) && !pte_exec(entry)))
+>> +               flush_remote = true;
 >>
->> Talking about the below chunk, it might hurt someone that explicitly
->> takes advantage of the behavior, however the ra_pages*2 seems more
->> like a hack than general solution to me: if the user will need
->> POSIX_FADV_SEQUENTIAL to double the max readahead window size for
->> improving IO performance, then why not just increase bdi->ra_pages and
->> benefit all reads? One may argue that it offers some differential
->> behavior to specific applications, however it may also present as a
->> counter-optimization: if the root already tuned bdi->ra_pages to the
->> optimal size, the doubled readahead size will only cost more memory
->> and perhaps IO latency.
->>
->> --- a/mm/fadvise.c
->> +++ b/mm/fadvise.c
->> @@ -87,7 +86,6 @@ SYSCALL_DEFINE(fadvise64_64)(int fd, loff_t offset, loff_t len, int advice)
->>                  spin_unlock(&file->f_lock);
->>                  break;
->>          case POSIX_FADV_SEQUENTIAL:
->> -               file->f_ra.ra_pages = bdi->ra_pages * 2;
-> I think we really have to reset file->f_ra.ra_pages here as it is
-> not a set-and-forget value. e.g.  shrink_readahead_size_eio() can
-> reduce ra_pages as a result of IO errors. Hence if you have had io
-> errors, telling the kernel that you are now going to do  sequential
-> IO should reset the readahead to the maximum ra_pages value
-> supported....
-
-Good catch!
-
+>>          if (changed && dirty) {
 >
-> Cheers,
+> Did anybody ever actually look at this sh*t-for-brains patch?
 >
-> Dave.
+> Yeah, I'm grumpy. But I'm wasting time looking at patches that have
+> new code in them that is stupid and retarded.
+>
+> This is the VM, guys, we don't add stupid and retarded code.
+>
+> LOOK at the code, for chrissake. Just look at it. And if you don't see
+> why the above is stupid and retarded, you damn well shouldn't be
+> touching VM code.
+
+I agree it is pretty ugly.  However, the above patch
+did get rid of a gigantic performance regression with
+Peter's code.
+
+Doing unnecessary remote TLB flushes was costing about
+90% performance with specjbb on a 4 node system.
+
+However, if we can guarantee that ptep_set_access_flags
+is only ever called for pte permission _upgrades_, we
+can simply get rid of the remote TLB flush on x86, and
+skip the paranoia tests we are doing above.
+
+Do we have that kind of guarantee?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
