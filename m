@@ -1,77 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 3724B6B0073
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:46:10 -0400 (EDT)
-Date: Fri, 26 Oct 2012 14:46:15 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH 3/3] mm,generic: only flush the local TLB in
- ptep_set_access_flags
-Message-ID: <20121026144615.2276cd59@dull>
-In-Reply-To: <20121026132601.GC9886@gmail.com>
-References: <20121025121617.617683848@chello.nl>
-	<20121025124832.840241082@chello.nl>
-	<CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com>
-	<5089F5B5.1050206@redhat.com>
-	<CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-	<508A0A0D.4090001@redhat.com>
-	<CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
-	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-	<m2pq45qu0s.fsf@firstfloor.org>
-	<508A8D31.9000106@redhat.com>
-	<20121026132601.GC9886@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id E91256B0075
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 14:46:56 -0400 (EDT)
+Date: Fri, 26 Oct 2012 14:46:49 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Message-ID: <20121026184649.GA8614@thunk.org>
+References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20121026061206.GA31139@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-The function ptep_set_access_flags is only ever used to upgrade
-access permissions to a page. That means the only negative side
-effect of not flushing remote TLBs is that other CPUs may incur
-spurious page faults, if they happen to access the same address,
-and still have a PTE with the old permissions cached in their
-TLB.
+On Fri, Oct 26, 2012 at 04:55:01PM +0000, Luck, Tony wrote:
+> 
+> I think that we know that the file *is* corrupted, not just "potentially".
+> We probably know the location of the corruption to cache-line granularity.
+> Perhaps better on systems where we have access to ecc syndrome bits,
+> perhaps worse ... we do have some errors where the low bits of the address
+> are not known.
 
-Having another CPU maybe incur a spurious page fault is faster
-than always incurring the cost of a remote TLB flush, so replace
-the remote TLB flush with a purely local one.
+Well, it's at least *possible* that it was only the ECC bits that got
+flipped.  :-) Not likely, I'll grant!  (Or does the motherboard zero
+out the entire cache-line on a hard ECC failure?)
 
-This should be safe on every architecture that correctly
-implements flush_tlb_fix_spurious_fault() to actually invalidate
-the local TLB entry that caused a page fault, as well as on
-architectures where the hardware invalidates TLB entries that
-cause page faults.
+> I'm in total agreement that forcing a reboot or fsck is unhelpful here.
+> 
+> But what should we do?  We don't want to let the error be propagated. That
+> could cause a cascade of more failures as applications make bad decisions
+> based on the corrupted data.
+> 
+> Perhaps we could ask the filesystem to move the file to a top-level
+> "corrupted" directory (analogous to "lost+found") with some attached
+> metadata to help recovery tools know where the file came from, and the
+> range of corrupted bytes in the file? We'd also need to invalidate existing
+> open file descriptors (or less damaging - flag them to avoid the corrupted
+> area??). Whatever we do, it needs to be persistent across a reboot ... the
+> lost bits are not going to magically heal themselves.
 
-In the unlikely event that you are hitting what appears to be
-an infinite loop of page faults, and 'git bisect' took you to
-this changeset, your architecture needs to implement
-flush_tlb_fix_spurious_fault to actually flush the TLB entry.
+Well, we could set a new attribute bit on the file which indicates
+that the file has been corrupted, and this could cause any attempts to
+open the file to return some error until the bit has been cleared.
+This would persist across reboots.  The only problem is that system
+administrators might get very confused (at least at first, when they
+first run a kernel or a distribution which has this feature enabled).
+Application programs could also get very confused when any attempt to
+open or read from a file suddenly returned some new error code (EIO,
+or should we designate a new errno code for this purpose, so there is
+a better indication of what the heck was going on?)
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>
----
- mm/pgtable-generic.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Also, if we just log the message in dmesg, if the system administrator
+doesn't find the "this file is corrupted" bit right away, they might
+not be able to determine which part of the file was corrupted.  How
+important is this?  If the file system supports extended attributes,
+should we attempt to attach a new extended attribute with information
+about the ECC failure?
 
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index e642627..0361369 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	int changed = !pte_same(*ptep, entry);
- 	if (changed) {
- 		set_pte_at(vma->vm_mm, address, ptep, entry);
--		flush_tlb_page(vma, address);
-+		flush_tlb_fix_spurious_fault(vma, address);
- 	}
- 	return changed;
- }
+I'm not sure it's worth it to go to these extents, but I could imagine
+some customers wanting to have this sort of information.  Do we know
+what their "nice to have" / "must have" requirements might be?
+
+     	       	       	       	    	 - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
