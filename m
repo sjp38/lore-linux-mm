@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id B9CFA6B0073
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 07:38:04 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 84F1B6B0074
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 07:38:05 -0400 (EDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH v3 1/6] memcg: split mem_cgroup_force_empty into reclaiming and reparenting parts
-Date: Fri, 26 Oct 2012 13:37:28 +0200
-Message-Id: <1351251453-6140-2-git-send-email-mhocko@suse.cz>
+Subject: [PATCH v3 2/6] memcg: root_cgroup cannot reach mem_cgroup_move_parent
+Date: Fri, 26 Oct 2012 13:37:29 +0200
+Message-Id: <1351251453-6140-3-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
 References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -13,150 +13,43 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@parallels.com>
 
-mem_cgroup_force_empty did two separate things depending on free_all
-parameter from the very beginning. It either reclaimed as many pages as
-possible and moved the rest to the parent or just moved charges to the
-parent. The first variant is used as memory.force_empty callback while
-the later is used from the mem_cgroup_pre_destroy.
+The root cgroup cannot be destroyed so we never hit it down the
+mem_cgroup_pre_destroy path and mem_cgroup_force_empty_write shouldn't
+even try to do anything if called for the root.
 
-The whole games around gotos are far from being nice and there is no
-reason to keep those two functions inside one. Let's split them and
-also move the responsibility for css reference counting to their callers
-to make to code easier.
-
-This patch doesn't have any functional changes.
+This means that mem_cgroup_move_parent doesn't have to bother with the
+root cgroup and it can assume it can always move charges upwards.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 Reviewed-by: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c |   72 ++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 42 insertions(+), 30 deletions(-)
+ mm/memcontrol.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 795e525..07d92b8 100644
+index 07d92b8..916132a 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3739,27 +3739,21 @@ static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- }
+@@ -2715,9 +2715,7 @@ static int mem_cgroup_move_parent(struct page *page,
+ 	unsigned long uninitialized_var(flags);
+ 	int ret;
  
- /*
-- * make mem_cgroup's charge to be 0 if there is no task.
-+ * make mem_cgroup's charge to be 0 if there is no task by moving
-+ * all the charges and pages to the parent.
-  * This enables deleting this mem_cgroup.
-+ *
-+ * Caller is responsible for holding css reference on the memcg.
-  */
--static int mem_cgroup_force_empty(struct mem_cgroup *memcg, bool free_all)
-+static int mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
- {
--	int ret;
--	int node, zid, shrink;
--	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
- 	struct cgroup *cgrp = memcg->css.cgroup;
-+	int node, zid;
-+	int ret;
+-	/* Is ROOT ? */
+-	if (mem_cgroup_is_root(child))
+-		return -EINVAL;
++	VM_BUG_ON(mem_cgroup_is_root(child));
  
--	css_get(&memcg->css);
--
--	shrink = 0;
--	/* should free all ? */
--	if (free_all)
--		goto try_to_free;
--move_account:
- 	do {
--		ret = -EBUSY;
- 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
--			goto out;
-+			return -EBUSY;
- 		/* This is for making all *used* pages to be on LRU. */
- 		lru_add_drain_all();
- 		drain_all_stock_sync(memcg);
-@@ -3783,27 +3777,34 @@ move_account:
- 		cond_resched();
- 	/* "ret" should also be checked to ensure all lists are empty. */
- 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0 || ret);
--out:
--	css_put(&memcg->css);
-+
- 	return ret;
-+}
-+
-+/*
-+ * Reclaims as many pages from the given memcg as possible and moves
-+ * the rest to the parent.
-+ *
-+ * Caller is responsible for holding css reference for memcg.
-+ */
-+static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
-+{
-+	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-+	struct cgroup *cgrp = memcg->css.cgroup;
- 
--try_to_free:
- 	/* returns EBUSY if there is a task or if we come here twice. */
--	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children) || shrink) {
--		ret = -EBUSY;
--		goto out;
--	}
-+	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
-+		return -EBUSY;
-+
- 	/* we call try-to-free pages for make this cgroup empty */
- 	lru_add_drain_all();
- 	/* try to free all pages in this cgroup */
--	shrink = 1;
- 	while (nr_retries && res_counter_read_u64(&memcg->res, RES_USAGE) > 0) {
- 		int progress;
- 
--		if (signal_pending(current)) {
--			ret = -EINTR;
--			goto out;
--		}
-+		if (signal_pending(current))
-+			return -EINTR;
-+
- 		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
- 						false);
- 		if (!progress) {
-@@ -3814,13 +3815,19 @@ try_to_free:
- 
- 	}
- 	lru_add_drain();
--	/* try move_account...there may be some *locked* pages. */
--	goto move_account;
-+	return mem_cgroup_reparent_charges(memcg);
- }
- 
- static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
- {
--	return mem_cgroup_force_empty(mem_cgroup_from_cont(cont), true);
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	int ret;
-+
-+	css_get(&memcg->css);
-+	ret = mem_cgroup_force_empty(memcg);
-+	css_put(&memcg->css);
-+
-+	return ret;
- }
- 
- 
-@@ -5003,8 +5010,13 @@ free_out:
- static int mem_cgroup_pre_destroy(struct cgroup *cont)
- {
+ 	ret = -EBUSY;
+ 	if (!get_page_unless_zero(page))
+@@ -3823,6 +3821,8 @@ static int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-+	int ret;
+ 	int ret;
  
--	return mem_cgroup_force_empty(memcg, false);
-+	css_get(&memcg->css);
-+	ret = mem_cgroup_reparent_charges(memcg);
-+	css_put(&memcg->css);
-+
-+	return ret;
- }
- 
- static void mem_cgroup_destroy(struct cgroup *cont)
++	if (mem_cgroup_is_root(memcg))
++		return -EINVAL;
+ 	css_get(&memcg->css);
+ 	ret = mem_cgroup_force_empty(memcg);
+ 	css_put(&memcg->css);
 -- 
 1.7.10.4
 
