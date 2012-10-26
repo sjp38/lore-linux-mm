@@ -1,15 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 2F9CF6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:08:50 -0400 (EDT)
-Message-ID: <1351256885.16863.62.camel@twins>
-Subject: Re: [PATCH 1/2] numa, mm: drop redundant check in
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 589FF6B0073
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 09:10:51 -0400 (EDT)
+Message-ID: <1351257008.16863.63.camel@twins>
+Subject: Re: [PATCH 2/2] numa, mm: consolidate error path in
  do_huge_pmd_numa_page()
 From: Peter Zijlstra <peterz@infradead.org>
-Date: Fri, 26 Oct 2012 15:08:05 +0200
-In-Reply-To: <1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Fri, 26 Oct 2012 15:10:08 +0200
+In-Reply-To: <1351256077-1594-2-git-send-email-kirill.shutemov@linux.intel.com>
 References: 
 	<1351256077-1594-1-git-send-email-kirill.shutemov@linux.intel.com>
+	 <1351256077-1594-2-git-send-email-kirill.shutemov@linux.intel.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Mime-Version: 1.0
@@ -21,23 +22,17 @@ Cc: linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, Andrew Morton <akpm@l
 On Fri, 2012-10-26 at 15:54 +0300, Kirill A. Shutemov wrote:
 > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 >=20
-> We check if the pmd entry is the same as on pmd_trans_huge() in
-> handle_mm_fault(). That's enough.
+> Let's move all error path code to the end if the function. It makes code
+> more straight-forward.
 >=20
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/huge_memory.c |   44 ++++++++++++++++++++------------------------
+>  1 file changed, 20 insertions(+), 24 deletions(-)
 
-Ah indeed, Will mentioned something like this on IRC as well, I hadn't
-gotten around to looking at it -- now have, thanks!
+and smaller! Thanks!
 
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-
-That said, where in handle_mm_fault() do we wait for a split to
-complete? We have a pmd_trans_huge() && !pmd_trans_splitting(), so a
-fault on a currently splitting pmd will fall through.
-
-Is it the return from the fault on unlikely(pmd_trans_huge()) ?
-
-I'm probably missing something obvious..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
