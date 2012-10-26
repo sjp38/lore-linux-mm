@@ -1,77 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id A910A6B0074
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 20:53:23 -0400 (EDT)
-Date: Fri, 26 Oct 2012 09:58:51 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] Support volatile range for anon vma
-Message-ID: <20121026005851.GD15767@bbox>
-References: <1351133820-14096-1-git-send-email-minchan@kernel.org>
- <0000013a9881a86c-c0fb5823-b6e7-4bea-8707-f6b8eddae14d-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id B39BF6B0074
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 21:17:55 -0400 (EDT)
+Date: Fri, 26 Oct 2012 12:17:33 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: [PATCH 0/3] KVM: PPC: Book3S HV: More flexible allocator for
+ linear memory
+Message-ID: <20121026011733.GA31394@drongo>
+References: <20120912003427.GH32642@bloggs.ozlabs.ibm.com>
+ <9650229C-2512-4684-98EC-6E252E47C4A9@suse.de>
+ <20120914081140.GC15028@bloggs.ozlabs.ibm.com>
+ <F7ED8384-5B23-478C-B2B7-927A3A755E98@suse.de>
+ <20120914124504.GF15028@bloggs.ozlabs.ibm.com>
+ <C8AA7FDF-A559-46CF-8A6E-8D8B8163D38E@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0000013a9881a86c-c0fb5823-b6e7-4bea-8707-f6b8eddae14d-000000@email.amazonses.com>
+In-Reply-To: <C8AA7FDF-A559-46CF-8A6E-8D8B8163D38E@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Alexander Graf <agraf@suse.de>
+Cc: kvm-ppc@vger.kernel.org, KVM list <kvm@vger.kernel.org>, linux-mm@kvack.org, mina86@mina86.com
 
-Hi Christoph,
-
-On Thu, Oct 25, 2012 at 03:19:27PM +0000, Christoph Lameter wrote:
-> On Thu, 25 Oct 2012, Minchan Kim wrote:
+On Fri, Sep 14, 2012 at 03:15:32PM +0200, Alexander Graf wrote:
 > 
-> >  #endif
-> > +	/*
-> > +	 * True if page in this vma is reclaimed.
+> On 14.09.2012, at 14:45, Paul Mackerras wrote:
 > 
-> What does that mean? All pages in the vma have been cleared out?
-
-It means at least, more than one is reclaimed.
-Comment should have been cleared.
-
+> > On Fri, Sep 14, 2012 at 02:13:37PM +0200, Alexander Graf wrote:
+> > 
+> >> So do you think it makes more sense to reimplement a large page allocator in KVM, as this patch set does, or improve CMA to get us really big chunks of linear memory?
+> >> 
+> >> Let's ask the Linux mm guys too :). Maybe they have an idea.
+> > 
+> > I asked the authors of CMA, and apparently it's not limited to
+> > MAX_ORDER as I feared.  It has the advantage that the memory can be
+> > used for other things such as page cache when it's not needed, but not
+> > for immovable allocations such as kmalloc.  I'm going to try it out.
+> > It will need a patch to increase the maximum alignment it allows.
 > 
-> > +	TTU_IGNORE_VOLATILE = (1 << 11),/* ignore volatile */
-> >  };
-> >  #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
-> >
-> >  int try_to_unmap(struct page *, enum ttu_flags flags);
-> >  int try_to_unmap_one(struct page *, struct vm_area_struct *,
-> > -			unsigned long address, enum ttu_flags flags);
-> > +			unsigned long address, enum ttu_flags flags,
-> > +			bool *is_volatile);
-> 
-> You already pass a vma pointer in. Why do you need to pass a
-> volatile flag in? Looks like unecessary churn.
+> Awesome. Thanks a lot. I'd really prefer if we can stick to generic Linux solutions rather than invent our own :).
 
-You mean we can use vma->purged instead of is_volatile passing?
-The is_volatile is just checking for that all of vmas share the page
-are volatile ones. Then, vma->purged is just checking for that the page
-is zapped in the vma. If one of vma share the page isn't volatile, we can't zap.
+Turns out there is a difficulty with this.  When we have a guest page
+that we want to pin in memory, and that page happens to have been
+allocated within the CMA region, we would need to migrate it out of
+the CMA region before pinning it, since otherwise it would reduce the
+amount of contiguous memory available.  But it appears that there
+isn't any way to do that.
 
-BTW, Christoph, what do you think about the goal of the patch which changes
-munmap(2) to madvise(2) when user calls free(3) in user allocator like glibc?
-I guess it would improve system performance very well.
-But as I wrote down in description, downside of the patch is that we have to
-age anon lru although we don't have swap. But gain via the patch is bigger than
-loss via aging of anon lru when memory pressure happens. I don't see other downside
-other than it. What do you think about it?
-(I didn't implement anon lru aging in case of no-swap but it's trivial
-once we decide)
-
-Thanks for the review, Christoph
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Paul.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
