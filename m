@@ -1,119 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 1E82C6B0072
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 22:57:10 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id hm4so7593wib.8
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 19:57:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 734176B0072
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 23:08:10 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so4029127ied.14
+        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 20:08:09 -0700 (PDT)
+Message-ID: <5089FE8E.4030603@gmail.com>
+Date: Fri, 26 Oct 2012 11:07:58 +0800
+From: Ni zhan Chen <nizhan.chen@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <5089F5B5.1050206@redhat.com>
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl>
- <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 25 Oct 2012 19:56:48 -0700
-Message-ID: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
-Subject: Re: [PATCH 05/31] x86/mm: Reduce tlb flushes from ptep_set_access_flags()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v3] mm: thp: Set the accessed flag for old pages on access
+ fault.
+References: <1351183471-14710-1-git-send-email-will.deacon@arm.com> <20121025195110.GA4771@cmpxchg.org>
+In-Reply-To: <20121025195110.GA4771@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, mhocko@suse.cz, peterz@infradead.org, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu, Oct 25, 2012 at 7:30 PM, Rik van Riel <riel@redhat.com> wrote:
+On 10/26/2012 03:51 AM, Johannes Weiner wrote:
+> On Thu, Oct 25, 2012 at 05:44:31PM +0100, Will Deacon wrote:
+>> On x86 memory accesses to pages without the ACCESSED flag set result in the
+>> ACCESSED flag being set automatically. With the ARM architecture a page access
+>> fault is raised instead (and it will continue to be raised until the ACCESSED
+>> flag is set for the appropriate PTE/PMD).
 >>
->> LOOK at the code, for chrissake. Just look at it. And if you don't see
->> why the above is stupid and retarded, you damn well shouldn't be
->> touching VM code.
+>> For normal memory pages, handle_pte_fault will call pte_mkyoung (effectively
+>> setting the ACCESSED flag). For transparent huge pages, pmd_mkyoung will only
+>> be called for a write fault.
+>>
+>> This patch ensures that faults on transparent hugepages which do not result
+>> in a CoW update the access flags for the faulting pmd.
+>>
+>> Cc: Chris Metcalf <cmetcalf@tilera.com>
+>> Cc: Kirill A. Shutemov <kirill@shutemov.name>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Signed-off-by: Will Deacon <will.deacon@arm.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 >
-> I agree it is pretty ugly.  However, the above patch
-> did get rid of a gigantic performance regression with
-> Peter's code.
+>> Ok chaps, I rebased this thing onto today's next (which basically
+>> necessitated a rewrite) so I've reluctantly dropped my acks and kindly
+>> ask if you could eyeball the new code, especially where the locking is
+>> concerned. In the numa code (do_huge_pmd_prot_none), Peter checks again
+>> that the page is not splitting, but I can't see why that is required.
+> I don't either.  If the thing was splitting when the fault happened,
+> that path is not taken.  And the locked pmd_same() check should rule
+> out splitting setting in after testing pmd_trans_huge_splitting().
 
-Rik, *LOOK* at the code like I asked you to, instead of making excuses for it.
+Why I can't find function pmd_trans_huge_splitting() you mentioned in 
+latest mainline codes and linux-next?
 
-I'm not necessarily arguing with what the code tries to do. I'm
-arguing with the fact that the code is pure and utter *garbage*.
-
-It has two major (and I mean *MAJOR*) problems, both of which
-individually should make you ashamed for ever posting that piece of
-shit:
-
-The obvious-without-even-understanding-semantics problem:
-
- - it's humongously stupidly written. It calculates that
-'flush_remote' flag WHETHER IT GETS USED OR NOT.
-
-   Christ. I can kind of expect stuff like that in driver code etc,
-but in VM routines?
-
-   Yes, the compiler may be smart enough to actually fix up the
-idiocy. That doesn't make it less stupid.
-
-The more-subtle-but-fundamental-problem:
-
- - regardless of how stupidly written it is on a very superficial
-level, it's even more stupid in a much more fundamental way.
-
-   That whole routine is explicitly written to be opportunistic. It is
-*documented* to only set the access flags, so comparing anything else
-is stupid, wouldn't you say?
-
-Documented where? It's actually explicitly documented in the
-pgtable-generic.c file which has the generic implementation of that
-thing. But it's implicitly documented both in the name of the function
-(do take another look) *and* in the actual implementation of the
-function.
-
-Look at the code: it doesn't even always update the page tables AT ALL
-(and no, the return value does *not* reflect whether it updated it or
-not!)
-
-Also, notice how we update the pte entry with a simple
-
-    *ptep = entry;
-
-statement, not with the usual expensive page table updates? The only
-thing that makes this safe is that we *only* do it with the exact same
-page frame number (anything else would be disastrously buggy on 32-bit
-PAE, for example). And we only ever do it with the dirty bit always
-set, because otherwise we might be silently dropping a concurrent
-hardware update of the dirty bit of the previous pte value on another
-CPU.
-
-The latter requirement is why the x86 code does
-
-    if (changed && dirty) {
-
-while the generic code checks just "If (changed)" (and then uses the
-much more expensive set_pte_at() that has the proper dirty-bit
-guarantees, and generates atomic accesses, not to mention various
-virtualization crap).
-
-In other words, everything that was added by that patch is PURE AND
-UTTER SHIT. And THAT is what I'm objecting to.
-
-Guess what? If you want to optimize the function to not do remote TLB
-flushes, then just do that! None of the garbage. Just change the
-
-    flush_tlb_page(vma, address);
-
-line to
-
-    __flush_tlb_one(address);
-
-and it should damn well work. Because everything I see about
-"flush_remote" looks just wrong, wrong, wrong.
-
-And if there really is some reason for that whole flush_remote
-braindamage, then we have much bigger problems, namely the fact that
-we've broken the documented semantics of that function, and we're
-doing various other things that are completely and utterly invalid
-unless the above semantics hold.
-
-So that patch should be burned, and possibly used as an example of
-horribly crappy code for later generations. At no point should it be
-applied.
-
-                 Linus
+>
+> Peter?
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
