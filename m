@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 9DC246B0071
-	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 21:48:29 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so1160662dad.14
-        for <linux-mm@kvack.org>; Thu, 25 Oct 2012 18:48:28 -0700 (PDT)
-Message-ID: <5089EBE1.1050009@gmail.com>
-Date: Fri, 26 Oct 2012 09:48:17 +0800
-From: Ni zhan Chen <nizhan.chen@gmail.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 4146A6B0073
+	for <linux-mm@kvack.org>; Thu, 25 Oct 2012 21:49:01 -0400 (EDT)
+Message-ID: <5089E568.1000208@cn.fujitsu.com>
+Date: Fri, 26 Oct 2012 09:20:40 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <5088C51D.3060009@gmail.com> <alpine.LNX.2.00.1210242338030.2688@eggly.anvils> <508912B0.7080805@gmail.com> <alpine.LNX.2.00.1210251419260.3623@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1210251419260.3623@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/2 V2] memory_hotplug: fix possible incorrect node_states[N_NORMAL_MEMORY]
+References: <1351071840-5060-1-git-send-email-laijs@cn.fujitsu.com> <1351071840-5060-2-git-send-email-laijs@cn.fujitsu.com> <CAHGf_=rvDf56EjMv0vLsxDfHQzuSoXF6Yzx=wCCoQ+Z+3Ov+=w@mail.gmail.com>
+In-Reply-To: <CAHGf_=rvDf56EjMv0vLsxDfHQzuSoXF6Yzx=wCCoQ+Z+3Ov+=w@mail.gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Jiang Liu <jiang.liu@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Greg Kroah-Hartman <gregkh@suse.de>, Mel Gorman <mgorman@suse.de>, FNST-Wen Congyang <wency@cn.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, Jianguo Wu <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
 
-On 10/26/2012 05:27 AM, Hugh Dickins wrote:
-> On Thu, 25 Oct 2012, Ni zhan Chen wrote:
->> On 10/25/2012 02:59 PM, Hugh Dickins wrote:
->>> On Thu, 25 Oct 2012, Ni zhan Chen wrote:
->>>> I think it maybe caused by your commit [d189922862e03ce: shmem: fix
->>>> negative
->>>> rss in memcg memory.stat], one question:
->>> Well, yes, I added the VM_BUG_ON in that commit.
->>>
->>>> if function shmem_confirm_swap confirm the entry has already brought back
->>>> from swap by a racing thread,
->>> The reverse: true confirms that the swap entry has not been brought back
->>> from swap by a racing thread; false indicates that there has been a race.
->>>
->>>> then why call shmem_add_to_page_cache to add
->>>> page from swapcache to pagecache again?
->>> Adding it to pagecache again, after such a race, would set error to
->>> -EEXIST (originating from radix_tree_insert); but we don't do that,
->>> we add it to pagecache when it has not already been added.
->>>
->>> Or that's the intention: but Dave seems to have found an unexpected
->>> exception, despite us holding the page lock across all this.
->>>
->>> (But if it weren't for the memcg and replace_page issues, I'd much
->>> prefer to let shmem_add_to_page_cache discover the race as before.)
->>>
->>> Hugh
->> Hi Hugh
+On 10/25/2012 12:17 PM, KOSAKI Motohiro wrote:
+> On Wed, Oct 24, 2012 at 5:43 AM, Lai Jiangshan <laijs@cn.fujitsu.com> wrote:
+>> Currently memory_hotplug only manages the node_states[N_HIGH_MEMORY],
+>> it forgets to manage node_states[N_NORMAL_MEMORY]. it may cause
+>> node_states[N_NORMAL_MEMORY] becomes incorrect.
 >>
->> Thanks for your response. You mean the -EEXIST originating from
->> radix_tree_insert, in radix_tree_insert:
->> if (slot != NULL)
->>      return -EEXIST;
->> But why slot should be NULL? if no race, the pagecache related radix tree
->> entry should be RADIX_TREE_EXCEPTIONAL_ENTRY+swap_entry_t.val, where I miss?
-> I was describing what would happen in a case that should not exist,
-> that you had thought the common case.  In actuality, the entry should
-> not be NULL, it should be as you say there.
+>> Example, if a node is empty before online, and we online a memory
+>> which is in ZONE_NORMAL. And after online,  node_states[N_HIGH_MEMORY]
+>> is correct, but node_states[N_NORMAL_MEMORY] is incorrect,
+>> the online code don't set the new online node to
+>> node_states[N_NORMAL_MEMORY].
+>>
+>> The same things like it will happen when offline(the offline code
+>> don't clear the node from node_states[N_NORMAL_MEMORY] when needed).
+>> Some memory managment code depends node_states[N_NORMAL_MEMORY],
+>> so we have to fix up the node_states[N_NORMAL_MEMORY].
+>>
+>> We add node_states_check_changes_online() and node_states_check_changes_offline()
+>> to detect whether node_states[N_HIGH_MEMORY] and node_states[N_NORMAL_MEMORY]
+>> are changed while hotpluging.
+>>
+>> Also add @status_change_nid_normal to struct memory_notify, thus
+>> the memory hotplug callbacks know whether the node_states[N_NORMAL_MEMORY]
+>> are changed. (We can add a @flags and reuse @status_change_nid instead of
+>> introducing @status_change_nid_normal, but it will add much more complicated
+>> in memory hotplug callback in every subsystem. So introdcing
+>> @status_change_nid_normal is better and it don't change the sematic
+>> of @status_change_nid)
+>>
+>> Changed from V1:
+>>         add more comments
+>>         change the function name
+> 
+> Your patch didn't fix my previous comments and don't works correctly.
+> Please test your own patch before resubmitting. You should consider both
+> zone normal only node and zone high only node.
+> 
 
-Thanks for your patience. So in the common case, the entry should be the 
-value I mentioned, then why has this check?
-if (slot != NULL)
-     return -EEXIST;
+The comments in the code already answered/explained your previous comments.
 
-the common case will return -EEXIST.
-
->
-> Hugh
->
+Thanks,
+Lai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
