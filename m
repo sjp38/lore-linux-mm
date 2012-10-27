@@ -1,118 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 8ED4A6B0072
-	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 21:05:58 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so3421812pbb.14
-        for <linux-mm@kvack.org>; Fri, 26 Oct 2012 18:05:57 -0700 (PDT)
-Date: Fri, 26 Oct 2012 18:02:15 -0700
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [RFC v2 0/2] vmevent: A bit reworked pressure attribute + docs +
- man page
-Message-ID: <20121027010215.GA9152@lizard>
-References: <20121022111928.GA12396@lizard>
- <20121025064009.GA15767@bbox>
- <20121025090813.GA16078@lizard>
- <20121026023720.GE15767@bbox>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 613F36B0072
+	for <linux-mm@kvack.org>; Fri, 26 Oct 2012 23:46:44 -0400 (EDT)
+Message-ID: <508B59B0.5010503@redhat.com>
+Date: Fri, 26 Oct 2012 23:49:04 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20121026023720.GE15767@bbox>
+Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com> <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com> <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com> <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com> <20121026132601.GC9886@gmail.com> <20121026144502.6e94643e@dull> <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
+In-Reply-To: <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Oct 26, 2012 at 11:37:20AM +0900, Minchan Kim wrote:
-[...]
-> > > Of course, it's very flexible and potential to add new VM knob easily but
-> > > the thing we is about to use now is only VMEVENT_ATTR_PRESSURE.
-> > > Is there any other use cases for swap or free? or potential user?
-> > 
-> > Number of idle pages by itself might be not that interesting, but
-> > cache+idle level is quite interesting.
-> > 
-> > By definition, _MED happens when performance already degraded, slightly,
-> > but still -- we can be swapping.
-> > 
-> > But _LOW notifications are coming when kernel is just reclaiming, so by
-> > using _LOW notifications + watching for cache level we can very easily
-> > predict the swapping activity long before we have even _MED pressure.
-> 
-> So, for seeing cache level, we need new vmevent_attr?
+On 10/26/2012 05:12 PM, Alan Cox wrote:
+> On Fri, 26 Oct 2012 14:45:02 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+>
+>> Intel has an architectural guarantee that the TLB entry causing
+>> a page fault gets invalidated automatically. This means
+>> we should be able to drop the local TLB invalidation.
+>>
+>> Because of the way other areas of the page fault code work,
+>> chances are good that all x86 CPUs do this.  However, if
+>> someone somewhere has an x86 CPU that does not invalidate
+>> the TLB entry causing a page fault, this one-liner should
+>> be easy to revert.
+>
+> This does not strike me as a good standard of validation for such a change
+>
+> At the very least we should have an ACK from AMD and from VIA, and
+> preferably ping RDC and some of the other embedded folks. Given an AMD
+> and VIA ACK I'd be fine. I doubt anyone knows any more what Cyrix CPUs
+> did or cared about and I imagine H Peter or Linus can answer for
+> Transmeta ;-)
 
-Hopefully, not. We're not interested in the raw values of the cache level,
-but what we want is to to tell the kernel how much "easily reclaimable
-pages" userland has, and get notified when kernel believes that it's good
-time for the userland is to help. I.e. this new _MILD level:
+Fair enough.
 
-> > Maybe it makes sense to implement something like PRESSURE_MILD with an
-> > additional nr_pages threshold, which basically hits the kernel about how
-> > many easily reclaimable pages userland has (that would be a part of our
-> > definition for the mild pressure level). So, essentially it will be
-> > 
-> > 	if (pressure_index >= oom_level)
-> > 		return PRESSURE_OOM;
-> > 	else if (pressure_index >= med_level)
-> > 		return PRESSURE_MEDIUM;
-> > 	else if (userland_reclaimable_pages >= nr_reclaimable_pages)
-> > 		return PRESSURE_MILD;
-> > 	return PRESSURE_LOW;
-> > 
-> > I must admit I like the idea more than exposing NR_FREE and stuff, but the
-> > scheme reminds me the blended attributes, which we abandoned. Although,
-> > the definition sounds better now, and we seem to be doing it in the right
-> > place.
-> > 
-> > And if we go this way, then sure, we won't need any other attributes, and
-> > so we could make the API much simpler.
-> 
-> That's what I want! If there isn't any user who really are willing to use it,
-> let's drop it. Do not persuade with imaginary scenario because we should be 
-> careful to introduce new ABI.
-
-Yeah, I think you're right. Let's make the vmevent_fd slim first. I won't
-even focus on the _MILD/_BALANCE level for now, we can do it later, and we
-always have the /proc/vmstat even if the _MILD turns out to be a bad idea.
-
-Reading /proc/vmstat is a bit more overhead, but it's not that much at all
-(especially when we don't have to timer-poll the vmstat).
-
-> > > Adding vmevent_fd without them is rather overkill.
-> > > 
-> > > And I want to avoid timer-base polling of vmevent if possbile.
-> > > mem_notify of KOSAKI doesn't use such timer.
-> > 
-> > For pressure notifications we don't use the timers. We also read the
-> 
-> Hmm, when I see the code, timer still works and can notify to user. No?
-
-Yes, I was mostly saying that it is technically not required anymore, but
-you're right, the code still fires the timer (it just runs needlessly for
-the pressure attr).
-
-Bad wording on my side.
-
-[..]
-> > We can do it via eventfd, or /dev/chardev (which has been discussed and
-> > people didn't like it, IIRC), or signals (which also has been discussed
-> > and there are problems with this approach as well).
-> > 
-> > I'm not sure why having a syscall is a big issue. If we're making eventfd
-> > interface, then we'd need to maintain /sys/.../ ABI the same way as we
-> > maintain the syscall. What's the difference? A dedicated syscall is just a
-> 
-> No difference. What I want is just to remove unnecessary stuff in vmevent_fd
-> and keep it as simple. If we do via /dev/chardev, I expect we can do necessary
-> things for VM pressure. But if we can diet with vmevent_fd, It would be better.
-> If so, maybe we have to change vmevent_fd to lowmem_fd or
-> vmpressure_fd.
-
-Sure, then I'm starting the work to slim the API down, and we'll see how
-things are going to look after that.
-
-Thanks a lot!
-
-Anton.
+If it turns out any of those CPUs need an explicit
+flush, then we can also adjust flush_tlb_fix_spurious_fault
+to actually do a local flush on x86 (or at least on those
+CPUs).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
