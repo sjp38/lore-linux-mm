@@ -1,68 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 3078E6B0072
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2012 15:18:34 -0400 (EDT)
-Date: Sat, 27 Oct 2012 21:18:30 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [PATCH] slub: Use the correct per cpu slab on CPU_DEAD
-Message-ID: <alpine.LFD.2.02.1210272117060.2756@ionos>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id DF6936B0073
+	for <linux-mm@kvack.org>; Sat, 27 Oct 2012 17:20:58 -0400 (EDT)
+Received: from unknown (HELO cesarb-inspiron.home.cesarb.net) (zcncxNmDysja2tXBptWToZWJlF6Wp6IuYnI=@[200.157.204.20])
+          (envelope-sender <cesarb@cesarb.net>)
+          by smtp-02.mandic.com.br (qmail-ldap-1.03) with AES256-SHA encrypted SMTP
+          for <linux-mm@kvack.org>; 27 Oct 2012 21:20:56 -0000
+From: Cesar Eduardo Barros <cesarb@cesarb.net>
+Subject: [PATCH 2/2] mm: do not call frontswap_init() during swapoff
+Date: Sat, 27 Oct 2012 19:20:47 -0200
+Message-Id: <1351372847-13625-3-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <1351372847-13625-1-git-send-email-cesarb@cesarb.net>
+References: <1351372847-13625-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Cesar Eduardo Barros <cesarb@cesarb.net>
 
-While making slub available for RT I noticed, that during CPU offline
-for each kmem_cache __flush_cpu_slab() is called on a live CPU. This
-correctly flushs the cpu_slab of the dead CPU via flush_slab. Though
-unfreeze_partials which is called from __flush_cpu_slab() after that
-looks at the cpu_slab of the cpu on which this is called. So we fail
-to look at the partials of the dead cpu.
+The call to frontswap_init() was added within enable_swap_info(), which
+was called not only during sys_swapon, but also to reinsert the
+swap_info into the swap_list in case of failure of try_to_unuse() within
+sys_swapoff. This means that frontswap_init() might be called more than
+once for the same swap area.
 
-Correct this by extending the arguments of unfreeze_partials with the
-target cpu number and use per_cpu_ptr instead of this_cpu_ptr.
+While as far as I could see no frontswap implementation has any problem
+with it (and in fact, all the ones I found ignore the parameter passed
+to frontswap_init), this could change in the future.
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+To prevent future problems, move the call to frontswap_init() to outside
+the code shared between sys_swapon and sys_swapoff.
+
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Dan Magenheimer <dan.magenheimer@oracle.com>
+Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 ---
- mm/slub.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/swapfile.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-2.6/mm/slub.c
-===================================================================
---- linux-2.6.orig/mm/slub.c
-+++ linux-2.6/mm/slub.c
-@@ -1874,10 +1874,10 @@ redo:
-  *
-  * This function must be called with interrupt disabled.
-  */
--static void unfreeze_partials(struct kmem_cache *s)
-+static void unfreeze_partials(struct kmem_cache *s, unsigned int cpu)
- {
- 	struct kmem_cache_node *n = NULL, *n2 = NULL;
--	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
-+	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 	struct page *page, *discard_page = NULL;
- 
- 	while ((page = c->partial)) {
-@@ -1963,7 +1963,7 @@ static int put_cpu_partial(struct kmem_c
- 				 * set to the per node partial list.
- 				 */
- 				local_irq_save(flags);
--				unfreeze_partials(s);
-+				unfreeze_partials(s, smp_processor_id());
- 				local_irq_restore(flags);
- 				oldpage = NULL;
- 				pobjects = 0;
-@@ -2006,7 +2006,7 @@ static inline void __flush_cpu_slab(stru
- 		if (c->page)
- 			flush_slab(s, c);
- 
--		unfreeze_partials(s);
-+		unfreeze_partials(s, cpu);
- 	}
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 886db96..088daf4 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1471,7 +1471,6 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+ 		swap_list.head = swap_list.next = p->type;
+ 	else
+ 		swap_info[prev]->next = p->type;
+-	frontswap_init(p->type);
  }
  
+ static void enable_swap_info(struct swap_info_struct *p, int prio,
+@@ -1480,6 +1479,7 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+ {
+ 	spin_lock(&swap_lock);
+ 	_enable_swap_info(p, prio, swap_map, frontswap_map);
++	frontswap_init(p->type);
+ 	spin_unlock(&swap_lock);
+ }
+ 
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
