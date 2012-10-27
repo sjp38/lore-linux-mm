@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id CFC126B0072
-	for <linux-mm@kvack.org>; Sat, 27 Oct 2012 09:38:32 -0400 (EDT)
-Message-ID: <508BE459.2080406@redhat.com>
-Date: Sat, 27 Oct 2012 09:40:41 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 3078E6B0072
+	for <linux-mm@kvack.org>; Sat, 27 Oct 2012 15:18:34 -0400 (EDT)
+Date: Sat, 27 Oct 2012 21:18:30 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: [PATCH] slub: Use the correct per cpu slab on CPU_DEAD
+Message-ID: <alpine.LFD.2.02.1210272117060.2756@ionos>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com> <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com> <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com> <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com> <20121026132601.GC9886@gmail.com> <20121026144502.6e94643e@dull> <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
-In-Reply-To: <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, florian@openwrt.org, Borislav Petkov <borislav.petkov@amd.com>
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 10/26/2012 05:12 PM, Alan Cox wrote:
-> On Fri, 26 Oct 2012 14:45:02 -0400
-> Rik van Riel <riel@redhat.com> wrote:
->
->> Intel has an architectural guarantee that the TLB entry causing
->> a page fault gets invalidated automatically. This means
->> we should be able to drop the local TLB invalidation.
->>
->> Because of the way other areas of the page fault code work,
->> chances are good that all x86 CPUs do this.  However, if
->> someone somewhere has an x86 CPU that does not invalidate
->> the TLB entry causing a page fault, this one-liner should
->> be easy to revert.
->
-> This does not strike me as a good standard of validation for such a change
->
-> At the very least we should have an ACK from AMD and from VIA, and
-> preferably ping RDC and some of the other embedded folks. Given an AMD
-> and VIA ACK I'd be fine. I doubt anyone knows any more what Cyrix CPUs
-> did or cared about and I imagine H Peter or Linus can answer for
-> Transmeta ;-)
+While making slub available for RT I noticed, that during CPU offline
+for each kmem_cache __flush_cpu_slab() is called on a live CPU. This
+correctly flushs the cpu_slab of the dead CPU via flush_slab. Though
+unfreeze_partials which is called from __flush_cpu_slab() after that
+looks at the cpu_slab of the cpu on which this is called. So we fail
+to look at the partials of the dead cpu.
 
-Florian, would you happen to know who at RDC could be contacted
-to verify whether a TLB entry causing a page fault gets
-invalidated automatically, upon entering the page fault path?
+Correct this by extending the arguments of unfreeze_partials with the
+target cpu number and use per_cpu_ptr instead of this_cpu_ptr.
 
-Borislav, would you happen to know whether AMD (and VIA) CPUs
-automatically invalidate TLB entries that cause page faults?
-If you do not know, would you happen who to ask? :)
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+---
+ mm/slub.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-If these CPUs do not invalidate a TLB entry causing a page
-fault (a write fault on a read-only PTE), then we may have to
-change the kernel so flush_tlb_fix_spurious_fault does
-something on the CPU models in question...
+Index: linux-2.6/mm/slub.c
+===================================================================
+--- linux-2.6.orig/mm/slub.c
++++ linux-2.6/mm/slub.c
+@@ -1874,10 +1874,10 @@ redo:
+  *
+  * This function must be called with interrupt disabled.
+  */
+-static void unfreeze_partials(struct kmem_cache *s)
++static void unfreeze_partials(struct kmem_cache *s, unsigned int cpu)
+ {
+ 	struct kmem_cache_node *n = NULL, *n2 = NULL;
+-	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
++	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
+ 	struct page *page, *discard_page = NULL;
+ 
+ 	while ((page = c->partial)) {
+@@ -1963,7 +1963,7 @@ static int put_cpu_partial(struct kmem_c
+ 				 * set to the per node partial list.
+ 				 */
+ 				local_irq_save(flags);
+-				unfreeze_partials(s);
++				unfreeze_partials(s, smp_processor_id());
+ 				local_irq_restore(flags);
+ 				oldpage = NULL;
+ 				pobjects = 0;
+@@ -2006,7 +2006,7 @@ static inline void __flush_cpu_slab(stru
+ 		if (c->page)
+ 			flush_slab(s, c);
+ 
+-		unfreeze_partials(s);
++		unfreeze_partials(s, cpu);
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
