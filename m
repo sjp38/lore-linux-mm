@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 8DC206B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 17:08:08 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so2824150dad.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:08:07 -0700 (PDT)
-Date: Mon, 29 Oct 2012 14:08:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [V5 PATCH 08/26] memcontrol: use N_MEMORY instead
- N_HIGH_MEMORY
-In-Reply-To: <20121029205806.GB21640@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.00.1210291405100.18552@chino.kir.corp.google.com>
-References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com> <1351524078-20363-7-git-send-email-laijs@cn.fujitsu.com> <20121029162212.GE20757@dhcp22.suse.cz> <alpine.DEB.2.00.1210291340100.18552@chino.kir.corp.google.com>
- <20121029205806.GB21640@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 9F6636B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 17:10:14 -0400 (EDT)
+Date: Mon, 29 Oct 2012 14:10:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 4/9] clear the memory to store struct page
+Message-Id: <20121029141012.4c1c2b07.akpm@linux-foundation.org>
+In-Reply-To: <508A5B66.7000309@cn.fujitsu.com>
+References: <1350629202-9664-1-git-send-email-wency@cn.fujitsu.com>
+	<1350629202-9664-5-git-send-email-wency@cn.fujitsu.com>
+	<508A5B66.7000309@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com
 
-On Mon, 29 Oct 2012, Michal Hocko wrote:
+On Fri, 26 Oct 2012 17:44:06 +0800
+Wen Congyang <wency@cn.fujitsu.com> wrote:
 
-> > > > N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-> > > > N_MEMORY stands for the nodes that has any memory.
-> > > 
-> > > What is the difference of those two?
-> > > 
-> > 
-> > Patch 5 in the series 
-> 
-> Strange, I do not see that one at the mailing list.
-> 
+> This patch has been acked by kosaki motohiro. Is it OK to be merged
+> into -mm tree?
 
-http://marc.info/?l=linux-kernel&m=135152595827692
+I'd already merged the v2 patchset when you later sent out the v3
+patchset which contains some of the material from v2 plus more things.
 
-> > introduces it to be equal to N_HIGH_MEMORY, so 
-> 
-> So this is just a rename? If yes it would be much esier if it was
-> mentioned in the patch description.
-> 
+I can drop all of v2 and remerge v3.  But I see from the discussion
+under "[PATCH v3 6/9] memory-hotplug: update mce_bad_pages when
+removing the memory" that you intend to send out a v4 patchset.
 
-It's not even a rename even though it should be, it's adding yet another 
-node_states that is equal to N_HIGH_MEMORY since that state already 
-includes all memory.  It's just a matter of taste but I think we should be 
-renaming it instead of aliasing it (unless you actually want to make 
-N_HIGH_MEMORY only include nodes with highmem, but nothing depends on 
-that).
+This is all a bit of a mess.  Piecemeal picking-and-choosing of various
+patches from various iterations of the same patchset is confusing and
+error-prone.
+
+Please, take a look at the current -mm tree at
+http://ozlabs.org/~akpm/mmots/ then come up with a plan for us.  We can
+either add new patches or we can drop old patches and replace them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
