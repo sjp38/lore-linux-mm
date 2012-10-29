@@ -1,46 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id DCFFC6B006C
-	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 22:06:34 -0400 (EDT)
-Date: Mon, 29 Oct 2012 11:12:19 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/5] minor clean-up and optimize highmem related code
-Message-ID: <20121029021219.GK15767@bbox>
-References: <Yes>
- <1351451576-2611-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id A37116B0071
+	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 22:40:34 -0400 (EDT)
+Date: Sun, 28 Oct 2012 22:40:24 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Message-ID: <20121029024024.GC9365@thunk.org>
+References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20121026061206.GA31139@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+ <20121026184649.GA8614@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
+ <20121027221626.GA9161@thunk.org>
+ <20121029011632.GN29378@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351451576-2611-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <20121029011632.GN29378@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Dave Chinner <david@fromorbit.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-Hi Joonsoo,
-
-On Mon, Oct 29, 2012 at 04:12:51AM +0900, Joonsoo Kim wrote:
-> This patchset clean-up and optimize highmem related code.
+On Mon, Oct 29, 2012 at 12:16:32PM +1100, Dave Chinner wrote:
 > 
-> [1] is just clean-up and doesn't introduce any functional change.
-> [2-3] are for clean-up and optimization.
-> These eliminate an useless lock opearation and list management.
-> [4-5] is for optimization related to flush_all_zero_pkmaps().
+> Except that there are filesystems that cannot implement such flags,
+> or require on-disk format changes to add more of those flags. This
+> is most definitely not a filesystem specific behaviour, so any sort
+> of VFS level per-file state needs to be kept in xattrs, not special
+> flags. Filesystems are welcome to optimise the storage of such
+> special xattrs (e.g. down to a single boolean flag in an inode), but
+> using a flag for something that dould, in fact, storage the exactly
+> offset and length of the corruption is far better than just storing
+> a "something is corrupted in this file" bit....
+
+Agreed, if we're going to add an xattr, then we might as well store
+not just a boolean, but some indication of what part of the file was
+corrupted.  The only complication is what if there are many memory
+corruptions.  Do we store just the last ECC hard error that we
+detected?  Or just the first?
+
+It wasn't clear to me it was worth the extra complexity, but if there
+are indeed for file systems that don't have or don't want to allocate
+a spare bit in their inode structure, that might be a good enough
+justification to add an xattr.  (Was this a hypothetical, or does this
+constraint apply to XFS or some other file system that you're aware of?)
+
+> > I note that we've already added a new error code:
+> > 
+> > #define EHWPOISON 133	  /* Memory page has hardware error */
+> > 
+> > ... although the glibc shipping with Debian testing hasn't been taught
+> > what it is, so strerror(EHWPOISON) returns "Unknown error 133".  We
+> > could simply allow open(2) and stat(2) return this error, although I
+> > wonder if we're just better off defining a new error code.
 > 
-> Joonsoo Kim (5):
->   mm, highmem: use PKMAP_NR() to calculate an index of pkmap
->   mm, highmem: remove useless pool_lock
->   mm, highmem: remove page_address_pool list
->   mm, highmem: makes flush_all_zero_pkmaps() return index of last
->     flushed entry
->   mm, highmem: get virtual address of the page using PKMAP_ADDR()
+> If we are going to add special new "file corrupted" errors, we
+> should add EFSCORRUPTED (i.e. "filesystem corrupted") at the same
+> time....
 
-This patchset looks awesome to me.
-If you have a plan to respin, please CCed Peter.
+I would dearly love it if we could allocate a new EFSCORRUPTED errno.
+I was about to follow XFS's lead and change ext4 to return EUCLEAN
+instead of EIO in the cases of fs corruption, but that really is ugly
+and gross...
 
--- 
-Kind regards,
-Minchan Kim
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
