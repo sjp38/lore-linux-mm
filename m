@@ -1,122 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 880986B0092
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:48:21 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 0ED626B0083
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:48:20 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [V5 PATCH 08/26] memcontrol: use N_MEMORY instead N_HIGH_MEMORY
-Date: Mon, 29 Oct 2012 23:20:58 +0800
-Message-Id: <1351524078-20363-7-git-send-email-laijs@cn.fujitsu.com>
+Subject: [V5 PATCH 18/26] hotplug: update nodemasks management
+Date: Mon, 29 Oct 2012 23:21:08 +0800
+Message-Id: <1351524078-20363-17-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Jianguo Wu <wujianguo@huawei.com>, Kay Sievers <kay.sievers@vrfy.org>, Wen Congyang <wency@cn.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org
 
-N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-N_MEMORY stands for the nodes that has any memory.
-
-The code here need to handle with the nodes which have memory, we should
-use N_MEMORY instead.
+update nodemasks management for N_MEMORY
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- mm/memcontrol.c  |   18 +++++++++---------
- mm/page_cgroup.c |    2 +-
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ Documentation/memory-hotplug.txt |    5 ++-
+ include/linux/memory.h           |    1 +
+ mm/memory_hotplug.c              |   87 +++++++++++++++++++++++++++++++-------
+ 3 files changed, 77 insertions(+), 16 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7acf43b..1b69665 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -800,7 +800,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
- 	int nid;
- 	u64 total = 0;
- 
--	for_each_node_state(nid, N_HIGH_MEMORY)
-+	for_each_node_state(nid, N_MEMORY)
- 		total += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
- 	return total;
+diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+index c6f993d..8e5eacb 100644
+--- a/Documentation/memory-hotplug.txt
++++ b/Documentation/memory-hotplug.txt
+@@ -390,6 +390,7 @@ struct memory_notify {
+        unsigned long start_pfn;
+        unsigned long nr_pages;
+        int status_change_nid_normal;
++       int status_change_nid_high;
+        int status_change_nid;
  }
-@@ -1611,9 +1611,9 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
- 		return;
  
- 	/* make a nodemask where this memcg uses memory from */
--	memcg->scan_nodes = node_states[N_HIGH_MEMORY];
-+	memcg->scan_nodes = node_states[N_MEMORY];
+@@ -397,7 +398,9 @@ start_pfn is start_pfn of online/offline memory.
+ nr_pages is # of pages of online/offline memory.
+ status_change_nid_normal is set node id when N_NORMAL_MEMORY of nodemask
+ is (will be) set/clear, if this is -1, then nodemask status is not changed.
+-status_change_nid is set node id when N_HIGH_MEMORY of nodemask is (will be)
++status_change_nid_high is set node id when N_HIGH_MEMORY of nodemask
++is (will be) set/clear, if this is -1, then nodemask status is not changed.
++status_change_nid is set node id when N_MEMORY of nodemask is (will be)
+ set/clear. It means a new(memoryless) node gets new memory by online and a
+ node loses all memory. If this is -1, then nodemask status is not changed.
+ If status_changed_nid* >= 0, callback should create/discard structures for the
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index a09216d..45e93b4 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -54,6 +54,7 @@ struct memory_notify {
+ 	unsigned long start_pfn;
+ 	unsigned long nr_pages;
+ 	int status_change_nid_normal;
++	int status_change_nid_high;
+ 	int status_change_nid;
+ };
  
--	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
-+	for_each_node_mask(nid, node_states[N_MEMORY]) {
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9af9641..a55b547 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -603,13 +603,15 @@ static void node_states_check_changes_online(unsigned long nr_pages,
+ 	enum zone_type zone_last = ZONE_NORMAL;
  
- 		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
- 			node_clear(nid, memcg->scan_nodes);
-@@ -1684,7 +1684,7 @@ static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
  	/*
- 	 * Check rest of nodes.
+-	 * If we have HIGHMEM, node_states[N_NORMAL_MEMORY] contains nodes
+-	 * which have 0...ZONE_NORMAL, set zone_last to ZONE_NORMAL.
++	 * If we have HIGHMEM or movable node, node_states[N_NORMAL_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_NORMAL,
++	 * set zone_last to ZONE_NORMAL.
+ 	 *
+-	 * If we don't have HIGHMEM, node_states[N_NORMAL_MEMORY] contains nodes
+-	 * which have 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
++	 * If we don't have HIGHMEM nor movable node,
++	 * node_states[N_NORMAL_MEMORY] contains nodes which have zones of
++	 * 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
  	 */
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		if (node_isset(nid, memcg->scan_nodes))
- 			continue;
- 		if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
-@@ -3759,7 +3759,7 @@ move_account:
- 		drain_all_stock_sync(memcg);
- 		ret = 0;
- 		mem_cgroup_start_move(memcg);
--		for_each_node_state(node, N_HIGH_MEMORY) {
-+		for_each_node_state(node, N_MEMORY) {
- 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
- 				enum lru_list lru;
- 				for_each_lru(lru) {
-@@ -4087,7 +4087,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+-	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
++	if (N_MEMORY == N_NORMAL_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
  
- 	total_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL);
- 	seq_printf(m, "total=%lu", total_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
- 	}
-@@ -4095,7 +4095,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	/*
+@@ -623,12 +625,34 @@ static void node_states_check_changes_online(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_normal = -1;
  
- 	file_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
- 	seq_printf(m, "file=%lu", file_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_FILE);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4104,7 +4104,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
++#ifdef CONFIG_HIGHMEM
++	/*
++	 * If we have movable node, node_states[N_HIGH_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_HIGH,
++	 * set zone_last to ZONE_HIGH.
++	 *
++	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_MOVABLE,
++	 * set zone_last to ZONE_MOVABLE.
++	 */
++	zone_last = ZONE_HIGH;
++	if (N_MEMORY == N_HIGH_MEMORY)
++		zone_last = ZONE_MOVABLE;
++
++	if (zone_idx(zone) <= zone_last && !node_state(nid, N_HIGH_MEMORY))
++		arg->status_change_nid_high = nid;
++	else
++		arg->status_change_nid_high = -1;
++#else
++	arg->status_change_nid_high = arg->status_change_nid_normal;
++#endif
++
+ 	/*
+ 	 * if the node don't have memory befor online, we will need to
+-	 * set the node to node_states[N_HIGH_MEMORY] after the memory
++	 * set the node to node_states[N_MEMORY] after the memory
+ 	 * is online.
+ 	 */
+-	if (!node_state(nid, N_HIGH_MEMORY))
++	if (!node_state(nid, N_MEMORY))
+ 		arg->status_change_nid = nid;
+ 	else
+ 		arg->status_change_nid = -1;
+@@ -639,7 +663,10 @@ static void node_states_set_node(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_set_state(node, N_NORMAL_MEMORY);
  
- 	anon_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
- 	seq_printf(m, "anon=%lu", anon_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_ANON);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4113,7 +4113,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+-	node_set_state(node, N_HIGH_MEMORY);
++	if (arg->status_change_nid_high >= 0)
++		node_set_state(node, N_HIGH_MEMORY);
++
++	node_set_state(node, N_MEMORY);
+ }
  
- 	unevictable_nr = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
- 	seq_printf(m, "unevictable=%lu", unevictable_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				BIT(LRU_UNEVICTABLE));
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 5ddad0c..c1054ad 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -271,7 +271,7 @@ void __init page_cgroup_init(void)
- 	if (mem_cgroup_disabled())
- 		return;
  
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
+@@ -1103,13 +1130,15 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
+ 	enum zone_type zt, zone_last = ZONE_NORMAL;
  
- 		start_pfn = node_start_pfn(nid);
+ 	/*
+-	 * If we have HIGHMEM, node_states[N_NORMAL_MEMORY] contains nodes
+-	 * which have 0...ZONE_NORMAL, set zone_last to ZONE_NORMAL.
++	 * If we have HIGHMEM or movable node, node_states[N_NORMAL_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_NORMAL,
++	 * set zone_last to ZONE_NORMAL.
+ 	 *
+-	 * If we don't have HIGHMEM, node_states[N_NORMAL_MEMORY] contains nodes
+-	 * which have 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
++	 * If we don't have HIGHMEM nor movable node,
++	 * node_states[N_NORMAL_MEMORY] contains nodes which have zones of
++	 * 0...ZONE_MOVABLE, set zone_last to ZONE_MOVABLE.
+ 	 */
+-	if (N_HIGH_MEMORY == N_NORMAL_MEMORY)
++	if (N_MEMORY == N_NORMAL_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
+ 
+ 	/*
+@@ -1126,6 +1155,30 @@ static void node_states_check_changes_offline(unsigned long nr_pages,
+ 	else
+ 		arg->status_change_nid_normal = -1;
+ 
++#ifdef CONIG_HIGHMEM
++	/*
++	 * If we have movable node, node_states[N_HIGH_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_HIGH,
++	 * set zone_last to ZONE_HIGH.
++	 *
++	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
++	 * contains nodes which have zones of 0...ZONE_MOVABLE,
++	 * set zone_last to ZONE_MOVABLE.
++	 */
++	zone_last = ZONE_HIGH;
++	if (N_MEMORY == N_HIGH_MEMORY)
++		zone_last = ZONE_MOVABLE;
++
++	for (; zt <= zone_last; zt++)
++		present_pages += pgdat->node_zones[zt].present_pages;
++	if (zone_idx(zone) <= zone_last && nr_pages >= present_pages)
++		arg->status_change_nid_high = zone_to_nid(zone);
++	else
++		arg->status_change_nid_high = -1;
++#else
++	arg->status_change_nid_high = arg->status_change_nid_normal;
++#endif
++
+ 	/*
+ 	 * node_states[N_HIGH_MEMORY] contains nodes which have 0...ZONE_MOVABLE
+ 	 */
+@@ -1150,9 +1203,13 @@ static void node_states_clear_node(int node, struct memory_notify *arg)
+ 	if (arg->status_change_nid_normal >= 0)
+ 		node_clear_state(node, N_NORMAL_MEMORY);
+ 
+-	if ((N_HIGH_MEMORY != N_NORMAL_MEMORY) &&
+-	    (arg->status_change_nid >= 0))
++	if ((N_MEMORY != N_NORMAL_MEMORY) &&
++	    (arg->status_change_nid_high >= 0))
+ 		node_clear_state(node, N_HIGH_MEMORY);
++
++	if ((N_MEMORY != N_HIGH_MEMORY) &&
++	    (arg->status_change_nid >= 0))
++		node_clear_state(node, N_MEMORY);
+ }
+ 
+ static int __ref __offline_pages(unsigned long start_pfn,
 -- 
 1.7.4.4
 
