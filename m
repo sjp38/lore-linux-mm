@@ -1,45 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id AEF4C6B005A
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 09:58:56 -0400 (EDT)
-Message-ID: <508E8B95.406@parallels.com>
-Date: Mon, 29 Oct 2012 17:58:45 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list error
- handling
-References: <1351251453-6140-1-git-send-email-mhocko@suse.cz> <1351251453-6140-4-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1351251453-6140-4-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 120326B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:02:09 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so2646595dad.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 07:02:08 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] percpu: change a method freeing a chunk for consistency.
+Date: Mon, 29 Oct 2012 22:59:58 +0900
+Message-Id: <1351519198-5075-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
+commit 099a19d9('allow limited allocation before slab is online') changes a method
+allocating a chunk from kzalloc to pcpu_mem_alloc.
+But, it missed changing matched free operation.
+It may not be a problem for now, but fix it for consistency.
 
-> 
-> Changes since v1
-> - use kerndoc
-> - be more specific about mem_cgroup_move_parent possible failures
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: Tejun Heo <tj@kernel.org>
-Reviewed-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>
 
-> + * move charges to its parent or the root cgroup if the group has no
-> + * parent (aka use_hierarchy==0).
-> + * Although this might fail (get_page_unless_zero, isolate_lru_page or
-> + * mem_cgroup_move_account fails) the failure is always temporary and
-> + * it signals a race with a page removal/uncharge or migration. In the
-> + * first case the page is on the way out and it will vanish from the LRU
-> + * on the next attempt and the call should be retried later.
-> + * Isolation from the LRU fails only if page has been isolated from
-> + * the LRU since we looked at it and that usually means either global
-> + * reclaim or migration going on. The page will either get back to the
-> + * LRU or vanish.
-
-I just wonder for how long can it go in the worst case?
+diff --git a/mm/percpu.c b/mm/percpu.c
+index ddc5efb..ec25896 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -631,7 +631,7 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
+ 	if (!chunk)
+ 		return;
+ 	pcpu_mem_free(chunk->map, chunk->map_alloc * sizeof(chunk->map[0]));
+-	kfree(chunk);
++	pcpu_mem_free(chunk, pcpu_chunk_struct_size);
+ }
+ 
+ /*
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
