@@ -1,50 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 1B4576B005A
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:07:06 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so5131744iak.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 09:07:05 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 01ECD6B0072
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:07:12 -0400 (EDT)
+Date: Mon, 29 Oct 2012 12:07:10 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: [PATCH v7 10/16] dlm: use new hashtable implementation
+Message-ID: <20121029160710.GA18944@Krystal>
+References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <1351450948-15618-10-git-send-email-levinsasha928@gmail.com> <20121029124655.GD11733@Krystal> <20121029130736.GF11733@Krystal> <CA+1xoqfxgB+8BybPpf+jwT-ObfGPxnbKvkz1MUMuJuR8NDSNaw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20121029112907.GA9115@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <20121029112907.GA9115@Krystal>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Mon, 29 Oct 2012 12:06:44 -0400
-Message-ID: <CA+1xoqfQn92igbFS1TtrpYuSiy7+Ro02ar=axgqSOJOuE_EVuA@mail.gmail.com>
-Subject: Re: [PATCH v7 01/16] hashtable: introduce a small and naive hashtable
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+1xoqfxgB+8BybPpf+jwT-ObfGPxnbKvkz1MUMuJuR8NDSNaw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+To: Sasha Levin <levinsasha928@gmail.com>
 Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 7:29 AM, Mathieu Desnoyers
-<mathieu.desnoyers@efficios.com> wrote:
-> * Sasha Levin (levinsasha928@gmail.com) wrote:
->> +
->> +     for (i = 0; i < sz; i++)
->> +             INIT_HLIST_HEAD(&ht[sz]);
->
-> ouch. How did this work ? Has it been tested at all ?
->
-> sz -> i
+* Sasha Levin (levinsasha928@gmail.com) wrote:
+> On Mon, Oct 29, 2012 at 9:07 AM, Mathieu Desnoyers
+> <mathieu.desnoyers@efficios.com> wrote:
+> > * Mathieu Desnoyers (mathieu.desnoyers@efficios.com) wrote:
+> >> * Sasha Levin (levinsasha928@gmail.com) wrote:
+> >> [...]
+> >> > @@ -158,34 +159,21 @@ static int dlm_allow_conn;
+> >> >  static struct workqueue_struct *recv_workqueue;
+> >> >  static struct workqueue_struct *send_workqueue;
+> >> >
+> >> > -static struct hlist_head connection_hash[CONN_HASH_SIZE];
+> >> > +static struct hlist_head connection_hash[CONN_HASH_BITS];
+> >> >  static DEFINE_MUTEX(connections_lock);
+> >> >  static struct kmem_cache *con_cache;
+> >> >
+> >> >  static void process_recv_sockets(struct work_struct *work);
+> >> >  static void process_send_sockets(struct work_struct *work);
+> >> >
+> >> > -
+> >> > -/* This is deliberately very simple because most clusters have simple
+> >> > -   sequential nodeids, so we should be able to go straight to a connection
+> >> > -   struct in the array */
+> >> > -static inline int nodeid_hash(int nodeid)
+> >> > -{
+> >> > -   return nodeid & (CONN_HASH_SIZE-1);
+> >> > -}
+> >>
+> >> There is one thing I dislike about this change: you remove a useful
+> >> comment. It's good to be informed of the reason why a direct mapping
+> >> "value -> hash" without any dispersion function is preferred here.
+> 
+> Yes, I've removed the comment because it's no longer true with the patch :)
+> 
+> > And now that I come to think of it: you're changing the behavior : you
+> > will now use a dispersion function on the key, which goes against the
+> > intent expressed in this comment.
+> 
+> The comment gave us the information that nodeids are mostly
+> sequential, we no longer need to rely on that.
 
-Funny enough, it works perfectly. Generally as a test I boot the
-kernel in a VM and let it fuzz with trinity for a bit, doing that with
-the code above worked flawlessly.
+I'm fine with turning a direct + modulo mapping into a dispersed hash as
+long as there are no underlying assumptions about sequentiality of value
+accesses.
 
-While it works, it's obviously wrong. Why does it work though? Usually
-there's a list op happening pretty soon after that which brings the
-list into proper state.
+If the access pattern would happen to be typically sequential, then
+adding dispersion could hurt performances significantly, turning a
+frequent L1 access into a L2 access for instance.
 
-I've been playing with a patch that adds a magic value into list_head
-if CONFIG_DEBUG_LIST is set, and checks that magic in the list debug
-code in lib/list_debug.c.
+> 
+> > It might be good to change hash_add(), hash_add_rcu(),
+> > hash_for_each_possible*() key parameter for a "hash" parameter, and let
+> > the caller provide the hash value computed by the function they like as
+> > parameter, rather than enforcing hash_32/hash_64.
+> 
+> Why? We already proved that hash_32() is more than enough as a hashing
+> function, why complicate things?
+> 
+> Even doing hash_32() on top of another hash is probably a good idea to
+> keep things simple.
 
-Does it sound like something useful? If so I'll send that patch out.
-
+All I'm asking is: have you made sure that this hash table is not
+deliberately kept sequential (without dispersion) to accelerate specific
+access patterns ? This should at least be documented in the changelog.
 
 Thanks,
-Sasha
+
+Mathieu
+
+
+> 
+> Thanks,
+> Sasha
+
+-- 
+Mathieu Desnoyers
+Operating System Efficiency R&D Consultant
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
