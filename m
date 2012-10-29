@@ -1,71 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id A37116B0071
-	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 22:40:34 -0400 (EDT)
-Date: Sun, 28 Oct 2012 22:40:24 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
-Message-ID: <20121029024024.GC9365@thunk.org>
-References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20121026061206.GA31139@thunk.org>
- <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
- <20121026184649.GA8614@thunk.org>
- <3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
- <20121027221626.GA9161@thunk.org>
- <20121029011632.GN29378@dastard>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 8BCAD6B006C
+	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 22:42:43 -0400 (EDT)
+Message-ID: <508DEDA2.9030503@redhat.com>
+Date: Mon, 29 Oct 2012 10:44:50 +0800
+From: Zhouping Liu <zliu@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121029011632.GN29378@dastard>
+Subject: Re: [PATCH 00/31] numa/core patches
+References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121028175615.GC29827@cmpxchg.org>
+In-Reply-To: <20121028175615.GC29827@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Oct 29, 2012 at 12:16:32PM +1100, Dave Chinner wrote:
-> 
-> Except that there are filesystems that cannot implement such flags,
-> or require on-disk format changes to add more of those flags. This
-> is most definitely not a filesystem specific behaviour, so any sort
-> of VFS level per-file state needs to be kept in xattrs, not special
-> flags. Filesystems are welcome to optimise the storage of such
-> special xattrs (e.g. down to a single boolean flag in an inode), but
-> using a flag for something that dould, in fact, storage the exactly
-> offset and length of the corruption is far better than just storing
-> a "something is corrupted in this file" bit....
+On 10/29/2012 01:56 AM, Johannes Weiner wrote:
+> On Fri, Oct 26, 2012 at 11:08:00AM +0200, Peter Zijlstra wrote:
+>> On Fri, 2012-10-26 at 17:07 +0800, Zhouping Liu wrote:
+>>> [  180.918591] RIP: 0010:[<ffffffff8118c39a>]  [<ffffffff8118c39a>] mem_cgroup_prepare_migration+0xba/0xd0
+>>> [  182.681450]  [<ffffffff81183b60>] do_huge_pmd_numa_page+0x180/0x500
+>>> [  182.775090]  [<ffffffff811585c9>] handle_mm_fault+0x1e9/0x360
+>>> [  182.863038]  [<ffffffff81632b62>] __do_page_fault+0x172/0x4e0
+>>> [  182.950574]  [<ffffffff8101c283>] ? __switch_to_xtra+0x163/0x1a0
+>>> [  183.041512]  [<ffffffff8101281e>] ? __switch_to+0x3ce/0x4a0
+>>> [  183.126832]  [<ffffffff8162d686>] ? __schedule+0x3c6/0x7a0
+>>> [  183.211216]  [<ffffffff81632ede>] do_page_fault+0xe/0x10
+>>> [  183.293705]  [<ffffffff8162f518>] page_fault+0x28/0x30
+>> Johannes, this looks like the thp migration memcg hookery gone bad,
+>> could you have a look at this?
+> Oops.  Here is an incremental fix, feel free to fold it into #31.
 
-Agreed, if we're going to add an xattr, then we might as well store
-not just a boolean, but some indication of what part of the file was
-corrupted.  The only complication is what if there are many memory
-corruptions.  Do we store just the last ECC hard error that we
-detected?  Or just the first?
+Hi Johannes,
 
-It wasn't clear to me it was worth the extra complexity, but if there
-are indeed for file systems that don't have or don't want to allocate
-a spare bit in their inode structure, that might be a good enough
-justification to add an xattr.  (Was this a hypothetical, or does this
-constraint apply to XFS or some other file system that you're aware of?)
+Tested the below patch, and I'm sure it has fixed the above issue, thank 
+you.
 
-> > I note that we've already added a new error code:
-> > 
-> > #define EHWPOISON 133	  /* Memory page has hardware error */
-> > 
-> > ... although the glibc shipping with Debian testing hasn't been taught
-> > what it is, so strerror(EHWPOISON) returns "Unknown error 133".  We
-> > could simply allow open(2) and stat(2) return this error, although I
-> > wonder if we're just better off defining a new error code.
-> 
-> If we are going to add special new "file corrupted" errors, we
-> should add EFSCORRUPTED (i.e. "filesystem corrupted") at the same
-> time....
+  Zhouping
 
-I would dearly love it if we could allocate a new EFSCORRUPTED errno.
-I was about to follow XFS's lead and change ext4 to return EUCLEAN
-instead of EIO in the cases of fs corruption, but that really is ugly
-and gross...
-
-						- Ted
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 5c30a14..0d7ebd3 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -801,8 +801,6 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	if (!new_page)
+>   		goto alloc_fail;
+>   
+> -	mem_cgroup_prepare_migration(page, new_page, &memcg);
+> -
+>   	lru = PageLRU(page);
+>   
+>   	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
+> @@ -835,6 +833,14 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   
+>   		return;
+>   	}
+> +	/*
+> +	 * Traditional migration needs to prepare the memcg charge
+> +	 * transaction early to prevent the old page from being
+> +	 * uncharged when installing migration entries.  Here we can
+> +	 * save the potential rollback and start the charge transfer
+> +	 * only when migration is already known to end successfully.
+> +	 */
+> +	mem_cgroup_prepare_migration(page, new_page, &memcg);
+>   
+>   	entry = mk_pmd(new_page, vma->vm_page_prot);
+>   	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+> @@ -845,6 +851,12 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   	set_pmd_at(mm, haddr, pmd, entry);
+>   	update_mmu_cache_pmd(vma, address, entry);
+>   	page_remove_rmap(page);
+> +	/*
+> +	 * Finish the charge transaction under the page table lock to
+> +	 * prevent split_huge_page() from dividing up the charge
+> +	 * before it's fully transferred to the new page.
+> +	 */
+> +	mem_cgroup_end_migration(memcg, page, new_page, true);
+>   	spin_unlock(&mm->page_table_lock);
+>   
+>   	put_page(page);			/* Drop the rmap reference */
+> @@ -856,18 +868,14 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>   
+>   	unlock_page(new_page);
+>   
+> -	mem_cgroup_end_migration(memcg, page, new_page, true);
+> -
+>   	unlock_page(page);
+>   	put_page(page);			/* Drop the local reference */
+>   
+>   	return;
+>   
+>   alloc_fail:
+> -	if (new_page) {
+> -		mem_cgroup_end_migration(memcg, page, new_page, false);
+> +	if (new_page)
+>   		put_page(new_page);
+> -	}
+>   
+>   	unlock_page(page);
+>   
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 7acf43b..011e510 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3255,15 +3255,18 @@ void mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+>   				  struct mem_cgroup **memcgp)
+>   {
+>   	struct mem_cgroup *memcg = NULL;
+> +	unsigned int nr_pages = 1;
+>   	struct page_cgroup *pc;
+>   	enum charge_type ctype;
+>   
+>   	*memcgp = NULL;
+>   
+> -	VM_BUG_ON(PageTransHuge(page));
+>   	if (mem_cgroup_disabled())
+>   		return;
+>   
+> +	if (PageTransHuge(page))
+> +		nr_pages <<= compound_order(page);
+> +
+>   	pc = lookup_page_cgroup(page);
+>   	lock_page_cgroup(pc);
+>   	if (PageCgroupUsed(pc)) {
+> @@ -3325,7 +3328,7 @@ void mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+>   	 * charged to the res_counter since we plan on replacing the
+>   	 * old one and only one page is going to be left afterwards.
+>   	 */
+> -	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
+> +	__mem_cgroup_commit_charge(memcg, newpage, nr_pages, ctype, false);
+>   }
+>   
+>   /* remove redundant charge if migration failed*/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
