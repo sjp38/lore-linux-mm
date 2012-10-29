@@ -1,83 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id BA8A56B005A
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:20:11 -0400 (EDT)
-Message-ID: <508E9E99.3080007@parallels.com>
-Date: Mon, 29 Oct 2012 19:19:53 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id AB2B66B006E
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:20:48 -0400 (EDT)
+Message-ID: <508E9F5B.5010402@redhat.com>
+Date: Mon, 29 Oct 2012 11:23:07 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 11/18] sl[au]b: Allocate objects from memcg cache
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com> <1350656442-1523-12-git-send-email-glommer@parallels.com> <CAAmzW4M7SFF8t491mrHdXmdmCVA_=ma_XMCEyuOMo3TnqDVNxg@mail.gmail.com>
-In-Reply-To: <CAAmzW4M7SFF8t491mrHdXmdmCVA_=ma_XMCEyuOMo3TnqDVNxg@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 1/3] x86/mm: only do a local TLB flush in ptep_set_access_flags()
+References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com> <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com> <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com> <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com> <20121026132601.GC9886@gmail.com> <20121026144419.7e666023@dull> <CA+55aFwdcMzMQ2ns6-p97GXuNhxiDO-nFa0h1A-tjN363mJniQ@mail.gmail.com> <508AE1A3.6030607@redhat.com> <CA+55aFxOywu=6pqejQi5DFm0KQYj0i9yQexwxgzdM5z3kcDgrg@mail.gmail.com>
+In-Reply-To: <CA+55aFxOywu=6pqejQi5DFm0KQYj0i9yQexwxgzdM5z3kcDgrg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 10/29/2012 07:14 PM, JoonSoo Kim wrote:
-> Hi, Glauber.
-> 
-> 2012/10/19 Glauber Costa <glommer@parallels.com>:
->> We are able to match a cache allocation to a particular memcg.  If the
->> task doesn't change groups during the allocation itself - a rare event,
->> this will give us a good picture about who is the first group to touch a
->> cache page.
+On 10/26/2012 03:18 PM, Linus Torvalds wrote:
+> On Fri, Oct 26, 2012 at 12:16 PM, Rik van Riel <riel@redhat.com> wrote:
 >>
->> This patch uses the now available infrastructure by calling
->> memcg_kmem_get_cache() before all the cache allocations.
+>> I can change the text of the changelog, however it looks
+>> like do_wp_page does actually use ptep_set_access_flags
+>> to set the write bit in the pte...
 >>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> CC: Christoph Lameter <cl@linux.com>
->> CC: Pekka Enberg <penberg@cs.helsinki.fi>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Suleiman Souhlal <suleiman@google.com>
->> CC: Tejun Heo <tj@kernel.org>
->> ---
->>  include/linux/slub_def.h | 15 ++++++++++-----
->>  mm/memcontrol.c          |  3 +++
->>  mm/slab.c                |  6 +++++-
->>  mm/slub.c                |  5 +++--
->>  4 files changed, 21 insertions(+), 8 deletions(-)
->>
->> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
->> index 961e72e..ed330df 100644
->> --- a/include/linux/slub_def.h
->> +++ b/include/linux/slub_def.h
->> @@ -13,6 +13,8 @@
->>  #include <linux/kobject.h>
->>
->>  #include <linux/kmemleak.h>
->> +#include <linux/memcontrol.h>
->> +#include <linux/mm.h>
->>
->>  enum stat_item {
->>         ALLOC_FASTPATH,         /* Allocation from cpu slab */
->> @@ -209,14 +211,14 @@ static __always_inline int kmalloc_index(size_t size)
->>   * This ought to end up with a global pointer to the right cache
->>   * in kmalloc_caches.
->>   */
->> -static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
->> +static __always_inline struct kmem_cache *kmalloc_slab(gfp_t flags, size_t size)
->>  {
->>         int index = kmalloc_index(size);
->>
->>         if (index == 0)
->>                 return NULL;
->>
->> -       return kmalloc_caches[index];
->> +       return memcg_kmem_get_cache(kmalloc_caches[index], flags);
->>  }
-> 
-> You don't need this,
-> because memcg_kmem_get_cache() is invoked in both slab_alloc() and
-> __cache_alloc_node().
-> 
-Indeed, I had noticed this already, and fixed myself - to be sent in the
-next version I intend to get out in the open tonight or tomorrow.
+>> I guess both need to be reflected in the changelog text
+>> somehow?
+>
+> Yeah, and by now, after all this discussion, I suspect it should be
+> committed with a comment too. Commit messages are good and all, but
+> unless chasing a particular bug they introduced, we shouldn't expect
+> people to read them for background information.
+
+Now that we have the TLB things taken care of, and
+comments to patches 10/31 and 26/31 have been addressed,
+is there anything else that needs to be done before
+these NUMA patches can be merged?
+
+Anyone, this is a good time to speak up. We have some
+time to address whatever concern you may have.
+
+(besides waiting for the next merge window)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
