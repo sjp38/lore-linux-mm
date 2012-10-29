@@ -1,43 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 7A2896B006C
-	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 21:29:33 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so4249463pbb.14
-        for <linux-mm@kvack.org>; Sun, 28 Oct 2012 18:29:32 -0700 (PDT)
-Date: Sun, 28 Oct 2012 18:29:27 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v7 08/16] block,elevator: use new hashtable implementation
-Message-ID: <20121029012927.GA5171@htj.dyndns.org>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
- <1351450948-15618-8-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id A94566B006C
+	for <linux-mm@kvack.org>; Sun, 28 Oct 2012 21:42:21 -0400 (EDT)
+Date: Mon, 29 Oct 2012 10:48:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/5] mm, highmem: use PKMAP_NR() to calculate an index of
+ pkmap
+Message-ID: <20121029014805.GF15767@bbox>
+References: <Yes>
+ <1351451576-2611-1-git-send-email-js1304@gmail.com>
+ <1351451576-2611-2-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351450948-15618-8-git-send-email-levinsasha928@gmail.com>
+In-Reply-To: <1351451576-2611-2-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>
 
-On Sun, Oct 28, 2012 at 03:02:20PM -0400, Sasha Levin wrote:
-> Switch elevator to use the new hashtable implementation. This reduces the amount of
-> generic unrelated code in the elevator.
+On Mon, Oct 29, 2012 at 04:12:52AM +0900, Joonsoo Kim wrote:
+> To calculate an index of pkmap, using PKMAP_NR() is more understandable
+> and maintainable, So change it.
 > 
-> This also removes the dymanic allocation of the hash table. The size of the table is
-> constant so there's no point in paying the price of an extra dereference when accessing
-> it.
-> 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-
-Reviewed-by: Tejun Heo <tj@kernel.orG>
-
-But please reformat commit message to fit inside 80col (preferably 74
-or something like that).
-
-Thanks.
+> Cc: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
 
 -- 
-tejun
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
