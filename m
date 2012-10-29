@@ -1,80 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 993936B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 18:36:39 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so3925484qcq.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 15:36:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id B626C6B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 18:41:31 -0400 (EDT)
+Date: Tue, 30 Oct 2012 09:41:22 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Hang in XFS reclaim on 3.7.0-rc3
+Message-ID: <20121029224122.GV29378@dastard>
+References: <CAPVoSvSM9=hictqwT2rzZA-fU_XSwd-_FRzW_J+HQYj7iohTWQ@mail.gmail.com>
+ <20121029222613.GU29378@dastard>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
-	<20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-Date: Mon, 29 Oct 2012 15:36:38 -0700
-Message-ID: <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121029222613.GU29378@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Torsten Kaiser <just.for.lkml@googlemail.com>
+Cc: xfs@oss.sgi.com, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, Oct 29, 2012 at 12:00 PM, David Rientjes <rientjes@google.com> wrote:
-> On Mon, 29 Oct 2012, Luigi Semenzato wrote:
->
->> I managed to get the stack trace for the process that refuses to die.
->> I am not sure it's due to the deadlock described in earlier messages.
->> I will investigate further.
->>
->> [96283.704390] chrome          x 815ecd20     0 16573   1112 0x00100104
->> [96283.704405]  c107fe34 00200046 f57ae000 815ecd20 815ecd20 ec0b645a
->> 0000578f f67cfd20
->> [96283.704427]  d0a9a9a0 c107fdf8 81037be5 f5bdf1e8 f6021800 00000000
->> c107fe04 00200202
->> [96283.704449]  c107fe0c 00200202 f5bdf1b0 c107fe24 8117ddb1 00200202
->> f5bdf1b0 f5bdf1b8
->> [96283.704471] Call Trace:
->> [96283.704484]  [<81037be5>] ? queue_work_on+0x2d/0x39
->> [96283.704497]  [<8117ddb1>] ? put_io_context+0x52/0x6a
->> [96283.704510]  [<813b68f6>] schedule+0x56/0x58
->> [96283.704520]  [<81028525>] do_exit+0x63e/0x640
->
-> Could you find out where this happens to be in the function?  If you
-> enable CONFIG_DEBUG_INFO, you should be able to use gdb on vmlinux and
-> find out with l *do_exit+0x63e.
+[add the linux-mm cc I forgot to add before sending]
 
-It looks like it's the final call to schedule() in do_exit():
+On Tue, Oct 30, 2012 at 09:26:13AM +1100, Dave Chinner wrote:
+> On Mon, Oct 29, 2012 at 09:03:15PM +0100, Torsten Kaiser wrote:
+> > After experiencing a hang of all IO yesterday (
+> > http://marc.info/?l=linux-kernel&m=135142236520624&w=2 ), I turned on
+> > LOCKDEP after upgrading to -rc3.
+> > 
+> > I then tried to replicate the load that hung yesterday and got the
+> > following lockdep report, implicating XFS instead of by stacking swap
+> > onto dm-crypt and md.
+> > 
+> > [ 2844.971913]
+> > [ 2844.971920] =================================
+> > [ 2844.971921] [ INFO: inconsistent lock state ]
+> > [ 2844.971924] 3.7.0-rc3 #1 Not tainted
+> > [ 2844.971925] ---------------------------------
+> > [ 2844.971927] inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
+> > [ 2844.971929] kswapd0/725 [HC0[0]:SC0[0]:HE1:SE1] takes:
+> > [ 2844.971931] (&(&ip->i_lock)->mr_lock){++++?.}, at: [<ffffffff811e7ef4>] xfs_ilock+0x84/0xb0
+> > [ 2844.971941] {RECLAIM_FS-ON-W} state was registered at:
+> > [ 2844.971942]   [<ffffffff8108137e>] mark_held_locks+0x7e/0x130
+> > [ 2844.971947]   [<ffffffff81081a63>] lockdep_trace_alloc+0x63/0xc0
+> > [ 2844.971949]   [<ffffffff810e9dd5>] kmem_cache_alloc+0x35/0xe0
+> > [ 2844.971952]   [<ffffffff810dba31>] vm_map_ram+0x271/0x770
+> > [ 2844.971955]   [<ffffffff811e10a6>] _xfs_buf_map_pages+0x46/0xe0
+> > [ 2844.971959]   [<ffffffff811e1fba>] xfs_buf_get_map+0x8a/0x130
+> > [ 2844.971961]   [<ffffffff81233849>] xfs_trans_get_buf_map+0xa9/0xd0
+> > [ 2844.971964]   [<ffffffff8121e339>] xfs_ifree_cluster+0x129/0x670
+> > [ 2844.971967]   [<ffffffff8121f959>] xfs_ifree+0xe9/0xf0
+> > [ 2844.971969]   [<ffffffff811f4abf>] xfs_inactive+0x2af/0x480
+> > [ 2844.971972]   [<ffffffff811efb90>] xfs_fs_evict_inode+0x70/0x80
+> > [ 2844.971974]   [<ffffffff8110cb8f>] evict+0xaf/0x1b0
+> > [ 2844.971977]   [<ffffffff8110cd95>] iput+0x105/0x210
+> > [ 2844.971979]   [<ffffffff811070d0>] dentry_iput+0xa0/0xe0
+> > [ 2844.971981]   [<ffffffff81108310>] dput+0x150/0x280
+> > [ 2844.971983]   [<ffffffff811020fb>] sys_renameat+0x21b/0x290
+> > [ 2844.971986]   [<ffffffff81102186>] sys_rename+0x16/0x20
+> > [ 2844.971988]   [<ffffffff816b2292>] system_call_fastpath+0x16/0x1b
+> 
+> We shouldn't be mapping pages there. See if the patch below fixes
+> it.
+> 
+> Fundamentally, though, the lockdep warning has come about because
+> vm_map_ram is doing a GFP_KERNEL allocation when we need it to be
+> doing GFP_NOFS - we are within a transaction here, so memory reclaim
+> is not allowed to recurse back into the filesystem.
+> 
+> mm-folk: can we please get this vmalloc/gfp_flags passing API
+> fixed once and for all? This is the fourth time in the last month or
+> so that I've seen XFS bug reports with silent hangs and associated
+> lockdep output that implicate GFP_KERNEL allocations from vm_map_ram
+> in GFP_NOFS conditions as the potential cause....
+> 
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
+> 
+> xfs: don't vmap inode cluster buffers during free
+> 
+> From: Dave Chinner <dchinner@redhat.com>
+> 
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  fs/xfs/xfs_inode.c |    3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/fs/xfs/xfs_inode.c b/fs/xfs/xfs_inode.c
+> index c4add46..82f6e5d 100644
+> --- a/fs/xfs/xfs_inode.c
+> +++ b/fs/xfs/xfs_inode.c
+> @@ -1781,7 +1781,8 @@ xfs_ifree_cluster(
+>  		 * to mark all the active inodes on the buffer stale.
+>  		 */
+>  		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, blkno,
+> -					mp->m_bsize * blks_per_cluster, 0);
+> +					mp->m_bsize * blks_per_cluster,
+> +					XBF_UNMAPPED);
+>  
+>  		if (!bp)
+>  			return ENOMEM;
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
+> -- 
+> This message has been scanned for viruses and
+> dangerous content by MailScanner, and is
+> believed to be clean.
+> 
+> 
 
-   0x81028520 <+1593>: call   0x813b68a0 <schedule>
-   0x81028525 <+1598>: ud2a
-
-(gdb) l *do_exit+0x63e
-0x81028525 is in do_exit
-(/home/semenzato/trunk/src/third_party/kernel/files/kernel/exit.c:1069).
-1064
-1065 /* causes final put_task_struct in finish_task_switch(). */
-1066 tsk->state = TASK_DEAD;
-1067 tsk->flags |= PF_NOFREEZE; /* tell freezer to ignore us */
-1068 schedule();
-1069 BUG();
-1070 /* Avoid "noreturn function does return".  */
-1071 for (;;)
-1072 cpu_relax(); /* For when BUG is null */
-1073 }
-
-Here's a theory: the thread exits fine, but the next scheduled thread
-tries to allocate memory before or during finish_task_switch(), so the
-dead thread is never cleaned up completely and is still considered
-alive by the OOM killer.
-
-Unfortunately I haven't found a code path that supports this theory...
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
