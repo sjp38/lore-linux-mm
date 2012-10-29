@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 21AD86B006C
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 15:01:13 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3959406pad.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:01:12 -0700 (PDT)
-Date: Mon, 29 Oct 2012 12:01:07 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
-Message-ID: <20121029190107.GD4066@htj.dyndns.org>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
- <1351450948-15618-6-git-send-email-levinsasha928@gmail.com>
- <20121029113515.GB9115@Krystal>
- <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
- <20121029183157.GC3097@jtriplet-mobl1>
- <CA+1xoqfMrn9zDFMJNFfA0NA86wE_DedD97cP1yJ2UQdTjs3uyQ@mail.gmail.com>
- <20121029185319.GA21546@Krystal>
- <20121029185814.GC4066@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 71BEC6B006C
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 15:07:05 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20121026061206.GA31139@thunk.org>
+	<3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+	<20121026184649.GA8614@thunk.org>
+	<3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
+	<20121027221626.GA9161@thunk.org> <20121029011632.GN29378@dastard>
+	<20121029024024.GC9365@thunk.org> <m27gq9r2cu.fsf@firstfloor.org>
+	<20121029182455.GA7098@thunk.org>
+Date: Mon, 29 Oct 2012 12:07:04 -0700
+In-Reply-To: <20121029182455.GA7098@thunk.org> (Theodore Ts'o's message of
+	"Mon, 29 Oct 2012 14:24:56 -0400")
+Message-ID: <m21ughksh3.fsf@firstfloor.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121029185814.GC4066@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Josh Triplett <josh@joshtriplett.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Dave Chinner <david@fromorbit.com>, "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-On Mon, Oct 29, 2012 at 11:58:14AM -0700, Tejun Heo wrote:
-> On Mon, Oct 29, 2012 at 02:53:19PM -0400, Mathieu Desnoyers wrote:
-> > The argument about hash_init being useful to add magic values in the
-> > future only works for the cases where a hash table is declared with
-> > DECLARE_HASHTABLE(). It's completely pointless with DEFINE_HASHTABLE(),
-> > because we could initialize any debugging variables from within
-> > DEFINE_HASHTABLE().
-> 
-> You can do that with [0 .. HASH_SIZE - 1] initializer.
+Theodore Ts'o <tytso@mit.edu> writes:
+>
+> It's actually pretty easy to test this particular one, 
 
-And in general, let's please try not to do optimizations which are
-pointless.  Just stick to the usual semantics.  You have an abstract
-data structure - invoke the initializer before using it.  Sure,
-optimize it if it shows up somewhere.  And here, if we do the
-initializers properly, it shouldn't cause any more actual overhead -
-ie. DEFINE_HASHTABLE() will basicallly boil down to all zero
-assignments and the compiler will put the whole thing in .bss anyway.
+Note the error can happen at any time.
 
-Thanks.
+> and certainly
+> one of the things I'd strongly encourage in this patch series is the
+> introduction of an interface via madvise
+
+It already exists of course.
+
+I would suggest to study the existing framework before more 
+suggestions.
+
+> simulate an ECC hard error event.  So I don't think "it's hard to
+> test" is a reason not to do the right thing.  Let's make it easy to
+
+What you can't test doesn't work. It's that simple.
+
+And memory error handling is extremly hard to test. The errors
+can happen at any time. It's not a well defined event.
+There are test suites for it of course (mce-test, mce-inject[1]),
+but they needed a lot of engineering effort to be at where
+they are.
+
+[1] despite the best efforts of some current RAS developers
+at breaking it.
+
+> Note that the problem that we're dealing with is buffered writes; so
+> it's quite possible that the process which wrote the file, thus
+> dirtying the page cache, has already exited; so there's no way we can
+> guarantee we can inform the process which wrote the file via a signal
+> or a error code return.
+
+Is that any different from other IO errors? It doesn't need to 
+be better.
+
+> Also, if you're going to keep this state in memory, what happens if
+> the inode gets pushed out of memory? 
+
+You lose the error, just like you do today with any other IO error.
+
+We had a lot of discussions on this when the memory error handling
+was originally introduced, that was the conclusuion.
+
+I don't think a special panic knob for this makes sense either.
+We already have multiple panic knobs for memory errors, that
+can be used.
+
+-Andi
 
 -- 
-tejun
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
