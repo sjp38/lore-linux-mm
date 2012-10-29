@@ -1,123 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 93E9A6B006C
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id A49386B007B
 	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:48:14 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [V5 PATCH 02/26] memory_hotplug: handle empty zone when online_movable/online_kernel
-Date: Mon, 29 Oct 2012 23:20:52 +0800
-Message-Id: <1351524078-20363-1-git-send-email-laijs@cn.fujitsu.com>
+Subject: [V5 PATCH 09/26] oom: use N_MEMORY instead N_HIGH_MEMORY
+Date: Mon, 29 Oct 2012 23:20:59 +0800
+Message-Id: <1351524078-20363-8-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, linux-mm@kvack.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-make online_movable/online_kernel can empty a zone
-or can move memory to a empty zone.
+N_HIGH_MEMORY stands for the nodes that has normal or high memory.
+N_MEMORY stands for the nodes that has any memory.
+
+The code here need to handle with the nodes which have memory, we should
+use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
 ---
- mm/memory_hotplug.c |   51 +++++++++++++++++++++++++++++++++++++++++++++------
- 1 files changed, 45 insertions(+), 6 deletions(-)
+ mm/oom_kill.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 6d3bec4..bdcdaf6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -227,8 +227,17 @@ static void resize_zone(struct zone *zone, unsigned long start_pfn,
- 
- 	zone_span_writelock(zone);
- 
--	zone->zone_start_pfn = start_pfn;
--	zone->spanned_pages = end_pfn - start_pfn;
-+	if (end_pfn - start_pfn) {
-+		zone->zone_start_pfn = start_pfn;
-+		zone->spanned_pages = end_pfn - start_pfn;
-+	} else {
-+		/*
-+		 * make it consist as free_area_init_core(),
-+		 * if spanned_pages = 0, then keep start_pfn = 0
-+		 */
-+		zone->zone_start_pfn = 0;
-+		zone->spanned_pages = 0;
-+	}
- 
- 	zone_span_writeunlock(zone);
- }
-@@ -244,10 +253,19 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
- 		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
- }
- 
--static int move_pfn_range_left(struct zone *z1, struct zone *z2,
-+static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
- 		unsigned long start_pfn, unsigned long end_pfn)
- {
-+	int ret;
- 	unsigned long flags;
-+	unsigned long z1_start_pfn;
-+
-+	if (!z1->wait_table) {
-+		ret = init_currently_empty_zone(z1, start_pfn,
-+			end_pfn - start_pfn, MEMMAP_HOTPLUG);
-+		if (ret)
-+			return ret;
-+	}
- 
- 	pgdat_resize_lock(z1->zone_pgdat, &flags);
- 
-@@ -261,7 +279,13 @@ static int move_pfn_range_left(struct zone *z1, struct zone *z2,
- 	if (end_pfn <= z2->zone_start_pfn)
- 		goto out_fail;
- 
--	resize_zone(z1, z1->zone_start_pfn, end_pfn);
-+	/* use start_pfn for z1's start_pfn if z1 is empty */
-+	if (z1->spanned_pages)
-+		z1_start_pfn = z1->zone_start_pfn;
-+	else
-+		z1_start_pfn = start_pfn;
-+
-+	resize_zone(z1, z1_start_pfn, end_pfn);
- 	resize_zone(z2, end_pfn, z2->zone_start_pfn + z2->spanned_pages);
- 
- 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
-@@ -274,10 +298,19 @@ out_fail:
- 	return -1;
- }
- 
--static int move_pfn_range_right(struct zone *z1, struct zone *z2,
-+static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
- 		unsigned long start_pfn, unsigned long end_pfn)
- {
-+	int ret;
- 	unsigned long flags;
-+	unsigned long z2_end_pfn;
-+
-+	if (!z2->wait_table) {
-+		ret = init_currently_empty_zone(z2, start_pfn,
-+			end_pfn - start_pfn, MEMMAP_HOTPLUG);
-+		if (ret)
-+			return ret;
-+	}
- 
- 	pgdat_resize_lock(z1->zone_pgdat, &flags);
- 
-@@ -291,8 +324,14 @@ static int move_pfn_range_right(struct zone *z1, struct zone *z2,
- 	if (start_pfn >= z1->zone_start_pfn + z1->spanned_pages)
- 		goto out_fail;
- 
-+	/* use end_pfn for z2's end_pfn if z2 is empty */
-+	if (z2->spanned_pages)
-+		z2_end_pfn = z2->zone_start_pfn + z2->spanned_pages;
-+	else
-+		z2_end_pfn = end_pfn;
-+
- 	resize_zone(z1, z1->zone_start_pfn, start_pfn);
--	resize_zone(z2, start_pfn, z2->zone_start_pfn + z2->spanned_pages);
-+	resize_zone(z2, start_pfn, z2_end_pfn);
- 
- 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
- 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 79e0f3e..aa2d89c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -257,7 +257,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+ 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
+ 	 * is enforced in get_page_from_freelist().
+ 	 */
+-	if (nodemask && !nodes_subset(node_states[N_HIGH_MEMORY], *nodemask)) {
++	if (nodemask && !nodes_subset(node_states[N_MEMORY], *nodemask)) {
+ 		*totalpages = total_swap_pages;
+ 		for_each_node_mask(nid, *nodemask)
+ 			*totalpages += node_spanned_pages(nid);
 -- 
 1.7.4.4
 
