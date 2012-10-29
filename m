@@ -1,42 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 897596B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:58:20 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so4869801pbb.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:58:19 -0700 (PDT)
-Date: Mon, 29 Oct 2012 11:58:14 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
-Message-ID: <20121029185814.GC4066@htj.dyndns.org>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
- <1351450948-15618-6-git-send-email-levinsasha928@gmail.com>
- <20121029113515.GB9115@Krystal>
- <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
- <20121029183157.GC3097@jtriplet-mobl1>
- <CA+1xoqfMrn9zDFMJNFfA0NA86wE_DedD97cP1yJ2UQdTjs3uyQ@mail.gmail.com>
- <20121029185319.GA21546@Krystal>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 081786B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 15:00:40 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3958998pad.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:00:40 -0700 (PDT)
+Date: Mon, 29 Oct 2012 12:00:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: zram OOM behavior
+In-Reply-To: <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com> <20121015144412.GA2173@barrios> <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com> <20121016061854.GB3934@barrios> <CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
+ <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com> <20121022235321.GK13817@bbox> <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com> <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121029185319.GA21546@Krystal>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Josh Triplett <josh@joshtriplett.org>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Oct 29, 2012 at 02:53:19PM -0400, Mathieu Desnoyers wrote:
-> The argument about hash_init being useful to add magic values in the
-> future only works for the cases where a hash table is declared with
-> DECLARE_HASHTABLE(). It's completely pointless with DEFINE_HASHTABLE(),
-> because we could initialize any debugging variables from within
-> DEFINE_HASHTABLE().
+On Mon, 29 Oct 2012, Luigi Semenzato wrote:
 
-You can do that with [0 .. HASH_SIZE - 1] initializer.
+> I managed to get the stack trace for the process that refuses to die.
+> I am not sure it's due to the deadlock described in earlier messages.
+> I will investigate further.
+> 
+> [96283.704390] chrome          x 815ecd20     0 16573   1112 0x00100104
+> [96283.704405]  c107fe34 00200046 f57ae000 815ecd20 815ecd20 ec0b645a
+> 0000578f f67cfd20
+> [96283.704427]  d0a9a9a0 c107fdf8 81037be5 f5bdf1e8 f6021800 00000000
+> c107fe04 00200202
+> [96283.704449]  c107fe0c 00200202 f5bdf1b0 c107fe24 8117ddb1 00200202
+> f5bdf1b0 f5bdf1b8
+> [96283.704471] Call Trace:
+> [96283.704484]  [<81037be5>] ? queue_work_on+0x2d/0x39
+> [96283.704497]  [<8117ddb1>] ? put_io_context+0x52/0x6a
+> [96283.704510]  [<813b68f6>] schedule+0x56/0x58
+> [96283.704520]  [<81028525>] do_exit+0x63e/0x640
 
-Thanks.
-
--- 
-tejun
+Could you find out where this happens to be in the function?  If you 
+enable CONFIG_DEBUG_INFO, you should be able to use gdb on vmlinux and 
+find out with l *do_exit+0x63e.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
