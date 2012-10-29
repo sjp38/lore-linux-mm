@@ -1,128 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 56C346B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:53:22 -0400 (EDT)
-Date: Mon, 29 Oct 2012 14:53:19 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
-Message-ID: <20121029185319.GA21546@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <1351450948-15618-6-git-send-email-levinsasha928@gmail.com> <20121029113515.GB9115@Krystal> <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com> <20121029183157.GC3097@jtriplet-mobl1> <CA+1xoqfMrn9zDFMJNFfA0NA86wE_DedD97cP1yJ2UQdTjs3uyQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 1070A6B006C
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:55:43 -0400 (EDT)
+Date: Mon, 29 Oct 2012 19:55:29 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Message-ID: <20121029185529.GB28272@quack.suse.cz>
+References: <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20121026061206.GA31139@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+ <20121026184649.GA8614@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
+ <20121027221626.GA9161@thunk.org>
+ <20121029011632.GN29378@dastard>
+ <20121029024024.GC9365@thunk.org>
+ <m27gq9r2cu.fsf@firstfloor.org>
+ <20121029182455.GA7098@thunk.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+1xoqfMrn9zDFMJNFfA0NA86wE_DedD97cP1yJ2UQdTjs3uyQ@mail.gmail.com>
+In-Reply-To: <20121029182455.GA7098@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Josh Triplett <josh@joshtriplett.org>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Andi Kleen <andi@firstfloor.org>, Dave Chinner <david@fromorbit.com>, "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> On Mon, Oct 29, 2012 at 2:31 PM, Josh Triplett <josh@joshtriplett.org> wrote:
-> > On Mon, Oct 29, 2012 at 01:29:24PM -0400, Sasha Levin wrote:
-> >> On Mon, Oct 29, 2012 at 7:35 AM, Mathieu Desnoyers
-> >> <mathieu.desnoyers@efficios.com> wrote:
-> >> > * Sasha Levin (levinsasha928@gmail.com) wrote:
-> >> >> Switch tracepoints to use the new hashtable implementation. This reduces the amount of
-> >> >> generic unrelated code in the tracepoints.
-> >> >>
-> >> >> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-> >> >> ---
-> >> >>  kernel/tracepoint.c | 27 +++++++++++----------------
-> >> >>  1 file changed, 11 insertions(+), 16 deletions(-)
-> >> >>
-> >> >> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
-> >> >> index d96ba22..854df92 100644
-> >> >> --- a/kernel/tracepoint.c
-> >> >> +++ b/kernel/tracepoint.c
-> >> >> @@ -26,6 +26,7 @@
-> >> >>  #include <linux/slab.h>
-> >> >>  #include <linux/sched.h>
-> >> >>  #include <linux/static_key.h>
-> >> >> +#include <linux/hashtable.h>
-> >> >>
-> >> >>  extern struct tracepoint * const __start___tracepoints_ptrs[];
-> >> >>  extern struct tracepoint * const __stop___tracepoints_ptrs[];
-> >> >> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
-> >> >>   * Protected by tracepoints_mutex.
-> >> >>   */
-> >> >>  #define TRACEPOINT_HASH_BITS 6
-> >> >> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
-> >> >> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
-> >> >> +static DEFINE_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
-> >> >>
-> >> > [...]
-> >> >>
-> >> >> @@ -722,6 +715,8 @@ struct notifier_block tracepoint_module_nb = {
-> >> >>
-> >> >>  static int init_tracepoints(void)
-> >> >>  {
-> >> >> +     hash_init(tracepoint_table);
-> >> >> +
-> >> >>       return register_module_notifier(&tracepoint_module_nb);
-> >> >>  }
-> >> >>  __initcall(init_tracepoints);
-> >> >
-> >> > So we have a hash table defined in .bss (therefore entirely initialized
-> >> > to NULL), and you add a call to "hash_init", which iterates on the whole
-> >> > array and initialize it to NULL (again) ?
-> >> >
-> >> > This extra initialization is redundant. I think it should be removed
-> >> > from here, and hashtable.h should document that hash_init() don't need
-> >> > to be called on zeroed memory (which includes static/global variables,
-> >> > kzalloc'd memory, etc).
-> >>
-> >> This was discussed in the previous series, the conclusion was to call
-> >> hash_init() either way to keep the encapsulation and consistency.
-> >>
-> >> It's cheap enough and happens only once, so why not?
-> >
-> > Unnecessary work adds up.  Better not to do it unnecessarily, even if by
-> > itself it doesn't cost that much.
-> >
-> > It doesn't seem that difficult for future fields to have 0 as their
-> > initialized state.
+On Mon 29-10-12 14:24:56, Ted Tso wrote:
+> On Mon, Oct 29, 2012 at 03:37:05AM -0700, Andi Kleen wrote:
+> > > Agreed, if we're going to add an xattr, then we might as well store
+> > 
+> > I don't think an xattr makes sense for this. It's sufficient to keep
+> > this state in memory.
+> > 
+> > In general these error paths are hard to test and it's important
+> > to keep them as simple as possible. Doing IO and other complexities
+> > just doesn't make sense. Just have the simplest possible path
+> > that can do the job.
 > 
-> Let's put it this way: hlist requires the user to initialize hlist
-> head before usage, therefore as a hlist user, hashtable implementation
-> must do that.
+> It's actually pretty easy to test this particular one, and certainly
+> one of the things I'd strongly encourage in this patch series is the
+> introduction of an interface via madvise and fadvise that allows us to
+> simulate an ECC hard error event.  So I don't think "it's hard to
+> test" is a reason not to do the right thing.  Let's make it easy to
+> test, and the include it in xfstests.  All of the core file systems
+> are regularly running regression tests via xfstests, so if we define a
+> standard way of testing this function (this is why I suggested
+> fadvise/madvise instead of an ioctl, but in a pinch we could do this
+> via an ioctl instead).
+  Well, we have an error-injection framework which would be a better fit
+for this functionality rather than some madvise / fadvise hack IMHO. And
+test in xfstests can just check whether the error-injection code is
+compiled in before running the test...
+
+> Note that the problem that we're dealing with is buffered writes; so
+> it's quite possible that the process which wrote the file, thus
+> dirtying the page cache, has already exited; so there's no way we can
+> guarantee we can inform the process which wrote the file via a signal
+> or a error code return.  It's also possible that part of the file has
+> been written out to the disk, so forcibly crashing the system and
+> rebooting isn't necessarily going to save the file from being
+> corrupted.
 > 
-> We do it automatically when the hashtable user does
-> DEFINE_HASHTABLE(), but we can't do that if he does
-> DECLARE_HASHTABLE(). This means that the hashtable user must call
-> hash_init() whenever he uses DECLARE_HASHTABLE() to create his
-> hashtable.
+> Also, if you're going to keep this state in memory, what happens if
+> the inode gets pushed out of memory?  Do we pin the inode?  Or do we
+> just say that it's stored into memory until some non-deterministic
+> time (as far as userspace programs are concerned, but if they are
+> running in a tight memory cgroup, it might be very short time later)
+> suddenly the state gets lost?
 > 
-> There are two options here, either we specify that hash_init() should
-> only be called if DECLARE_HASHTABLE() was called, which is confusing,
-> inconsistent and prone to errors, or we can just say that it should be
-> called whenever a hashtable is used.
+> I think it's fair that if there are file systems that don't have a
+> single bit they can allocate in the inode, we can either accept
+> Jun'ichi's suggest to just forcibly crash the system, or we can allow
+> the state to be stored in memory.  But I suspect the core file systems
+> that might be used by enterprise-class workloads will want to provide
+> something better.
 > 
-> The only way to work around it IMO is to get hlist to not require
-> initializing before usage, and there are good reasons that that won't
-> happen.
+> I'm not that convinced that we need to insert an xattr; after all, not
+> all file systems support xattrs at all, and I think a single bit
+> indicating that the file has corrupted data is sufficient.  But I
+> think it would be useful to at least optionally support a persistent
+> storage of this bit.
+  Here I'd just note that the situation isn't that much different from a
+plain old EIO we can hit during writeback. There we use in memory flag
+(AS_EIO / PageError) and hope that an application which cares enough about
+its data will call fsync() and thus get the error back. Sure it's not
+ideal but so far nobody seemed to be bothered enough to improve on that. So
+is it really fair to bother authors of this patch with it?
 
-Hrm, just a second here.
+And regarding xattr - I think it's an overkill. Just recording the error in
+the kernel log with enough detail and flagging the file (or even just the
+filesystem) would be OK IMHO. Rest could be handled in userspace if someone
+cares enough.
 
-The argument about hash_init being useful to add magic values in the
-future only works for the cases where a hash table is declared with
-DECLARE_HASHTABLE(). It's completely pointless with DEFINE_HASHTABLE(),
-because we could initialize any debugging variables from within
-DEFINE_HASHTABLE().
-
-So I take my "Agreed" back. I disagree with initializing the hash table
-twice redundantly. There should be at least "DEFINE_HASHTABLE()" or a
-hash_init() (for DECLARE_HASHTABLE()), but not useless execution
-initialization on top of an already statically initialized hash table.
-
-Thanks,
-
-Mathieu
-
+								Honza
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
