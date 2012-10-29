@@ -1,73 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id EDBD76B0072
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:41:06 -0400 (EDT)
-Date: Mon, 29 Oct 2012 11:41:04 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v7 09/16] SUNRPC/cache: use new hashtable implementation
-Message-ID: <20121029154104.GA18542@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <1351450948-15618-9-git-send-email-levinsasha928@gmail.com> <20121029124229.GC11733@Krystal> <CA+55aFzO8DJJP3HBfgqXFac9r3=bYK+_nYe4cuXiNFg-623s6w@mail.gmail.com> <20121029151343.GA17722@Krystal> <20121029151653.GC9502@fieldses.org>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id CEFE26B0074
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:43:28 -0400 (EDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 29 Oct 2012 11:43:27 -0400
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 60A006E8036
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:43:23 -0400 (EDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9TFhMbs291378
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:43:23 -0400
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9TFhLGY016314
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 09:43:22 -0600
+Message-ID: <508EA417.1040304@linux.vnet.ibm.com>
+Date: Mon, 29 Oct 2012 10:43:19 -0500
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121029151653.GC9502@fieldses.org>
+Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
+References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1351501009-15111-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-* J. Bruce Fields (bfields@fieldses.org) wrote:
-> On Mon, Oct 29, 2012 at 11:13:43AM -0400, Mathieu Desnoyers wrote:
-> > * Linus Torvalds (torvalds@linux-foundation.org) wrote:
-> > > On Mon, Oct 29, 2012 at 5:42 AM, Mathieu Desnoyers
-> > > <mathieu.desnoyers@efficios.com> wrote:
-> > > >
-> > > > So defining e.g.:
-> > > >
-> > > > #include <linux/log2.h>
-> > > >
-> > > > #define DFR_HASH_BITS  (PAGE_SHIFT - ilog2(BITS_PER_LONG))
-> > > >
-> > > > would keep the intended behavior in all cases: use one page for the hash
-> > > > array.
-> > > 
-> > > Well, since that wasn't true before either because of the long-time
-> > > bug you point out, clearly the page size isn't all that important. I
-> > > think it's more important to have small and simple code, and "9" is
-> > > certainly that, compared to playing ilog2 games with not-so-obvious
-> > > things.
-> > > 
-> > > Because there's no reason to believe that '9' is in any way a worse
-> > > random number than something page-shift-related, is there? And getting
-> > > away from *previous* overly-complicated size calculations that had
-> > > been broken because they were too complicated and random, sounds like
-> > > a good idea.
-> > 
-> > Good point. I agree that unless we really care about the precise number
-> > of TLB entries and cache lines used by this hash table, we might want to
-> > stay away from page-size and pointer-size based calculation.
-> >
-> > It might not hurt to explain this in the patch changelog though.
-> 
-> I'd also be happy to take that as a separate patch now.
+On 10/29/2012 03:56 AM, Minchan Kim wrote:
+> This patchset promotes zram/zsmalloc from staging.
+> Both are very clean and zram have been used by many embedded product
+> for a long time.
+> It's time to go out of staging.
 
-FYIW: I've made a nice boo-boo above. It should have been:
+Agreed!
 
-#define DFR_HASH_BITS   (PAGE_SHIFT - ilog2(sizeof(struct hlist_head)))
+> Greg, Jens is already OK that zram is located under driver/blocks/.
+> The issue remained is where we put zsmalloc.
 
-Because we happen to have a memory indexed in bytes, not in bits. I
-guess this goes a long way proving Linus' point about virtues of trivial
-code. ;-)
+Doesn't matter much for me, but seems to be leaning toward /lib,
+baring an opinion from Andrew that it go in /mm.  /lib is fine by me.
 
-Thanks,
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
