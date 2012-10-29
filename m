@@ -1,48 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id F00616B006C
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 06:11:22 -0400 (EDT)
-Date: Mon, 29 Oct 2012 11:11:20 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH] add some drop_caches documentation and info messsge
-Message-ID: <20121029101120.GC4326@liondog.tnic>
-References: <20121012125708.GJ10110@dhcp22.suse.cz>
- <20121024210600.GA17037@liondog.tnic>
- <20121024141303.0797d6a1.akpm@linux-foundation.org>
- <1787395.7AzIesGUbB@vostro.rjw.lan>
- <20121024181752.de011615.akpm@linux-foundation.org>
- <alpine.LRH.2.00.1210290958450.10392@twin.jikos.cz>
- <20121029095819.GA4326@liondog.tnic>
- <alpine.LNX.2.00.1210291100470.19184@pobox.suse.cz>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 889CA6B0072
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 06:37:07 -0400 (EDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20121026061206.GA31139@thunk.org>
+	<3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+	<20121026184649.GA8614@thunk.org>
+	<3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
+	<20121027221626.GA9161@thunk.org> <20121029011632.GN29378@dastard>
+	<20121029024024.GC9365@thunk.org>
+Date: Mon, 29 Oct 2012 03:37:05 -0700
+In-Reply-To: <20121029024024.GC9365@thunk.org> (Theodore Ts'o's message of
+	"Sun, 28 Oct 2012 22:40:24 -0400")
+Message-ID: <m27gq9r2cu.fsf@firstfloor.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1210291100470.19184@pobox.suse.cz>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Dave Hansen <dave@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Dave Chinner <david@fromorbit.com>, "Luck, Tony" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-On Mon, Oct 29, 2012 at 11:01:59AM +0100, Jiri Kosina wrote:
-> Well if the point of dropping caches is lowering the resume time, then
-> the point is rendered moot as soon as you switch to your browser and
-> have to wait noticeable amount of time until it starts reacting.
+Theodore Ts'o <tytso@mit.edu> writes:
 
-Not the resume time - the suspend time. If, say, one has 8Gb of memory
-and Linux nicely spreads all over it in caches, you don't want to wait
-too long for the suspend image creation.
+> On Mon, Oct 29, 2012 at 12:16:32PM +1100, Dave Chinner wrote:
+>> 
+>> Except that there are filesystems that cannot implement such flags,
+>> or require on-disk format changes to add more of those flags. This
+>> is most definitely not a filesystem specific behaviour, so any sort
+>> of VFS level per-file state needs to be kept in xattrs, not special
+>> flags. Filesystems are welcome to optimise the storage of such
+>> special xattrs (e.g. down to a single boolean flag in an inode), but
+>> using a flag for something that dould, in fact, storage the exactly
+>> offset and length of the corruption is far better than just storing
+>> a "something is corrupted in this file" bit....
+>
+> Agreed, if we're going to add an xattr, then we might as well store
 
-And nowadays, since you can have 8Gb in a laptop, you really want to
-keep that image minimal so that suspend-to-disk is quick.
+I don't think an xattr makes sense for this. It's sufficient to keep
+this state in memory.
 
-The penalty of faulting everything back in is a cost we'd be willing to
-pay, I guess.
+In general these error paths are hard to test and it's important
+to keep them as simple as possible. Doing IO and other complexities
+just doesn't make sense. Just have the simplest possible path
+that can do the job.
 
-Thanks.
+> not just a boolean, but some indication of what part of the file was
+
+You're overdesigning I think.
+
+-Andi
 
 -- 
-Regards/Gruss,
-    Boris.
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
