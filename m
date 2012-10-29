@@ -1,71 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 14D6B6B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:27:09 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so8715420ied.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 09:27:08 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20121029161412.GB18944@Krystal>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 5FD2D6B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:28:13 -0400 (EDT)
+Date: Mon, 29 Oct 2012 09:27:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7 09/16] SUNRPC/cache: use new hashtable implementation
+Message-Id: <20121029092758.1ab87d79.akpm@linux-foundation.org>
+In-Reply-To: <CA+55aFzO8DJJP3HBfgqXFac9r3=bYK+_nYe4cuXiNFg-623s6w@mail.gmail.com>
 References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
- <20121029112907.GA9115@Krystal> <CA+1xoqfQn92igbFS1TtrpYuSiy7+Ro02ar=axgqSOJOuE_EVuA@mail.gmail.com>
- <20121029161412.GB18944@Krystal>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Mon, 29 Oct 2012 12:26:47 -0400
-Message-ID: <CA+1xoqfBXM4sjvcZtUncnWAaUxA9_YBod3Hjx3ZO=K1oJO_j7g@mail.gmail.com>
-Subject: Re: [PATCH v7 01/16] hashtable: introduce a small and naive hashtable
-Content-Type: text/plain; charset=ISO-8859-1
+	<1351450948-15618-9-git-send-email-levinsasha928@gmail.com>
+	<20121029124229.GC11733@Krystal>
+	<CA+55aFzO8DJJP3HBfgqXFac9r3=bYK+_nYe4cuXiNFg-623s6w@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Sasha Levin <levinsasha928@gmail.com>, tj@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 12:14 PM, Mathieu Desnoyers
-<mathieu.desnoyers@efficios.com> wrote:
-> * Sasha Levin (levinsasha928@gmail.com) wrote:
->> On Mon, Oct 29, 2012 at 7:29 AM, Mathieu Desnoyers
->> <mathieu.desnoyers@efficios.com> wrote:
->> > * Sasha Levin (levinsasha928@gmail.com) wrote:
->> >> +
->> >> +     for (i = 0; i < sz; i++)
->> >> +             INIT_HLIST_HEAD(&ht[sz]);
->> >
->> > ouch. How did this work ? Has it been tested at all ?
->> >
->> > sz -> i
->>
->> Funny enough, it works perfectly. Generally as a test I boot the
->> kernel in a VM and let it fuzz with trinity for a bit, doing that with
->> the code above worked flawlessly.
->>
->> While it works, it's obviously wrong. Why does it work though? Usually
->> there's a list op happening pretty soon after that which brings the
->> list into proper state.
->>
->> I've been playing with a patch that adds a magic value into list_head
->> if CONFIG_DEBUG_LIST is set, and checks that magic in the list debug
->> code in lib/list_debug.c.
->>
->> Does it sound like something useful? If so I'll send that patch out.
->
-> Most of the calls to this initialization function apply it on zeroed
-> memory (static/kzalloc'd...), which makes it useless. I'd actually be in
-> favor of removing those redundant calls (as I pointed out in another
-> email), and document that zeroed memory don't need to be explicitly
-> initialized.
+On Mon, 29 Oct 2012 07:49:42 -0700 Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-Why would that make it useless? The idea is that the init functions
-will set the magic field to something random, like:
+> Because there's no reason to believe that '9' is in any way a worse
+> random number than something page-shift-related, is there?
 
-.magic = 0xBADBEEF0;
+9 is much better than PAGE_SHIFT.  PAGE_SIZE can vary by a factor of
+16, depending on config.
 
-And have list_add() and friends WARN(.magic != 0xBADBEEF0, "Using an
-uninitialized list\n");
-
-This way we'll catch all places that don't go through list initialization code.
-
-
-Thanks,
-Sasha
+Everyone thinks 4k, and tests only for that.  There's potential for
+very large performance and behavior changes when their code gets run
+on a 64k PAGE_SIZE machine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
