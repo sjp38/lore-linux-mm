@@ -1,83 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id B8F2E6B006C
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:59:59 -0400 (EDT)
-Date: Mon, 29 Oct 2012 11:59:57 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v7 15/16] openvswitch: use new hashtable implementation
-Message-ID: <20121029155957.GB18834@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <1351450948-15618-15-git-send-email-levinsasha928@gmail.com> <20121029132931.GC16391@Krystal> <CA+1xoqfRGhPaBEVh228O5_295bWh8FmcyLSOwq8VE5Dm7i3JHg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+1xoqfRGhPaBEVh228O5_295bWh8FmcyLSOwq8VE5Dm7i3JHg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 00A066B0072
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:03:16 -0400 (EDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [V5 PATCH 11/26] mempolicy: use N_MEMORY instead N_HIGH_MEMORY
+Date: Mon, 29 Oct 2012 23:21:01 +0800
+Message-Id: <1351524078-20363-10-git-send-email-laijs@cn.fujitsu.com>
+In-Reply-To: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
+References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> Hi Mathieu,
-> 
-> On Mon, Oct 29, 2012 at 9:29 AM, Mathieu Desnoyers
-> <mathieu.desnoyers@efficios.com> wrote:
-> > * Sasha Levin (levinsasha928@gmail.com) wrote:
-> > [...]
-> >> -static struct hlist_head *hash_bucket(struct net *net, const char *name)
-> >> -{
-> >> -     unsigned int hash = jhash(name, strlen(name), (unsigned long) net);
-> >> -     return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
-> >> -}
-> >> -
-> >>  /**
-> >>   *   ovs_vport_locate - find a port that has already been created
-> >>   *
-> >> @@ -84,13 +76,12 @@ static struct hlist_head *hash_bucket(struct net *net, const char *name)
-> >>   */
-> >>  struct vport *ovs_vport_locate(struct net *net, const char *name)
-> >>  {
-> >> -     struct hlist_head *bucket = hash_bucket(net, name);
-> >>       struct vport *vport;
-> >>       struct hlist_node *node;
-> >> +     int key = full_name_hash(name, strlen(name));
-> >>
-> >> -     hlist_for_each_entry_rcu(vport, node, bucket, hash_node)
-> >> -             if (!strcmp(name, vport->ops->get_name(vport)) &&
-> >> -                 net_eq(ovs_dp_get_net(vport->dp), net))
-> >> +     hash_for_each_possible_rcu(dev_table, vport, node, hash_node, key)
-> >
-> > Is applying hash_32() on top of full_name_hash() needed and expected ?
-> 
-> Since this was pointed out in several of the patches, I'll answer it
-> just once here.
-> 
-> I've intentionally "allowed" double hashing with hash_32 to keep the
-> code simple.
-> 
-> hash_32() is pretty simple and gcc optimizes it to be almost nothing,
-> so doing that costs us a multiplication and a shift. On the other
-> hand, we benefit from keeping our code simple - how would we avoid
-> doing this double hash? adding a different hashtable function for
-> strings? or a new function for already hashed keys? I think we benefit
-> a lot from having to mul/shr instead of adding extra lines of code
-> here.
+N_HIGH_MEMORY stands for the nodes that has normal or high memory.
+N_MEMORY stands for the nodes that has any memory.
 
-This could be done, as I pointed out in another email within this
-thread, by changing the "key" argument from add/for_each_possible to an
-expected "hash" value, and let the caller invoke hash_32() if they want.
-I doubt this would add a significant amount of complexity for users of
-this API, but would allow much more flexibility to choose hash
-functions.
+The code here need to handle with the nodes which have memory, we should
+use N_MEMORY instead.
 
-Thanks,
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+---
+ mm/mempolicy.c |   12 ++++++------
+ 1 files changed, 6 insertions(+), 6 deletions(-)
 
-Mathieu
-
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index d04a8a5..d4a084c 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -212,9 +212,9 @@ static int mpol_set_nodemask(struct mempolicy *pol,
+ 	/* if mode is MPOL_DEFAULT, pol is NULL. This is right. */
+ 	if (pol == NULL)
+ 		return 0;
+-	/* Check N_HIGH_MEMORY */
++	/* Check N_MEMORY */
+ 	nodes_and(nsc->mask1,
+-		  cpuset_current_mems_allowed, node_states[N_HIGH_MEMORY]);
++		  cpuset_current_mems_allowed, node_states[N_MEMORY]);
+ 
+ 	VM_BUG_ON(!nodes);
+ 	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
+@@ -1388,7 +1388,7 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+ 		goto out_put;
+ 	}
+ 
+-	if (!nodes_subset(*new, node_states[N_HIGH_MEMORY])) {
++	if (!nodes_subset(*new, node_states[N_MEMORY])) {
+ 		err = -EINVAL;
+ 		goto out_put;
+ 	}
+@@ -2361,7 +2361,7 @@ void __init numa_policy_init(void)
+ 	 * fall back to the largest node if they're all smaller.
+ 	 */
+ 	nodes_clear(interleave_nodes);
+-	for_each_node_state(nid, N_HIGH_MEMORY) {
++	for_each_node_state(nid, N_MEMORY) {
+ 		unsigned long total_pages = node_present_pages(nid);
+ 
+ 		/* Preserve the largest node */
+@@ -2442,7 +2442,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
+ 		*nodelist++ = '\0';
+ 		if (nodelist_parse(nodelist, nodes))
+ 			goto out;
+-		if (!nodes_subset(nodes, node_states[N_HIGH_MEMORY]))
++		if (!nodes_subset(nodes, node_states[N_MEMORY]))
+ 			goto out;
+ 	} else
+ 		nodes_clear(nodes);
+@@ -2476,7 +2476,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
+ 		 * Default to online nodes with memory if no nodelist
+ 		 */
+ 		if (!nodelist)
+-			nodes = node_states[N_HIGH_MEMORY];
++			nodes = node_states[N_MEMORY];
+ 		break;
+ 	case MPOL_LOCAL:
+ 		/*
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
