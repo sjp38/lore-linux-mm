@@ -1,110 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id CCF886B006C
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 06:50:49 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH] slab: annotate on-slab caches nodelist locks
-Date: Mon, 29 Oct 2012 14:49:39 +0400
-Message-Id: <1351507779-26847-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id A73F66B006C
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 06:52:07 -0400 (EDT)
+Message-ID: <508E5FD3.1060105@leemhuis.info>
+Date: Mon, 29 Oct 2012 11:52:03 +0100
+From: Thorsten Leemhuis <fedora@leemhuis.info>
+MIME-Version: 1.0
+Subject: Re: kswapd0: excessive CPU usage
+References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de>
+In-Reply-To: <20121015110937.GE29125@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Glauber Costa <glommer@parallels.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@cs.helsinki.fi>, David Rientjes <rientjes@google.com>, JoonSoo Kim <js1304@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-We currently provide lockdep annotation for kmalloc caches, and also
-caches that have SLAB_DEBUG_OBJECTS enabled. The reason for this is that
-we can quite frequently nest in the l3->list_lock lock, which is not
-something trivial to avoid.
+Hi!
 
-My proposal with this patch, is to extend this to caches whose slab
-management object lives within the slab as well ("on_slab"). The need
-for this arose in the context of testing kmemcg-slab patches. With such
-patchset, we can have per-memcg kmalloc caches. So the same path that
-led to nesting between kmalloc caches will could then lead to in-memcg
-nesting. Because they are not annotated, lockdep will trigger.
+On 15.10.2012 13:09, Mel Gorman wrote:
+> On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
+>> On 10/12/2012 03:57 PM, Mel Gorman wrote:
+>>> mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
+>>> Jiri Slaby reported the following:
+ > [...]
+>>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>>> index 2624edc..2b7edfa 100644
+>>> --- a/mm/vmscan.c
+>>> +++ b/mm/vmscan.c
+>>> @@ -1763,14 +1763,20 @@ static bool in_reclaim_compaction(struct scan_control *sc)
+>>>   #ifdef CONFIG_COMPACTION
+>>>   /*
+>>>    * If compaction is deferred for sc->order then scale the number of pages
+>>> - * reclaimed based on the number of consecutive allocation failures
+>>> + * reclaimed based on the number of consecutive allocation failures. This
+>>> + * scaling only happens for direct reclaim as it is about to attempt
+>>> + * compaction. If compaction fails, future allocations will be deferred
+>>> + * and reclaim avoided. On the other hand, kswapd does not take compaction
+>>> + * deferral into account so if it scaled, it could scan excessively even
+>>> + * though allocations are temporarily not being attempted.
+>>>    */
+>>>   static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
+>>>   			struct lruvec *lruvec, struct scan_control *sc)
+>>>   {
+>>>   	struct zone *zone = lruvec_zone(lruvec);
+>>>
+>>> -	if (zone->compact_order_failed <= sc->order)
+>>> +	if (zone->compact_order_failed <= sc->order &&
+>>> +	    !current_is_kswapd())
+>>>   		pages_for_compaction <<= zone->compact_defer_shift;
+>>>   	return pages_for_compaction;
+>>>   }
+>> Yes, applying this instead of the revert fixes the issue as well.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: David Rientjes <rientjes@google.com>
-CC: JoonSoo Kim <js1304@gmail.com>
+Just wondering, is there a reason why this patch wasn't applied to 
+mainline? Did it simply fall through the cracks? Or am I missing something?
 
----
-Instead of "on_slab", I considered checking the memcg cache's root
-cache, and annotating that only in case this is a kmalloc cache.
-I ended up annotating on_slab caches, because given how frequently
-those locks can nest, it seemed like a safe choice to go. I was
-a little bit inspired by the key's name as well, that indicated
-this could work for all on_slab caches. Let me know if you guys
-want a different test condition for this.
----
- mm/slab.c | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+I'm asking because I think I stil see the issue on 
+3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are hitting 
+it, too:
+https://bugzilla.redhat.com/show_bug.cgi?id=866988
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 9b7f6b63..ef1c8b3 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -654,6 +654,26 @@ static void init_node_lock_keys(int q)
- 	}
- }
- 
-+static void on_slab_lock_classes_node(struct kmem_cache *cachep, int q)
-+{
-+	struct kmem_list3 *l3;
-+	l3 = cachep->nodelists[q];
-+	if (!l3)
-+		return;
-+
-+	slab_set_lock_classes(cachep, &on_slab_l3_key,
-+			&on_slab_alc_key, q);
-+}
-+
-+static inline void on_slab_lock_classes(struct kmem_cache *cachep)
-+{
-+	int node;
-+
-+	VM_BUG_ON(OFF_SLAB(cachep));
-+	for_each_node(node)
-+		on_slab_lock_classes_node(cachep, node);
-+}
-+
- static inline void init_lock_keys(void)
- {
- 	int node;
-@@ -670,6 +690,10 @@ static inline void init_lock_keys(void)
- {
- }
- 
-+static inline void on_slab_lock_classes(struct kmem_cache *cachep)
-+{
-+}
-+
- static void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
- {
- }
-@@ -1397,6 +1421,9 @@ static int __cpuinit cpuup_prepare(long cpu)
- 		free_alien_cache(alien);
- 		if (cachep->flags & SLAB_DEBUG_OBJECTS)
- 			slab_set_debugobj_lock_classes_node(cachep, node);
-+		else if (!OFF_SLAB(cachep) &&
-+			 !(cachep->flags & SLAB_DESTROY_BY_RCU))
-+			on_slab_lock_classes_node(cachep, node);
- 	}
- 	init_node_lock_keys(node);
- 
-@@ -2554,7 +2581,8 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 		WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
- 
- 		slab_set_debugobj_lock_classes(cachep);
--	}
-+	} else if (!OFF_SLAB(cachep) && !(flags & SLAB_DESTROY_BY_RCU))
-+		on_slab_lock_classes(cachep);
- 
- 	return 0;
- }
--- 
-1.7.11.7
+Or are we seeing something different which just looks similar? I can 
+test the patch if it needs further testing, but from the discussion I 
+got the impression that everything is clear and the patch ready for merging.
+
+CU
+  knurd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
