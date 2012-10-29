@@ -1,86 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 566C46B0071
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:29:06 -0400 (EDT)
-Date: Mon, 29 Oct 2012 12:29:04 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v7 01/16] hashtable: introduce a small and naive
-	hashtable
-Message-ID: <20121029162904.GA19509@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <20121029112907.GA9115@Krystal> <CA+1xoqfQn92igbFS1TtrpYuSiy7+Ro02ar=axgqSOJOuE_EVuA@mail.gmail.com> <20121029161412.GB18944@Krystal> <CA+1xoqfBXM4sjvcZtUncnWAaUxA9_YBod3Hjx3ZO=K1oJO_j7g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 96D3A6B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:56:57 -0400 (EDT)
+Date: Mon, 29 Oct 2012 17:57:05 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+Message-ID: <20121029165705.GA4693@x1.osrc.amd.com>
+References: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+ <508A0A0D.4090001@redhat.com>
+ <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+ <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+ <m2pq45qu0s.fsf@firstfloor.org>
+ <508A8D31.9000106@redhat.com>
+ <20121026132601.GC9886@gmail.com>
+ <20121026144502.6e94643e@dull>
+ <20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
+ <508BE459.2080406@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CA+1xoqfBXM4sjvcZtUncnWAaUxA9_YBod3Hjx3ZO=K1oJO_j7g@mail.gmail.com>
+In-Reply-To: <508BE459.2080406@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Rik van Riel <riel@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, florian@openwrt.org, Borislav Petkov <borislav.petkov@amd.com>
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> On Mon, Oct 29, 2012 at 12:14 PM, Mathieu Desnoyers
-> <mathieu.desnoyers@efficios.com> wrote:
-> > * Sasha Levin (levinsasha928@gmail.com) wrote:
-> >> On Mon, Oct 29, 2012 at 7:29 AM, Mathieu Desnoyers
-> >> <mathieu.desnoyers@efficios.com> wrote:
-> >> > * Sasha Levin (levinsasha928@gmail.com) wrote:
-> >> >> +
-> >> >> +     for (i = 0; i < sz; i++)
-> >> >> +             INIT_HLIST_HEAD(&ht[sz]);
-> >> >
-> >> > ouch. How did this work ? Has it been tested at all ?
-> >> >
-> >> > sz -> i
-> >>
-> >> Funny enough, it works perfectly. Generally as a test I boot the
-> >> kernel in a VM and let it fuzz with trinity for a bit, doing that with
-> >> the code above worked flawlessly.
-> >>
-> >> While it works, it's obviously wrong. Why does it work though? Usually
-> >> there's a list op happening pretty soon after that which brings the
-> >> list into proper state.
-> >>
-> >> I've been playing with a patch that adds a magic value into list_head
-> >> if CONFIG_DEBUG_LIST is set, and checks that magic in the list debug
-> >> code in lib/list_debug.c.
-> >>
-> >> Does it sound like something useful? If so I'll send that patch out.
-> >
-> > Most of the calls to this initialization function apply it on zeroed
-> > memory (static/kzalloc'd...), which makes it useless. I'd actually be in
-> > favor of removing those redundant calls (as I pointed out in another
-> > email), and document that zeroed memory don't need to be explicitly
-> > initialized.
-> 
-> Why would that make it useless? The idea is that the init functions
-> will set the magic field to something random, like:
-> 
-> .magic = 0xBADBEEF0;
-> 
-> And have list_add() and friends WARN(.magic != 0xBADBEEF0, "Using an
-> uninitialized list\n");
-> 
-> This way we'll catch all places that don't go through list initialization code.
+On Sat, Oct 27, 2012 at 09:40:41AM -0400, Rik van Riel wrote:
+> Borislav, would you happen to know whether AMD (and VIA) CPUs
+> automatically invalidate TLB entries that cause page faults? If you do
+> not know, would you happen who to ask? :)
 
-As I replied to Tejun Heo already, I agree that keeping the
-initialization in place makes sense for future-proofness. This intent
-should probably be documented in a comment about the initialization
-function though, just to make sure nobody will try to skip it.
+Short answer: yes.
 
-Thanks,
+Long answer (from APM v2, section 5.5.2):
 
-Mathieu
+Use of Cached Entries When Reporting a Page Fault Exception.
 
-> 
-> 
-> Thanks,
-> Sasha
+On current AMD64 processors, when any type of page fault exception is
+encountered by the MMU, any cached upper-level entries that lead to the
+faulting entry are flushed (along with the TLB entry, if already cached)
+and the table walk is repeated to confirm the page fault using the
+table entries in memory. This is done because a table entry is allowed
+to be upgraded (by marking it as present, or by removing its write,
+execute or supervisor restrictions) without explicitly maintaining TLB
+coherency. Such an upgrade will be found when the table is re-walked,
+which resolves the fault. If the fault is confirmed on the re-walk
+however, a page fault exception is reported, and upper level entries
+that may have been cached on the re-walk are flushed.
+
+HTH.
 
 -- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+Regards/Gruss,
+Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
