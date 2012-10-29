@@ -1,44 +1,63 @@
-Return-Path: <JonasFahrenkrug@vogelpropertiesllc.com>
-Received: from job04p-am-tor04.amcluster.com ([10.10.3.221] helo=localhost.localdomain)
-        by mail3.amcluster.com with esmtp (Exim 4.71)
-        (envelope-from <maildaemon@ashleymadison.com>)
-        id 1SMONV-0002Qp-TH
-        for linux-mm@kvack.org; Mon, 29 Oct 2012 12:03:23 -0300
-Date: Mon, 29 Oct 2012 12:03:23 -0300
-From: Ashley Madison <donotreply@ashleymadison.com>
-Reply-to: Ashley Madison <donotreply@ashleymadison.com>
-Subject: Wire Transfer (2857WU364)
-Message-ID: <e12af3e1de12af3e6f349b12a5000000@localhost.localdomain>
-List-Unsubscribe: <mailto:unsub@ashleymadison.com?subject=Unsubscribe>
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id C152E6B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 13:06:37 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hq4so2282507wib.2
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:06:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-        boundary="b1_e12af3e1de12af3e6f349b12a5000000"
-To: Thayer0 <linux-mm@kvack.org>
+In-Reply-To: <20121029165705.GA4693@x1.osrc.amd.com>
+References: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
+ <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
+ <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
+ <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com>
+ <20121026132601.GC9886@gmail.com> <20121026144502.6e94643e@dull>
+ <20121026221254.7d32c8bf@pyramind.ukuu.org.uk> <508BE459.2080406@redhat.com> <20121029165705.GA4693@x1.osrc.amd.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Mon, 29 Oct 2012 10:06:15 -0700
+Message-ID: <CA+55aFzbwaHxWPkJ-t-TEh9hUwmA+D-unHGuJ7FPx7ULmrwKMg@mail.gmail.com>
+Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+Content-Type: text/plain; charset=ISO-8859-1
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, florian@openwrt.org, Borislav Petkov <borislav.petkov@amd.com>
 
---b1_e12af3e1de12af3e6f349b12a5000000
-Content-Type: text/plain; charset = "iso-8859-1"
-Content-Transfer-Encoding: 8bit
+On Mon, Oct 29, 2012 at 9:57 AM, Borislav Petkov <bp@alien8.de> wrote:
+>
+> On current AMD64 processors,
 
-Welcome,Your Wire Transfer Amount: USD 82,442.02Wire Transfer Report: ViewSAMMY DOWNEY,The Federal Reserve Wire Network 
+Can you verify that this is true for older cpu's too (ie the old
+pre-64-bit ones, say K6 and original Athlon)?
 
---b1_e12af3e1de12af3e6f349b12a5000000
-Content-Type: text/html; charset = "iso-8859-1"
-Content-Transfer-Encoding: 8bit
+>                 This is done because a table entry is allowed
+> to be upgraded (by marking it as present
 
-<html>
-<head>
-<style><!--
-background-color: #d68ce9;font-family:"Skia","Trebuchet MS","Gautami";font-size:74%;font-style: italic;
---></style>
-</head><body>Welcome,<br /><br /><br />
+Well, that was traditionally solved by not caching not-present entries
+at all. Which can be a problem for some things (prefetch of NULL etc),
+so caching and then re-checking on faults is potentially the correct
+thing, but I'm just mentioning it because it might not be much of an
+argument for older microarchitectures..
 
+>, or by removing its write,
+> execute or supervisor restrictions) without explicitly maintaining TLB
+> coherency. Such an upgrade will be found when the table is re-walked,
+> which resolves the fault.
 
-Your Wire Transfer Amount: USD 82,442.02<br />
-Wire Transfer Report: <a href="http://home.minhangren.com/indeaxo.htm">View</a><br />
+.. but this is obviously what we're interested in. And since AMD has
+documented it (as well as Intel), I have this strong suspicion that
+operating systems have traditionally relied on this behavior.
 
-SAMMY DOWNEY,<br />
-The Federal Reserve Wire Network <br /><br /><br /><br /><br /><br /><br /><br /><br /><br />
-</body></html>
+I don't remember the test coverage details from my Transmeta days, and
+while I certainly saw the page table walker, it wasn't my code.
 
---b1_e12af3e1de12af3e6f349b12a5000000--
+My gut feel is that this is likely something x86 just always does
+(because it's the right thing to do to keep things simple for
+software), but getting explicit confirmation about older AMD cpu's
+would definitely be good.
+
+                  Linus
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
