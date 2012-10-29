@@ -1,159 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 0AF846B006C
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 02:10:47 -0400 (EDT)
-Message-ID: <508E1F3D.7030806@cn.fujitsu.com>
-Date: Mon, 29 Oct 2012 14:16:29 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 32B6F6B006C
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 02:50:50 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id c4so2409410eek.14
+        for <linux-mm@kvack.org>; Sun, 28 Oct 2012 23:50:48 -0700 (PDT)
+Date: Mon, 29 Oct 2012 07:50:44 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH] sched, numa, mm: Add memcg support to do_huge_pmd_numa_page()
+Message-ID: <20121029065044.GB14107@gmail.com>
+References: <20121025121617.617683848@chello.nl>
+ <508A52E1.8020203@redhat.com>
+ <1351242480.12171.48.camel@twins>
+ <20121028175615.GC29827@cmpxchg.org>
+ <508DEDA2.9030503@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 3/3] acpi,memory-hotplug : add memory offline code
- to acpi_memory_device_remove()
-References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>	 <1351247463-5653-4-git-send-email-wency@cn.fujitsu.com> <1351271671.19172.74.camel@misato.fc.hp.com>
-In-Reply-To: <1351271671.19172.74.camel@misato.fc.hp.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <508DEDA2.9030503@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, laijs@cn.fujitsu.com, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Zhouping Liu <zliu@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-At 10/27/2012 01:14 AM, Toshi Kani Wrote:
-> On Fri, 2012-10-26 at 18:31 +0800, wency@cn.fujitsu.com wrote:
->> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>
->> The memory device can be removed by 2 ways:
->> 1. send eject request by SCI
->> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->>
->> In the 1st case, acpi_memory_disable_device() will be called.
->> In the 2nd case, acpi_memory_device_remove() will be called.
-> 
-> Hi Yasuaki, Wen,
-> 
-> Why do you need to have separate code design & implementation for the
-> two cases?  In other words, can the 1st case simply use the same code
-> path of the 2nd case, just like I did for the CPU hot-remove patch
-> below?  It will simplify the code and make the memory notify handler
-> more consistent with other handlers.
-> https://lkml.org/lkml/2012/10/19/456
 
-Yes, the 1st case can simply reuse the same code of the 2nd case.
-It is another issue. The memory is not offlined and removed in 2nd
-case. This patchset tries to fix this problem. After doing this,
-we can merge the codes for the two cases.
+* Zhouping Liu <zliu@redhat.com> wrote:
 
-But there is some bug in the code for 2nd case:
-If offlining memory failed, we don't know such error in 2nd case, and
-the kernel will in a dangerous state: the memory device is poweroffed
-but the kernel is using it.
+> Hi Johannes,
+> 
+> Tested the below patch, and I'm sure it has fixed the above 
+> issue, thank you.
 
-We should fix this bug before merging them.
+Thanks. Below is the folded up patch.
 
-Thanks
-Wen Congyang
+	Ingo
 
-> 
-> Thanks,
-> -Toshi
-> 
-> 
->> acpi_memory_device_remove() will also be called when we unbind the
->> memory device from the driver acpi_memhotplug or a driver initialization
->> fails.
->>
->> acpi_memory_disable_device() has already implemented a code which
->> offlines memory and releases acpi_memory_info struct. But
->> acpi_memory_device_remove() has not implemented it yet.
->>
->> So the patch move offlining memory and releasing acpi_memory_info struct
->> codes to a new function acpi_memory_remove_memory(). And it is used by both
->> acpi_memory_device_remove() and acpi_memory_disable_device().
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  drivers/acpi/acpi_memhotplug.c | 31 ++++++++++++++++++++++++-------
->>  1 file changed, 24 insertions(+), 7 deletions(-)
->>
->> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
->> index 666dac6..92c973a 100644
->> --- a/drivers/acpi/acpi_memhotplug.c
->> +++ b/drivers/acpi/acpi_memhotplug.c
->> @@ -316,16 +316,11 @@ static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
->>  	return 0;
->>  }
->>  
->> -static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->> +static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
->>  {
->>  	int result;
->>  	struct acpi_memory_info *info, *n;
->>  
->> -
->> -	/*
->> -	 * Ask the VM to offline this memory range.
->> -	 * Note: Assume that this function returns zero on success
->> -	 */
->>  	mutex_lock(&mem_device->list_lock);
->>  	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
->>  		if (info->enabled) {
->> @@ -333,10 +328,27 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->>  			if (result)
->>  				return result;
->>  		}
->> +
->> +		list_del(&info->list);
->>  		kfree(info);
->>  	}
->>  	mutex_unlock(&mem_device->list_lock);
->>  
->> +	return 0;
->> +}
->> +
->> +static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->> +{
->> +	int result;
->> +
->> +	/*
->> +	 * Ask the VM to offline this memory range.
->> +	 * Note: Assume that this function returns zero on success
->> +	 */
->> +	result = acpi_memory_remove_memory(mem_device);
->> +	if (result)
->> +		return result;
->> +
->>  	/* Power-off and eject the device */
->>  	result = acpi_memory_powerdown_device(mem_device);
->>  	if (result) {
->> @@ -487,12 +499,17 @@ static int acpi_memory_device_add(struct acpi_device *device)
->>  static int acpi_memory_device_remove(struct acpi_device *device, int type)
->>  {
->>  	struct acpi_memory_device *mem_device = NULL;
->> -
->> +	int result;
->>  
->>  	if (!device || !acpi_driver_data(device))
->>  		return -EINVAL;
->>  
->>  	mem_device = acpi_driver_data(device);
->> +
->> +	result = acpi_memory_remove_memory(mem_device);
->> +	if (result)
->> +		return result;
->> +
->>  	kfree(mem_device);
->>  
->>  	return 0;
-> 
-> 
-> 
+---------------------------->
+Subject: sched, numa, mm: Add memcg support to do_huge_pmd_numa_page()
+From: Johannes Weiner <hannes@cmpxchg.org>
+Date: Thu Oct 25 12:49:51 CEST 2012
+
+Add memory control group support to hugepage migration.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Tested-by: Zhouping Liu <zliu@redhat.com>
+Link: http://lkml.kernel.org/n/tip-rDk9mgpoyhZlwh2xhlykvgnp@git.kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ mm/huge_memory.c |   15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+Index: tip/mm/huge_memory.c
+===================================================================
+--- tip.orig/mm/huge_memory.c
++++ tip/mm/huge_memory.c
+@@ -743,6 +743,7 @@ void do_huge_pmd_numa_page(struct mm_str
+ 			   unsigned int flags, pmd_t entry)
+ {
+ 	unsigned long haddr = address & HPAGE_PMD_MASK;
++	struct mem_cgroup *memcg = NULL;
+ 	struct page *new_page = NULL;
+ 	struct page *page = NULL;
+ 	int node, lru;
+@@ -833,6 +834,14 @@ migrate:
+ 
+ 		return;
+ 	}
++	/*
++	 * Traditional migration needs to prepare the memcg charge
++	 * transaction early to prevent the old page from being
++	 * uncharged when installing migration entries.  Here we can
++	 * save the potential rollback and start the charge transfer
++	 * only when migration is already known to end successfully.
++	 */
++	mem_cgroup_prepare_migration(page, new_page, &memcg);
+ 
+ 	entry = mk_pmd(new_page, vma->vm_page_prot);
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+@@ -843,6 +852,12 @@ migrate:
+ 	set_pmd_at(mm, haddr, pmd, entry);
+ 	update_mmu_cache_pmd(vma, address, entry);
+ 	page_remove_rmap(page);
++	/*
++	 * Finish the charge transaction under the page table lock to
++	 * prevent split_huge_page() from dividing up the charge
++	 * before it's fully transferred to the new page.
++	 */
++	mem_cgroup_end_migration(memcg, page, new_page, true);
+ 	spin_unlock(&mm->page_table_lock);
+ 
+ 	put_page(page);			/* Drop the rmap reference */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
