@@ -1,136 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id B0F1C6B0075
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:03:18 -0400 (EDT)
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [V5 PATCH 21/26] page_alloc: add kernelcore_max_addr
-Date: Mon, 29 Oct 2012 23:21:11 +0800
-Message-Id: <1351524078-20363-20-git-send-email-laijs@cn.fujitsu.com>
-In-Reply-To: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
-References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 1B4576B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:07:06 -0400 (EDT)
+Received: by mail-ia0-f169.google.com with SMTP id h37so5131744iak.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 09:07:05 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20121029112907.GA9115@Krystal>
+References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <20121029112907.GA9115@Krystal>
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Mon, 29 Oct 2012 12:06:44 -0400
+Message-ID: <CA+1xoqfQn92igbFS1TtrpYuSiy7+Ro02ar=axgqSOJOuE_EVuA@mail.gmail.com>
+Subject: Re: [PATCH v7 01/16] hashtable: introduce a small and naive hashtable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Rob Landley <rob@landley.net>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, linux-doc@vger.kernel.org, linux-mm@kvack.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-Current ZONE_MOVABLE (kernelcore=) setting policy with boot option doesn't meet
-our requirement. We need something like kernelcore_max_addr=XX boot option
-to limit the kernelcore upper address.
+On Mon, Oct 29, 2012 at 7:29 AM, Mathieu Desnoyers
+<mathieu.desnoyers@efficios.com> wrote:
+> * Sasha Levin (levinsasha928@gmail.com) wrote:
+>> +
+>> +     for (i = 0; i < sz; i++)
+>> +             INIT_HLIST_HEAD(&ht[sz]);
+>
+> ouch. How did this work ? Has it been tested at all ?
+>
+> sz -> i
 
-The memory with higher address will be migratable(movable) and they
-are easier to be offline(always ready to be offline when the system don't require
-so much memory).
+Funny enough, it works perfectly. Generally as a test I boot the
+kernel in a VM and let it fuzz with trinity for a bit, doing that with
+the code above worked flawlessly.
 
-It makes things easy when we dynamic hot-add/remove memory, make better
-utilities of memories, and helps for THP.
+While it works, it's obviously wrong. Why does it work though? Usually
+there's a list op happening pretty soon after that which brings the
+list into proper state.
 
-All kernelcore_max_addr=, kernelcore= and movablecore= can be safely specified
-at the same time(or any 2 of them).
+I've been playing with a patch that adds a magic value into list_head
+if CONFIG_DEBUG_LIST is set, and checks that magic in the list debug
+code in lib/list_debug.c.
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- Documentation/kernel-parameters.txt |    9 +++++++++
- mm/page_alloc.c                     |   29 ++++++++++++++++++++++++++++-
- 2 files changed, 37 insertions(+), 1 deletions(-)
+Does it sound like something useful? If so I'll send that patch out.
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 9776f06..2b72ffb 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -1223,6 +1223,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			use the HighMem zone if it exists, and the Normal
- 			zone if it does not.
- 
-+	kernelcore_max_addr=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
-+			is the same effect as kernelcore parameter, except it
-+			specifies the up physical address of memory range
-+			usable by the kernel for non-movable allocations.
-+			If both kernelcore and kernelcore_max_addr are
-+			specified, this requested's priority is higher than
-+			kernelcore's.
-+			See the kernelcore parameter.
-+
- 	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
- 			Format: <Controller#>[,poll interval]
- 			The controller # is the number of the ehci usb debug
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a42337f..11df8b5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -203,6 +203,7 @@ static unsigned long __meminitdata dma_reserve;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
- static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-+static unsigned long __initdata required_kernelcore_max_pfn;
- static unsigned long __initdata required_kernelcore;
- static unsigned long __initdata required_movablecore;
- static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-@@ -4700,6 +4701,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- {
- 	int i, nid;
- 	unsigned long usable_startpfn;
-+	unsigned long kernelcore_max_pfn;
- 	unsigned long kernelcore_node, kernelcore_remaining;
- 	/* save the state before borrow the nodemask */
- 	nodemask_t saved_node_state = node_states[N_MEMORY];
-@@ -4728,6 +4730,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
- 	}
- 
-+	if (required_kernelcore_max_pfn && !required_kernelcore)
-+		required_kernelcore = totalpages;
-+
- 	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
- 	if (!required_kernelcore)
- 		goto out;
-@@ -4736,6 +4741,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
-+	if (required_kernelcore_max_pfn)
-+		kernelcore_max_pfn = required_kernelcore_max_pfn;
-+	else
-+		kernelcore_max_pfn = ULONG_MAX >> PAGE_SHIFT;
-+	kernelcore_max_pfn = max(kernelcore_max_pfn, usable_startpfn);
-+
- restart:
- 	/* Spread kernelcore memory as evenly as possible throughout nodes */
- 	kernelcore_node = required_kernelcore / usable_nodes;
-@@ -4762,8 +4773,12 @@ restart:
- 			unsigned long size_pages;
- 
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
--			if (start_pfn >= end_pfn)
-+			end_pfn = min(kernelcore_max_pfn, end_pfn);
-+			if (start_pfn >= end_pfn) {
-+				if (!zone_movable_pfn[nid])
-+					zone_movable_pfn[nid] = start_pfn;
- 				continue;
-+			}
- 
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
-@@ -4954,6 +4969,18 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
- 	return 0;
- }
- 
-+#ifdef CONFIG_MOVABLE_NODE
-+/*
-+ * kernelcore_max_addr=addr sets the up physical address of memory range
-+ * for use for allocations that cannot be reclaimed or migrated.
-+ */
-+static int __init cmdline_parse_kernelcore_max_addr(char *p)
-+{
-+	return cmdline_parse_core(p, &required_kernelcore_max_pfn);
-+}
-+early_param("kernelcore_max_addr", cmdline_parse_kernelcore_max_addr);
-+#endif
-+
- /*
-  * kernelcore=size sets the amount of memory for use for allocations that
-  * cannot be reclaimed or migrated.
--- 
-1.7.4.4
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
