@@ -1,67 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id ED08A6B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 17:34:16 -0400 (EDT)
-Date: Mon, 29 Oct 2012 22:34:12 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [V5 PATCH 08/26] memcontrol: use N_MEMORY instead N_HIGH_MEMORY
-Message-ID: <20121029213412.GC21640@dhcp22.suse.cz>
-References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
- <1351524078-20363-7-git-send-email-laijs@cn.fujitsu.com>
- <20121029162212.GE20757@dhcp22.suse.cz>
- <alpine.DEB.2.00.1210291340100.18552@chino.kir.corp.google.com>
- <20121029205806.GB21640@dhcp22.suse.cz>
- <alpine.DEB.2.00.1210291405100.18552@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210291405100.18552@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 9804B6B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 17:47:59 -0400 (EDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Date: Mon, 29 Oct 2012 17:47:36 -0400
+Message-Id: <1351547256-837-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <m21ughksh3.fsf@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Dave Chinner <david@fromorbit.com>, Tony Luck <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-On Mon 29-10-12 14:08:05, David Rientjes wrote:
-> On Mon, 29 Oct 2012, Michal Hocko wrote:
+On Mon, Oct 29, 2012 at 12:07:04PM -0700, Andi Kleen wrote:
+> Theodore Ts'o <tytso@mit.edu> writes:
+...
+> > Also, if you're going to keep this state in memory, what happens if
+> > the inode gets pushed out of memory? 
 > 
-> > > > > N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-> > > > > N_MEMORY stands for the nodes that has any memory.
-> > > > 
-> > > > What is the difference of those two?
-> > > > 
-> > > 
-> > > Patch 5 in the series 
-> > 
-> > Strange, I do not see that one at the mailing list.
-> > 
+> You lose the error, just like you do today with any other IO error.
 > 
-> http://marc.info/?l=linux-kernel&m=135152595827692
-
-Thanks!
-
-> > > introduces it to be equal to N_HIGH_MEMORY, so 
-> > 
-> > So this is just a rename? If yes it would be much esier if it was
-> > mentioned in the patch description.
-> > 
+> We had a lot of discussions on this when the memory error handling
+> was originally introduced, that was the conclusuion.
 > 
-> It's not even a rename even though it should be, it's adding yet another 
-> node_states that is equal to N_HIGH_MEMORY since that state already 
-> includes all memory.  
+> I don't think a special panic knob for this makes sense either.
+> We already have multiple panic knobs for memory errors, that
+> can be used.
 
-Which is really strange because I do not see any reason for yet another
-alias if the follow up patches rename all of them (I didn't try to apply
-the whole series to check that so I might be wrong here).
+Yes. I understand that adding a new knob is not good.
+So this patch uses the existing ext4 knob without adding new one.
 
-> It's just a matter of taste but I think we should be renaming it
-> instead of aliasing it (unless you actually want to make N_HIGH_MEMORY
-> only include nodes with highmem, but nothing depends on that).
-
-Agreed, I've always considered N_HIGH_MEMORY misleading and confusing so
-renaming it would really make a lot of sense to me.
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
