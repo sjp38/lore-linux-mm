@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id A8F4B6B005A
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 13:29:45 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so8839920ied.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:29:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 8D3886B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 13:35:56 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so8851181ied.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:35:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20121029113515.GB9115@Krystal>
+In-Reply-To: <20121029155957.GB18834@Krystal>
 References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
- <1351450948-15618-6-git-send-email-levinsasha928@gmail.com> <20121029113515.GB9115@Krystal>
+ <1351450948-15618-15-git-send-email-levinsasha928@gmail.com>
+ <20121029132931.GC16391@Krystal> <CA+1xoqfRGhPaBEVh228O5_295bWh8FmcyLSOwq8VE5Dm7i3JHg@mail.gmail.com>
+ <20121029155957.GB18834@Krystal>
 From: Sasha Levin <levinsasha928@gmail.com>
-Date: Mon, 29 Oct 2012 13:29:24 -0400
-Message-ID: <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
-Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
+Date: Mon, 29 Oct 2012 13:35:35 -0400
+Message-ID: <CA+1xoqcr5xmOkDfqL3P84CNdotOALOhiLRkJjsPCZzijSQUF6w@mail.gmail.com>
+Subject: Re: [PATCH v7 15/16] openvswitch: use new hashtable implementation
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 7:35 AM, Mathieu Desnoyers
+On Mon, Oct 29, 2012 at 11:59 AM, Mathieu Desnoyers
 <mathieu.desnoyers@efficios.com> wrote:
 > * Sasha Levin (levinsasha928@gmail.com) wrote:
->> Switch tracepoints to use the new hashtable implementation. This reduces the amount of
->> generic unrelated code in the tracepoints.
+>> Hi Mathieu,
 >>
->> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
->> ---
->>  kernel/tracepoint.c | 27 +++++++++++----------------
->>  1 file changed, 11 insertions(+), 16 deletions(-)
+>> On Mon, Oct 29, 2012 at 9:29 AM, Mathieu Desnoyers
+>> <mathieu.desnoyers@efficios.com> wrote:
+>> > * Sasha Levin (levinsasha928@gmail.com) wrote:
+>> > [...]
+>> >> -static struct hlist_head *hash_bucket(struct net *net, const char *name)
+>> >> -{
+>> >> -     unsigned int hash = jhash(name, strlen(name), (unsigned long) net);
+>> >> -     return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
+>> >> -}
+>> >> -
+>> >>  /**
+>> >>   *   ovs_vport_locate - find a port that has already been created
+>> >>   *
+>> >> @@ -84,13 +76,12 @@ static struct hlist_head *hash_bucket(struct net *net, const char *name)
+>> >>   */
+>> >>  struct vport *ovs_vport_locate(struct net *net, const char *name)
+>> >>  {
+>> >> -     struct hlist_head *bucket = hash_bucket(net, name);
+>> >>       struct vport *vport;
+>> >>       struct hlist_node *node;
+>> >> +     int key = full_name_hash(name, strlen(name));
+>> >>
+>> >> -     hlist_for_each_entry_rcu(vport, node, bucket, hash_node)
+>> >> -             if (!strcmp(name, vport->ops->get_name(vport)) &&
+>> >> -                 net_eq(ovs_dp_get_net(vport->dp), net))
+>> >> +     hash_for_each_possible_rcu(dev_table, vport, node, hash_node, key)
+>> >
+>> > Is applying hash_32() on top of full_name_hash() needed and expected ?
 >>
->> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
->> index d96ba22..854df92 100644
->> --- a/kernel/tracepoint.c
->> +++ b/kernel/tracepoint.c
->> @@ -26,6 +26,7 @@
->>  #include <linux/slab.h>
->>  #include <linux/sched.h>
->>  #include <linux/static_key.h>
->> +#include <linux/hashtable.h>
+>> Since this was pointed out in several of the patches, I'll answer it
+>> just once here.
 >>
->>  extern struct tracepoint * const __start___tracepoints_ptrs[];
->>  extern struct tracepoint * const __stop___tracepoints_ptrs[];
->> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
->>   * Protected by tracepoints_mutex.
->>   */
->>  #define TRACEPOINT_HASH_BITS 6
->> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
->> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
->> +static DEFINE_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
+>> I've intentionally "allowed" double hashing with hash_32 to keep the
+>> code simple.
 >>
-> [...]
->>
->> @@ -722,6 +715,8 @@ struct notifier_block tracepoint_module_nb = {
->>
->>  static int init_tracepoints(void)
->>  {
->> +     hash_init(tracepoint_table);
->> +
->>       return register_module_notifier(&tracepoint_module_nb);
->>  }
->>  __initcall(init_tracepoints);
+>> hash_32() is pretty simple and gcc optimizes it to be almost nothing,
+>> so doing that costs us a multiplication and a shift. On the other
+>> hand, we benefit from keeping our code simple - how would we avoid
+>> doing this double hash? adding a different hashtable function for
+>> strings? or a new function for already hashed keys? I think we benefit
+>> a lot from having to mul/shr instead of adding extra lines of code
+>> here.
 >
-> So we have a hash table defined in .bss (therefore entirely initialized
-> to NULL), and you add a call to "hash_init", which iterates on the whole
-> array and initialize it to NULL (again) ?
->
-> This extra initialization is redundant. I think it should be removed
-> from here, and hashtable.h should document that hash_init() don't need
-> to be called on zeroed memory (which includes static/global variables,
-> kzalloc'd memory, etc).
+> This could be done, as I pointed out in another email within this
+> thread, by changing the "key" argument from add/for_each_possible to an
+> expected "hash" value, and let the caller invoke hash_32() if they want.
+> I doubt this would add a significant amount of complexity for users of
+> this API, but would allow much more flexibility to choose hash
+> functions.
 
-This was discussed in the previous series, the conclusion was to call
-hash_init() either way to keep the encapsulation and consistency.
+Most callers do need to do the hashing though, so why add an
+additional step for all callers instead of doing another hash_32 for
+the ones that don't really need it?
 
-It's cheap enough and happens only once, so why not?
-
+Another question is why do you need flexibility? I think that
+simplicity wins over flexibility here.
 
 Thanks,
 Sasha
