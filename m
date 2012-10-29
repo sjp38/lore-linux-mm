@@ -1,95 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 6F5126B0082
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:48:16 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 811026B0088
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:48:18 -0400 (EDT)
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [V5 PATCH 26/26] mempolicy: fix is_valid_nodemask()
-Date: Mon, 29 Oct 2012 23:21:16 +0800
-Message-Id: <1351524078-20363-25-git-send-email-laijs@cn.fujitsu.com>
+Subject: [V5 PATCH 13/26] vmstat: use N_MEMORY instead N_HIGH_MEMORY
+Date: Mon, 29 Oct 2012 23:21:03 +0800
+Message-Id: <1351524078-20363-12-git-send-email-laijs@cn.fujitsu.com>
 In-Reply-To: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 References: <1351523301-20048-1-git-send-email-laijs@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, x86 maintainers <x86@kernel.org>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org
+Cc: Jiang Liu <jiang.liu@huawei.com>, Rusty Russell <rusty@rustcorp.com.au>, Yinghai Lu <yinghai@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mel@csn.ul.ie>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-is_valid_nodemask() is introduced by 19770b32. but it does not match
-its comments, because it does not check the zone which > policy_zone.
+N_HIGH_MEMORY stands for the nodes that has normal or high memory.
+N_MEMORY stands for the nodes that has any memory.
 
-Also in b377fd, this commits told us, if highest zone is ZONE_MOVABLE,
-we should also apply memory policies to it. so ZONE_MOVABLE should be valid zone
-for policies. is_valid_nodemask() need to be changed to match it.
-
-Fix: check all zones, even its zoneid > policy_zone.
-Use nodes_intersects() instead open code to check it.
+The code here need to handle with the nodes which have memory, we should
+use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Reported-by: Wen Congyang <wency@cn.fujitsu.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 ---
- mm/mempolicy.c |   36 ++++++++++++++++++++++--------------
- 1 files changed, 22 insertions(+), 14 deletions(-)
+ mm/vmstat.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d4a084c..ed7c249 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -140,19 +140,7 @@ static const struct mempolicy_operations {
- /* Check that the nodemask contains at least one populated zone */
- static int is_valid_nodemask(const nodemask_t *nodemask)
- {
--	int nd, k;
--
--	for_each_node_mask(nd, *nodemask) {
--		struct zone *z;
--
--		for (k = 0; k <= policy_zone; k++) {
--			z = &NODE_DATA(nd)->node_zones[k];
--			if (z->present_pages > 0)
--				return 1;
--		}
--	}
--
--	return 0;
-+	return nodes_intersects(*nodemask, node_states[N_MEMORY]);
- }
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index c737057..1b5cacd 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -930,7 +930,7 @@ static int pagetypeinfo_show(struct seq_file *m, void *arg)
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
  
- static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
-@@ -1572,6 +1560,26 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
- 	return pol;
- }
+ 	/* check memoryless node */
+-	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
++	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
  
-+static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
-+{
-+	enum zone_type dynamic_policy_zone = policy_zone;
-+
-+	BUG_ON(dynamic_policy_zone == ZONE_MOVABLE);
-+
-+	/*
-+	 * if policy->v.nodes has movable memory only,
-+	 * we apply policy when gfp_zone(gfp) = ZONE_MOVABLE only.
-+	 *
-+	 * policy->v.nodes is intersect with node_states[N_MEMORY].
-+	 * so if the following test faile, it implies
-+	 * policy->v.nodes has movable memory only.
-+	 */
-+	if (!nodes_intersects(policy->v.nodes, node_states[N_HIGH_MEMORY]))
-+		dynamic_policy_zone = ZONE_MOVABLE;
-+
-+	return zone >= dynamic_policy_zone;
-+}
-+
- /*
-  * Return a nodemask representing a mempolicy for filtering nodes for
-  * page allocation
-@@ -1580,7 +1588,7 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- {
- 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
- 	if (unlikely(policy->mode == MPOL_BIND) &&
--			gfp_zone(gfp) >= policy_zone &&
-+			apply_policy_zone(policy, gfp_zone(gfp)) &&
- 			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
- 		return &policy->v.nodes;
+ 	seq_printf(m, "Page block order: %d\n", pageblock_order);
+@@ -1292,7 +1292,7 @@ static int unusable_show(struct seq_file *m, void *arg)
+ 	pg_data_t *pgdat = (pg_data_t *)arg;
  
+ 	/* check memoryless node */
+-	if (!node_state(pgdat->node_id, N_HIGH_MEMORY))
++	if (!node_state(pgdat->node_id, N_MEMORY))
+ 		return 0;
+ 
+ 	walk_zones_in_node(m, pgdat, unusable_show_print);
 -- 
 1.7.4.4
 
