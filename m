@@ -1,31 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id DF38E6B006E
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:08:53 -0400 (EDT)
-Message-ID: <508E8DEB.3000302@parallels.com>
-Date: Mon, 29 Oct 2012 18:08:43 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 6/6] hugetlb: do not fail in hugetlb_cgroup_pre_destroy
-References: <1351251453-6140-1-git-send-email-mhocko@suse.cz> <1351251453-6140-7-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1351251453-6140-7-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 779286B006E
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:12:11 -0400 (EDT)
+Message-ID: <1351519472.19172.84.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v3 3/3] acpi,memory-hotplug : add memory offline code to
+ acpi_memory_device_remove()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 29 Oct 2012 08:04:32 -0600
+In-Reply-To: <508E1F3D.7030806@cn.fujitsu.com>
+References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
+	 <1351247463-5653-4-git-send-email-wency@cn.fujitsu.com>
+	 <1351271671.19172.74.camel@misato.fc.hp.com>
+	 <508E1F3D.7030806@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "liuj97@gmail.com" <liuj97@gmail.com>, "len.brown@intel.com" <len.brown@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>
 
-On 10/26/2012 03:37 PM, Michal Hocko wrote:
-> Now that pre_destroy callbacks are called from the context where neither
-> any task can attach the group nor any children group can be added there
-> is no other way to fail from hugetlb_pre_destroy.
+On Mon, 2012-10-29 at 06:16 +0000, Wen Congyang wrote:
+> At 10/27/2012 01:14 AM, Toshi Kani Wrote:
+> > On Fri, 2012-10-26 at 18:31 +0800, wency@cn.fujitsu.com wrote:
+> >> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> >>
+> >> The memory device can be removed by 2 ways:
+> >> 1. send eject request by SCI
+> >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> >>
+> >> In the 1st case, acpi_memory_disable_device() will be called.
+> >> In the 2nd case, acpi_memory_device_remove() will be called.
+> > 
+> > Hi Yasuaki, Wen,
+> > 
+> > Why do you need to have separate code design & implementation for the
+> > two cases?  In other words, can the 1st case simply use the same code
+> > path of the 2nd case, just like I did for the CPU hot-remove patch
+> > below?  It will simplify the code and make the memory notify handler
+> > more consistent with other handlers.
+> > https://lkml.org/lkml/2012/10/19/456
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: Tejun Heo <tj@kernel.org>
+> Yes, the 1st case can simply reuse the same code of the 2nd case.
+> It is another issue. The memory is not offlined and removed in 2nd
+> case. This patchset tries to fix this problem. After doing this,
+> we can merge the codes for the two cases.
+> 
+> But there is some bug in the code for 2nd case:
+> If offlining memory failed, we don't know such error in 2nd case, and
+> the kernel will in a dangerous state: the memory device is poweroffed
+> but the kernel is using it.
+> 
+> We should fix this bug before merging them.
 
-Same as Patch5:
-Reviewed-by: Glauber Costa <glommer@parallels.com>
+Hi Wen,
+
+Sounds good.  Thanks for the clarification!
+
+-Toshi
+
+
+
+> Thanks
+> Wen Congyang
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
