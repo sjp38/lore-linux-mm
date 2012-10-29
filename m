@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 779286B006E
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:12:11 -0400 (EDT)
-Message-ID: <1351519472.19172.84.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v3 3/3] acpi,memory-hotplug : add memory offline code to
- acpi_memory_device_remove()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 29 Oct 2012 08:04:32 -0600
-In-Reply-To: <508E1F3D.7030806@cn.fujitsu.com>
-References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
-	 <1351247463-5653-4-git-send-email-wency@cn.fujitsu.com>
-	 <1351271671.19172.74.camel@misato.fc.hp.com>
-	 <508E1F3D.7030806@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 5F6AC6B006E
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:15:39 -0400 (EDT)
+Date: Mon, 29 Oct 2012 15:15:34 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list error
+ handling
+Message-ID: <20121029141534.GB20757@dhcp22.suse.cz>
+References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
+ <1351251453-6140-4-git-send-email-mhocko@suse.cz>
+ <508E8B95.406@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <508E8B95.406@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "liuj97@gmail.com" <liuj97@gmail.com>, "len.brown@intel.com" <len.brown@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rjw@sisk.pl" <rjw@sisk.pl>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Mon, 2012-10-29 at 06:16 +0000, Wen Congyang wrote:
-> At 10/27/2012 01:14 AM, Toshi Kani Wrote:
-> > On Fri, 2012-10-26 at 18:31 +0800, wency@cn.fujitsu.com wrote:
-> >> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> >>
-> >> The memory device can be removed by 2 ways:
-> >> 1. send eject request by SCI
-> >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> >>
-> >> In the 1st case, acpi_memory_disable_device() will be called.
-> >> In the 2nd case, acpi_memory_device_remove() will be called.
+On Mon 29-10-12 17:58:45, Glauber Costa wrote:
+> 
 > > 
-> > Hi Yasuaki, Wen,
+> > Changes since v1
+> > - use kerndoc
+> > - be more specific about mem_cgroup_move_parent possible failures
 > > 
-> > Why do you need to have separate code design & implementation for the
-> > two cases?  In other words, can the 1st case simply use the same code
-> > path of the 2nd case, just like I did for the CPU hot-remove patch
-> > below?  It will simplify the code and make the memory notify handler
-> > more consistent with other handlers.
-> > https://lkml.org/lkml/2012/10/19/456
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Reviewed-by: Tejun Heo <tj@kernel.org>
+> Reviewed-by: Glauber Costa <glommer@parallels.com>
+
+Thanks!
+
+> > + * move charges to its parent or the root cgroup if the group has no
+> > + * parent (aka use_hierarchy==0).
+> > + * Although this might fail (get_page_unless_zero, isolate_lru_page or
+> > + * mem_cgroup_move_account fails) the failure is always temporary and
+> > + * it signals a race with a page removal/uncharge or migration. In the
+> > + * first case the page is on the way out and it will vanish from the LRU
+> > + * on the next attempt and the call should be retried later.
+> > + * Isolation from the LRU fails only if page has been isolated from
+> > + * the LRU since we looked at it and that usually means either global
+> > + * reclaim or migration going on. The page will either get back to the
+> > + * LRU or vanish.
 > 
-> Yes, the 1st case can simply reuse the same code of the 2nd case.
-> It is another issue. The memory is not offlined and removed in 2nd
-> case. This patchset tries to fix this problem. After doing this,
-> we can merge the codes for the two cases.
-> 
-> But there is some bug in the code for 2nd case:
-> If offlining memory failed, we don't know such error in 2nd case, and
-> the kernel will in a dangerous state: the memory device is poweroffed
-> but the kernel is using it.
-> 
-> We should fix this bug before merging them.
+> I just wonder for how long can it go in the worst case?
+ 
+That's a good question and to be honest I have no idea. The point is
+that it will terminate eventually and that the group is on the way out
+so the time to complete the removal is not a big deal IMHO. We had
+basically similar situation previously when we would need to repeat
+rmdir loop on EBUSY. The only change is that we do not have to retry
+anymore.
 
-Hi Wen,
+So the key point is to check whether my assumption about temporarily is
+correct and that we cannot block the rest of the kernel/userspace to
+proceed even though we are waiting for finalization. I believe this is
+true but... (last famous words?)
 
-Sounds good.  Thanks for the clarification!
-
--Toshi
-
-
-
-> Thanks
-> Wen Congyang
-> 
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
