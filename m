@@ -1,65 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 334456B0071
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id D1E016B0073
 	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:26:44 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so6085312oag.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 08:26:43 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1350656442-1523-14-git-send-email-glommer@parallels.com>
-References: <1350656442-1523-1-git-send-email-glommer@parallels.com>
-	<1350656442-1523-14-git-send-email-glommer@parallels.com>
-Date: Tue, 30 Oct 2012 00:26:43 +0900
-Message-ID: <CAAmzW4MGdj-jL_FJ2Nkoa4Hx8KUDCeVK6HFidYQLauu_0vHhCg@mail.gmail.com>
-Subject: Re: [PATCH v5 13/18] memcg/sl[au]b Track all the memcg children of a kmem_cache.
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <1b8baea8-531a-45a0-b490-4a2ac5c64784@default>
+Date: Mon, 29 Oct 2012 08:25:07 -0700 (PDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH v3 0/3] zram/zsmalloc promotion
+References: <<1351501009-15111-1-git-send-email-minchan@kernel.org>>
+In-Reply-To: <<1351501009-15111-1-git-send-email-minchan@kernel.org>>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, devel@openvz.org, Suleiman Souhlal <suleiman@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2012/10/19 Glauber Costa <glommer@parallels.com>:
-> +void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-> +{
-> +       struct kmem_cache *c;
-> +       int i;
-> +
-> +       if (!s->memcg_params)
-> +               return;
-> +       if (!s->memcg_params->is_root_cache)
-> +               return;
-> +
-> +       /*
-> +        * If the cache is being destroyed, we trust that there is no one else
-> +        * requesting objects from it. Even if there are, the sanity checks in
-> +        * kmem_cache_destroy should caught this ill-case.
-> +        *
-> +        * Still, we don't want anyone else freeing memcg_caches under our
-> +        * noses, which can happen if a new memcg comes to life. As usual,
-> +        * we'll take the set_limit_mutex to protect ourselves against this.
-> +        */
-> +       mutex_lock(&set_limit_mutex);
-> +       for (i = 0; i < memcg_limited_groups_array_size; i++) {
-> +               c = s->memcg_params->memcg_caches[i];
-> +               if (c)
-> +                       kmem_cache_destroy(c);
-> +       }
-> +       mutex_unlock(&set_limit_mutex);
-> +}
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Subject: [PATCH v3 0/3] zram/zsmalloc promotion
+>=20
+> The candidate is two under mm/ or under lib/
+> Konrad and Nitin wanted to put zsmalloc into lib/ instead of mm/.
+>=20
+> Quote from Nitin
+> "
+> I think mm/ directory should only contain the code which is intended
+> for global use such as the slab allocator, page reclaim code etc.
+> zsmalloc is used by only one (or possibly two) drivers, so lib/ seems
+> to be the right place.
+> "
+>=20
+> Quote from Konrand
+> "
+> I like the idea of keeping it in /lib or /mm. Actually 'lib' sounds more
+> appropriate since it is dealing with storing a bunch of pages in a nice
+> layout for great density purposes.
+> "
+>=20
+> In fact, there is some history about that.
+>=20
+> Why I put zsmalloc into under mm firstly was that Andrew had a concern
+> about using strut page's some fields freely in zsmalloc so he wanted
+> to maintain it in mm/ if I remember correctly.
+>=20
+> So I and Nitin tried to ask the opinion to akpm several times
+> (at least 6 and even I sent such patch a few month ago) but didn't get
+> any reply from him so I guess he doesn't have any concern about that
+> any more.
+>=20
+> In point of view that it's an another slab-like allocator,
+> it might be proper under mm but it's not popular as current mm's
+> allocators(/SLUB/SLOB and page allocator).
+>=20
+> Frankly speaking, I don't care whether we put it to mm/ or lib/.
+> It seems contributors(ex, Nitin and Konrad) like lib/ and Andrew is still
+> silent. That's why I am biased into lib/ now.
+>=20
+> If someone yell we should keep it to mm/ by logical claim, I can change
+> my mind easily. Please raise your hand.
+>=20
+> If Andrew doesn't have a concern about that any more, I would like to
+> locate it into /lib.
 
-It may cause NULL deref.
-Look at the following scenario.
+FWIW, I would vote for /lib as well.
 
-1. some memcg slab caches has remained object.
-2. start to destroy memcg.
-3. schedule_delayed_work(kmem_cache_destroy_work_func, @delay 60hz)
-4. all remained object is freed.
-5. start to destroy root cache.
-6. kmem_cache_destroy makes 's->memcg_params->memcg_caches[i]" NULL!!
-7. Start delayed work function.
-8. cachep in kmem_cache_destroy_work_func() may be NULL
-
-Thanks.
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
