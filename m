@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id EF2676B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:22:23 -0400 (EDT)
-Date: Mon, 29 Oct 2012 12:22:21 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v7 01/16] hashtable: introduce a small and naive
-	hashtable
-Message-ID: <20121029162221.GB19346@Krystal>
-References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com> <20121029112907.GA9115@Krystal> <CA+1xoqfQn92igbFS1TtrpYuSiy7+Ro02ar=axgqSOJOuE_EVuA@mail.gmail.com> <20121029161412.GB18944@Krystal> <20121029161809.GA4066@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 0DDE36B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 12:24:33 -0400 (EDT)
+Date: Mon, 29 Oct 2012 12:23:44 -0400
+From: David Teigland <teigland@redhat.com>
+Subject: Re: [PATCH v7 10/16] dlm: use new hashtable implementation
+Message-ID: <20121029162344.GC3516@redhat.com>
+References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
+ <1351450948-15618-10-git-send-email-levinsasha928@gmail.com>
+ <20121029124655.GD11733@Krystal>
+ <20121029130736.GF11733@Krystal>
+ <CA+1xoqfxgB+8BybPpf+jwT-ObfGPxnbKvkz1MUMuJuR8NDSNaw@mail.gmail.com>
+ <20121029160710.GA18944@Krystal>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121029161809.GA4066@htj.dyndns.org>
+In-Reply-To: <20121029160710.GA18944@Krystal>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Sasha Levin <levinsasha928@gmail.com>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-* Tejun Heo (tj@kernel.org) wrote:
-> Hello,
+On Mon, Oct 29, 2012 at 12:07:10PM -0400, Mathieu Desnoyers wrote:
+> I'm fine with turning a direct + modulo mapping into a dispersed hash as
+> long as there are no underlying assumptions about sequentiality of value
+> accesses.
 > 
-> On Mon, Oct 29, 2012 at 12:14:12PM -0400, Mathieu Desnoyers wrote:
-> > Most of the calls to this initialization function apply it on zeroed
-> > memory (static/kzalloc'd...), which makes it useless. I'd actually be in
-> > favor of removing those redundant calls (as I pointed out in another
-> > email), and document that zeroed memory don't need to be explicitly
-> > initialized.
-> > 
-> > Those sites that need to really reinitialize memory, or initialize it
-> > (if located on the stack or in non-zeroed dynamically allocated memory)
-> > could use a memset to 0, which will likely be faster than setting to
-> > NULL on many architectures.
-> 
-> I don't think it's a good idea to optimize out the basic encapsulation
-> there.  We're talking about re-zeroing some static memory areas which
-> are pretty small.  It's just not worth optimizing out at the cost of
-> proper initializtion.  e.g. We might add debug fields to list_head
-> later.
+> If the access pattern would happen to be typically sequential, then
+> adding dispersion could hurt performances significantly, turning a
+> frequent L1 access into a L2 access for instance.
+  
+> All I'm asking is: have you made sure that this hash table is not
+> deliberately kept sequential (without dispersion) to accelerate specific
+> access patterns ? This should at least be documented in the changelog.
 
-Future-proofness for debugging fields is indeed a very compelling
-argument. Fair enough!
-
-We might want to document this intent at the top of the initialization
-function though, just in case anyone want to short-circuit it.
-
-Thanks,
-
-Mathieu
-
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+It was not intentional.  I don't expect any benefit would be lost by
+making it non-sequential.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
