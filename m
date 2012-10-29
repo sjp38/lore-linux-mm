@@ -1,42 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 35E996B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 18:00:24 -0400 (EDT)
-Date: Mon, 29 Oct 2012 15:00:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list
- error handling
-Message-Id: <20121029150022.a595b866.akpm@linux-foundation.org>
-In-Reply-To: <508E8B95.406@parallels.com>
-References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
-	<1351251453-6140-4-git-send-email-mhocko@suse.cz>
-	<508E8B95.406@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 993936B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 18:36:39 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so3925484qcq.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 15:36:38 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
+	<20121015144412.GA2173@barrios>
+	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
+	<20121016061854.GB3934@barrios>
+	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
+	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
+	<20121022235321.GK13817@bbox>
+	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+Date: Mon, 29 Oct 2012 15:36:38 -0700
+Message-ID: <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, 29 Oct 2012 17:58:45 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+On Mon, Oct 29, 2012 at 12:00 PM, David Rientjes <rientjes@google.com> wrote:
+> On Mon, 29 Oct 2012, Luigi Semenzato wrote:
+>
+>> I managed to get the stack trace for the process that refuses to die.
+>> I am not sure it's due to the deadlock described in earlier messages.
+>> I will investigate further.
+>>
+>> [96283.704390] chrome          x 815ecd20     0 16573   1112 0x00100104
+>> [96283.704405]  c107fe34 00200046 f57ae000 815ecd20 815ecd20 ec0b645a
+>> 0000578f f67cfd20
+>> [96283.704427]  d0a9a9a0 c107fdf8 81037be5 f5bdf1e8 f6021800 00000000
+>> c107fe04 00200202
+>> [96283.704449]  c107fe0c 00200202 f5bdf1b0 c107fe24 8117ddb1 00200202
+>> f5bdf1b0 f5bdf1b8
+>> [96283.704471] Call Trace:
+>> [96283.704484]  [<81037be5>] ? queue_work_on+0x2d/0x39
+>> [96283.704497]  [<8117ddb1>] ? put_io_context+0x52/0x6a
+>> [96283.704510]  [<813b68f6>] schedule+0x56/0x58
+>> [96283.704520]  [<81028525>] do_exit+0x63e/0x640
+>
+> Could you find out where this happens to be in the function?  If you
+> enable CONFIG_DEBUG_INFO, you should be able to use gdb on vmlinux and
+> find out with l *do_exit+0x63e.
 
-> > + * move charges to its parent or the root cgroup if the group has no
-> > + * parent (aka use_hierarchy==0).
-> > + * Although this might fail (get_page_unless_zero, isolate_lru_page or
-> > + * mem_cgroup_move_account fails) the failure is always temporary and
-> > + * it signals a race with a page removal/uncharge or migration. In the
-> > + * first case the page is on the way out and it will vanish from the LRU
-> > + * on the next attempt and the call should be retried later.
-> > + * Isolation from the LRU fails only if page has been isolated from
-> > + * the LRU since we looked at it and that usually means either global
-> > + * reclaim or migration going on. The page will either get back to the
-> > + * LRU or vanish.
-> 
-> I just wonder for how long can it go in the worst case?
+It looks like it's the final call to schedule() in do_exit():
 
-If the kernel is uniprocessor and the caller is SCHED_FIFO: ad infinitum!
+   0x81028520 <+1593>: call   0x813b68a0 <schedule>
+   0x81028525 <+1598>: ud2a
+
+(gdb) l *do_exit+0x63e
+0x81028525 is in do_exit
+(/home/semenzato/trunk/src/third_party/kernel/files/kernel/exit.c:1069).
+1064
+1065 /* causes final put_task_struct in finish_task_switch(). */
+1066 tsk->state = TASK_DEAD;
+1067 tsk->flags |= PF_NOFREEZE; /* tell freezer to ignore us */
+1068 schedule();
+1069 BUG();
+1070 /* Avoid "noreturn function does return".  */
+1071 for (;;)
+1072 cpu_relax(); /* For when BUG is null */
+1073 }
+
+Here's a theory: the thread exits fine, but the next scheduled thread
+tries to allocate memory before or during finish_task_switch(), so the
+dead thread is never cleaned up completely and is still considered
+alive by the OOM killer.
+
+Unfortunately I haven't found a code path that supports this theory...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
