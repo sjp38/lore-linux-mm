@@ -1,60 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id C152E6B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 13:06:37 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hq4so2282507wib.2
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:06:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id A8F4B6B005A
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 13:29:45 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so8839920ied.14
+        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 10:29:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20121029165705.GA4693@x1.osrc.amd.com>
-References: <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com>
- <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
- <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
- <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com>
- <20121026132601.GC9886@gmail.com> <20121026144502.6e94643e@dull>
- <20121026221254.7d32c8bf@pyramind.ukuu.org.uk> <508BE459.2080406@redhat.com> <20121029165705.GA4693@x1.osrc.amd.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 29 Oct 2012 10:06:15 -0700
-Message-ID: <CA+55aFzbwaHxWPkJ-t-TEh9hUwmA+D-unHGuJ7FPx7ULmrwKMg@mail.gmail.com>
-Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
+In-Reply-To: <20121029113515.GB9115@Krystal>
+References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
+ <1351450948-15618-6-git-send-email-levinsasha928@gmail.com> <20121029113515.GB9115@Krystal>
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Mon, 29 Oct 2012 13:29:24 -0400
+Message-ID: <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
+Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, Rik van Riel <riel@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, florian@openwrt.org, Borislav Petkov <borislav.petkov@amd.com>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 9:57 AM, Borislav Petkov <bp@alien8.de> wrote:
+On Mon, Oct 29, 2012 at 7:35 AM, Mathieu Desnoyers
+<mathieu.desnoyers@efficios.com> wrote:
+> * Sasha Levin (levinsasha928@gmail.com) wrote:
+>> Switch tracepoints to use the new hashtable implementation. This reduces the amount of
+>> generic unrelated code in the tracepoints.
+>>
+>> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+>> ---
+>>  kernel/tracepoint.c | 27 +++++++++++----------------
+>>  1 file changed, 11 insertions(+), 16 deletions(-)
+>>
+>> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
+>> index d96ba22..854df92 100644
+>> --- a/kernel/tracepoint.c
+>> +++ b/kernel/tracepoint.c
+>> @@ -26,6 +26,7 @@
+>>  #include <linux/slab.h>
+>>  #include <linux/sched.h>
+>>  #include <linux/static_key.h>
+>> +#include <linux/hashtable.h>
+>>
+>>  extern struct tracepoint * const __start___tracepoints_ptrs[];
+>>  extern struct tracepoint * const __stop___tracepoints_ptrs[];
+>> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
+>>   * Protected by tracepoints_mutex.
+>>   */
+>>  #define TRACEPOINT_HASH_BITS 6
+>> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
+>> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
+>> +static DEFINE_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
+>>
+> [...]
+>>
+>> @@ -722,6 +715,8 @@ struct notifier_block tracepoint_module_nb = {
+>>
+>>  static int init_tracepoints(void)
+>>  {
+>> +     hash_init(tracepoint_table);
+>> +
+>>       return register_module_notifier(&tracepoint_module_nb);
+>>  }
+>>  __initcall(init_tracepoints);
 >
-> On current AMD64 processors,
+> So we have a hash table defined in .bss (therefore entirely initialized
+> to NULL), and you add a call to "hash_init", which iterates on the whole
+> array and initialize it to NULL (again) ?
+>
+> This extra initialization is redundant. I think it should be removed
+> from here, and hashtable.h should document that hash_init() don't need
+> to be called on zeroed memory (which includes static/global variables,
+> kzalloc'd memory, etc).
 
-Can you verify that this is true for older cpu's too (ie the old
-pre-64-bit ones, say K6 and original Athlon)?
+This was discussed in the previous series, the conclusion was to call
+hash_init() either way to keep the encapsulation and consistency.
 
->                 This is done because a table entry is allowed
-> to be upgraded (by marking it as present
+It's cheap enough and happens only once, so why not?
 
-Well, that was traditionally solved by not caching not-present entries
-at all. Which can be a problem for some things (prefetch of NULL etc),
-so caching and then re-checking on faults is potentially the correct
-thing, but I'm just mentioning it because it might not be much of an
-argument for older microarchitectures..
 
->, or by removing its write,
-> execute or supervisor restrictions) without explicitly maintaining TLB
-> coherency. Such an upgrade will be found when the table is re-walked,
-> which resolves the fault.
-
-.. but this is obviously what we're interested in. And since AMD has
-documented it (as well as Intel), I have this strong suspicion that
-operating systems have traditionally relied on this behavior.
-
-I don't remember the test coverage details from my Transmeta days, and
-while I certainly saw the page table walker, it wasn't my code.
-
-My gut feel is that this is likely something x86 just always does
-(because it's the right thing to do to keep things simple for
-software), but getting explicit confirmation about older AMD cpu's
-would definitely be good.
-
-                  Linus
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
