@@ -1,113 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id D67206B0069
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:26:46 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so3734648qcq.14
-        for <linux-mm@kvack.org>; Mon, 29 Oct 2012 11:26:45 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 129526B0069
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2012 14:32:10 -0400 (EDT)
+Date: Mon, 29 Oct 2012 11:31:57 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [PATCH v7 06/16] tracepoint: use new hashtable implementation
+Message-ID: <20121029183157.GC3097@jtriplet-mobl1>
+References: <1351450948-15618-1-git-send-email-levinsasha928@gmail.com>
+ <1351450948-15618-6-git-send-email-levinsasha928@gmail.com>
+ <20121029113515.GB9115@Krystal>
+ <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-References: <CAA25o9TmsnR3T+CLk5LeRmXv3s8b719KrSU6C919cAu0YMKPkA@mail.gmail.com>
-	<20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-Date: Mon, 29 Oct 2012 11:26:45 -0700
-Message-ID: <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+1xoqce6uJ6wy3+2CBwsLHKnsz4wD0vt8MBEGKCFfXTvuC0Hg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-I managed to get the stack trace for the process that refuses to die.
-I am not sure it's due to the deadlock described in earlier messages.
-I will investigate further.
+On Mon, Oct 29, 2012 at 01:29:24PM -0400, Sasha Levin wrote:
+> On Mon, Oct 29, 2012 at 7:35 AM, Mathieu Desnoyers
+> <mathieu.desnoyers@efficios.com> wrote:
+> > * Sasha Levin (levinsasha928@gmail.com) wrote:
+> >> Switch tracepoints to use the new hashtable implementation. This reduces the amount of
+> >> generic unrelated code in the tracepoints.
+> >>
+> >> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> >> ---
+> >>  kernel/tracepoint.c | 27 +++++++++++----------------
+> >>  1 file changed, 11 insertions(+), 16 deletions(-)
+> >>
+> >> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
+> >> index d96ba22..854df92 100644
+> >> --- a/kernel/tracepoint.c
+> >> +++ b/kernel/tracepoint.c
+> >> @@ -26,6 +26,7 @@
+> >>  #include <linux/slab.h>
+> >>  #include <linux/sched.h>
+> >>  #include <linux/static_key.h>
+> >> +#include <linux/hashtable.h>
+> >>
+> >>  extern struct tracepoint * const __start___tracepoints_ptrs[];
+> >>  extern struct tracepoint * const __stop___tracepoints_ptrs[];
+> >> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
+> >>   * Protected by tracepoints_mutex.
+> >>   */
+> >>  #define TRACEPOINT_HASH_BITS 6
+> >> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
+> >> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
+> >> +static DEFINE_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
+> >>
+> > [...]
+> >>
+> >> @@ -722,6 +715,8 @@ struct notifier_block tracepoint_module_nb = {
+> >>
+> >>  static int init_tracepoints(void)
+> >>  {
+> >> +     hash_init(tracepoint_table);
+> >> +
+> >>       return register_module_notifier(&tracepoint_module_nb);
+> >>  }
+> >>  __initcall(init_tracepoints);
+> >
+> > So we have a hash table defined in .bss (therefore entirely initialized
+> > to NULL), and you add a call to "hash_init", which iterates on the whole
+> > array and initialize it to NULL (again) ?
+> >
+> > This extra initialization is redundant. I think it should be removed
+> > from here, and hashtable.h should document that hash_init() don't need
+> > to be called on zeroed memory (which includes static/global variables,
+> > kzalloc'd memory, etc).
+> 
+> This was discussed in the previous series, the conclusion was to call
+> hash_init() either way to keep the encapsulation and consistency.
+> 
+> It's cheap enough and happens only once, so why not?
 
-[96283.704390] chrome          x 815ecd20     0 16573   1112 0x00100104
-[96283.704405]  c107fe34 00200046 f57ae000 815ecd20 815ecd20 ec0b645a
-0000578f f67cfd20
-[96283.704427]  d0a9a9a0 c107fdf8 81037be5 f5bdf1e8 f6021800 00000000
-c107fe04 00200202
-[96283.704449]  c107fe0c 00200202 f5bdf1b0 c107fe24 8117ddb1 00200202
-f5bdf1b0 f5bdf1b8
-[96283.704471] Call Trace:
-[96283.704484]  [<81037be5>] ? queue_work_on+0x2d/0x39
-[96283.704497]  [<8117ddb1>] ? put_io_context+0x52/0x6a
-[96283.704510]  [<813b68f6>] schedule+0x56/0x58
-[96283.704520]  [<81028525>] do_exit+0x63e/0x640
-[96283.704530]  [<81028752>] do_group_exit+0x63/0x86
-[96283.704541]  [<81032b19>] get_signal_to_deliver+0x434/0x44b
-[96283.704554]  [<81001e01>] do_signal+0x37/0x4fe
-[96283.704564]  [<8103e31d>] ? update_rmtp+0x67/0x67
-[96283.704585]  [<8105622a>] ? clockevents_program_event+0xea/0x108
-[96283.704599]  [<81050d92>] ? timekeeping_get_ns+0x11/0x55
-[96283.704610]  [<8105a758>] ? sys_futex+0xcb/0xdb
-[96283.704620]  [<810024a7>] do_notify_resume+0x26/0x65
-[96283.704632]  [<813b7305>] work_notifysig+0xa/0x11
-[96283.704644]  [<813b0000>] ? coretemp_cpu_callback+0x88/0x179
+Unnecessary work adds up.  Better not to do it unnecessarily, even if by
+itself it doesn't cost that much.
 
-On Mon, Oct 22, 2012 at 11:03 PM, David Rientjes <rientjes@google.com> wrote:
-> On Tue, 23 Oct 2012, Minchan Kim wrote:
->
->> > I found the source, and maybe the cause, of the problem I am
->> > experiencing when running out of memory with zram enabled.  It may be
->> > a known problem.  The OOM killer doesn't find any killable process
->> > because select_bad_process() keeps returning -1 here:
->> >
->> >     /*
->> >      * This task already has access to memory reserves and is
->> >      * being killed. Don't allow any other task access to the
->> >      * memory reserve.
->> >      *
->> >      * Note: this may have a chance of deadlock if it gets
->> >      * blocked waiting for another task which itself is waiting
->> >      * for memory. Is there a better alternative?
->> >      */
->> >     if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
->> >         if (unlikely(frozen(p)))
->> >             __thaw_task(p);
->> >         if (!force_kill)
->> >             return ERR_PTR(-1UL);
->> >     }
->> >
->> > select_bad_process() is called by out_of_memory() in __alloc_page_may_oom().
->>
->> I think it's not a zram problem but general problem of OOM killer.
->> Above code's intention is to prevent shortage of ememgency memory pool for avoding
->> deadlock. If we already killed any task and the task are in the middle of exiting,
->> OOM killer will wait for him to be exited. But the problem in here is that
->> killed task might wait any mutex which are held to another task which are
->> stuck for the memory allocation and can't use emergency memory pool. :(
->
-> Yeah, there's always a problem if an oom killed process cannot exit
-> because it's waiting for some other eligible process.  This doesn't
-> normally happen for anything sharing the same mm, though, because we try
-> to kill anything sharing the same mm when we select a process for oom kill
-> and if those killed threads happen to call into the oom killer they
-> silently get TIF_MEMDIE so they may exit as well.  This addressed earlier
-> problems we had with things waiting on mm->mmap_sem in the exit path.
->
-> If the oom killed process cannot exit because it's waiting on another
-> eligible process that does not share the mm, then we'll potentially
-> livelock unless you do echo f > /proc/sysrq-trigger manually or turn on
-> /proc/sys/vm/oom_kill_allocating_task.
->
->> I think one of solution is that if it takes some seconed(ex, 3 sec) after we already
->> kill some task but still looping with above code, we can allow accessing of
->> ememgency memory pool for another task. It may happen deadlock due to burn out memory
->> pool but otherwise, we still suffer from deadlock.
->>
->
-> The problem there is that if the time limit expires (we used 10 seconds
-> before internally, we don't do it at all anymore) and there are no more
-> eligible threads that you unnecessarily panic, or open yourself up to a
-> complete depletion of memory reserves whereas not even the oom killer can
-> help.
+It doesn't seem that difficult for future fields to have 0 as their
+initialized state.
+
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
