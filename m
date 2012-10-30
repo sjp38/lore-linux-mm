@@ -1,34 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 9D3948D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:23:47 -0400 (EDT)
-Message-ID: <1351625023.4004.29.camel@gandalf.local.home>
-Subject: Re: [PATCH v8 16/16] tracing output: use new hashtable
- implementation
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Tue, 30 Oct 2012 15:23:43 -0400
-In-Reply-To: <1351622772-16400-16-git-send-email-levinsasha928@gmail.com>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
-	 <1351622772-16400-16-git-send-email-levinsasha928@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-15"
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id BFDA06B0071
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 16:27:52 -0400 (EDT)
+Date: Tue, 30 Oct 2012 21:27:50 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH v2 1/2] kmem_cache: include allocators code directly into slab_common
+Message-ID: <20121030202750.GW16230@one.firstfloor.org>
+References: <1351087158-8524-1-git-send-email-glommer@parallels.com> <1351087158-8524-2-git-send-email-glommer@parallels.com> <CAOJsxLHxo7zJk=aWrjmuaYsEkaChTCgXowtHxtuiabaOP3W3-Q@mail.gmail.com> <0000013a9444c6ba-d26e7627-1890-40da-ae91-91e7c4a3d7e9-000000@email.amazonses.com> <CAAmzW4O1EAFxHf1tRaFzg-opPLzMboAdo-vbUFkyo=ZdQp9rmw@mail.gmail.com> <0000013ab24cd7ac-1c5345d6-5fea-4459-942e-b6deccd1a6f1-000000@email.amazonses.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013ab24cd7ac-1c5345d6-5fea-4459-942e-b6deccd1a6f1-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: andi@firstfloor.org, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, JoonSoo Kim <js1304@gmail.com>, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Tue, 2012-10-30 at 14:46 -0400, Sasha Levin wrote:
-> Switch tracing to use the new hashtable implementation. This reduces the
-> amount of generic unrelated code in the tracing module.
+On Tue, Oct 30, 2012 at 03:31:51PM +0000, Christoph Lameter wrote:
+> On Fri, 26 Oct 2012, JoonSoo Kim wrote:
 > 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+> > 2012/10/25 Christoph Lameter <cl@linux.com>:
+> > > On Wed, 24 Oct 2012, Pekka Enberg wrote:
+> > >
+> > >> So I hate this patch with a passion. We don't have any fastpaths in
+> > >> mm/slab_common.c nor should we. Those should be allocator specific.
+> > >
+> > > I have similar thoughts on the issue. Lets keep the fast paths allocator
+> > > specific until we find a better way to handle this issue.
+> >
+> > Okay. I see.
+> > How about applying LTO not to the whole kernel code, but just to
+> > slab_common.o + sl[aou]b.o?
+> > I think that it may be possible, isn't it?
+> 
+> Well.... Andi: Is that possible?
 
-Acked-by: Steven Rostedt <rostedt@goodmis.org>
+In principle yes, but would still need a toolchain with LTO 
+support and a few changes.
 
--- Steve
+-Andi
 
-
+-- 
+ak@linux.intel.com -- Speaking for myself only.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
