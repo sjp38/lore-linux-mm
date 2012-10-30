@@ -1,235 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id EEE686B0062
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:46:52 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 529016B006C
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:47:01 -0400 (EDT)
 Received: by mail-qc0-f169.google.com with SMTP id t2so524435qcq.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:46:51 -0700 (PDT)
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:47:00 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
-Date: Tue, 30 Oct 2012 14:45:57 -0400
-Message-Id: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v8 02/16] userns: use new hashtable implementation
+Date: Tue, 30 Oct 2012 14:45:58 -0400
+Message-Id: <1351622772-16400-2-git-send-email-levinsasha928@gmail.com>
+In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
 Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-This hashtable implementation is using hlist buckets to provide a simple
-hashtable to prevent it from getting reimplemented all over the kernel.
+Switch to using the new hashtable implementation to store user structs.
+This reduces the amount of generic unrelated code in kernel/user.c.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
+ kernel/user.c | 33 ++++++++++++---------------------
+ 1 file changed, 12 insertions(+), 21 deletions(-)
 
-Changes from v8:
-
- - Addressed comments from Tejun Heo and Mathieu Desnoyers.
-
-
- include/linux/hashtable.h | 196 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 196 insertions(+)
- create mode 100644 include/linux/hashtable.h
-
-diff --git a/include/linux/hashtable.h b/include/linux/hashtable.h
-new file mode 100644
-index 0000000..3c1a9cb
---- /dev/null
-+++ b/include/linux/hashtable.h
-@@ -0,0 +1,196 @@
-+/*
-+ * Statically sized hash table implementation
-+ * (C) 2012  Sasha Levin <levinsasha928@gmail.com>
-+ */
-+
-+#ifndef _LINUX_HASHTABLE_H
-+#define _LINUX_HASHTABLE_H
-+
-+#include <linux/list.h>
-+#include <linux/types.h>
-+#include <linux/kernel.h>
-+#include <linux/hash.h>
-+#include <linux/rculist.h>
-+
-+#define DEFINE_HASHTABLE(name, bits)						\
-+	struct hlist_head name[1 << (bits)] =					\
-+			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
-+
-+#define DECLARE_HASHTABLE(name, bits)                                   	\
-+	struct hlist_head name[1 << (bits)]
-+
-+#define HASH_SIZE(name) (ARRAY_SIZE(name))
-+#define HASH_BITS(name) ilog2(HASH_SIZE(name))
-+
-+/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
-+#define hash_min(val, bits)							\
-+({										\
-+	sizeof(val) <= 4 ?							\
-+	hash_32(val, bits) :							\
-+	hash_long(val, bits);							\
-+})
-+
-+static inline void __hash_init(struct hlist_head *ht, unsigned int sz)
-+{
-+	unsigned int i;
-+
-+	for (i = 0; i < sz; i++)
-+		INIT_HLIST_HEAD(&ht[i]);
-+}
-+
-+/**
-+ * hash_init - initialize a hash table
-+ * @hashtable: hashtable to be initialized
-+ *
-+ * Calculates the size of the hashtable from the given parameter, otherwise
-+ * same as hash_init_size.
-+ *
-+ * This has to be a macro since HASH_BITS() will not work on pointers since
-+ * it calculates the size during preprocessing.
-+ */
-+#define hash_init(hashtable) __hash_init(hashtable, HASH_SIZE(hashtable))
-+
-+/**
-+ * hash_add - add an object to a hashtable
-+ * @hashtable: hashtable to add to
-+ * @node: the &struct hlist_node of the object to be added
-+ * @key: the key of the object to be added
-+ */
-+#define hash_add(hashtable, node, key)						\
-+	hlist_add_head(node, &hashtable[hash_min(key, HASH_BITS(hashtable))])
-+
-+/**
-+ * hash_add_rcu - add an object to a rcu enabled hashtable
-+ * @hashtable: hashtable to add to
-+ * @node: the &struct hlist_node of the object to be added
-+ * @key: the key of the object to be added
-+ */
-+#define hash_add_rcu(hashtable, node, key)					\
-+	hlist_add_head_rcu(node, &hashtable[hash_min(key, HASH_BITS(hashtable))])
-+
-+/**
-+ * hash_hashed - check whether an object is in any hashtable
-+ * @node: the &struct hlist_node of the object to be checked
-+ */
-+static inline bool hash_hashed(struct hlist_node *node)
-+{
-+	return !hlist_unhashed(node);
-+}
-+
-+static inline bool __hash_empty(struct hlist_head *ht, unsigned int sz)
-+{
-+	unsigned int i;
-+
-+	for (i = 0; i < sz; i++)
-+		if (!hlist_empty(&ht[i]))
-+			return false;
-+
-+	return true;
-+}
-+
-+/**
-+ * hash_empty - check whether a hashtable is empty
-+ * @hashtable: hashtable to check
-+ *
-+ * This has to be a macro since HASH_BITS() will not work on pointers since
-+ * it calculates the size during preprocessing.
-+ */
-+#define hash_empty(hashtable) __hash_empty(hashtable, HASH_SIZE(hashtable))
-+
-+/**
-+ * hash_del - remove an object from a hashtable
-+ * @node: &struct hlist_node of the object to remove
-+ */
-+static inline void hash_del(struct hlist_node *node)
-+{
-+	hlist_del_init(node);
-+}
-+
-+/**
-+ * hash_del_rcu - remove an object from a rcu enabled hashtable
-+ * @node: &struct hlist_node of the object to remove
-+ */
-+static inline void hash_del_rcu(struct hlist_node *node)
-+{
-+	hlist_del_init_rcu(node);
-+}
-+
-+/**
-+ * hash_for_each - iterate over a hashtable
-+ * @name: hashtable to iterate
-+ * @bkt: integer to use as bucket loop cursor
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @member: the name of the hlist_node within the struct
-+ */
-+#define hash_for_each(name, bkt, node, obj, member)				\
-+	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
-+		hlist_for_each_entry(obj, node, &name[bkt], member)
-+
-+/**
-+ * hash_for_each_rcu - iterate over a rcu enabled hashtable
-+ * @name: hashtable to iterate
-+ * @bkt: integer to use as bucket loop cursor
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @member: the name of the hlist_node within the struct
-+ */
-+#define hash_for_each_rcu(name, bkt, node, obj, member)				\
-+	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
-+		hlist_for_each_entry_rcu(obj, node, &name[bkt], member)
-+
-+/**
-+ * hash_for_each_safe - iterate over a hashtable safe against removal of
-+ * hash entry
-+ * @name: hashtable to iterate
-+ * @bkt: integer to use as bucket loop cursor
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @tmp: a &struct used for temporary storage
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @member: the name of the hlist_node within the struct
-+ */
-+#define hash_for_each_safe(name, bkt, node, tmp, obj, member)			\
-+	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
-+		hlist_for_each_entry_safe(obj, node, tmp, &name[bkt], member)
-+
-+/**
-+ * hash_for_each_possible - iterate over all possible objects hashing to the
-+ * same bucket
-+ * @name: hashtable to iterate
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @member: the name of the hlist_node within the struct
-+ * @key: the key of the objects to iterate over
-+ */
-+#define hash_for_each_possible(name, obj, node, member, key)			\
-+	hlist_for_each_entry(obj, node,	&name[hash_min(key, HASH_BITS(name))], member)
-+
-+/**
-+ * hash_for_each_possible_rcu - iterate over all possible objects hashing to the
-+ * same bucket in an rcu enabled hashtable
-+ * in a rcu enabled hashtable
-+ * @name: hashtable to iterate
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @member: the name of the hlist_node within the struct
-+ * @key: the key of the objects to iterate over
-+ */
-+#define hash_for_each_possible_rcu(name, obj, node, member, key)		\
-+	hlist_for_each_entry_rcu(obj, node, &name[hash_min(key, HASH_BITS(name))], member)
-+
-+/**
-+ * hash_for_each_possible_safe - iterate over all possible objects hashing to the
-+ * same bucket safe against removals
-+ * @name: hashtable to iterate
-+ * @obj: the type * to use as a loop cursor for each entry
-+ * @node: the &struct list_head to use as a loop cursor for each entry
-+ * @tmp: a &struct used for temporary storage
-+ * @member: the name of the hlist_node within the struct
-+ * @key: the key of the objects to iterate over
-+ */
-+#define hash_for_each_possible_safe(name, obj, node, tmp, member, key)		\
-+	hlist_for_each_entry_safe(obj, node, tmp,				\
-+		&name[hash_min(key, HASH_BITS(name))], member)
-+
-+
-+#endif
+diff --git a/kernel/user.c b/kernel/user.c
+index 750acff..f010389 100644
+--- a/kernel/user.c
++++ b/kernel/user.c
+@@ -16,6 +16,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/export.h>
+ #include <linux/user_namespace.h>
++#include <linux/hashtable.h>
+ 
+ /*
+  * userns count is 1 for root user, 1 for init_uts_ns,
+@@ -60,13 +61,9 @@ EXPORT_SYMBOL_GPL(init_user_ns);
+  */
+ 
+ #define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
+-#define UIDHASH_SZ	(1 << UIDHASH_BITS)
+-#define UIDHASH_MASK		(UIDHASH_SZ - 1)
+-#define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)
+-#define uidhashentry(uid)	(uidhash_table + __uidhashfn((__kuid_val(uid))))
+ 
+ static struct kmem_cache *uid_cachep;
+-struct hlist_head uidhash_table[UIDHASH_SZ];
++static DEFINE_HASHTABLE(uidhash_table, UIDHASH_BITS);
+ 
+ /*
+  * The uidhash_lock is mostly taken from process context, but it is
+@@ -92,22 +89,22 @@ struct user_struct root_user = {
+ /*
+  * These routines must be called with the uidhash spinlock held!
+  */
+-static void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
++static void uid_hash_insert(struct user_struct *up)
+ {
+-	hlist_add_head(&up->uidhash_node, hashent);
++	hash_add(uidhash_table, &up->uidhash_node, __kuid_val(up->uid));
+ }
+ 
+ static void uid_hash_remove(struct user_struct *up)
+ {
+-	hlist_del_init(&up->uidhash_node);
++	hash_del(&up->uidhash_node);
+ }
+ 
+-static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
++static struct user_struct *uid_hash_find(kuid_t uid)
+ {
+ 	struct user_struct *user;
+ 	struct hlist_node *h;
+ 
+-	hlist_for_each_entry(user, h, hashent, uidhash_node) {
++	hash_for_each_possible(uidhash_table, user, h, uidhash_node, __kuid_val(uid)) {
+ 		if (uid_eq(user->uid, uid)) {
+ 			atomic_inc(&user->__count);
+ 			return user;
+@@ -143,7 +140,7 @@ struct user_struct *find_user(kuid_t uid)
+ 	unsigned long flags;
+ 
+ 	spin_lock_irqsave(&uidhash_lock, flags);
+-	ret = uid_hash_find(uid, uidhashentry(uid));
++	ret = uid_hash_find(uid);
+ 	spin_unlock_irqrestore(&uidhash_lock, flags);
+ 	return ret;
+ }
+@@ -164,11 +161,10 @@ void free_uid(struct user_struct *up)
+ 
+ struct user_struct *alloc_uid(kuid_t uid)
+ {
+-	struct hlist_head *hashent = uidhashentry(uid);
+ 	struct user_struct *up, *new;
+ 
+ 	spin_lock_irq(&uidhash_lock);
+-	up = uid_hash_find(uid, hashent);
++	up = uid_hash_find(uid);
+ 	spin_unlock_irq(&uidhash_lock);
+ 
+ 	if (!up) {
+@@ -184,13 +180,13 @@ struct user_struct *alloc_uid(kuid_t uid)
+ 		 * on adding the same user already..
+ 		 */
+ 		spin_lock_irq(&uidhash_lock);
+-		up = uid_hash_find(uid, hashent);
++		up = uid_hash_find(uid);
+ 		if (up) {
+ 			key_put(new->uid_keyring);
+ 			key_put(new->session_keyring);
+ 			kmem_cache_free(uid_cachep, new);
+ 		} else {
+-			uid_hash_insert(new, hashent);
++			uid_hash_insert(new);
+ 			up = new;
+ 		}
+ 		spin_unlock_irq(&uidhash_lock);
+@@ -204,17 +200,12 @@ out_unlock:
+ 
+ static int __init uid_cache_init(void)
+ {
+-	int n;
+-
+ 	uid_cachep = kmem_cache_create("uid_cache", sizeof(struct user_struct),
+ 			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+ 
+-	for(n = 0; n < UIDHASH_SZ; ++n)
+-		INIT_HLIST_HEAD(uidhash_table + n);
+-
+ 	/* Insert the root user immediately (init already runs as root) */
+ 	spin_lock_irq(&uidhash_lock);
+-	uid_hash_insert(&root_user, uidhashentry(GLOBAL_ROOT_UID));
++	uid_hash_insert(&root_user);
+ 	spin_unlock_irq(&uidhash_lock);
+ 
+ 	return 0;
 -- 
 1.7.12.4
 
