@@ -1,124 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id DE8C28D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:20:30 -0400 (EDT)
-Date: Tue, 30 Oct 2012 15:20:28 -0400
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v8 06/16] tracepoint: use new hashtable implementation
-Message-ID: <20121030192028.GC9427@Krystal>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com> <1351622772-16400-6-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id C926F8D0003
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:20:50 -0400 (EDT)
+Message-ID: <5090292A.3020605@redhat.com>
+Date: Tue, 30 Oct 2012 15:23:22 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1351622772-16400-6-git-send-email-levinsasha928@gmail.com>
+Subject: Re: [PATCH 26/31] sched, numa, mm: Add fault driven placement and
+ migration policy
+References: <20121025121617.617683848@chello.nl> <20121025124834.467791319@chello.nl>
+In-Reply-To: <20121025124834.467791319@chello.nl>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-* Sasha Levin (levinsasha928@gmail.com) wrote:
-> Switch tracepoints to use the new hashtable implementation. This reduces the
-> amount of generic unrelated code in the tracepoints.
-> 
-> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
-
-Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-
-> ---
->  kernel/tracepoint.c | 25 +++++++++----------------
->  1 file changed, 9 insertions(+), 16 deletions(-)
-> 
-> diff --git a/kernel/tracepoint.c b/kernel/tracepoint.c
-> index d96ba22..5b599f1 100644
-> --- a/kernel/tracepoint.c
-> +++ b/kernel/tracepoint.c
-> @@ -26,6 +26,7 @@
->  #include <linux/slab.h>
->  #include <linux/sched.h>
->  #include <linux/static_key.h>
-> +#include <linux/hashtable.h>
->  
->  extern struct tracepoint * const __start___tracepoints_ptrs[];
->  extern struct tracepoint * const __stop___tracepoints_ptrs[];
-> @@ -49,8 +50,7 @@ static LIST_HEAD(tracepoint_module_list);
->   * Protected by tracepoints_mutex.
->   */
->  #define TRACEPOINT_HASH_BITS 6
-> -#define TRACEPOINT_TABLE_SIZE (1 << TRACEPOINT_HASH_BITS)
-> -static struct hlist_head tracepoint_table[TRACEPOINT_TABLE_SIZE];
-> +static DEFINE_HASHTABLE(tracepoint_table, TRACEPOINT_HASH_BITS);
->  
->  /*
->   * Note about RCU :
-> @@ -191,16 +191,15 @@ tracepoint_entry_remove_probe(struct tracepoint_entry *entry,
->   */
->  static struct tracepoint_entry *get_tracepoint(const char *name)
->  {
-> -	struct hlist_head *head;
->  	struct hlist_node *node;
->  	struct tracepoint_entry *e;
->  	u32 hash = jhash(name, strlen(name), 0);
->  
-> -	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
-> -	hlist_for_each_entry(e, node, head, hlist) {
-> +	hash_for_each_possible(tracepoint_table, e, node, hlist, hash) {
->  		if (!strcmp(name, e->name))
->  			return e;
->  	}
+On 10/25/2012 08:16 AM, Peter Zijlstra wrote:
+> +/*
+> + * Drive the periodic memory faults..
+> + */
+> +void task_tick_numa(struct rq *rq, struct task_struct *curr)
+> +{
+> +	struct callback_head *work = &curr->numa_work;
+> +	u64 period, now;
 > +
->  	return NULL;
->  }
->  
-> @@ -210,19 +209,13 @@ static struct tracepoint_entry *get_tracepoint(const char *name)
->   */
->  static struct tracepoint_entry *add_tracepoint(const char *name)
->  {
-> -	struct hlist_head *head;
-> -	struct hlist_node *node;
->  	struct tracepoint_entry *e;
->  	size_t name_len = strlen(name) + 1;
->  	u32 hash = jhash(name, name_len-1, 0);
->  
-> -	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
-> -	hlist_for_each_entry(e, node, head, hlist) {
-> -		if (!strcmp(name, e->name)) {
-> -			printk(KERN_NOTICE
-> -				"tracepoint %s busy\n", name);
-> -			return ERR_PTR(-EEXIST);	/* Already there */
-> -		}
-> +	if (get_tracepoint(name)) {
-> +		printk(KERN_NOTICE "tracepoint %s busy\n", name);
-> +		return ERR_PTR(-EEXIST);	/* Already there */
->  	}
->  	/*
->  	 * Using kmalloc here to allocate a variable length element. Could
-> @@ -234,7 +227,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
->  	memcpy(&e->name[0], name, name_len);
->  	e->funcs = NULL;
->  	e->refcount = 0;
-> -	hlist_add_head(&e->hlist, head);
-> +	hash_add(tracepoint_table, &e->hlist, hash);
->  	return e;
->  }
->  
-> @@ -244,7 +237,7 @@ static struct tracepoint_entry *add_tracepoint(const char *name)
->   */
->  static inline void remove_tracepoint(struct tracepoint_entry *e)
->  {
-> -	hlist_del(&e->hlist);
-> +	hash_del(&e->hlist);
->  	kfree(e);
->  }
->  
-> -- 
-> 1.7.12.4
-> 
+> +	/*
+> +	 * We don't care about NUMA placement if we don't have memory.
+> +	 */
+> +	if (!curr->mm || (curr->flags & PF_EXITING) || work->next != work)
+> +		return;
 
--- 
-Mathieu Desnoyers
-Operating System Efficiency R&D Consultant
-EfficiOS Inc.
-http://www.efficios.com
+We should probably skip the whole unmap-and-refault
+business if we are running on a system that is not
+NUMA.  Ie. a system with just one node...
+
+> +	/*
+> +	 * Using runtime rather than walltime has the dual advantage that
+> +	 * we (mostly) drive the selection from busy threads and that the
+> +	 * task needs to have done some actual work before we bother with
+> +	 * NUMA placement.
+> +	 */
+> +	now = curr->se.sum_exec_runtime;
+> +	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
+> +
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
