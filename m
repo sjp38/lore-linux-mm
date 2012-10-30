@@ -1,80 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id CDE516B0062
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 13:01:50 -0400 (EDT)
-Date: Tue, 30 Oct 2012 18:01:47 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH] slub: Use the correct per cpu slab on CPU_DEAD
-In-Reply-To: <0000013ab24a800e-75ac1059-9697-42ed-b64a-7ba0d6223fba-000000@email.amazonses.com>
-Message-ID: <alpine.LFD.2.02.1210301801030.2756@ionos>
-References: <alpine.LFD.2.02.1210272117060.2756@ionos> <0000013ab24a800e-75ac1059-9697-42ed-b64a-7ba0d6223fba-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 927AE6B0068
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:26:40 -0400 (EDT)
+Date: Tue, 30 Oct 2012 19:24:20 +0100
+From: chrubis@suse.cz
+Subject: Partialy mapped page stays in page cache after unmap
+Message-ID: <20121030182420.GA17171@rei.Home>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="huq684BweRXVnRxX"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 30 Oct 2012, Christoph Lameter wrote:
 
-> On Sat, 27 Oct 2012, Thomas Gleixner wrote:
-> 
-> > Correct this by extending the arguments of unfreeze_partials with the
-> > target cpu number and use per_cpu_ptr instead of this_cpu_ptr.
-> 
-> Passing the kmem_cache_cpu pointer instead simplifies this a bit and avoid
-> a per_cpu_ptr operations. That reduces code somewhat and results in no
-> additional operations for the fast path.
-> 
-> 
-> Subject: Use correct cpu_slab on dead cpu
-> 
-> Pass a kmem_cache_cpu pointer into unfreeze partials so that a different
-> kmem_cache_cpu structure than the local one can be specified.
-> 
-> Reported-by: Thomas Gleixner <tglx@linutronix.de>
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+--huq684BweRXVnRxX
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-Yep. That looks less ugly :)
+Hi!
+I'm currently revisiting mmap related tests in LTP (Linux Test Project)
+and I've came to the tests testing that writes to the partially
+mapped page (at the end of mapping) are carried out correctly.
 
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
- 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2012-10-30 10:23:33.040649727 -0500
-> +++ linux/mm/slub.c	2012-10-30 10:25:03.401312250 -0500
-> @@ -1874,10 +1874,10 @@ redo:
->   *
->   * This function must be called with interrupt disabled.
->   */
-> -static void unfreeze_partials(struct kmem_cache *s)
-> +static void unfreeze_partials(struct kmem_cache *s,
-> +		struct kmem_cache_cpu *c)
->  {
->  	struct kmem_cache_node *n = NULL, *n2 = NULL;
-> -	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
->  	struct page *page, *discard_page = NULL;
-> 
->  	while ((page = c->partial)) {
-> @@ -1963,7 +1963,7 @@ static int put_cpu_partial(struct kmem_c
->  				 * set to the per node partial list.
->  				 */
->  				local_irq_save(flags);
-> -				unfreeze_partials(s);
-> +				unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
->  				local_irq_restore(flags);
->  				oldpage = NULL;
->  				pobjects = 0;
-> @@ -2006,7 +2006,7 @@ static inline void __flush_cpu_slab(stru
->  		if (c->page)
->  			flush_slab(s, c);
-> 
-> -		unfreeze_partials(s);
-> +		unfreeze_partials(s, c);
->  	}
->  }
-> 
-> 
+These tests fails because even after the object is unmapped and the
+file-descriptor closed the pages still stays in the page cache so if
+(possibly another process) opens and maps the file again the whole
+content of the partial page is preserved.
+
+Strictly speaking this is not a bug at least when sticking to regular
+files as POSIX which says that the change is not written out. In this
+case the file content is correct and forcing the data to be written out
+by msync() makes the test pass. The SHM mappings seems to preserve the
+content even after calling msync() which is, in my opinion, POSIX
+violation although a minor one.
+
+Looking at the test results I have, the file based mmap test worked fine
+on 2.6.5 (or perhaps the page cache was working/setup differently and
+the test succeeded by accidend).
+
+Attached is a stripped down LTP test for the problem, uncommenting the
+msync() makes the test succeed.
+
+I would like to hear your opinions on this problems.
+
+-- 
+Cyril Hrubis
+chrubis@suse.cz
+
+--huq684BweRXVnRxX
+Content-Type: text/x-c; charset=us-ascii
+Content-Disposition: attachment; filename="reproducer.c"
+
+#define _XOPEN_SOURCE 600
+
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+
+int main(void)
+{
+	char tmpfname[256];
+	long page_size;
+	long total_size;
+
+	void *pa;
+	size_t len;
+	int i, fd;
+	
+	pid_t child;
+	char *ch;
+	int exit_val;
+
+	page_size = sysconf(_SC_PAGE_SIZE);
+
+	/* Size of the file to be mapped */
+	total_size = page_size / 2;
+
+	/* mmap will create a partial page */
+	len = page_size / 2;
+
+	snprintf(tmpfname, sizeof(tmpfname), "/tmp/pts_mmap_11_5_%d", getpid());
+	
+	/* Create shared file */
+	unlink(tmpfname);
+	fd = open(tmpfname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
+	if (fd == -1) {
+		printf("Error at open(): %s\n", strerror(errno));
+		return 1;
+	}
+	if (ftruncate(fd, total_size) == -1) {
+		printf("Error at ftruncate(): %s\n", strerror(errno));
+		return 1;
+	}
+
+	pa = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (pa == MAP_FAILED) {
+		printf("Error at mmap(): %s\n", strerror(errno));
+		return 1;
+	}
+		
+	ch = (char*)pa + len + 1;
+
+	/* Check the patial page is ZERO filled */
+	for (i = 0; i < page_size/2 - 1; i++) {
+		if (ch[i] != 0) {
+			printf("Test FAILED: The partial page at the "
+			       "end of the file is not zero-filled\n");
+			return 1;
+		}
+	}
+
+	/* Write to the partial page */
+	*ch = 'b';
+	//msync(pa, len, MS_SYNC);
+	munmap(pa, len);
+	close(fd);
+
+	/* Open and map it again */
+	fd = open(tmpfname, O_RDWR, 0);
+	unlink(tmpfname);
+
+	pa = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (pa == MAP_FAILED) {
+		printf("Error at 2nd mmap(): %s\n", strerror(errno));
+		return 1;
+	}
+
+	ch = pa + len + 1;
+	if (*ch == 'b') {
+		printf("Test FAILED: Modification of the partial page "
+		       "at the end of an object is written out\n");
+		return 1;
+	}
+	
+	close(fd);
+	munmap(pa, len);
+
+	printf("Test PASSED\n");
+	return 1;
+}
+
+--huq684BweRXVnRxX--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
