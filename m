@@ -1,94 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 2214F6B0085
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:48:30 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so524435qcq.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:48:29 -0700 (PDT)
-From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v8 16/16] tracing output: use new hashtable implementation
-Date: Tue, 30 Oct 2012 14:46:12 -0400
-Message-Id: <1351622772-16400-16-git-send-email-levinsasha928@gmail.com>
-In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 593638D0004
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:54:53 -0400 (EDT)
+Date: Tue, 30 Oct 2012 11:54:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RFC] mm,vmscan: only evict file pages when we have
+ plenty
+Message-Id: <20121030115451.f4c097f0.akpm@linux-foundation.org>
+In-Reply-To: <20121030144204.0aa14d92@dull>
+References: <20121030144204.0aa14d92@dull>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: torvalds@linux-foundation.org
-Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, klamm@yandex-team.ru, mgorman@suse.de, hannes@cmpxchg.org
 
-Switch tracing to use the new hashtable implementation. This reduces the
-amount of generic unrelated code in the tracing module.
+On Tue, 30 Oct 2012 14:42:04 -0400
+Rik van Riel <riel@redhat.com> wrote:
 
-Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
----
- kernel/trace/trace_output.c | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+> If we have more inactive file pages than active file pages, we
+> skip scanning the active file pages alltogether, with the idea
+> that we do not want to evict the working set when there is
+> plenty of streaming IO in the cache.
 
-diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
-index 123b189..6af4879 100644
---- a/kernel/trace/trace_output.c
-+++ b/kernel/trace/trace_output.c
-@@ -8,15 +8,15 @@
- #include <linux/module.h>
- #include <linux/mutex.h>
- #include <linux/ftrace.h>
-+#include <linux/hashtable.h>
+Yes, I've never liked that.  The "(active > inactive)" thing is a magic
+number.  And suddenly causing a complete cessation of vm scanning at a
+particular magic threshold seems rather crude, compared to some complex
+graduated thing which will also always do the wrong thing, only more
+obscurely ;)
+
+Ho hum, in the absence of observed problems, I guess we don't muck with
+it.
+
+> However, the code forgot to also skip scanning anonymous pages
+> in that situation.  That lead to the curious situation of keeping
+> the active file pages protected from being paged out when there
+> are lots of inactive file pages, while still scanning and evicting
+> anonymous pages.
+> 
+> This patch fixes that situation, by only evicting file pages
+> when we have plenty of them and most are inactive.
+> 
+
+Any observed runtime effects from this?  If so, were they good?
+
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1686,6 +1686,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+>  			fraction[1] = 0;
+>  			denominator = 1;
+>  			goto out;
+> +		} else if (!inactive_file_is_low_global(zone)) {
+> +			/*
+> +			 * There is enough inactive page cache, do not
+> +			 * reclaim anything from the working set right now.
+> +			 */
+> +			fraction[0] = 0;
+> +			fraction[1] = 1;
+> +			denominator = 1;
+> +			goto out;
+>  		}
+>  	}
+
+Let's make the commenting look logical:
+
+--- a/mm/vmscan.c~mmvmscan-only-evict-file-pages-when-we-have-plenty-fix
++++ a/mm/vmscan.c
+@@ -1679,9 +1679,11 @@ static void get_scan_count(struct lruvec
  
- #include "trace_output.h"
- 
--/* must be a power of 2 */
--#define EVENT_HASHSIZE	128
-+#define EVENT_HASH_BITS	7
- 
- DECLARE_RWSEM(trace_event_mutex);
- 
--static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
-+static DEFINE_HASHTABLE(event_hash, EVENT_HASH_BITS);
- 
- static int next_event_type = __TRACE_LAST_TYPE + 1;
- 
-@@ -712,11 +712,8 @@ struct trace_event *ftrace_find_event(int type)
- {
- 	struct trace_event *event;
- 	struct hlist_node *n;
--	unsigned key;
- 
--	key = type & (EVENT_HASHSIZE - 1);
--
--	hlist_for_each_entry(event, n, &event_hash[key], node) {
-+	hash_for_each_possible(event_hash, event, n, node, type) {
- 		if (event->type == type)
- 			return event;
- 	}
-@@ -781,7 +778,6 @@ void trace_event_read_unlock(void)
-  */
- int register_ftrace_event(struct trace_event *event)
- {
--	unsigned key;
- 	int ret = 0;
- 
- 	down_write(&trace_event_mutex);
-@@ -833,9 +829,7 @@ int register_ftrace_event(struct trace_event *event)
- 	if (event->funcs->binary == NULL)
- 		event->funcs->binary = trace_nop_print;
- 
--	key = event->type & (EVENT_HASHSIZE - 1);
--
--	hlist_add_head(&event->node, &event_hash[key]);
-+	hash_add(event_hash, &event->node, event->type);
- 
- 	ret = event->type;
-  out:
-@@ -850,7 +844,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_event);
-  */
- int __unregister_ftrace_event(struct trace_event *event)
- {
--	hlist_del(&event->node);
-+	hash_del(&event->node);
- 	list_del(&event->list);
- 	return 0;
- }
--- 
-1.7.12.4
+ 	if (global_reclaim(sc)) {
+ 		free  = zone_page_state(zone, NR_FREE_PAGES);
+-		/* If we have very few page cache pages,
+-		   force-scan anon pages. */
+ 		if (unlikely(file + free <= high_wmark_pages(zone))) {
++			/*
++			 * If we have very few page cache pages, force-scan
++			 * anon pages.
++			 */
+ 			fraction[0] = 1;
+ 			fraction[1] = 0;
+ 			denominator = 1;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
