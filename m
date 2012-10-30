@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 6EB816B0088
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 16:30:14 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id c11so533553qad.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 13:30:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-References: <20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-Date: Tue, 30 Oct 2012 13:30:13 -0700
-Message-ID: <CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id A14A18D0003
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:04:19 -0400 (EDT)
+Date: Tue, 30 Oct 2012 14:04:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm: refactor reinsert of swap_info in sys_swapoff
+Message-Id: <20121030140417.988c2437.akpm@linux-foundation.org>
+In-Reply-To: <1351372847-13625-2-git-send-email-cesarb@cesarb.net>
+References: <1351372847-13625-1-git-send-email-cesarb@cesarb.net>
+	<1351372847-13625-2-git-send-email-cesarb@cesarb.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Oct 30, 2012 at 12:12 PM, Luigi Semenzato <semenzato@google.com> wrote:
+On Sat, 27 Oct 2012 19:20:46 -0200
+Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
 
-> OK, now someone is going to fix this, right? :-)
+> The block within sys_swapoff which re-inserts the swap_info into the
+> swap_list in case of failure of try_to_unuse() reads a few values outside
+> the swap_lock. While this is safe at that point, it is subtle code.
+> 
+> Simplify the code by moving the reading of these values to a separate
+> function, refactoring it a bit so they are read from within the
+> swap_lock. This is easier to understand, and matches better the way it
+> worked before I unified the insertion of the swap_info from both
+> sys_swapon and sys_swapoff.
+> 
+> This change should make no functional difference. The only real change
+> is moving the read of two or three structure fields to within the lock
+> (frontswap_map_get() is nothing more than a read of p->frontswap_map).
 
-Actually, there is a very simple fix:
+Your patch doesn't change this, but...  it is very unusual for any
+subsystem's ->init method to be called under a spinlock.  Because it is
+highly likely that such a method will wish to do things such as memory
+allocation.
 
-@@ -355,14 +364,6 @@ static struct task_struct
-*select_bad_process(unsigned int *ppoints,
-                        if (p == current) {
-                                chosen = p;
-                                *ppoints = 1000;
--                       } else if (!force_kill) {
--                               /*
--                                * If this task is not being ptraced on exit,
--                                * then wait for it to finish before killing
--                                * some other task unnecessarily.
--                                */
--                               if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
--                                       return ERR_PTR(-1UL);
-                        }
-                }
+It is rare and unlikely for an ->init() method to *need* such external
+locking, because all the objects it is dealing with cannot be looked up
+by other threads because nothing has been registered anywhere yet.
 
-I'd rather kill some other task unnecessarily than hang!  My load
-works fine with this change.
+So either frontswap is doing something wrong here or there's some
+subtlety which escapes me.  If the former then we should try to get
+that ->init call to happen outside swap_lock.
+
+And if we can do that, perhaps we can fix the regrettable GFP_ATOMIC
+in zcache_new_pool().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
