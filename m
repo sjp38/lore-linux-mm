@@ -1,54 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id A14A18D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:04:19 -0400 (EDT)
-Date: Tue, 30 Oct 2012 14:04:17 -0700
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 978A38D0008
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:31:09 -0400 (EDT)
+Date: Tue, 30 Oct 2012 14:31:07 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: refactor reinsert of swap_info in sys_swapoff
-Message-Id: <20121030140417.988c2437.akpm@linux-foundation.org>
-In-Reply-To: <1351372847-13625-2-git-send-email-cesarb@cesarb.net>
-References: <1351372847-13625-1-git-send-email-cesarb@cesarb.net>
-	<1351372847-13625-2-git-send-email-cesarb@cesarb.net>
+Subject: Re: [PATCH 2/5] mm, highmem: remove useless pool_lock
+Message-Id: <20121030143107.ee1f959b.akpm@linux-foundation.org>
+In-Reply-To: <1351451576-2611-3-git-send-email-js1304@gmail.com>
+References: <Yes>
+	<1351451576-2611-1-git-send-email-js1304@gmail.com>
+	<1351451576-2611-3-git-send-email-js1304@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, 27 Oct 2012 19:20:46 -0200
-Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
+On Mon, 29 Oct 2012 04:12:53 +0900
+Joonsoo Kim <js1304@gmail.com> wrote:
 
-> The block within sys_swapoff which re-inserts the swap_info into the
-> swap_list in case of failure of try_to_unuse() reads a few values outside
-> the swap_lock. While this is safe at that point, it is subtle code.
-> 
-> Simplify the code by moving the reading of these values to a separate
-> function, refactoring it a bit so they are read from within the
-> swap_lock. This is easier to understand, and matches better the way it
-> worked before I unified the insertion of the swap_info from both
-> sys_swapon and sys_swapoff.
-> 
-> This change should make no functional difference. The only real change
-> is moving the read of two or three structure fields to within the lock
-> (frontswap_map_get() is nothing more than a read of p->frontswap_map).
+> The pool_lock protects the page_address_pool from concurrent access.
+> But, access to the page_address_pool is already protected by kmap_lock.
+> So remove it.
 
-Your patch doesn't change this, but...  it is very unusual for any
-subsystem's ->init method to be called under a spinlock.  Because it is
-highly likely that such a method will wish to do things such as memory
-allocation.
+Well, there's a set_page_address() call in mm/page_alloc.c which
+doesn't have lock_kmap().  it doesn't *need* lock_kmap() because it's
+init-time code and we're running single-threaded there.  I hope!
 
-It is rare and unlikely for an ->init() method to *need* such external
-locking, because all the objects it is dealing with cannot be looked up
-by other threads because nothing has been registered anywhere yet.
+But this exception should be double-checked and mentioned in the
+changelog, please.  And it's a reason why we can't add
+assert_spin_locked(&kmap_lock) to set_page_address(), which is
+unfortunate.
 
-So either frontswap is doing something wrong here or there's some
-subtlety which escapes me.  If the former then we should try to get
-that ->init call to happen outside swap_lock.
 
-And if we can do that, perhaps we can fix the regrettable GFP_ATOMIC
-in zcache_new_pool().
+The irq-disabling in this code is odd.  If ARCH_NEEDS_KMAP_HIGH_GET=n,
+we didn't need irq-safe locking in set_page_address().  I guess we'll
+need to retain it in page_address() - I expect some callers have IRQs
+disabled.
+
+
+ARCH_NEEDS_KMAP_HIGH_GET is a nasty looking thing.  It's ARM:
+
+/*
+ * The reason for kmap_high_get() is to ensure that the currently kmap'd
+ * page usage count does not decrease to zero while we're using its
+ * existing virtual mapping in an atomic context.  With a VIVT cache this
+ * is essential to do, but with a VIPT cache this is only an optimization
+ * so not to pay the price of establishing a second mapping if an existing
+ * one can be used.  However, on platforms without hardware TLB maintenance
+ * broadcast, we simply cannot use ARCH_NEEDS_KMAP_HIGH_GET at all since
+ * the locking involved must also disable IRQs which is incompatible with
+ * the IPI mechanism used by global TLB operations.
+ */
+#define ARCH_NEEDS_KMAP_HIGH_GET
+#if defined(CONFIG_SMP) && defined(CONFIG_CPU_TLB_V6)
+#undef ARCH_NEEDS_KMAP_HIGH_GET
+#if defined(CONFIG_HIGHMEM) && defined(CONFIG_CPU_CACHE_VIVT)
+#error "The sum of features in your kernel config cannot be supported together"
+#endif
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
