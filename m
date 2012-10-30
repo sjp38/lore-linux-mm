@@ -1,40 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 2A4A96B0068
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 18:32:37 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id c4so2993582qae.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:32:36 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 54AA76B0070
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 18:38:13 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so699477qcq.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:38:12 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
-References: <20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-	<CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
-Date: Tue, 30 Oct 2012 15:32:36 -0700
-Message-ID: <CAA25o9S6eXGVb6wG7Pt7Tm6tMb4+aOg9tVtx04YbUUyJzgOkNw@mail.gmail.com>
+References: <20121015144412.GA2173@barrios> <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
+ <20121016061854.GB3934@barrios> <CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
+ <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
+ <20121022235321.GK13817@bbox> <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+ <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+ <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+ <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+ <20121030001809.GL15767@bbox> <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+ <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+ <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com> <CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
+From: Sonny Rao <sonnyrao@google.com>
+Date: Tue, 30 Oct 2012 15:37:51 -0700
+Message-ID: <CAPz6YkUC3p0h0N+gqFctiLXmsPBAbC8P35DmNQXPSU_117Jk4A@mail.gmail.com>
 Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 On Tue, Oct 30, 2012 at 1:30 PM, Luigi Semenzato <semenzato@google.com> wrote:
+>
 > On Tue, Oct 30, 2012 at 12:12 PM, Luigi Semenzato <semenzato@google.com> wrote:
 >
->> OK, now someone is going to fix this, right? :-)
+> > OK, now someone is going to fix this, right? :-)
 >
 > Actually, there is a very simple fix:
 >
@@ -57,15 +53,17 @@ On Tue, Oct 30, 2012 at 1:30 PM, Luigi Semenzato <semenzato@google.com> wrote:
 > I'd rather kill some other task unnecessarily than hang!  My load
 > works fine with this change.
 
-For completeness, I would like to report that the page fault in
-mm_release looks legitimate.  The fault happens near here:
+It also appears that we didn't kill any unnecessary tasks either.
 
-if (unlikely(tsk->robust_list)) {
-    exit_robust_list(tsk);
-    tsk->robust_list = NULL;
-}
+It's just a deadlock
+exiting process A encounters a page fault and has to allocate some
+memory and goes to sleep
+process B which is running the OOM Killer blocks on exiting process
+and process A blocks forever on memory while process B blocks on A,
+and therefore no memory is released
 
-and robust_list is a userspace structure.
+IMO, the fact that we don't do this when the process is being ptraced
+also seems to justify that it's a valid thing to do in all cases.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
