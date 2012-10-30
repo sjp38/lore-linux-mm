@@ -1,59 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 975106B0062
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:19:51 -0400 (EDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Tue, 30 Oct 2012 09:19:50 -0600
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 4ECE83E4006D
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:45 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9UFJhuv152902
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:44 -0600
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9UFJc0E010205
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:39 -0600
-Message-ID: <508FEECE.2070402@linux.vnet.ibm.com>
-Date: Tue, 30 Oct 2012 08:14:22 -0700
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
-References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com> <20121008151656.GM29125@suse.de> <1349794597.29752.10.camel@MikesLinux.fc.hp.com> <1350676398.1169.6.camel@MikesLinux.fc.hp.com> <20121020082858.GA2698@suse.de>
-In-Reply-To: <20121020082858.GA2698@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 3C7556B0068
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:28:24 -0400 (EDT)
+Date: Tue, 30 Oct 2012 08:28:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/31] numa/core patches
+Message-Id: <20121030082810.b9576441.akpm@linux-foundation.org>
+In-Reply-To: <20121030122032.GC3888@suse.de>
+References: <20121025121617.617683848@chello.nl>
+	<20121030122032.GC3888@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: Mike Yoknis <mike.yoknis@hp.com>, mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 10/20/2012 01:29 AM, Mel Gorman wrote:
-> I'm travelling at the moment so apologies that I have not followed up on
-> this. My problem is still the same with the patch - it changes more
-> headers than is necessary and it is sparsemem specific. At minimum, try
-> the suggestion of 
-> 
-> if (!early_pfn_valid(pfn)) {
->       pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
->       continue;
-> }
 
-Sorry I didn't catch this until v2...
+On Tue, 30 Oct 2012 12:20:32 +0000 Mel Gorman <mgorman@suse.de> wrote:
 
-Is that ALIGN() correct?  If pfn=3, then it would expand to:
+> ...
 
-(3+MAX_ORDER_NR_PAGES+MAX_ORDER_NR_PAGES-1) & ~(MAX_ORDER_NR_PAGES-1)
+Useful testing - thanks.  Did I miss the description of what
+autonumabench actually does?  How representitive is it of real-world
+things?
 
-You would end up skipping the current MAX_ORDER_NR_PAGES area, and then
-one _extra_ because ALIGN() aligns up, and you're adding
-MAX_ORDER_NR_PAGES too.  It doesn't matter unless you run in to a
-!early_valid_pfn() in the middle of a MAX_ORDER area, I guess.
+> I also expect autonuma is continually scanning where as schednuma is
+> reacting to some other external event or at least less frequently scanning.
 
-I think this would work, plus be a bit smaller:
-
-	pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES) - 1;
+Might this imply that autonuma is consuming more CPU in kernel threads,
+the cost of which didn't get included in these results?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
