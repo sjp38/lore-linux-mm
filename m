@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 1D5F96B0085
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:48:25 -0400 (EDT)
+	by kanga.kvack.org (Postfix) with SMTP id 2214F6B0085
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:48:30 -0400 (EDT)
 Received: by mail-qc0-f169.google.com with SMTP id t2so524435qcq.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:48:24 -0700 (PDT)
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:48:29 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v8 15/16] openvswitch: use new hashtable implementation
-Date: Tue, 30 Oct 2012 14:46:11 -0400
-Message-Id: <1351622772-16400-15-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v8 16/16] tracing output: use new hashtable implementation
+Date: Tue, 30 Oct 2012 14:46:12 -0400
+Message-Id: <1351622772-16400-16-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,111 +15,77 @@ List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
 Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-Switch openvswitch to use the new hashtable implementation. This reduces the
-amount of generic unrelated code in openvswitch.
+Switch tracing to use the new hashtable implementation. This reduces the
+amount of generic unrelated code in the tracing module.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
- net/openvswitch/vport.c | 35 ++++++++++++-----------------------
- 1 file changed, 12 insertions(+), 23 deletions(-)
+ kernel/trace/trace_output.c | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/net/openvswitch/vport.c b/net/openvswitch/vport.c
-index 03779e8..20fdbd4 100644
---- a/net/openvswitch/vport.c
-+++ b/net/openvswitch/vport.c
-@@ -28,6 +28,7 @@
- #include <linux/rtnetlink.h>
- #include <linux/compat.h>
- #include <net/net_namespace.h>
+diff --git a/kernel/trace/trace_output.c b/kernel/trace/trace_output.c
+index 123b189..6af4879 100644
+--- a/kernel/trace/trace_output.c
++++ b/kernel/trace/trace_output.c
+@@ -8,15 +8,15 @@
+ #include <linux/module.h>
+ #include <linux/mutex.h>
+ #include <linux/ftrace.h>
 +#include <linux/hashtable.h>
  
- #include "datapath.h"
- #include "vport.h"
-@@ -41,8 +42,8 @@ static const struct vport_ops *vport_ops_list[] = {
- };
+ #include "trace_output.h"
  
- /* Protected by RCU read lock for reading, RTNL lock for writing. */
--static struct hlist_head *dev_table;
--#define VPORT_HASH_BUCKETS 1024
-+#define VPORT_HASH_BITS 10
-+static DEFINE_HASHTABLE(dev_table, VPORT_HASH_BITS);
+-/* must be a power of 2 */
+-#define EVENT_HASHSIZE	128
++#define EVENT_HASH_BITS	7
  
- /**
-  *	ovs_vport_init - initialize vport subsystem
-@@ -51,11 +52,6 @@ static struct hlist_head *dev_table;
-  */
- int ovs_vport_init(void)
+ DECLARE_RWSEM(trace_event_mutex);
+ 
+-static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
++static DEFINE_HASHTABLE(event_hash, EVENT_HASH_BITS);
+ 
+ static int next_event_type = __TRACE_LAST_TYPE + 1;
+ 
+@@ -712,11 +712,8 @@ struct trace_event *ftrace_find_event(int type)
  {
--	dev_table = kzalloc(VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
--			    GFP_KERNEL);
--	if (!dev_table)
--		return -ENOMEM;
+ 	struct trace_event *event;
+ 	struct hlist_node *n;
+-	unsigned key;
+ 
+-	key = type & (EVENT_HASHSIZE - 1);
 -
- 	return 0;
- }
- 
-@@ -66,13 +62,6 @@ int ovs_vport_init(void)
-  */
- void ovs_vport_exit(void)
- {
--	kfree(dev_table);
--}
--
--static struct hlist_head *hash_bucket(struct net *net, const char *name)
--{
--	unsigned int hash = jhash(name, strlen(name), (unsigned long) net);
--	return &dev_table[hash & (VPORT_HASH_BUCKETS - 1)];
- }
- 
- /**
-@@ -84,13 +73,12 @@ static struct hlist_head *hash_bucket(struct net *net, const char *name)
-  */
- struct vport *ovs_vport_locate(struct net *net, const char *name)
- {
--	struct hlist_head *bucket = hash_bucket(net, name);
- 	struct vport *vport;
- 	struct hlist_node *node;
-+	int key = full_name_hash(name, strlen(name));
- 
--	hlist_for_each_entry_rcu(vport, node, bucket, hash_node)
--		if (!strcmp(name, vport->ops->get_name(vport)) &&
--		    net_eq(ovs_dp_get_net(vport->dp), net))
-+	hash_for_each_possible_rcu(dev_table, vport, node, hash_node, key)
-+		if (!strcmp(name, vport->ops->get_name(vport)))
- 			return vport;
- 
- 	return NULL;
-@@ -174,7 +162,8 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
- 
- 	for (i = 0; i < ARRAY_SIZE(vport_ops_list); i++) {
- 		if (vport_ops_list[i]->type == parms->type) {
--			struct hlist_head *bucket;
-+			int key;
-+			const char *name;
- 
- 			vport = vport_ops_list[i]->create(parms);
- 			if (IS_ERR(vport)) {
-@@ -182,9 +171,9 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
- 				goto out;
- 			}
- 
--			bucket = hash_bucket(ovs_dp_get_net(vport->dp),
--					     vport->ops->get_name(vport));
--			hlist_add_head_rcu(&vport->hash_node, bucket);
-+			name = vport->ops->get_name(vport);
-+			key = full_name_hash(name, strlen(name));
-+			hash_add_rcu(dev_table, &vport->hash_node, key);
- 			return vport;
- 		}
+-	hlist_for_each_entry(event, n, &event_hash[key], node) {
++	hash_for_each_possible(event_hash, event, n, node, type) {
+ 		if (event->type == type)
+ 			return event;
  	}
-@@ -225,7 +214,7 @@ void ovs_vport_del(struct vport *vport)
+@@ -781,7 +778,6 @@ void trace_event_read_unlock(void)
+  */
+ int register_ftrace_event(struct trace_event *event)
  {
- 	ASSERT_RTNL();
+-	unsigned key;
+ 	int ret = 0;
  
--	hlist_del_rcu(&vport->hash_node);
-+	hash_del_rcu(&vport->hash_node);
+ 	down_write(&trace_event_mutex);
+@@ -833,9 +829,7 @@ int register_ftrace_event(struct trace_event *event)
+ 	if (event->funcs->binary == NULL)
+ 		event->funcs->binary = trace_nop_print;
  
- 	vport->ops->destroy(vport);
+-	key = event->type & (EVENT_HASHSIZE - 1);
+-
+-	hlist_add_head(&event->node, &event_hash[key]);
++	hash_add(event_hash, &event->node, event->type);
+ 
+ 	ret = event->type;
+  out:
+@@ -850,7 +844,7 @@ EXPORT_SYMBOL_GPL(register_ftrace_event);
+  */
+ int __unregister_ftrace_event(struct trace_event *event)
+ {
+-	hlist_del(&event->node);
++	hash_del(&event->node);
+ 	list_del(&event->list);
+ 	return 0;
  }
 -- 
 1.7.12.4
