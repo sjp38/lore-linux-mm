@@ -1,66 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 978A38D0008
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:31:09 -0400 (EDT)
-Date: Tue, 30 Oct 2012 14:31:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] mm, highmem: remove useless pool_lock
-Message-Id: <20121030143107.ee1f959b.akpm@linux-foundation.org>
-In-Reply-To: <1351451576-2611-3-git-send-email-js1304@gmail.com>
-References: <Yes>
-	<1351451576-2611-1-git-send-email-js1304@gmail.com>
-	<1351451576-2611-3-git-send-email-js1304@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id B2EBC8D0003
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:43:03 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so338506dad.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:43:03 -0700 (PDT)
+Date: Tue, 30 Oct 2012 14:42:57 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
+Message-ID: <20121030214257.GB2681@htj.dyndns.org>
+References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, 29 Oct 2012 04:12:53 +0900
-Joonsoo Kim <js1304@gmail.com> wrote:
+Hello,
 
-> The pool_lock protects the page_address_pool from concurrent access.
-> But, access to the page_address_pool is already protected by kmap_lock.
-> So remove it.
+Just some nitpicks.
 
-Well, there's a set_page_address() call in mm/page_alloc.c which
-doesn't have lock_kmap().  it doesn't *need* lock_kmap() because it's
-init-time code and we're running single-threaded there.  I hope!
+On Tue, Oct 30, 2012 at 02:45:57PM -0400, Sasha Levin wrote:
+> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
+> +#define hash_min(val, bits)							\
+> +({										\
+> +	sizeof(val) <= 4 ?							\
+> +	hash_32(val, bits) :							\
+> +	hash_long(val, bits);							\
+> +})
 
-But this exception should be double-checked and mentioned in the
-changelog, please.  And it's a reason why we can't add
-assert_spin_locked(&kmap_lock) to set_page_address(), which is
-unfortunate.
+Doesn't the above fit in 80 column.  Why is it broken into multiple
+lines?  Also, you probably want () around at least @val.  In general,
+it's a good idea to add () around any macro argument to avoid nasty
+surprises.
 
+Looks good to me otherwise.
 
-The irq-disabling in this code is odd.  If ARCH_NEEDS_KMAP_HIGH_GET=n,
-we didn't need irq-safe locking in set_page_address().  I guess we'll
-need to retain it in page_address() - I expect some callers have IRQs
-disabled.
+ Reviewed-by: Tejun Heo <tj@kernel.org>
 
+Thanks.
 
-ARCH_NEEDS_KMAP_HIGH_GET is a nasty looking thing.  It's ARM:
-
-/*
- * The reason for kmap_high_get() is to ensure that the currently kmap'd
- * page usage count does not decrease to zero while we're using its
- * existing virtual mapping in an atomic context.  With a VIVT cache this
- * is essential to do, but with a VIPT cache this is only an optimization
- * so not to pay the price of establishing a second mapping if an existing
- * one can be used.  However, on platforms without hardware TLB maintenance
- * broadcast, we simply cannot use ARCH_NEEDS_KMAP_HIGH_GET at all since
- * the locking involved must also disable IRQs which is incompatible with
- * the IPI mechanism used by global TLB operations.
- */
-#define ARCH_NEEDS_KMAP_HIGH_GET
-#if defined(CONFIG_SMP) && defined(CONFIG_CPU_TLB_V6)
-#undef ARCH_NEEDS_KMAP_HIGH_GET
-#if defined(CONFIG_HIGHMEM) && defined(CONFIG_CPU_CACHE_VIVT)
-#error "The sum of features in your kernel config cannot be supported together"
-#endif
-#endif
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
