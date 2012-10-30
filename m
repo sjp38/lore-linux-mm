@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id EB62C6B0078
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:47:34 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so524435qcq.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:47:34 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id C15226B007B
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:47:40 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id c4so2843445qae.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:47:39 -0700 (PDT)
 From: Sasha Levin <levinsasha928@gmail.com>
-Subject: [PATCH v8 07/16] net,9p: use new hashtable implementation
-Date: Tue, 30 Oct 2012 14:46:03 -0400
-Message-Id: <1351622772-16400-7-git-send-email-levinsasha928@gmail.com>
+Subject: [PATCH v8 08/16] block,elevator: use new hashtable implementation
+Date: Tue, 30 Oct 2012 14:46:04 -0400
+Message-Id: <1351622772-16400-8-git-send-email-levinsasha928@gmail.com>
 In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,76 +15,143 @@ List-ID: <linux-mm.kvack.org>
 To: torvalds@linux-foundation.org
 Cc: tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com, Sasha Levin <levinsasha928@gmail.com>
 
-Switch 9p error table to use the new hashtable implementation. This reduces
-the amount of generic unrelated code in 9p.
+Switch elevator to use the new hashtable implementation. This reduces the
+amount of generic unrelated code in the elevator.
+
+This also removes the dymanic allocation of the hash table. The size of the table is
+constant so there's no point in paying the price of an extra dereference when accessing
+it.
 
 Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
 ---
- net/9p/error.c | 21 +++++++++------------
- 1 file changed, 9 insertions(+), 12 deletions(-)
+ block/blk.h              |  2 +-
+ block/elevator.c         | 23 ++++-------------------
+ include/linux/elevator.h |  5 ++++-
+ 3 files changed, 9 insertions(+), 21 deletions(-)
 
-diff --git a/net/9p/error.c b/net/9p/error.c
-index 2ab2de7..a394b37 100644
---- a/net/9p/error.c
-+++ b/net/9p/error.c
-@@ -34,6 +34,7 @@
- #include <linux/jhash.h>
- #include <linux/errno.h>
- #include <net/9p/9p.h>
+diff --git a/block/blk.h b/block/blk.h
+index ca51543..a0abbf6 100644
+--- a/block/blk.h
++++ b/block/blk.h
+@@ -61,7 +61,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
+ /*
+  * Internal elevator interface
+  */
+-#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
++#define ELV_ON_HASH(rq) hash_hashed(&(rq)->hash)
+ 
+ void blk_insert_flush(struct request *rq);
+ void blk_abort_flushes(struct request_queue *q);
+diff --git a/block/elevator.c b/block/elevator.c
+index 9b1d42b..898d0eb 100644
+--- a/block/elevator.c
++++ b/block/elevator.c
+@@ -46,11 +46,6 @@ static LIST_HEAD(elv_list);
+ /*
+  * Merge hash stuff.
+  */
+-static const int elv_hash_shift = 6;
+-#define ELV_HASH_BLOCK(sec)	((sec) >> 3)
+-#define ELV_HASH_FN(sec)	\
+-		(hash_long(ELV_HASH_BLOCK((sec)), elv_hash_shift))
+-#define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
+ #define rq_hash_key(rq)		(blk_rq_pos(rq) + blk_rq_sectors(rq))
+ 
+ /*
+@@ -142,7 +137,6 @@ static struct elevator_queue *elevator_alloc(struct request_queue *q,
+ 				  struct elevator_type *e)
+ {
+ 	struct elevator_queue *eq;
+-	int i;
+ 
+ 	eq = kmalloc_node(sizeof(*eq), GFP_KERNEL | __GFP_ZERO, q->node);
+ 	if (unlikely(!eq))
+@@ -151,14 +145,7 @@ static struct elevator_queue *elevator_alloc(struct request_queue *q,
+ 	eq->type = e;
+ 	kobject_init(&eq->kobj, &elv_ktype);
+ 	mutex_init(&eq->sysfs_lock);
+-
+-	eq->hash = kmalloc_node(sizeof(struct hlist_head) * ELV_HASH_ENTRIES,
+-					GFP_KERNEL, q->node);
+-	if (!eq->hash)
+-		goto err;
+-
+-	for (i = 0; i < ELV_HASH_ENTRIES; i++)
+-		INIT_HLIST_HEAD(&eq->hash[i]);
++	hash_init(eq->hash);
+ 
+ 	return eq;
+ err:
+@@ -173,7 +160,6 @@ static void elevator_release(struct kobject *kobj)
+ 
+ 	e = container_of(kobj, struct elevator_queue, kobj);
+ 	elevator_put(e->type);
+-	kfree(e->hash);
+ 	kfree(e);
+ }
+ 
+@@ -240,7 +226,7 @@ EXPORT_SYMBOL(elevator_exit);
+ 
+ static inline void __elv_rqhash_del(struct request *rq)
+ {
+-	hlist_del_init(&rq->hash);
++	hash_del(&rq->hash);
+ }
+ 
+ static void elv_rqhash_del(struct request_queue *q, struct request *rq)
+@@ -254,7 +240,7 @@ static void elv_rqhash_add(struct request_queue *q, struct request *rq)
+ 	struct elevator_queue *e = q->elevator;
+ 
+ 	BUG_ON(ELV_ON_HASH(rq));
+-	hlist_add_head(&rq->hash, &e->hash[ELV_HASH_FN(rq_hash_key(rq))]);
++	hash_add(e->hash, &rq->hash, rq_hash_key(rq));
+ }
+ 
+ static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
+@@ -266,11 +252,10 @@ static void elv_rqhash_reposition(struct request_queue *q, struct request *rq)
+ static struct request *elv_rqhash_find(struct request_queue *q, sector_t offset)
+ {
+ 	struct elevator_queue *e = q->elevator;
+-	struct hlist_head *hash_list = &e->hash[ELV_HASH_FN(offset)];
+ 	struct hlist_node *entry, *next;
+ 	struct request *rq;
+ 
+-	hlist_for_each_entry_safe(rq, entry, next, hash_list, hash) {
++	hash_for_each_possible_safe(e->hash, rq, entry, next, hash, offset) {
+ 		BUG_ON(!ELV_ON_HASH(rq));
+ 
+ 		if (unlikely(!rq_mergeable(rq))) {
+diff --git a/include/linux/elevator.h b/include/linux/elevator.h
+index c03af76..7c5a7c9 100644
+--- a/include/linux/elevator.h
++++ b/include/linux/elevator.h
+@@ -2,6 +2,7 @@
+ #define _LINUX_ELEVATOR_H
+ 
+ #include <linux/percpu.h>
 +#include <linux/hashtable.h>
  
- /**
-  * struct errormap - map string errors from Plan 9 to Linux numeric ids
-@@ -50,8 +51,8 @@ struct errormap {
- 	struct hlist_node list;
+ #ifdef CONFIG_BLOCK
+ 
+@@ -96,6 +97,8 @@ struct elevator_type
+ 	struct list_head list;
  };
  
--#define ERRHASHSZ		32
--static struct hlist_head hash_errmap[ERRHASHSZ];
-+#define ERR_HASH_BITS 5
-+static DEFINE_HASHTABLE(hash_errmap, ERR_HASH_BITS);
++#define ELV_HASH_BITS 6
++
+ /*
+  * each queue has an elevator_queue associated with it
+  */
+@@ -105,8 +108,8 @@ struct elevator_queue
+ 	void *elevator_data;
+ 	struct kobject kobj;
+ 	struct mutex sysfs_lock;
+-	struct hlist_head *hash;
+ 	unsigned int registered:1;
++	DECLARE_HASHTABLE(hash, ELV_HASH_BITS);
+ };
  
- /* FixMe - reduce to a reasonable size */
- static struct errormap errmap[] = {
-@@ -193,18 +194,14 @@ static struct errormap errmap[] = {
- int p9_error_init(void)
- {
- 	struct errormap *c;
--	int bucket;
--
--	/* initialize hash table */
--	for (bucket = 0; bucket < ERRHASHSZ; bucket++)
--		INIT_HLIST_HEAD(&hash_errmap[bucket]);
-+	u32 hash;
- 
- 	/* load initial error map into hash table */
- 	for (c = errmap; c->name != NULL; c++) {
- 		c->namelen = strlen(c->name);
--		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
-+		hash = jhash(c->name, c->namelen, 0);
- 		INIT_HLIST_NODE(&c->list);
--		hlist_add_head(&c->list, &hash_errmap[bucket]);
-+		hash_add(hash_errmap, &c->list, hash);
- 	}
- 
- 	return 1;
-@@ -223,13 +220,13 @@ int p9_errstr2errno(char *errstr, int len)
- 	int errno;
- 	struct hlist_node *p;
- 	struct errormap *c;
--	int bucket;
-+	u32 hash;
- 
- 	errno = 0;
- 	p = NULL;
- 	c = NULL;
--	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
--	hlist_for_each_entry(c, p, &hash_errmap[bucket], list) {
-+	hash = jhash(errstr, len, 0);
-+	hash_for_each_possible(hash_errmap, c, p, list, hash) {
- 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
- 			errno = c->val;
- 			break;
+ /*
 -- 
 1.7.12.4
 
