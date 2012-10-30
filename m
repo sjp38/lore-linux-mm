@@ -1,160 +1,252 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 712D18D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:18:49 -0400 (EDT)
-Date: Tue, 30 Oct 2012 19:18:43 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: kswapd0: excessive CPU usage
-Message-ID: <20121030191843.GH3888@suse.de>
-References: <5076E700.2030909@suse.cz>
- <118079.1349978211@turing-police.cc.vt.edu>
- <50770905.5070904@suse.cz>
- <119175.1349979570@turing-police.cc.vt.edu>
- <5077434D.7080008@suse.cz>
- <50780F26.7070007@suse.cz>
- <20121012135726.GY29125@suse.de>
- <507BDD45.1070705@suse.cz>
- <20121015110937.GE29125@suse.de>
- <508E5FD3.1060105@leemhuis.info>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 6DE278D0003
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:19:13 -0400 (EDT)
+Date: Tue, 30 Oct 2012 15:19:09 -0400
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive
+	hashtable
+Message-ID: <20121030191909.GB9427@Krystal>
+References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <508E5FD3.1060105@leemhuis.info>
+In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Sasha Levin <levinsasha928@gmail.com>
+Cc: torvalds@linux-foundation.org, tj@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
-> Hi!
+* Sasha Levin (levinsasha928@gmail.com) wrote:
+> This hashtable implementation is using hlist buckets to provide a simple
+> hashtable to prevent it from getting reimplemented all over the kernel.
 > 
-> On 15.10.2012 13:09, Mel Gorman wrote:
-> >On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
-> >>On 10/12/2012 03:57 PM, Mel Gorman wrote:
-> >>>mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
-> >>>Jiri Slaby reported the following:
-> > [...]
-> >>>diff --git a/mm/vmscan.c b/mm/vmscan.c
-> >>>index 2624edc..2b7edfa 100644
-> >>>--- a/mm/vmscan.c
-> >>>+++ b/mm/vmscan.c
-> >>>@@ -1763,14 +1763,20 @@ static bool in_reclaim_compaction(struct scan_control *sc)
-> >>>  #ifdef CONFIG_COMPACTION
-> >>>  /*
-> >>>   * If compaction is deferred for sc->order then scale the number of pages
-> >>>- * reclaimed based on the number of consecutive allocation failures
-> >>>+ * reclaimed based on the number of consecutive allocation failures. This
-> >>>+ * scaling only happens for direct reclaim as it is about to attempt
-> >>>+ * compaction. If compaction fails, future allocations will be deferred
-> >>>+ * and reclaim avoided. On the other hand, kswapd does not take compaction
-> >>>+ * deferral into account so if it scaled, it could scan excessively even
-> >>>+ * though allocations are temporarily not being attempted.
-> >>>   */
-> >>>  static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-> >>>  			struct lruvec *lruvec, struct scan_control *sc)
-> >>>  {
-> >>>  	struct zone *zone = lruvec_zone(lruvec);
-> >>>
-> >>>-	if (zone->compact_order_failed <= sc->order)
-> >>>+	if (zone->compact_order_failed <= sc->order &&
-> >>>+	    !current_is_kswapd())
-> >>>  		pages_for_compaction <<= zone->compact_defer_shift;
-> >>>  	return pages_for_compaction;
-> >>>  }
-> >>Yes, applying this instead of the revert fixes the issue as well.
+> Signed-off-by: Sasha Levin <levinsasha928@gmail.com>
+
+Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+
+> ---
 > 
-> Just wondering, is there a reason why this patch wasn't applied to
-> mainline? Did it simply fall through the cracks? Or am I missing
-> something?
+> Changes from v8:
+> 
+>  - Addressed comments from Tejun Heo and Mathieu Desnoyers.
+> 
+> 
+>  include/linux/hashtable.h | 196 ++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 196 insertions(+)
+>  create mode 100644 include/linux/hashtable.h
+> 
+> diff --git a/include/linux/hashtable.h b/include/linux/hashtable.h
+> new file mode 100644
+> index 0000000..3c1a9cb
+> --- /dev/null
+> +++ b/include/linux/hashtable.h
+> @@ -0,0 +1,196 @@
+> +/*
+> + * Statically sized hash table implementation
+> + * (C) 2012  Sasha Levin <levinsasha928@gmail.com>
+> + */
+> +
+> +#ifndef _LINUX_HASHTABLE_H
+> +#define _LINUX_HASHTABLE_H
+> +
+> +#include <linux/list.h>
+> +#include <linux/types.h>
+> +#include <linux/kernel.h>
+> +#include <linux/hash.h>
+> +#include <linux/rculist.h>
+> +
+> +#define DEFINE_HASHTABLE(name, bits)						\
+> +	struct hlist_head name[1 << (bits)] =					\
+> +			{ [0 ... ((1 << (bits)) - 1)] = HLIST_HEAD_INIT }
+> +
+> +#define DECLARE_HASHTABLE(name, bits)                                   	\
+> +	struct hlist_head name[1 << (bits)]
+> +
+> +#define HASH_SIZE(name) (ARRAY_SIZE(name))
+> +#define HASH_BITS(name) ilog2(HASH_SIZE(name))
+> +
+> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
+> +#define hash_min(val, bits)							\
+> +({										\
+> +	sizeof(val) <= 4 ?							\
+> +	hash_32(val, bits) :							\
+> +	hash_long(val, bits);							\
+> +})
+> +
+> +static inline void __hash_init(struct hlist_head *ht, unsigned int sz)
+> +{
+> +	unsigned int i;
+> +
+> +	for (i = 0; i < sz; i++)
+> +		INIT_HLIST_HEAD(&ht[i]);
+> +}
+> +
+> +/**
+> + * hash_init - initialize a hash table
+> + * @hashtable: hashtable to be initialized
+> + *
+> + * Calculates the size of the hashtable from the given parameter, otherwise
+> + * same as hash_init_size.
+> + *
+> + * This has to be a macro since HASH_BITS() will not work on pointers since
+> + * it calculates the size during preprocessing.
+> + */
+> +#define hash_init(hashtable) __hash_init(hashtable, HASH_SIZE(hashtable))
+> +
+> +/**
+> + * hash_add - add an object to a hashtable
+> + * @hashtable: hashtable to add to
+> + * @node: the &struct hlist_node of the object to be added
+> + * @key: the key of the object to be added
+> + */
+> +#define hash_add(hashtable, node, key)						\
+> +	hlist_add_head(node, &hashtable[hash_min(key, HASH_BITS(hashtable))])
+> +
+> +/**
+> + * hash_add_rcu - add an object to a rcu enabled hashtable
+> + * @hashtable: hashtable to add to
+> + * @node: the &struct hlist_node of the object to be added
+> + * @key: the key of the object to be added
+> + */
+> +#define hash_add_rcu(hashtable, node, key)					\
+> +	hlist_add_head_rcu(node, &hashtable[hash_min(key, HASH_BITS(hashtable))])
+> +
+> +/**
+> + * hash_hashed - check whether an object is in any hashtable
+> + * @node: the &struct hlist_node of the object to be checked
+> + */
+> +static inline bool hash_hashed(struct hlist_node *node)
+> +{
+> +	return !hlist_unhashed(node);
+> +}
+> +
+> +static inline bool __hash_empty(struct hlist_head *ht, unsigned int sz)
+> +{
+> +	unsigned int i;
+> +
+> +	for (i = 0; i < sz; i++)
+> +		if (!hlist_empty(&ht[i]))
+> +			return false;
+> +
+> +	return true;
+> +}
+> +
+> +/**
+> + * hash_empty - check whether a hashtable is empty
+> + * @hashtable: hashtable to check
+> + *
+> + * This has to be a macro since HASH_BITS() will not work on pointers since
+> + * it calculates the size during preprocessing.
+> + */
+> +#define hash_empty(hashtable) __hash_empty(hashtable, HASH_SIZE(hashtable))
+> +
+> +/**
+> + * hash_del - remove an object from a hashtable
+> + * @node: &struct hlist_node of the object to remove
+> + */
+> +static inline void hash_del(struct hlist_node *node)
+> +{
+> +	hlist_del_init(node);
+> +}
+> +
+> +/**
+> + * hash_del_rcu - remove an object from a rcu enabled hashtable
+> + * @node: &struct hlist_node of the object to remove
+> + */
+> +static inline void hash_del_rcu(struct hlist_node *node)
+> +{
+> +	hlist_del_init_rcu(node);
+> +}
+> +
+> +/**
+> + * hash_for_each - iterate over a hashtable
+> + * @name: hashtable to iterate
+> + * @bkt: integer to use as bucket loop cursor
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @member: the name of the hlist_node within the struct
+> + */
+> +#define hash_for_each(name, bkt, node, obj, member)				\
+> +	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
+> +		hlist_for_each_entry(obj, node, &name[bkt], member)
+> +
+> +/**
+> + * hash_for_each_rcu - iterate over a rcu enabled hashtable
+> + * @name: hashtable to iterate
+> + * @bkt: integer to use as bucket loop cursor
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @member: the name of the hlist_node within the struct
+> + */
+> +#define hash_for_each_rcu(name, bkt, node, obj, member)				\
+> +	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
+> +		hlist_for_each_entry_rcu(obj, node, &name[bkt], member)
+> +
+> +/**
+> + * hash_for_each_safe - iterate over a hashtable safe against removal of
+> + * hash entry
+> + * @name: hashtable to iterate
+> + * @bkt: integer to use as bucket loop cursor
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @tmp: a &struct used for temporary storage
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @member: the name of the hlist_node within the struct
+> + */
+> +#define hash_for_each_safe(name, bkt, node, tmp, obj, member)			\
+> +	for ((bkt) = 0, node = NULL; node == NULL && (bkt) < HASH_SIZE(name); (bkt)++)\
+> +		hlist_for_each_entry_safe(obj, node, tmp, &name[bkt], member)
+> +
+> +/**
+> + * hash_for_each_possible - iterate over all possible objects hashing to the
+> + * same bucket
+> + * @name: hashtable to iterate
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @member: the name of the hlist_node within the struct
+> + * @key: the key of the objects to iterate over
+> + */
+> +#define hash_for_each_possible(name, obj, node, member, key)			\
+> +	hlist_for_each_entry(obj, node,	&name[hash_min(key, HASH_BITS(name))], member)
+> +
+> +/**
+> + * hash_for_each_possible_rcu - iterate over all possible objects hashing to the
+> + * same bucket in an rcu enabled hashtable
+> + * in a rcu enabled hashtable
+> + * @name: hashtable to iterate
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @member: the name of the hlist_node within the struct
+> + * @key: the key of the objects to iterate over
+> + */
+> +#define hash_for_each_possible_rcu(name, obj, node, member, key)		\
+> +	hlist_for_each_entry_rcu(obj, node, &name[hash_min(key, HASH_BITS(name))], member)
+> +
+> +/**
+> + * hash_for_each_possible_safe - iterate over all possible objects hashing to the
+> + * same bucket safe against removals
+> + * @name: hashtable to iterate
+> + * @obj: the type * to use as a loop cursor for each entry
+> + * @node: the &struct list_head to use as a loop cursor for each entry
+> + * @tmp: a &struct used for temporary storage
+> + * @member: the name of the hlist_node within the struct
+> + * @key: the key of the objects to iterate over
+> + */
+> +#define hash_for_each_possible_safe(name, obj, node, tmp, member, key)		\
+> +	hlist_for_each_entry_safe(obj, node, tmp,				\
+> +		&name[hash_min(key, HASH_BITS(name))], member)
+> +
+> +
+> +#endif
+> -- 
+> 1.7.12.4
 > 
 
-It's because a problem was reported related to the patch (off-list,
-whoops). I'm waiting to hear if a second patch fixes the problem or not.
-
-> I'm asking because I think I stil see the issue on
-> 3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
-> hitting it, too:
-> https://bugzilla.redhat.com/show_bug.cgi?id=866988
-> 
-
-I like the steps to reproduce. Is step 3 profit?
-
-> Or are we seeing something different which just looks similar?  I can
-> test the patch if it needs further testing, but from the discussion
-> I got the impression that everything is clear and the patch ready
-> for merging.
-
-It could be the same issue. Can you test with the "mm: vmscan: scale
-number of pages reclaimed by reclaim/compaction only in direct reclaim"
-patch and the following on top please?
-
-Thanks.
-
----8<---
-mm: page_alloc: Do not wake kswapd if the request is for THP but deferred
-
-Since commit c6543459 (mm: remove __GFP_NO_KSWAPD), kswapd gets woken
-for every THP request in the slow path. If compaction has been deferred
-the waker will not compact or enter direct reclaim on its own behalf
-but kswapd is still woken to reclaim free pages that no one may consume.
-If compaction was deferred because pages and slab was not reclaimable
-then kswapd is just consuming cycles for no gain.
-
-This patch avoids waking kswapd if the compaction has been deferred.
-It'll still wake when compaction is running to reduce the latency of
-THP allocations.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c |   21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index bb90971..e72674c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2378,6 +2378,15 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
- }
- 
-+/* Returns true if the allocation is likely for THP */
-+static bool is_thp_alloc(gfp_t gfp_mask, unsigned int order)
-+{
-+	if (order == pageblock_order &&
-+	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
-+		return true;
-+	return false;
-+}
-+
- static inline struct page *
- __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
-@@ -2416,7 +2425,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto nopage;
- 
- restart:
--	wake_all_kswapd(order, zonelist, high_zoneidx,
-+	/*
-+	 * kswapd is woken except when this is a THP request and compaction
-+	 * is deferred. If we are backing off reclaim/compaction then kswapd
-+	 * should not be awake aggressively reclaiming with no consumers of
-+	 * the freed pages
-+	 */
-+	if (!(is_thp_alloc(gfp_mask, order) &&
-+	      compaction_deferred(preferred_zone, order)))
-+		wake_all_kswapd(order, zonelist, high_zoneidx,
- 					zone_idx(preferred_zone));
- 
- 	/*
-@@ -2494,7 +2511,7 @@ rebalance:
- 	 * system then fail the allocation instead of entering direct reclaim.
- 	 */
- 	if ((deferred_compaction || contended_compaction) &&
--	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
-+	    is_thp_alloc(gfp_mask, order))
- 		goto nopage;
- 
- 	/* Try direct reclaim and then allocating */
+-- 
+Mathieu Desnoyers
+Operating System Efficiency R&D Consultant
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
