@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 8A3316B0069
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:56:48 -0400 (EDT)
-Date: Tue, 30 Oct 2012 13:56:40 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: spinning in isolate_migratepages_range on busy nfs server
-Message-ID: <20121030135640.GD3888@suse.de>
-References: <20121025164722.GE6846@fieldses.org>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 975106B0062
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:19:51 -0400 (EDT)
+Received: from /spool/local
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 30 Oct 2012 09:19:50 -0600
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 4ECE83E4006D
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:45 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id q9UFJhuv152902
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:44 -0600
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id q9UFJc0E010205
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 09:19:39 -0600
+Message-ID: <508FEECE.2070402@linux.vnet.ibm.com>
+Date: Tue, 30 Oct 2012 08:14:22 -0700
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121025164722.GE6846@fieldses.org>
+Subject: Re: [PATCH] mm: memmap_init_zone() performance improvement
+References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com> <20121008151656.GM29125@suse.de> <1349794597.29752.10.camel@MikesLinux.fc.hp.com> <1350676398.1169.6.camel@MikesLinux.fc.hp.com> <20121020082858.GA2698@suse.de>
+In-Reply-To: <20121020082858.GA2698@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, bmarson@redhat.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Mike Yoknis <mike.yoknis@hp.com>, mingo@redhat.com, akpm@linux-foundation.org, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Oct 25, 2012 at 12:47:22PM -0400, J. Bruce Fields wrote:
-> We're seeing an nfs server on a 3.6-ish kernel lock up after running
-> specfs for a while.
+On 10/20/2012 01:29 AM, Mel Gorman wrote:
+> I'm travelling at the moment so apologies that I have not followed up on
+> this. My problem is still the same with the patch - it changes more
+> headers than is necessary and it is sparsemem specific. At minimum, try
+> the suggestion of 
 > 
-> Looking at the logs, there are some hung task warnings showing nfsd
-> threads stuck on directory i_mutexes trying to do lookups.
-> 
-> A sysrq-t dump showed there were also lots of threads holding those
-> i_mutexes while trying to allocate xfs inodes:
-> 
->  	nfsd            R running task        0  6517      2 0x00000080
->  	 ffff880f925074c0 0000000000000046 ffff880fe4718000 ffff880f92507fd8
->  	 ffff880f92507fd8 ffff880f92507fd8 ffff880fd7920000 ffff880fe4718000
->  	 0000000000000000 ffff880f92506000 ffff88102ffd96c0 ffff88102ffd9b40
->  	Call Trace:
->  	[<ffffffff81091aaa>] __cond_resched+0x2a/0x40
->  	[<ffffffff815d3750>] _cond_resched+0x30/0x40
->  	[<ffffffff81150e92>] isolate_migratepages_range+0xb2/0x550
-> <SNIP>
->
-> And perf --call-graph also shows we're spending all our time in the same
-> place, spinning on a lock (zone->lru_lock, I assume):
-> 
->  -  92.65%           nfsd  [kernel.kallsyms]  [k] _raw_spin_lock_irqsave
->     - _raw_spin_lock_irqsave
->        - 99.86% isolate_migratepages_range
-> 
-> Just grepping through logs, I ran across 2a1402aa04 "mm: compaction:
-> acquire the zone->lru_lock as late as possible", in v3.7-rc1, which
-> looks relevant:
-> 
-> 	Richard Davies and Shaohua Li have both reported lock contention
-> 	problems in compaction on the zone and LRU locks as well as
-> 	significant amounts of time being spent in compaction.  This
-> 	series aims to reduce lock contention and scanning rates to
-> 	reduce that CPU usage.  Richard reported at
-> 	https://lkml.org/lkml/2012/9/21/91 that this series made a big
-> 	different to a problem he reported in August:
-> 			        
-> 		http://marc.info/?l=kvm&m=134511507015614&w=2
-> 
-> So we're trying that.  Is there anything else we should try?
-> 
+> if (!early_pfn_valid(pfn)) {
+>       pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES, MAX_ORDER_NR_PAGES) - 1;
+>       continue;
+> }
 
-Sorry for the long delay in getting back, I was travelling. All the
-related commits would ideally be tested. They are
+Sorry I didn't catch this until v2...
 
-e64c5237cf6ff474cb2f3f832f48f2b441dd9979 mm: compaction: abort compaction loop if lock is contended or run too long
-3cc668f4e30fbd97b3c0574d8cac7a83903c9bc7 mm: compaction: move fatal signal check out of compact_checklock_irqsave
-661c4cb9b829110cb68c18ea05a56be39f75a4d2 mm: compaction: Update try_to_compact_pages()kerneldoc comment
-2a1402aa044b55c2d30ab0ed9405693ef06fb07c mm: compaction: acquire the zone->lru_lock as late as possible
-f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e mm: compaction: acquire the zone->lock as late as possible
-753341a4b85ff337487b9959c71c529f522004f4 revert "mm: have order > 0 compaction start off where it left"
-bb13ffeb9f6bfeb301443994dfbf29f91117dfb3 mm: compaction: cache if a pageblock was scanned and no pages were isolated
-c89511ab2f8fe2b47585e60da8af7fd213ec877e mm: compaction: Restart compaction from near where it left off
-62997027ca5b3d4618198ed8b1aba40b61b1137b mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
-0db63d7e25f96e2c6da925c002badf6f144ddf30 mm: compaction: correct the nr_strict va isolated check for CMA
+Is that ALIGN() correct?  If pfn=3, then it would expand to:
 
-Thanks very much.
+(3+MAX_ORDER_NR_PAGES+MAX_ORDER_NR_PAGES-1) & ~(MAX_ORDER_NR_PAGES-1)
 
--- 
-Mel Gorman
-SUSE Labs
+You would end up skipping the current MAX_ORDER_NR_PAGES area, and then
+one _extra_ because ALIGN() aligns up, and you're adding
+MAX_ORDER_NR_PAGES too.  It doesn't matter unless you run in to a
+!early_valid_pfn() in the middle of a MAX_ORDER area, I guess.
+
+I think this would work, plus be a bit smaller:
+
+	pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES) - 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
