@@ -1,36 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 3C7556B0068
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:28:24 -0400 (EDT)
-Date: Tue, 30 Oct 2012 08:28:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 00/31] numa/core patches
-Message-Id: <20121030082810.b9576441.akpm@linux-foundation.org>
-In-Reply-To: <20121030122032.GC3888@suse.de>
-References: <20121025121617.617683848@chello.nl>
-	<20121030122032.GC3888@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 8159D6B006C
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 11:29:20 -0400 (EDT)
+Date: Tue, 30 Oct 2012 15:29:17 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Use the correct per cpu slab on CPU_DEAD
+In-Reply-To: <alpine.LFD.2.02.1210272117060.2756@ionos>
+Message-ID: <0000013ab24a800e-75ac1059-9697-42ed-b64a-7ba0d6223fba-000000@email.amazonses.com>
+References: <alpine.LFD.2.02.1210272117060.2756@ionos>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+
+On Sat, 27 Oct 2012, Thomas Gleixner wrote:
+
+> Correct this by extending the arguments of unfreeze_partials with the
+> target cpu number and use per_cpu_ptr instead of this_cpu_ptr.
+
+Passing the kmem_cache_cpu pointer instead simplifies this a bit and avoid
+a per_cpu_ptr operations. That reduces code somewhat and results in no
+additional operations for the fast path.
 
 
-On Tue, 30 Oct 2012 12:20:32 +0000 Mel Gorman <mgorman@suse.de> wrote:
+Subject: Use correct cpu_slab on dead cpu
 
-> ...
+Pass a kmem_cache_cpu pointer into unfreeze partials so that a different
+kmem_cache_cpu structure than the local one can be specified.
 
-Useful testing - thanks.  Did I miss the description of what
-autonumabench actually does?  How representitive is it of real-world
-things?
+Reported-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-> I also expect autonuma is continually scanning where as schednuma is
-> reacting to some other external event or at least less frequently scanning.
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-10-30 10:23:33.040649727 -0500
++++ linux/mm/slub.c	2012-10-30 10:25:03.401312250 -0500
+@@ -1874,10 +1874,10 @@ redo:
+  *
+  * This function must be called with interrupt disabled.
+  */
+-static void unfreeze_partials(struct kmem_cache *s)
++static void unfreeze_partials(struct kmem_cache *s,
++		struct kmem_cache_cpu *c)
+ {
+ 	struct kmem_cache_node *n = NULL, *n2 = NULL;
+-	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
+ 	struct page *page, *discard_page = NULL;
 
-Might this imply that autonuma is consuming more CPU in kernel threads,
-the cost of which didn't get included in these results?
+ 	while ((page = c->partial)) {
+@@ -1963,7 +1963,7 @@ static int put_cpu_partial(struct kmem_c
+ 				 * set to the per node partial list.
+ 				 */
+ 				local_irq_save(flags);
+-				unfreeze_partials(s);
++				unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
+ 				local_irq_restore(flags);
+ 				oldpage = NULL;
+ 				pobjects = 0;
+@@ -2006,7 +2006,7 @@ static inline void __flush_cpu_slab(stru
+ 		if (c->page)
+ 			flush_slab(s, c);
+
+-		unfreeze_partials(s);
++		unfreeze_partials(s, c);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
