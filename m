@@ -1,49 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id B2EBC8D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:43:03 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so338506dad.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 14:43:03 -0700 (PDT)
-Date: Tue, 30 Oct 2012 14:42:57 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
-Message-ID: <20121030214257.GB2681@htj.dyndns.org>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 4B2A76B0062
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 18:31:59 -0400 (EDT)
+Date: Tue, 30 Oct 2012 15:31:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: memmap_init_zone() performance improvement
+Message-Id: <20121030153157.70279408.akpm@linux-foundation.org>
+In-Reply-To: <1351291667.6504.13.camel@MikesLinux.fc.hp.com>
+References: <1349276174-8398-1-git-send-email-mike.yoknis@hp.com>
+	<20121008151656.GM29125@suse.de>
+	<1349794597.29752.10.camel@MikesLinux.fc.hp.com>
+	<1350676398.1169.6.camel@MikesLinux.fc.hp.com>
+	<20121020082858.GA2698@suse.de>
+	<1351093667.1205.11.camel@MikesLinux.fc.hp.com>
+	<20121025094410.GA2558@suse.de>
+	<1351291667.6504.13.camel@MikesLinux.fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: mike.yoknis@hp.com
+Cc: Mel Gorman <mgorman@suse.de>, mingo@redhat.com, linux-arch@vger.kernel.org, mmarek@suse.cz, tglx@linutronix.de, hpa@zytor.com, arnd@arndb.de, sam@ravnborg.org, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+On Fri, 26 Oct 2012 16:47:47 -0600
+Mike Yoknis <mike.yoknis@hp.com> wrote:
 
-Just some nitpicks.
+> memmap_init_zone() loops through every Page Frame Number (pfn),
+> including pfn values that are within the gaps between existing
+> memory sections.  The unneeded looping will become a boot
+> performance issue when machines configure larger memory ranges
+> that will contain larger and more numerous gaps.
+> 
+> The code will skip across invalid pfn values to reduce the
+> number of loops executed.
+> 
 
-On Tue, Oct 30, 2012 at 02:45:57PM -0400, Sasha Levin wrote:
-> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
-> +#define hash_min(val, bits)							\
-> +({										\
-> +	sizeof(val) <= 4 ?							\
-> +	hash_32(val, bits) :							\
-> +	hash_long(val, bits);							\
-> +})
+So I was wondering how much difference this makes.  Then I see Mel
+already asked and was answered.  The lesson: please treat a reviewer
+question as a sign that the changelog needs more information!  I added
+this text to the changelog:
 
-Doesn't the above fit in 80 column.  Why is it broken into multiple
-lines?  Also, you probably want () around at least @val.  In general,
-it's a good idea to add () around any macro argument to avoid nasty
-surprises.
+: We have what we call an "architectural simulator".  It is a computer
+: program that pretends that it is a computer system.  We use it to test the
+: firmware before real hardware is available.  We have booted Linux on our
+: simulator.  As you would expect it takes longer to boot on the simulator
+: than it does on real hardware.
+: 
+: With my patch - boot time 41 minutes
+: Without patch - boot time 94 minutes
+: 
+: These numbers do not scale linearly to real hardware.  But indicate to me
+: a place where Linux can be improved.
 
-Looks good to me otherwise.
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3857,8 +3857,11 @@ void __meminit memmap_init_zone(unsigned long
+> size, int nid, unsigned long zone,
+>  		 * exist on hotplugged memory.
+>  		 */
+>  		if (context == MEMMAP_EARLY) {
+> -			if (!early_pfn_valid(pfn))
+> +			if (!early_pfn_valid(pfn)) {
+> +				pfn = ALIGN(pfn + MAX_ORDER_NR_PAGES,
+> +						MAX_ORDER_NR_PAGES) - 1;
+>  				continue;
+> +			}
+>  			if (!early_pfn_in_nid(pfn, nid))
+>  				continue;
+>  		}
 
- Reviewed-by: Tejun Heo <tj@kernel.org>
+So what is the assumption here?  That each zone's first page has a pfn
+which is a multiple of MAX_ORDER_NR_PAGES?
 
-Thanks.
-
--- 
-tejun
+That seems reasonable, but is it actually true, for all architectures
+and for all time?  Where did this come from?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
