@@ -1,124 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 8DC5D8D0003
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:12:03 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id c4so2862184qae.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 12:12:02 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 712D18D0003
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 15:18:49 -0400 (EDT)
+Date: Tue, 30 Oct 2012 19:18:43 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd0: excessive CPU usage
+Message-ID: <20121030191843.GH3888@suse.de>
+References: <5076E700.2030909@suse.cz>
+ <118079.1349978211@turing-police.cc.vt.edu>
+ <50770905.5070904@suse.cz>
+ <119175.1349979570@turing-police.cc.vt.edu>
+ <5077434D.7080008@suse.cz>
+ <50780F26.7070007@suse.cz>
+ <20121012135726.GY29125@suse.de>
+ <507BDD45.1070705@suse.cz>
+ <20121015110937.GE29125@suse.de>
+ <508E5FD3.1060105@leemhuis.info>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-References: <20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-Date: Tue, 30 Oct 2012 12:12:02 -0700
-Message-ID: <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <508E5FD3.1060105@leemhuis.info>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Thorsten Leemhuis <fedora@leemhuis.info>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 29, 2012 at 10:41 PM, David Rientjes <rientjes@google.com> wrote:
-> On Mon, 29 Oct 2012, Luigi Semenzato wrote:
->
->> However, now there is something that worries me more.  The trace of
->> the thread with TIF_MEMDIE set shows that it has executed most of
->> do_exit() and appears to be waiting to be reaped.  From my reading of
->> the code, this implies that task->exit_state should be non-zero, which
->> means that select_bad_process should have skipped that thread, which
->> means that we cannot be in the deadlock situation, and my experiments
->> are not consistent.
->>
->
-> Yeah, this is what I was referring to earlier, select_bad_process() will
-> not consider the thread for which you posted a stack trace for oom kill,
-> so it's not deferring because of it.  There are either other thread(s)
-> that have been oom killed and have not yet release their memory or the oom
-> killer is never being called.
+On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
+> Hi!
+> 
+> On 15.10.2012 13:09, Mel Gorman wrote:
+> >On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
+> >>On 10/12/2012 03:57 PM, Mel Gorman wrote:
+> >>>mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
+> >>>Jiri Slaby reported the following:
+> > [...]
+> >>>diff --git a/mm/vmscan.c b/mm/vmscan.c
+> >>>index 2624edc..2b7edfa 100644
+> >>>--- a/mm/vmscan.c
+> >>>+++ b/mm/vmscan.c
+> >>>@@ -1763,14 +1763,20 @@ static bool in_reclaim_compaction(struct scan_control *sc)
+> >>>  #ifdef CONFIG_COMPACTION
+> >>>  /*
+> >>>   * If compaction is deferred for sc->order then scale the number of pages
+> >>>- * reclaimed based on the number of consecutive allocation failures
+> >>>+ * reclaimed based on the number of consecutive allocation failures. This
+> >>>+ * scaling only happens for direct reclaim as it is about to attempt
+> >>>+ * compaction. If compaction fails, future allocations will be deferred
+> >>>+ * and reclaim avoided. On the other hand, kswapd does not take compaction
+> >>>+ * deferral into account so if it scaled, it could scan excessively even
+> >>>+ * though allocations are temporarily not being attempted.
+> >>>   */
+> >>>  static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
+> >>>  			struct lruvec *lruvec, struct scan_control *sc)
+> >>>  {
+> >>>  	struct zone *zone = lruvec_zone(lruvec);
+> >>>
+> >>>-	if (zone->compact_order_failed <= sc->order)
+> >>>+	if (zone->compact_order_failed <= sc->order &&
+> >>>+	    !current_is_kswapd())
+> >>>  		pages_for_compaction <<= zone->compact_defer_shift;
+> >>>  	return pages_for_compaction;
+> >>>  }
+> >>Yes, applying this instead of the revert fixes the issue as well.
+> 
+> Just wondering, is there a reason why this patch wasn't applied to
+> mainline? Did it simply fall through the cracks? Or am I missing
+> something?
+> 
 
-Thanks.  I now have better information on what's happening.
+It's because a problem was reported related to the patch (off-list,
+whoops). I'm waiting to hear if a second patch fixes the problem or not.
 
-The "culprit" is not the OOM-killed process (the one with TIF_MEMDIE
-set).  It's another process that's exiting for some other reason.
+> I'm asking because I think I stil see the issue on
+> 3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
+> hitting it, too:
+> https://bugzilla.redhat.com/show_bug.cgi?id=866988
+> 
 
-select_bad_process() checks for thread->exit_state at the beginning,
-and skips processes that are exiting.  But later it checks for
-p->flags & PF_EXITING, and can return -1 in that case (and it does for
-me).
+I like the steps to reproduce. Is step 3 profit?
 
-It turns out that do_exit() does a lot of things between setting the
-thread->flags PF_EXITING bit (in exit_signals()) and setting
-thread->exit_state to non-zero (in exit_notify()).  Some of those
-things apparently need memory.  I caught one process responsible for
-the PTR_ERR(-1) while it was doing this:
+> Or are we seeing something different which just looks similar?  I can
+> test the patch if it needs further testing, but from the discussion
+> I got the impression that everything is clear and the patch ready
+> for merging.
 
-[  191.859358] VC manager      R running      0  2388   1108 0x00000104
-[  191.859377] err_ptr_count = 45623
-[  191.859384]  e0611b1c 00200086 f5608000 815ecd20 815ecd20 a0a9ebc3
-0000002c f67cfd20
-[  191.859407]  f430a060 81191c34 e0611aec 81196d79 4168ef20 00000001
-e1302400 e130264c
-[  191.859428]  e1302400 e0611af4 813b71d5 e0611b00 810b42f1 e1302400
-e0611b0c 810b430e
-[  191.859450] Call Trace:
-[  191.859465]  [<81191c34>] ? __delay+0xe/0x10
-[  191.859478]  [<81196d79>] ? do_raw_spin_lock+0xa2/0xf3
-[  191.859491]  [<813b71d5>] ? _raw_spin_unlock+0xd/0xf
-[  191.859504]  [<810b42f1>] ? put_super+0x26/0x29
-[  191.859515]  [<810b430e>] ? drop_super+0x1a/0x1d
-[  191.859527]  [<8104512d>] __cond_resched+0x1b/0x2b
-[  191.859537]  [<813b67a7>] _cond_resched+0x18/0x21
-[  191.859549]  [<81093940>] shrink_slab+0x224/0x22f
-[  191.859562]  [<81095a96>] try_to_free_pages+0x1b7/0x2e6
-[  191.859574]  [<8108df2a>] __alloc_pages_nodemask+0x40a/0x61f
-[  191.859588]  [<810a9dbe>] read_swap_cache_async+0x4a/0xcf
-[  191.859600]  [<810a9ea4>] swapin_readahead+0x61/0x8d
-[  191.859612]  [<8109fff4>] handle_pte_fault+0x310/0x5fb
-[  191.859624]  [<810a0420>] handle_mm_fault+0xae/0xbd
-[  191.859637]  [<8101d0f9>] do_page_fault+0x265/0x284
-[  191.859648]  [<8104aa17>] ? dequeue_entity+0x236/0x252
-[  191.859660]  [<8101ce94>] ? vmalloc_sync_all+0xa/0xa
-[  191.859672]  [<813b7887>] error_code+0x67/0x6c
-[  191.859683]  [<81191d21>] ? __get_user_4+0x11/0x17
-[  191.859695]  [<81059f28>] ? exit_robust_list+0x30/0x105
-[  191.859707]  [<813b71b0>] ? _raw_spin_unlock_irq+0xd/0x10
-[  191.859718]  [<810446d5>] ? finish_task_switch+0x53/0x89
-[  191.859730]  [<8102351d>] mm_release+0x1d/0xc3
-[  191.859740]  [<81026ce9>] exit_mm+0x1d/0xe9
-[  191.859750]  [<81032b87>] ? exit_signals+0x57/0x10a
-[  191.859760]  [<81028082>] do_exit+0x19b/0x640
-[  191.859770]  [<81058598>] ? futex_wait_queue_me+0xaa/0xbe
-[  191.859781]  [<81030bbf>] ? recalc_sigpending_tsk+0x51/0x5c
-[  191.859793]  [<81030beb>] ? recalc_sigpending+0x17/0x3e
-[  191.859803]  [<81028752>] do_group_exit+0x63/0x86
-[  191.859813]  [<81032b19>] get_signal_to_deliver+0x434/0x44b
-[  191.859825]  [<81001e01>] do_signal+0x37/0x4fe
-[  191.859837]  [<81048eed>] ? set_next_entity+0x36/0x9d
-[  191.859850]  [<81050d8e>] ? timekeeping_get_ns+0x11/0x55
-[  191.859861]  [<8105a754>] ? sys_futex+0xcb/0xdb
-[  191.859871]  [<810024a7>] do_notify_resume+0x26/0x65
-[  191.859883]  [<813b73a5>] work_notifysig+0xa/0x11
-[  191.859893] Kernel panic - not syncing: too many ERR_PTR
+It could be the same issue. Can you test with the "mm: vmscan: scale
+number of pages reclaimed by reclaim/compaction only in direct reclaim"
+patch and the following on top please?
 
-I don't know why mm_release() would page fault, but it looks like it does.
+Thanks.
 
-So the OOM killer will not kill other processes because it thinks a
-process is exiting, which will free up memory.  But the exiting
-process needs memory to continue exiting --> deadlock.  Sounds
-plausible?
+---8<---
+mm: page_alloc: Do not wake kswapd if the request is for THP but deferred
 
-OK, now someone is going to fix this, right? :-)
+Since commit c6543459 (mm: remove __GFP_NO_KSWAPD), kswapd gets woken
+for every THP request in the slow path. If compaction has been deferred
+the waker will not compact or enter direct reclaim on its own behalf
+but kswapd is still woken to reclaim free pages that no one may consume.
+If compaction was deferred because pages and slab was not reclaimable
+then kswapd is just consuming cycles for no gain.
+
+This patch avoids waking kswapd if the compaction has been deferred.
+It'll still wake when compaction is running to reduce the latency of
+THP allocations.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |   21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bb90971..e72674c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2378,6 +2378,15 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
+ }
+ 
++/* Returns true if the allocation is likely for THP */
++static bool is_thp_alloc(gfp_t gfp_mask, unsigned int order)
++{
++	if (order == pageblock_order &&
++	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
++		return true;
++	return false;
++}
++
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+@@ -2416,7 +2425,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto nopage;
+ 
+ restart:
+-	wake_all_kswapd(order, zonelist, high_zoneidx,
++	/*
++	 * kswapd is woken except when this is a THP request and compaction
++	 * is deferred. If we are backing off reclaim/compaction then kswapd
++	 * should not be awake aggressively reclaiming with no consumers of
++	 * the freed pages
++	 */
++	if (!(is_thp_alloc(gfp_mask, order) &&
++	      compaction_deferred(preferred_zone, order)))
++		wake_all_kswapd(order, zonelist, high_zoneidx,
+ 					zone_idx(preferred_zone));
+ 
+ 	/*
+@@ -2494,7 +2511,7 @@ rebalance:
+ 	 * system then fail the allocation instead of entering direct reclaim.
+ 	 */
+ 	if ((deferred_compaction || contended_compaction) &&
+-	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
++	    is_thp_alloc(gfp_mask, order))
+ 		goto nopage;
+ 
+ 	/* Try direct reclaim and then allocating */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
