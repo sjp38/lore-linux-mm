@@ -1,103 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 952876B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:04:46 -0400 (EDT)
-Date: Wed, 31 Oct 2012 15:04:38 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: kswapd0: excessive CPU usage
-Message-ID: <20121031150438.GK3888@suse.de>
-References: <50770905.5070904@suse.cz>
- <119175.1349979570@turing-police.cc.vt.edu>
- <5077434D.7080008@suse.cz>
- <50780F26.7070007@suse.cz>
- <20121012135726.GY29125@suse.de>
- <507BDD45.1070705@suse.cz>
- <20121015110937.GE29125@suse.de>
- <508E5FD3.1060105@leemhuis.info>
- <20121030191843.GH3888@suse.de>
- <50910A99.5050707@leemhuis.info>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <50910A99.5050707@leemhuis.info>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id CF2646B0070
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:08:03 -0400 (EDT)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: [PATCH 0/5] enable all tmem backends to be built and loaded as modules
+Date: Wed, 31 Oct 2012 08:07:49 -0700
+Message-Id: <1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com, fschmaus@gmail.com, andor.damm@googlemail.com, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
 
-On Wed, Oct 31, 2012 at 12:25:13PM +0100, Thorsten Leemhuis wrote:
-> On 30.10.2012 20:18, Mel Gorman wrote:
-> >On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
-> >>On 15.10.2012 13:09, Mel Gorman wrote:
-> >>>On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
-> >>>>On 10/12/2012 03:57 PM, Mel Gorman wrote:
-> >>>>>mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
-> >>>>>Jiri Slaby reported the following:
-> >[...]
-> >>>>Yes, applying this instead of the revert fixes the issue as well.
-> >>Just wondering, is there a reason why this patch wasn't applied to
-> >>mainline? Did it simply fall through the cracks? Or am I missing
-> >>something?
-> >It's because a problem was reported related to the patch (off-list,
-> >whoops). I'm waiting to hear if a second patch fixes the problem or not.
-> 
-> Anything in particular I should look out for while testing?
-> 
+Since various parts of transcendent memory ("tmem") [1] were first posted in
+2009, reviewers have suggested that various tmem features should be built
+as a module and enabled by loading the module, rather than the current clunky
+method of compiling as a built-in and enabling via boot parameter.  Due
+to certain tmem initialization steps, that was not feasible at the time.
 
-Excessive reclaim, high CPU usage by kswapd, processes getting stick in
-isolate_migratepages or isolate_freepages.
+[1] http://lwn.net/Articles/454795/ 
 
-> >>I'm asking because I think I stil see the issue on
-> >>3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
-> >>hitting it, too:
-> >>https://bugzilla.redhat.com/show_bug.cgi?id=866988
-> >I like the steps to reproduce.
-> 
-> One of those cases where the bugzilla bug template was not very
-> helpful or where it was not used as intended (you decide) :-)
-> 
+This patchset allows each of the three merged transcendent memory
+backends (zcache, ramster, Xen tmem) to be used as modules by first
+enabling transcendent memory frontends (cleancache, frontswap) to deal
+with "lazy initialization" and, second, by adding the necessary code for
+the backends to be built and loaded as modules.
 
-It wins at entertainment value if nothing else :)
+The original mechanism to enable tmem backends -- namely to hardwire
+them into the kernel and select/enable one with a kernel boot
+parameter --  is retained but should be considered deprecated.  When
+backends are loaded as modules, certain knobs will now be
+properly selected via module_params rather than via undocumented
+kernel boot parameters.  Note that module UNloading is not yet
+supported as it is lower priority and will require significant
+additional work.
 
-> >Is step 3 profit?
-> 
-> Yes, but psst, don't tell anyone; step 4 (world domination! for
-> real!) is also hidden to keep that part of the big plan a secret for
-> now ;-)
-> 
+The lazy initialization support is necessary because filesystems
+and swap devices are normally mounted early in boot and these
+activites normally trigger tmem calls to setup certain data structures;
+if the respective cleancache/frontswap ops are not yet registered
+by a back end, the tmem setup would fail for these devices and
+cleancache/frontswap would never be enabled for them which limits
+much of the value of tmem in many system configurations.  Lazy
+initialization records the necessary information in cleancache/frontswap
+data structures and "replays" it after the ops are registered
+to ensure that all filesystems and swap devices can benefit from
+the loaded tmem backend.
 
-No doubt it's the default private comment #1 !
+Patches 1 and 2 are the original [2] patches to cleancache and frontswap
+proposed by Erlangen University, but rebased to 3.7-rcN plus a couple
+of bug fixes I found necessary to run properly.  I have not attempted
+any code cleanup.  I have also added defines to ensure at runtime
+that backends are not loaded as modules if the frontend patches are not
+yet merged; this is useful to avoid any build dependency (since the
+frontends may be merged into linux-next through different trees and
+at different times than some backends) and once the entire patchset
+is safely merged, these defines/ifdefs can be removed.
 
-> >>Or are we seeing something different which just looks similar?  I can
-> >>test the patch if it needs further testing, but from the discussion
-> >>I got the impression that everything is clear and the patch ready
-> >>for merging.
-> >It could be the same issue. Can you test with the "mm: vmscan: scale
-> >number of pages reclaimed by reclaim/compaction only in direct reclaim"
-> >patch and the following on top please?
-> 
-> Built a vanilla mainline kernel with those two patches and installed
-> it on the machine where I was seeing problems high kswapd0 load on
-> 3.7-rc3. Ran it an hour yesterday and a few hours today; seems the
-> patches fix the issue for me as kswapd behaves:
-> 
-> $ LC_ALL=C ps -aux | grep 'kswapd'
-> root       62  0.0  0.0      0     0 ?      S    Oct30   0:05 [kswapd0]
-> 
-> So everything is looking fine again so far thx to the two patches
-> -- hopefully it stays that way even after hitting "send" in my
-> mailer in a few seconds.
-> 
+[2] http://www.spinics.net/lists/linux-mm/msg31490.html 
 
-Ok, great. Keep an eye on it please. If Jiri Slaby reports similar
-success then I'll collapse the two patches together and resend to
-Andrew.
+Patch 3 enables module support for zcache2.  Zsmalloc support
+has not yet been merged into zcache2 but, once merged, could now
+easily be selected via a module_param.
 
-Thanks.
+Patch 4 enables module support for ramster.  Ramster will now be
+enabled with a module_param to zcache2.
 
--- 
-Mel Gorman
-SUSE Labs
+Patch 5 enables module support for the Xen tmem shim.  Xen
+self-ballooning and frontswap-selfshrinking are also "lazily"
+initialized when the Xen tmem shim is loaded as a module, unless
+explicitly disabled by module_params.
+
+Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+---
+Diffstat:
+
+ drivers/staging/ramster/Kconfig                    |    6 +-
+ drivers/staging/ramster/Makefile                   |   11 +-
+ drivers/staging/ramster/ramster.h                  |    6 +-
+ drivers/staging/ramster/ramster/nodemanager.c      |    9 +-
+ drivers/staging/ramster/ramster/ramster.c          |   29 +++-
+ drivers/staging/ramster/ramster/ramster.h          |    2 +-
+ .../staging/ramster/ramster/ramster_nodemanager.h  |    2 +
+ drivers/staging/ramster/tmem.c                     |    6 +-
+ drivers/staging/ramster/tmem.h                     |    8 +-
+ drivers/staging/ramster/zcache-main.c              |   61 +++++++-
+ drivers/staging/ramster/zcache.h                   |    2 +-
+ drivers/xen/Kconfig                                |    4 +-
+ drivers/xen/tmem.c                                 |   56 ++++++--
+ drivers/xen/xen-selfballoon.c                      |   13 +-
+ include/linux/cleancache.h                         |    1 +
+ include/linux/frontswap.h                          |    1 +
+ include/xen/tmem.h                                 |    8 +
+ mm/cleancache.c                                    |  157 +++++++++++++++++--
+ mm/frontswap.c                                     |   70 ++++++++-
+ 19 files changed, 379 insertions(+), 73 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
