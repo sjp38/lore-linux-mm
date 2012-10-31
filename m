@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 37FAA6B007D
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 06:33:47 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so634462dad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:33:46 -0700 (PDT)
-From: Michel Lespinasse <walken@google.com>
-Subject: [RFC PATCH 6/6] mm: fix cache coloring on x86_64
-Date: Wed, 31 Oct 2012 03:33:25 -0700
-Message-Id: <1351679605-4816-7-git-send-email-walken@google.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id AF8686B0083
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:03:39 -0400 (EDT)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so1683051vcb.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 04:03:38 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <1351679605-4816-1-git-send-email-walken@google.com>
 References: <1351679605-4816-1-git-send-email-walken@google.com>
+Date: Wed, 31 Oct 2012 04:03:38 -0700
+Message-ID: <CANN689GKp6beDOwSs_EYaYRgs4GzjuD+1engDYuRTOB+nHdTsA@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/6] mm: use augmented rbtrees for finding unmapped areas
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@surriel.com>
+Cc: linux-mm@kvack.org
 
-From: Rik van Riel <riel@surriel.com>
+On Wed, Oct 31, 2012 at 3:33 AM, Michel Lespinasse <walken@google.com> wrote:
+> My own feel for this series is that I'm fairly confident in the
+> robustness of my vm_unmapped_area() implementation; however I would
+> like to confirm that people are happy with this new interface. Also
+> the code that figures out what constraints to pass to
+> vm_unmapped_area() is a bit odd; I have tried to make the constraints
+> match the behavior of the current code but it's not clear to me if
+> that behavior makes sense in the first place.
 
-Fix the x86-64 cache alignment code to take pgoff into account.
-Use the x86 and MIPS cache alignment code as the basis for a generic
-cache alignment function.
+I wanted to expand a bit on that by listing some of these behaviors I
+have made sure to preserve without really understanding why they are
+as they are:
 
-The old x86 code will always align the mmap to aliasing boundaries,
-even if the program mmaps the file with a non-zero pgoff.
+- arch_get_unmapped_area() doesn't make use of mm->mmap_base, this
+value is used only when doing downwards allocations. However, many
+architectures including x86_64 carefully initialize this (in
+arch_pick_mmap_layout() ) to different values based on the up/down
+allocation direction. It seems that the legacy (upwards allocation)
+mmap_base value is irrelevant as I don't see any place using it ???
 
-If program A mmaps the file with pgoff 0, and program B mmaps the
-file with pgoff 1. The old code would align the mmaps, resulting in
-misaligned pages:
+- For downwards allocations, it is not clear if the lowest valid
+address should be 0 or PAGE_SIZE. Existing brute-force search code
+will treat address 0 as valid on entering the loop, but invalid when
+reaching the end of the loop.
 
-A:  0123
-B:  123
+- When user passes a suggested address without the MAP_FIXED flag, the
+address range we validate the address against varies depending on the
+upwards/downwards allocation direction. This doesn't make much sense
+since there is no address space search taking place in this case.
 
-After this patch, they are aligned so the pages line up:
+- The stragegy of allocating upwards if the downwards allocation
+failed is a bit strange. I'm not sure what we really want; maybe we
+only need to extend the valid address range for the initial search ?
+(IIRC Rik's initial patch series got rid of this redundant search, but
+didn't explain why this was considered safe).
 
-A: 0123
-B:  123
+That's all I noticed, but this is really most of the remaining code
+left in arch_get_unmapped_area[_topdown]... and I didn't even go into
+architectures other than x86, where I could find some additional
+questionable stuff (but I don't even want to go there before we at
+least agree on the general principle of this patch series).
 
-Proposed-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Michel Lespinasse <walken@google.com>
+I hope with a proper understanding of the allocation strategies /
+constraints it might be possible to unify the remaining
+arch_get_unmapped_area[_topdown] code between architectures, but I'm
+keeping this for a later step as I'm obviously not informed enough to
+tackle that just yet...
 
----
- arch/x86/kernel/sys_x86_64.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index fa9227214753..5df5837ce6a3 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -136,7 +136,7 @@ arch_get_unmapped_area(struct file *filp, unsigned long addr,
- 	info.low_limit = begin;
- 	info.high_limit = end;
- 	info.align_mask = filp ? get_align_mask() : 0;
--	info.align_offset = 0;
-+	info.align_offset = pgoff << PAGE_SHIFT;
- 	return vm_unmapped_area(&info);
- }
- 
-@@ -175,7 +175,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	info.low_limit = 0;  // XXX could be PAGE_SIZE ???
- 	info.high_limit = mm->mmap_base;
- 	info.align_mask = filp ? get_align_mask() : 0;
--	info.align_offset = 0;
-+	info.align_offset = pgoff << PAGE_SHIFT;
- 	addr = vm_unmapped_area(&info);
- 	if (!(addr & ~PAGE_MASK))
- 		return addr;
 -- 
-1.7.7.3
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
