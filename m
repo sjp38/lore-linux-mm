@@ -1,100 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id B767B6B006E
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 06:33:41 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so971403pbb.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:33:41 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 8E09D6B0071
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 06:33:43 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so634462dad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:33:42 -0700 (PDT)
 From: Michel Lespinasse <walken@google.com>
-Subject: [RFC PATCH 2/6] mm: check rb_subtree_gap correctness
-Date: Wed, 31 Oct 2012 03:33:21 -0700
-Message-Id: <1351679605-4816-3-git-send-email-walken@google.com>
+Subject: [RFC PATCH 3/6] mm: rearrange vm_area_struct for fewer cache misses
+Date: Wed, 31 Oct 2012 03:33:22 -0700
+Message-Id: <1351679605-4816-4-git-send-email-walken@google.com>
 In-Reply-To: <1351679605-4816-1-git-send-email-walken@google.com>
 References: <1351679605-4816-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Rik van Riel <riel@surriel.com>
 
-When CONFIG_DEBUG_VM_RB is enabled, check that rb_subtree_gap is
-correctly set for every vma and that mm->highest_vm_end is also correct.
+From: Rik van Riel <riel@surriel.com>
 
-Also add an explicit 'bug' variable to track if browse_rb() detected any
-invalid condition.
+The kernel walks the VMA rbtree in various places, including
+the page fault path.  However, the vm_rb node spanned two
+cache lines, on 64 bit systems with 64 byte cache lines (most
+x86 systems).
 
+Rearrange vm_area_struct a little, so all the information we
+need to do a VMA tree walk is in the first cache line.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Michel Lespinasse <walken@google.com>
 
 ---
- mm/mmap.c |   24 ++++++++++++++++--------
- 1 files changed, 16 insertions(+), 8 deletions(-)
+ include/linux/mm_types.h |   12 ++++++++----
+ 1 files changed, 8 insertions(+), 4 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 4b14c4070305..548fed471398 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -365,7 +365,7 @@ static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
- #ifdef CONFIG_DEBUG_VM_RB
- static int browse_rb(struct rb_root *root)
- {
--	int i = 0, j;
-+	int i = 0, j, bug = 0;
- 	struct rb_node *nd, *pn = NULL;
- 	unsigned long prev = 0, pend = 0;
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 94fa52b28ee8..528da4abf8ee 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -224,7 +224,8 @@ struct vm_region {
+  * library, the executable area etc).
+  */
+ struct vm_area_struct {
+-	struct mm_struct * vm_mm;	/* The address space we belong to. */
++	/* The first cache line has the info for VMA tree walking. */
++
+ 	unsigned long vm_start;		/* Our start address within vm_mm. */
+ 	unsigned long vm_end;		/* The first byte after our end address
+ 					   within vm_mm. */
+@@ -232,9 +233,6 @@ struct vm_area_struct {
+ 	/* linked list of VM areas per task, sorted by address */
+ 	struct vm_area_struct *vm_next, *vm_prev;
  
-@@ -373,39 +373,47 @@ static int browse_rb(struct rb_root *root)
- 		struct vm_area_struct *vma;
- 		vma = rb_entry(nd, struct vm_area_struct, vm_rb);
- 		if (vma->vm_start < prev)
--			printk("vm_start %lx prev %lx\n", vma->vm_start, prev), i = -1;
-+			printk("vm_start %lx prev %lx\n", vma->vm_start, prev), bug = 1;
- 		if (vma->vm_start < pend)
--			printk("vm_start %lx pend %lx\n", vma->vm_start, pend);
-+			printk("vm_start %lx pend %lx\n", vma->vm_start, pend), bug = 1;
- 		if (vma->vm_start > vma->vm_end)
--			printk("vm_end %lx < vm_start %lx\n", vma->vm_end, vma->vm_start);
-+			printk("vm_end %lx < vm_start %lx\n", vma->vm_end, vma->vm_start), bug = 1;
-+		if (vma->rb_subtree_gap != vma_compute_subtree_gap(vma))
-+			printk("free gap %lx, correct %lx\n",
-+			       vma->rb_subtree_gap,
-+			       vma_compute_subtree_gap(vma)), bug = 1;
- 		i++;
- 		pn = nd;
- 		prev = vma->vm_start;
- 		pend = vma->vm_end;
- 	}
- 	j = 0;
--	for (nd = pn; nd; nd = rb_prev(nd)) {
-+	for (nd = pn; nd; nd = rb_prev(nd))
- 		j++;
--	}
- 	if (i != j)
--		printk("backwards %d, forwards %d\n", j, i), i = 0;
--	return i;
-+		printk("backwards %d, forwards %d\n", j, i), bug = 1;
-+	return bug ? -1 : i;
- }
+-	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
+-	unsigned long vm_flags;		/* Flags, see mm.h. */
+-
+ 	struct rb_node vm_rb;
  
- void validate_mm(struct mm_struct *mm)
- {
- 	int bug = 0;
- 	int i = 0;
-+	unsigned long highest_address = 0;
- 	struct vm_area_struct *vma = mm->mmap;
- 	while (vma) {
- 		struct anon_vma_chain *avc;
- 		list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
- 			anon_vma_interval_tree_verify(avc);
-+		highest_address = vma->vm_end;
- 		vma = vma->vm_next;
- 		i++;
- 	}
- 	if (i != mm->map_count)
- 		printk("map_count %d vm_next %d\n", mm->map_count, i), bug = 1;
-+	if (highest_address != mm->highest_vm_end)
-+		printk("mm->highest_vm_end %lx, found %lx\n",
-+		       mm->highest_vm_end, highest_address), bug = 1;
- 	i = browse_rb(&mm->mm_rb);
- 	if (i != mm->map_count)
- 		printk("map_count %d rb %d\n", mm->map_count, i), bug = 1;
+ 	/*
+@@ -245,6 +243,12 @@ struct vm_area_struct {
+ 	 */
+ 	unsigned long rb_subtree_gap;
+ 
++	/* Second cache line starts here. */
++
++	struct mm_struct * vm_mm;	/* The address space we belong to. */
++	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
++	unsigned long vm_flags;		/* Flags, see mm.h. */
++
+ 	/*
+ 	 * For areas with an address space and backing store,
+ 	 * linkage into the address_space->i_mmap interval tree, or
 -- 
 1.7.7.3
 
