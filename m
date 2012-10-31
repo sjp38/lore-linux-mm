@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 631AA6B0075
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 0FD736B0070
 	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 05:16:02 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART5 Patch 5/5] memblock: compare current_limit with end variable at memblock_find_in_range_node()
-Date: Wed, 31 Oct 2012 17:21:43 +0800
-Message-Id: <1351675303-11786-6-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART5 Patch 3/5] x86: use memblock_set_current_limit() to set memblock.current_limit
+Date: Wed, 31 Oct 2012 17:21:41 +0800
+Message-Id: <1351675303-11786-4-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351675303-11786-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351675303-11786-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,38 +15,37 @@ Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Ya
 
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-memblock_find_in_range_node() does not compare memblock.current_limit
-with end variable. Thus even if memblock.current_limit is smaller than
-end variable, the function allocates memory address that is bigger than
-memblock.current_limit.
-
-The patch adds the check to "memblock_find_in_range_node()"
+memblock.current_limit is set directly though memblock_set_current_limit()
+is prepared. So fix it.
 
 Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- mm/memblock.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ arch/x86/kernel/setup.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index ee2e307..50ab53c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -100,11 +100,12 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
- 					phys_addr_t align, int nid)
- {
- 	phys_addr_t this_start, this_end, cand;
-+	phys_addr_t current_limit = memblock.current_limit;
- 	u64 i;
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index ca45696..ab3017a 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -890,7 +890,7 @@ void __init setup_arch(char **cmdline_p)
  
- 	/* pump up @end */
--	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
--		end = memblock.current_limit;
-+	if ((end == MEMBLOCK_ALLOC_ACCESSIBLE) || (end > current_limit))
-+		end = current_limit;
+ 	cleanup_highmap();
  
- 	/* avoid allocating the first page */
- 	start = max_t(phys_addr_t, start, PAGE_SIZE);
+-	memblock.current_limit = get_max_mapped();
++	memblock_set_current_limit(get_max_mapped());
+ 	memblock_x86_fill();
+ 
+ 	/*
+@@ -940,7 +940,7 @@ void __init setup_arch(char **cmdline_p)
+ 		max_low_pfn = max_pfn;
+ 	}
+ #endif
+-	memblock.current_limit = get_max_mapped();
++	memblock_set_current_limit(get_max_mapped());
+ 	dma_contiguous_reserve(0);
+ 
+ 	/*
 -- 
 1.8.0
 
