@@ -1,69 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 5A4E66B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:30:20 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so3152099ied.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:30:19 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 861DA6B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:42:31 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1295219pad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:42:30 -0700 (PDT)
+Date: Wed, 31 Oct 2012 11:42:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: zram OOM behavior
+In-Reply-To: <CAA25o9S6eXGVb6wG7Pt7Tm6tMb4+aOg9tVtx04YbUUyJzgOkNw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1210311141220.8809@chino.kir.corp.google.com>
+References: <20121015144412.GA2173@barrios> <CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com> <20121016061854.GB3934@barrios> <CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com> <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
+ <20121022235321.GK13817@bbox> <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com> <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com> <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+ <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com> <20121030001809.GL15767@bbox> <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com> <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+ <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com> <CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com> <CAA25o9S6eXGVb6wG7Pt7Tm6tMb4+aOg9tVtx04YbUUyJzgOkNw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1351241323.12171.43.camel@twins>
-References: <20121008150949.GA15130@redhat.com> <CAHGf_=pr1AYeWZhaC2MKN-XjiWB7=hs92V0sH-zVw3i00X-e=A@mail.gmail.com>
- <alpine.DEB.2.00.1210152055150.5400@chino.kir.corp.google.com>
- <CAHGf_=rLjQbtWQLDcbsaq5=zcZgjdveaOVdGtBgBwZFt78py4Q@mail.gmail.com>
- <alpine.DEB.2.00.1210152306320.9480@chino.kir.corp.google.com>
- <CAHGf_=pemT6rcbu=dBVSJE7GuGWwVFP+Wn-mwkcsZ_gBGfaOsg@mail.gmail.com>
- <alpine.DEB.2.00.1210161657220.14014@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1210161714110.17278@chino.kir.corp.google.com>
- <20121017040515.GA13505@redhat.com> <alpine.DEB.2.00.1210162222100.26279@chino.kir.corp.google.com>
- <CA+1xoqe74R6DX8Yx2dsp1MkaWkC1u6yAEd8eWEdiwi88pYdPaw@mail.gmail.com>
- <alpine.DEB.2.00.1210241633290.22819@chino.kir.corp.google.com>
- <CA+1xoqd6MEFP-eWdnWOrcz2EmE6tpd7UhgJyS8HjQ8qrGaMMMw@mail.gmail.com>
- <alpine.DEB.2.00.1210241659260.22819@chino.kir.corp.google.com>
- <1351167554.23337.14.camel@twins> <1351175972.12171.14.camel@twins>
- <CA+55aFzoxMYLXdBvdMYTy_LhrVuU233qh1eDyAda5otUTHojPA@mail.gmail.com> <1351241323.12171.43.camel@twins>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Wed, 31 Oct 2012 14:29:59 -0400
-Message-ID: <CA+1xoqcbPGpFvhJG3OMDYBPMD0+1umJv1wyE-b+KHtKi_s4unQ@mail.gmail.com>
-Subject: Re: [patch for-3.7] mm, mempolicy: fix printing stack contents in numa_maps
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, bhutchings@solarflare.com, Konstantin Khlebnikov <khlebnikov@openvz.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Fri, Oct 26, 2012 at 4:48 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Thu, 2012-10-25 at 16:09 -0700, Linus Torvalds wrote:
->> On Thu, Oct 25, 2012 at 7:39 AM, Peter Zijlstra <peterz@infradead.org> wrote:
->> >
->> > So I think the below should work, we hold the spinlock over both rb-tree
->> > modification as sp free, this makes mpol_shared_policy_lookup() which
->> > returns the policy with an incremented refcount work with just the
->> > spinlock.
->> >
->> > Comments?
->>
->> Looks reasonable, if annoyingly complex for something that shouldn't
->> be important enough for this. Oh well.
->
-> I agree with that.. Its just that when doing numa placement one needs to
-> respect the pre-existing placement constraints. I've not seen a way
-> around this.
->
->> However, please check me on this: the need for this is only for
->> linux-next right now, correct? All the current users in my tree are ok
->> with just the mutex, no?
->
-> Yes, the need comes from the numa stuff and I'll stick this patch in
-> there.
->
-> I completely missed Mel's patch turning it into a mutex, but I guess
-> that's what -next is for :-).
+On Tue, 30 Oct 2012, Luigi Semenzato wrote:
 
-So I've been fuzzing with it for the past couple of days and it's been
-looking fine with it. Can someone grab it into his tree please?
+> For completeness, I would like to report that the page fault in
+> mm_release looks legitimate.  The fault happens near here:
+> 
+> if (unlikely(tsk->robust_list)) {
+>     exit_robust_list(tsk);
+>     tsk->robust_list = NULL;
+> }
+> 
+> and robust_list is a userspace structure.
+> 
 
-
-Thanks,
-Sasha
+This is the only place where the hang occurs when there are several 
+threads in the exit path with PF_EXITING and it causes the oom killer to 
+defer killing a process?  If that's the case, then a simple 
+tsk->robust_list check would be sufficient to avoid deferring incorrectly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
