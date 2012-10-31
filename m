@@ -1,236 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 0C0566B006E
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:09:40 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 150D76B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:15:31 -0400 (EDT)
+MIME-Version: 1.0
+Message-ID: <45d16955-dd1e-4975-a5b6-31e17322cad3@default>
+Date: Wed, 31 Oct 2012 08:15:17 -0700 (PDT)
 From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: [PATCH 4/5] staging: zcache2+ramster: enable ramster to be built/loaded as a module
-Date: Wed, 31 Oct 2012 08:07:53 -0700
-Message-Id: <1351696074-29362-5-git-send-email-dan.magenheimer@oracle.com>
-In-Reply-To: <1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>
-References: <1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 0/5] enable all tmem backends to be built and loaded as
+ modules
+References: <<1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>>
+In-Reply-To: <<1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, dan.magenheimer@oracle.com, fschmaus@gmail.com, andor.damm@googlemail.com, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
+To: Dan Magenheimer <dan.magenheimer@oracle.com>, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, fschmaus@gmail.com, Andor Daam <andor.daam@googlemail.com>, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
 
-Enable module support for ramster.  Note runtime dependency disallows
-loading if cleancache/frontswap lazy initialization patches are not
-present.
+Apologies... I misspelled the family name of one of the
+Erlangen University authors of the first two patches
+in this patchset, so any reply-alls to any of the
+patch posts will see a bounce.  If you reply-all to any
+of these patches, kindly change one of the recipients
+to:
 
-If built-in (not built as a module), the original mechanism of enabling via
-a kernel boot parameter is retained, but this should be considered deprecated.
+andor.daam@googlemail.com (was misspelled andor.damm)
 
-Note that module unload is explicitly not yet supported.
+I regret the inconvenience... :-(
 
-Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
----
- drivers/staging/ramster/ramster.h                  |    6 +++-
- drivers/staging/ramster/ramster/nodemanager.c      |    9 +++---
- drivers/staging/ramster/ramster/ramster.c          |   29 ++++++++++++++++---
- drivers/staging/ramster/ramster/ramster.h          |    2 +-
- .../staging/ramster/ramster/ramster_nodemanager.h  |    2 +
- 5 files changed, 37 insertions(+), 11 deletions(-)
-
-diff --git a/drivers/staging/ramster/ramster.h b/drivers/staging/ramster/ramster.h
-index 1b71aea..e1f91d5 100644
---- a/drivers/staging/ramster/ramster.h
-+++ b/drivers/staging/ramster/ramster.h
-@@ -11,10 +11,14 @@
- #ifndef _ZCACHE_RAMSTER_H_
- #define _ZCACHE_RAMSTER_H_
- 
-+#ifdef CONFIG_RAMSTER_MODULE
-+#define CONFIG_RAMSTER
-+#endif
-+
- #ifdef CONFIG_RAMSTER
- #include "ramster/ramster.h"
- #else
--static inline void ramster_init(bool x, bool y, bool z)
-+static inline void ramster_init(bool x, bool y, bool z, bool w)
- {
- }
- 
-diff --git a/drivers/staging/ramster/ramster/nodemanager.c b/drivers/staging/ramster/ramster/nodemanager.c
-index c0f4815..2cfe933 100644
---- a/drivers/staging/ramster/ramster/nodemanager.c
-+++ b/drivers/staging/ramster/ramster/nodemanager.c
-@@ -949,7 +949,7 @@ static void __exit exit_r2nm(void)
- 	r2hb_exit();
- }
- 
--static int __init init_r2nm(void)
-+int r2nm_init(void)
- {
- 	int ret = -1;
- 
-@@ -986,10 +986,11 @@ out_r2hb:
- out:
- 	return ret;
- }
-+EXPORT_SYMBOL_GPL(r2nm_init);
- 
- MODULE_AUTHOR("Oracle");
- MODULE_LICENSE("GPL");
- 
--/* module_init(init_r2nm) */
--late_initcall(init_r2nm);
--/* module_exit(exit_r2nm) */
-+#ifndef CONFIG_RAMSTER_MODULE
-+late_initcall(r2nm_init);
-+#endif
-diff --git a/drivers/staging/ramster/ramster/ramster.c b/drivers/staging/ramster/ramster/ramster.c
-index c06709f..491ec70 100644
---- a/drivers/staging/ramster/ramster/ramster.c
-+++ b/drivers/staging/ramster/ramster/ramster.c
-@@ -92,7 +92,7 @@ static unsigned long ramster_remote_page_flushes_failed;
- #include <linux/debugfs.h>
- #define	zdfs	debugfs_create_size_t
- #define	zdfs64	debugfs_create_u64
--static int __init ramster_debugfs_init(void)
-+static int ramster_debugfs_init(void)
- {
- 	struct dentry *root = debugfs_create_dir("ramster", NULL);
- 	if (root == NULL)
-@@ -191,6 +191,7 @@ int ramster_do_preload_flnode(struct tmem_pool *pool)
- 		kmem_cache_free(ramster_flnode_cache, flnode);
- 	return ret;
- }
-+EXPORT_SYMBOL_GPL(ramster_do_preload_flnode);
- 
- /*
-  * Called by the message handler after a (still compressed) page has been
-@@ -458,6 +459,7 @@ void *ramster_pampd_free(void *pampd, struct tmem_pool *pool,
- 	}
- 	return local_pampd;
- }
-+EXPORT_SYMBOL_GPL(ramster_pampd_free);
- 
- void ramster_count_foreign_pages(bool eph, int count)
- {
-@@ -489,6 +491,7 @@ void ramster_count_foreign_pages(bool eph, int count)
- 		ramster_foreign_pers_pages = c;
- 	}
- }
-+EXPORT_SYMBOL_GPL(ramster_count_foreign_pages);
- 
- /*
-  * For now, just push over a few pages every few seconds to
-@@ -674,7 +677,7 @@ requeue:
- 	ramster_remotify_queue_delayed_work(HZ);
- }
- 
--void __init ramster_remotify_init(void)
-+void ramster_remotify_init(void)
- {
- 	unsigned long n = 60UL;
- 	ramster_remotify_workqueue =
-@@ -849,8 +852,10 @@ static bool frontswap_selfshrinking __read_mostly;
- static void selfshrink_process(struct work_struct *work);
- static DECLARE_DELAYED_WORK(selfshrink_worker, selfshrink_process);
- 
-+#ifndef CONFIG_RAMSTER_MODULE
- /* Enable/disable with kernel boot option. */
- static bool use_frontswap_selfshrink __initdata = true;
-+#endif
- 
- /*
-  * The default values for the following parameters were deemed reasonable
-@@ -905,6 +910,7 @@ static void frontswap_selfshrink(void)
- 	frontswap_shrink(tgt_frontswap_pages);
- }
- 
-+#ifndef CONFIG_RAMSTER_MODULE
- static int __init ramster_nofrontswap_selfshrink_setup(char *s)
- {
- 	use_frontswap_selfshrink = false;
-@@ -912,6 +918,7 @@ static int __init ramster_nofrontswap_selfshrink_setup(char *s)
- }
- 
- __setup("noselfshrink", ramster_nofrontswap_selfshrink_setup);
-+#endif
- 
- static void selfshrink_process(struct work_struct *work)
- {
-@@ -930,6 +937,7 @@ void ramster_cpu_up(int cpu)
- 	per_cpu(ramster_remoteputmem1, cpu) = p1;
- 	per_cpu(ramster_remoteputmem2, cpu) = p2;
- }
-+EXPORT_SYMBOL_GPL(ramster_cpu_up);
- 
- void ramster_cpu_down(int cpu)
- {
-@@ -945,6 +953,7 @@ void ramster_cpu_down(int cpu)
- 		kp->flnode = NULL;
- 	}
- }
-+EXPORT_SYMBOL_GPL(ramster_cpu_down);
- 
- void ramster_register_pamops(struct tmem_pamops *pamops)
- {
-@@ -955,9 +964,11 @@ void ramster_register_pamops(struct tmem_pamops *pamops)
- 	pamops->repatriate = ramster_pampd_repatriate;
- 	pamops->repatriate_preload = ramster_pampd_repatriate_preload;
- }
-+EXPORT_SYMBOL_GPL(ramster_register_pamops);
- 
--void __init ramster_init(bool cleancache, bool frontswap,
--				bool frontswap_exclusive_gets)
-+void ramster_init(bool cleancache, bool frontswap,
-+				bool frontswap_exclusive_gets,
-+				bool frontswap_selfshrink)
- {
- 	int ret = 0;
- 
-@@ -972,10 +983,17 @@ void __init ramster_init(bool cleancache, bool frontswap,
- 	if (ret)
- 		pr_err("ramster: can't create sysfs for ramster\n");
- 	(void)r2net_register_handlers();
-+#ifdef CONFIG_RAMSTER_MODULE
-+	ret = r2nm_init();
-+	if (ret)
-+		pr_err("ramster: can't init r2net\n");
-+	frontswap_selfshrinking = frontswap_selfshrink;
-+#else
-+	frontswap_selfshrinking = use_frontswap_selfshrink;
-+#endif
- 	INIT_LIST_HEAD(&ramster_rem_op_list);
- 	ramster_flnode_cache = kmem_cache_create("ramster_flnode",
- 				sizeof(struct flushlist_node), 0, 0, NULL);
--	frontswap_selfshrinking = use_frontswap_selfshrink;
- 	if (frontswap_selfshrinking) {
- 		pr_info("ramster: Initializing frontswap selfshrink driver.\n");
- 		schedule_delayed_work(&selfshrink_worker,
-@@ -983,3 +1001,4 @@ void __init ramster_init(bool cleancache, bool frontswap,
- 	}
- 	ramster_remotify_init();
- }
-+EXPORT_SYMBOL_GPL(ramster_init);
-diff --git a/drivers/staging/ramster/ramster/ramster.h b/drivers/staging/ramster/ramster/ramster.h
-index 12ae56f..6d41a7a 100644
---- a/drivers/staging/ramster/ramster/ramster.h
-+++ b/drivers/staging/ramster/ramster/ramster.h
-@@ -147,7 +147,7 @@ extern int r2net_register_handlers(void);
- extern int r2net_remote_target_node_set(int);
- 
- extern int ramster_remotify_pageframe(bool);
--extern void ramster_init(bool, bool, bool);
-+extern void ramster_init(bool, bool, bool, bool);
- extern void ramster_register_pamops(struct tmem_pamops *);
- extern int ramster_localify(int, struct tmem_oid *oidp, uint32_t, char *,
- 				unsigned int, void *);
-diff --git a/drivers/staging/ramster/ramster/ramster_nodemanager.h b/drivers/staging/ramster/ramster/ramster_nodemanager.h
-index 49f879d..dbaae34 100644
---- a/drivers/staging/ramster/ramster/ramster_nodemanager.h
-+++ b/drivers/staging/ramster/ramster/ramster_nodemanager.h
-@@ -36,4 +36,6 @@
- /* host name, group name, cluster name all 64 bytes */
- #define R2NM_MAX_NAME_LEN        64    /* __NEW_UTS_LEN */
- 
-+extern int r2nm_init(void);
-+
- #endif /* _RAMSTER_NODEMANAGER_H */
--- 
-1.7.1
+> -----Original Message-----
+> From: Dan Magenheimer [mailto:dan.magenheimer@oracle.com]
+> Sent: Wednesday, October 31, 2012 9:08 AM
+> To: devel@linuxdriverproject.org; linux-kernel@vger.kernel.org; gregkh@li=
+nuxfoundation.org; linux-
+> mm@kvack.org; ngupta@vflare.org; konrad.wilk@oracle.com; sjenning@linux.v=
+net.ibm.com;
+> minchan@kernel.org; dan.magenheimer@oracle.com; fschmaus@gmail.com; andor=
+.damm@googlemail.com;
+> ilendir@googlemail.com; akpm@linux-foundation.org; mgorman@suse.de
+> Subject: [PATCH 0/5] enable all tmem backends to be built and loaded as m=
+odules
+>=20
+> Since various parts of transcendent memory ("tmem") [1] were first posted=
+ in
+> 2009, reviewers have suggested that various tmem features should be built
+> as a module and enabled by loading the module, rather than the current cl=
+unky
+> method of compiling as a built-in and enabling via boot parameter.  Due
+> to certain tmem initialization steps, that was not feasible at the time.
+>=20
+> [1] http://lwn.net/Articles/454795/
+>=20
+> This patchset allows each of the three merged transcendent memory
+> backends (zcache, ramster, Xen tmem) to be used as modules by first
+> enabling transcendent memory frontends (cleancache, frontswap) to deal
+> with "lazy initialization" and, second, by adding the necessary code for
+> the backends to be built and loaded as modules.
+>=20
+> The original mechanism to enable tmem backends -- namely to hardwire
+> them into the kernel and select/enable one with a kernel boot
+> parameter --  is retained but should be considered deprecated.  When
+> backends are loaded as modules, certain knobs will now be
+> properly selected via module_params rather than via undocumented
+> kernel boot parameters.  Note that module UNloading is not yet
+> supported as it is lower priority and will require significant
+> additional work.
+>=20
+> The lazy initialization support is necessary because filesystems
+> and swap devices are normally mounted early in boot and these
+> activites normally trigger tmem calls to setup certain data structures;
+> if the respective cleancache/frontswap ops are not yet registered
+> by a back end, the tmem setup would fail for these devices and
+> cleancache/frontswap would never be enabled for them which limits
+> much of the value of tmem in many system configurations.  Lazy
+> initialization records the necessary information in cleancache/frontswap
+> data structures and "replays" it after the ops are registered
+> to ensure that all filesystems and swap devices can benefit from
+> the loaded tmem backend.
+>=20
+> Patches 1 and 2 are the original [2] patches to cleancache and frontswap
+> proposed by Erlangen University, but rebased to 3.7-rcN plus a couple
+> of bug fixes I found necessary to run properly.  I have not attempted
+> any code cleanup.  I have also added defines to ensure at runtime
+> that backends are not loaded as modules if the frontend patches are not
+> yet merged; this is useful to avoid any build dependency (since the
+> frontends may be merged into linux-next through different trees and
+> at different times than some backends) and once the entire patchset
+> is safely merged, these defines/ifdefs can be removed.
+>=20
+> [2] http://www.spinics.net/lists/linux-mm/msg31490.html
+>=20
+> Patch 3 enables module support for zcache2.  Zsmalloc support
+> has not yet been merged into zcache2 but, once merged, could now
+> easily be selected via a module_param.
+>=20
+> Patch 4 enables module support for ramster.  Ramster will now be
+> enabled with a module_param to zcache2.
+>=20
+> Patch 5 enables module support for the Xen tmem shim.  Xen
+> self-ballooning and frontswap-selfshrinking are also "lazily"
+> initialized when the Xen tmem shim is loaded as a module, unless
+> explicitly disabled by module_params.
+>=20
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+>=20
+> ---
+> Diffstat:
+>=20
+>  drivers/staging/ramster/Kconfig                    |    6 +-
+>  drivers/staging/ramster/Makefile                   |   11 +-
+>  drivers/staging/ramster/ramster.h                  |    6 +-
+>  drivers/staging/ramster/ramster/nodemanager.c      |    9 +-
+>  drivers/staging/ramster/ramster/ramster.c          |   29 +++-
+>  drivers/staging/ramster/ramster/ramster.h          |    2 +-
+>  .../staging/ramster/ramster/ramster_nodemanager.h  |    2 +
+>  drivers/staging/ramster/tmem.c                     |    6 +-
+>  drivers/staging/ramster/tmem.h                     |    8 +-
+>  drivers/staging/ramster/zcache-main.c              |   61 +++++++-
+>  drivers/staging/ramster/zcache.h                   |    2 +-
+>  drivers/xen/Kconfig                                |    4 +-
+>  drivers/xen/tmem.c                                 |   56 ++++++--
+>  drivers/xen/xen-selfballoon.c                      |   13 +-
+>  include/linux/cleancache.h                         |    1 +
+>  include/linux/frontswap.h                          |    1 +
+>  include/xen/tmem.h                                 |    8 +
+>  mm/cleancache.c                                    |  157 ++++++++++++++=
++++--
+>  mm/frontswap.c                                     |   70 ++++++++-
+>  19 files changed, 379 insertions(+), 73 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
