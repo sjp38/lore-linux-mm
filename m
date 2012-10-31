@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id AF8686B0083
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:03:39 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so1683051vcb.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 04:03:38 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 3A74A6B0044
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:25:17 -0400 (EDT)
+Message-ID: <50910A99.5050707@leemhuis.info>
+Date: Wed, 31 Oct 2012 12:25:13 +0100
+From: Thorsten Leemhuis <fedora@leemhuis.info>
 MIME-Version: 1.0
-In-Reply-To: <1351679605-4816-1-git-send-email-walken@google.com>
-References: <1351679605-4816-1-git-send-email-walken@google.com>
-Date: Wed, 31 Oct 2012 04:03:38 -0700
-Message-ID: <CANN689GKp6beDOwSs_EYaYRgs4GzjuD+1engDYuRTOB+nHdTsA@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/6] mm: use augmented rbtrees for finding unmapped areas
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: kswapd0: excessive CPU usage
+References: <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <508E5FD3.1060105@leemhuis.info> <20121030191843.GH3888@suse.de>
+In-Reply-To: <20121030191843.GH3888@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Oct 31, 2012 at 3:33 AM, Michel Lespinasse <walken@google.com> wrote:
-> My own feel for this series is that I'm fairly confident in the
-> robustness of my vm_unmapped_area() implementation; however I would
-> like to confirm that people are happy with this new interface. Also
-> the code that figures out what constraints to pass to
-> vm_unmapped_area() is a bit odd; I have tried to make the constraints
-> match the behavior of the current code but it's not clear to me if
-> that behavior makes sense in the first place.
+On 30.10.2012 20:18, Mel Gorman wrote:
+> On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
+>> On 15.10.2012 13:09, Mel Gorman wrote:
+>>> On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
+>>>> On 10/12/2012 03:57 PM, Mel Gorman wrote:
+>>>>> mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
+>>>>> Jiri Slaby reported the following:
+> [...]
+>>>> Yes, applying this instead of the revert fixes the issue as well.
+>> Just wondering, is there a reason why this patch wasn't applied to
+>> mainline? Did it simply fall through the cracks? Or am I missing
+>> something?
+> It's because a problem was reported related to the patch (off-list,
+> whoops). I'm waiting to hear if a second patch fixes the problem or not.
 
-I wanted to expand a bit on that by listing some of these behaviors I
-have made sure to preserve without really understanding why they are
-as they are:
+Anything in particular I should look out for while testing?
 
-- arch_get_unmapped_area() doesn't make use of mm->mmap_base, this
-value is used only when doing downwards allocations. However, many
-architectures including x86_64 carefully initialize this (in
-arch_pick_mmap_layout() ) to different values based on the up/down
-allocation direction. It seems that the legacy (upwards allocation)
-mmap_base value is irrelevant as I don't see any place using it ???
+>> I'm asking because I think I stil see the issue on
+>> 3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
+>> hitting it, too:
+>> https://bugzilla.redhat.com/show_bug.cgi?id=866988
+> I like the steps to reproduce.
 
-- For downwards allocations, it is not clear if the lowest valid
-address should be 0 or PAGE_SIZE. Existing brute-force search code
-will treat address 0 as valid on entering the loop, but invalid when
-reaching the end of the loop.
+One of those cases where the bugzilla bug template was not very helpful 
+or where it was not used as intended (you decide) :-)
 
-- When user passes a suggested address without the MAP_FIXED flag, the
-address range we validate the address against varies depending on the
-upwards/downwards allocation direction. This doesn't make much sense
-since there is no address space search taking place in this case.
+> Is step 3 profit?
 
-- The stragegy of allocating upwards if the downwards allocation
-failed is a bit strange. I'm not sure what we really want; maybe we
-only need to extend the valid address range for the initial search ?
-(IIRC Rik's initial patch series got rid of this redundant search, but
-didn't explain why this was considered safe).
+Yes, but psst, don't tell anyone; step 4 (world domination! for real!) 
+is also hidden to keep that part of the big plan a secret for now ;-)
 
-That's all I noticed, but this is really most of the remaining code
-left in arch_get_unmapped_area[_topdown]... and I didn't even go into
-architectures other than x86, where I could find some additional
-questionable stuff (but I don't even want to go there before we at
-least agree on the general principle of this patch series).
+>> Or are we seeing something different which just looks similar?  I can
+>> test the patch if it needs further testing, but from the discussion
+>> I got the impression that everything is clear and the patch ready
+>> for merging.
+> It could be the same issue. Can you test with the "mm: vmscan: scale
+> number of pages reclaimed by reclaim/compaction only in direct reclaim"
+> patch and the following on top please?
 
-I hope with a proper understanding of the allocation strategies /
-constraints it might be possible to unify the remaining
-arch_get_unmapped_area[_topdown] code between architectures, but I'm
-keeping this for a later step as I'm obviously not informed enough to
-tackle that just yet...
+Built a vanilla mainline kernel with those two patches and installed it 
+on the machine where I was seeing problems high kswapd0 load on 3.7-rc3. 
+Ran it an hour yesterday and a few hours today; seems the patches fix 
+the issue for me as kswapd behaves:
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+$ LC_ALL=C ps -aux | grep 'kswapd'
+root       62  0.0  0.0      0     0 ?      S    Oct30   0:05 [kswapd0]
+
+So everything is looking fine again so far thx to the two patches  -- 
+hopefully it stays that way even after hitting "send" in my mailer in a 
+few seconds.
+
+CU
+knurd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
