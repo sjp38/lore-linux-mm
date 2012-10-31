@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id D85E96B0068
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:21:35 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so839003dad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:21:35 -0700 (PDT)
-Date: Wed, 31 Oct 2012 11:21:32 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 200FF6B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:29:21 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1298700pbb.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:29:20 -0700 (PDT)
+Date: Wed, 31 Oct 2012 11:29:17 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PART6 Patch] mempolicy: fix is_valid_nodemask()
-In-Reply-To: <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1210311119000.8809@chino.kir.corp.google.com>
-References: <1351675458-11859-1-git-send-email-wency@cn.fujitsu.com> <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [PART2 Patch] node: cleanup node_state_attr
+In-Reply-To: <1351666528-8226-2-git-send-email-wency@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1210311128570.8809@chino.kir.corp.google.com>
+References: <1351666528-8226-1-git-send-email-wency@cn.fujitsu.com> <1351666528-8226-2-git-send-email-wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,27 +19,47 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org,
 
 On Wed, 31 Oct 2012, Wen Congyang wrote:
 
-> From: Lai Jiangshan <laijs@cn.fujitsu.com>
-> 
-> is_valid_nodemask() is introduced by 19770b32. but it does not match
-> its comments, because it does not check the zone which > policy_zone.
-> 
-> Also in b377fd, this commits told us, if highest zone is ZONE_MOVABLE,
-> we should also apply memory policies to it. so ZONE_MOVABLE should be valid zone
-> for policies. is_valid_nodemask() need to be changed to match it.
-> 
-> Fix: check all zones, even its zoneid > policy_zone.
-> Use nodes_intersects() instead open code to check it.
-> 
+> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> index af1a177..5d7731e 100644
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -614,23 +614,23 @@ static ssize_t show_node_state(struct device *dev,
+>  	{ __ATTR(name, 0444, show_node_state, NULL), state }
+>  
+>  static struct node_attr node_state_attr[] = {
+> -	_NODE_ATTR(possible, N_POSSIBLE),
+> -	_NODE_ATTR(online, N_ONLINE),
+> -	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
+> -	_NODE_ATTR(has_cpu, N_CPU),
+> +	[N_POSSIBLE] = _NODE_ATTR(possible, N_POSSIBLE),
+> +	[N_ONLINE] = _NODE_ATTR(online, N_ONLINE),
+> +	[N_NORMAL_MEMORY] = _NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
+>  #ifdef CONFIG_HIGHMEM
+> -	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+> +	[N_HIGH_MEMORY] = _NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+>  #endif
+> +	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
+>  };
+>  
 
-This changes the semantics of MPOL_BIND to be considerably different than 
-what it is today: slab allocations are no longer bound by such a policy 
-which isn't consistent with what userspace expects or is specified by 
-set_mempolicy() and there's no way, with your patch, to actually specify 
-that we don't care about ZONE_MOVABLE and that the slab allocations 
-_should_ actually be allocated on movable-only zones.  You have to respect 
-cases where people aren't interested in node hotplug and not cause a 
-regression.
+Why change the index for N_CPU?
+
+>  static struct attribute *node_state_attrs[] = {
+> -	&node_state_attr[0].attr.attr,
+> -	&node_state_attr[1].attr.attr,
+> -	&node_state_attr[2].attr.attr,
+> -	&node_state_attr[3].attr.attr,
+> +	&node_state_attr[N_POSSIBLE].attr.attr,
+> +	&node_state_attr[N_ONLINE].attr.attr,
+> +	&node_state_attr[N_NORMAL_MEMORY].attr.attr,
+>  #ifdef CONFIG_HIGHMEM
+> -	&node_state_attr[4].attr.attr,
+> +	&node_state_attr[N_HIGH_MEMORY].attr.attr,
+>  #endif
+> +	&node_state_attr[N_CPU].attr.attr,
+>  	NULL
+>  };
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
