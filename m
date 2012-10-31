@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 08C5E6B0078
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 20:34:04 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so1627515ied.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:34:04 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 1149D6B0073
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 20:48:56 -0400 (EDT)
+Date: Tue, 30 Oct 2012 20:48:38 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 00/31] numa/core patches
+Message-ID: <20121031004838.GA1657@cmpxchg.org>
+References: <20121025121617.617683848@chello.nl>
+ <508A52E1.8020203@redhat.com>
+ <1351242480.12171.48.camel@twins>
+ <20121028175615.GC29827@cmpxchg.org>
+ <508F73C5.7050409@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20121030214257.GB2681@htj.dyndns.org>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com> <20121030214257.GB2681@htj.dyndns.org>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Tue, 30 Oct 2012 20:33:43 -0400
-Message-ID: <CA+1xoqeCKS2E4TWCUCELjDqV2pWS4v6EyV6K-=w-GRi_K6quiQ@mail.gmail.com>
-Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <508F73C5.7050409@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Zhouping Liu <zliu@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, CAI Qian <caiqian@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Tue, Oct 30, 2012 at 5:42 PM, Tejun Heo <tj@kernel.org> wrote:
-> Hello,
->
-> Just some nitpicks.
->
-> On Tue, Oct 30, 2012 at 02:45:57PM -0400, Sasha Levin wrote:
->> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
->> +#define hash_min(val, bits)                                                  \
->> +({                                                                           \
->> +     sizeof(val) <= 4 ?                                                      \
->> +     hash_32(val, bits) :                                                    \
->> +     hash_long(val, bits);                                                   \
->> +})
->
-> Doesn't the above fit in 80 column.  Why is it broken into multiple
-> lines?  Also, you probably want () around at least @val.  In general,
-> it's a good idea to add () around any macro argument to avoid nasty
-> surprises.
+On Tue, Oct 30, 2012 at 02:29:25PM +0800, Zhouping Liu wrote:
+> On 10/29/2012 01:56 AM, Johannes Weiner wrote:
+> >On Fri, Oct 26, 2012 at 11:08:00AM +0200, Peter Zijlstra wrote:
+> >>On Fri, 2012-10-26 at 17:07 +0800, Zhouping Liu wrote:
+> >>>[  180.918591] RIP: 0010:[<ffffffff8118c39a>]  [<ffffffff8118c39a>] mem_cgroup_prepare_migration+0xba/0xd0
+> >>>[  182.681450]  [<ffffffff81183b60>] do_huge_pmd_numa_page+0x180/0x500
+> >>>[  182.775090]  [<ffffffff811585c9>] handle_mm_fault+0x1e9/0x360
+> >>>[  182.863038]  [<ffffffff81632b62>] __do_page_fault+0x172/0x4e0
+> >>>[  182.950574]  [<ffffffff8101c283>] ? __switch_to_xtra+0x163/0x1a0
+> >>>[  183.041512]  [<ffffffff8101281e>] ? __switch_to+0x3ce/0x4a0
+> >>>[  183.126832]  [<ffffffff8162d686>] ? __schedule+0x3c6/0x7a0
+> >>>[  183.211216]  [<ffffffff81632ede>] do_page_fault+0xe/0x10
+> >>>[  183.293705]  [<ffffffff8162f518>] page_fault+0x28/0x30
+> >>Johannes, this looks like the thp migration memcg hookery gone bad,
+> >>could you have a look at this?
+> >Oops.  Here is an incremental fix, feel free to fold it into #31.
+> Hello Johannes,
+> 
+> maybe I don't think the below patch completely fix this issue, as I
+> found a new error(maybe similar with this):
+> 
+> [88099.923724] ------------[ cut here ]------------
+> [88099.924036] kernel BUG at mm/memcontrol.c:1134!
+> [88099.924036] invalid opcode: 0000 [#1] SMP
+> [88099.924036] Modules linked in: lockd sunrpc kvm_amd kvm
+> amd64_edac_mod edac_core ses enclosure serio_raw bnx2 pcspkr shpchp
+> joydev i2c_piix4 edac_mce_amd k8temp dcdbas ata_generic pata_acpi
+> megaraid_sas pata_serverworks usb_storage radeon i2c_algo_bit
+> drm_kms_helper ttm drm i2c_core
+> [88099.924036] CPU 7
+> [88099.924036] Pid: 3441, comm: stress Not tainted 3.7.0-rc2Jons+ #3
+> Dell Inc. PowerEdge 6950/0WN213
+> [88099.924036] RIP: 0010:[<ffffffff81188e97>] [<ffffffff81188e97>]
+> mem_cgroup_update_lru_size+0x27/0x30
 
-It was broken to multiple lines because it looks nicer that way (IMO).
+Thanks a lot for your testing efforts, I really appreciate it.
 
-If we wrap it with () it's going to go over 80, so it's going to stay
-broken down either way :)
+I'm looking into it, but I don't expect power to get back for several
+days where I live, so it's hard to reproduce it locally.
 
+But that looks like an LRU accounting imbalance that I wasn't able to
+tie to this patch yet.  Do you see weird numbers for the lru counters
+in /proc/vmstat even without this memory cgroup patch?  Ccing Hugh as
+well.
 
 Thanks,
-Sasha
-
-> Looks good to me otherwise.
->
->  Reviewed-by: Tejun Heo <tj@kernel.org>
->
-> Thanks.
->
-> --
-> tejun
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
