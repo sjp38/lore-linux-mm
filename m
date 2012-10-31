@@ -1,167 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 2CBC46B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:56:32 -0400 (EDT)
-Date: Wed, 31 Oct 2012 09:42:46 -0400
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 964B86B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:59:02 -0400 (EDT)
+Date: Wed, 31 Oct 2012 09:45:38 -0400
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH RFC] mm: simplify frontswap_init()
-Message-ID: <20121031134246.GF27288@phenom.dumpdata.com>
-References: <5090594E.7050401@cesarb.net>
- <1351638773-3986-1-git-send-email-cesarb@cesarb.net>
+Subject: Re: [PATCH 1/2] mm: refactor reinsert of swap_info in sys_swapoff
+Message-ID: <20121031134538.GG27288@phenom.dumpdata.com>
+References: <1351372847-13625-1-git-send-email-cesarb@cesarb.net>
+ <1351372847-13625-2-git-send-email-cesarb@cesarb.net>
+ <20121030140417.988c2437.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351638773-3986-1-git-send-email-cesarb@cesarb.net>
+In-Reply-To: <20121030140417.988c2437.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cesar Eduardo Barros <cesarb@cesarb.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>, dan.magenheimer@oracle.com
+Cc: Cesar Eduardo Barros <cesarb@cesarb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, Oct 30, 2012 at 09:12:53PM -0200, Cesar Eduardo Barros wrote:
-> The function frontswap_init() uses the passed parameter only to check
-> for the presence of the frontswap_map. It is also passed down to
-> frontswap_ops.init(), but all implementations of it in the kernel ignore
-> the parameter.
+On Tue, Oct 30, 2012 at 02:04:17PM -0700, Andrew Morton wrote:
+> On Sat, 27 Oct 2012 19:20:46 -0200
+> Cesar Eduardo Barros <cesarb@cesarb.net> wrote:
 > 
-> Do the check for frontswap_map in the caller instead and remove the
-> parameter from frontswap_init() and frontswap_ops.init().
+> > The block within sys_swapoff which re-inserts the swap_info into the
+> > swap_list in case of failure of try_to_unuse() reads a few values outside
+> > the swap_lock. While this is safe at that point, it is subtle code.
+> > 
+> > Simplify the code by moving the reading of these values to a separate
+> > function, refactoring it a bit so they are read from within the
+> > swap_lock. This is easier to understand, and matches better the way it
+> > worked before I unified the insertion of the swap_info from both
+> > sys_swapon and sys_swapoff.
+> > 
+> > This change should make no functional difference. The only real change
+> > is moving the read of two or three structure fields to within the lock
+> > (frontswap_map_get() is nothing more than a read of p->frontswap_map).
 > 
-> Also, __frontswap_init() was exported, but its only caller (via an
-> inline function) is mm/swapfile.c, which cannot be built as a module.
-> Remove the unnecessary export.
+> Your patch doesn't change this, but...  it is very unusual for any
+> subsystem's ->init method to be called under a spinlock.  Because it is
+> highly likely that such a method will wish to do things such as memory
+> allocation.
 > 
-> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
-> ---
-> 
-> Not even compile tested, just a quick patch to show what I was thinking
-> of, but feel free to apply if you think it is good.
+> It is rare and unlikely for an ->init() method to *need* such external
+> locking, because all the objects it is dealing with cannot be looked up
+> by other threads because nothing has been registered anywhere yet.
 
-That looks good.
+I don't believe it actually needs that locking. Dan, do you recall
+the details of this?
 > 
-> I might write another patch to move it outside the lock later, but I
-> would have to read the frontswap code more carefully first.
+> So either frontswap is doing something wrong here or there's some
+> subtlety which escapes me.  If the former then we should try to get
+> that ->init call to happen outside swap_lock.
+
+Agreed.
 > 
->  drivers/staging/ramster/zcache-main.c |  2 +-
->  drivers/staging/zcache/zcache-main.c  |  2 +-
->  drivers/xen/tmem.c                    |  2 +-
->  include/linux/frontswap.h             |  8 ++++----
->  mm/frontswap.c                        | 10 ++--------
->  mm/swapfile.c                         |  3 ++-
->  6 files changed, 11 insertions(+), 16 deletions(-)
-> 
-> diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/ramster/zcache-main.c
-> index a09dd5c..b3f01c9 100644
-> --- a/drivers/staging/ramster/zcache-main.c
-> +++ b/drivers/staging/ramster/zcache-main.c
-> @@ -1610,7 +1610,7 @@ static void zcache_frontswap_flush_area(unsigned type)
->  	}
->  }
->  
-> -static void zcache_frontswap_init(unsigned ignored)
-> +static void zcache_frontswap_init(void)
->  {
->  	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
->  	if (zcache_frontswap_poolid < 0)
-> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
-> index 52b43b7..cb67635 100644
-> --- a/drivers/staging/zcache/zcache-main.c
-> +++ b/drivers/staging/zcache/zcache-main.c
-> @@ -1903,7 +1903,7 @@ static void zcache_frontswap_flush_area(unsigned type)
->  	}
->  }
->  
-> -static void zcache_frontswap_init(unsigned ignored)
-> +static void zcache_frontswap_init(void)
->  {
->  	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
->  	if (zcache_frontswap_poolid < 0)
-> diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
-> index 144564e..7156ff0 100644
-> --- a/drivers/xen/tmem.c
-> +++ b/drivers/xen/tmem.c
-> @@ -343,7 +343,7 @@ static void tmem_frontswap_flush_area(unsigned type)
->  		(void)xen_tmem_flush_object(pool, oswiz(type, ind));
->  }
->  
-> -static void tmem_frontswap_init(unsigned ignored)
-> +static void tmem_frontswap_init(void)
->  {
->  	struct tmem_pool_uuid private = TMEM_POOL_PRIVATE_UUID;
->  
-> diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-> index 3044254..6374c80 100644
-> --- a/include/linux/frontswap.h
-> +++ b/include/linux/frontswap.h
-> @@ -6,7 +6,7 @@
->  #include <linux/bitops.h>
->  
->  struct frontswap_ops {
-> -	void (*init)(unsigned);
-> +	void (*init)(void);
->  	int (*store)(unsigned, pgoff_t, struct page *);
->  	int (*load)(unsigned, pgoff_t, struct page *);
->  	void (*invalidate_page)(unsigned, pgoff_t);
-> @@ -22,7 +22,7 @@ extern void frontswap_writethrough(bool);
->  #define FRONTSWAP_HAS_EXCLUSIVE_GETS
->  extern void frontswap_tmem_exclusive_gets(bool);
->  
-> -extern void __frontswap_init(unsigned type);
-> +extern void __frontswap_init(void);
->  extern int __frontswap_store(struct page *page);
->  extern int __frontswap_load(struct page *page);
->  extern void __frontswap_invalidate_page(unsigned, pgoff_t);
-> @@ -120,10 +120,10 @@ static inline void frontswap_invalidate_area(unsigned type)
->  		__frontswap_invalidate_area(type);
->  }
->  
-> -static inline void frontswap_init(unsigned type)
-> +static inline void frontswap_init(void)
->  {
->  	if (frontswap_enabled)
-> -		__frontswap_init(type);
-> +		__frontswap_init();
->  }
->  
->  #endif /* _LINUX_FRONTSWAP_H */
-> diff --git a/mm/frontswap.c b/mm/frontswap.c
-> index 2890e67..d13661b 100644
-> --- a/mm/frontswap.c
-> +++ b/mm/frontswap.c
-> @@ -115,16 +115,10 @@ EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
->  /*
->   * Called when a swap device is swapon'd.
->   */
-> -void __frontswap_init(unsigned type)
-> +void __frontswap_init(void)
->  {
-> -	struct swap_info_struct *sis = swap_info[type];
-> -
-> -	BUG_ON(sis == NULL);
-> -	if (sis->frontswap_map == NULL)
-> -		return;
-> -	frontswap_ops.init(type);
-> +	frontswap_ops.init();
->  }
-> -EXPORT_SYMBOL(__frontswap_init);
->  
->  static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
->  {
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 088daf4..28c26bd 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1479,7 +1479,8 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
->  {
->  	spin_lock(&swap_lock);
->  	_enable_swap_info(p, prio, swap_map, frontswap_map);
-> -	frontswap_init(p->type);
-> +	if (frontswap_map)
-> +		frontswap_init();
->  	spin_unlock(&swap_lock);
->  }
->  
-> -- 
-> 1.7.11.7
+> And if we can do that, perhaps we can fix the regrettable GFP_ATOMIC
+> in zcache_new_pool().
+
+Ouch. Yes.
+
+
+FYI, thanks for pulling those two patches - they looked good to me
+but I hadn't had a chance to test them so did not want to comment on them
+until that happen. Dan beat me to it and he did test them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
