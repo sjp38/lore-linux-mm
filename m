@@ -1,56 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 279686B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:01:51 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so1877619oag.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 08:01:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 952876B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:04:46 -0400 (EDT)
+Date: Wed, 31 Oct 2012 15:04:38 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd0: excessive CPU usage
+Message-ID: <20121031150438.GK3888@suse.de>
+References: <50770905.5070904@suse.cz>
+ <119175.1349979570@turing-police.cc.vt.edu>
+ <5077434D.7080008@suse.cz>
+ <50780F26.7070007@suse.cz>
+ <20121012135726.GY29125@suse.de>
+ <507BDD45.1070705@suse.cz>
+ <20121015110937.GE29125@suse.de>
+ <508E5FD3.1060105@leemhuis.info>
+ <20121030191843.GH3888@suse.de>
+ <50910A99.5050707@leemhuis.info>
 MIME-Version: 1.0
-In-Reply-To: <20121030143107.ee1f959b.akpm@linux-foundation.org>
-References: <1351451576-2611-1-git-send-email-js1304@gmail.com>
-	<1351451576-2611-3-git-send-email-js1304@gmail.com>
-	<20121030143107.ee1f959b.akpm@linux-foundation.org>
-Date: Thu, 1 Nov 2012 00:01:50 +0900
-Message-ID: <CAAmzW4McRv5c4gVi7Ltn72jq7Kcmu8OSKLmcw-3iVKtb_PXejQ@mail.gmail.com>
-Subject: Re: [PATCH 2/5] mm, highmem: remove useless pool_lock
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <50910A99.5050707@leemhuis.info>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thorsten Leemhuis <fedora@leemhuis.info>
+Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello, Andrew.
+On Wed, Oct 31, 2012 at 12:25:13PM +0100, Thorsten Leemhuis wrote:
+> On 30.10.2012 20:18, Mel Gorman wrote:
+> >On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
+> >>On 15.10.2012 13:09, Mel Gorman wrote:
+> >>>On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
+> >>>>On 10/12/2012 03:57 PM, Mel Gorman wrote:
+> >>>>>mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
+> >>>>>Jiri Slaby reported the following:
+> >[...]
+> >>>>Yes, applying this instead of the revert fixes the issue as well.
+> >>Just wondering, is there a reason why this patch wasn't applied to
+> >>mainline? Did it simply fall through the cracks? Or am I missing
+> >>something?
+> >It's because a problem was reported related to the patch (off-list,
+> >whoops). I'm waiting to hear if a second patch fixes the problem or not.
+> 
+> Anything in particular I should look out for while testing?
+> 
 
-2012/10/31 Andrew Morton <akpm@linux-foundation.org>:
-> On Mon, 29 Oct 2012 04:12:53 +0900
-> Joonsoo Kim <js1304@gmail.com> wrote:
->
->> The pool_lock protects the page_address_pool from concurrent access.
->> But, access to the page_address_pool is already protected by kmap_lock.
->> So remove it.
->
-> Well, there's a set_page_address() call in mm/page_alloc.c which
-> doesn't have lock_kmap().  it doesn't *need* lock_kmap() because it's
-> init-time code and we're running single-threaded there.  I hope!
->
-> But this exception should be double-checked and mentioned in the
-> changelog, please.  And it's a reason why we can't add
-> assert_spin_locked(&kmap_lock) to set_page_address(), which is
-> unfortunate.
+Excessive reclaim, high CPU usage by kswapd, processes getting stick in
+isolate_migratepages or isolate_freepages.
 
-set_page_address() in mm/page_alloc.c is invoked only when
-WANT_PAGE_VIRTUAL is defined.
-And in this case, set_page_address()'s definition is not in highmem.c,
-but in include/linux/mm.h.
-So, we don't need to worry about set_page_address() call in mm/page_alloc.c
+> >>I'm asking because I think I stil see the issue on
+> >>3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
+> >>hitting it, too:
+> >>https://bugzilla.redhat.com/show_bug.cgi?id=866988
+> >I like the steps to reproduce.
+> 
+> One of those cases where the bugzilla bug template was not very
+> helpful or where it was not used as intended (you decide) :-)
+> 
 
-> The irq-disabling in this code is odd.  If ARCH_NEEDS_KMAP_HIGH_GET=n,
-> we didn't need irq-safe locking in set_page_address().  I guess we'll
-> need to retain it in page_address() - I expect some callers have IRQs
-> disabled.
+It wins at entertainment value if nothing else :)
 
-As Minchan described, if we don't disable irq when we take a lock for pas->lock,
-it would be deadlock with page_address().
+> >Is step 3 profit?
+> 
+> Yes, but psst, don't tell anyone; step 4 (world domination! for
+> real!) is also hidden to keep that part of the big plan a secret for
+> now ;-)
+> 
+
+No doubt it's the default private comment #1 !
+
+> >>Or are we seeing something different which just looks similar?  I can
+> >>test the patch if it needs further testing, but from the discussion
+> >>I got the impression that everything is clear and the patch ready
+> >>for merging.
+> >It could be the same issue. Can you test with the "mm: vmscan: scale
+> >number of pages reclaimed by reclaim/compaction only in direct reclaim"
+> >patch and the following on top please?
+> 
+> Built a vanilla mainline kernel with those two patches and installed
+> it on the machine where I was seeing problems high kswapd0 load on
+> 3.7-rc3. Ran it an hour yesterday and a few hours today; seems the
+> patches fix the issue for me as kswapd behaves:
+> 
+> $ LC_ALL=C ps -aux | grep 'kswapd'
+> root       62  0.0  0.0      0     0 ?      S    Oct30   0:05 [kswapd0]
+> 
+> So everything is looking fine again so far thx to the two patches
+> -- hopefully it stays that way even after hitting "send" in my
+> mailer in a few seconds.
+> 
+
+Ok, great. Keep an eye on it please. If Jiri Slaby reports similar
+success then I'll collapse the two patches together and resend to
+Andrew.
+
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
