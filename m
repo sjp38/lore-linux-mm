@@ -1,105 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 9FB686B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:41:37 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so1090727pbb.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 06:41:36 -0700 (PDT)
-Message-ID: <50912A85.5090808@gmail.com>
-Date: Wed, 31 Oct 2012 21:41:25 +0800
-From: Jianguo Wu <wujianguo106@gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 2CBC46B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:56:32 -0400 (EDT)
+Date: Wed, 31 Oct 2012 09:42:46 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH RFC] mm: simplify frontswap_init()
+Message-ID: <20121031134246.GF27288@phenom.dumpdata.com>
+References: <5090594E.7050401@cesarb.net>
+ <1351638773-3986-1-git-send-email-cesarb@cesarb.net>
 MIME-Version: 1.0
-Subject: Re: [Patch v4 3/8] memory-hotplug: fix NR_FREE_PAGES mismatch
-References: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com> <1351682594-17347-4-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351682594-17347-4-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1351638773-3986-1-git-send-email-cesarb@cesarb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rjw@sisk.pl, Lai Jiangshan <laijs@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>
+To: Cesar Eduardo Barros <cesarb@cesarb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 2012/10/31 19:23, Wen Congyang wrote:
-> NR_FREE_PAGES will be wrong after offlining pages.  We add/dec
-> NR_FREE_PAGES like this now:
+On Tue, Oct 30, 2012 at 09:12:53PM -0200, Cesar Eduardo Barros wrote:
+> The function frontswap_init() uses the passed parameter only to check
+> for the presence of the frontswap_map. It is also passed down to
+> frontswap_ops.init(), but all implementations of it in the kernel ignore
+> the parameter.
 > 
-> 1. move all pages in buddy system to MIGRATE_ISOLATE, and dec NR_FREE_PAGES
+> Do the check for frontswap_map in the caller instead and remove the
+> parameter from frontswap_init() and frontswap_ops.init().
 > 
-> 2. don't add NR_FREE_PAGES when it is freed and the migratetype is
->    MIGRATE_ISOLATE
+> Also, __frontswap_init() was exported, but its only caller (via an
+> inline function) is mm/swapfile.c, which cannot be built as a module.
+> Remove the unnecessary export.
 > 
-> 3. dec NR_FREE_PAGES when offlining isolated pages.
-> 
-> 4. add NR_FREE_PAGES when undoing isolate pages.
-> 
-> When we come to step 3, all pages are in MIGRATE_ISOLATE list, and
-> NR_FREE_PAGES are right.  When we come to step4, all pages are not in
-> buddy system, so we don't change NR_FREE_PAGES in this step, but we change
-> NR_FREE_PAGES in step3.  So NR_FREE_PAGES is wrong after offlining pages.
-> So there is no need to change NR_FREE_PAGES in step3.
-> 
-> This patch also fixs a problem in step2: if the migratetype is
-> MIGRATE_ISOLATE, we should not add NR_FRR_PAGES when we remove pages from
-> pcppages.
-> 
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Jiang Liu <liuj97@gmail.com>
-> Cc: Len Brown <len.brown@intel.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Cesar Eduardo Barros <cesarb@cesarb.net>
 > ---
->  mm/page_alloc.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b74de6..a7cd2d1 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -667,11 +667,13 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->  			__free_one_page(page, zone, 0, mt);
->  			trace_mm_page_pcpu_drain(page, 0, mt);
-> -			if (is_migrate_cma(mt))
-> -				__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> +			if (likely(mt != MIGRATE_ISOLATE)) {
+> Not even compile tested, just a quick patch to show what I was thinking
+> of, but feel free to apply if you think it is good.
 
-Hi Congyang,
-	I think mt != MIGRATE_ISOLATE is always true here,
-page from PCP's migratetype < MIGRATE_PCPTYPES.
-When isolate page, we change pageblock's migratetype to MIGRATE_ISOLATE,
-but set_freepage_migratetype() isn't called.
-Maybe we can use mt = get_pageblock_migratetype() here ?
-
-Thanks,
-Jianguo Wu.
-
-> +				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> +				if (is_migrate_cma(mt))
-> +					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> +			}
->  		} while (--to_free && --batch_free && !list_empty(list));
+That looks good.
+> 
+> I might write another patch to move it outside the lock later, but I
+> would have to read the frontswap code more carefully first.
+> 
+>  drivers/staging/ramster/zcache-main.c |  2 +-
+>  drivers/staging/zcache/zcache-main.c  |  2 +-
+>  drivers/xen/tmem.c                    |  2 +-
+>  include/linux/frontswap.h             |  8 ++++----
+>  mm/frontswap.c                        | 10 ++--------
+>  mm/swapfile.c                         |  3 ++-
+>  6 files changed, 11 insertions(+), 16 deletions(-)
+> 
+> diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/ramster/zcache-main.c
+> index a09dd5c..b3f01c9 100644
+> --- a/drivers/staging/ramster/zcache-main.c
+> +++ b/drivers/staging/ramster/zcache-main.c
+> @@ -1610,7 +1610,7 @@ static void zcache_frontswap_flush_area(unsigned type)
 >  	}
-> -	__mod_zone_page_state(zone, NR_FREE_PAGES, count);
->  	spin_unlock(&zone->lock);
 >  }
 >  
-> @@ -5987,8 +5989,6 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  		list_del(&page->lru);
->  		rmv_page_order(page);
->  		zone->free_area[order].nr_free--;
-> -		__mod_zone_page_state(zone, NR_FREE_PAGES,
-> -				      - (1UL << order));
->  		for (i = 0; i < (1 << order); i++)
->  			SetPageReserved((page+i));
->  		pfn += (1 << order);
-> 
+> -static void zcache_frontswap_init(unsigned ignored)
+> +static void zcache_frontswap_init(void)
+>  {
+>  	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
+>  	if (zcache_frontswap_poolid < 0)
+> diff --git a/drivers/staging/zcache/zcache-main.c b/drivers/staging/zcache/zcache-main.c
+> index 52b43b7..cb67635 100644
+> --- a/drivers/staging/zcache/zcache-main.c
+> +++ b/drivers/staging/zcache/zcache-main.c
+> @@ -1903,7 +1903,7 @@ static void zcache_frontswap_flush_area(unsigned type)
+>  	}
+>  }
+>  
+> -static void zcache_frontswap_init(unsigned ignored)
+> +static void zcache_frontswap_init(void)
+>  {
+>  	/* a single tmem poolid is used for all frontswap "types" (swapfiles) */
+>  	if (zcache_frontswap_poolid < 0)
+> diff --git a/drivers/xen/tmem.c b/drivers/xen/tmem.c
+> index 144564e..7156ff0 100644
+> --- a/drivers/xen/tmem.c
+> +++ b/drivers/xen/tmem.c
+> @@ -343,7 +343,7 @@ static void tmem_frontswap_flush_area(unsigned type)
+>  		(void)xen_tmem_flush_object(pool, oswiz(type, ind));
+>  }
+>  
+> -static void tmem_frontswap_init(unsigned ignored)
+> +static void tmem_frontswap_init(void)
+>  {
+>  	struct tmem_pool_uuid private = TMEM_POOL_PRIVATE_UUID;
+>  
+> diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
+> index 3044254..6374c80 100644
+> --- a/include/linux/frontswap.h
+> +++ b/include/linux/frontswap.h
+> @@ -6,7 +6,7 @@
+>  #include <linux/bitops.h>
+>  
+>  struct frontswap_ops {
+> -	void (*init)(unsigned);
+> +	void (*init)(void);
+>  	int (*store)(unsigned, pgoff_t, struct page *);
+>  	int (*load)(unsigned, pgoff_t, struct page *);
+>  	void (*invalidate_page)(unsigned, pgoff_t);
+> @@ -22,7 +22,7 @@ extern void frontswap_writethrough(bool);
+>  #define FRONTSWAP_HAS_EXCLUSIVE_GETS
+>  extern void frontswap_tmem_exclusive_gets(bool);
+>  
+> -extern void __frontswap_init(unsigned type);
+> +extern void __frontswap_init(void);
+>  extern int __frontswap_store(struct page *page);
+>  extern int __frontswap_load(struct page *page);
+>  extern void __frontswap_invalidate_page(unsigned, pgoff_t);
+> @@ -120,10 +120,10 @@ static inline void frontswap_invalidate_area(unsigned type)
+>  		__frontswap_invalidate_area(type);
+>  }
+>  
+> -static inline void frontswap_init(unsigned type)
+> +static inline void frontswap_init(void)
+>  {
+>  	if (frontswap_enabled)
+> -		__frontswap_init(type);
+> +		__frontswap_init();
+>  }
+>  
+>  #endif /* _LINUX_FRONTSWAP_H */
+> diff --git a/mm/frontswap.c b/mm/frontswap.c
+> index 2890e67..d13661b 100644
+> --- a/mm/frontswap.c
+> +++ b/mm/frontswap.c
+> @@ -115,16 +115,10 @@ EXPORT_SYMBOL(frontswap_tmem_exclusive_gets);
+>  /*
+>   * Called when a swap device is swapon'd.
+>   */
+> -void __frontswap_init(unsigned type)
+> +void __frontswap_init(void)
+>  {
+> -	struct swap_info_struct *sis = swap_info[type];
+> -
+> -	BUG_ON(sis == NULL);
+> -	if (sis->frontswap_map == NULL)
+> -		return;
+> -	frontswap_ops.init(type);
+> +	frontswap_ops.init();
+>  }
+> -EXPORT_SYMBOL(__frontswap_init);
+>  
+>  static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
+>  {
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 088daf4..28c26bd 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -1479,7 +1479,8 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+>  {
+>  	spin_lock(&swap_lock);
+>  	_enable_swap_info(p, prio, swap_map, frontswap_map);
+> -	frontswap_init(p->type);
+> +	if (frontswap_map)
+> +		frontswap_init();
+>  	spin_unlock(&swap_lock);
+>  }
+>  
+> -- 
+> 1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
