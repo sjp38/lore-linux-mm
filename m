@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id B8AEA6B006E
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 01:35:18 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 8CF816B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 01:35:17 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART1 Patch 3/3] memory_hotplug: ensure every online node has NORMAL memory
-Date: Wed, 31 Oct 2012 13:40:36 +0800
-Message-Id: <1351662036-7435-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART1 Patch 2/3] memory_hotplug: handle empty zone when online_movable/online_kernel
+Date: Wed, 31 Oct 2012 13:40:35 +0800
+Message-Id: <1351662036-7435-3-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351662036-7435-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351662036-7435-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,92 +15,111 @@ Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Ya
 
 From: Lai Jiangshan <laijs@cn.fujitsu.com>
 
-Old  memory hotplug code and new online/movable may cause a online node
-don't have any normal memory, but memory-management acts bad when we have
-nodes which is online but don't have any normal memory.
-Example: it may cause a bound task fail on all kernel allocation and
-cause the task can't create task or create other kernel object.
-
-So we disable non-normal-memory-node here, we will enable it
-when we prepared.
+make online_movable/online_kernel can empty a zone
+or can move memory to a empty zone.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- mm/memory_hotplug.c | 40 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 40 insertions(+)
+ mm/memory_hotplug.c | 51 +++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 45 insertions(+), 6 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e6ec8c2..b557218 100644
+index 4900025..e6ec8c2 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -589,6 +589,12 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 	return 0;
- }
+@@ -227,8 +227,17 @@ static void resize_zone(struct zone *zone, unsigned long start_pfn,
  
-+/* ensure every online node has NORMAL memory */
-+static bool can_online_high_movable(struct zone *zone)
-+{
-+	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-+}
-+
- /* check which state of node_states will be changed when online memory */
- static void node_states_check_changes_online(unsigned long nr_pages,
- 	struct zone *zone, struct memory_notify *arg)
-@@ -654,6 +660,12 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	 */
- 	zone = page_zone(pfn_to_page(pfn));
+ 	zone_span_writelock(zone);
  
-+	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
-+	    !can_online_high_movable(zone)) {
-+		unlock_memory_hotplug();
-+		return -1;
+-	zone->zone_start_pfn = start_pfn;
+-	zone->spanned_pages = end_pfn - start_pfn;
++	if (end_pfn - start_pfn) {
++		zone->zone_start_pfn = start_pfn;
++		zone->spanned_pages = end_pfn - start_pfn;
++	} else {
++		/*
++		 * make it consist as free_area_init_core(),
++		 * if spanned_pages = 0, then keep start_pfn = 0
++		 */
++		zone->zone_start_pfn = 0;
++		zone->spanned_pages = 0;
 +	}
-+
- 	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
- 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
- 			unlock_memory_hotplug();
-@@ -1058,6 +1070,30 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- 	return offlined;
+ 
+ 	zone_span_writeunlock(zone);
+ }
+@@ -244,10 +253,19 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
+ 		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
  }
  
-+/* ensure the node has NORMAL memory if it is still online */
-+static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
-+{
-+	struct pglist_data *pgdat = zone->zone_pgdat;
-+	unsigned long present_pages = 0;
-+	enum zone_type zt;
+-static int move_pfn_range_left(struct zone *z1, struct zone *z2,
++static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
+ 		unsigned long start_pfn, unsigned long end_pfn)
+ {
++	int ret;
+ 	unsigned long flags;
++	unsigned long z1_start_pfn;
 +
-+	for (zt = 0; zt <= ZONE_NORMAL; zt++)
-+		present_pages += pgdat->node_zones[zt].present_pages;
-+
-+	if (present_pages > nr_pages)
-+		return true;
-+
-+	present_pages = 0;
-+	for (; zt <= ZONE_MOVABLE; zt++)
-+		present_pages += pgdat->node_zones[zt].present_pages;
-+
-+	/*
-+	 * we can't offline the last normal memory until all
-+	 * higher memory is offlined.
-+	 */
-+	return present_pages == 0;
-+}
-+
- /* check which state of node_states will be changed when offline memory */
- static void node_states_check_changes_offline(unsigned long nr_pages,
- 		struct zone *zone, struct memory_notify *arg)
-@@ -1145,6 +1181,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	node = zone_to_nid(zone);
- 	nr_pages = end_pfn - start_pfn;
++	if (!z1->wait_table) {
++		ret = init_currently_empty_zone(z1, start_pfn,
++			end_pfn - start_pfn, MEMMAP_HOTPLUG);
++		if (ret)
++			return ret;
++	}
  
-+	ret = -EINVAL;
-+	if (zone_idx(zone) <= ZONE_NORMAL && !can_offline_normal(zone, nr_pages))
-+		goto out;
+ 	pgdat_resize_lock(z1->zone_pgdat, &flags);
+ 
+@@ -261,7 +279,13 @@ static int move_pfn_range_left(struct zone *z1, struct zone *z2,
+ 	if (end_pfn <= z2->zone_start_pfn)
+ 		goto out_fail;
+ 
+-	resize_zone(z1, z1->zone_start_pfn, end_pfn);
++	/* use start_pfn for z1's start_pfn if z1 is empty */
++	if (z1->spanned_pages)
++		z1_start_pfn = z1->zone_start_pfn;
++	else
++		z1_start_pfn = start_pfn;
 +
- 	/* set above range as isolated */
- 	ret = start_isolate_page_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
- 	if (ret)
++	resize_zone(z1, z1_start_pfn, end_pfn);
+ 	resize_zone(z2, end_pfn, z2->zone_start_pfn + z2->spanned_pages);
+ 
+ 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+@@ -274,10 +298,19 @@ out_fail:
+ 	return -1;
+ }
+ 
+-static int move_pfn_range_right(struct zone *z1, struct zone *z2,
++static int __meminit move_pfn_range_right(struct zone *z1, struct zone *z2,
+ 		unsigned long start_pfn, unsigned long end_pfn)
+ {
++	int ret;
+ 	unsigned long flags;
++	unsigned long z2_end_pfn;
++
++	if (!z2->wait_table) {
++		ret = init_currently_empty_zone(z2, start_pfn,
++			end_pfn - start_pfn, MEMMAP_HOTPLUG);
++		if (ret)
++			return ret;
++	}
+ 
+ 	pgdat_resize_lock(z1->zone_pgdat, &flags);
+ 
+@@ -291,8 +324,14 @@ static int move_pfn_range_right(struct zone *z1, struct zone *z2,
+ 	if (start_pfn >= z1->zone_start_pfn + z1->spanned_pages)
+ 		goto out_fail;
+ 
++	/* use end_pfn for z2's end_pfn if z2 is empty */
++	if (z2->spanned_pages)
++		z2_end_pfn = z2->zone_start_pfn + z2->spanned_pages;
++	else
++		z2_end_pfn = end_pfn;
++
+ 	resize_zone(z1, z1->zone_start_pfn, start_pfn);
+-	resize_zone(z2, start_pfn, z2->zone_start_pfn + z2->spanned_pages);
++	resize_zone(z2, start_pfn, z2_end_pfn);
+ 
+ 	pgdat_resize_unlock(z1->zone_pgdat, &flags);
+ 
 -- 
 1.8.0
 
