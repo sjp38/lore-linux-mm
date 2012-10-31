@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id D510B6B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:28:50 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so922775qcq.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 23:28:50 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id AD89A6B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:56:07 -0400 (EDT)
+Date: Wed, 31 Oct 2012 16:02:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
+Message-ID: <20121031070202.GR15767@bbox>
+References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
+ <20121031010642.GN15767@bbox>
+ <20121031014209.GB2672@kroah.com>
+ <20121031020443.GP15767@bbox>
+ <20121031021618.GA1142@kroah.com>
+ <20121031023947.GA24883@bbox>
+ <20121031024307.GA9210@kroah.com>
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9RLNeDCKw7M7qQKs_L_+u+yti1KkLH4WU2PQ3cgRekuGA@mail.gmail.com>
-References: <20121015144412.GA2173@barrios>
-	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
-	<20121016061854.GB3934@barrios>
-	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
-	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
-	<20121022235321.GK13817@bbox>
-	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-	<CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
-	<alpine.DEB.2.00.1210302142510.26588@chino.kir.corp.google.com>
-	<CAA25o9RLNeDCKw7M7qQKs_L_+u+yti1KkLH4WU2PQ3cgRekuGA@mail.gmail.com>
-Date: Tue, 30 Oct 2012 23:28:49 -0700
-Message-ID: <CAA25o9RoJ7OCNkXiJHAR3edtE8VjN8dWx7AKF7oBU9rxUja0KQ@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121031024307.GA9210@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 30, 2012 at 11:14 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> On Tue, Oct 30, 2012 at 9:46 PM, David Rientjes <rientjes@google.com> wrote:
->> On Tue, 30 Oct 2012, Luigi Semenzato wrote:
->>
->>> Actually, there is a very simple fix:
->>>
->>> @@ -355,14 +364,6 @@ static struct task_struct
->>> *select_bad_process(unsigned int *ppoints,
->>>                         if (p == current) {
->>>                                 chosen = p;
->>>                                 *ppoints = 1000;
->>> -                       } else if (!force_kill) {
->>> -                               /*
->>> -                                * If this task is not being ptraced on exit,
->>> -                                * then wait for it to finish before killing
->>> -                                * some other task unnecessarily.
->>> -                                */
->>> -                               if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
->>> -                                       return ERR_PTR(-1UL);
->>>                         }
->>>                 }
->>>
->>> I'd rather kill some other task unnecessarily than hang!  My load
->>> works fine with this change.
->>>
->>
->> That's not an acceptable "fix" at all, it will lead to unnecessarily
->> killing processes when others are in the exit path, i.e. every oom kill
->> would kill two or three or more processes instead of just one.
->
-> I am sorry, I didn't mean to suggest that this is the right fix for
-> everybody.  It seems to work for us.  A real fix would be much harder,
-> I think.  Certainly it would be for me.
->
-> We don't rely on OOM-killing for memory management (we tried to, but
-> it has drawbacks).  But OOM kills can still happen, so we have to deal
-> with them.  We can deal with multiple processes being killed, but not
-> with a hang.  I might be tempted to say that this should be true for
-> everybody, but I can imagine systems that work by allowing only one
-> process to die, and perhaps the load on those systems is such that
-> they don't experience this deadlock often, or ever (even though I
-> would be nervous about it).
+On Tue, Oct 30, 2012 at 07:43:07PM -0700, Greg Kroah-Hartman wrote:
+> On Wed, Oct 31, 2012 at 11:39:48AM +0900, Minchan Kim wrote:
+> > Greg, what do you think about LTSI?
+> > Is it proper feature to add it? For it, still do I need ACK from mm developers?
+> 
+> It's already in LTSI, as it's in the 3.4 kernel, right?
 
-To make it clear, I am suggesting that this "fix" might work as a
-temporary workaround until a better fix is available.
+Right. But as I look, it seems to be based on 3.4.11 which doesn't have
+recent bug fix and enhances and current 3.4.16 also doesn't include it.
 
->> Could you please try this on 3.6 since all the code you're quoting is from
->> old kernels?
->
-> I will see if I can do it, but we're shipping 3.4 and I am not sure
-> about the status of our 3.6 tree.  I will also visually inspect the
-> relevant 3.6 code and see if the possibility of deadlock is still
-> there.
+Just out of curiosity.
+
+Is there any rule about update period in long-term kernel?
+I mean how often you release long-term kernel.
+
+Is there any rule about update period in LTSI kernel based on long-term kernel?
+If I get the answer on above two quesion, I can expect later what LTSI kernel
+version include feature I need.
+
+Another question.
+For example, There is A feature in mainline and A has no problem but
+someone invents new wheel "B" which is better than A so it replace A totally
+in recent mainline. As following stable-kernel rule, it's not a real bug fix
+so I guess stable kernel will never replace A with B. It means LTSI never get
+a chance to use new wheel. Right?
+
+Thanks.
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
