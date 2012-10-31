@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 69DDB6B0072
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 12:59:22 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so802019dad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:59:22 -0700 (PDT)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH v2 5/5] mm, highmem: get virtual address of the page using PKMAP_ADDR()
-Date: Thu,  1 Nov 2012 01:56:37 +0900
-Message-Id: <1351702597-10795-6-git-send-email-js1304@gmail.com>
-In-Reply-To: <1351702597-10795-1-git-send-email-js1304@gmail.com>
-References: <Yes>
- <1351702597-10795-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 6D9C76B0078
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 13:11:43 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so2062943oag.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 10:11:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAAmzW4OboOMD+yrAim4-H_LBC439iYat=gwfxcn5M1gvcRyz=w@mail.gmail.com>
+References: <1351451576-2611-1-git-send-email-js1304@gmail.com>
+	<20121029021219.GK15767@bbox>
+	<CAAmzW4OboOMD+yrAim4-H_LBC439iYat=gwfxcn5M1gvcRyz=w@mail.gmail.com>
+Date: Thu, 1 Nov 2012 02:11:42 +0900
+Message-ID: <CAAmzW4N+Pe_+MdLCjfVyw5Lih=vPeJj-+hLQuikp33OV_0SoiA@mail.gmail.com>
+Subject: Re: [PATCH 0/5] minor clean-up and optimize highmem related code
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-In flush_all_zero_pkmaps(), we have an index of the pkmap associated the page.
-Using this index, we can simply get virtual address of the page.
-So change it.
+Hello, Andrew.
 
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+2012/10/29 JoonSoo Kim <js1304@gmail.com>:
+> Hi, Minchan.
+>
+> 2012/10/29 Minchan Kim <minchan@kernel.org>:
+>> Hi Joonsoo,
+>>
+>> On Mon, Oct 29, 2012 at 04:12:51AM +0900, Joonsoo Kim wrote:
+>>> This patchset clean-up and optimize highmem related code.
+>>>
+>>> [1] is just clean-up and doesn't introduce any functional change.
+>>> [2-3] are for clean-up and optimization.
+>>> These eliminate an useless lock opearation and list management.
+>>> [4-5] is for optimization related to flush_all_zero_pkmaps().
+>>>
+>>> Joonsoo Kim (5):
+>>>   mm, highmem: use PKMAP_NR() to calculate an index of pkmap
+>>>   mm, highmem: remove useless pool_lock
+>>>   mm, highmem: remove page_address_pool list
+>>>   mm, highmem: makes flush_all_zero_pkmaps() return index of last
+>>>     flushed entry
+>>>   mm, highmem: get virtual address of the page using PKMAP_ADDR()
+>>
+>> This patchset looks awesome to me.
+>> If you have a plan to respin, please CCed Peter.
+>
+> Thanks for review.
+> I will wait more review and respin, the day after tomorrow.
+> Version 2 will include fix about your comment.
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index b365f7b..675ec97 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -137,8 +137,7 @@ static unsigned int flush_all_zero_pkmaps(void)
- 		 * So no dangers, even with speculative execution.
- 		 */
- 		page = pte_page(pkmap_page_table[i]);
--		pte_clear(&init_mm, (unsigned long)page_address(page),
--			  &pkmap_page_table[i]);
-+		pte_clear(&init_mm, PKMAP_ADDR(i), &pkmap_page_table[i]);
- 
- 		set_page_address(page, NULL);
- 		if (index == PKMAP_INVALID_INDEX)
--- 
-1.7.9.5
+Could you pick up second version of this patchset?
+
+[3] is changed to leave one blank line.
+[4] is changed in order to further optimize according to Minchan's comment.
+It return first index of flushed entry, instead of last index.
+Others doesn't changed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
