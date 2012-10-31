@@ -1,33 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 3F0706B0068
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 22:42:10 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so695830pbb.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 19:42:09 -0700 (PDT)
-Date: Tue, 30 Oct 2012 19:43:07 -0700
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
-Message-ID: <20121031024307.GA9210@kroah.com>
-References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
- <20121031010642.GN15767@bbox>
- <20121031014209.GB2672@kroah.com>
- <20121031020443.GP15767@bbox>
- <20121031021618.GA1142@kroah.com>
- <20121031023947.GA24883@bbox>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 7F0526B0068
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 22:48:41 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u3so516806wey.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 19:48:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121031023947.GA24883@bbox>
+In-Reply-To: <20121031022418.GE2616@ZenIV.linux.org.uk>
+References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
+ <20121030214257.GB2681@htj.dyndns.org> <CA+1xoqeCKS2E4TWCUCELjDqV2pWS4v6EyV6K-=w-GRi_K6quiQ@mail.gmail.com>
+ <1351646186.4004.41.camel@gandalf.local.home> <CA+55aFzFMrOUwdHHJ5-YUtEzTHGvdRosQc+K+trjub0K-w-D3A@mail.gmail.com>
+ <20121031022418.GE2616@ZenIV.linux.org.uk>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 30 Oct 2012 19:48:19 -0700
+Message-ID: <CA+55aFyU30Z2JS9XJ4KTordbAw-2EBVD7xF4K3eAhKVRCJw8YA@mail.gmail.com>
+Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Al Viro <viro@zeniv.linux.org.uk>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Wed, Oct 31, 2012 at 11:39:48AM +0900, Minchan Kim wrote:
-> Greg, what do you think about LTSI?
-> Is it proper feature to add it? For it, still do I need ACK from mm developers?
+On Tue, Oct 30, 2012 at 7:24 PM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+>
+> BTW, how serious have you been back at KS when you were talking about
+> pull requests killing a thousand of lines of code being acceptable
+> at any point in the cycle?
 
-It's already in LTSI, as it's in the 3.4 kernel, right?
+Well... I'm absolutely a lot more open to pull requests that kill code
+than not, but I have to admit to being a bit more worried about stuff
+like your execve/fork patches that touch very low-level code.
+
+So I think I'll punt that for 3.8 anyway.
+
+         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
