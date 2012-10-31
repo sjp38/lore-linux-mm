@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id B52686B0070
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:48:23 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 197356B0071
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:48:24 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [Patch v4 6/8] clear the memory to store struct page
-Date: Wed, 31 Oct 2012 19:23:12 +0800
-Message-Id: <1351682594-17347-7-git-send-email-wency@cn.fujitsu.com>
+Subject: [Patch v4 4/8] numa: convert static memory to dynamically allocated memory for per node device
+Date: Wed, 31 Oct 2012 19:23:10 +0800
+Message-Id: <1351682594-17347-5-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,73 +13,203 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 Cc: Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rjw@sisk.pl, Lai Jiangshan <laijs@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan.kim@gmail.com>
 
-If sparse memory vmemmap is enabled, we can't free the memory to store
-struct page when a memory device is hotremoved, because we may store
-struct page in the memory to manage the memory which doesn't belong
-to this memory device. When we hotadded this memory device again, we
-will reuse this memory to store struct page, and struct page may
-contain some obsolete information, and we will get bad-page state:
-
-[   59.611278] init_memory_mapping: [mem 0x80000000-0x9fffffff]
-[   59.637836] Built 2 zonelists in Node order, mobility grouping on.  Total pages: 547617
-[   59.638739] Policy zone: Normal
-[   59.650840] BUG: Bad page state in process bash  pfn:9b6dc
-[   59.651124] page:ffffea0002200020 count:0 mapcount:0 mapping:          (null) index:0xfdfdfdfdfdfdfdfd
-[   59.651494] page flags: 0x2fdfdfdfd5df9fd(locked|referenced|uptodate|dirty|lru|active|slab|owner_priv_1|private|private_2|writeback|head|tail|swapcache|reclaim|swapbacked|unevictable|uncached|compound_lock)
-[   59.653604] Modules linked in: netconsole acpiphp pci_hotplug acpi_memhotplug loop kvm_amd kvm microcode tpm_tis tpm tpm_bios evdev psmouse serio_raw i2c_piix4 i2c_core parport_pc parport processor button thermal_sys ext3 jbd mbcache sg sr_mod cdrom ata_generic virtio_net ata_piix virtio_blk libata virtio_pci virtio_ring virtio scsi_mod
-[   59.656998] Pid: 988, comm: bash Not tainted 3.6.0-rc7-guest #12
-[   59.657172] Call Trace:
-[   59.657275]  [<ffffffff810e9b30>] ? bad_page+0xb0/0x100
-[   59.657434]  [<ffffffff810ea4c3>] ? free_pages_prepare+0xb3/0x100
-[   59.657610]  [<ffffffff810ea668>] ? free_hot_cold_page+0x48/0x1a0
-[   59.657787]  [<ffffffff8112cc08>] ? online_pages_range+0x68/0xa0
-[   59.657961]  [<ffffffff8112cba0>] ? __online_page_increment_counters+0x10/0x10
-[   59.658162]  [<ffffffff81045561>] ? walk_system_ram_range+0x101/0x110
-[   59.658346]  [<ffffffff814c4f95>] ? online_pages+0x1a5/0x2b0
-[   59.658515]  [<ffffffff8135663d>] ? __memory_block_change_state+0x20d/0x270
-[   59.658710]  [<ffffffff81356756>] ? store_mem_state+0xb6/0xf0
-[   59.658878]  [<ffffffff8119e482>] ? sysfs_write_file+0xd2/0x160
-[   59.659052]  [<ffffffff8113769a>] ? vfs_write+0xaa/0x160
-[   59.659212]  [<ffffffff81137977>] ? sys_write+0x47/0x90
-[   59.659371]  [<ffffffff814e2f25>] ? async_page_fault+0x25/0x30
-[   59.659543]  [<ffffffff814ea239>] ? system_call_fastpath+0x16/0x1b
-[   59.659720] Disabling lock debugging due to kernel taint
-
-This patch clears the memory to store struct page to avoid unexpected error.
+We use a static array to store struct node. In many cases, we don't have too
+many nodes, and some memory will be unused. Convert it to per-device
+dynamically allocated memory.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Reported-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- mm/sparse.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ arch/powerpc/kernel/sysfs.c |  4 ++--
+ drivers/base/node.c         | 38 ++++++++++++++++++++++----------------
+ include/linux/node.h        |  2 +-
+ mm/hugetlb.c                |  4 ++--
+ 4 files changed, 27 insertions(+), 21 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index fac95f2..0021265 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -638,7 +638,6 @@ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
- got_map_page:
- 	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
- got_map_ptr:
--	memset(ret, 0, memmap_size);
+diff --git a/arch/powerpc/kernel/sysfs.c b/arch/powerpc/kernel/sysfs.c
+index cf357a0..3ce1f86 100644
+--- a/arch/powerpc/kernel/sysfs.c
++++ b/arch/powerpc/kernel/sysfs.c
+@@ -607,7 +607,7 @@ static void register_nodes(void)
  
- 	return ret;
+ int sysfs_add_device_to_node(struct device *dev, int nid)
+ {
+-	struct node *node = &node_devices[nid];
++	struct node *node = node_devices[nid];
+ 	return sysfs_create_link(&node->dev.kobj, &dev->kobj,
+ 			kobject_name(&dev->kobj));
  }
-@@ -760,6 +759,8 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 		goto out;
+@@ -615,7 +615,7 @@ EXPORT_SYMBOL_GPL(sysfs_add_device_to_node);
+ 
+ void sysfs_remove_device_from_node(struct device *dev, int nid)
+ {
+-	struct node *node = &node_devices[nid];
++	struct node *node = node_devices[nid];
+ 	sysfs_remove_link(&node->dev.kobj, kobject_name(&dev->kobj));
+ }
+ EXPORT_SYMBOL_GPL(sysfs_remove_device_from_node);
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index af1a177..28216ce 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -306,7 +306,7 @@ void unregister_node(struct node *node)
+ 	device_unregister(&node->dev);
+ }
+ 
+-struct node node_devices[MAX_NUMNODES];
++struct node *node_devices[MAX_NUMNODES];
+ 
+ /*
+  * register cpu under node
+@@ -323,15 +323,15 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 	if (!obj)
+ 		return 0;
+ 
+-	ret = sysfs_create_link(&node_devices[nid].dev.kobj,
++	ret = sysfs_create_link(&node_devices[nid]->dev.kobj,
+ 				&obj->kobj,
+ 				kobject_name(&obj->kobj));
+ 	if (ret)
+ 		return ret;
+ 
+ 	return sysfs_create_link(&obj->kobj,
+-				 &node_devices[nid].dev.kobj,
+-				 kobject_name(&node_devices[nid].dev.kobj));
++				 &node_devices[nid]->dev.kobj,
++				 kobject_name(&node_devices[nid]->dev.kobj));
+ }
+ 
+ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+@@ -345,10 +345,10 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
+ 	if (!obj)
+ 		return 0;
+ 
+-	sysfs_remove_link(&node_devices[nid].dev.kobj,
++	sysfs_remove_link(&node_devices[nid]->dev.kobj,
+ 			  kobject_name(&obj->kobj));
+ 	sysfs_remove_link(&obj->kobj,
+-			  kobject_name(&node_devices[nid].dev.kobj));
++			  kobject_name(&node_devices[nid]->dev.kobj));
+ 
+ 	return 0;
+ }
+@@ -390,15 +390,15 @@ int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
+ 			continue;
+ 		if (page_nid != nid)
+ 			continue;
+-		ret = sysfs_create_link_nowarn(&node_devices[nid].dev.kobj,
++		ret = sysfs_create_link_nowarn(&node_devices[nid]->dev.kobj,
+ 					&mem_blk->dev.kobj,
+ 					kobject_name(&mem_blk->dev.kobj));
+ 		if (ret)
+ 			return ret;
+ 
+ 		return sysfs_create_link_nowarn(&mem_blk->dev.kobj,
+-				&node_devices[nid].dev.kobj,
+-				kobject_name(&node_devices[nid].dev.kobj));
++				&node_devices[nid]->dev.kobj,
++				kobject_name(&node_devices[nid]->dev.kobj));
  	}
+ 	/* mem section does not span the specified node */
+ 	return 0;
+@@ -431,10 +431,10 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk,
+ 			continue;
+ 		if (node_test_and_set(nid, *unlinked_nodes))
+ 			continue;
+-		sysfs_remove_link(&node_devices[nid].dev.kobj,
++		sysfs_remove_link(&node_devices[nid]->dev.kobj,
+ 			 kobject_name(&mem_blk->dev.kobj));
+ 		sysfs_remove_link(&mem_blk->dev.kobj,
+-			 kobject_name(&node_devices[nid].dev.kobj));
++			 kobject_name(&node_devices[nid]->dev.kobj));
+ 	}
+ 	NODEMASK_FREE(unlinked_nodes);
+ 	return 0;
+@@ -500,7 +500,7 @@ static void node_hugetlb_work(struct work_struct *work)
  
-+	memset(memmap, 0, sizeof(struct page) * nr_pages);
+ static void init_node_hugetlb_work(int nid)
+ {
+-	INIT_WORK(&node_devices[nid].node_work, node_hugetlb_work);
++	INIT_WORK(&node_devices[nid]->node_work, node_hugetlb_work);
+ }
+ 
+ static int node_memory_callback(struct notifier_block *self,
+@@ -517,7 +517,7 @@ static int node_memory_callback(struct notifier_block *self,
+ 		 * when transitioning to/from memoryless state.
+ 		 */
+ 		if (nid != NUMA_NO_NODE)
+-			schedule_work(&node_devices[nid].node_work);
++			schedule_work(&node_devices[nid]->node_work);
+ 		break;
+ 
+ 	case MEM_GOING_ONLINE:
+@@ -558,9 +558,13 @@ int register_one_node(int nid)
+ 		struct node *parent = NULL;
+ 
+ 		if (p_node != nid)
+-			parent = &node_devices[p_node];
++			parent = node_devices[p_node];
+ 
+-		error = register_node(&node_devices[nid], nid, parent);
++		node_devices[nid] = kzalloc(sizeof(struct node), GFP_KERNEL);
++		if (!node_devices[nid])
++			return -ENOMEM;
 +
- 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
++		error = register_node(node_devices[nid], nid, parent);
  
- 	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+ 		/* link cpu under this node */
+ 		for_each_present_cpu(cpu) {
+@@ -581,7 +585,9 @@ int register_one_node(int nid)
+ 
+ void unregister_one_node(int nid)
+ {
+-	unregister_node(&node_devices[nid]);
++	unregister_node(node_devices[nid]);
++	kfree(node_devices[nid]);
++	node_devices[nid] = NULL;
+ }
+ 
+ /*
+diff --git a/include/linux/node.h b/include/linux/node.h
+index 624e53c..10316f1 100644
+--- a/include/linux/node.h
++++ b/include/linux/node.h
+@@ -27,7 +27,7 @@ struct node {
+ };
+ 
+ struct memory_block;
+-extern struct node node_devices[];
++extern struct node *node_devices[];
+ typedef  void (*node_registration_func_t)(struct node *);
+ 
+ extern int register_node(struct node *, int, struct node *);
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 59a0059..1ef2cd4 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1800,7 +1800,7 @@ static void hugetlb_unregister_all_nodes(void)
+ 	 * remove hstate attributes from any nodes that have them.
+ 	 */
+ 	for (nid = 0; nid < nr_node_ids; nid++)
+-		hugetlb_unregister_node(&node_devices[nid]);
++		hugetlb_unregister_node(node_devices[nid]);
+ }
+ 
+ /*
+@@ -1845,7 +1845,7 @@ static void hugetlb_register_all_nodes(void)
+ 	int nid;
+ 
+ 	for_each_node_state(nid, N_HIGH_MEMORY) {
+-		struct node *node = &node_devices[nid];
++		struct node *node = node_devices[nid];
+ 		if (node->dev.id == nid)
+ 			hugetlb_register_node(node);
+ 	}
 -- 
 1.8.0
 
