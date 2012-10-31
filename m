@@ -1,37 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 04B836B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:20:03 -0400 (EDT)
-Date: Wed, 31 Oct 2012 11:20:02 -0400 (EDT)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: [PATCH v3 2/6] PM / Runtime: introduce pm_runtime_set[get]_memalloc_noio()
-In-Reply-To: <CACVXFVNxucCVLS-=EQkmVop3LQMkeXW7RbZq4yfkiq_MUGndvg@mail.gmail.com>
-Message-ID: <Pine.LNX.4.44L0.1210311117310.1954-100000@iolanthe.rowland.org>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 94F126B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:39:57 -0400 (EDT)
+Date: Wed, 31 Oct 2012 11:39:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH RFC] mm,vmscan: only evict file pages when we have plenty
+Message-ID: <20121031153950.GA2305@cmpxchg.org>
+References: <20121030144204.0aa14d92@dull>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121030144204.0aa14d92@dull>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: Oliver Neukum <oneukum@suse.de>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, klamm@yandex-team.ru, akpm@linux-foundation.org, mgorman@suse.de
 
-On Wed, 31 Oct 2012, Ming Lei wrote:
-
-> The below idea may help the problem which 'memalloc_noio' flag isn't set during
-> usb_reset_device().
+On Tue, Oct 30, 2012 at 02:42:04PM -0400, Rik van Riel wrote:
+> If we have more inactive file pages than active file pages, we
+> skip scanning the active file pages alltogether, with the idea
+> that we do not want to evict the working set when there is
+> plenty of streaming IO in the cache.
 > 
-> - for usb mass storage device, call pm_runtime_set_memalloc_noio(true)
->   inside usb_stor_probe2() and uas_probe(), and call
->   pm_runtime_set_memalloc_noio(false) inside uas_disconnect()
->   and usb_stor_disconnect().
+> However, the code forgot to also skip scanning anonymous pages
+> in that situation.  That lead to the curious situation of keeping
+> the active file pages protected from being paged out when there
+> are lots of inactive file pages, while still scanning and evicting
+> anonymous pages.
+> 
+> This patch fixes that situation, by only evicting file pages
+> when we have plenty of them and most are inactive.
+> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/vmscan.c | 9 +++++++++
+>  1 file changed, 9 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2624edc..1a53fbb 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1686,6 +1686,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+>  			fraction[1] = 0;
+>  			denominator = 1;
+>  			goto out;
+> +		} else if (!inactive_file_is_low_global(zone)) {
+> +			/*
+> +			 * There is enough inactive page cache, do not
+> +			 * reclaim anything from the working set right now.
+> +			 */
+> +			fraction[0] = 0;
+> +			fraction[1] = 1;
+> +			denominator = 1;
+> +			goto out;
 
-Why would you want to do that?  The probe and disconnect routines
-usually -- but not always -- run in the khubd thread.  Surely you don't
-want to prevent khubd from using GFP_KERNEL?
+Is there a specific reason for making this exclusive to global
+reclaim?  The "force scan anon when file is low" HAS to be specific to
+global reclaim because swapping may not be allowed in memcg limit
+reclaim, but not scanning anon when there is enough easy page cache is
+a legitimate memcg limit reclaim thing to do as well.
 
-And what if probe runs in khubd but disconnect runs in a different 
-thread?
+I.e. could this check be moved just below the
 
-Alan Stern
+	/* If we have no swap space, do not bother scanning anon pages. */
+	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+		noswap = 1;
+		fraction[0] = 0;
+		fraction[1] = 1;
+		denominator = 1;
+		goto out;
+	}
+
+section?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
