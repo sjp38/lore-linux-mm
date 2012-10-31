@@ -1,81 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 67C8B6B006E
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 04:50:07 -0400 (EDT)
-From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART4 Patch 2/2] memory_hotplug: allow online/offline memory to result movable node
-Date: Wed, 31 Oct 2012 16:15:34 +0800
-Message-Id: <1351671334-10243-3-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351671334-10243-1-git-send-email-wency@cn.fujitsu.com>
-References: <1351671334-10243-1-git-send-email-wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 120C26B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 05:10:20 -0400 (EDT)
+Date: 31 Oct 2012 05:10:18 -0400
+Message-ID: <20121031091018.24875.qmail@science.horizon.com>
+From: "George Spelvin" <linux@horizon.com>
+Subject: Re: [dm-devel] [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
-Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
+To: tj@kernel.org
+Cc: dm-devel@redhat.com, levinsasha928@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, netdev@vger.kernel.org
 
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Tejun Heo wrote:
+>> +#define hash_min(val, bits)						\
+>> +({									\
+>> +	sizeof(val) <= 4 ?						\
+>> +	hash_32(val, bits) :						\
+>> +	hash_long(val, bits);						\
+>> +})
 
-Now, memory management can handle movable node or nodes which don't have
-any normal memory, so we can dynamic configure and add movable node by:
-	online a ZONE_MOVABLE memory from a previous offline node
-	offline the last normal memory which result a non-normal-memory-node
+> Also, you probably want () around at least @val.  In general,
+> it's a good idea to add () around any macro argument to avoid nasty
+> surprises.
 
-movable-node is very important for power-saving,
-hardware partitioning and high-available-system(hardware fault management).
+Er... not in this case, you don't.  If a macro argument is passed verbatim
+as an argument to a function, it doesn't need additional parens.
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- mm/memory_hotplug.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+That's because the one guarantee you have about a macro argument is
+that it can't contain any (unquoted) commas, and there's nothing lower
+precedence than the comma.  So it's safe to delimit a macro argument
+with *either* parens *or* a comma.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d07c66f..4aceb03 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -589,11 +589,19 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 	return 0;
- }
- 
-+#ifdef CONFIG_MOVABLE_NODE
-+/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
-+static bool can_online_high_movable(struct zone *zone)
-+{
-+	return true;
-+}
-+#else /* #ifdef CONFIG_MOVABLE_NODE */
- /* ensure every online node has NORMAL memory */
- static bool can_online_high_movable(struct zone *zone)
- {
- 	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
- }
-+#endif /* #ifdef CONFIG_MOVABLE_NODE */
- 
- /* check which state of node_states will be changed when online memory */
- static void node_states_check_changes_online(unsigned long nr_pages,
-@@ -1097,6 +1105,13 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
- 	return offlined;
- }
- 
-+#ifdef CONFIG_MOVABLE_NODE
-+/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
-+static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
-+{
-+	return true;
-+}
-+#else /* #ifdef CONFIG_MOVABLE_NODE */
- /* ensure the node has NORMAL memory if it is still online */
- static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
- {
-@@ -1120,6 +1135,7 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
- 	 */
- 	return present_pages == 0;
- }
-+#endif /* #ifdef CONFIG_MOVABLE_NODE */
- 
- /* check which state of node_states will be changed when offline memory */
- static void node_states_check_changes_offline(unsigned long nr_pages,
--- 
-1.8.0
+So you can go ahead and write:
+
+#define hash_min(val, bits) \
+	(sizeof(val) <= 4 ? hash_32(val, bits) : hash_long(val, bits))
+
+... which is easier to read, anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
