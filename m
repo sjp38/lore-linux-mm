@@ -1,35 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A631B6B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:56:42 -0400 (EDT)
-Received: by mail-ea0-f169.google.com with SMTP id k11so529727eaa.14
-        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 23:56:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
-References: <1350600107-4558-1-git-send-email-elezegarcia@gmail.com>
-Date: Wed, 31 Oct 2012 08:56:42 +0200
-Message-ID: <CAOJsxLHxgeYEmfoLrzaTNGj88xOhteBKFJKVzPqzrte-B18nSg@mail.gmail.com>
-Subject: Re: [PATCH 1/3] mm/slob: Drop usage of page->private for storing
- page-sized allocations
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3946B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:03:58 -0400 (EDT)
+From: Wen Congyang <wency@cn.fujitsu.com>
+Subject: [PART2 Patch] some cleanups
+Date: Wed, 31 Oct 2012 14:55:27 +0800
+Message-Id: <1351666528-8226-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Bird <tim.bird@am.sony.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-On Fri, Oct 19, 2012 at 1:41 AM, Ezequiel Garcia <elezegarcia@gmail.com> wrote:
-> This field was being used to store size allocation so it could be
-> retrieved by ksize(). However, it is a bad practice to not mark a page
-> as a slab page and then use fields for special purposes.
-> There is no need to store the allocated size and
-> ksize() can simply return PAGE_SIZE << compound_order(page).
->
-> Cc: Pekka Penberg <penberg@kernel.org>
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Ezequiel Garcia <elezegarcia@gmail.com>
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 
-Applied all three patches. Thanks, Ezequiel!
+This patch is part2 of the following patchset:
+    https://lkml.org/lkml/2012/10/29/319
+
+Part1 is here:
+    https://lkml.org/lkml/2012/10/31/30
+
+This patch only does some cleanup, and no logic change. It can be applied
+without the other parts.
+
+Lai Jiangshan (1):
+  node: cleanup node_state_attr
+
+ drivers/base/node.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+-- 
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
