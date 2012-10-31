@@ -1,40 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 6EF176B0071
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 22:24:38 -0400 (EDT)
-Date: Wed, 31 Oct 2012 02:24:18 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
-Message-ID: <20121031022418.GE2616@ZenIV.linux.org.uk>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
- <20121030214257.GB2681@htj.dyndns.org>
- <CA+1xoqeCKS2E4TWCUCELjDqV2pWS4v6EyV6K-=w-GRi_K6quiQ@mail.gmail.com>
- <1351646186.4004.41.camel@gandalf.local.home>
- <CA+55aFzFMrOUwdHHJ5-YUtEzTHGvdRosQc+K+trjub0K-w-D3A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 137F66B0068
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 22:33:54 -0400 (EDT)
+Date: Wed, 31 Oct 2012 11:39:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
+Message-ID: <20121031023947.GA24883@bbox>
+References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
+ <20121031010642.GN15767@bbox>
+ <20121031014209.GB2672@kroah.com>
+ <20121031020443.GP15767@bbox>
+ <20121031021618.GA1142@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzFMrOUwdHHJ5-YUtEzTHGvdRosQc+K+trjub0K-w-D3A@mail.gmail.com>
+In-Reply-To: <20121031021618.GA1142@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sasha Levin <levinsasha928@gmail.com>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 30, 2012 at 06:25:46PM -0700, Linus Torvalds wrote:
+On Tue, Oct 30, 2012 at 07:16:18PM -0700, Greg Kroah-Hartman wrote:
+> On Wed, Oct 31, 2012 at 11:04:43AM +0900, Minchan Kim wrote:
+> > Hi Greg,
+> > 
+> > On Tue, Oct 30, 2012 at 06:42:09PM -0700, Greg Kroah-Hartman wrote:
+> > > On Wed, Oct 31, 2012 at 10:06:42AM +0900, Minchan Kim wrote:
+> > > > Thanks all,
+> > > > 
+> > > > At last, everybody who contributes to zsmalloc want to put it under /lib.
+> > > > 
+> > > > Greg,
+> > > > What should I do for promoting this dragging patchset?
+> > > 
+> > > You need to get the -mm developers to agree that this is something that
+> > > is worth accepting.  I have yet to see any compeling argument why this
+> > 
+> > I'm one of mm developers. :)
+> > Yes. I hope Andrew have a time to take a look.
+> > 
+> > > even needs to be in the kernel in the first place.
+> > 
+> > Confused. what do you mean "this"? "zsmalloc" or "zram" or "both"?
+> > If you mean "zsmalloc", I guess there were some lengthy thread about
+> > "why we need a new another allocator". Unfortunately, I didn't follow it
+> > at that time. Nitin, Pekka, Could you point out that thread? or summarize
+> > the result.
+> > 
+> > > 
+> > > I'm not moving this anywhere until you get their acceptance.
+> > 
+> > I understand you.
+> > 
+> > It's one of problem in current mm mailing list.
+> > As you know, many mm guys works for server, not embedded so they don't have
+> > big interest about embedded feature so prioirty of the feature was always
+> > low. CMA proved it and next turn is zram. Even new-comer in mm is few so
+> > review bandwidth is always low, too. :(
+> > 
+> > How can I poke them?
+> 
+> You just did.  If they ignore this, wait a week, and resend.
+> Persistance is key.
+> 
+> good luck,
 
-> But whatever. This series has gotten way too much bike-shedding
-> anyway. I think it should just be applied, since it does remove lines
-> of code overall. I'd even possibly apply it to mainline, but it seems
-> to be against linux-next.
+Okay. I will wait.
+Greg, what do you think about LTSI?
+Is it proper feature to add it? For it, still do I need ACK from mm developers?
 
-BTW, how serious have you been back at KS when you were talking about
-pull requests killing a thousand of lines of code being acceptable
-at any point in the cycle?  Because right now I'm sitting on a pile that
-removes 2-3 times as much (~-2KLoC for stuff that got considerable
-testing for most of the architectures, -3KLoC if I include fork/clone/vfork
-unification series) and seeing how maintainers of a bunch of embedded
-architectures seem to be MIA...  The idea of saying "screw them" and sending
-a pull request becomes more and more tempting every day ;-)
+> 
+> greg k-h
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
