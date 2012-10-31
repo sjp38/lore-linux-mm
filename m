@@ -1,132 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 150D76B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:15:31 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 04B836B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:20:03 -0400 (EDT)
+Date: Wed, 31 Oct 2012 11:20:02 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
+Subject: Re: [PATCH v3 2/6] PM / Runtime: introduce pm_runtime_set[get]_memalloc_noio()
+In-Reply-To: <CACVXFVNxucCVLS-=EQkmVop3LQMkeXW7RbZq4yfkiq_MUGndvg@mail.gmail.com>
+Message-ID: <Pine.LNX.4.44L0.1210311117310.1954-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-Message-ID: <45d16955-dd1e-4975-a5b6-31e17322cad3@default>
-Date: Wed, 31 Oct 2012 08:15:17 -0700 (PDT)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCH 0/5] enable all tmem backends to be built and loaded as
- modules
-References: <<1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>>
-In-Reply-To: <<1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org, fschmaus@gmail.com, Andor Daam <andor.daam@googlemail.com>, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
+To: Ming Lei <ming.lei@canonical.com>
+Cc: Oliver Neukum <oneukum@suse.de>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-Apologies... I misspelled the family name of one of the
-Erlangen University authors of the first two patches
-in this patchset, so any reply-alls to any of the
-patch posts will see a bounce.  If you reply-all to any
-of these patches, kindly change one of the recipients
-to:
+On Wed, 31 Oct 2012, Ming Lei wrote:
 
-andor.daam@googlemail.com (was misspelled andor.damm)
+> The below idea may help the problem which 'memalloc_noio' flag isn't set during
+> usb_reset_device().
+> 
+> - for usb mass storage device, call pm_runtime_set_memalloc_noio(true)
+>   inside usb_stor_probe2() and uas_probe(), and call
+>   pm_runtime_set_memalloc_noio(false) inside uas_disconnect()
+>   and usb_stor_disconnect().
 
-I regret the inconvenience... :-(
+Why would you want to do that?  The probe and disconnect routines
+usually -- but not always -- run in the khubd thread.  Surely you don't
+want to prevent khubd from using GFP_KERNEL?
 
-> -----Original Message-----
-> From: Dan Magenheimer [mailto:dan.magenheimer@oracle.com]
-> Sent: Wednesday, October 31, 2012 9:08 AM
-> To: devel@linuxdriverproject.org; linux-kernel@vger.kernel.org; gregkh@li=
-nuxfoundation.org; linux-
-> mm@kvack.org; ngupta@vflare.org; konrad.wilk@oracle.com; sjenning@linux.v=
-net.ibm.com;
-> minchan@kernel.org; dan.magenheimer@oracle.com; fschmaus@gmail.com; andor=
-.damm@googlemail.com;
-> ilendir@googlemail.com; akpm@linux-foundation.org; mgorman@suse.de
-> Subject: [PATCH 0/5] enable all tmem backends to be built and loaded as m=
-odules
->=20
-> Since various parts of transcendent memory ("tmem") [1] were first posted=
- in
-> 2009, reviewers have suggested that various tmem features should be built
-> as a module and enabled by loading the module, rather than the current cl=
-unky
-> method of compiling as a built-in and enabling via boot parameter.  Due
-> to certain tmem initialization steps, that was not feasible at the time.
->=20
-> [1] http://lwn.net/Articles/454795/
->=20
-> This patchset allows each of the three merged transcendent memory
-> backends (zcache, ramster, Xen tmem) to be used as modules by first
-> enabling transcendent memory frontends (cleancache, frontswap) to deal
-> with "lazy initialization" and, second, by adding the necessary code for
-> the backends to be built and loaded as modules.
->=20
-> The original mechanism to enable tmem backends -- namely to hardwire
-> them into the kernel and select/enable one with a kernel boot
-> parameter --  is retained but should be considered deprecated.  When
-> backends are loaded as modules, certain knobs will now be
-> properly selected via module_params rather than via undocumented
-> kernel boot parameters.  Note that module UNloading is not yet
-> supported as it is lower priority and will require significant
-> additional work.
->=20
-> The lazy initialization support is necessary because filesystems
-> and swap devices are normally mounted early in boot and these
-> activites normally trigger tmem calls to setup certain data structures;
-> if the respective cleancache/frontswap ops are not yet registered
-> by a back end, the tmem setup would fail for these devices and
-> cleancache/frontswap would never be enabled for them which limits
-> much of the value of tmem in many system configurations.  Lazy
-> initialization records the necessary information in cleancache/frontswap
-> data structures and "replays" it after the ops are registered
-> to ensure that all filesystems and swap devices can benefit from
-> the loaded tmem backend.
->=20
-> Patches 1 and 2 are the original [2] patches to cleancache and frontswap
-> proposed by Erlangen University, but rebased to 3.7-rcN plus a couple
-> of bug fixes I found necessary to run properly.  I have not attempted
-> any code cleanup.  I have also added defines to ensure at runtime
-> that backends are not loaded as modules if the frontend patches are not
-> yet merged; this is useful to avoid any build dependency (since the
-> frontends may be merged into linux-next through different trees and
-> at different times than some backends) and once the entire patchset
-> is safely merged, these defines/ifdefs can be removed.
->=20
-> [2] http://www.spinics.net/lists/linux-mm/msg31490.html
->=20
-> Patch 3 enables module support for zcache2.  Zsmalloc support
-> has not yet been merged into zcache2 but, once merged, could now
-> easily be selected via a module_param.
->=20
-> Patch 4 enables module support for ramster.  Ramster will now be
-> enabled with a module_param to zcache2.
->=20
-> Patch 5 enables module support for the Xen tmem shim.  Xen
-> self-ballooning and frontswap-selfshrinking are also "lazily"
-> initialized when the Xen tmem shim is loaded as a module, unless
-> explicitly disabled by module_params.
->=20
-> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
->=20
-> ---
-> Diffstat:
->=20
->  drivers/staging/ramster/Kconfig                    |    6 +-
->  drivers/staging/ramster/Makefile                   |   11 +-
->  drivers/staging/ramster/ramster.h                  |    6 +-
->  drivers/staging/ramster/ramster/nodemanager.c      |    9 +-
->  drivers/staging/ramster/ramster/ramster.c          |   29 +++-
->  drivers/staging/ramster/ramster/ramster.h          |    2 +-
->  .../staging/ramster/ramster/ramster_nodemanager.h  |    2 +
->  drivers/staging/ramster/tmem.c                     |    6 +-
->  drivers/staging/ramster/tmem.h                     |    8 +-
->  drivers/staging/ramster/zcache-main.c              |   61 +++++++-
->  drivers/staging/ramster/zcache.h                   |    2 +-
->  drivers/xen/Kconfig                                |    4 +-
->  drivers/xen/tmem.c                                 |   56 ++++++--
->  drivers/xen/xen-selfballoon.c                      |   13 +-
->  include/linux/cleancache.h                         |    1 +
->  include/linux/frontswap.h                          |    1 +
->  include/xen/tmem.h                                 |    8 +
->  mm/cleancache.c                                    |  157 ++++++++++++++=
-+++--
->  mm/frontswap.c                                     |   70 ++++++++-
->  19 files changed, 379 insertions(+), 73 deletions(-)
+And what if probe runs in khubd but disconnect runs in a different 
+thread?
+
+Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
