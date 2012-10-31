@@ -1,199 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id D2F516B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:18:51 -0400 (EDT)
-Date: Wed, 31 Oct 2012 16:24:46 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram OOM behavior
-Message-ID: <20121031072446.GS15767@bbox>
-References: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
- <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
- <20121030001809.GL15767@bbox>
- <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
- <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
- <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
- <20121031005738.GM15767@bbox>
- <CAA25o9QhkQfZi+UVOjj0JBkNo8Vmt22ATUP25LFqkS-cDoq85Q@mail.gmail.com>
- <20121031012720.GO15767@bbox>
- <CAA25o9QRr-wBHG0uY8UOOumUq_Er4shnmLWaXh3voY=1pvvWkA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id C1E2E6B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:26:36 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so840245pad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 00:26:36 -0700 (PDT)
+Date: Wed, 31 Oct 2012 00:26:30 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 00/31] numa/core patches
+In-Reply-To: <20121031004838.GA1657@cmpxchg.org>
+Message-ID: <alpine.LNX.2.00.1210302350140.5084@eggly.anvils>
+References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121028175615.GC29827@cmpxchg.org> <508F73C5.7050409@redhat.com> <20121031004838.GA1657@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA25o9QRr-wBHG0uY8UOOumUq_Er4shnmLWaXh3voY=1pvvWkA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>, Mandeep Baines <msb@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Zhouping Liu <zliu@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, CAI Qian <caiqian@redhat.com>
 
-On Tue, Oct 30, 2012 at 08:49:26PM -0700, Luigi Semenzato wrote:
-> On Tue, Oct 30, 2012 at 6:27 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > On Tue, Oct 30, 2012 at 06:06:56PM -0700, Luigi Semenzato wrote:
-> >> On Tue, Oct 30, 2012 at 5:57 PM, Minchan Kim <minchan@kernel.org> wrote:
-> >> > Hi Luigi,
-> >> >
-> >> > On Tue, Oct 30, 2012 at 12:12:02PM -0700, Luigi Semenzato wrote:
-> >> >> On Mon, Oct 29, 2012 at 10:41 PM, David Rientjes <rientjes@google.com> wrote:
-> >> >> > On Mon, 29 Oct 2012, Luigi Semenzato wrote:
-> >> >> >
-> >> >> >> However, now there is something that worries me more.  The trace of
-> >> >> >> the thread with TIF_MEMDIE set shows that it has executed most of
-> >> >> >> do_exit() and appears to be waiting to be reaped.  From my reading of
-> >> >> >> the code, this implies that task->exit_state should be non-zero, which
-> >> >> >> means that select_bad_process should have skipped that thread, which
-> >> >> >> means that we cannot be in the deadlock situation, and my experiments
-> >> >> >> are not consistent.
-> >> >> >>
-> >> >> >
-> >> >> > Yeah, this is what I was referring to earlier, select_bad_process() will
-> >> >> > not consider the thread for which you posted a stack trace for oom kill,
-> >> >> > so it's not deferring because of it.  There are either other thread(s)
-> >> >> > that have been oom killed and have not yet release their memory or the oom
-> >> >> > killer is never being called.
-> >> >>
-> >> >> Thanks.  I now have better information on what's happening.
-> >> >>
-> >> >> The "culprit" is not the OOM-killed process (the one with TIF_MEMDIE
-> >> >> set).  It's another process that's exiting for some other reason.
-> >> >>
-> >> >> select_bad_process() checks for thread->exit_state at the beginning,
-> >> >> and skips processes that are exiting.  But later it checks for
-> >> >> p->flags & PF_EXITING, and can return -1 in that case (and it does for
-> >> >> me).
-> >> >>
-> >> >> It turns out that do_exit() does a lot of things between setting the
-> >> >> thread->flags PF_EXITING bit (in exit_signals()) and setting
-> >> >> thread->exit_state to non-zero (in exit_notify()).  Some of those
-> >> >> things apparently need memory.  I caught one process responsible for
-> >> >> the PTR_ERR(-1) while it was doing this:
-> >> >>
-> >> >> [  191.859358] VC manager      R running      0  2388   1108 0x00000104
-> >> >> [  191.859377] err_ptr_count = 45623
-> >> >> [  191.859384]  e0611b1c 00200086 f5608000 815ecd20 815ecd20 a0a9ebc3
-> >> >> 0000002c f67cfd20
-> >> >> [  191.859407]  f430a060 81191c34 e0611aec 81196d79 4168ef20 00000001
-> >> >> e1302400 e130264c
-> >> >> [  191.859428]  e1302400 e0611af4 813b71d5 e0611b00 810b42f1 e1302400
-> >> >> e0611b0c 810b430e
-> >> >> [  191.859450] Call Trace:
-> >> >> [  191.859465]  [<81191c34>] ? __delay+0xe/0x10
-> >> >> [  191.859478]  [<81196d79>] ? do_raw_spin_lock+0xa2/0xf3
-> >> >> [  191.859491]  [<813b71d5>] ? _raw_spin_unlock+0xd/0xf
-> >> >> [  191.859504]  [<810b42f1>] ? put_super+0x26/0x29
-> >> >> [  191.859515]  [<810b430e>] ? drop_super+0x1a/0x1d
-> >> >> [  191.859527]  [<8104512d>] __cond_resched+0x1b/0x2b
-> >> >> [  191.859537]  [<813b67a7>] _cond_resched+0x18/0x21
-> >> >> [  191.859549]  [<81093940>] shrink_slab+0x224/0x22f
-> >> >> [  191.859562]  [<81095a96>] try_to_free_pages+0x1b7/0x2e6
-> >> >> [  191.859574]  [<8108df2a>] __alloc_pages_nodemask+0x40a/0x61f
-> >> >> [  191.859588]  [<810a9dbe>] read_swap_cache_async+0x4a/0xcf
-> >> >> [  191.859600]  [<810a9ea4>] swapin_readahead+0x61/0x8d
-> >> >> [  191.859612]  [<8109fff4>] handle_pte_fault+0x310/0x5fb
-> >> >> [  191.859624]  [<810a0420>] handle_mm_fault+0xae/0xbd
-> >> >> [  191.859637]  [<8101d0f9>] do_page_fault+0x265/0x284
-> >> >> [  191.859648]  [<8104aa17>] ? dequeue_entity+0x236/0x252
-> >> >> [  191.859660]  [<8101ce94>] ? vmalloc_sync_all+0xa/0xa
-> >> >> [  191.859672]  [<813b7887>] error_code+0x67/0x6c
-> >> >> [  191.859683]  [<81191d21>] ? __get_user_4+0x11/0x17
-> >> >> [  191.859695]  [<81059f28>] ? exit_robust_list+0x30/0x105
-> >> >> [  191.859707]  [<813b71b0>] ? _raw_spin_unlock_irq+0xd/0x10
-> >> >> [  191.859718]  [<810446d5>] ? finish_task_switch+0x53/0x89
-> >> >> [  191.859730]  [<8102351d>] mm_release+0x1d/0xc3
-> >> >> [  191.859740]  [<81026ce9>] exit_mm+0x1d/0xe9
-> >> >> [  191.859750]  [<81032b87>] ? exit_signals+0x57/0x10a
-> >> >> [  191.859760]  [<81028082>] do_exit+0x19b/0x640
-> >> >> [  191.859770]  [<81058598>] ? futex_wait_queue_me+0xaa/0xbe
-> >> >> [  191.859781]  [<81030bbf>] ? recalc_sigpending_tsk+0x51/0x5c
-> >> >> [  191.859793]  [<81030beb>] ? recalc_sigpending+0x17/0x3e
-> >> >> [  191.859803]  [<81028752>] do_group_exit+0x63/0x86
-> >> >> [  191.859813]  [<81032b19>] get_signal_to_deliver+0x434/0x44b
-> >> >> [  191.859825]  [<81001e01>] do_signal+0x37/0x4fe
-> >> >> [  191.859837]  [<81048eed>] ? set_next_entity+0x36/0x9d
-> >> >> [  191.859850]  [<81050d8e>] ? timekeeping_get_ns+0x11/0x55
-> >> >> [  191.859861]  [<8105a754>] ? sys_futex+0xcb/0xdb
-> >> >> [  191.859871]  [<810024a7>] do_notify_resume+0x26/0x65
-> >> >> [  191.859883]  [<813b73a5>] work_notifysig+0xa/0x11
-> >> >> [  191.859893] Kernel panic - not syncing: too many ERR_PTR
-> >> >>
-> >> >> I don't know why mm_release() would page fault, but it looks like it does.
-> >> >>
-> >> >> So the OOM killer will not kill other processes because it thinks a
-> >> >> process is exiting, which will free up memory.  But the exiting
-> >> >> process needs memory to continue exiting --> deadlock.  Sounds
-> >> >> plausible?
-> >> >
-> >> > It sounds right in your kernel but principal problem is min_filelist_kbytes patch.
-> >> > If normal exited process in exit path requires a page and there is no free page
-> >> > any more, it ends up going to OOM path after try to reclaim memory several time.
-> >> > Then,
-> >> > In select_bad_process,
-> >> >
-> >> >         if (task->flags & PF_EXITING) {
-> >> >                if (task == current)             <== true
-> >> >                         return OOM_SCAN_SELECT;
-> >> > In oom_kill_process,
-> >> >
-> >> >         if (p->flags & PF_EXITING)
-> >> >                 set_tsk_thread_flag(p, TIF_MEMDIE);
-> >> >
-> >> > At last, normal exited process would get a free page.
-> >> >
-> >> > But in your kernel, it seems not because I guess did_some_progress in
-> >> > __alloc_pages_direct_reclaim is never 0. The why it is never 0 is
-> >> > do_try_to_free_pages's all_unreclaimable can't do his role by your
-> >> > min_filelist_kbytes. It makes __alloc_pages_slowpath's looping forever.
-> >> >
-> >> > Sounds plausible?
-> >>
-> >> Thank you Minchan, it does sound plausible, but I have little
-> >> experience with this and it will take some work to confirm.
-> >
-> > No problem :)
-> >
-> >>
-> >> I looked at the patch pretty carefully once, and I had the impression
-> >> its effect could be fully analyzed by logical reasoning. I will check
-> >> this again tomorrow, perhaps I can run some experiments.  I am adding
-> >> Mandeep who wrote the patch.
-> >>
-> >> However, we have worse problems if we don't use that patch.  Without
-> >> the patch, and either with or without compressed swap, the same load
-> >> causes horrible thrashing, with the system appearing to hang for
-> >> minutes.  If we don't use that patch, do you have any suggestion on
-> >> how to improve the code thrash situation?
-> >
-> > As I said, the motivation of the patch is good for embedded system but
-> > patch's implementation is kinda buggy. I will have a look and post if
-> > I'm luck to get a time.
-> >
-> > BTW, a question.
-> >
-> > How do you find proper value for min_filelist_kbytes?
-> > Just experiment with several trial?
-> >
-> > Thanks.
+On Tue, 30 Oct 2012, Johannes Weiner wrote:
+> On Tue, Oct 30, 2012 at 02:29:25PM +0800, Zhouping Liu wrote:
+> > On 10/29/2012 01:56 AM, Johannes Weiner wrote:
+> > >On Fri, Oct 26, 2012 at 11:08:00AM +0200, Peter Zijlstra wrote:
+> > >>On Fri, 2012-10-26 at 17:07 +0800, Zhouping Liu wrote:
+> > >>>[  180.918591] RIP: 0010:[<ffffffff8118c39a>]  [<ffffffff8118c39a>] mem_cgroup_prepare_migration+0xba/0xd0
+> > >>>[  182.681450]  [<ffffffff81183b60>] do_huge_pmd_numa_page+0x180/0x500
+> > >>>[  182.775090]  [<ffffffff811585c9>] handle_mm_fault+0x1e9/0x360
+> > >>>[  182.863038]  [<ffffffff81632b62>] __do_page_fault+0x172/0x4e0
+> > >>>[  182.950574]  [<ffffffff8101c283>] ? __switch_to_xtra+0x163/0x1a0
+> > >>>[  183.041512]  [<ffffffff8101281e>] ? __switch_to+0x3ce/0x4a0
+> > >>>[  183.126832]  [<ffffffff8162d686>] ? __schedule+0x3c6/0x7a0
+> > >>>[  183.211216]  [<ffffffff81632ede>] do_page_fault+0xe/0x10
+> > >>>[  183.293705]  [<ffffffff8162f518>] page_fault+0x28/0x30
+> > >>Johannes, this looks like the thp migration memcg hookery gone bad,
+> > >>could you have a look at this?
+> > >Oops.  Here is an incremental fix, feel free to fold it into #31.
+> > Hello Johannes,
+> > 
+> > maybe I don't think the below patch completely fix this issue, as I
+> > found a new error(maybe similar with this):
+> > 
+> > [88099.923724] ------------[ cut here ]------------
+> > [88099.924036] kernel BUG at mm/memcontrol.c:1134!
+> > [88099.924036] invalid opcode: 0000 [#1] SMP
+> > [88099.924036] Modules linked in: lockd sunrpc kvm_amd kvm
+> > amd64_edac_mod edac_core ses enclosure serio_raw bnx2 pcspkr shpchp
+> > joydev i2c_piix4 edac_mce_amd k8temp dcdbas ata_generic pata_acpi
+> > megaraid_sas pata_serverworks usb_storage radeon i2c_algo_bit
+> > drm_kms_helper ttm drm i2c_core
+> > [88099.924036] CPU 7
+> > [88099.924036] Pid: 3441, comm: stress Not tainted 3.7.0-rc2Jons+ #3
+> > Dell Inc. PowerEdge 6950/0WN213
+> > [88099.924036] RIP: 0010:[<ffffffff81188e97>] [<ffffffff81188e97>]
+> > mem_cgroup_update_lru_size+0x27/0x30
 > 
-> Yes.  Mandeep can give more detail, but, as I understand this, the
-> value we use (50 Mb) was based on experimentation.  It helps that at
-> the moment we run Chrome OS on a relatively uniform set of devices,
-> with either 2 or 4 GB of RAM, no swap, binaries stored on SSD (for
-> backing store of text pages), and the same load (the Chrome browser).
+> Thanks a lot for your testing efforts, I really appreciate it.
 > 
+> I'm looking into it, but I don't expect power to get back for several
+> days where I live, so it's hard to reproduce it locally.
+> 
+> But that looks like an LRU accounting imbalance that I wasn't able to
+> tie to this patch yet.  Do you see weird numbers for the lru counters
+> in /proc/vmstat even without this memory cgroup patch?  Ccing Hugh as
+> well.
 
-AFAIRC, I recommended mem_notify instead of hacky patch when Mandeep submitted
-at the beginning. Does it have any problem?
-AFAIK, mem_notify had a problem to notify too late so OOM kill still happens.
-Recently, Anton have been tried new low memory notifier and It should solve 
-same problem and then it's thing you need.
-https://patchwork.kernel.org/patch/1625251/
+Sorry, I didn't get very far with it tonight.
 
-Of course, there are further steps to merge it but I think you can help us
-with some experiments and input your voice to meet Chrome OS's goal.
+Almost certain to be a page which was added to lru while it looked like
+a 4k page, but taken off lru as a 2M page: we are taking a 2M page off
+lru here, it's likely to be the page in question, but not necessarily.
 
-Thanks.
+There's quite a few put_page()s in do_huge_pmd_numa_page(), and it
+would help if we could focus on the one which is giving the trouble,
+but I don't know which that is.  Zhouping, if you can, please would
+you do an "objdump -ld vmlinux >bigfile" of your kernel, then extract
+from bigfile just the lines from "<do_huge_pmd_numa_page>:" to whatever
+is the next function, and post or mail privately just that disassembly.
+That should be good to identify which of the put_page()s is involved.
 
--- 
-Kind regards,
-Minchan Kim
+do_huge_pmd_numa_page() does look a bit worrying, but I've not pinned
+the misaccounting seen to the aspects which have worried me so far.
+Where is a check for page_mapcount(page) being 1?  And surely it's
+unsafe to to be migrating the page when it was found !PageLRU?  It's
+quite likely to be sitting in a pagevec or on a local list somewhere,
+about to be added to lru at any moment.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
