@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 6BD416B0075
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:58:36 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id CB04F6B0078
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:58:35 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch 10/14] kthread: use N_MEMORY instead N_HIGH_MEMORY
-Date: Wed, 31 Oct 2012 16:04:08 +0800
-Message-Id: <1351670652-9932-11-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART3 Patch 11/14] init: use N_MEMORY instead N_HIGH_MEMORY
+Date: Wed, 31 Oct 2012 16:04:09 +0800
+Message-Id: <1351670652-9932-12-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,22 +23,22 @@ use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- kernel/kthread.c | 2 +-
+ init/main.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index 29fb60c..691dc2e 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -428,7 +428,7 @@ int kthreadd(void *unused)
- 	set_task_comm(tsk, "kthreadd");
- 	ignore_signals(tsk);
- 	set_cpus_allowed_ptr(tsk, cpu_all_mask);
+diff --git a/init/main.c b/init/main.c
+index 9cf77ab..9595968 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -855,7 +855,7 @@ static void __init kernel_init_freeable(void)
+ 	/*
+ 	 * init can allocate pages on any node
+ 	 */
 -	set_mems_allowed(node_states[N_HIGH_MEMORY]);
 +	set_mems_allowed(node_states[N_MEMORY]);
- 
- 	current->flags |= PF_NOFREEZE;
- 
+ 	/*
+ 	 * init can run on any cpu.
+ 	 */
 -- 
 1.8.0
 
