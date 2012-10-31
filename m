@@ -1,50 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 24D846B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 17:42:58 -0400 (EDT)
-Message-ID: <50919B5D.9000100@cesarb.net>
-Date: Wed, 31 Oct 2012 19:42:53 -0200
-From: Cesar Eduardo Barros <cesarb@cesarb.net>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 934216B0071
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 17:59:38 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so3478234ied.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:59:38 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] mm: frontswap: lazy initialization to allow tmem
- backends to build/run as modules
-References: <1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com> <1351696074-29362-3-git-send-email-dan.magenheimer@oracle.com> <50915A5C.8000303@linux.vnet.ibm.com>
-In-Reply-To: <50915A5C.8000303@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121031143524.0509665d.akpm@linux-foundation.org>
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org> <20121031143524.0509665d.akpm@linux-foundation.org>
+From: Paul Turner <pjt@google.com>
+Date: Wed, 31 Oct 2012 14:59:07 -0700
+Message-ID: <CAPM31RKm89s6PaAnfySUD-f+eGdoZP6=9DHy58tx_4Zi8Z9WPQ@mail.gmail.com>
+Subject: Re: [RFC v2] Support volatile range for anon vma
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Dan Magenheimer <dan.magenheimer@oracle.com>, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, minchan@kernel.org, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, sanjay@google.com, David Rientjes <rientjes@google.com>
 
-Em 31-10-2012 15:05, Seth Jennings escreveu:
-> On 10/31/2012 10:07 AM, Dan Magenheimer wrote:
->> +#define MAX_INITIALIZABLE_SD 32
+On Wed, Oct 31, 2012 at 2:35 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
 >
-> MAX_INITIALIZABLE_SD should just be MAX_SWAPFILES
+> On Tue, 30 Oct 2012 10:29:54 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 >
->> +static int sds[MAX_INITIALIZABLE_SD];
+> > This patch introudces new madvise behavior MADV_VOLATILE and
+> > MADV_NOVOLATILE for anonymous pages. It's different with
+> > John Stultz's version which considers only tmpfs while this patch
+> > considers only anonymous pages so this cannot cover John's one.
+> > If below idea is proved as reasonable, I hope we can unify both
+> > concepts by madvise/fadvise.
+> >
+> > Rationale is following as.
+> > Many allocators call munmap(2) when user call free(3) if ptr is
+> > in mmaped area. But munmap isn't cheap because it have to clean up
+> > all pte entries and unlinking a vma so overhead would be increased
+> > linearly by mmaped area's size.
 >
-> Rather than store and array of enabled types indexed by type, why not
-> an array of booleans indexed by type.  Or a bitfield if you really
-> want to save space.
+> Presumably the userspace allocator will internally manage memory in
+> large chunks, so the munmap() call frequency will be much lower than
+> the free() call frequency.  So the performance gains from this change
+> might be very small.
 
-Since it is indexed by swap_info_struct's type, and frontswap already 
-pokes directly inside the swap_info_structs, it would be even cleaner to 
-use a boolean field within the swap_info_struct.
+I don't think I strictly understand the motivation from a
+malloc-standpoint here.
 
-And if you are using a field within the swap_info_struct, you could 
-overload the already existing frontswap_map field, which should only 
-have any use if you have a frontswap module already loaded. That is, 
-move the vzalloc of the frontswap_map to within frontswap's init 
-function, and call it outside the swapfile_lock/swapon_mutex. This also 
-has the advantage of not allocating the frontswap_map when it is not 
-going to be used.
+These days we (tcmalloc) use madvise(..., MADV_DONTNEED) when we want
+to perform discards on Linux.    For any reasonable allocator (short
+of binding malloc --> mmap, free --> unmap) this seems a better
+choice.
 
--- 
-Cesar Eduardo Barros
-cesarb@cesarb.net
-cesar.barros@gmail.com
+Note also from a performance stand-point I doubt any allocator (which
+case about performance) is going to want to pay the cost of even a
+null syscall about typical malloc/free usage (consider: a tcmalloc
+malloc/free pairis currently <20ns).  Given then that this cost is
+amortized once you start doing discards on larger blocks MADV_DONTNEED
+seems a preferable interface:
+- You don't need to reconstruct an arena when you do want to allocate
+since there's no munmap/mmap for the region to change about
+- There are no syscalls involved in later reallocating the block.
+
+The only real additional cost is address-space.  Are you strongly
+concerned about the 32-bit case?
+
+>
+> The whole point of the patch is to improve performance, but we have no
+> evidence that it was successful in doing that!  I do think we'll need
+> good quantitative testing results before proceeding with such a patch,
+> please.
+>
+> Also, it is very desirable that we involve the relevant userspace
+> (glibc, etc) developers in this.  And I understand that the google
+> tcmalloc project will probably have interest in this - I've cc'ed
+> various people@google in the hope that they can provide input (please).
+>
+> Also, it is a userspace API change.  Please cc mtk.manpages@gmail.com.
+>
+> Also, I assume that you have userspace test code.  At some stage,
+> please consider adding a case to tools/testing/selftests.  Such a test
+> would require to creation of memory pressure, which is rather contrary
+> to the selftests' current philosopy of being a bunch of short-running
+> little tests.  Perhaps you can come up with something.  But I suggest
+> that such work be done later, once it becomes clearer that this code is
+> actually headed into the kernel.
+>
+> > Allocator should call madvise(MADV_NOVOLATILE) before reusing for
+> > allocating that area to user. Otherwise, accessing of volatile range
+> > will meet SIGBUS error.
+>
+> Well, why?  It would be easy enough for the fault handler to give
+> userspace a new, zeroed page at that address.
+
+Note: MADV_DONTNEED already has this (nice) property.
+
+>
+> Or we could simply leave the old page in place at that address.  If the
+> page gets touched, we clear MADV_NOVOLATILE on its VMA and give the
+> page (or all the not-yet-reclaimed pages) back to userspace at their
+> old addresses.
+>
+> Various options suggest themselves here.  You've chosen one of them but
+> I would like to see a pretty exhaustive description of the reasoning
+> behind that decision.
+>
+> Also, I wonder about the interaction with other vma manipulation
+> operations.  For example, can a VMA get split when in the MADV_VOLATILE
+> state?  If so, what happens?
+>
+> Also, I see no reason why the code shouldn't work OK with nonlinear VMAs,
+> but I bet this wasn't tested ;)
+>
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -86,6 +86,22 @@ static long madvise_behavior(struct vm_area_struct * vma,
+> >               if (error)
+> >                       goto out;
+> >               break;
+> > +     case MADV_VOLATILE:
+> > +             if (vma->vm_flags & VM_LOCKED) {
+> > +                     error = -EINVAL;
+> > +                     goto out;
+> > +             }
+> > +             new_flags |= VM_VOLATILE;
+> > +             vma->purged = false;
+> > +             break;
+> > +     case MADV_NOVOLATILE:
+> > +             if (!(vma->vm_flags & VM_VOLATILE)) {
+> > +                     error = -EINVAL;
+> > +                     goto out;
+>
+> I wonder if this really should return an error.  Other madvise()
+> options don't do this, and running MADV_NOVOLATILE against a
+> not-volatile area seems pretty benign and has clearly defined before-
+> and after- states.
+>
+> > +             }
+> > +
+> > +             new_flags &= ~VM_VOLATILE;
+> > +             break;
+> >       }
+> >
+> >       if (new_flags == vma->vm_flags) {
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
