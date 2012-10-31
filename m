@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id F20666B0073
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:58:30 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 7D5936B0070
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:58:31 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch 03/14] procfs: use N_MEMORY instead N_HIGH_MEMORY
-Date: Wed, 31 Oct 2012 16:04:01 +0800
-Message-Id: <1351670652-9932-4-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART3 Patch 05/14] oom: use N_MEMORY instead N_HIGH_MEMORY
+Date: Wed, 31 Oct 2012 16:04:03 +0800
+Message-Id: <1351670652-9932-6-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,45 +24,22 @@ use N_MEMORY instead.
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Acked-by: Hillf Danton <dhillf@gmail.com>
 ---
- fs/proc/kcore.c    | 2 +-
- fs/proc/task_mmu.c | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
+ mm/oom_kill.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/proc/kcore.c b/fs/proc/kcore.c
-index 86c67ee..e96d4f1 100644
---- a/fs/proc/kcore.c
-+++ b/fs/proc/kcore.c
-@@ -249,7 +249,7 @@ static int kcore_update_ram(void)
- 	/* Not inialized....update now */
- 	/* find out "max pfn" */
- 	end_pfn = 0;
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long node_end;
- 		node_end  = NODE_DATA(nid)->node_start_pfn +
- 			NODE_DATA(nid)->node_spanned_pages;
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 90c63f9..2d89601 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1126,7 +1126,7 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- 		return NULL;
- 
- 	nid = page_to_nid(page);
--	if (!node_isset(nid, node_states[N_HIGH_MEMORY]))
-+	if (!node_isset(nid, node_states[N_MEMORY]))
- 		return NULL;
- 
- 	return page;
-@@ -1279,7 +1279,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (md->writeback)
- 		seq_printf(m, " writeback=%lu", md->writeback);
- 
--	for_each_node_state(n, N_HIGH_MEMORY)
-+	for_each_node_state(n, N_MEMORY)
- 		if (md->node[n])
- 			seq_printf(m, " N%d=%lu", n, md->node[n]);
- out:
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 79e0f3e..aa2d89c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -257,7 +257,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+ 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
+ 	 * is enforced in get_page_from_freelist().
+ 	 */
+-	if (nodemask && !nodes_subset(node_states[N_HIGH_MEMORY], *nodemask)) {
++	if (nodemask && !nodes_subset(node_states[N_MEMORY], *nodemask)) {
+ 		*totalpages = total_swap_pages;
+ 		for_each_node_mask(nid, *nodemask)
+ 			*totalpages += node_spanned_pages(nid);
 -- 
 1.8.0
 
