@@ -1,74 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3A74A6B0044
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:25:17 -0400 (EDT)
-Message-ID: <50910A99.5050707@leemhuis.info>
-Date: Wed, 31 Oct 2012 12:25:13 +0100
-From: Thorsten Leemhuis <fedora@leemhuis.info>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id D1E486B0068
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 07:26:24 -0400 (EDT)
+Message-ID: <50910C39.70305@cn.fujitsu.com>
+Date: Wed, 31 Oct 2012 19:32:09 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: kswapd0: excessive CPU usage
-References: <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <508E5FD3.1060105@leemhuis.info> <20121030191843.GH3888@suse.de>
-In-Reply-To: <20121030191843.GH3888@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [Patch v4 0/8] bugfix for memory hotplug
+References: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rjw@sisk.pl, Lai Jiangshan <laijs@cn.fujitsu.com>
 
-On 30.10.2012 20:18, Mel Gorman wrote:
-> On Mon, Oct 29, 2012 at 11:52:03AM +0100, Thorsten Leemhuis wrote:
->> On 15.10.2012 13:09, Mel Gorman wrote:
->>> On Mon, Oct 15, 2012 at 11:54:13AM +0200, Jiri Slaby wrote:
->>>> On 10/12/2012 03:57 PM, Mel Gorman wrote:
->>>>> mm: vmscan: scale number of pages reclaimed by reclaim/compaction only in direct reclaim
->>>>> Jiri Slaby reported the following:
-> [...]
->>>> Yes, applying this instead of the revert fixes the issue as well.
->> Just wondering, is there a reason why this patch wasn't applied to
->> mainline? Did it simply fall through the cracks? Or am I missing
->> something?
-> It's because a problem was reported related to the patch (off-list,
-> whoops). I'm waiting to hear if a second patch fixes the problem or not.
+At 10/31/2012 07:23 PM, Wen Congyang Wrote:
+> The last version is here:
+>     https://lkml.org/lkml/2012/10/19/56
+> 
+> Note: patch 1-3 are in -mm tree and I don't touch them. The other patches
+> except patch6 are also in mm tree. Patch 6 is not touched.
+> 
+> Changes from v3 to v4:
+>   Patch4: use dynamically allocated memory instead of static array.
+>   Patch5: merge [patchv3 2-3] into a single patch, and update it as we use
+>           dynamically allocated memory
+>   Patch7: merge [patchv3 5-6] into a single patch
+>   Patch8: merge [patchv3 9] and its fix into a patch
 
-Anything in particular I should look out for while testing?
+Note:
+The patch from Michal Hocko <mhocko@suse.cz> is not merged into patch8
 
->> I'm asking because I think I stil see the issue on
->> 3.7-rc2-git-checkout-from-friday. Seems Fedora rawhide users are
->> hitting it, too:
->> https://bugzilla.redhat.com/show_bug.cgi?id=866988
-> I like the steps to reproduce.
+Thanks
+Wen Congyang
 
-One of those cases where the bugzilla bug template was not very helpful 
-or where it was not used as intended (you decide) :-)
-
-> Is step 3 profit?
-
-Yes, but psst, don't tell anyone; step 4 (world domination! for real!) 
-is also hidden to keep that part of the big plan a secret for now ;-)
-
->> Or are we seeing something different which just looks similar?  I can
->> test the patch if it needs further testing, but from the discussion
->> I got the impression that everything is clear and the patch ready
->> for merging.
-> It could be the same issue. Can you test with the "mm: vmscan: scale
-> number of pages reclaimed by reclaim/compaction only in direct reclaim"
-> patch and the following on top please?
-
-Built a vanilla mainline kernel with those two patches and installed it 
-on the machine where I was seeing problems high kswapd0 load on 3.7-rc3. 
-Ran it an hour yesterday and a few hours today; seems the patches fix 
-the issue for me as kswapd behaves:
-
-$ LC_ALL=C ps -aux | grep 'kswapd'
-root       62  0.0  0.0      0     0 ?      S    Oct30   0:05 [kswapd0]
-
-So everything is looking fine again so far thx to the two patches  -- 
-hopefully it stays that way even after hitting "send" in my mailer in a 
-few seconds.
-
-CU
-knurd
+> 
+> Changes from v2 to v3:
+>   Merge the bug fix from ishimatsu to this patchset(Patch 1-3)
+>   Patch 3: split it from patch as it fixes another bug.
+>   Patch 4: new patch, and fix bad-page state when hotadding a memory
+>            device after hotremoving it. I forgot to post this patch in v2.
+>   Patch 6: update it according to Dave Hansen's comment.
+> 
+> Changes from v1 to v2:
+>   Patch 1: updated according to kosaki's suggestion
+> 
+>   Patch 2: new patch, and update mce_bad_pages when removing memory.
+> 
+>   Patch 4: new patch, and fix a NR_FREE_PAGES mismatch, and this bug
+>            cause oom in my test.
+> 
+>   Patch 5: new patch, and fix a new bug. When repeating to online/offline
+>            pages, the free pages will continue to decrease. 
+> 
+> Wen Congyang (6):
+>   memory-hotplug: auto offline page_cgroup when onlining memory block
+>     failed
+>   memory-hotplug: fix NR_FREE_PAGES mismatch
+>   numa: convert static memory to dynamically allocated memory for per
+>     node device
+>   clear the memory to store struct page
+>   memory-hotplug: current hwpoison doesn't support memory offline
+>   memory-hotplug: allocate zone's pcp before onlining pages
+> 
+> Yasuaki Ishimatsu (2):
+>   memory hotplug: suppress "Device memoryX does not have a release()
+>     function" warning
+>   suppress "Device nodeX does not have a release() function" warning
+> 
+>  arch/powerpc/kernel/sysfs.c    |  4 +--
+>  drivers/base/memory.c          |  9 ++++++-
+>  drivers/base/node.c            | 56 ++++++++++++++++++++++++++++++------------
+>  include/linux/node.h           |  2 +-
+>  include/linux/page-isolation.h | 10 +++++---
+>  mm/hugetlb.c                   |  4 +--
+>  mm/memory-failure.c            |  2 +-
+>  mm/memory_hotplug.c            | 13 +++++++---
+>  mm/page_alloc.c                | 37 +++++++++++++++++++++-------
+>  mm/page_cgroup.c               |  3 +++
+>  mm/page_isolation.c            | 27 ++++++++++++++------
+>  mm/sparse.c                    | 25 ++++++++++++++++++-
+>  12 files changed, 144 insertions(+), 48 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
