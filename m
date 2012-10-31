@@ -1,116 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 42B1B6B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 17:35:26 -0400 (EDT)
-Date: Wed, 31 Oct 2012 14:35:24 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC v2] Support volatile range for anon vma
-Message-Id: <20121031143524.0509665d.akpm@linux-foundation.org>
-In-Reply-To: <1351560594-18366-1-git-send-email-minchan@kernel.org>
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id B08736B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 17:40:24 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id c11so1448491qad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:40:23 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+References: <CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
+	<20121022235321.GK13817@bbox>
+	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+	<20121030001809.GL15767@bbox>
+	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+	<20121031005738.GM15767@bbox>
+	<alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+Date: Wed, 31 Oct 2012 14:40:23 -0700
+Message-ID: <CAA25o9Q4iPHDocZi3fgPn_Mu+3io5TGi9RzcONWyUCgiEFQ2FQ@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, sanjay@google.com, pjt@google.com, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Tue, 30 Oct 2012 10:29:54 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+Thanks so much for your help.  There are two issues: one is what we
+(Chrome OS) should do, the other is what should be done for ToT linux.
 
-> This patch introudces new madvise behavior MADV_VOLATILE and
-> MADV_NOVOLATILE for anonymous pages. It's different with
-> John Stultz's version which considers only tmpfs while this patch
-> considers only anonymous pages so this cannot cover John's one.
-> If below idea is proved as reasonable, I hope we can unify both
-> concepts by madvise/fadvise.
-> 
-> Rationale is following as.
-> Many allocators call munmap(2) when user call free(3) if ptr is
-> in mmaped area. But munmap isn't cheap because it have to clean up
-> all pte entries and unlinking a vma so overhead would be increased
-> linearly by mmaped area's size.
+The fix(es) you propose are harder to understand than mine, and put
+additional special conditions in code that is already rife with them.
+My fix, instead, removes one such special condition.  It can, in
+principle, cause processes to be OOM-killed unnecessarily, but what's
+the likelihood that it will happen?  We don't actually see it happen,
+and it matters  little to us if it happens.
 
-Presumably the userspace allocator will internally manage memory in
-large chunks, so the munmap() call frequency will be much lower than
-the free() call frequency.  So the performance gains from this change
-might be very small.
+I would be more than happy to try one of your fixes, but not likely to
+implement it.
 
-The whole point of the patch is to improve performance, but we have no
-evidence that it was successful in doing that!  I do think we'll need
-good quantitative testing results before proceeding with such a patch,
-please.
+On Wed, Oct 31, 2012 at 11:54 AM, David Rientjes <rientjes@google.com> wrote:
+> On Wed, 31 Oct 2012, Minchan Kim wrote:
+>
+>> It sounds right in your kernel but principal problem is min_filelist_kbytes patch.
+>> If normal exited process in exit path requires a page and there is no free page
+>> any more, it ends up going to OOM path after try to reclaim memory several time.
+>> Then,
+>> In select_bad_process,
+>>
+>>         if (task->flags & PF_EXITING) {
+>>                if (task == current)             <== true
+>>                         return OOM_SCAN_SELECT;
+>> In oom_kill_process,
+>>
+>>         if (p->flags & PF_EXITING)
+>>                 set_tsk_thread_flag(p, TIF_MEMDIE);
+>>
+>> At last, normal exited process would get a free page.
+>>
+>
+> select_bad_process() won't actually select the process for oom kill,
+> though, if there are other PF_EXITING threads other than current.  So if
+> multiple threads are page faulting on tsk->robust_list, then no thread
+> ends up getting killed.  The temporary workaround would be to do a kill -9
+> so that the logic in out_of_memory() could immediately give such threads
+> access to memory reserves so the page fault will succeed.
 
-Also, it is very desirable that we involve the relevant userspace
-(glibc, etc) developers in this.  And I understand that the google
-tcmalloc project will probably have interest in this - I've cc'ed
-various people@google in the hope that they can provide input (please).
+When we discover the thread in such state, it's already in do_exit()
+and it's waiting for the page fault to complete.  Will it wait
+forever, or timeout and retry?  Is it acceptable, and sufficient, to
+change task->exit_code on the fly?  If not, what else?  It is quite
+difficult to analyze that code.
 
-Also, it is a userspace API change.  Please cc mtk.manpages@gmail.com.
+>  The real fix
+> would be to audit all possible cases in between setting
+> tsk->flags |= PF_EXITING and tsk->mm = NULL that could cause a memory
+> allocation and make exemptions for them in oom_scan_process_thread().
 
-Also, I assume that you have userspace test code.  At some stage,
-please consider adding a case to tools/testing/selftests.  Such a test
-would require to creation of memory pressure, which is rather contrary
-to the selftests' current philosopy of being a bunch of short-running
-little tests.  Perhaps you can come up with something.  But I suggest
-that such work be done later, once it becomes clearer that this code is
-actually headed into the kernel.
+I think I probably slightly disagree with this.  It's an extra step in
+the direction of unmaintainability.  Wouldn't it be better to disallow
+a thread from making allocations in that section, fix all the places
+where it does, and panic to catch missed occurrences or new ones?
 
-> Allocator should call madvise(MADV_NOVOLATILE) before reusing for
-> allocating that area to user. Otherwise, accessing of volatile range
-> will meet SIGBUS error.
+Otherwise the OOM module will have to know additional details about
+what threads are doing, or threads will have to maintain that state
+(task->exiting_but_may_still_allocate = 1).  Isn't there already too
+much of this stuff going on?
 
-Well, why?  It would be easy enough for the fault handler to give
-userspace a new, zeroed page at that address.
-
-Or we could simply leave the old page in place at that address.  If the
-page gets touched, we clear MADV_NOVOLATILE on its VMA and give the
-page (or all the not-yet-reclaimed pages) back to userspace at their
-old addresses.
-
-Various options suggest themselves here.  You've chosen one of them but
-I would like to see a pretty exhaustive description of the reasoning
-behind that decision.
-
-Also, I wonder about the interaction with other vma manipulation
-operations.  For example, can a VMA get split when in the MADV_VOLATILE
-state?  If so, what happens?  
-
-Also, I see no reason why the code shouldn't work OK with nonlinear VMAs,
-but I bet this wasn't tested ;)
-
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -86,6 +86,22 @@ static long madvise_behavior(struct vm_area_struct * vma,
->  		if (error)
->  			goto out;
->  		break;
-> +	case MADV_VOLATILE:
-> +		if (vma->vm_flags & VM_LOCKED) {
-> +			error = -EINVAL;
-> +			goto out;
-> +		}
-> +		new_flags |= VM_VOLATILE;
-> +		vma->purged = false;
-> +		break;
-> +	case MADV_NOVOLATILE:
-> +		if (!(vma->vm_flags & VM_VOLATILE)) {
-> +			error = -EINVAL;
-> +			goto out;
-
-I wonder if this really should return an error.  Other madvise()
-options don't do this, and running MADV_NOVOLATILE against a
-not-volatile area seems pretty benign and has clearly defined before-
-and after- states.
-
-> +		}
-> +
-> +		new_flags &= ~VM_VOLATILE;
-> +		break;
->  	}
->  
->  	if (new_flags == vma->vm_flags) {
+Thanks again!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
