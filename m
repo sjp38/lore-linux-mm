@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id AD89A6B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:56:07 -0400 (EDT)
-Date: Wed, 31 Oct 2012 16:02:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
-Message-ID: <20121031070202.GR15767@bbox>
-References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
- <20121031010642.GN15767@bbox>
- <20121031014209.GB2672@kroah.com>
- <20121031020443.GP15767@bbox>
- <20121031021618.GA1142@kroah.com>
- <20121031023947.GA24883@bbox>
- <20121031024307.GA9210@kroah.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 9AEDD6B0068
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:56:16 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so529727eaa.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 23:56:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121031024307.GA9210@kroah.com>
+In-Reply-To: <5085370F.80204@parallels.com>
+References: <1350907471-2236-1-git-send-email-elezegarcia@gmail.com>
+	<5085370F.80204@parallels.com>
+Date: Wed, 31 Oct 2012 08:56:15 +0200
+Message-ID: <CAOJsxLGSyBx=VkQ1vjAwYMNgfKR3inWRpkTWTYkWnhzHsVPD_Q@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/slob: Use free_page instead of put_page for
+ page-size kmalloc allocations
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: Ezequiel Garcia <elezegarcia@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Bird <tim.bird@am.sony.com>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
 
-On Tue, Oct 30, 2012 at 07:43:07PM -0700, Greg Kroah-Hartman wrote:
-> On Wed, Oct 31, 2012 at 11:39:48AM +0900, Minchan Kim wrote:
-> > Greg, what do you think about LTSI?
-> > Is it proper feature to add it? For it, still do I need ACK from mm developers?
-> 
-> It's already in LTSI, as it's in the 3.4 kernel, right?
+> On 10/22/2012 04:04 PM, Ezequiel Garcia wrote:
+>> When freeing objects, the slob allocator currently free empty pages
+>> calling __free_pages(). However, page-size kmallocs are disposed
+>> using put_page() instead.
+>>
+>> It makes no sense to call put_page() for kernel pages that are provided
+>> by the object allocator, so we shouldn't be doing this ourselves.
+>>
+>> This is based on:
+>> commit d9b7f22623b5fa9cc189581dcdfb2ac605933bf4
+>> Author: Glauber Costa <glommer@parallels.com>
 
-Right. But as I look, it seems to be based on 3.4.11 which doesn't have
-recent bug fix and enhances and current 3.4.16 also doesn't include it.
+On Mon, Oct 22, 2012 at 3:07 PM, Glauber Costa <glommer@parallels.com> wrote:
+> Acked-by: Glauber Costa <glommer@parallels.com>
 
-Just out of curiosity.
-
-Is there any rule about update period in long-term kernel?
-I mean how often you release long-term kernel.
-
-Is there any rule about update period in LTSI kernel based on long-term kernel?
-If I get the answer on above two quesion, I can expect later what LTSI kernel
-version include feature I need.
-
-Another question.
-For example, There is A feature in mainline and A has no problem but
-someone invents new wheel "B" which is better than A so it replace A totally
-in recent mainline. As following stable-kernel rule, it's not a real bug fix
-so I guess stable kernel will never replace A with B. It means LTSI never get
-a chance to use new wheel. Right?
-
-Thanks.
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Applied, thanks Ezequiel!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
