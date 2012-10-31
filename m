@@ -1,64 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 92BAE6B0074
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 20:21:56 -0400 (EDT)
-Date: Wed, 31 Oct 2012 11:21:51 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
-Message-ID: <20121031002151.GI29378@dastard>
-References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20121026061206.GA31139@thunk.org>
- <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
- <20121026184649.GA8614@thunk.org>
- <3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
- <20121027221626.GA9161@thunk.org>
- <3908561D78D1C84285E8C5FCA982C28F19D5ABB3@ORSMSX108.amr.corp.intel.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 08C5E6B0078
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 20:34:04 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so1627515ied.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 17:34:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19D5ABB3@ORSMSX108.amr.corp.intel.com>
+In-Reply-To: <20121030214257.GB2681@htj.dyndns.org>
+References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com> <20121030214257.GB2681@htj.dyndns.org>
+From: Sasha Levin <levinsasha928@gmail.com>
+Date: Tue, 30 Oct 2012 20:33:43 -0400
+Message-ID: <CA+1xoqeCKS2E4TWCUCELjDqV2pWS4v6EyV6K-=w-GRi_K6quiQ@mail.gmail.com>
+Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, rostedt@goodmis.org, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
 
-On Mon, Oct 29, 2012 at 06:11:58PM +0000, Luck, Tony wrote:
-> > What I would recommend is adding a 
-> >
-> > #define FS_CORRUPTED_FL		0x01000000 /* File is corrupted */
-> >
-> > ... and which could be accessed and cleared via the lsattr and chattr
-> > programs.
-> 
-> Good - but we need some space to save the corrupted range information
-> too. These errors should be quite rare, so one range per file should be
-> enough.
-> 
-> New file systems should plan to add space in their on-disk format. The
-> corruption isn't going to go away across a reboot.
+On Tue, Oct 30, 2012 at 5:42 PM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
+>
+> Just some nitpicks.
+>
+> On Tue, Oct 30, 2012 at 02:45:57PM -0400, Sasha Levin wrote:
+>> +/* Use hash_32 when possible to allow for fast 32bit hashing in 64bit kernels. */
+>> +#define hash_min(val, bits)                                                  \
+>> +({                                                                           \
+>> +     sizeof(val) <= 4 ?                                                      \
+>> +     hash_32(val, bits) :                                                    \
+>> +     hash_long(val, bits);                                                   \
+>> +})
+>
+> Doesn't the above fit in 80 column.  Why is it broken into multiple
+> lines?  Also, you probably want () around at least @val.  In general,
+> it's a good idea to add () around any macro argument to avoid nasty
+> surprises.
 
-No, not at all. if you want to store something in the filesystem
-permanently, then use xattrs. You cannot rely on the filesystem
-being able to store random application specific data in their
-on-disk format. That's the *exact purpose* that xattrs were
-invented for - they are an extensible, user-defined, per-file
-metadata storage mechanism that is not tied to the filesystem
-on-disk format.
+It was broken to multiple lines because it looks nicer that way (IMO).
 
-The kernel already makes extensive use of xattrs for such metadata -
-just look at all the security and integrity code that uses xattrs to
-store their application-specific metadata.  Hence *anything* that
-the kernel wants to store on permanent storage should be using
-xattrs because then the application has complete control of what is
-stored without caring about what filesystem it is storing it on.
+If we wrap it with () it's going to go over 80, so it's going to stay
+broken down either way :)
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Sasha
+
+> Looks good to me otherwise.
+>
+>  Reviewed-by: Tejun Heo <tj@kernel.org>
+>
+> Thanks.
+>
+> --
+> tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
