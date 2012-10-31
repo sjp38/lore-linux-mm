@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id CC8246B006C
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 05:18:35 -0400 (EDT)
-From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART6 Patch] mempolicy: fix is_valid_nodemask()
-Date: Wed, 31 Oct 2012 17:24:18 +0800
-Message-Id: <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351675458-11859-1-git-send-email-wency@cn.fujitsu.com>
-References: <1351675458-11859-1-git-send-email-wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 128C66B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 05:24:44 -0400 (EDT)
+Date: Wed, 31 Oct 2012 17:25:04 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [glommer-memcg:slab-common/kmalloc 3/16] mm/slab_common.c:210:6:
+ warning: format '%td' expects argument of type 'ptrdiff_t', but argument 3
+ has type 'size_t'
+Message-ID: <5090ee70.0VqxCVMJOPKPP7+v%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
-Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, Glauber Costa <glommer@parallels.com>
 
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git slab-common/kmalloc
+head:   b59d450914258587897b8b602068a840e26df19b
+commit: b665ac5d4350e39e5ab017a3c9023323a35ba908 [3/16] CK2 [02/15] create common functions for boot slab creation
+config: make ARCH=s390 allnoconfig
 
-is_valid_nodemask() is introduced by 19770b32. but it does not match
-its comments, because it does not check the zone which > policy_zone.
+All warnings:
 
-Also in b377fd, this commits told us, if highest zone is ZONE_MOVABLE,
-we should also apply memory policies to it. so ZONE_MOVABLE should be valid zone
-for policies. is_valid_nodemask() need to be changed to match it.
+mm/slab_common.c: In function 'create_boot_cache':
+mm/slab_common.c:210:6: warning: format '%td' expects argument of type 'ptrdiff_t', but argument 3 has type 'size_t' [-Wformat]
 
-Fix: check all zones, even its zoneid > policy_zone.
-Use nodes_intersects() instead open code to check it.
+vim +210 mm/slab_common.c
 
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Reported-by: Wen Congyang <wency@cn.fujitsu.com>
+97d06609 Christoph Lameter 2012-07-06  194  }
+b665ac5d Christoph Lameter 2012-10-19  195  
+b665ac5d Christoph Lameter 2012-10-19  196  #ifndef CONFIG_SLOB
+b665ac5d Christoph Lameter 2012-10-19  197  /* Create a cache during boot when no slab services are available yet */
+b665ac5d Christoph Lameter 2012-10-19  198  void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
+b665ac5d Christoph Lameter 2012-10-19  199  		unsigned long flags)
+b665ac5d Christoph Lameter 2012-10-19  200  {
+b665ac5d Christoph Lameter 2012-10-19  201  	int err;
+b665ac5d Christoph Lameter 2012-10-19  202  
+b665ac5d Christoph Lameter 2012-10-19  203  	s->name = name;
+b665ac5d Christoph Lameter 2012-10-19  204  	s->size = s->object_size = size;
+b665ac5d Christoph Lameter 2012-10-19  205  	s->align = ARCH_KMALLOC_MINALIGN;
+b665ac5d Christoph Lameter 2012-10-19  206  	err = __kmem_cache_create(s, flags);
+b665ac5d Christoph Lameter 2012-10-19  207  
+b665ac5d Christoph Lameter 2012-10-19  208  	if (err)
+b665ac5d Christoph Lameter 2012-10-19  209  		panic("Creation of kmalloc slab %s size=%td failed. Reason %d\n",
+b665ac5d Christoph Lameter 2012-10-19 @210  					name, size, err);
+b665ac5d Christoph Lameter 2012-10-19  211  
+b665ac5d Christoph Lameter 2012-10-19  212  	list_add(&s->list, &slab_caches);
+b665ac5d Christoph Lameter 2012-10-19  213  	s->refcount = -1;	/* Exempt from merging for now */
+b665ac5d Christoph Lameter 2012-10-19  214  }
+b665ac5d Christoph Lameter 2012-10-19  215  
+b665ac5d Christoph Lameter 2012-10-19  216  struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
+b665ac5d Christoph Lameter 2012-10-19  217  				unsigned long flags)
+b665ac5d Christoph Lameter 2012-10-19  218  {
+
 ---
- mm/mempolicy.c | 36 ++++++++++++++++++++++--------------
- 1 file changed, 22 insertions(+), 14 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d04a8a5..de5aa24 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -140,19 +140,7 @@ static const struct mempolicy_operations {
- /* Check that the nodemask contains at least one populated zone */
- static int is_valid_nodemask(const nodemask_t *nodemask)
- {
--	int nd, k;
--
--	for_each_node_mask(nd, *nodemask) {
--		struct zone *z;
--
--		for (k = 0; k <= policy_zone; k++) {
--			z = &NODE_DATA(nd)->node_zones[k];
--			if (z->present_pages > 0)
--				return 1;
--		}
--	}
--
--	return 0;
-+	return nodes_intersects(*nodemask, node_states[N_MEMORY]);
- }
- 
- static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
-@@ -1572,6 +1560,26 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
- 	return pol;
- }
- 
-+static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
-+{
-+	enum zone_type dynamic_policy_zone = policy_zone;
-+
-+	BUG_ON(dynamic_policy_zone == ZONE_MOVABLE);
-+
-+	/*
-+	 * if policy->v.nodes has movable memory only,
-+	 * we apply policy when gfp_zone(gfp) = ZONE_MOVABLE only.
-+	 *
-+	 * policy->v.nodes is intersect with node_states[N_MEMORY].
-+	 * so if the following test faile, it implies
-+	 * policy->v.nodes has movable memory only.
-+	 */
-+	if (!nodes_intersects(policy->v.nodes, node_states[N_HIGH_MEMORY]))
-+		dynamic_policy_zone = ZONE_MOVABLE;
-+
-+	return zone >= dynamic_policy_zone;
-+}
-+
- /*
-  * Return a nodemask representing a mempolicy for filtering nodes for
-  * page allocation
-@@ -1580,7 +1588,7 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- {
- 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
- 	if (unlikely(policy->mode == MPOL_BIND) &&
--			gfp_zone(gfp) >= policy_zone &&
-+			apply_policy_zone(policy, gfp_zone(gfp)) &&
- 			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
- 		return &policy->v.nodes;
- 
--- 
-1.8.0
+0-DAY kernel build testing backend         Open Source Technology Center
+Fengguang Wu, Yuanhan Liu                              Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
