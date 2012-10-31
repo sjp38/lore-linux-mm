@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id D42586B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:16:38 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so1278363pad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:16:38 -0700 (PDT)
-Date: Wed, 31 Oct 2012 11:16:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id D85E96B0068
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 14:21:35 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so839003dad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 11:21:35 -0700 (PDT)
+Date: Wed, 31 Oct 2012 11:21:32 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PART3 Patch 00/14] introduce N_MEMORY
-In-Reply-To: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1210311112010.8809@chino.kir.corp.google.com>
-References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [PART6 Patch] mempolicy: fix is_valid_nodemask()
+In-Reply-To: <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1210311119000.8809@chino.kir.corp.google.com>
+References: <1351675458-11859-1-git-send-email-wency@cn.fujitsu.com> <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -21,33 +21,25 @@ On Wed, 31 Oct 2012, Wen Congyang wrote:
 
 > From: Lai Jiangshan <laijs@cn.fujitsu.com>
 > 
-> This patch is part3 of the following patchset:
->     https://lkml.org/lkml/2012/10/29/319
+> is_valid_nodemask() is introduced by 19770b32. but it does not match
+> its comments, because it does not check the zone which > policy_zone.
 > 
-> Part1 is here:
->     https://lkml.org/lkml/2012/10/31/30
+> Also in b377fd, this commits told us, if highest zone is ZONE_MOVABLE,
+> we should also apply memory policies to it. so ZONE_MOVABLE should be valid zone
+> for policies. is_valid_nodemask() need to be changed to match it.
 > 
-> Part2 is here:
->     http://marc.info/?l=linux-kernel&m=135166705909544&w=2
-> 
-> You can apply this patchset without the other parts.
-> 
-> we need a node which only contains movable memory. This feature is very
-> important for node hotplug. So we will add a new nodemask
-> for all memory. N_MEMORY contains movable memory but N_HIGH_MEMORY
-> doesn't contain it.
-> 
-> We don't remove N_HIGH_MEMORY because it can be used to search which
-> nodes contains memory that the kernel can use.
+> Fix: check all zones, even its zoneid > policy_zone.
+> Use nodes_intersects() instead open code to check it.
 > 
 
-This doesn't describe why we need the new node state, unfortunately.  It 
-makes sense to boot with node(s) containing only ZONE_MOVABLE, but it 
-doesn't show why we need a nodemask to specify such nodes and such 
-information should be available from the kernel log or /proc/zoneinfo.
-
-Node hotplug should fail if all memory cannot be offlined, so why do we 
-need another nodemask?  Only offline the node if all memory is offlined.
+This changes the semantics of MPOL_BIND to be considerably different than 
+what it is today: slab allocations are no longer bound by such a policy 
+which isn't consistent with what userspace expects or is specified by 
+set_mempolicy() and there's no way, with your patch, to actually specify 
+that we don't care about ZONE_MOVABLE and that the slab allocations 
+_should_ actually be allocated on movable-only zones.  You have to respect 
+cases where people aren't interested in node hotplug and not cause a 
+regression.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
