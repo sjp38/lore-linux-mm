@@ -1,73 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 2E7EA6B0072
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 01:35:20 -0400 (EDT)
-From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART1 Patch 0/3] mm, memory-hotplug: allow to online movable memory
-Date: Wed, 31 Oct 2012 13:40:33 +0800
-Message-Id: <1351662036-7435-1-git-send-email-wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 993436B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 02:14:10 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so916271qcq.14
+        for <linux-mm@kvack.org>; Tue, 30 Oct 2012 23:14:09 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1210302142510.26588@chino.kir.corp.google.com>
+References: <20121015144412.GA2173@barrios>
+	<CAA25o9R53oJajrzrWcLSAXcjAd45oQ4U+gJ3Mq=bthD3HGRaFA@mail.gmail.com>
+	<20121016061854.GB3934@barrios>
+	<CAA25o9R5OYSMZ=Rs2qy9rPk3U9yaGLLXVB60Yncqvmf3Y_Xbvg@mail.gmail.com>
+	<CAA25o9QcaqMsYV-Z6zTyKdXXwtCHCAV_riYv+Bhtv2RW0niJHQ@mail.gmail.com>
+	<20121022235321.GK13817@bbox>
+	<alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+	<20121030001809.GL15767@bbox>
+	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+	<CAA25o9SE353h9xjUR0ste3af1XPuyL_hieGBUWqmt_S5hCn_9A@mail.gmail.com>
+	<alpine.DEB.2.00.1210302142510.26588@chino.kir.corp.google.com>
+Date: Tue, 30 Oct 2012 23:14:09 -0700
+Message-ID: <CAA25o9RLNeDCKw7M7qQKs_L_+u+yti1KkLH4WU2PQ3cgRekuGA@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
-Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+On Tue, Oct 30, 2012 at 9:46 PM, David Rientjes <rientjes@google.com> wrote:
+> On Tue, 30 Oct 2012, Luigi Semenzato wrote:
+>
+>> Actually, there is a very simple fix:
+>>
+>> @@ -355,14 +364,6 @@ static struct task_struct
+>> *select_bad_process(unsigned int *ppoints,
+>>                         if (p == current) {
+>>                                 chosen = p;
+>>                                 *ppoints = 1000;
+>> -                       } else if (!force_kill) {
+>> -                               /*
+>> -                                * If this task is not being ptraced on exit,
+>> -                                * then wait for it to finish before killing
+>> -                                * some other task unnecessarily.
+>> -                                */
+>> -                               if (!(p->group_leader->ptrace & PT_TRACE_EXIT))
+>> -                                       return ERR_PTR(-1UL);
+>>                         }
+>>                 }
+>>
+>> I'd rather kill some other task unnecessarily than hang!  My load
+>> works fine with this change.
+>>
+>
+> That's not an acceptable "fix" at all, it will lead to unnecessarily
+> killing processes when others are in the exit path, i.e. every oom kill
+> would kill two or three or more processes instead of just one.
 
-This patch is part1 of the following patchset:
-    https://lkml.org/lkml/2012/10/29/319
+I am sorry, I didn't mean to suggest that this is the right fix for
+everybody.  It seems to work for us.  A real fix would be much harder,
+I think.  Certainly it would be for me.
 
-The patchset is based on Linus's tree with these three patches already applied:
-    https://lkml.org/lkml/2012/10/24/151
-    https://lkml.org/lkml/2012/10/26/150
+We don't rely on OOM-killing for memory management (we tried to, but
+it has drawbacks).  But OOM kills can still happen, so we have to deal
+with them.  We can deal with multiple processes being killed, but not
+with a hang.  I might be tempted to say that this should be true for
+everybody, but I can imagine systems that work by allowing only one
+process to die, and perhaps the load on those systems is such that
+they don't experience this deadlock often, or ever (even though I
+would be nervous about it).
 
-Movable memory is a very important concept of memory-management,
-we need to consolidate it and make use of it on systems.
+> Could you please try this on 3.6 since all the code you're quoting is from
+> old kernels?
 
-Movable memory is needed for
-    anti-fragmentation(hugepage, big-order allocation...)
-    logic hot-remove(virtualization, Memory capacity on Demand)
-    physic hot-remove(power-saving, hardware partitioning, hardware fault management)
-
-All these require dynamic configuring the memory and making better utilities of
-memories and safer. We also need physic hot-remove, so we need movable node too.
-(Although some systems support physic-memory-migration, we don't require all
-memory on physic-node is movable, but movable node is still needed here
-for logic-node if we want to make physic-migration is transparent)
-
-We add dynamic configuration commands "online_movalbe" and "online_kernel" in
-this patchset, and you can't make a movable node(it will be implemented in
-part4).
-
-Usage:
-1. online_movable:
-   echo online_movable >/sys/devices/system/memory/memoryX/state
-   The memory must be offlined before doing this.
-2. online_kernel:
-   echo online_kernel >/sys/devices/system/memory/memoryX/state
-   The memory must be offlined before doing this.
-3. online:
-   echo online_kernel >/sys/devices/system/memory/memoryX/state
-   The memory must be offline before doing this. This operation does't change
-   the memory's attribute: movable or normal/high
-
-Note:
-   You only can move the highest memory in normal/high zone to movable zone,
-   and only can move the lowest memory in movable zone to normal/high zone.
-
-Lai Jiangshan (3):
-  mm, memory-hotplug: dynamic configure movable memory and portion
-    memory
-  memory_hotplug: handle empty zone when online_movable/online_kernel
-  memory_hotplug: ensure every online node has NORMAL memory
-
- Documentation/memory-hotplug.txt |  14 ++-
- drivers/base/memory.c            |  27 +++---
- include/linux/memory_hotplug.h   |  13 ++-
- mm/memory_hotplug.c              | 180 ++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 221 insertions(+), 13 deletions(-)
-
--- 
-1.8.0
+I will see if I can do it, but we're shipping 3.4 and I am not sure
+about the status of our 3.6 tree.  I will also visually inspect the
+relevant 3.6 code and see if the possibility of deadlock is still
+there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
