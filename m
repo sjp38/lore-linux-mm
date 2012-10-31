@@ -1,48 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 52EAB6B0071
-	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 19:37:43 -0400 (EDT)
-Date: Wed, 31 Oct 2012 00:37:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memcg/cgroup: do not fail fail on pre_destroy callbacks
-Message-ID: <20121030233356.GA19496@dhcp22.suse.cz>
-References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
- <20121029232602.GF4066@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 92BAE6B0074
+	for <linux-mm@kvack.org>; Tue, 30 Oct 2012 20:21:56 -0400 (EDT)
+Date: Wed, 31 Oct 2012 11:21:51 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 2/3] ext4: introduce ext4_error_remove_page
+Message-ID: <20121031002151.GI29378@dastard>
+References: <1351177969-893-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1351177969-893-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20121026061206.GA31139@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A13B@ORSMSX108.amr.corp.intel.com>
+ <20121026184649.GA8614@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5A388@ORSMSX108.amr.corp.intel.com>
+ <20121027221626.GA9161@thunk.org>
+ <3908561D78D1C84285E8C5FCA982C28F19D5ABB3@ORSMSX108.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121029232602.GF4066@htj.dyndns.org>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F19D5ABB3@ORSMSX108.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Wu, Fengguang" <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, Akira Fujita <a-fujita@rs.jp.nec.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
 
-On Mon 29-10-12 16:26:02, Tejun Heo wrote:
-> Hello, Michal.
+On Mon, Oct 29, 2012 at 06:11:58PM +0000, Luck, Tony wrote:
+> > What I would recommend is adding a 
+> >
+> > #define FS_CORRUPTED_FL		0x01000000 /* File is corrupted */
+> >
+> > ... and which could be accessed and cleared via the lsattr and chattr
+> > programs.
 > 
-> > Tejun is planning to build on top of that and make some more cleanups
-> > in the cgroup core (namely get rid of of the whole retry code in
-> > cgroup_rmdir).
+> Good - but we need some space to save the corrupted range information
+> too. These errors should be quite rare, so one range per file should be
+> enough.
 > 
-> I applied 1-3 to the following branch which is based on top of v3.6.
-> 
->   git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git cgroup-destroy-updates
+> New file systems should plan to add space in their on-disk format. The
+> corruption isn't going to go away across a reboot.
 
-Ok, Andrew droped all the patches from his tree and I set up this
-branch for automerging to -mm git tree.
+No, not at all. if you want to store something in the filesystem
+permanently, then use xattrs. You cannot rely on the filesystem
+being able to store random application specific data in their
+on-disk format. That's the *exact purpose* that xattrs were
+invented for - they are an extensible, user-defined, per-file
+metadata storage mechanism that is not tied to the filesystem
+on-disk format.
 
-> I'll follow up with updates to the destroy path which will replace #4.
-> #5 and #6 should be stackable on top.
+The kernel already makes extensive use of xattrs for such metadata -
+just look at all the security and integrity code that uses xattrs to
+store their application-specific metadata.  Hence *anything* that
+the kernel wants to store on permanent storage should be using
+xattrs because then the application has complete control of what is
+stored without caring about what filesystem it is storing it on.
 
-Could you take care of them and apply those two on top of the first one
-which guarantees that css_tryget fails and no new task can appear in the
-group (aka #4 without follow up cleanups)? So that Andrew doesn't have
-to care about them later.
+Cheers,
 
-Thanks!
+Dave.
 -- 
-Michal Hocko
-SUSE Labs
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
