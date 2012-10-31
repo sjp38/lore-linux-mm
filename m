@@ -1,35 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id D1FAA6B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 12:31:46 -0400 (EDT)
-Date: Wed, 31 Oct 2012 12:31:41 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 2/6] memcg: root_cgroup cannot reach
- mem_cgroup_move_parent
-Message-ID: <20121031163141.GC2305@cmpxchg.org>
-References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
- <1351251453-6140-3-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1351251453-6140-3-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 47A9C6B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 12:59:08 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1223572pad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 09:59:07 -0700 (PDT)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH v2 0/5] minor clean-up and optimize highmem related code
+Date: Thu,  1 Nov 2012 01:56:32 +0900
+Message-Id: <1351702597-10795-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <Yes>
+References: <Yes>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On Fri, Oct 26, 2012 at 01:37:29PM +0200, Michal Hocko wrote:
-> The root cgroup cannot be destroyed so we never hit it down the
-> mem_cgroup_pre_destroy path and mem_cgroup_force_empty_write shouldn't
-> even try to do anything if called for the root.
-> 
-> This means that mem_cgroup_move_parent doesn't have to bother with the
-> root cgroup and it can assume it can always move charges upwards.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Reviewed-by: Tejun Heo <tj@kernel.org>
+This patchset clean-up and optimize highmem related code.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Change from v1
+Rebase on v3.7-rc3
+[4] Instead of returning index of last flushed entry, return first index.
+And update last_pkmap_nr to this index to optimize more.
+
+Summary for v1
+[1] is just clean-up and doesn't introduce any functional change.
+[2-3] are for clean-up and optimization.
+These eliminate an useless lock opearation and list management.
+[4-5] is for optimization related to flush_all_zero_pkmaps().
+
+Joonsoo Kim (5):
+  mm, highmem: use PKMAP_NR() to calculate an index of pkmap
+  mm, highmem: remove useless pool_lock
+  mm, highmem: remove page_address_pool list
+  mm, highmem: makes flush_all_zero_pkmaps() return index of first
+    flushed entry
+  mm, highmem: get virtual address of the page using PKMAP_ADDR()
+
+ include/linux/highmem.h |    1 +
+ mm/highmem.c            |  108 ++++++++++++++++++++++-------------------------
+ 2 files changed, 51 insertions(+), 58 deletions(-)
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
