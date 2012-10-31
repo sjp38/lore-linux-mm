@@ -1,176 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 75BFA6B0088
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 03:58:37 -0400 (EDT)
-From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch 13/14] page_alloc: use N_MEMORY instead N_HIGH_MEMORY change the node_states initialization
-Date: Wed, 31 Oct 2012 16:04:11 +0800
-Message-Id: <1351670652-9932-14-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
-References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 78F236B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 04:03:34 -0400 (EDT)
+Received: by mail-ea0-f169.google.com with SMTP id k11so556334eaa.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 01:03:32 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1351507779-26847-1-git-send-email-glommer@parallels.com>
+References: <1351507779-26847-1-git-send-email-glommer@parallels.com>
+Date: Wed, 31 Oct 2012 10:03:32 +0200
+Message-ID: <CAOJsxLEG+gZk=TLyfhJqMb8xjxV4wnyF9wnZWPPOo8Hpc7N45A@mail.gmail.com>
+Subject: Re: [PATCH] slab: annotate on-slab caches nodelist locks
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
-Cc: Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, JoonSoo Kim <js1304@gmail.com>, Michael Wang <wangyun@linux.vnet.ibm.com>, Peter Zijlstra <peterz@infradead.org>
 
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
+(Adding Peter and Michael to CC.)
 
-N_HIGH_MEMORY stands for the nodes that has normal or high memory.
-N_MEMORY stands for the nodes that has any memory.
-
-The code here need to handle with the nodes which have memory, we should
-use N_MEMORY instead.
-
-Since we introduced N_MEMORY, we update the initialization of node_states.
-
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- arch/x86/mm/init_64.c |  4 +++-
- mm/page_alloc.c       | 40 ++++++++++++++++++++++------------------
- 2 files changed, 25 insertions(+), 19 deletions(-)
-
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 3baff25..2ead3c8 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -630,7 +630,9 @@ void __init paging_init(void)
- 	 *	 numa support is not compiled in, and later node_set_state
- 	 *	 will not set it back.
- 	 */
--	node_clear_state(0, N_NORMAL_MEMORY);
-+	node_clear_state(0, N_MEMORY);
-+	if (N_MEMORY != N_NORMAL_MEMORY)
-+		node_clear_state(0, N_NORMAL_MEMORY);
- 
- 	zone_sizes_init();
- }
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b74de6..f1f44d5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1692,7 +1692,7 @@ bool zone_watermark_ok_safe(struct zone *z, int order, unsigned long mark,
-  *
-  * If the zonelist cache is present in the passed in zonelist, then
-  * returns a pointer to the allowed node mask (either the current
-- * tasks mems_allowed, or node_states[N_HIGH_MEMORY].)
-+ * tasks mems_allowed, or node_states[N_MEMORY].)
-  *
-  * If the zonelist cache is not available for this zonelist, does
-  * nothing and returns NULL.
-@@ -1721,7 +1721,7 @@ static nodemask_t *zlc_setup(struct zonelist *zonelist, int alloc_flags)
- 
- 	allowednodes = !in_interrupt() && (alloc_flags & ALLOC_CPUSET) ?
- 					&cpuset_current_mems_allowed :
--					&node_states[N_HIGH_MEMORY];
-+					&node_states[N_MEMORY];
- 	return allowednodes;
- }
- 
-@@ -3194,7 +3194,7 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
- 		return node;
- 	}
- 
--	for_each_node_state(n, N_HIGH_MEMORY) {
-+	for_each_node_state(n, N_MEMORY) {
- 
- 		/* Don't want a node to appear more than once */
- 		if (node_isset(n, *used_node_mask))
-@@ -3336,7 +3336,7 @@ static int default_zonelist_order(void)
-  	 * local memory, NODE_ORDER may be suitable.
-          */
- 	average_size = total_size /
--				(nodes_weight(node_states[N_HIGH_MEMORY]) + 1);
-+				(nodes_weight(node_states[N_MEMORY]) + 1);
- 	for_each_online_node(nid) {
- 		low_kmem_size = 0;
- 		total_size = 0;
-@@ -4687,7 +4687,7 @@ unsigned long __init find_min_pfn_with_active_regions(void)
- /*
-  * early_calculate_totalpages()
-  * Sum pages in active regions for movable zone.
-- * Populate N_HIGH_MEMORY for calculating usable_nodes.
-+ * Populate N_MEMORY for calculating usable_nodes.
-  */
- static unsigned long __init early_calculate_totalpages(void)
- {
-@@ -4700,7 +4700,7 @@ static unsigned long __init early_calculate_totalpages(void)
- 
- 		totalpages += pages;
- 		if (pages)
--			node_set_state(nid, N_HIGH_MEMORY);
-+			node_set_state(nid, N_MEMORY);
- 	}
-   	return totalpages;
- }
-@@ -4717,9 +4717,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	unsigned long usable_startpfn;
- 	unsigned long kernelcore_node, kernelcore_remaining;
- 	/* save the state before borrow the nodemask */
--	nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
-+	nodemask_t saved_node_state = node_states[N_MEMORY];
- 	unsigned long totalpages = early_calculate_totalpages();
--	int usable_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
-+	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
- 
- 	/*
- 	 * If movablecore was specified, calculate what size of
-@@ -4754,7 +4754,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- restart:
- 	/* Spread kernelcore memory as evenly as possible throughout nodes */
- 	kernelcore_node = required_kernelcore / usable_nodes;
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
- 
- 		/*
-@@ -4846,23 +4846,27 @@ restart:
- 
- out:
- 	/* restore the node_state */
--	node_states[N_HIGH_MEMORY] = saved_node_state;
-+	node_states[N_MEMORY] = saved_node_state;
- }
- 
--/* Any regular memory on that node ? */
--static void __init check_for_regular_memory(pg_data_t *pgdat)
-+/* Any regular or high memory on that node ? */
-+static void check_for_memory(pg_data_t *pgdat, int nid)
- {
--#ifdef CONFIG_HIGHMEM
- 	enum zone_type zone_type;
- 
--	for (zone_type = 0; zone_type <= ZONE_NORMAL; zone_type++) {
-+	if (N_MEMORY == N_NORMAL_MEMORY)
-+		return;
-+
-+	for (zone_type = 0; zone_type <= ZONE_MOVABLE - 1; zone_type++) {
- 		struct zone *zone = &pgdat->node_zones[zone_type];
- 		if (zone->present_pages) {
--			node_set_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-+			node_set_state(nid, N_HIGH_MEMORY);
-+			if (N_NORMAL_MEMORY != N_HIGH_MEMORY &&
-+			    zone_type <= ZONE_NORMAL)
-+				node_set_state(nid, N_NORMAL_MEMORY);
- 			break;
- 		}
- 	}
--#endif
- }
- 
- /**
-@@ -4945,8 +4949,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
- 
- 		/* Any memory on that node */
- 		if (pgdat->node_present_pages)
--			node_set_state(nid, N_HIGH_MEMORY);
--		check_for_regular_memory(pgdat);
-+			node_set_state(nid, N_MEMORY);
-+		check_for_memory(pgdat, nid);
- 	}
- }
- 
--- 
-1.8.0
+On Mon, Oct 29, 2012 at 12:49 PM, Glauber Costa <glommer@parallels.com> wrote:
+> We currently provide lockdep annotation for kmalloc caches, and also
+> caches that have SLAB_DEBUG_OBJECTS enabled. The reason for this is that
+> we can quite frequently nest in the l3->list_lock lock, which is not
+> something trivial to avoid.
+>
+> My proposal with this patch, is to extend this to caches whose slab
+> management object lives within the slab as well ("on_slab"). The need
+> for this arose in the context of testing kmemcg-slab patches. With such
+> patchset, we can have per-memcg kmalloc caches. So the same path that
+> led to nesting between kmalloc caches will could then lead to in-memcg
+> nesting. Because they are not annotated, lockdep will trigger.
+>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: David Rientjes <rientjes@google.com>
+> CC: JoonSoo Kim <js1304@gmail.com>
+>
+> ---
+> Instead of "on_slab", I considered checking the memcg cache's root
+> cache, and annotating that only in case this is a kmalloc cache.
+> I ended up annotating on_slab caches, because given how frequently
+> those locks can nest, it seemed like a safe choice to go. I was
+> a little bit inspired by the key's name as well, that indicated
+> this could work for all on_slab caches. Let me know if you guys
+> want a different test condition for this.
+> ---
+>  mm/slab.c | 30 +++++++++++++++++++++++++++++-
+>  1 file changed, 29 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 9b7f6b63..ef1c8b3 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -654,6 +654,26 @@ static void init_node_lock_keys(int q)
+>         }
+>  }
+>
+> +static void on_slab_lock_classes_node(struct kmem_cache *cachep, int q)
+> +{
+> +       struct kmem_list3 *l3;
+> +       l3 = cachep->nodelists[q];
+> +       if (!l3)
+> +               return;
+> +
+> +       slab_set_lock_classes(cachep, &on_slab_l3_key,
+> +                       &on_slab_alc_key, q);
+> +}
+> +
+> +static inline void on_slab_lock_classes(struct kmem_cache *cachep)
+> +{
+> +       int node;
+> +
+> +       VM_BUG_ON(OFF_SLAB(cachep));
+> +       for_each_node(node)
+> +               on_slab_lock_classes_node(cachep, node);
+> +}
+> +
+>  static inline void init_lock_keys(void)
+>  {
+>         int node;
+> @@ -670,6 +690,10 @@ static inline void init_lock_keys(void)
+>  {
+>  }
+>
+> +static inline void on_slab_lock_classes(struct kmem_cache *cachep)
+> +{
+> +}
+> +
+>  static void slab_set_debugobj_lock_classes_node(struct kmem_cache *cachep, int node)
+>  {
+>  }
+> @@ -1397,6 +1421,9 @@ static int __cpuinit cpuup_prepare(long cpu)
+>                 free_alien_cache(alien);
+>                 if (cachep->flags & SLAB_DEBUG_OBJECTS)
+>                         slab_set_debugobj_lock_classes_node(cachep, node);
+> +               else if (!OFF_SLAB(cachep) &&
+> +                        !(cachep->flags & SLAB_DESTROY_BY_RCU))
+> +                       on_slab_lock_classes_node(cachep, node);
+>         }
+>         init_node_lock_keys(node);
+>
+> @@ -2554,7 +2581,8 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
+>                 WARN_ON_ONCE(flags & SLAB_DESTROY_BY_RCU);
+>
+>                 slab_set_debugobj_lock_classes(cachep);
+> -       }
+> +       } else if (!OFF_SLAB(cachep) && !(flags & SLAB_DESTROY_BY_RCU))
+> +               on_slab_lock_classes(cachep);
+>
+>         return 0;
+>  }
+> --
+> 1.7.11.7
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
