@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id F38F26B006C
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 05:39:00 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 7E8926B0072
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 05:39:01 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PATCH v3 04/12] memory-hotplug: remove /sys/firmware/memmap/X sysfs
-Date: Thu, 1 Nov 2012 17:44:35 +0800
-Message-Id: <1351763083-7905-5-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 05/12] memory-hotplug: introduce new function arch_remove_memory() for removing page table depends on architecture
+Date: Thu, 1 Nov 2012 17:44:36 +0800
+Message-Id: <1351763083-7905-6-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,241 +13,224 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 Cc: David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+For removing memory, we need to remove page table. But it depends
+on architecture. So the patch introduce arch_remove_memory() for
+removing page table. Now it only calls __remove_pages().
 
-When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
-sysfs files are created. But there is no code to remove these files. The patch
-implements the function to remove them.
-
-Note: The code does not free firmware_map_entry which is allocated by bootmem.
-      So the patch makes memory leak. But I think the memory leak size is
-      very samll. And it does not affect the system.
+Note: __remove_pages() for some archtecuture is not implemented
+      (I don't know how to implement it for s390).
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
 CC: Len Brown <len.brown@intel.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
 CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- drivers/firmware/memmap.c    | 98 +++++++++++++++++++++++++++++++++++++++++++-
- include/linux/firmware-map.h |  6 +++
- mm/memory_hotplug.c          |  5 ++-
- 3 files changed, 106 insertions(+), 3 deletions(-)
+ arch/ia64/mm/init.c            | 18 ++++++++++++++++++
+ arch/powerpc/mm/mem.c          | 12 ++++++++++++
+ arch/s390/mm/init.c            | 12 ++++++++++++
+ arch/sh/mm/init.c              | 17 +++++++++++++++++
+ arch/tile/mm/init.c            |  8 ++++++++
+ arch/x86/mm/init_32.c          | 12 ++++++++++++
+ arch/x86/mm/init_64.c          | 15 +++++++++++++++
+ include/linux/memory_hotplug.h |  1 +
+ mm/memory_hotplug.c            |  2 ++
+ 9 files changed, 97 insertions(+)
 
-diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
-index 90723e6..49be12a 100644
---- a/drivers/firmware/memmap.c
-+++ b/drivers/firmware/memmap.c
-@@ -21,6 +21,7 @@
- #include <linux/types.h>
- #include <linux/bootmem.h>
- #include <linux/slab.h>
-+#include <linux/mm.h>
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index acd5b68..1d36ba2 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -690,6 +690,24 @@ int arch_add_memory(int nid, u64 start, u64 size)
  
- /*
-  * Data types ------------------------------------------------------------------
-@@ -41,6 +42,7 @@ struct firmware_map_entry {
- 	const char		*type;	/* type of the memory range */
- 	struct list_head	list;	/* entry for the linked list */
- 	struct kobject		kobj;   /* kobject for each entry */
-+	unsigned int		bootmem:1; /* allocated from bootmem */
- };
- 
- /*
-@@ -79,7 +81,26 @@ static const struct sysfs_ops memmap_attr_ops = {
- 	.show = memmap_attr_show,
- };
- 
-+
-+static inline struct firmware_map_entry *
-+to_memmap_entry(struct kobject *kobj)
-+{
-+	return container_of(kobj, struct firmware_map_entry, kobj);
-+}
-+
-+static void release_firmware_map_entry(struct kobject *kobj)
-+{
-+	struct firmware_map_entry *entry = to_memmap_entry(kobj);
-+
-+	if (entry->bootmem)
-+		/* There is no way to free memory allocated from bootmem */
-+		return;
-+
-+	kfree(entry);
-+}
-+
- static struct kobj_type memmap_ktype = {
-+	.release	= release_firmware_map_entry,
- 	.sysfs_ops	= &memmap_attr_ops,
- 	.default_attrs	= def_attrs,
- };
-@@ -94,6 +115,7 @@ static struct kobj_type memmap_ktype = {
-  * in firmware initialisation code in one single thread of execution.
-  */
- static LIST_HEAD(map_entries);
-+static DEFINE_SPINLOCK(map_entries_lock);
- 
- /**
-  * firmware_map_add_entry() - Does the real work to add a firmware memmap entry.
-@@ -118,11 +140,25 @@ static int firmware_map_add_entry(u64 start, u64 end,
- 	INIT_LIST_HEAD(&entry->list);
- 	kobject_init(&entry->kobj, &memmap_ktype);
- 
-+	spin_lock(&map_entries_lock);
- 	list_add_tail(&entry->list, &map_entries);
-+	spin_unlock(&map_entries_lock);
- 
- 	return 0;
- }
- 
-+/**
-+ * firmware_map_remove_entry() - Does the real work to remove a firmware
-+ * memmap entry.
-+ * @entry: removed entry.
-+ **/
-+static inline void firmware_map_remove_entry(struct firmware_map_entry *entry)
-+{
-+	spin_lock(&map_entries_lock);
-+	list_del(&entry->list);
-+	spin_unlock(&map_entries_lock);
-+}
-+
- /*
-  * Add memmap entry on sysfs
-  */
-@@ -144,6 +180,35 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
- 	return 0;
- }
- 
-+/*
-+ * Remove memmap entry on sysfs
-+ */
-+static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
-+{
-+	kobject_put(&entry->kobj);
-+}
-+
-+/*
-+ * Search memmap entry
-+ */
-+
-+static struct firmware_map_entry * __meminit
-+firmware_map_find_entry(u64 start, u64 end, const char *type)
-+{
-+	struct firmware_map_entry *entry;
-+
-+	spin_lock(&map_entries_lock);
-+	list_for_each_entry(entry, &map_entries, list)
-+		if ((entry->start == start) && (entry->end == end) &&
-+		    (!strcmp(entry->type, type))) {
-+			spin_unlock(&map_entries_lock);
-+			return entry;
-+		}
-+
-+	spin_unlock(&map_entries_lock);
-+	return NULL;
-+}
-+
- /**
-  * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
-  * memory hotplug.
-@@ -193,9 +258,36 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
- 	if (WARN_ON(!entry))
- 		return -ENOMEM;
- 
-+	entry->bootmem = 1;
- 	return firmware_map_add_entry(start, end, type, entry);
- }
- 
-+/**
-+ * firmware_map_remove() - remove a firmware mapping entry
-+ * @start: Start of the memory range.
-+ * @end:   End of the memory range.
-+ * @type:  Type of the memory range.
-+ *
-+ * removes a firmware mapping entry.
-+ *
-+ * Returns 0 on success, or -EINVAL if no entry.
-+ **/
-+int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
-+{
-+	struct firmware_map_entry *entry;
-+
-+	entry = firmware_map_find_entry(start, end - 1, type);
-+	if (!entry)
-+		return -EINVAL;
-+
-+	firmware_map_remove_entry(entry);
-+
-+	/* remove the memmap entry */
-+	remove_sysfs_fw_map_entry(entry);
-+
-+	return 0;
-+}
-+
- /*
-  * Sysfs functions -------------------------------------------------------------
-  */
-@@ -217,8 +309,10 @@ static ssize_t type_show(struct firmware_map_entry *entry, char *buf)
- 	return snprintf(buf, PAGE_SIZE, "%s\n", entry->type);
- }
- 
--#define to_memmap_attr(_attr) container_of(_attr, struct memmap_attribute, attr)
--#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
-+static inline struct memmap_attribute *to_memmap_attr(struct attribute *attr)
-+{
-+	return container_of(attr, struct memmap_attribute, attr);
-+}
- 
- static ssize_t memmap_attr_show(struct kobject *kobj,
- 				struct attribute *attr, char *buf)
-diff --git a/include/linux/firmware-map.h b/include/linux/firmware-map.h
-index 43fe52fc..71d4fa7 100644
---- a/include/linux/firmware-map.h
-+++ b/include/linux/firmware-map.h
-@@ -25,6 +25,7 @@
- 
- int firmware_map_add_early(u64 start, u64 end, const char *type);
- int firmware_map_add_hotplug(u64 start, u64 end, const char *type);
-+int firmware_map_remove(u64 start, u64 end, const char *type);
- 
- #else /* CONFIG_FIRMWARE_MEMMAP */
- 
-@@ -38,6 +39,11 @@ static inline int firmware_map_add_hotplug(u64 start, u64 end, const char *type)
- 	return 0;
- }
- 
-+static inline int firmware_map_remove(u64 start, u64 end, const char *type)
-+{
-+	return 0;
-+}
-+
- #endif /* CONFIG_FIRMWARE_MEMMAP */
- 
- #endif /* _LINUX_FIRMWARE_MAP_H */
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 80fc70c..050ddb0 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1073,7 +1073,7 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
  	return ret;
  }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	if (ret)
++		pr_warn("%s: Problem encountered in __remove_pages() as"
++			" ret=%d\n", __func__,  ret);
++
++	return ret;
++}
++#endif
+ #endif
  
--int remove_memory(u64 start, u64 size)
-+int __ref remove_memory(u64 start, u64 size)
+ /*
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 0dba506..09c6451 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -133,6 +133,18 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	return __remove_pages(zone, start_pfn, nr_pages);
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ /*
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 81e596c..b565190 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -257,4 +257,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 		vmem_remove_mapping(start, size);
+ 	return rc;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	/*
++	 * There is no hardware or firmware interface which could trigger a
++	 * hot memory remove on s390. So there is nothing that needs to be
++	 * implemented.
++	 */
++	return -EBUSY;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 82cc576..1057940 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -558,4 +558,21 @@ int memory_add_physaddr_to_nid(u64 addr)
+ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	if (unlikely(ret))
++		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
++			ret);
++
++	return ret;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index ef29d6c..2749515 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -935,6 +935,14 @@ int remove_memory(u64 start, u64 size)
  {
- 	unsigned long start_pfn, end_pfn;
- 	int ret = 0;
-@@ -1115,6 +1115,9 @@ repeat:
- 		return ret;
- 	}
+ 	return -EINVAL;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	/* TODO */
++	return -EBUSY;
++}
++#endif
+ #endif
  
-+	/* remove memmap entry */
-+	firmware_map_remove(start, start + size, "System RAM");
+ struct kmem_cache *pgd_cache;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 11a5800..b19eba4 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -839,6 +839,18 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	return __remove_pages(zone, start_pfn, nr_pages);
++}
++#endif
+ #endif
+ 
+ /*
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 3baff25..5675335 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -680,6 +680,21 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ }
+ EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int __ref arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	WARN_ON_ONCE(ret);
++
++	return ret;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ static struct kcore_list kcore_vsyscall;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 38675e9..191b2d9 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -85,6 +85,7 @@ extern void __online_page_free(struct page *page);
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
++extern int arch_remove_memory(u64 start, u64 size);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /* reasonably generic interface to expand the physical pages in a zone  */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 050ddb0..ca07433 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1118,6 +1118,8 @@ repeat:
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
+ 
++	arch_remove_memory(start, size);
 +
  	unlock_memory_hotplug();
  
