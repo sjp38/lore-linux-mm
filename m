@@ -1,66 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 5B4EA6B0062
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 18:43:08 -0400 (EDT)
-Date: Thu, 1 Nov 2012 15:43:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, oom: allow exiting threads to have access to memory
- reserves
-Message-Id: <20121101154306.c0871efb.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1211011451480.19373@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-	<20121031005738.GM15767@bbox>
-	<alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
-	<20121101024316.GB24883@bbox>
-	<alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
-	<CAA25o9SdQ7e5w8=W0faz82nZ7_3N7xbbExKQe0-HsU87hs2MPA@mail.gmail.com>
-	<alpine.DEB.2.00.1211011448490.19373@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1211011451480.19373@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id EEA366B0062
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 18:48:08 -0400 (EDT)
+Date: Thu, 1 Nov 2012 15:47:30 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [PATCH 3/3] fs: Fix remaining filesystems to wait for stable
+ page writeback
+Message-ID: <20121101224730.GJ19591@blackbox.djwong.org>
+References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
+ <20121101075829.16153.92036.stgit@blackbox.djwong.org>
+ <5092C2CE.7070209@panasas.com>
+ <20121101162254.03dbbd9a@tlielax.poochiereds.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121101162254.03dbbd9a@tlielax.poochiereds.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Jeff Layton <jlayton@samba.org>
+Cc: Boaz Harrosh <bharrosh@panasas.com>, axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov, linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
 
-On Thu, 1 Nov 2012 14:58:18 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> Exiting threads, those with PF_EXITING set, can pagefault and require 
-> memory before they can make forward progress.  This happens, for instance, 
-> when a process must fault task->robust_list, a userspace structure, before 
-> detaching its memory.
+On Thu, Nov 01, 2012 at 04:22:54PM -0400, Jeff Layton wrote:
+> On Thu, 1 Nov 2012 11:43:26 -0700
+> Boaz Harrosh <bharrosh@panasas.com> wrote:
 > 
-> These threads also aren't guaranteed to get access to memory reserves 
-> unless oom killed or killed from userspace.  The oom killer won't grant 
-> memory reserves if other threads are also exiting other than current and 
-> stalling at the same point.  This prevents needlessly killing processes 
-> when others are already exiting.
+> > On 11/01/2012 12:58 AM, Darrick J. Wong wrote:
+> > > Fix up the filesystems that provide their own ->page_mkwrite handlers to
+> > > provide stable page writes if necessary.
+> > > 
+> > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+> > > ---
+> > >  fs/9p/vfs_file.c |    1 +
+> > >  fs/afs/write.c   |    4 ++--
+> > >  fs/ceph/addr.c   |    1 +
+> > >  fs/cifs/file.c   |    1 +
+> > >  fs/ocfs2/mmap.c  |    1 +
+> > >  fs/ubifs/file.c  |    4 ++--
+> > >  6 files changed, 8 insertions(+), 4 deletions(-)
+> > > 
+> > > 
+> > > diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
+> > > index c2483e9..aa253f0 100644
+> > > --- a/fs/9p/vfs_file.c
+> > > +++ b/fs/9p/vfs_file.c
+> > > @@ -620,6 +620,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+> > >  	lock_page(page);
+> > >  	if (page->mapping != inode->i_mapping)
+> > >  		goto out_unlock;
+> > > +	wait_on_stable_page_write(page);
+> > >  
+> > 
+> > Good god thanks, yes please ;-)
+> > 
+> > >  	return VM_FAULT_LOCKED;
+> > >  out_unlock:
+> > > diff --git a/fs/afs/write.c b/fs/afs/write.c
+> > > index 9aa52d9..39eb2a4 100644
+> > > --- a/fs/afs/write.c
+> > > +++ b/fs/afs/write.c
+> > > @@ -758,7 +758,7 @@ int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+> > 
+> > afs, is it not a network filesystem? which means that it has it's own emulated none-block-device
+> > BDI, registered internally. So if you do need stable pages someone should call
+> > bdi_require_stable_pages()
+> > 
+> > But again since it is a network filesystem I don't see how it is needed, and/or it might be
+> > taken care of already.
+> > 
+> > >  #ifdef CONFIG_AFS_FSCACHE
+> > >  	fscache_wait_on_page_write(vnode->cache, page);
+> > >  #endif
+> > > -
+> > > +	wait_on_stable_page_write(page);
+> > >  	_leave(" = 0");
+> > > -	return 0;
+> > > +	return VM_FAULT_LOCKED;
+> > >  }
+> > > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+> > 
+> > CEPH for sure has it's own "emulated none-block-device BDI". This one is also
+> > a pure networking filesystem.
+> > 
+> > And it already does what it needs to do with wait_on_writeback().
+> > 
+> > So i do not think you should touch CEPH
+> > 
+> > > index 6690269..e9734bf 100644
+> > > --- a/fs/ceph/addr.c
+> > > +++ b/fs/ceph/addr.c
+> > > @@ -1208,6 +1208,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+> > >  		set_page_dirty(page);
+> > >  		up_read(&mdsc->snap_rwsem);
+> > >  		ret = VM_FAULT_LOCKED;
+> > > +		wait_on_stable_page_write(page);
+> > >  	} else {
+> > >  		if (ret == -ENOMEM)
+> > >  			ret = VM_FAULT_OOM;
+> > > diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+> > 
+> > Cifs also self-BDI network filesystem, but
+> > 
+> > > index edb25b4..a8770bf 100644
+> > > --- a/fs/cifs/file.c
+> > > +++ b/fs/cifs/file.c
+> > > @@ -2997,6 +2997,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+> > >  	struct page *page = vmf->page;
+> > >  
+> > >  	lock_page(page);
+> > 
+> > It waits by locking the page, that's cifs naive way of waiting for writeback
+> > 
+> > > +	wait_on_stable_page_write(page);
+> > 
+> > Instead it could do better and not override page_mkwrite at all, and all it needs
+> > to do is call bdi_require_stable_pages() at it's own registered BDI
+> > 
 > 
-> Instead of special casing all the possible sitations between PF_EXITING 
-> getting set and a thread detaching its mm where it may allocate memory, 
-> which probably wouldn't get updated when a change is made to the exit 
-> path, the solution is to give all exiting threads access to memory 
-> reserves if they call the oom killer.  This allows them to quickly 
-> allocate, detach its mm, and free the memory it represents.
+> Hmm...I don't know...
+> 
+> I've never been crazy about using the page lock for this, but in the
+> absence of a better way to guarantee stable pages, it was what I ended
+> up with at the time. cifs_writepages will hold the page lock until
+> kernel_sendmsg returns. At that point the TCP layer will have copied
+> off the page data so it's safe to release it.
+> 
+> With this change though, we're going to end up blocking until the
+> writeback flag clears, right? And I think that will happen when the
+> reply comes in? So, we'll end up blocking for much longer than is
+> really necessary in page_mkwrite with this change.
 
-Seems very sensible.
+That's a very good point to make-- network FSes can stop the stable-waiting
+after the request is sent.  Can I interest you in a new page flag (PG_stable)
+that indicates when a page has to be held for stable write?  Along with a
+modification to wait_on_stable_page_write that uses the new PG_stable flag
+instead of just writeback?  Then, you can clear PG_stable right after the
+sendmsg() and release the page for further activity without having to overload
+the page lock.
 
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Tested-by: Luigi Semenzato <semenzato@google.com>
+I wrote a patch that does exactly that as part of my work to defer the
+integrity checksumming until the last possible instant.  However, I haven't
+gotten that part to work yet, so I left the PG_stable patch out of this
+submission.  On the other hand, it sounds like you could use it.
 
-What did Luigi actually test?  Was there some reproducible bad behavior
-which this patch fixes?
-
-
+--D
+> 
+> -- 
+> Jeff Layton <jlayton@samba.org>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
