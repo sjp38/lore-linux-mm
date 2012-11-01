@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 3D3AF6B0072
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 16:24:45 -0400 (EDT)
-Date: Thu, 1 Nov 2012 20:24:43 +0000
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id A46CF6B0074
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 16:26:10 -0400 (EDT)
+Date: Thu, 1 Nov 2012 20:26:09 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: CK4 [00/15] Sl[auo]b: Common kmalloc caches V4
-In-Reply-To: <CALF0-+UUREQZT1NEBq-V_04WBDOt6GccDkHB+zPXW6u6uhvj=Q@mail.gmail.com>
-Message-ID: <0000013abda5ae3c-f1f548fb-4878-4ae2-8f5a-bfad5922cf04-000000@email.amazonses.com>
-References: <0000013a934eed6d-a9c1b247-dbbc-485d-b7cf-89aa36dcca57-000000@email.amazonses.com> <CALF0-+UUREQZT1NEBq-V_04WBDOt6GccDkHB+zPXW6u6uhvj=Q@mail.gmail.com>
+Subject: Re: [RFC] Support volatile range for anon vma
+In-Reply-To: <20121026005851.GD15767@bbox>
+Message-ID: <0000013abda6fc7d-6cfbef1e-bc7d-4f4f-bb38-221729e8c9f9-000000@email.amazonses.com>
+References: <1351133820-14096-1-git-send-email-minchan@kernel.org> <0000013a9881a86c-c0fb5823-b6e7-4bea-8707-f6b8eddae14d-000000@email.amazonses.com> <20121026005851.GD15767@bbox>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ezequiel Garcia <elezegarcia@gmail.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, 1 Nov 2012, Ezequiel Garcia wrote:
+On Fri, 26 Oct 2012, Minchan Kim wrote:
 
-> While testing this patchset, I found a BUG.
->
-> All I did was "sudo mount -a" to mount my development partitions.
->
-> [   25.366266] BUG: unable to handle kernel paging request at ffffffc0
-> [   25.366419] IP: [<c10d93b2>] slab_unmergeable+0x12/0x30
+> I guess it would improve system performance very well.
+> But as I wrote down in description, downside of the patch is that we have to
+> age anon lru although we don't have swap. But gain via the patch is bigger than
+> loss via aging of anon lru when memory pressure happens. I don't see other downside
+> other than it. What do you think about it?
+> (I didn't implement anon lru aging in case of no-swap but it's trivial
+> once we decide)
 
-Arg. More sysfs trouble I guess. Sysfs is the cause for a lot of slub
-fragility. Sigh.
 
-Can you rerun this with "slub_debug" as a kernel option?
+I am a bit confused like some of the others as to why this patch is
+necessary since we already have DONT_NEED.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
