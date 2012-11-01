@@ -1,136 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id D2B916B0062
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 01:20:33 -0400 (EDT)
-Date: Thu, 1 Nov 2012 14:26:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram OOM behavior
-Message-ID: <20121101052633.GF24883@bbox>
-References: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
- <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
- <20121030001809.GL15767@bbox>
- <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
- <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
- <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
- <20121031005738.GM15767@bbox>
- <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
- <20121101024316.GB24883@bbox>
- <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id AC7F26B0044
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 01:38:48 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so1091993dad.14
+        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:38:48 -0700 (PDT)
+Date: Wed, 31 Oct 2012 22:38:45 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm: fix build warning for uninitialized value
+Message-ID: <alpine.DEB.2.00.1210312234180.31758@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
+Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-1830707544-1351748326=:31758"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Haggai Eran <haggaie@mellanox.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 31, 2012 at 09:48:57PM -0700, David Rientjes wrote:
-> On Thu, 1 Nov 2012, Minchan Kim wrote:
-> 
-> > It's not true any more.
-> > 3.6 includes following code in try_to_free_pages
-> > 
-> >         /*   
-> >          * Do not enter reclaim if fatal signal is pending. 1 is returned so
-> >          * that the page allocator does not consider triggering OOM
-> >          */
-> >         if (fatal_signal_pending(current))
-> >                 return 1;
-> > 
-> > So the hunged task never go to the OOM path and could be looping forever.
-> > 
-> 
-> Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct 
-> reclaimers if PF_MEMALLOC reserves are low and swap is backed by network 
-> storage").  Thanks for adding Mel to the cc.
-> 
-> The oom killer specifically has logic for this condition: when calling 
-> out_of_memory() the first thing it does is
-> 
-> 	if (fatal_signal_pending(current))
-> 		set_thread_flag(TIF_MEMDIE);
-> 
-> to allow it access to memory reserves so that it may exit if it's having 
-> trouble.  But that ends up never happening because of the above code that 
-> Minchan has identified.
-> 
-> So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages() 
-> as well or revert that early return entirely; there's no justification 
-> given for it in the comment nor in the commit log.  I'd rather remove it 
-> and allow the oom killer to trigger and grant access to memory reserves 
-> itself if necessary.
-> 
-> Mel, how does commit 5515061d22f0 deal with threads looping forever if 
-> they need memory in the exit path since the oom killer never gets called?
-> 
-> That aside, it doesn't seem like this is the issue that Luigi is reporting 
-> since his patch that avoids deferring the oom killer presumably fixes the 
-> issue for him.  So it turns out the oom killer must be getting called.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Exactly.
+--531381512-1830707544-1351748326=:31758
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-> 
-> Luigi, can you try this instead?  It applies to the latest git but should 
-> be easily modified to apply to any 3.x kernel you're running.
-> ---
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -310,26 +310,13 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
->  	if (!task->mm)
->  		return OOM_SCAN_CONTINUE;
->  
-> -	if (task->flags & PF_EXITING) {
-> +	if (task->flags & PF_EXITING && !force_kill) {
->  		/*
-> -		 * If task is current and is in the process of releasing memory,
-> -		 * allow the "kill" to set TIF_MEMDIE, which will allow it to
-> -		 * access memory reserves.  Otherwise, it may stall forever.
-> -		 *
-> -		 * The iteration isn't broken here, however, in case other
-> -		 * threads are found to have already been oom killed.
-> +		 * If this task is not being ptraced on exit, then wait for it
-> +		 * to finish before killing some other task unnecessarily.
->  		 */
-> -		if (task == current)
-> -			return OOM_SCAN_SELECT;
-> -		else if (!force_kill) {
-> -			/*
-> -			 * If this task is not being ptraced on exit, then wait
-> -			 * for it to finish before killing some other task
-> -			 * unnecessarily.
-> -			 */
-> -			if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> -				return OOM_SCAN_ABORT;
-> -		}
-> +		if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> +			return OOM_SCAN_ABORT;
->  	}
->  	return OOM_SCAN_OK;
->  }
-> @@ -706,11 +693,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->  		return;
->  
->  	/*
-> -	 * If current has a pending SIGKILL, then automatically select it.  The
-> -	 * goal is to allow it to allocate so that it may quickly exit and free
-> -	 * its memory.
-> +	 * If current has a pending SIGKILL or is exiting, then automatically
-> +	 * select it.  The goal is to allow it to allocate so that it may
-> +	 * quickly exit and free its memory.
->  	 */
-> -	if (fatal_signal_pending(current)) {
-> +	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
->  		set_thread_flag(TIF_MEMDIE);
->  		return;
->  	}
+do_wp_page() sets mmun_called if mmun_start and mmun_end were initialized 
+and, if so, may call mmu_notifier_invalidate_range_end() with these 
+values.  This doesn't prevent gcc from emitting a build warning though:
 
-Looks good to me.
+mm/memory.c: In function a??do_wp_pagea??:
+mm/memory.c:2530: warning: a??mmun_starta?? may be used uninitialized in this function
+mm/memory.c:2531: warning: a??mmun_enda?? may be used uninitialized in this function
 
--- 
-Kind regards,
-Minchan Kim
+It's much easier to initialize the variables to impossible values and do a 
+simple comparison to determine if they were initialized to remove the bool 
+entirely.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memory.c |   10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2527,9 +2527,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	int ret = 0;
+ 	int page_mkwrite = 0;
+ 	struct page *dirty_page = NULL;
+-	unsigned long mmun_start;	/* For mmu_notifiers */
+-	unsigned long mmun_end;		/* For mmu_notifiers */
+-	bool mmun_called = false;	/* For mmu_notifiers */
++	unsigned long mmun_start = 0;	/* For mmu_notifiers */
++	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+ 
+ 	old_page = vm_normal_page(vma, address, orig_pte);
+ 	if (!old_page) {
+@@ -2708,8 +2707,7 @@ gotten:
+ 		goto oom_free_new;
+ 
+ 	mmun_start  = address & PAGE_MASK;
+-	mmun_end    = (address & PAGE_MASK) + PAGE_SIZE;
+-	mmun_called = true;
++	mmun_end    = mmun_start + PAGE_SIZE;
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 
+ 	/*
+@@ -2778,7 +2776,7 @@ gotten:
+ 		page_cache_release(new_page);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+-	if (mmun_called)
++	if (mmun_end > mmun_start)
+ 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	if (old_page) {
+ 		/*
+--531381512-1830707544-1351748326=:31758--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
