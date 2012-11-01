@@ -1,139 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 086246B004D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 13:50:43 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so912518qcq.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 10:50:42 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id B3FA46B0068
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 14:21:59 -0400 (EDT)
+Message-ID: <5092BDA2.6090001@panasas.com>
+Date: Thu, 1 Nov 2012 11:21:22 -0700
+From: Boaz Harrosh <bharrosh@panasas.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-	<20121031005738.GM15767@bbox>
-	<alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
-	<20121101024316.GB24883@bbox>
-	<alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
-Date: Thu, 1 Nov 2012 10:50:42 -0700
-Message-ID: <CAA25o9SdQ7e5w8=W0faz82nZ7_3N7xbbExKQe0-HsU87hs2MPA@mail.gmail.com>
-Subject: Re: zram OOM behavior
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 1/3] bdi: Track users that require stable page writes
+References: <20121101075805.16153.64714.stgit@blackbox.djwong.org> <20121101075813.16153.94581.stgit@blackbox.djwong.org>
+In-Reply-To: <20121101075813.16153.94581.stgit@blackbox.djwong.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov, linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
 
-On Wed, Oct 31, 2012 at 9:48 PM, David Rientjes <rientjes@google.com> wrote:
-> On Thu, 1 Nov 2012, Minchan Kim wrote:
->
->> It's not true any more.
->> 3.6 includes following code in try_to_free_pages
->>
->>         /*
->>          * Do not enter reclaim if fatal signal is pending. 1 is returned so
->>          * that the page allocator does not consider triggering OOM
->>          */
->>         if (fatal_signal_pending(current))
->>                 return 1;
->>
->> So the hunged task never go to the OOM path and could be looping forever.
->>
->
-> Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct
-> reclaimers if PF_MEMALLOC reserves are low and swap is backed by network
-> storage").  Thanks for adding Mel to the cc.
->
-> The oom killer specifically has logic for this condition: when calling
-> out_of_memory() the first thing it does is
->
->         if (fatal_signal_pending(current))
->                 set_thread_flag(TIF_MEMDIE);
->
-> to allow it access to memory reserves so that it may exit if it's having
-> trouble.  But that ends up never happening because of the above code that
-> Minchan has identified.
->
-> So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages()
-> as well or revert that early return entirely; there's no justification
-> given for it in the comment nor in the commit log.  I'd rather remove it
-> and allow the oom killer to trigger and grant access to memory reserves
-> itself if necessary.
->
-> Mel, how does commit 5515061d22f0 deal with threads looping forever if
-> they need memory in the exit path since the oom killer never gets called?
->
-> That aside, it doesn't seem like this is the issue that Luigi is reporting
-> since his patch that avoids deferring the oom killer presumably fixes the
-> issue for him.  So it turns out the oom killer must be getting called.
->
-> Luigi, can you try this instead?  It applies to the latest git but should
-> be easily modified to apply to any 3.x kernel you're running.
+On 11/01/2012 12:58 AM, Darrick J. Wong wrote:
+> This creates a per-backing-device counter that tracks the number of users which
+> require pages to be held immutable during writeout.  Eventually it will be used
+> to waive wait_for_page_writeback() if nobody requires stable pages.
+> 
+
+There is two things I do not like:
+1. Please remind me why we need the users counter?
+   If the device needs it, it will always be needed. The below 
+   queue_unrequire_stable_pages call at blk_integrity_unregister
+   only happens at device destruction time, no?
+
+   It was also said that maybe individual filesystems would need
+   stable pages where other FSs using the same BDI do not. But
+   since the FS is at the driving seat in any case, it can just
+   do wait_for_writeback() regardless and can care less about
+   the bdi flag and the other FSs. Actually all those FSs already
+   do this this, and do not need any help. So this reason is
+   mute.
+
+2. I hate the atomic_read for every mkwrite. I think we can do
+   better, since as you noted it can never be turned off, only
+   on, at init time. And because of 1. above it is not dynamic.
+   I think I like your previous simple bool better.
+
+But I do like a lot the new request_queue API you added here.
+Thanks
+
+Boaz
+> Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 > ---
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -310,26 +310,13 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
->         if (!task->mm)
->                 return OOM_SCAN_CONTINUE;
->
-> -       if (task->flags & PF_EXITING) {
-> +       if (task->flags & PF_EXITING && !force_kill) {
->                 /*
-> -                * If task is current and is in the process of releasing memory,
-> -                * allow the "kill" to set TIF_MEMDIE, which will allow it to
-> -                * access memory reserves.  Otherwise, it may stall forever.
-> -                *
-> -                * The iteration isn't broken here, however, in case other
-> -                * threads are found to have already been oom killed.
-> +                * If this task is not being ptraced on exit, then wait for it
-> +                * to finish before killing some other task unnecessarily.
->                  */
-> -               if (task == current)
-> -                       return OOM_SCAN_SELECT;
-> -               else if (!force_kill) {
-> -                       /*
-> -                        * If this task is not being ptraced on exit, then wait
-> -                        * for it to finish before killing some other task
-> -                        * unnecessarily.
-> -                        */
-> -                       if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> -                               return OOM_SCAN_ABORT;
-> -               }
-> +               if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-> +                       return OOM_SCAN_ABORT;
->         }
->         return OOM_SCAN_OK;
+>  Documentation/ABI/testing/sysfs-class-bdi |    7 +++++
+>  block/blk-integrity.c                     |    4 +++
+>  include/linux/backing-dev.h               |   16 ++++++++++++
+>  include/linux/blkdev.h                    |   10 ++++++++
+>  mm/backing-dev.c                          |   38 +++++++++++++++++++++++++++++
+>  5 files changed, 75 insertions(+)
+> 
+> 
+> diff --git a/Documentation/ABI/testing/sysfs-class-bdi b/Documentation/ABI/testing/sysfs-class-bdi
+> index 5f50097..218a618 100644
+> --- a/Documentation/ABI/testing/sysfs-class-bdi
+> +++ b/Documentation/ABI/testing/sysfs-class-bdi
+> @@ -48,3 +48,10 @@ max_ratio (read-write)
+>  	most of the write-back cache.  For example in case of an NFS
+>  	mount that is prone to get stuck, or a FUSE mount which cannot
+>  	be trusted to play fair.
+> +
+> +stable_pages_required (read-write)
+> +
+> +	If set, the backing device requires that all pages comprising a write
+> +	request must not be changed until writeout is complete.  The system
+> +	administrator can turn this on if the hardware does not do so already.
+> +	However, once enabled, this flag cannot be disabled.
+> diff --git a/block/blk-integrity.c b/block/blk-integrity.c
+> index da2a818..cf2dd95 100644
+> --- a/block/blk-integrity.c
+> +++ b/block/blk-integrity.c
+> @@ -420,6 +420,8 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
+>  	} else
+>  		bi->name = bi_unsupported_name;
+>  
+> +	queue_require_stable_pages(disk->queue);
+> +
+>  	return 0;
 >  }
-> @@ -706,11 +693,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
->                 return;
->
->         /*
-> -        * If current has a pending SIGKILL, then automatically select it.  The
-> -        * goal is to allow it to allocate so that it may quickly exit and free
-> -        * its memory.
-> +        * If current has a pending SIGKILL or is exiting, then automatically
-> +        * select it.  The goal is to allow it to allocate so that it may
-> +        * quickly exit and free its memory.
->          */
-> -       if (fatal_signal_pending(current)) {
-> +       if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
->                 set_thread_flag(TIF_MEMDIE);
->                 return;
->         }
+>  EXPORT_SYMBOL(blk_integrity_register);
+> @@ -438,6 +440,8 @@ void blk_integrity_unregister(struct gendisk *disk)
+>  	if (!disk || !disk->integrity)
+>  		return;
+>  
+> +	queue_unrequire_stable_pages(disk->queue);
+> +
+>  	bi = disk->integrity;
+>  
+>  	kobject_uevent(&bi->kobj, KOBJ_REMOVE);
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 2a9a9ab..0554f5d 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -109,6 +109,7 @@ struct backing_dev_info {
+>  	struct dentry *debug_dir;
+>  	struct dentry *debug_stats;
+>  #endif
+> +	atomic_t stable_page_users;
+>  };
+>  
+>  int bdi_init(struct backing_dev_info *bdi);
+> @@ -307,6 +308,21 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout);
+>  int pdflush_proc_obsolete(struct ctl_table *table, int write,
+>  		void __user *buffer, size_t *lenp, loff_t *ppos);
+>  
+> +static inline void bdi_require_stable_pages(struct backing_dev_info *bdi)
+> +{
+> +	atomic_inc(&bdi->stable_page_users);
+> +}
+> +
+> +static inline void bdi_unrequire_stable_pages(struct backing_dev_info *bdi)
+> +{
+> +	atomic_dec(&bdi->stable_page_users);
+> +}
+> +
+> +static inline bool bdi_cap_stable_pages_required(struct backing_dev_info *bdi)
+> +{
+> +	return atomic_read(&bdi->stable_page_users) > 0;
+> +}
+> +
+>  static inline bool bdi_cap_writeback_dirty(struct backing_dev_info *bdi)
+>  {
+>  	return !(bdi->capabilities & BDI_CAP_NO_WRITEBACK);
+> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> index 1756001..bf927c0 100644
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -458,6 +458,16 @@ struct request_queue {
+>  				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
+>  				 (1 << QUEUE_FLAG_ADD_RANDOM))
+>  
+> +static inline void queue_require_stable_pages(struct request_queue *q)
+> +{
+> +	bdi_require_stable_pages(&q->backing_dev_info);
+> +}
+> +
+> +static inline void queue_unrequire_stable_pages(struct request_queue *q)
+> +{
+> +	bdi_unrequire_stable_pages(&q->backing_dev_info);
+> +}
+> +
+>  static inline void queue_lockdep_assert_held(struct request_queue *q)
+>  {
+>  	if (q->queue_lock)
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index d3ca2b3..dd9f5ed 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -221,12 +221,48 @@ static ssize_t max_ratio_store(struct device *dev,
+>  }
+>  BDI_SHOW(max_ratio, bdi->max_ratio)
+>  
+> +static ssize_t stable_pages_required_store(struct device *dev,
+> +					   struct device_attribute *attr,
+> +					   const char *buf, size_t count)
+> +{
+> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> +	unsigned int spw;
+> +	ssize_t ret;
+> +
+> +	ret = kstrtouint(buf, 10, &spw);
+> +	if (ret < 0)
+> +		return ret;
+> +
+> +	/*
+> +	 * SPW could be enabled due to hw requirement, so don't
+> +	 * let users disable it.
+> +	 */
+> +	if (bdi_cap_stable_pages_required(bdi) && spw == 0)
+> +		return -EINVAL;
+> +
+> +	if (spw != 0)
+> +		atomic_inc(&bdi->stable_page_users);
+> +
+> +	return count;
+> +}
+> +
+> +static ssize_t stable_pages_required_show(struct device *dev,
+> +					  struct device_attribute *attr,
+> +					  char *page)
+> +{
+> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> +
+> +	return snprintf(page, PAGE_SIZE-1, "%d\n",
+> +			bdi_cap_stable_pages_required(bdi) ? 1 : 0);
+> +}
+> +
+>  #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
+>  
+>  static struct device_attribute bdi_dev_attrs[] = {
+>  	__ATTR_RW(read_ahead_kb),
+>  	__ATTR_RW(min_ratio),
+>  	__ATTR_RW(max_ratio),
+> +	__ATTR_RW(stable_pages_required),
+>  	__ATTR_NULL,
+>  };
+>  
+> @@ -650,6 +686,8 @@ int bdi_init(struct backing_dev_info *bdi)
+>  	bdi->write_bandwidth = INIT_BW;
+>  	bdi->avg_write_bandwidth = INIT_BW;
+>  
+> +	atomic_set(&bdi->stable_page_users, 0);
+> +
+>  	err = fprop_local_init_percpu(&bdi->completions);
+>  
+>  	if (err) {
+> 
 
-I tested this change with my load and it appears to also prevent the deadlocks.
-
-I have a question though.  I thought only one process was allowed to
-be in TIF_MEMDIE state, but I don't see anything that prevents this
-code (before or after the change) from setting the flag in multiple
-processes.  Is this a problem?
-
-Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
