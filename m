@@ -1,158 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A38C06B009E
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:47:14 -0400 (EDT)
-Message-Id: <0000013abdf13640-b99ebf29-b252-4bf8-8bb2-568c18c6d3ef-000000@email.amazonses.com>
+	by kanga.kvack.org (Postfix) with SMTP id 9B7426B00A1
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:47:15 -0400 (EDT)
+Message-Id: <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com>
 Date: Thu, 1 Nov 2012 21:47:13 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: CK5 [04/18] slub: Use a statically allocated kmem_cache boot structure for bootstrap
+Subject: CK5 [03/18] create common functions for boot slab creation
 References: <20121101214538.971500204@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-Simplify bootstrap by statically allocated two kmem_cache structures. These are
-freed after bootup is complete. Allows us to no longer worry about calculations
-of sizes of kmem_cache structures during bootstrap.
+Use a special function to create kmalloc caches and use that function in
+SLAB and SLUB.
 
 V1->V2:
-	- Use kmem_cache_zalloc to properly zero structures.
-	- Simplify setup by introducing a new boottime
-		function "bootstrap()".
-
+	Do check for slasb state in slub's __kmem_cache_create to avoid
+	unlocking a lock that was not taken
 V2->V3:
-	- bootstrap function adds slab to list of slab caches
-	 *after* performing relocation.
-	- Get of of kmem_size.
-	- Make static boot structures local to kmem_cache_init
+	Remove slab_state check from sysfs_slab_add(). [Joonsoo]
 
+V3->V4:
+	- Use %zd instead of %td for size info.
+	- Do not add slab caches to the list of slab caches during early
+	  boot.
+
+Acked-by: Joonsoo Kim <js1304@gmail.com>
 Reviewed-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slub.c |   41 +++++++++++------------------------------
- 1 file changed, 11 insertions(+), 30 deletions(-)
+ mm/slab.c        |   48 ++++++++++++++----------------------------------
+ mm/slab.h        |    5 +++++
+ mm/slab_common.c |   32 ++++++++++++++++++++++++++++++++
+ mm/slub.c        |   36 +++---------------------------------
+ 4 files changed, 54 insertions(+), 67 deletions(-)
 
-Index: linux/mm/slub.c
+Index: linux/mm/slab.c
 ===================================================================
---- linux.orig/mm/slub.c	2012-11-01 16:08:07.489743348 -0500
-+++ linux/mm/slub.c	2012-11-01 16:11:31.068603160 -0500
-@@ -176,8 +176,6 @@ static inline int kmem_cache_debug(struc
- #define __OBJECT_POISON		0x80000000UL /* Poison object */
- #define __CMPXCHG_DOUBLE	0x40000000UL /* Use cmpxchg_double */
+--- linux.orig/mm/slab.c	2012-11-01 15:55:09.330845609 -0500
++++ linux/mm/slab.c	2012-11-01 15:55:09.342845776 -0500
+@@ -1659,23 +1659,13 @@ void __init kmem_cache_init(void)
+ 	 * bug.
+ 	 */
  
--static int kmem_size = sizeof(struct kmem_cache);
--
- #ifdef CONFIG_SMP
- static struct notifier_block slab_notifier;
+-	sizes[INDEX_AC].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+-	sizes[INDEX_AC].cs_cachep->name = names[INDEX_AC].name;
+-	sizes[INDEX_AC].cs_cachep->size = sizes[INDEX_AC].cs_size;
+-	sizes[INDEX_AC].cs_cachep->object_size = sizes[INDEX_AC].cs_size;
+-	sizes[INDEX_AC].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+-	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
+-	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
++	sizes[INDEX_AC].cs_cachep = create_kmalloc_cache(names[INDEX_AC].name,
++					sizes[INDEX_AC].cs_size, ARCH_KMALLOC_FLAGS);
+ 
+-	if (INDEX_AC != INDEX_L3) {
+-		sizes[INDEX_L3].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+-		sizes[INDEX_L3].cs_cachep->name = names[INDEX_L3].name;
+-		sizes[INDEX_L3].cs_cachep->size = sizes[INDEX_L3].cs_size;
+-		sizes[INDEX_L3].cs_cachep->object_size = sizes[INDEX_L3].cs_size;
+-		sizes[INDEX_L3].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+-		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
+-		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
+-	}
++	if (INDEX_AC != INDEX_L3)
++		sizes[INDEX_L3].cs_cachep =
++			create_kmalloc_cache(names[INDEX_L3].name,
++				sizes[INDEX_L3].cs_size, ARCH_KMALLOC_FLAGS);
+ 
+ 	slab_early_init = 0;
+ 
+@@ -1687,24 +1677,14 @@ void __init kmem_cache_init(void)
+ 		 * Note for systems short on memory removing the alignment will
+ 		 * allow tighter packing of the smaller caches.
+ 		 */
+-		if (!sizes->cs_cachep) {
+-			sizes->cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+-			sizes->cs_cachep->name = names->name;
+-			sizes->cs_cachep->size = sizes->cs_size;
+-			sizes->cs_cachep->object_size = sizes->cs_size;
+-			sizes->cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+-			__kmem_cache_create(sizes->cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
+-			list_add(&sizes->cs_cachep->list, &slab_caches);
+-		}
++		if (!sizes->cs_cachep)
++			sizes->cs_cachep = create_kmalloc_cache(names->name,
++					sizes->cs_size, ARCH_KMALLOC_FLAGS);
++
+ #ifdef CONFIG_ZONE_DMA
+-		sizes->cs_dmacachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+-		sizes->cs_dmacachep->name = names->name_dma;
+-		sizes->cs_dmacachep->size = sizes->cs_size;
+-		sizes->cs_dmacachep->object_size = sizes->cs_size;
+-		sizes->cs_dmacachep->align = ARCH_KMALLOC_MINALIGN;
+-		__kmem_cache_create(sizes->cs_dmacachep,
+-			       ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA| SLAB_PANIC);
+-		list_add(&sizes->cs_dmacachep->list, &slab_caches);
++		sizes->cs_dmacachep = create_kmalloc_cache(
++			names->name_dma, sizes->cs_size,
++			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
  #endif
-@@ -3632,15 +3630,16 @@ static int slab_memory_callback(struct n
+ 		sizes++;
+ 		names++;
+Index: linux/mm/slab.h
+===================================================================
+--- linux.orig/mm/slab.h	2012-11-01 15:54:17.926126373 -0500
++++ linux/mm/slab.h	2012-11-01 15:55:09.342845776 -0500
+@@ -35,6 +35,11 @@ extern struct kmem_cache *kmem_cache;
+ /* Functions provided by the slab allocators */
+ extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
  
- /*
-  * Used for early kmem_cache structures that were allocated using
-- * the page allocator
-+ * the page allocator. Allocate them properly then fix up the pointers
-+ * that may be pointing to the wrong kmem_cache structure.
-  */
- 
--static void __init kmem_cache_bootstrap_fixup(struct kmem_cache *s)
-+static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
- {
- 	int node;
-+	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
- 
--	list_add(&s->list, &slab_caches);
--	s->refcount = -1;
-+	memcpy(s, static_cache, kmem_cache->object_size);
- 
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
- 		struct kmem_cache_node *n = get_node(s, node);
-@@ -3656,70 +3655,44 @@ static void __init kmem_cache_bootstrap_
- #endif
- 		}
- 	}
-+	list_add(&s->list, &slab_caches);
-+	return s;
++extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
++			unsigned long flags);
++extern void create_boot_cache(struct kmem_cache *, const char *name,
++			size_t size, unsigned long flags);
++
+ #ifdef CONFIG_SLUB
+ struct kmem_cache *__kmem_cache_alias(const char *name, size_t size,
+ 	size_t align, unsigned long flags, void (*ctor)(void *));
+Index: linux/mm/slab_common.c
+===================================================================
+--- linux.orig/mm/slab_common.c	2012-11-01 15:54:17.926126373 -0500
++++ linux/mm/slab_common.c	2012-11-01 15:59:30.182494197 -0500
+@@ -202,6 +202,42 @@ int slab_is_available(void)
+ 	return slab_state >= UP;
  }
  
- void __init kmem_cache_init(void)
++#ifndef CONFIG_SLOB
++/* Create a cache during boot when no slab services are available yet */
++void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t size,
++		unsigned long flags)
++{
++	int err;
++
++	s->name = name;
++	s->size = s->object_size = size;
++	s->align = ARCH_KMALLOC_MINALIGN;
++	err = __kmem_cache_create(s, flags);
++
++	if (err)
++		panic("Creation of kmalloc slab %s size=%zd failed. Reason %d\n",
++					name, size, err);
++
++	s->refcount = -1;	/* Exempt from merging for now */
++}
++
++struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
++				unsigned long flags)
++{
++	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
++
++	if (!s)
++		panic("Out of memory when creating slab %s\n", name);
++
++	create_boot_cache(s, name, size, flags);
++	list_add(&s->list, &slab_caches);
++	s->refcount = 1;
++	return s;
++}
++
++#endif /* !CONFIG_SLOB */
++
++
+ #ifdef CONFIG_SLABINFO
+ static void print_slabinfo_header(struct seq_file *m)
  {
-+	static __initdata struct kmem_cache boot_kmem_cache,
-+		boot_kmem_cache_node;
- 	int i;
--	int caches = 0;
--	struct kmem_cache *temp_kmem_cache;
--	int order;
--	struct kmem_cache *temp_kmem_cache_node;
--	unsigned long kmalloc_size;
-+	int caches = 2;
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-11-01 15:54:17.926126373 -0500
++++ linux/mm/slub.c	2012-11-01 15:58:33.293698642 -0500
+@@ -3243,32 +3243,6 @@ static int __init setup_slub_nomerge(cha
  
- 	if (debug_guardpage_minorder())
- 		slub_max_order = 0;
+ __setup("slub_nomerge", setup_slub_nomerge);
  
--	kmem_size = offsetof(struct kmem_cache, node) +
--			nr_node_ids * sizeof(struct kmem_cache_node *);
-+	kmem_cache_node = &boot_kmem_cache_node;
-+	kmem_cache = &boot_kmem_cache;
- 
--	/* Allocate two kmem_caches from the page allocator */
--	kmalloc_size = ALIGN(kmem_size, cache_line_size());
--	order = get_order(2 * kmalloc_size);
--	kmem_cache = (void *)__get_free_pages(GFP_NOWAIT | __GFP_ZERO, order);
+-static struct kmem_cache *__init create_kmalloc_cache(const char *name,
+-						int size, unsigned int flags)
+-{
+-	struct kmem_cache *s;
+-
+-	s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+-
+-	s->name = name;
+-	s->size = s->object_size = size;
+-	s->align = ARCH_KMALLOC_MINALIGN;
 -
 -	/*
--	 * Must first have the slab cache available for the allocations of the
--	 * struct kmem_cache_node's. There is special bootstrap code in
--	 * kmem_cache_open for slab_state == DOWN.
+-	 * This function is called with IRQs disabled during early-boot on
+-	 * single CPU so there's no need to take slab_mutex here.
 -	 */
--	kmem_cache_node = (void *)kmem_cache + kmalloc_size;
+-	if (kmem_cache_open(s, flags))
+-		goto panic;
 -
--	kmem_cache_node->name = "kmem_cache_node";
--	kmem_cache_node->size = kmem_cache_node->object_size =
--		sizeof(struct kmem_cache_node);
--	kmem_cache_open(kmem_cache_node, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-+	create_boot_cache(kmem_cache_node, "kmem_cache_node",
-+		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
- 
- 	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
- 
- 	/* Able to allocate the per node structures */
- 	slab_state = PARTIAL;
- 
--	temp_kmem_cache = kmem_cache;
--	kmem_cache->name = "kmem_cache";
--	kmem_cache->size = kmem_cache->object_size = kmem_size;
--	kmem_cache_open(kmem_cache, SLAB_HWCACHE_ALIGN | SLAB_PANIC);
-+	create_boot_cache(kmem_cache, "kmem_cache",
-+			offsetof(struct kmem_cache, node) +
-+				nr_node_ids * sizeof(struct kmem_cache_node *),
-+		       SLAB_HWCACHE_ALIGN);
- 
--	kmem_cache = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache, temp_kmem_cache, kmem_size);
-+	kmem_cache = bootstrap(&boot_kmem_cache);
- 
- 	/*
- 	 * Allocate kmem_cache_node properly from the kmem_cache slab.
- 	 * kmem_cache_node is separately allocated so no need to
- 	 * update any list pointers.
- 	 */
--	temp_kmem_cache_node = kmem_cache_node;
+-	list_add(&s->list, &slab_caches);
+-	return s;
 -
--	kmem_cache_node = kmem_cache_alloc(kmem_cache, GFP_NOWAIT);
--	memcpy(kmem_cache_node, temp_kmem_cache_node, kmem_size);
+-panic:
+-	panic("Creation of kmalloc slab %s size=%d failed.\n", name, size);
+-	return NULL;
+-}
 -
--	kmem_cache_bootstrap_fixup(kmem_cache_node);
+ /*
+  * Conversion table for small slabs sizes / 8 to the index in the
+  * kmalloc array. This is necessary for slabs < 192 since we have non power
+@@ -3946,6 +3920,10 @@ int __kmem_cache_create(struct kmem_cach
+ 	if (err)
+ 		return err;
+ 
++	/* Mutex is not taken during early boot */
++	if (slab_state <= UP)
++		return 0;
++
+ 	mutex_unlock(&slab_mutex);
+ 	err = sysfs_slab_add(s);
+ 	mutex_lock(&slab_mutex);
+@@ -5247,13 +5225,8 @@ static int sysfs_slab_add(struct kmem_ca
+ {
+ 	int err;
+ 	const char *name;
+-	int unmergeable;
 -
--	caches++;
--	kmem_cache_bootstrap_fixup(kmem_cache);
--	caches++;
--	/* Free temporary boot structure */
--	free_pages((unsigned long)temp_kmem_cache, order);
-+	kmem_cache_node = bootstrap(&boot_kmem_cache_node);
+-	if (slab_state < FULL)
+-		/* Defer until later */
+-		return 0;
++	int unmergeable = slab_unmergeable(s);
  
- 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
- 
+-	unmergeable = slab_unmergeable(s);
+ 	if (unmergeable) {
+ 		/*
+ 		 * Slabcache can never be merged so we can use the name proper.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
