@@ -1,200 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 439476B0068
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 00:57:48 -0400 (EDT)
-Date: Thu, 1 Nov 2012 14:03:47 +0900
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 404646B0062
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 01:12:53 -0400 (EDT)
+Date: Thu, 1 Nov 2012 14:18:52 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
- index of first flushed entry
-Message-ID: <20121101050347.GD24883@bbox>
-References: <Yes>
- <1351702597-10795-1-git-send-email-js1304@gmail.com>
- <1351702597-10795-5-git-send-email-js1304@gmail.com>
+Subject: Re: zram OOM behavior
+Message-ID: <20121101051852.GE24883@bbox>
+References: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+ <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+ <20121030001809.GL15767@bbox>
+ <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+ <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+ <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+ <20121031005738.GM15767@bbox>
+ <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+ <20121101021145.GF26256@bbox>
+ <alpine.DEB.2.00.1210312136370.17607@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1351702597-10795-5-git-send-email-js1304@gmail.com>
+In-Reply-To: <alpine.DEB.2.00.1210312136370.17607@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: David Rientjes <rientjes@google.com>
+Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
-> In current code, after flush_all_zero_pkmaps() is invoked,
-> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
-> return index of first flushed entry. With this index,
-> we can immediately map highmem page to virtual address represented by index.
-> So change return type of flush_all_zero_pkmaps()
-> and return index of first flushed entry.
+On Wed, Oct 31, 2012 at 09:38:47PM -0700, David Rientjes wrote:
+> On Thu, 1 Nov 2012, Minchan Kim wrote:
 > 
-> Additionally, update last_pkmap_nr to this index.
-> It is certain that entry which is below this index is occupied by other mapping,
-> therefore updating last_pkmap_nr to this index is reasonable optimization.
+> > If mutiple threads are page faulting and try to allocate memory, then they
+> > should go to oom path and they will reach following code.
+> > 
+> >         if (task->flags & PF_EXITING) {
+> >                if (task == current)
+> >                         return OOM_SCAN_SELECT;
+> > 
 > 
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> 
-> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> index ef788b5..97ad208 100644
-> --- a/include/linux/highmem.h
-> +++ b/include/linux/highmem.h
-> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
->  
->  #ifdef CONFIG_HIGHMEM
->  #include <asm/highmem.h>
-> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
->  
->  /* declarations for linux/mm/highmem.c */
->  unsigned int nr_free_highpages(void);
-> diff --git a/mm/highmem.c b/mm/highmem.c
-> index d98b0a9..b365f7b 100644
-> --- a/mm/highmem.c
-> +++ b/mm/highmem.c
-> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
->  	return virt_to_page(addr);
->  }
->  
-> -static void flush_all_zero_pkmaps(void)
-> +static unsigned int flush_all_zero_pkmaps(void)
->  {
->  	int i;
-> -	int need_flush = 0;
-> +	unsigned int index = PKMAP_INVALID_INDEX;
->  
->  	flush_cache_kmaps();
->  
-> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
->  			  &pkmap_page_table[i]);
->  
->  		set_page_address(page, NULL);
-> -		need_flush = 1;
-> +		if (index == PKMAP_INVALID_INDEX)
-> +			index = i;
->  	}
-> -	if (need_flush)
-> +	if (index != PKMAP_INVALID_INDEX)
->  		flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
-> +
-> +	return index;
->  }
->  
->  /**
-> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
->   */
->  void kmap_flush_unused(void)
->  {
-> +	unsigned int index;
-> +
->  	lock_kmap();
-> -	flush_all_zero_pkmaps();
-> +	index = flush_all_zero_pkmaps();
-> +	if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
-> +		last_pkmap_nr = index;
+> No, OOM_SCAN_SELECT does not return immediately and kill that process; it 
+> only prefers to kill that process first iff the oom killer isn't deferred 
+> because it finds TIF_MEMDIE threads or other PF_EXITING threads other than 
+> current.  So if multiple processes are in the exit path with PF_EXITING 
+> and require additional memory then the oom killed may defer without 
+> killing anything.  That's what I suspect is happening in this case.
 
-I don't know how kmap_flush_unused is really fast path so how my nitpick
-is effective. Anyway,
-What problem happens if we do following as?
+Indeed.
+Thanks for correcting me, David.
 
-lock()
-index = flush_all_zero_pkmaps();
-if (index != PKMAP_INVALID_INDEX)
-        last_pkmap_nr = index;
-unlock();
-
-Normally, last_pkmap_nr is increased with searching empty slot in
-map_new_virtual. So I expect return value of flush_all_zero_pkmaps
-in kmap_flush_unused normally become either less than last_pkmap_nr
-or last_pkmap_nr + 1.
-
- 
->  	unlock_kmap();
->  }
->  
->  static inline unsigned long map_new_virtual(struct page *page)
->  {
->  	unsigned long vaddr;
-> +	unsigned int index = PKMAP_INVALID_INDEX;
->  	int count;
->  
->  start:
-> @@ -168,40 +176,45 @@ start:
->  	for (;;) {
->  		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
->  		if (!last_pkmap_nr) {
-> -			flush_all_zero_pkmaps();
-> -			count = LAST_PKMAP;
-> +			index = flush_all_zero_pkmaps();
-> +			break;
->  		}
-> -		if (!pkmap_count[last_pkmap_nr])
-> +		if (!pkmap_count[last_pkmap_nr]) {
-> +			index = last_pkmap_nr;
->  			break;	/* Found a usable entry */
-> -		if (--count)
-> -			continue;
-> -
-> -		/*
-> -		 * Sleep for somebody else to unmap their entries
-> -		 */
-> -		{
-> -			DECLARE_WAITQUEUE(wait, current);
-> -
-> -			__set_current_state(TASK_UNINTERRUPTIBLE);
-> -			add_wait_queue(&pkmap_map_wait, &wait);
-> -			unlock_kmap();
-> -			schedule();
-> -			remove_wait_queue(&pkmap_map_wait, &wait);
-> -			lock_kmap();
-> -
-> -			/* Somebody else might have mapped it while we slept */
-> -			if (page_address(page))
-> -				return (unsigned long)page_address(page);
-> -
-> -			/* Re-start */
-> -			goto start;
->  		}
-> +		if (--count == 0)
-> +			break;
->  	}
-> -	vaddr = PKMAP_ADDR(last_pkmap_nr);
-> +
-> +	/*
-> +	 * Sleep for somebody else to unmap their entries
-> +	 */
-> +	if (index == PKMAP_INVALID_INDEX) {
-> +		DECLARE_WAITQUEUE(wait, current);
-> +
-> +		__set_current_state(TASK_UNINTERRUPTIBLE);
-> +		add_wait_queue(&pkmap_map_wait, &wait);
-> +		unlock_kmap();
-> +		schedule();
-> +		remove_wait_queue(&pkmap_map_wait, &wait);
-> +		lock_kmap();
-> +
-> +		/* Somebody else might have mapped it while we slept */
-> +		vaddr = (unsigned long)page_address(page);
-> +		if (vaddr)
-> +			return vaddr;
-> +
-> +		/* Re-start */
-> +		goto start;
-> +	}
-> +
-> +	vaddr = PKMAP_ADDR(index);
->  	set_pte_at(&init_mm, vaddr,
-> -		   &(pkmap_page_table[last_pkmap_nr]), mk_pte(page, kmap_prot));
-> +		   &(pkmap_page_table[index]), mk_pte(page, kmap_prot));
->  
-> -	pkmap_count[last_pkmap_nr] = 1;
-> +	pkmap_count[index] = 1;
-> +	last_pkmap_nr = index;
->  	set_page_address(page, (void *)vaddr);
->  
->  	return vaddr;
-> -- 
-> 1.7.9.5
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
