@@ -1,27 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 6C8A96B0070
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id CE9886B0075
 	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 05:39:03 -0400 (EDT)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PATCH v3 07/12] memory-hotplug: implement register_page_bootmem_info_section of sparse-vmemmap
-Date: Thu, 1 Nov 2012 17:44:38 +0800
-Message-Id: <1351763083-7905-8-git-send-email-wency@cn.fujitsu.com>
+Subject: [PATCH v3 09/12] memory-hotplug: remove page table of x86_64 architecture
+Date: Thu, 1 Nov 2012 17:44:40 +0800
+Message-Id: <1351763083-7905-10-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com>
 References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
-Cc: David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-For removing memmap region of sparse-vmemmap which is allocated bootmem,
-memmap region of sparse-vmemmap needs to be registered by get_page_bootmem().
-So the patch searches pages of virtual mapping and registers the pages by
-get_page_bootmem().
-
-Note: register_page_bootmem_memmap() is not implemented for ia64, ppc, s390,
-and sparc.
+For hot removing memory, we sholud remove page table about the memory.
+So the patch searches a page table about the removed memory, and clear
+page table.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -30,254 +24,357 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 ---
- arch/ia64/mm/discontig.c       |  6 +++++
- arch/powerpc/mm/init_64.c      |  6 +++++
- arch/s390/mm/vmem.c            |  6 +++++
- arch/sparc/mm/init_64.c        |  6 +++++
- arch/x86/mm/init_64.c          | 52 ++++++++++++++++++++++++++++++++++++++++++
- include/linux/memory_hotplug.h | 11 ++-------
- include/linux/mm.h             |  3 ++-
- mm/memory_hotplug.c            | 37 ++++++++++++++++++++++++++----
- 8 files changed, 113 insertions(+), 14 deletions(-)
+ arch/x86/include/asm/pgtable_types.h |   1 +
+ arch/x86/mm/init_64.c                | 231 +++++++++++++++++++++++++++++++++++
+ arch/x86/mm/pageattr.c               |  47 +++----
+ 3 files changed, 257 insertions(+), 22 deletions(-)
 
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index c641333..33943db 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -822,4 +822,10 @@ int __meminit vmemmap_populate(struct page *start_page,
- {
- 	return vmemmap_populate_basepages(start_page, size, node);
- }
-+
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	/* TODO */
-+}
- #endif
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 95a4529..6466440 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -297,5 +297,11 @@ int __meminit vmemmap_populate(struct page *start_page,
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index ec8a1fc..fb0c24d 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -332,6 +332,7 @@ static inline void update_page_count(int level, unsigned long pages) { }
+  * as a pte too.
+  */
+ extern pte_t *lookup_address(unsigned long address, unsigned int *level);
++extern int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase);
  
- 	return 0;
- }
-+
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	/* TODO */
-+}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ #endif	/* !__ASSEMBLY__ */
  
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 387c7c6..4f4803a 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -236,6 +236,12 @@ out:
- 	return ret;
- }
- 
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	/* TODO */
-+}
-+
- /*
-  * Add memory segment to the segment list if it doesn't overlap with
-  * an already present segment.
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 9e28a11..75a984b 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2231,6 +2231,12 @@ void __meminit vmemmap_populate_print_last(void)
- 		node_start = 0;
- 	}
- }
-+
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	/* TODO */
-+}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void prot_init_common(unsigned long page_none,
 diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 5675335..795dae3 100644
+index e85626d..23d932a 100644
 --- a/arch/x86/mm/init_64.c
 +++ b/arch/x86/mm/init_64.c
-@@ -998,6 +998,58 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
- 	return 0;
+@@ -680,6 +680,235 @@ int arch_add_memory(int nid, u64 start, u64 size)
  }
+ EXPORT_SYMBOL_GPL(arch_add_memory);
  
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
++static inline void free_pagetable(struct page *page)
 +{
-+	unsigned long addr = (unsigned long)start_page;
-+	unsigned long end = (unsigned long)(start_page + size);
-+	unsigned long next;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
++	struct zone *zone;
++	bool bootmem = false;
 +
-+	for (; addr < end; addr = next) {
-+		pte_t *pte = NULL;
++	/* bootmem page has reserved flag */
++	if (PageReserved(page)) {
++		__ClearPageReserved(page);
++		bootmem = true;
++	}
 +
-+		pgd = pgd_offset_k(addr);
-+		if (pgd_none(*pgd)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			continue;
-+		}
-+		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
++	__free_page(page);
 +
-+		pud = pud_offset(pgd, addr);
-+		if (pud_none(*pud)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			continue;
-+		}
-+		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
-+
-+		if (!cpu_has_pse) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+			get_page_bootmem(section_nr, pmd_page(*pmd),
-+					 MIX_SECTION_INFO);
-+
-+			pte = pte_offset_kernel(pmd, addr);
-+			if (pte_none(*pte))
-+				continue;
-+			get_page_bootmem(section_nr, pte_page(*pte),
-+					 SECTION_INFO);
-+		} else {
-+			next = pmd_addr_end(addr, end);
-+
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+			get_page_bootmem(section_nr, pmd_page(*pmd),
-+					 SECTION_INFO);
-+		}
++	if (bootmem) {
++		zone = page_zone(page);
++		zone_span_writelock(zone);
++		zone->present_pages++;
++		zone_span_writeunlock(zone);
++		totalram_pages++;
 +	}
 +}
 +
- void __meminit vmemmap_populate_print_last(void)
- {
- 	if (p_start) {
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 191b2d9..d4c4402 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -163,17 +163,10 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
- #endif /* CONFIG_NUMA */
- #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
- 
--#ifdef CONFIG_SPARSEMEM_VMEMMAP
--static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
--{
--}
--static inline void put_page_bootmem(struct page *page)
--{
--}
--#else
- extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
- extern void put_page_bootmem(struct page *page);
--#endif
-+extern void get_page_bootmem(unsigned long ingo, struct page *page,
-+			     unsigned long type);
- 
- /*
-  * Lock for memory hotplug guarantees 1) all callbacks for memory hotplug
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fa06804..8e5a56f 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1640,7 +1640,8 @@ int vmemmap_populate_basepages(struct page *start_page,
- 						unsigned long pages, int node);
- int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
- void vmemmap_populate_print_last(void);
--
-+void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
-+				  unsigned long size);
- 
- enum mf_flags {
- 	MF_COUNT_INCREASED = 1 << 0,
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 66a79a7..db9806c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -91,9 +91,8 @@ static void release_memory_resource(struct resource *res)
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
--#ifndef CONFIG_SPARSEMEM_VMEMMAP
--static void get_page_bootmem(unsigned long info,  struct page *page,
--			     unsigned long type)
-+void get_page_bootmem(unsigned long info,  struct page *page,
-+		      unsigned long type)
- {
- 	page->lru.next = (struct list_head *) type;
- 	SetPagePrivate(page);
-@@ -127,6 +126,7 @@ void __ref put_page_bootmem(struct page *page)
- 
- }
- 
-+#ifndef CONFIG_SPARSEMEM_VMEMMAP
- static void register_page_bootmem_info_section(unsigned long start_pfn)
- {
- 	unsigned long *usemap, mapsize, section_nr, i;
-@@ -160,6 +160,36 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
- 		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
- 
- }
-+#else
-+static void register_page_bootmem_info_section(unsigned long start_pfn)
++static void free_pte_table(pte_t *pte_start, pmd_t *pmd)
 +{
-+	unsigned long *usemap, mapsize, section_nr, i;
-+	struct mem_section *ms;
-+	struct page *page, *memmap;
++	pte_t *pte;
++	int i;
 +
-+	if (!pfn_valid(start_pfn))
-+		return;
++	for (i = 0; i < PTRS_PER_PTE; i++) {
++		pte = pte_start + i;
++		if (pte_val(*pte))
++			return;
++	}
 +
-+	section_nr = pfn_to_section_nr(start_pfn);
-+	ms = __nr_to_section(section_nr);
-+
-+	memmap = sparse_decode_mem_map(ms->section_mem_map, section_nr);
-+
-+	page = virt_to_page(memmap);
-+	mapsize = sizeof(struct page) * PAGES_PER_SECTION;
-+	mapsize = PAGE_ALIGN(mapsize) >> PAGE_SHIFT;
-+
-+	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
-+
-+	usemap = __nr_to_section(section_nr)->pageblock_flags;
-+	page = virt_to_page(usemap);
-+
-+	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
-+
-+	for (i = 0; i < mapsize; i++, page++)
-+		get_page_bootmem(section_nr, page, MIX_SECTION_INFO);
++	/* free a pte talbe */
++	free_pagetable(pmd_page(*pmd));
++	pmd_clear(pmd);
 +}
-+#endif
- 
- void register_page_bootmem_info_node(struct pglist_data *pgdat)
++
++static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
++{
++	pmd_t *pmd;
++	int i;
++
++	for (i = 0; i < PTRS_PER_PMD; i++) {
++		pmd = pmd_start + i;
++		if (pmd_val(*pmd))
++			return;
++	}
++
++	/* free a pmd talbe */
++	free_pagetable(pud_page(*pud));
++	pud_clear(pud);
++}
++
++/* return true if pgd is changed, otherwise return false */
++static bool free_pud_table(pud_t *pud_start, pgd_t *pgd)
++{
++	pud_t *pud;
++	int i;
++
++	for (i = 0; i < PTRS_PER_PUD; i++) {
++		pud = pud_start + i;
++		if (pud_val(*pud))
++			return false;
++	}
++
++	/* free a pud table */
++	free_pagetable(pgd_page(*pgd));
++	pgd_clear(pgd);
++
++	return true;
++}
++
++static void __meminit
++phys_pte_remove(pte_t *pte_page, unsigned long addr, unsigned long end)
++{
++	unsigned pages = 0;
++	int i = pte_index(addr);
++
++	pte_t *pte = pte_page + pte_index(addr);
++
++	for (; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE, pte++) {
++
++		if (addr >= end)
++			break;
++
++		if (!pte_present(*pte))
++			continue;
++
++		pages++;
++		set_pte(pte, __pte(0));
++	}
++
++	update_page_count(PG_LEVEL_4K, -pages);
++}
++
++static void __meminit
++phys_pmd_remove(pmd_t *pmd_page, unsigned long addr, unsigned long end)
++{
++	unsigned long pages = 0, next;
++	int i = pmd_index(addr);
++
++	for (; i < PTRS_PER_PMD && addr < end; i++, addr = next) {
++		unsigned long pte_phys;
++		pmd_t *pmd = pmd_page + pmd_index(addr);
++		pte_t *pte;
++
++		next = pmd_addr_end(addr, end);
++
++		if (!pmd_present(*pmd))
++			continue;
++
++		if (pmd_large(*pmd)) {
++			if (IS_ALIGNED(addr, PMD_SIZE) &&
++			    IS_ALIGNED(next, PMD_SIZE)) {
++				set_pmd(pmd, __pmd(0));
++				pages++;
++				continue;
++			}
++
++			/*
++			 * We use 2M page, but we need to remove part of them,
++			 * so split 2M page to 4K page.
++			 */
++			pte = alloc_low_page(&pte_phys);
++			BUG_ON(!pte);
++			__split_large_page((pte_t *)pmd,
++					   (unsigned long)__va(addr), pte);
++
++			spin_lock(&init_mm.page_table_lock);
++			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
++			spin_unlock(&init_mm.page_table_lock);
++
++			/* Do a global flush tlb after splitting a large page */
++			flush_tlb_all();
++		}
++
++		spin_lock(&init_mm.page_table_lock);
++		pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
++		phys_pte_remove(pte, addr, next);
++		free_pte_table(pte, pmd);
++		unmap_low_page(pte);
++		spin_unlock(&init_mm.page_table_lock);
++	}
++	update_page_count(PG_LEVEL_2M, -pages);
++}
++
++static void __meminit
++phys_pud_remove(pud_t *pud_page, unsigned long addr, unsigned long end)
++{
++	unsigned long pages = 0, next;
++	int i = pud_index(addr);
++
++	for (; i < PTRS_PER_PUD && addr < end; i++, addr = next) {
++		unsigned long pmd_phys;
++		pud_t *pud = pud_page + pud_index(addr);
++		pmd_t *pmd;
++
++		next = pud_addr_end(addr, end);
++
++		if (!pud_present(*pud))
++			continue;
++
++		if (pud_large(*pud)) {
++			if (IS_ALIGNED(addr, PUD_SIZE) &&
++			    IS_ALIGNED(next, PUD_SIZE)) {
++				set_pud(pud, __pud(0));
++				pages++;
++				continue;
++			}
++
++			/*
++			 * We use 1G page, but we need to remove part of them,
++			 * so split 1G page to 2M page.
++			 */
++			pmd = alloc_low_page(&pmd_phys);
++			BUG_ON(!pmd);
++			__split_large_page((pte_t *)pud,
++					   (unsigned long)__va(addr),
++					   (pte_t *)pmd);
++
++			spin_lock(&init_mm.page_table_lock);
++			pud_populate(&init_mm, pud, __va(pmd_phys));
++			spin_unlock(&init_mm.page_table_lock);
++
++			/* Do a global flush tlb after splitting a large page */
++			flush_tlb_all();
++		}
++
++		pmd = map_low_page((pmd_t *)pud_page_vaddr(*pud));
++		phys_pmd_remove(pmd, addr, next);
++		free_pmd_table(pmd, pud);
++		unmap_low_page(pmd);
++	}
++
++	update_page_count(PG_LEVEL_1G, -pages);
++}
++
++void __meminit
++kernel_physical_mapping_remove(unsigned long start, unsigned long end)
++{
++	unsigned long next;
++	bool pgd_changed = false;
++
++	start = (unsigned long)__va(start);
++	end = (unsigned long)__va(end);
++
++	for (; start < end; start = next) {
++		pgd_t *pgd = pgd_offset_k(start);
++		pud_t *pud;
++
++		next = pgd_addr_end(start, end);
++
++		if (!pgd_present(*pgd))
++			continue;
++
++		pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
++		phys_pud_remove(pud, __pa(start), __pa(next));
++		if (free_pud_table(pud, pgd))
++			pgd_changed = true;
++		unmap_low_page(pud);
++	}
++
++	if (pgd_changed)
++		sync_global_pgds(start, end - 1);
++
++	flush_tlb_all();
++}
++
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ int __ref arch_remove_memory(u64 start, u64 size)
  {
-@@ -202,7 +232,6 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
- 			register_page_bootmem_info_section(pfn);
- 	}
- }
--#endif /* !CONFIG_SPARSEMEM_VMEMMAP */
+@@ -692,6 +921,8 @@ int __ref arch_remove_memory(u64 start, u64 size)
+ 	ret = __remove_pages(zone, start_pfn, nr_pages);
+ 	WARN_ON_ONCE(ret);
  
- static void grow_zone_span(struct zone *zone, unsigned long start_pfn,
- 			   unsigned long end_pfn)
++	kernel_physical_mapping_remove(start, start + size);
++
+ 	return ret;
+ }
+ #endif
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index a718e0d..7dcb6f9 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -501,21 +501,13 @@ out_unlock:
+ 	return do_split;
+ }
+ 
+-static int split_large_page(pte_t *kpte, unsigned long address)
++int __split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
+ {
+ 	unsigned long pfn, pfninc = 1;
+ 	unsigned int i, level;
+-	pte_t *pbase, *tmp;
++	pte_t *tmp;
+ 	pgprot_t ref_prot;
+-	struct page *base;
+-
+-	if (!debug_pagealloc)
+-		spin_unlock(&cpa_lock);
+-	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
+-	if (!debug_pagealloc)
+-		spin_lock(&cpa_lock);
+-	if (!base)
+-		return -ENOMEM;
++	struct page *base = virt_to_page(pbase);
+ 
+ 	spin_lock(&pgd_lock);
+ 	/*
+@@ -523,10 +515,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+ 	 * up for us already:
+ 	 */
+ 	tmp = lookup_address(address, &level);
+-	if (tmp != kpte)
+-		goto out_unlock;
++	if (tmp != kpte) {
++		spin_unlock(&pgd_lock);
++		return 1;
++	}
+ 
+-	pbase = (pte_t *)page_address(base);
+ 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
+ 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+ 	/*
+@@ -579,17 +572,27 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+ 	 * going on.
+ 	 */
+ 	__flush_tlb_all();
++	spin_unlock(&pgd_lock);
+ 
+-	base = NULL;
++	return 0;
++}
+ 
+-out_unlock:
+-	/*
+-	 * If we dropped out via the lookup_address check under
+-	 * pgd_lock then stick the page back into the pool:
+-	 */
+-	if (base)
++static int split_large_page(pte_t *kpte, unsigned long address)
++{
++	pte_t *pbase;
++	struct page *base;
++
++	if (!debug_pagealloc)
++		spin_unlock(&cpa_lock);
++	base = alloc_pages(GFP_KERNEL | __GFP_NOTRACK, 0);
++	if (!debug_pagealloc)
++		spin_lock(&cpa_lock);
++	if (!base)
++		return -ENOMEM;
++
++	pbase = (pte_t *)page_address(base);
++	if (__split_large_page(kpte, address, pbase))
+ 		__free_page(base);
+-	spin_unlock(&pgd_lock);
+ 
+ 	return 0;
+ }
 -- 
 1.8.0
 
