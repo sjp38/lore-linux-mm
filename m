@@ -1,40 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id B36FE6B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:01:36 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so2579285oag.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 19:01:35 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id B6FC06B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:05:46 -0400 (EDT)
+Date: Thu, 1 Nov 2012 11:11:45 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121101021145.GF26256@bbox>
+References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+ <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+ <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+ <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+ <20121030001809.GL15767@bbox>
+ <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+ <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+ <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+ <20121031005738.GM15767@bbox>
+ <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20121101012546.GC26256@bbox>
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
- <20121031143524.0509665d.akpm@linux-foundation.org> <CAPM31RKm89s6PaAnfySUD-f+eGdoZP6=9DHy58tx_4Zi8Z9WPQ@mail.gmail.com>
- <CAHGf_=om34CQoPqgmVE5v8oVxntaJQ-bvFeEPMnfe_R+uvxqrQ@mail.gmail.com> <20121101012546.GC26256@bbox>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 31 Oct 2012 22:01:15 -0400
-Message-ID: <CAHGf_=qm7HRLzhUHx7t3FmCAUmj0F7Vm6jaTGu_YwD+U-j58Aw@mail.gmail.com>
-Subject: Re: [RFC v2] Support volatile range for anon vma
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Paul Turner <pjt@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, sanjay@google.com, David Rientjes <rientjes@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
->> - making zero page daemon and avoid pagesize zero fill at page fault
->> - making new vma or page flags and mark as discardable w/o swap and
->>   vmscan treat it. (like this and/or MADV_FREE)
->
-> Thanks for the information.
-> I realized by you I'm not first people to think of this idea.
-> Rik already tried it(https://lkml.org/lkml/2007/4/17/53) by new page flag
-> and even other OSes already have such good feature. And John's concept was
-> already tried long time ago (https://lkml.org/lkml/2005/11/1/384)
->
-> Hmm, I look over Rik's thread but couldn't find why it wasn't merged
-> at that time. Anyone know it?
+On Wed, Oct 31, 2012 at 11:54:07AM -0700, David Rientjes wrote:
+> On Wed, 31 Oct 2012, Minchan Kim wrote:
+> 
+> > It sounds right in your kernel but principal problem is min_filelist_kbytes patch.
+> > If normal exited process in exit path requires a page and there is no free page
+> > any more, it ends up going to OOM path after try to reclaim memory several time.
+> > Then,
+> > In select_bad_process,
+> > 
+> >         if (task->flags & PF_EXITING) {
+> >                if (task == current)             <== true
+> >                         return OOM_SCAN_SELECT;
+> > In oom_kill_process,
+> > 
+> >         if (p->flags & PF_EXITING)
+> >                 set_tsk_thread_flag(p, TIF_MEMDIE);
+> > 
+> > At last, normal exited process would get a free page.
+> > 
+> 
+> select_bad_process() won't actually select the process for oom kill, 
+> though, if there are other PF_EXITING threads other than current.  So if 
+> multiple threads are page faulting on tsk->robust_list, then no thread 
+> ends up getting killed.  The temporary workaround would be to do a kill -9 
 
-Dunno. and I like volatile feature than old one. but bold remark, please don't
-100% trust me, I haven't review a detailed code of your patch and I don't
-strictly understand it.
+If mutiple threads are page faulting and try to allocate memory, then they
+should go to oom path and they will reach following code.
+
+        if (task->flags & PF_EXITING) {
+               if (task == current)
+                        return OOM_SCAN_SELECT;
+
+So, the thread can access reseved memory pool and page fault will succeed.
+
+> so that the logic in out_of_memory() could immediately give such threads 
+> access to memory reserves so the page fault will succeed.  The real fix 
+> would be to audit all possible cases in between setting 
+> tsk->flags |= PF_EXITING and tsk->mm = NULL that could cause a memory 
+> allocation and make exemptions for them in oom_scan_process_thread().
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
