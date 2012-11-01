@@ -1,69 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id B43F36B0078
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 19:06:34 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id t2so1142885qcq.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 16:06:33 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id AACA36B0068
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 19:15:37 -0400 (EDT)
+Date: Fri, 2 Nov 2012 00:15:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/3] bdi: Track users that require stable page writes
+Message-ID: <20121101231530.GC31937@quack.suse.cz>
+References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
+ <20121101075813.16153.94581.stgit@blackbox.djwong.org>
+ <5092BDA2.6090001@panasas.com>
+ <20121101185756.GI19591@blackbox.djwong.org>
+ <5092FE22.30906@panasas.com>
 MIME-Version: 1.0
-In-Reply-To: <20121101154306.c0871efb.akpm@linux-foundation.org>
-References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
-	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
-	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
-	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
-	<20121030001809.GL15767@bbox>
-	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
-	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
-	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
-	<20121031005738.GM15767@bbox>
-	<alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
-	<20121101024316.GB24883@bbox>
-	<alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
-	<CAA25o9SdQ7e5w8=W0faz82nZ7_3N7xbbExKQe0-HsU87hs2MPA@mail.gmail.com>
-	<alpine.DEB.2.00.1211011448490.19373@chino.kir.corp.google.com>
-	<alpine.DEB.2.00.1211011451480.19373@chino.kir.corp.google.com>
-	<20121101154306.c0871efb.akpm@linux-foundation.org>
-Date: Thu, 1 Nov 2012 16:06:33 -0700
-Message-ID: <CAA25o9S2=Si-Rg=nU5KzdUCqdWMpoefNL=YXAVQb=ZZxYCBB5w@mail.gmail.com>
-Subject: Re: [patch] mm, oom: allow exiting threads to have access to memory reserves
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5092FE22.30906@panasas.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Boaz Harrosh <bharrosh@panasas.com>
+Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov, linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
 
-On Thu, Nov 1, 2012 at 3:43 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> On Thu, 1 Nov 2012 14:58:18 -0700 (PDT)
-> David Rientjes <rientjes@google.com> wrote:
->
->> Exiting threads, those with PF_EXITING set, can pagefault and require
->> memory before they can make forward progress.  This happens, for instance,
->> when a process must fault task->robust_list, a userspace structure, before
->> detaching its memory.
->>
->> These threads also aren't guaranteed to get access to memory reserves
->> unless oom killed or killed from userspace.  The oom killer won't grant
->> memory reserves if other threads are also exiting other than current and
->> stalling at the same point.  This prevents needlessly killing processes
->> when others are already exiting.
->>
->> Instead of special casing all the possible sitations between PF_EXITING
->> getting set and a thread detaching its mm where it may allocate memory,
->> which probably wouldn't get updated when a change is made to the exit
->> path, the solution is to give all exiting threads access to memory
->> reserves if they call the oom killer.  This allows them to quickly
->> allocate, detach its mm, and free the memory it represents.
->
-> Seems very sensible.
->
->> Acked-by: Minchan Kim <minchan@kernel.org>
->> Tested-by: Luigi Semenzato <semenzato@google.com>
->
-> What did Luigi actually test?  Was there some reproducible bad behavior
-> which this patch fixes?
+On Thu 01-11-12 15:56:34, Boaz Harrosh wrote:
+> On 11/01/2012 11:57 AM, Darrick J. Wong wrote:
+> > On Thu, Nov 01, 2012 at 11:21:22AM -0700, Boaz Harrosh wrote:
+> >> On 11/01/2012 12:58 AM, Darrick J. Wong wrote:
+> >>> This creates a per-backing-device counter that tracks the number of users which
+> >>> require pages to be held immutable during writeout.  Eventually it will be used
+> >>> to waive wait_for_page_writeback() if nobody requires stable pages.
+> >>>
+> >>
+> >> There is two things I do not like:
+> >> 1. Please remind me why we need the users counter?
+> >>    If the device needs it, it will always be needed. The below 
+> >>    queue_unrequire_stable_pages call at blk_integrity_unregister
+> >>    only happens at device destruction time, no?
+> >>
+> >>    It was also said that maybe individual filesystems would need
+> >>    stable pages where other FSs using the same BDI do not. But
+> >>    since the FS is at the driving seat in any case, it can just
+> >>    do wait_for_writeback() regardless and can care less about
+> >>    the bdi flag and the other FSs. Actually all those FSs already
+> >>    do this this, and do not need any help. So this reason is
+> >>    mute.
+> > 
+> > The counter exists so that a filesystem can forcibly enable stable page writes
+> > even if the underlying device doesn't require it, because the generic fs/mm
+> > waiting only happens if stable_pages_required=1.  The idea here was to allow a
+> > filesystem that needs stable page writes for its own purposes (i.e. data block
+> > checksumming) to be able to enforce the requirement even if the disk doesn't
+> > care (or doesn't exist).
+> > 
+> 
+> But the filesystem does not need BDI flag to do that, It can just call
+> wait_on_page_writeback() directly and or any other waiting like cifs does,
+> and this way will not affect any other partitions of the same BDI. So this flag
+> is never needed by the FS, it is always to service the device.
+  But if they use some generic VFS functions, these VFS functions need to
+know whether to wait or not - e.g. grab_cache_page_write_begin() or
+block_page_mkwrite().
 
-Yes.  I have a load that reliably reproduces the problem (in 3.4), and
-it goes away with this change.
+> > But maybe there are no such filesystems?
+> > 
+> 
+> Exactly, all the FSs that do care, already take care of it.
+  I'm not exactly sure whether FSs that do care didn't start to use generic
+functions which now always call wait_on_page_writeback() for quite a few
+releases...
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
