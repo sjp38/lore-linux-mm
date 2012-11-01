@@ -1,111 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 701776B006C
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 09:40:26 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so4480846ied.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 06:40:25 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id E521C6B006E
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 09:41:33 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1919620pad.14
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 06:41:33 -0700 (PDT)
+Date: Thu, 1 Nov 2012 06:41:26 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 00/31] numa/core patches
+In-Reply-To: <alpine.LNX.2.00.1210311005220.5685@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1211010636140.3648@eggly.anvils>
+References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121028175615.GC29827@cmpxchg.org> <508F73C5.7050409@redhat.com> <20121031004838.GA1657@cmpxchg.org> <alpine.LNX.2.00.1210302350140.5084@eggly.anvils>
+ <50912478.2040403@redhat.com> <alpine.LNX.2.00.1210311005220.5685@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <0000013a934eed6d-a9c1b247-dbbc-485d-b7cf-89aa36dcca57-000000@email.amazonses.com>
-References: <0000013a934eed6d-a9c1b247-dbbc-485d-b7cf-89aa36dcca57-000000@email.amazonses.com>
-Date: Thu, 1 Nov 2012 10:40:25 -0300
-Message-ID: <CALF0-+UUREQZT1NEBq-V_04WBDOt6GccDkHB+zPXW6u6uhvj=Q@mail.gmail.com>
-Subject: Re: CK4 [00/15] Sl[auo]b: Common kmalloc caches V4
-From: Ezequiel Garcia <elezegarcia@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Zhouping Liu <zliu@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, CAI Qian <caiqian@redhat.com>
 
-Hi Christoph,
+On Wed, 31 Oct 2012, Hugh Dickins wrote:
+> On Wed, 31 Oct 2012, Zhouping Liu wrote:
+> > On 10/31/2012 03:26 PM, Hugh Dickins wrote:
+> > > 
+> > > There's quite a few put_page()s in do_huge_pmd_numa_page(), and it
+> > > would help if we could focus on the one which is giving the trouble,
+> > > but I don't know which that is.  Zhouping, if you can, please would
+> > > you do an "objdump -ld vmlinux >bigfile" of your kernel, then extract
+> > > from bigfile just the lines from "<do_huge_pmd_numa_page>:" to whatever
+> > > is the next function, and post or mail privately just that disassembly.
+> > > That should be good to identify which of the put_page()s is involved.
+> > 
+> > Hugh, I didn't find the next function, as I can't find any words that matched
+> > "do_huge_pmd_numa_page".
+> > is there any other methods?
+> 
+> Hmm, do_huge_pmd_numa_page does appear in your stacktrace,
+> unless I've made a typo but am blind to it.
+> 
+> Were you applying objdump to the vmlinux which gave you the
+> BUG at mm/memcontrol.c:1134! ?
 
-On Wed, Oct 24, 2012 at 12:05 PM, Christoph Lameter <cl@linux.com> wrote:
-> V3->V4:
->  - Further fixes of issues pointed out by Joonsoo and Glauber.
->
-> V2-V3:
-> - Further cleanup and reordering as suggested by Glauber
->
-> V1-V2:
-> - Clean up numerous things as suggested by Glauber.
-> - Add two more patches that extract more kmalloc stuff
->   into common files.
->
-> This patchset cleans up the bootstrap of the allocators
-> and creates a common functions to handle the kmalloc
-> array. The results are more common data structures and
-> functions that will simplify further work
-> on having common functions for all allocators.
->
-> This patchset is against Pekka's slab/next tree as of today.
->
+Thanks for the further info you then sent privately: I have not made any
+more effort to reproduce the issue, but your objdump did tell me that the
+put_page hitting the problem is the one on line 872 of mm/huge_memory.c,
+"Drop the local reference", just before successful return after migration.
 
-While testing this patchset, I found a BUG.
+I didn't really get the inspiration I'd hoped for out of knowing that,
+but it did make wonder whether you're suffering from one of the issues
+I already mentioned, and I can now see a way in which it might cause
+the mm/memcontrol.c:1134 BUG:-
 
-All I did was "sudo mount -a" to mount my development partitions.
+migrate_page_copy() does TestClearPageActive on the source page:
+so given the unsafe way in which do_huge_pmd_numa_page() was proceeding
+with a !PageLRU page, it's quite possible that the page was sitting in
+a pagevec, and added to the active lru (so added to the lru_size of the
+active lru), but our final put_page removes it from lru, active flag has
+been cleared, so we subtract it from the lru_size of the inactive lru -
+that could indeed make it go negative and trigger the BUG.
 
-[   25.366266] BUG: unable to handle kernel paging request at ffffffc0
-[   25.366419] IP: [<c10d93b2>] slab_unmergeable+0x12/0x30
-[   25.366497] *pde = 016f5067 *pte = 00000000
-[   25.366601] Oops: 0000 [#1] SMP
-[   25.366703] Modules linked in: radeon snd_usb_audio snd_usbmidi_lib
-snd_rawmidi snd_hda_intel snd_hda_codec snd_hwdep snd_pcm ttm
-snd_timer snd pcspkr drm_kms_helper soundcore snd_page_alloc
-cfbcopyarea cfbimgblt cfbfillrect evdev
-[   25.367373] Pid: 1428, comm: mount Not tainted
-3.7.0-rc1-athlon-full-preempt-gentoo-69954-g12ae62c #14 Gigabyte
-Technology Co., Ltd. GA-MA74GMT-S2/GA-MA74GMT-S2
-[   25.367451] EIP: 0060:[<c10d93b2>] EFLAGS: 00010246 CPU: 2
-[   25.367498] EIP is at slab_unmergeable+0x12/0x30
-[   25.367543] EAX: ffffffbc EBX: 00030d00 ECX: 00000000 EDX: 00000001
-[   25.367588] ESI: 00000098 EDI: ffffffbc EBP: f47ddd00 ESP: f47ddd00
-[   25.367635]  DS: 007b ES: 007b FS: 00d8 GS: 0033 SS: 0068
-[   25.367680] CR0: 8005003b CR2: ffffffc0 CR3: 34742000 CR4: 000007d0
-[   25.367726] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-[   25.367772] DR6: ffff0ff0 DR7: 00000400
-[   25.367817] Process mount (pid: 1428, ti=f47dc000 task=f3998000
-task.ti=f47dc000)
-[   25.367877] Stack:
-[   25.367922]  f47ddd24 c10dcad7 00000094 fffffff8 00000097 c15b924f
-00000002 c15b924f
-[   25.368214]  00000094 f47ddd4c c10c1ed0 00030d00 00000000 22222222
-22222222 00000000
-[   25.368506]  00000002 f4419770 0000000c f47ddd90 c117e64f 00020000
-00000000 f34079a8
-[   25.368798] Call Trace:
-[   25.368843]  [<c10dcad7>] __kmem_cache_alias+0x97/0x130
-[   25.368891]  [<c10c1ed0>] kmem_cache_create+0x40/0x1c0
-[   25.368938]  [<c117e64f>] ext4_mb_init+0x2ef/0x520
-[   25.368986]  [<c148434d>] ? _raw_spin_unlock+0x1d/0x20
-[   25.369033]  [<c116cf2e>] ext4_fill_super+0x2c2e/0x3310
-[   25.369081]  [<c1075df5>] ? mark_held_locks+0x85/0xe0
-[   25.369128]  [<c1482329>] ? mutex_lock_nested+0x229/0x2d0
-[   25.369175]  [<c110e06e>] ? sb_set_blocksize+0x1e/0x70
-[   25.369222]  [<c10e3205>] mount_bdev+0x165/0x190
-[   25.369269]  [<c10c2450>] ? slab_account_alloc+0xd0/0x1a0
-[   25.369315]  [<c10dd171>] ? __kmalloc_track_caller+0xc1/0x160
-[   25.369362]  [<c11650da>] ext4_mount+0x1a/0x20
-[   25.369408]  [<c116a300>] ? ext4_calculate_overhead+0x460/0x460
-[   25.369455]  [<c10e3c7c>] mount_fs+0x1c/0xc0
-[   25.369501]  [<c10c1aba>] ? __alloc_percpu+0xa/0x10
-[   25.369549]  [<c10fa13f>] ? alloc_vfsmnt+0x9f/0x140
-[   25.369596]  [<c10fa259>] vfs_kern_mount+0x49/0xe0
-[   25.369642]  [<c10faa47>] do_kern_mount+0x37/0xf0
-[   25.369688]  [<c10fc1f4>] do_mount+0x3b4/0x700
-[   25.369735]  [<c10bd7c9>] ? strndup_user+0x49/0x70
-[   25.369782]  [<c10fc5a6>] sys_mount+0x66/0xa0
-[   25.369828]  [<c1484d7a>] sysenter_do_call+0x12/0x32
-[   25.369873] Code: 34 c7 43 2c 00 00 00 00 c7 43 30 00 00 00 00 89
-43 34 89 43 38 5b 5d c3 90 8b 0d 90 70 c3 c1 ba 01 00 00 00 55 89 e5
-85 c9 75 10 <f7> 40 04 00 0c a9 00 75 07 8b 48 30 85 c9 74 06 89 d0 5d
-c3 66
-[   25.371837] EIP: [<c10d93b2>] slab_unmergeable+0x12/0x30 SS:ESP 0068:f47ddd00
-[   25.371942] CR2: 00000000ffffffc0
-[   25.371987] ---[ end trace 278dfa9b282c605e ]---
+Here's a patch fixing and tidying up that and a few other things there.
+But I'm not signing it off yet, partly because I've barely tested it
+(quite probably I didn't even have any numa pmd migration happening
+at all), and partly because just a moment ago I ran across this
+instructive comment in __collapse_huge_page_isolate():
+	/* cannot use mapcount: can't collapse if there's a gup pin */
+	if (page_count(page) != 1) {
 
-Hope it helps,
+Hmm, yes, below I've added the page_mapcount() check I proposed to
+do_huge_pmd_numa_page(), but is even that safe enough?  Do we actually
+need a page_count() check (for 2?) to guard against get_user_pages()?
+I suspect we do, but then do we have enough locking to stabilize such
+a check?  Probably, but...
 
-    Ezequiel
+This will take more time, and I doubt get_user_pages() is an issue in
+your testing, so please would you try the patch below, to see if it
+does fix the BUGs you are seeing?  Thanks a lot.
+
+Not-Yet-Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/huge_memory.c |   24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
+
+--- 3.7-rc2+schednuma+johannes/mm/huge_memory.c	2012-11-01 04:10:43.812155671 -0700
++++ linux/mm/huge_memory.c	2012-11-01 05:52:19.512153771 -0700
+@@ -745,7 +745,7 @@ void do_huge_pmd_numa_page(struct mm_str
+ 	struct mem_cgroup *memcg = NULL;
+ 	struct page *new_page = NULL;
+ 	struct page *page = NULL;
+-	int node, lru;
++	int node = -1;
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(*pmd, entry)))
+@@ -762,7 +762,8 @@ void do_huge_pmd_numa_page(struct mm_str
+ 		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
+ 
+ 		get_page(page);
+-		node = mpol_misplaced(page, vma, haddr);
++		if (page_mapcount(page) == 1)	/* Only do exclusively mapped */
++			node = mpol_misplaced(page, vma, haddr);
+ 		if (node != -1)
+ 			goto migrate;
+ 	}
+@@ -801,13 +802,11 @@ migrate:
+ 	if (!new_page)
+ 		goto alloc_fail;
+ 
+-	lru = PageLRU(page);
+-
+-	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
++	if (isolate_lru_page(page))	/* Does an implicit get_page() */
+ 		goto alloc_fail;
+ 
+-	if (!trylock_page(new_page))
+-		BUG();
++	__set_page_locked(new_page);
++	SetPageSwapBacked(new_page);
+ 
+ 	/* anon mapping, we can simply copy page->mapping to the new page: */
+ 	new_page->mapping = page->mapping;
+@@ -820,8 +819,6 @@ migrate:
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(*pmd, entry))) {
+ 		spin_unlock(&mm->page_table_lock);
+-		if (lru)
+-			putback_lru_page(page);
+ 
+ 		unlock_page(new_page);
+ 		ClearPageActive(new_page);	/* Set by migrate_page_copy() */
+@@ -829,6 +826,7 @@ migrate:
+ 		put_page(new_page);		/* Free it */
+ 
+ 		unlock_page(page);
++		putback_lru_page(page);
+ 		put_page(page);			/* Drop the local reference */
+ 
+ 		return;
+@@ -859,16 +857,12 @@ migrate:
+ 	mem_cgroup_end_migration(memcg, page, new_page, true);
+ 	spin_unlock(&mm->page_table_lock);
+ 
+-	put_page(page);			/* Drop the rmap reference */
+-
+ 	task_numa_fault(node, HPAGE_PMD_NR);
+ 
+-	if (lru)
+-		put_page(page);		/* drop the LRU isolation reference */
+-
+ 	unlock_page(new_page);
+-
+ 	unlock_page(page);
++	put_page(page);			/* Drop the rmap reference */
++	put_page(page);			/* Drop the LRU isolation reference */
+ 	put_page(page);			/* Drop the local reference */
+ 
+ 	return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
