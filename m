@@ -1,170 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id C05666B0068
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id AD1F66B0070
 	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:08:12 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 12/29] execute the whole memcg freeing in free_worker
-Date: Thu,  1 Nov 2012 16:07:28 +0400
-Message-Id: <1351771665-11076-13-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 08/29] res_counter: return amount of charges after res_counter_uncharge
+Date: Thu,  1 Nov 2012 16:07:24 +0400
+Message-Id: <1351771665-11076-9-git-send-email-glommer@parallels.com>
 In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Suleiman Souhlal <suleiman@google.com>
 
-A lot of the initialization we do in mem_cgroup_create() is done with
-softirqs enabled. This include grabbing a css id, which holds
-&ss->id_lock->rlock, and the per-zone trees, which holds
-rtpz->lock->rlock. All of those signal to the lockdep mechanism that
-those locks can be used in SOFTIRQ-ON-W context. This means that the
-freeing of memcg structure must happen in a compatible context,
-otherwise we'll get a deadlock, like the one bellow, caught by lockdep:
+It is useful to know how many charges are still left after a call to
+res_counter_uncharge. While it is possible to issue a res_counter_read
+after uncharge, this can be racy.
 
-  [<ffffffff81103095>] free_accounted_pages+0x47/0x4c
-  [<ffffffff81047f90>] free_task+0x31/0x5c
-  [<ffffffff8104807d>] __put_task_struct+0xc2/0xdb
-  [<ffffffff8104dfc7>] put_task_struct+0x1e/0x22
-  [<ffffffff8104e144>] delayed_put_task_struct+0x7a/0x98
-  [<ffffffff810cf0e5>] __rcu_process_callbacks+0x269/0x3df
-  [<ffffffff810cf28c>] rcu_process_callbacks+0x31/0x5b
-  [<ffffffff8105266d>] __do_softirq+0x122/0x277
+If we need, for instance, to take some action when the counters drop
+down to 0, only one of the callers should see it. This is the same
+semantics as the atomic variables in the kernel.
 
-This usage pattern could not be triggered before kmem came into play.
-With the introduction of kmem stack handling, it is possible that we
-call the last mem_cgroup_put() from the task destructor, which is run in
-an rcu callback. Such callbacks are run with softirqs disabled, leading
-to the offensive usage pattern.
-
-In general, we have little, if any, means to guarantee in which context
-the last memcg_put will happen. The best we can do is test it and try to
-make sure no invalid context releases are happening. But as we add more
-code to memcg, the possible interactions grow in number and expose more
-ways to get context conflicts. One thing to keep in mind, is that part
-of the freeing process is already deferred to a worker, such as vfree(),
-that can only be called from process context.
-
-For the moment, the only two functions we really need moved away are:
-
-  * free_css_id(), and
-  * mem_cgroup_remove_from_trees().
-
-But because the later accesses per-zone info,
-free_mem_cgroup_per_zone_info() needs to be moved as well. With that, we
-are left with the per_cpu stats only. Better move it all.
+Since the current return value is void, we don't need to worry about
+anything breaking due to this change: nobody relied on that, and only
+users appearing from now on will be checking this value.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Tested-by: Greg Thelen <gthelen@google.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: David Rientjes <rientjes@google.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c | 66 +++++++++++++++++++++++++++++----------------------------
- 1 file changed, 34 insertions(+), 32 deletions(-)
+ Documentation/cgroups/resource_counter.txt |  7 ++++---
+ include/linux/res_counter.h                | 12 +++++++-----
+ kernel/res_counter.c                       | 20 +++++++++++++-------
+ 3 files changed, 24 insertions(+), 15 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 61a382a..5e8962c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5212,16 +5212,29 @@ out_free:
- }
+diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
+index 0c4a344..c4d99ed 100644
+--- a/Documentation/cgroups/resource_counter.txt
++++ b/Documentation/cgroups/resource_counter.txt
+@@ -83,16 +83,17 @@ to work with it.
+ 	res_counter->lock internally (it must be called with res_counter->lock
+ 	held). The force parameter indicates whether we can bypass the limit.
  
- /*
-- * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-- * but in process context.  The work_freeing structure is overlaid
-- * on the rcu_freeing structure, which itself is overlaid on memsw.
-+ * At destroying mem_cgroup, references from swap_cgroup can remain.
-+ * (scanning all at force_empty is too costly...)
+- e. void res_counter_uncharge[_locked]
++ e. u64 res_counter_uncharge[_locked]
+ 			(struct res_counter *rc, unsigned long val)
+ 
+ 	When a resource is released (freed) it should be de-accounted
+ 	from the resource counter it was accounted to.  This is called
+-	"uncharging".
++	"uncharging". The return value of this function indicate the amount
++	of charges still present in the counter.
+ 
+ 	The _locked routines imply that the res_counter->lock is taken.
+ 
+- f. void res_counter_uncharge_until
++ f. u64 res_counter_uncharge_until
+ 		(struct res_counter *rc, struct res_counter *top,
+ 		 unsinged long val)
+ 
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 7d7fbe2..4b173b6 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -130,14 +130,16 @@ int res_counter_charge_nofail(struct res_counter *counter,
+  *
+  * these calls check for usage underflow and show a warning on the console
+  * _locked call expects the counter->lock to be taken
 + *
-+ * Instead of clearing all references at force_empty, we remember
-+ * the number of reference from swap_cgroup and free mem_cgroup when
-+ * it goes down to 0.
-+ *
-+ * Removal of cgroup itself succeeds regardless of refs from swap.
++ * returns the total charges still present in @counter.
   */
--static void free_work(struct work_struct *work)
-+
-+static void __mem_cgroup_free(struct mem_cgroup *memcg)
- {
--	struct mem_cgroup *memcg;
-+	int node;
- 	int size = sizeof(struct mem_cgroup);
  
--	memcg = container_of(work, struct mem_cgroup, work_freeing);
-+	mem_cgroup_remove_from_trees(memcg);
-+	free_css_id(&mem_cgroup_subsys, &memcg->css);
-+
-+	for_each_node(node)
-+		free_mem_cgroup_per_zone_info(memcg, node);
-+
-+	free_percpu(memcg->stat);
-+
- 	/*
- 	 * We need to make sure that (at least for now), the jump label
- 	 * destruction code runs outside of the cgroup lock. This is because
-@@ -5240,38 +5253,27 @@ static void free_work(struct work_struct *work)
- 		vfree(memcg);
+-void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
+-void res_counter_uncharge(struct res_counter *counter, unsigned long val);
++u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
++u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+ 
+-void res_counter_uncharge_until(struct res_counter *counter,
+-				struct res_counter *top,
+-				unsigned long val);
++u64 res_counter_uncharge_until(struct res_counter *counter,
++			       struct res_counter *top,
++			       unsigned long val);
+ /**
+  * res_counter_margin - calculate chargeable space of a counter
+  * @cnt: the counter
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index ad581aa..7b3d6dc 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+ 	return __res_counter_charge(counter, val, limit_fail_at, true);
  }
  
--static void free_rcu(struct rcu_head *rcu_head)
--{
--	struct mem_cgroup *memcg;
--
--	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
--	INIT_WORK(&memcg->work_freeing, free_work);
--	schedule_work(&memcg->work_freeing);
--}
- 
- /*
-- * At destroying mem_cgroup, references from swap_cgroup can remain.
-- * (scanning all at force_empty is too costly...)
-- *
-- * Instead of clearing all references at force_empty, we remember
-- * the number of reference from swap_cgroup and free mem_cgroup when
-- * it goes down to 0.
-- *
-- * Removal of cgroup itself succeeds regardless of refs from swap.
-+ * Helpers for freeing a kmalloc()ed/vzalloc()ed mem_cgroup by RCU,
-+ * but in process context.  The work_freeing structure is overlaid
-+ * on the rcu_freeing structure, which itself is overlaid on memsw.
-  */
--
--static void __mem_cgroup_free(struct mem_cgroup *memcg)
-+static void free_work(struct work_struct *work)
+-void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
++u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
  {
--	int node;
-+	struct mem_cgroup *memcg;
+ 	if (WARN_ON(counter->usage < val))
+ 		val = counter->usage;
  
--	mem_cgroup_remove_from_trees(memcg);
--	free_css_id(&mem_cgroup_subsys, &memcg->css);
-+	memcg = container_of(work, struct mem_cgroup, work_freeing);
-+	__mem_cgroup_free(memcg);
-+}
- 
--	for_each_node(node)
--		free_mem_cgroup_per_zone_info(memcg, node);
-+static void free_rcu(struct rcu_head *rcu_head)
-+{
-+	struct mem_cgroup *memcg;
- 
--	free_percpu(memcg->stat);
--	call_rcu(&memcg->rcu_freeing, free_rcu);
-+	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
-+	INIT_WORK(&memcg->work_freeing, free_work);
-+	schedule_work(&memcg->work_freeing);
+ 	counter->usage -= val;
++	return counter->usage;
  }
  
- static void mem_cgroup_get(struct mem_cgroup *memcg)
-@@ -5283,7 +5285,7 @@ static void __mem_cgroup_put(struct mem_cgroup *memcg, int count)
+-void res_counter_uncharge_until(struct res_counter *counter,
+-				struct res_counter *top,
+-				unsigned long val)
++u64 res_counter_uncharge_until(struct res_counter *counter,
++			       struct res_counter *top,
++			       unsigned long val)
  {
- 	if (atomic_sub_and_test(count, &memcg->refcnt)) {
- 		struct mem_cgroup *parent = parent_mem_cgroup(memcg);
--		__mem_cgroup_free(memcg);
-+		call_rcu(&memcg->rcu_freeing, free_rcu);
- 		if (parent)
- 			mem_cgroup_put(parent);
+ 	unsigned long flags;
+ 	struct res_counter *c;
++	u64 ret = 0;
+ 
+ 	local_irq_save(flags);
+ 	for (c = counter; c != top; c = c->parent) {
++		u64 r;
+ 		spin_lock(&c->lock);
+-		res_counter_uncharge_locked(c, val);
++		r = res_counter_uncharge_locked(c, val);
++		if (c == counter)
++			ret = r;
+ 		spin_unlock(&c->lock);
  	}
+ 	local_irq_restore(flags);
++	return ret;
+ }
+ 
+-void res_counter_uncharge(struct res_counter *counter, unsigned long val)
++u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
+ {
+-	res_counter_uncharge_until(counter, NULL, val);
++	return res_counter_uncharge_until(counter, NULL, val);
+ }
+ 
+ static inline unsigned long long *
 -- 
 1.7.11.7
 
