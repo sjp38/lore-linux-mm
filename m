@@ -1,113 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 655296B006C
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 03:58:54 -0400 (EDT)
-Subject: [PATCH 3/3] fs: Fix remaining filesystems to wait for stable page
- writeback
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Thu, 01 Nov 2012 00:58:29 -0700
-Message-ID: <20121101075829.16153.92036.stgit@blackbox.djwong.org>
-In-Reply-To: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
-References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 70AFD6B0062
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 04:28:20 -0400 (EDT)
+Date: Thu, 1 Nov 2012 08:28:14 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: zram OOM behavior
+Message-ID: <20121101082814.GL3888@suse.de>
+References: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+ <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+ <20121030001809.GL15767@bbox>
+ <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+ <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+ <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+ <20121031005738.GM15767@bbox>
+ <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+ <20121101024316.GB24883@bbox>
+ <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, darrick.wong@oracle.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov
-Cc: linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, bharrosh@panasas.com, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
+To: David Rientjes <rientjes@google.com>
+Cc: Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-Fix up the filesystems that provide their own ->page_mkwrite handlers to
-provide stable page writes if necessary.
+On Wed, Oct 31, 2012 at 09:48:57PM -0700, David Rientjes wrote:
+> On Thu, 1 Nov 2012, Minchan Kim wrote:
+> 
+> > It's not true any more.
+> > 3.6 includes following code in try_to_free_pages
+> > 
+> >         /*   
+> >          * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> >          * that the page allocator does not consider triggering OOM
+> >          */
+> >         if (fatal_signal_pending(current))
+> >                 return 1;
+> > 
+> > So the hunged task never go to the OOM path and could be looping forever.
+> > 
+> 
+> Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct 
+> reclaimers if PF_MEMALLOC reserves are low and swap is backed by network 
+> storage").  Thanks for adding Mel to the cc.
+> 
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+Indeed, thanks.
+
+> The oom killer specifically has logic for this condition: when calling 
+> out_of_memory() the first thing it does is
+> 
+> 	if (fatal_signal_pending(current))
+> 		set_thread_flag(TIF_MEMDIE);
+> 
+> to allow it access to memory reserves so that it may exit if it's having 
+> trouble.  But that ends up never happening because of the above code that 
+> Minchan has identified.
+> 
+> So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages() 
+> as well or revert that early return entirely; there's no justification 
+> given for it in the comment nor in the commit log. 
+
+The check for fatal signal is in the wrong place. The reason it was added
+is because a throttled process sleeps in an interruptible sleep.  If a user
+user forcibly kills a throttled process, it should not result in an OOM kill.
+
+> I'd rather remove it 
+> and allow the oom killer to trigger and grant access to memory reserves 
+> itself if necessary.
+> 
+> Mel, how does commit 5515061d22f0 deal with threads looping forever if 
+> they need memory in the exit path since the oom killer never gets called?
+> 
+
+It doesn't. How about this?
+
+---8<---
+mm: vmscan: Check for fatal signals iff the process was throttled
+
+commit 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+are low and swap is backed by network storage") introduced a check for
+fatal signals after a process gets throttled for network storage. The
+intention was that if a process was throttled and got killed that it
+should not trigger the OOM killer. As pointed out by Minchan Kim and
+David Rientjes, this check is in the wrong place and too broad. If a
+system is in am OOM situation and a process is exiting, it can loop in
+__alloc_pages_slowpath() and calling direct reclaim in a loop. As the
+fatal signal is pending it returns 1 as if it is making forward progress
+and can effectively deadlock.
+
+This patch moves the fatal_signal_pending() check after throttling to
+throttle_direct_reclaim() where it belongs.
+
+If this patch passes review it should be considered a -stable candidate
+for 3.6.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- fs/9p/vfs_file.c |    1 +
- fs/afs/write.c   |    4 ++--
- fs/ceph/addr.c   |    1 +
- fs/cifs/file.c   |    1 +
- fs/ocfs2/mmap.c  |    1 +
- fs/ubifs/file.c  |    4 ++--
- 6 files changed, 8 insertions(+), 4 deletions(-)
+ mm/vmscan.c |   37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)
 
-
-diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-index c2483e9..aa253f0 100644
---- a/fs/9p/vfs_file.c
-+++ b/fs/9p/vfs_file.c
-@@ -620,6 +620,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	lock_page(page);
- 	if (page->mapping != inode->i_mapping)
- 		goto out_unlock;
-+	wait_on_stable_page_write(page);
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2b7edfa..ca9e37f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2238,9 +2238,12 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+  * Throttle direct reclaimers if backing storage is backed by the network
+  * and the PFMEMALLOC reserve for the preferred node is getting dangerously
+  * depleted. kswapd will continue to make progress and wake the processes
+- * when the low watermark is reached
++ * when the low watermark is reached.
++ *
++ * Returns true if a fatal signal was delivered during throttling. If this
++ * happens, the page allocator should not consider triggering the OOM killer.
+  */
+-static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
++static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 					nodemask_t *nodemask)
+ {
+ 	struct zone *zone;
+@@ -2255,13 +2258,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	 * processes to block on log_wait_commit().
+ 	 */
+ 	if (current->flags & PF_KTHREAD)
+-		return;
++		goto out;
++
++	/*
++	 * If a fatal signal is pending, this process should not throttle.
++	 * It should return quickly so it can exit and free its memory
++	 */
++	if (fatal_signal_pending(current))
++		goto out;
  
- 	return VM_FAULT_LOCKED;
- out_unlock:
-diff --git a/fs/afs/write.c b/fs/afs/write.c
-index 9aa52d9..39eb2a4 100644
---- a/fs/afs/write.c
-+++ b/fs/afs/write.c
-@@ -758,7 +758,7 @@ int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
- #ifdef CONFIG_AFS_FSCACHE
- 	fscache_wait_on_page_write(vnode->cache, page);
- #endif
--
-+	wait_on_stable_page_write(page);
- 	_leave(" = 0");
--	return 0;
-+	return VM_FAULT_LOCKED;
- }
-diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-index 6690269..e9734bf 100644
---- a/fs/ceph/addr.c
-+++ b/fs/ceph/addr.c
-@@ -1208,6 +1208,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		set_page_dirty(page);
- 		up_read(&mdsc->snap_rwsem);
- 		ret = VM_FAULT_LOCKED;
-+		wait_on_stable_page_write(page);
- 	} else {
- 		if (ret == -ENOMEM)
- 			ret = VM_FAULT_OOM;
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index edb25b4..a8770bf 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -2997,6 +2997,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	struct page *page = vmf->page;
+ 	/* Check if the pfmemalloc reserves are ok */
+ 	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+ 	pgdat = zone->zone_pgdat;
+ 	if (pfmemalloc_watermark_ok(pgdat))
+-		return;
++		goto out;
  
- 	lock_page(page);
-+	wait_on_stable_page_write(page);
- 	return VM_FAULT_LOCKED;
- }
- 
-diff --git a/fs/ocfs2/mmap.c b/fs/ocfs2/mmap.c
-index 47a87dd..a0027b1 100644
---- a/fs/ocfs2/mmap.c
-+++ b/fs/ocfs2/mmap.c
-@@ -124,6 +124,7 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
- 				     fsdata);
- 	BUG_ON(ret != len);
- 	ret = VM_FAULT_LOCKED;
-+	wait_on_stable_page_write(page);
- out:
- 	return ret;
- }
-diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-index 5bc7781..cb0d3aa 100644
---- a/fs/ubifs/file.c
-+++ b/fs/ubifs/file.c
-@@ -1522,8 +1522,8 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
- 			ubifs_release_dirty_inode_budget(c, ui);
+ 	/* Account for the throttling */
+ 	count_vm_event(PGSCAN_DIRECT_THROTTLE);
+@@ -2277,12 +2287,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	if (!(gfp_mask & __GFP_FS)) {
+ 		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
+ 			pfmemalloc_watermark_ok(pgdat), HZ);
+-		return;
++
++		goto check_pending;
  	}
  
--	unlock_page(page);
--	return 0;
-+	wait_on_stable_page_write(page);
-+	return VM_FAULT_LOCKED;
+ 	/* Throttle until kswapd wakes the process */
+ 	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+ 		pfmemalloc_watermark_ok(pgdat));
++
++check_pending:
++	if (fatal_signal_pending(current))
++		return true;
++
++out:
++	return false;
+ }
  
- out_unlock:
- 	unlock_page(page);
+ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+@@ -2304,13 +2322,12 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.gfp_mask = sc.gfp_mask,
+ 	};
+ 
+-	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+-
+ 	/*
+-	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
+-	 * that the page allocator does not consider triggering OOM
++	 * Do not enter reclaim if fatal signal was delivered while throttled.
++	 * 1 is returned so that the page allocator does not OOM kill at this
++	 * point.
+ 	 */
+-	if (fatal_signal_pending(current))
++	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
+ 		return 1;
+ 
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
