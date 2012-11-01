@@ -1,78 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 6C1246B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:37:17 -0400 (EDT)
-Date: Thu, 1 Nov 2012 11:43:16 +0900
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 92E716B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:39:37 -0400 (EDT)
+Date: Thu, 1 Nov 2012 11:45:36 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram OOM behavior
-Message-ID: <20121101024316.GB24883@bbox>
-References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
- <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
- <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
- <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
- <20121030001809.GL15767@bbox>
- <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
- <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
- <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
- <20121031005738.GM15767@bbox>
- <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
+Message-ID: <20121101024536.GC24883@bbox>
+References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
+ <20121031010642.GN15767@bbox>
+ <20121031014209.GB2672@kroah.com>
+ <20121031020443.GP15767@bbox>
+ <20121031021618.GA1142@kroah.com>
+ <20121031023947.GA24883@bbox>
+ <20121031024307.GA9210@kroah.com>
+ <20121031070202.GR15767@bbox>
+ <20121031161900.GG31804@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+In-Reply-To: <20121031161900.GG31804@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>, Mel Gorman <mgorman@suse.de>
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 31, 2012 at 11:54:07AM -0700, David Rientjes wrote:
-> On Wed, 31 Oct 2012, Minchan Kim wrote:
+On Wed, Oct 31, 2012 at 09:19:00AM -0700, Greg Kroah-Hartman wrote:
+> On Wed, Oct 31, 2012 at 04:02:02PM +0900, Minchan Kim wrote:
+> > On Tue, Oct 30, 2012 at 07:43:07PM -0700, Greg Kroah-Hartman wrote:
+> > > On Wed, Oct 31, 2012 at 11:39:48AM +0900, Minchan Kim wrote:
+> > > > Greg, what do you think about LTSI?
+> > > > Is it proper feature to add it? For it, still do I need ACK from mm developers?
+> > > 
+> > > It's already in LTSI, as it's in the 3.4 kernel, right?
+> > 
+> > Right. But as I look, it seems to be based on 3.4.11 which doesn't have
+> > recent bug fix and enhances and current 3.4.16 also doesn't include it.
 > 
-> > It sounds right in your kernel but principal problem is min_filelist_kbytes patch.
-> > If normal exited process in exit path requires a page and there is no free page
-> > any more, it ends up going to OOM path after try to reclaim memory several time.
-> > Then,
-> > In select_bad_process,
-> > 
-> >         if (task->flags & PF_EXITING) {
-> >                if (task == current)             <== true
-> >                         return OOM_SCAN_SELECT;
-> > In oom_kill_process,
-> > 
-> >         if (p->flags & PF_EXITING)
-> >                 set_tsk_thread_flag(p, TIF_MEMDIE);
-> > 
-> > At last, normal exited process would get a free page.
-> > 
+> You can ask for those bugfixes to get backported to the stable/longterm
+> kernel tree, see Documentation/stable_kernel_rules.txt for how to do
+> this properly.
 > 
-> select_bad_process() won't actually select the process for oom kill, 
-> though, if there are other PF_EXITING threads other than current.  So if 
-> multiple threads are page faulting on tsk->robust_list, then no thread 
-> ends up getting killed.  The temporary workaround would be to do a kill -9 
-> so that the logic in out_of_memory() could immediately give such threads 
-> access to memory reserves so the page fault will succeed.  The real fix 
-
-It's not true any more.
-3.6 includes following code in try_to_free_pages
-
-        /*   
-         * Do not enter reclaim if fatal signal is pending. 1 is returned so
-         * that the page allocator does not consider triggering OOM
-         */
-        if (fatal_signal_pending(current))
-                return 1;
-
-So the hunged task never go to the OOM path and could be looping forever.
-
-> would be to audit all possible cases in between setting 
-> tsk->flags |= PF_EXITING and tsk->mm = NULL that could cause a memory 
-> allocation and make exemptions for them in oom_scan_process_thread().
+> > Just out of curiosity.
+> > 
+> > Is there any rule about update period in long-term kernel?
+> > I mean how often you release long-term kernel.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> About once a week lately.
+> 
+> > Is there any rule about update period in LTSI kernel based on long-term kernel?
+> 
+> No, the LTSI kernel work has been slow due to the lack of time on my
+> part lately.
+> 
+> > If I get the answer on above two quesion, I can expect later what LTSI kernel
+> > version include feature I need.
+> > 
+> > Another question.
+> > For example, There is A feature in mainline and A has no problem but
+> > someone invents new wheel "B" which is better than A so it replace A totally
+> > in recent mainline. As following stable-kernel rule, it's not a real bug fix
+> > so I guess stable kernel will never replace A with B.
+> 
+> That is correct.
+> 
+> > It means LTSI never get a chance to use new wheel. Right?
+> 
+> No, you can submit the same patches for the LTSI kernel as well, they
+> will probably be accepted as the rules are much more "loose" for the
+> LTSI tree compared to the normal stable/longterm kernel rules.  Which is
+> the primary reason it is around.
+> 
+> Hope this helps,
+> 
+> greg k-h
+
+Thanks, Greg!
 
 -- 
 Kind regards,
