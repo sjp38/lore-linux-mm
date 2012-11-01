@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id BE4786B0093
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id C6CAF6B0098
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:13 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 28/29] slub: slub-specific propagation changes.
-Date: Thu,  1 Nov 2012 16:07:44 +0400
-Message-Id: <1351771665-11076-29-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 13/29] protect architectures where THREAD_SIZE >= PAGE_SIZE against fork bombs
+Date: Thu,  1 Nov 2012 16:07:29 +0400
+Message-Id: <1351771665-11076-14-git-send-email-glommer@parallels.com>
 In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,171 +13,74 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-SLUB allows us to tune a particular cache behavior with sysfs-based
-tunables.  When creating a new memcg cache copy, we'd like to preserve
-any tunables the parent cache already had.
+Because those architectures will draw their stacks directly from the
+page allocator, rather than the slab cache, we can directly pass
+__GFP_KMEMCG flag, and issue the corresponding free_pages.
 
-This can be done by tapping into the store attribute function provided
-by the allocator. We of course don't need to mess with read-only
-fields. Since the attributes can have multiple types and are stored
-internally by sysfs, the best strategy is to issue a ->show() in the
-root cache, and then ->store() in the memcg cache.
+This code path is taken when the architecture doesn't define
+CONFIG_ARCH_THREAD_INFO_ALLOCATOR (only ia64 seems to), and has
+THREAD_SIZE >= PAGE_SIZE. Luckily, most - if not all - of the remaining
+architectures fall in this category.
 
-The drawback of that, is that sysfs can allocate up to a page in
-buffering for show(), that we are likely not to need, but also can't
-guarantee. To avoid always allocating a page for that, we can update the
-caches at store time with the maximum attribute size ever stored to the
-root cache. We will then get a buffer big enough to hold it. The
-corolary to this, is that if no stores happened, nothing will be
-propagated.
+This will guarantee that every stack page is accounted to the memcg the
+process currently lives on, and will have the allocations to fail if
+they go over limit.
 
-It can also happen that a root cache has its tunables updated during
-normal system operation. In this case, we will propagate the change to
-all caches that are already active.
+For the time being, I am defining a new variant of THREADINFO_GFP, not
+to mess with the other path. Once the slab is also tracked by memcg, we
+can get rid of that flag.
+
+Tested to successfully protect against :(){ :|:& };:
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Frederic Weisbecker <fweisbec@redhat.com>
+Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Michal Hocko <mhocko@suse.cz>
-CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- include/linux/slub_def.h |  1 +
- mm/slub.c                | 76 +++++++++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 76 insertions(+), 1 deletion(-)
+ include/linux/thread_info.h | 2 ++
+ kernel/fork.c               | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index 364ba6c..9db4825 100644
---- a/include/linux/slub_def.h
-+++ b/include/linux/slub_def.h
-@@ -103,6 +103,7 @@ struct kmem_cache {
- #endif
- #ifdef CONFIG_MEMCG_KMEM
- 	struct memcg_cache_params *memcg_params;
-+	int max_attr_size; /* for propagation, maximum size of a stored attr */
+diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+index ccc1899..e7e0473 100644
+--- a/include/linux/thread_info.h
++++ b/include/linux/thread_info.h
+@@ -61,6 +61,8 @@ extern long do_no_restart_syscall(struct restart_block *parm);
+ # define THREADINFO_GFP		(GFP_KERNEL | __GFP_NOTRACK)
  #endif
  
- #ifdef CONFIG_NUMA
-diff --git a/mm/slub.c b/mm/slub.c
-index ffc8ede..6c39af8 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -203,13 +203,14 @@ enum track_item { TRACK_ALLOC, TRACK_FREE };
- static int sysfs_slab_add(struct kmem_cache *);
- static int sysfs_slab_alias(struct kmem_cache *, const char *);
- static void sysfs_slab_remove(struct kmem_cache *);
--
-+static void memcg_propagate_slab_attrs(struct kmem_cache *s);
- #else
- static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
- static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
- 							{ return 0; }
- static inline void sysfs_slab_remove(struct kmem_cache *s) { }
- 
-+static inline void memcg_propagate_slab_attrs(struct kmem_cache *s) { }
- #endif
- 
- static inline void stat(const struct kmem_cache *s, enum stat_item si)
-@@ -3955,6 +3956,7 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
- 	if (err)
- 		return err;
- 
-+	memcg_propagate_slab_attrs(s);
- 	mutex_unlock(&slab_mutex);
- 	err = sysfs_slab_add(s);
- 	mutex_lock(&slab_mutex);
-@@ -5180,6 +5182,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
- 	struct slab_attribute *attribute;
- 	struct kmem_cache *s;
- 	int err;
-+	int i __maybe_unused;
- 
- 	attribute = to_slab_attr(attr);
- 	s = to_slab(kobj);
-@@ -5188,10 +5191,81 @@ static ssize_t slab_attr_store(struct kobject *kobj,
- 		return -EIO;
- 
- 	err = attribute->store(s, buf, len);
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (slab_state < FULL)
-+		return err;
- 
-+	if ((err < 0) || !is_root_cache(s))
-+		return err;
++#define THREADINFO_GFP_ACCOUNTED (THREADINFO_GFP | __GFP_KMEMCG)
 +
-+	mutex_lock(&slab_mutex);
-+	if (s->max_attr_size < len)
-+		s->max_attr_size = len;
-+
-+	for_each_memcg_cache_index(i) {
-+		struct kmem_cache *c = cache_from_memcg(s, i);
-+		if (c)
-+			/* return value determined by the parent cache only */
-+			attribute->store(c, buf, len);
-+	}
-+	mutex_unlock(&slab_mutex);
-+#endif
- 	return err;
+ /*
+  * flag set/clear/test wrappers
+  * - pass TIF_xxxx constants to these functions
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 03b86f1..3ec055b 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -146,7 +146,7 @@ void __weak arch_release_thread_info(struct thread_info *ti)
+ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+ 						  int node)
+ {
+-	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
++	struct page *page = alloc_pages_node(node, THREADINFO_GFP_ACCOUNTED,
+ 					     THREAD_SIZE_ORDER);
+ 
+ 	return page ? page_address(page) : NULL;
+@@ -154,7 +154,7 @@ static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+ 
+ static inline void free_thread_info(struct thread_info *ti)
+ {
+-	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
++	free_memcg_kmem_pages((unsigned long)ti, THREAD_SIZE_ORDER);
  }
- 
-+static void memcg_propagate_slab_attrs(struct kmem_cache *s)
-+{
-+#ifdef CONFIG_MEMCG_KMEM
-+	int i;
-+	char *buffer = NULL;
-+
-+	if (!is_root_cache(s))
-+		return;
-+
-+	/*
-+	 * This mean this cache had no attribute written. Therefore, no point
-+	 * in copying default values around
-+	 */
-+	if (!s->max_attr_size)
-+		return;
-+
-+	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
-+		char mbuf[64];
-+		char *buf;
-+		struct slab_attribute *attr = to_slab_attr(slab_attrs[i]);
-+
-+		if (!attr || !attr->store || !attr->show)
-+			continue;
-+
-+		/*
-+		 * It is really bad that we have to allocate here, so we will
-+		 * do it only as a fallback. If we actually allocate, though,
-+		 * we can just use the allocated buffer until the end.
-+		 *
-+		 * Most of the slub attributes will tend to be very small in
-+		 * size, but sysfs allows buffers up to a page, so they can
-+		 * theoretically happen.
-+		 */
-+		if (buffer)
-+			buf = buffer;
-+		else if (s->max_attr_size < ARRAY_SIZE(mbuf))
-+			buf = mbuf;
-+		else {
-+			buffer = (char *) get_zeroed_page(GFP_KERNEL);
-+			if (WARN_ON(!buffer))
-+				continue;
-+			buf = buffer;
-+		}
-+
-+		attr->show(s->memcg_params->root_cache, buf);
-+		attr->store(s, buf, strlen(buf));
-+	}
-+
-+	if (buffer)
-+		free_page((unsigned long)buffer);
-+#endif
-+}
-+
- static const struct sysfs_ops slab_sysfs_ops = {
- 	.show = slab_attr_show,
- 	.store = slab_attr_store,
+ # else
+ static struct kmem_cache *thread_info_cache;
 -- 
 1.7.11.7
 
