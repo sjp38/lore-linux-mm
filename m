@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id C78806B009D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:19 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id F38F76B009E
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:20 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 09/29] memcg: kmem accounting lifecycle management
-Date: Thu,  1 Nov 2012 16:07:25 +0400
-Message-Id: <1351771665-11076-10-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 10/29] memcg: use static branches when code not in use
+Date: Thu,  1 Nov 2012 16:07:26 +0400
+Message-Id: <1351771665-11076-11-git-send-email-glommer@parallels.com>
 In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,29 +13,26 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-Because kmem charges can outlive the cgroup, we need to make sure that
-we won't free the memcg structure while charges are still in flight.
-For reviewing simplicity, the charge functions will issue
-mem_cgroup_get() at every charge, and mem_cgroup_put() at every
-uncharge.
+We can use static branches to patch the code in or out when not used.
 
-This can get expensive, however, and we can do better. mem_cgroup_get()
-only really needs to be issued once: when the first limit is set. In the
-same spirit, we only need to issue mem_cgroup_put() when the last charge
-is gone.
+Because the _ACTIVE bit on kmem_accounted is only set after the
+increment is done, we guarantee that the root memcg will always be
+selected for kmem charges until all call sites are patched (see
+memcg_kmem_enabled).  This guarantees that no mischarges are applied.
 
-We'll need an extra bit in kmem_account_flags for that: KMEM_ACCOUNTED_DEAD.
-it will be set when the cgroup dies, if there are charges in the group.
-If there aren't, we can proceed right away.
+static branch decrement happens when the last reference count from the
+kmem accounting in memcg dies. This will only happen when the charges
+drop down to 0.
 
-Our uncharge function will have to test that bit every time the charges
-drop to 0. Because that is not the likely output of
-res_counter_uncharge, this should not impose a big hit on us: it is
-certainly much better than a reference count decrease at every
-operation.
+When that happen, we need to disable the static branch only on those
+memcgs that enabled it. To achieve this, we would be forced to
+complicate the code by keeping track of which memcgs were the ones
+that actually enabled limits, and which ones got it from its parents.
 
-[ v3: merged all lifecycle related patches in one ]
-[ v5: changed memcg_kmem_dead's name ]
+It is a lot simpler just to do static_key_slow_inc() on every child
+that is accounted.
+
+[ v4: adapted this patch to the changes in kmem_accounted ]
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 Acked-by: Michal Hocko <mhocko@suse.cz>
@@ -46,139 +43,177 @@ CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- mm/memcontrol.c | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 50 insertions(+), 7 deletions(-)
+ include/linux/memcontrol.h |  4 ++-
+ mm/memcontrol.c            | 79 +++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 78 insertions(+), 5 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index e6ca1cf..2a2ae05 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -22,6 +22,7 @@
+ #include <linux/cgroup.h>
+ #include <linux/vm_event_item.h>
+ #include <linux/hardirq.h>
++#include <linux/jump_label.h>
+ 
+ struct mem_cgroup;
+ struct page_cgroup;
+@@ -410,9 +411,10 @@ static inline void sock_release_memcg(struct sock *sk)
+ #endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
+ 
+ #ifdef CONFIG_MEMCG_KMEM
++extern struct static_key memcg_kmem_enabled_key;
+ static inline bool memcg_kmem_enabled(void)
+ {
+-	return true;
++	return static_key_false(&memcg_kmem_enabled_key);
+ }
+ 
+ /*
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1eefb64..91a021a 100644
+index 91a021a..403f5a7 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -344,6 +344,7 @@ struct mem_cgroup {
+@@ -344,10 +344,13 @@ struct mem_cgroup {
  /* internal only representation about the status of kmem accounting. */
  enum {
  	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
-+	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
++	KMEM_ACCOUNTED_ACTIVATED, /* static key enabled. */
+ 	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
  };
  
- #define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
-@@ -353,6 +354,23 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
- {
- 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+-#define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
++/* We account when limit is on, but only after call sites are patched */
++#define KMEM_ACCOUNTED_MASK \
++		((1 << KMEM_ACCOUNTED_ACTIVE) | (1 << KMEM_ACCOUNTED_ACTIVATED))
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
+@@ -360,6 +363,11 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
  }
-+
-+static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ 
++static void memcg_kmem_set_activated(struct mem_cgroup *memcg)
 +{
-+	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
++	set_bit(KMEM_ACCOUNTED_ACTIVATED, &memcg->kmem_account_flags);
 +}
 +
-+static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
-+{
-+	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
-+		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
-+}
-+
-+static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
-+{
-+	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
-+				  &memcg->kmem_account_flags);
-+}
+ static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
+ {
+ 	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+@@ -530,6 +538,26 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
+ }
  #endif
  
- /* Stuffs for move charges at task migration. */
-@@ -2691,10 +2709,16 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
++#ifdef CONFIG_MEMCG_KMEM
++struct static_key memcg_kmem_enabled_key;
++
++static void disarm_kmem_keys(struct mem_cgroup *memcg)
++{
++	if (memcg_kmem_is_active(memcg))
++		static_key_slow_dec(&memcg_kmem_enabled_key);
++}
++#else
++static void disarm_kmem_keys(struct mem_cgroup *memcg)
++{
++}
++#endif /* CONFIG_MEMCG_KMEM */
++
++static void disarm_static_keys(struct mem_cgroup *memcg)
++{
++	disarm_sock_keys(memcg);
++	disarm_kmem_keys(memcg);
++}
++
+ static void drain_all_stock_async(struct mem_cgroup *memcg);
  
- static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+ static struct mem_cgroup_per_zone *
+@@ -4167,6 +4195,8 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
  {
--	res_counter_uncharge(&memcg->kmem, size);
- 	res_counter_uncharge(&memcg->res, size);
- 	if (do_swap_account)
- 		res_counter_uncharge(&memcg->memsw, size);
+ 	int ret = -EINVAL;
+ #ifdef CONFIG_MEMCG_KMEM
++	bool must_inc_static_branch = false;
 +
-+	/* Not down to 0 */
-+	if (res_counter_uncharge(&memcg->kmem, size))
-+		return;
-+
-+	if (memcg_kmem_test_and_clear_dead(memcg))
-+		mem_cgroup_put(memcg);
- }
- 
- /*
-@@ -2733,13 +2757,9 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
- 		return true;
- 	}
- 
--	mem_cgroup_get(memcg);
--
- 	ret = memcg_charge_kmem(memcg, gfp, PAGE_SIZE << order);
- 	if (!ret)
- 		*_memcg = memcg;
--	else
--		mem_cgroup_put(memcg);
- 
- 	css_put(&memcg->css);
- 	return (ret == 0);
-@@ -2755,7 +2775,6 @@ void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
- 	/* The page allocation failed. Revert */
- 	if (!page) {
- 		memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
--		mem_cgroup_put(memcg);
- 		return;
- 	}
- 
-@@ -2796,7 +2815,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
- 
- 	VM_BUG_ON(mem_cgroup_is_root(memcg));
- 	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
--	mem_cgroup_put(memcg);
- }
- #endif /* CONFIG_MEMCG_KMEM */
- 
-@@ -4180,6 +4198,13 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 	/*
+ 	 * For simplicity, we won't allow this to be disabled.  It also can't
+@@ -4197,7 +4227,15 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 		ret = res_counter_set_limit(&memcg->kmem, val);
  		VM_BUG_ON(ret);
  
- 		memcg_kmem_set_active(memcg);
+-		memcg_kmem_set_active(memcg);
 +		/*
-+		 * kmem charges can outlive the cgroup. In the case of slab
-+		 * pages, for instance, a page contain objects from various
-+		 * processes, so it is unfeasible to migrate them away. We
-+		 * need to reference count the memcg because of that.
++		 * After this point, kmem_accounted (that we test atomically in
++		 * the beginning of this conditional), is no longer 0. This
++		 * guarantees only one process will set the following boolean
++		 * to true. We don't need test_and_set because we're protected
++		 * by the set_limit_mutex anyway.
 +		 */
-+		mem_cgroup_get(memcg);
- 	} else
- 		ret = res_counter_set_limit(&memcg->kmem, val);
++		memcg_kmem_set_activated(memcg);
++		must_inc_static_branch = true;
+ 		/*
+ 		 * kmem charges can outlive the cgroup. In the case of slab
+ 		 * pages, for instance, a page contain objects from various
+@@ -4210,6 +4248,27 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
  out:
-@@ -4195,6 +4220,10 @@ static void memcg_propagate_kmem(struct mem_cgroup *memcg)
- 	if (!parent)
- 		return;
- 	memcg->kmem_account_flags = parent->kmem_account_flags;
-+#ifdef CONFIG_MEMCG_KMEM
-+	if (memcg_kmem_is_active(memcg))
-+		mem_cgroup_get(memcg);
-+#endif
- }
- 
- /*
-@@ -4883,6 +4912,20 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
- static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
- {
- 	mem_cgroup_sockets_destroy(memcg);
-+
-+	memcg_kmem_mark_dead(memcg);
-+
-+	if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
-+		return;
+ 	mutex_unlock(&set_limit_mutex);
+ 	cgroup_unlock();
 +
 +	/*
-+	 * Charges already down to 0, undo mem_cgroup_get() done in the charge
-+	 * path here, being careful not to race with memcg_uncharge_kmem: it is
-+	 * possible that the charges went down to 0 between mark_dead and the
-+	 * res_counter read, so in that case, we don't need the put
++	 * We are by now familiar with the fact that we can't inc the static
++	 * branch inside cgroup_lock. See disarm functions for details. A
++	 * worker here is overkill, but also wrong: After the limit is set, we
++	 * must start accounting right away. Since this operation can't fail,
++	 * we can safely defer it to here - no rollback will be needed.
++	 *
++	 * The boolean used to control this is also safe, because
++	 * KMEM_ACCOUNTED_ACTIVATED guarantees that only one process will be
++	 * able to set it to true;
 +	 */
-+	if (memcg_kmem_test_and_clear_dead(memcg))
-+		mem_cgroup_put(memcg);
++	if (must_inc_static_branch) {
++		static_key_slow_inc(&memcg_kmem_enabled_key);
++		/*
++		 * setting the active bit after the inc will guarantee no one
++		 * starts accounting before all call sites are patched
++		 */
++		memcg_kmem_set_active(memcg);
++	}
++
+ #endif
+ 	return ret;
  }
- #else
- static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+@@ -4221,8 +4280,20 @@ static void memcg_propagate_kmem(struct mem_cgroup *memcg)
+ 		return;
+ 	memcg->kmem_account_flags = parent->kmem_account_flags;
+ #ifdef CONFIG_MEMCG_KMEM
+-	if (memcg_kmem_is_active(memcg))
++	/*
++	 * When that happen, we need to disable the static branch only on those
++	 * memcgs that enabled it. To achieve this, we would be forced to
++	 * complicate the code by keeping track of which memcgs were the ones
++	 * that actually enabled limits, and which ones got it from its
++	 * parents.
++	 *
++	 * It is a lot simpler just to do static_key_slow_inc() on every child
++	 * that is accounted.
++	 */
++	if (memcg_kmem_is_active(memcg)) {
+ 		mem_cgroup_get(memcg);
++		static_key_slow_inc(&memcg_kmem_enabled_key);
++	}
+ #endif
+ }
+ 
+@@ -5147,7 +5218,7 @@ static void free_work(struct work_struct *work)
+ 	 * to move this code around, and make sure it is outside
+ 	 * the cgroup_lock.
+ 	 */
+-	disarm_sock_keys(memcg);
++	disarm_static_keys(memcg);
+ 	if (size < PAGE_SIZE)
+ 		kfree(memcg);
+ 	else
 -- 
 1.7.11.7
 
