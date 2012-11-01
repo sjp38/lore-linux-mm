@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id AC7F26B0044
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 01:38:48 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so1091993dad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:38:48 -0700 (PDT)
-Date: Wed, 31 Oct 2012 22:38:45 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm: fix build warning for uninitialized value
-Message-ID: <alpine.DEB.2.00.1210312234180.31758@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 2859E6B0044
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 01:46:15 -0400 (EDT)
+Message-ID: <50920E01.6060708@cn.fujitsu.com>
+Date: Thu, 01 Nov 2012 13:52:01 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-1830707544-1351748326=:31758"
+Subject: Re: [PART2 Patch] node: cleanup node_state_attr
+References: <1351666528-8226-1-git-send-email-wency@cn.fujitsu.com> <1351666528-8226-2-git-send-email-wency@cn.fujitsu.com> <alpine.DEB.2.00.1210311128570.8809@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1210311128570.8809@chino.kir.corp.google.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Haggai Eran <haggaie@mellanox.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+At 11/01/2012 02:29 AM, David Rientjes Wrote:
+> On Wed, 31 Oct 2012, Wen Congyang wrote:
+> 
+>> diff --git a/drivers/base/node.c b/drivers/base/node.c
+>> index af1a177..5d7731e 100644
+>> --- a/drivers/base/node.c
+>> +++ b/drivers/base/node.c
+>> @@ -614,23 +614,23 @@ static ssize_t show_node_state(struct device *dev,
+>>  	{ __ATTR(name, 0444, show_node_state, NULL), state }
+>>  
+>>  static struct node_attr node_state_attr[] = {
+>> -	_NODE_ATTR(possible, N_POSSIBLE),
+>> -	_NODE_ATTR(online, N_ONLINE),
+>> -	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
+>> -	_NODE_ATTR(has_cpu, N_CPU),
+>> +	[N_POSSIBLE] = _NODE_ATTR(possible, N_POSSIBLE),
+>> +	[N_ONLINE] = _NODE_ATTR(online, N_ONLINE),
+>> +	[N_NORMAL_MEMORY] = _NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
+>>  #ifdef CONFIG_HIGHMEM
+>> -	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+>> +	[N_HIGH_MEMORY] = _NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
+>>  #endif
+>> +	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
+>>  };
+>>  
+> 
+> Why change the index for N_CPU?
 
---531381512-1830707544-1351748326=:31758
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+N_CPU > N_HIGH_MEMORY
 
-do_wp_page() sets mmun_called if mmun_start and mmun_end were initialized 
-and, if so, may call mmu_notifier_invalidate_range_end() with these 
-values.  This doesn't prevent gcc from emitting a build warning though:
+We use this array to create attr file in sysfs. So changing the index for N_CPU
+doesn't cause any other problem.
 
-mm/memory.c: In function a??do_wp_pagea??:
-mm/memory.c:2530: warning: a??mmun_starta?? may be used uninitialized in this function
-mm/memory.c:2531: warning: a??mmun_enda?? may be used uninitialized in this function
+Thanks
+Wen Congyang
 
-It's much easier to initialize the variables to impossible values and do a 
-simple comparison to determine if they were initialized to remove the bool 
-entirely.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/memory.c |   10 ++++------
- 1 file changed, 4 insertions(+), 6 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2527,9 +2527,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int ret = 0;
- 	int page_mkwrite = 0;
- 	struct page *dirty_page = NULL;
--	unsigned long mmun_start;	/* For mmu_notifiers */
--	unsigned long mmun_end;		/* For mmu_notifiers */
--	bool mmun_called = false;	/* For mmu_notifiers */
-+	unsigned long mmun_start = 0;	/* For mmu_notifiers */
-+	unsigned long mmun_end = 0;	/* For mmu_notifiers */
- 
- 	old_page = vm_normal_page(vma, address, orig_pte);
- 	if (!old_page) {
-@@ -2708,8 +2707,7 @@ gotten:
- 		goto oom_free_new;
- 
- 	mmun_start  = address & PAGE_MASK;
--	mmun_end    = (address & PAGE_MASK) + PAGE_SIZE;
--	mmun_called = true;
-+	mmun_end    = mmun_start + PAGE_SIZE;
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
- 	/*
-@@ -2778,7 +2776,7 @@ gotten:
- 		page_cache_release(new_page);
- unlock:
- 	pte_unmap_unlock(page_table, ptl);
--	if (mmun_called)
-+	if (mmun_end > mmun_start)
- 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 	if (old_page) {
- 		/*
---531381512-1830707544-1351748326=:31758--
+> 
+>>  static struct attribute *node_state_attrs[] = {
+>> -	&node_state_attr[0].attr.attr,
+>> -	&node_state_attr[1].attr.attr,
+>> -	&node_state_attr[2].attr.attr,
+>> -	&node_state_attr[3].attr.attr,
+>> +	&node_state_attr[N_POSSIBLE].attr.attr,
+>> +	&node_state_attr[N_ONLINE].attr.attr,
+>> +	&node_state_attr[N_NORMAL_MEMORY].attr.attr,
+>>  #ifdef CONFIG_HIGHMEM
+>> -	&node_state_attr[4].attr.attr,
+>> +	&node_state_attr[N_HIGH_MEMORY].attr.attr,
+>>  #endif
+>> +	&node_state_attr[N_CPU].attr.attr,
+>>  	NULL
+>>  };
+>>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
