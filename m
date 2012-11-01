@@ -1,145 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id AD1F66B0070
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:08:12 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 16DB86B0068
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:09 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 08/29] res_counter: return amount of charges after res_counter_uncharge
-Date: Thu,  1 Nov 2012 16:07:24 +0400
-Message-Id: <1351771665-11076-9-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 14/29] Add documentation about the kmem controller
+Date: Thu,  1 Nov 2012 16:07:30 +0400
+Message-Id: <1351771665-11076-15-git-send-email-glommer@parallels.com>
 In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Suleiman Souhlal <suleiman@google.com>
-
-It is useful to know how many charges are still left after a call to
-res_counter_uncharge. While it is possible to issue a res_counter_read
-after uncharge, this can be racy.
-
-If we need, for instance, to take some action when the counters drop
-down to 0, only one of the callers should see it. This is the same
-semantics as the atomic variables in the kernel.
-
-Since the current return value is void, we don't need to worry about
-anything breaking due to this change: nobody relied on that, and only
-users appearing from now on will be checking this value.
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Frederic Weisbecker <fweisbec@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+CC: Frederic Weisbecker <fweisbec@redhat.com>
+CC: Christoph Lameter <cl@linux.com>
+CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- Documentation/cgroups/resource_counter.txt |  7 ++++---
- include/linux/res_counter.h                | 12 +++++++-----
- kernel/res_counter.c                       | 20 +++++++++++++-------
- 3 files changed, 24 insertions(+), 15 deletions(-)
+ Documentation/cgroups/memory.txt | 59 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 58 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
-index 0c4a344..c4d99ed 100644
---- a/Documentation/cgroups/resource_counter.txt
-+++ b/Documentation/cgroups/resource_counter.txt
-@@ -83,16 +83,17 @@ to work with it.
- 	res_counter->lock internally (it must be called with res_counter->lock
- 	held). The force parameter indicates whether we can bypass the limit.
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index c07f7b4..206853b 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -71,6 +71,11 @@ Brief summary of control files.
+  memory.oom_control		 # set/show oom controls.
+  memory.numa_stat		 # show the number of memory usage per numa node
  
-- e. void res_counter_uncharge[_locked]
-+ e. u64 res_counter_uncharge[_locked]
- 			(struct res_counter *rc, unsigned long val)
++ memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
++ memory.kmem.usage_in_bytes      # show current kernel memory allocation
++ memory.kmem.failcnt             # show the number of kernel memory usage hits limits
++ memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
++
+  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
+  memory.kmem.tcp.failcnt            # show the number of tcp buf memory usage hits limits
+@@ -268,20 +273,66 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
+ different than user memory, since it can't be swapped out, which makes it
+ possible to DoS the system by consuming too much of this precious resource.
  
- 	When a resource is released (freed) it should be de-accounted
- 	from the resource counter it was accounted to.  This is called
--	"uncharging".
-+	"uncharging". The return value of this function indicate the amount
-+	of charges still present in the counter.
++Kernel memory won't be accounted at all until limit on a group is set. This
++allows for existing setups to continue working without disruption.  The limit
++cannot be set if the cgroup have children, or if there are already tasks in the
++cgroup. Attempting to set the limit under those conditions will return -EBUSY.
++When use_hierarchy == 1 and a group is accounted, its children will
++automatically be accounted regardless of their limit value.
++
++After a group is first limited, it will be kept being accounted until it
++is removed. The memory limitation itself, can of course be removed by writing
++-1 to memory.kmem.limit_in_bytes. In this case, kmem will be accounted, but not
++limited.
++
+ Kernel memory limits are not imposed for the root cgroup. Usage for the root
+-cgroup may or may not be accounted.
++cgroup may or may not be accounted. The memory used is accumulated into
++memory.kmem.usage_in_bytes, or in a separate counter when it makes sense.
++(currently only for tcp).
++The main "kmem" counter is fed into the main counter, so kmem charges will
++also be visible from the user counter.
  
- 	The _locked routines imply that the res_counter->lock is taken.
+ Currently no soft limit is implemented for kernel memory. It is future work
+ to trigger slab reclaim when those limits are reached.
  
-- f. void res_counter_uncharge_until
-+ f. u64 res_counter_uncharge_until
- 		(struct res_counter *rc, struct res_counter *top,
- 		 unsinged long val)
+ 2.7.1 Current Kernel Memory resources accounted
  
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 7d7fbe2..4b173b6 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -130,14 +130,16 @@ int res_counter_charge_nofail(struct res_counter *counter,
-  *
-  * these calls check for usage underflow and show a warning on the console
-  * _locked call expects the counter->lock to be taken
-+ *
-+ * returns the total charges still present in @counter.
-  */
++* stack pages: every process consumes some stack pages. By accounting into
++kernel memory, we prevent new processes from being created when the kernel
++memory usage is too high.
++
+ * sockets memory pressure: some sockets protocols have memory pressure
+ thresholds. The Memory Controller allows them to be controlled individually
+ per cgroup, instead of globally.
  
--void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
--void res_counter_uncharge(struct res_counter *counter, unsigned long val);
-+u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
-+u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+ * tcp memory pressure: sockets memory pressure for the tcp protocol.
  
--void res_counter_uncharge_until(struct res_counter *counter,
--				struct res_counter *top,
--				unsigned long val);
-+u64 res_counter_uncharge_until(struct res_counter *counter,
-+			       struct res_counter *top,
-+			       unsigned long val);
- /**
-  * res_counter_margin - calculate chargeable space of a counter
-  * @cnt: the counter
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index ad581aa..7b3d6dc 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -86,33 +86,39 @@ int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
- 	return __res_counter_charge(counter, val, limit_fail_at, true);
- }
++2.7.3 Common use cases
++
++Because the "kmem" counter is fed to the main user counter, kernel memory can
++never be limited completely independently of user memory. Say "U" is the user
++limit, and "K" the kernel limit. There are three possible ways limits can be
++set:
++
++    U != 0, K = unlimited:
++    This is the standard memcg limitation mechanism already present before kmem
++    accounting. Kernel memory is completely ignored.
++
++    U != 0, K < U:
++    Kernel memory is a subset of the user memory. This setup is useful in
++    deployments where the total amount of memory per-cgroup is overcommited.
++    Overcommiting kernel memory limits is definitely not recommended, since the
++    box can still run out of non-reclaimable memory.
++    In this case, the admin could set up K so that the sum of all groups is
++    never greater than the total memory, and freely set U at the cost of his
++    QoS.
++
++    U != 0, K >= U:
++    Since kmem charges will also be fed to the user counter and reclaim will be
++    triggered for the cgroup for both kinds of memory. This setup gives the
++    admin a unified view of memory, and it is also useful for people who just
++    want to track kernel memory usage.
++
+ 3. User Interface
  
--void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
-+u64 res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
- {
- 	if (WARN_ON(counter->usage < val))
- 		val = counter->usage;
+ 0. Configuration
+@@ -290,6 +341,7 @@ a. Enable CONFIG_CGROUPS
+ b. Enable CONFIG_RESOURCE_COUNTERS
+ c. Enable CONFIG_MEMCG
+ d. Enable CONFIG_MEMCG_SWAP (to use swap extension)
++d. Enable CONFIG_MEMCG_KMEM (to use kmem extension)
  
- 	counter->usage -= val;
-+	return counter->usage;
- }
+ 1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
+ # mount -t tmpfs none /sys/fs/cgroup
+@@ -406,6 +458,11 @@ About use_hierarchy, see Section 6.
+   Because rmdir() moves all pages to parent, some out-of-use page caches can be
+   moved to the parent. If you want to avoid that, force_empty will be useful.
  
--void res_counter_uncharge_until(struct res_counter *counter,
--				struct res_counter *top,
--				unsigned long val)
-+u64 res_counter_uncharge_until(struct res_counter *counter,
-+			       struct res_counter *top,
-+			       unsigned long val)
- {
- 	unsigned long flags;
- 	struct res_counter *c;
-+	u64 ret = 0;
++  Also, note that when memory.kmem.limit_in_bytes is set the charges due to
++  kernel pages will still be seen. This is not considered a failure and the
++  write will still return success. In this case, it is expected that
++  memory.kmem.usage_in_bytes == memory.usage_in_bytes.
++
+   About use_hierarchy, see Section 6.
  
- 	local_irq_save(flags);
- 	for (c = counter; c != top; c = c->parent) {
-+		u64 r;
- 		spin_lock(&c->lock);
--		res_counter_uncharge_locked(c, val);
-+		r = res_counter_uncharge_locked(c, val);
-+		if (c == counter)
-+			ret = r;
- 		spin_unlock(&c->lock);
- 	}
- 	local_irq_restore(flags);
-+	return ret;
- }
- 
--void res_counter_uncharge(struct res_counter *counter, unsigned long val)
-+u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
- {
--	res_counter_uncharge_until(counter, NULL, val);
-+	return res_counter_uncharge_until(counter, NULL, val);
- }
- 
- static inline unsigned long long *
+ 5.2 stat file
 -- 
 1.7.11.7
 
