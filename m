@@ -1,136 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id E57106B0070
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 16:23:02 -0400 (EDT)
-Received: by mail-vb0-f41.google.com with SMTP id v13so3856763vbk.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 13:23:01 -0700 (PDT)
-Date: Thu, 1 Nov 2012 16:22:54 -0400
-From: Jeff Layton <jlayton@samba.org>
-Subject: Re: [PATCH 3/3] fs: Fix remaining filesystems to wait for stable
- page writeback
-Message-ID: <20121101162254.03dbbd9a@tlielax.poochiereds.net>
-In-Reply-To: <5092C2CE.7070209@panasas.com>
-References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
-	<20121101075829.16153.92036.stgit@blackbox.djwong.org>
-	<5092C2CE.7070209@panasas.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 3D3AF6B0072
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 16:24:45 -0400 (EDT)
+Date: Thu, 1 Nov 2012 20:24:43 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: CK4 [00/15] Sl[auo]b: Common kmalloc caches V4
+In-Reply-To: <CALF0-+UUREQZT1NEBq-V_04WBDOt6GccDkHB+zPXW6u6uhvj=Q@mail.gmail.com>
+Message-ID: <0000013abda5ae3c-f1f548fb-4878-4ae2-8f5a-bfad5922cf04-000000@email.amazonses.com>
+References: <0000013a934eed6d-a9c1b247-dbbc-485d-b7cf-89aa36dcca57-000000@email.amazonses.com> <CALF0-+UUREQZT1NEBq-V_04WBDOt6GccDkHB+zPXW6u6uhvj=Q@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <bharrosh@panasas.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov, linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
+To: Ezequiel Garcia <elezegarcia@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-On Thu, 1 Nov 2012 11:43:26 -0700
-Boaz Harrosh <bharrosh@panasas.com> wrote:
+On Thu, 1 Nov 2012, Ezequiel Garcia wrote:
 
-> On 11/01/2012 12:58 AM, Darrick J. Wong wrote:
-> > Fix up the filesystems that provide their own ->page_mkwrite handlers to
-> > provide stable page writes if necessary.
-> > 
-> > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > ---
-> >  fs/9p/vfs_file.c |    1 +
-> >  fs/afs/write.c   |    4 ++--
-> >  fs/ceph/addr.c   |    1 +
-> >  fs/cifs/file.c   |    1 +
-> >  fs/ocfs2/mmap.c  |    1 +
-> >  fs/ubifs/file.c  |    4 ++--
-> >  6 files changed, 8 insertions(+), 4 deletions(-)
-> > 
-> > 
-> > diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-> > index c2483e9..aa253f0 100644
-> > --- a/fs/9p/vfs_file.c
-> > +++ b/fs/9p/vfs_file.c
-> > @@ -620,6 +620,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> >  	lock_page(page);
-> >  	if (page->mapping != inode->i_mapping)
-> >  		goto out_unlock;
-> > +	wait_on_stable_page_write(page);
-> >  
-> 
-> Good god thanks, yes please ;-)
-> 
-> >  	return VM_FAULT_LOCKED;
-> >  out_unlock:
-> > diff --git a/fs/afs/write.c b/fs/afs/write.c
-> > index 9aa52d9..39eb2a4 100644
-> > --- a/fs/afs/write.c
-> > +++ b/fs/afs/write.c
-> > @@ -758,7 +758,7 @@ int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
-> 
-> afs, is it not a network filesystem? which means that it has it's own emulated none-block-device
-> BDI, registered internally. So if you do need stable pages someone should call
-> bdi_require_stable_pages()
-> 
-> But again since it is a network filesystem I don't see how it is needed, and/or it might be
-> taken care of already.
-> 
-> >  #ifdef CONFIG_AFS_FSCACHE
-> >  	fscache_wait_on_page_write(vnode->cache, page);
-> >  #endif
-> > -
-> > +	wait_on_stable_page_write(page);
-> >  	_leave(" = 0");
-> > -	return 0;
-> > +	return VM_FAULT_LOCKED;
-> >  }
-> > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> 
-> CEPH for sure has it's own "emulated none-block-device BDI". This one is also
-> a pure networking filesystem.
-> 
-> And it already does what it needs to do with wait_on_writeback().
-> 
-> So i do not think you should touch CEPH
-> 
-> > index 6690269..e9734bf 100644
-> > --- a/fs/ceph/addr.c
-> > +++ b/fs/ceph/addr.c
-> > @@ -1208,6 +1208,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> >  		set_page_dirty(page);
-> >  		up_read(&mdsc->snap_rwsem);
-> >  		ret = VM_FAULT_LOCKED;
-> > +		wait_on_stable_page_write(page);
-> >  	} else {
-> >  		if (ret == -ENOMEM)
-> >  			ret = VM_FAULT_OOM;
-> > diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-> 
-> Cifs also self-BDI network filesystem, but
-> 
-> > index edb25b4..a8770bf 100644
-> > --- a/fs/cifs/file.c
-> > +++ b/fs/cifs/file.c
-> > @@ -2997,6 +2997,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> >  	struct page *page = vmf->page;
-> >  
-> >  	lock_page(page);
-> 
-> It waits by locking the page, that's cifs naive way of waiting for writeback
-> 
-> > +	wait_on_stable_page_write(page);
-> 
-> Instead it could do better and not override page_mkwrite at all, and all it needs
-> to do is call bdi_require_stable_pages() at it's own registered BDI
-> 
+> While testing this patchset, I found a BUG.
+>
+> All I did was "sudo mount -a" to mount my development partitions.
+>
+> [   25.366266] BUG: unable to handle kernel paging request at ffffffc0
+> [   25.366419] IP: [<c10d93b2>] slab_unmergeable+0x12/0x30
 
-Hmm...I don't know...
+Arg. More sysfs trouble I guess. Sysfs is the cause for a lot of slub
+fragility. Sigh.
 
-I've never been crazy about using the page lock for this, but in the
-absence of a better way to guarantee stable pages, it was what I ended
-up with at the time. cifs_writepages will hold the page lock until
-kernel_sendmsg returns. At that point the TCP layer will have copied
-off the page data so it's safe to release it.
-
-With this change though, we're going to end up blocking until the
-writeback flag clears, right? And I think that will happen when the
-reply comes in? So, we'll end up blocking for much longer than is
-really necessary in page_mkwrite with this change.
-
--- 
-Jeff Layton <jlayton@samba.org>
+Can you rerun this with "slub_debug" as a kernel option?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
