@@ -1,84 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 92E716B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:39:37 -0400 (EDT)
-Date: Thu, 1 Nov 2012 11:45:36 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 0/3] zram/zsmalloc promotion
-Message-ID: <20121101024536.GC24883@bbox>
-References: <1351501009-15111-1-git-send-email-minchan@kernel.org>
- <20121031010642.GN15767@bbox>
- <20121031014209.GB2672@kroah.com>
- <20121031020443.GP15767@bbox>
- <20121031021618.GA1142@kroah.com>
- <20121031023947.GA24883@bbox>
- <20121031024307.GA9210@kroah.com>
- <20121031070202.GR15767@bbox>
- <20121031161900.GG31804@kroah.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 11D556B006C
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:49:17 -0400 (EDT)
+Message-ID: <5091E485.7090409@cn.fujitsu.com>
+Date: Thu, 01 Nov 2012 10:55:01 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121031161900.GG31804@kroah.com>
+Subject: [PATCH] memory-hotplug: fix NR_FREE_PAGES mismatch's fix
+References: <1351682594-17347-1-git-send-email-wency@cn.fujitsu.com> <1351682594-17347-4-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1351682594-17347-4-git-send-email-wency@cn.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jens Axboe <axboe@kernel.dk>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, rjw@sisk.pl, Lai Jiangshan <laijs@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Mel Gorman <mel@csn.ul.ie>, Jianguo wu <wujianguo@huawei.com>
 
-On Wed, Oct 31, 2012 at 09:19:00AM -0700, Greg Kroah-Hartman wrote:
-> On Wed, Oct 31, 2012 at 04:02:02PM +0900, Minchan Kim wrote:
-> > On Tue, Oct 30, 2012 at 07:43:07PM -0700, Greg Kroah-Hartman wrote:
-> > > On Wed, Oct 31, 2012 at 11:39:48AM +0900, Minchan Kim wrote:
-> > > > Greg, what do you think about LTSI?
-> > > > Is it proper feature to add it? For it, still do I need ACK from mm developers?
-> > > 
-> > > It's already in LTSI, as it's in the 3.4 kernel, right?
-> > 
-> > Right. But as I look, it seems to be based on 3.4.11 which doesn't have
-> > recent bug fix and enhances and current 3.4.16 also doesn't include it.
-> 
-> You can ask for those bugfixes to get backported to the stable/longterm
-> kernel tree, see Documentation/stable_kernel_rules.txt for how to do
-> this properly.
-> 
-> > Just out of curiosity.
-> > 
-> > Is there any rule about update period in long-term kernel?
-> > I mean how often you release long-term kernel.
-> 
-> About once a week lately.
-> 
-> > Is there any rule about update period in LTSI kernel based on long-term kernel?
-> 
-> No, the LTSI kernel work has been slow due to the lack of time on my
-> part lately.
-> 
-> > If I get the answer on above two quesion, I can expect later what LTSI kernel
-> > version include feature I need.
-> > 
-> > Another question.
-> > For example, There is A feature in mainline and A has no problem but
-> > someone invents new wheel "B" which is better than A so it replace A totally
-> > in recent mainline. As following stable-kernel rule, it's not a real bug fix
-> > so I guess stable kernel will never replace A with B.
-> 
-> That is correct.
-> 
-> > It means LTSI never get a chance to use new wheel. Right?
-> 
-> No, you can submit the same patches for the LTSI kernel as well, they
-> will probably be accepted as the rules are much more "loose" for the
-> LTSI tree compared to the normal stable/longterm kernel rules.  Which is
-> the primary reason it is around.
-> 
-> Hope this helps,
-> 
-> greg k-h
+When a page is freed and put into pcp list, get_freepage_migratetype()
+doesn't return MIGRATE_ISOLATE even if this pageblock is isolated.
+So we should use get_pageblock_migratetype() instead of mt to check
+whether it is isolated.
 
-Thanks, Greg!
+Cc: David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <liuj97@gmail.com>
+Cc: Len Brown <len.brown@intel.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 027afd0..e9c19d2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -667,7 +667,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+ 			__free_one_page(page, zone, 0, mt);
+ 			trace_mm_page_pcpu_drain(page, 0, mt);
+-			if (likely(mt != MIGRATE_ISOLATE)) {
++			if (likely(mt != get_pageblock_migratetype(page))) {
+ 				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+ 				if (is_migrate_cma(mt))
+ 					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
 -- 
-Kind regards,
-Minchan Kim
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
