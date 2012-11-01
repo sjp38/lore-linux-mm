@@ -1,38 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id BE1736B00AA
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:48:06 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2225800pad.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 14:48:06 -0700 (PDT)
-Date: Thu, 1 Nov 2012 14:48:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: zram OOM behavior
-In-Reply-To: <CAA25o9Qsm=Ly1CqoEwhC1wtayAx6S7att-+g4u+g0nkASNKLQA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1211011446270.19373@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com> <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com> <20121030001809.GL15767@bbox> <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
- <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com> <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com> <20121031005738.GM15767@bbox> <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com> <20121101024316.GB24883@bbox>
- <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com> <20121101082814.GL3888@suse.de> <CAA25o9RN4poSQj1z-xka0HQib-2-9+Q_O8Wa+EggBQ1OXUvMUQ@mail.gmail.com> <CAA25o9Qsm=Ly1CqoEwhC1wtayAx6S7att-+g4u+g0nkASNKLQA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id F1E7B6B00AC
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:48:14 -0400 (EDT)
+Message-Id: <0000013abdf22407-d3ab65ab-ace9-4118-8b0e-574ea3e1c802-000000@email.amazonses.com>
+Date: Thu, 1 Nov 2012 21:48:13 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: CK5 [15/18] stat: Use size_t for sizes instead of unsigned
+References: <20121101214538.971500204@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On Thu, 1 Nov 2012, Luigi Semenzato wrote:
+On some platforms (such as IA64) the large page size may results in
+slab allocations to be allowed of numbers that do not fit in 32 bit.
 
-> So which one should I try first, David's change or Mel's?
-> 
-> Does Mel's change take into account the fact that the exiting process
-> is already deep into do_exit() (exit_mm() to be precise) when it tries
-> to allocate?
-> 
+Acked-by: Glauber Costa <glommer@parallels.com>
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Mel's patch is addressing a separate issue since you've already proven 
-that your problem is calling the oom killer which wouldn't occur if your 
-thread had SIGKILL prior to Mel's patch.  It would allow my suggested 
-workaround of killing the hung task to end the livelock, though, but that 
-shouldn't be needed after my patch.
+Index: linux/fs/proc/stat.c
+===================================================================
+--- linux.orig/fs/proc/stat.c	2012-11-01 10:09:46.221403795 -0500
++++ linux/fs/proc/stat.c	2012-11-01 11:19:37.164785019 -0500
+@@ -184,7 +184,7 @@ static int show_stat(struct seq_file *p,
+ 
+ static int stat_open(struct inode *inode, struct file *file)
+ {
+-	unsigned size = 1024 + 128 * num_possible_cpus();
++	size_t size = 1024 + 128 * num_possible_cpus();
+ 	char *buf;
+ 	struct seq_file *m;
+ 	int res;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
