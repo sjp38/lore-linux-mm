@@ -1,120 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id A94286B0062
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 00:49:01 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so1072854dad.14
-        for <linux-mm@kvack.org>; Wed, 31 Oct 2012 21:49:01 -0700 (PDT)
-Date: Wed, 31 Oct 2012 21:48:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: zram OOM behavior
-In-Reply-To: <20121101024316.GB24883@bbox>
-Message-ID: <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com> <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com> <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com> <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
- <20121030001809.GL15767@bbox> <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com> <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com> <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com> <20121031005738.GM15767@bbox>
- <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com> <20121101024316.GB24883@bbox>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 439476B0068
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 00:57:48 -0400 (EDT)
+Date: Thu, 1 Nov 2012 14:03:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
+ index of first flushed entry
+Message-ID: <20121101050347.GD24883@bbox>
+References: <Yes>
+ <1351702597-10795-1-git-send-email-js1304@gmail.com>
+ <1351702597-10795-5-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1351702597-10795-5-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Thu, 1 Nov 2012, Minchan Kim wrote:
-
-> It's not true any more.
-> 3.6 includes following code in try_to_free_pages
+On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
+> In current code, after flush_all_zero_pkmaps() is invoked,
+> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
+> return index of first flushed entry. With this index,
+> we can immediately map highmem page to virtual address represented by index.
+> So change return type of flush_all_zero_pkmaps()
+> and return index of first flushed entry.
 > 
->         /*   
->          * Do not enter reclaim if fatal signal is pending. 1 is returned so
->          * that the page allocator does not consider triggering OOM
->          */
->         if (fatal_signal_pending(current))
->                 return 1;
+> Additionally, update last_pkmap_nr to this index.
+> It is certain that entry which is below this index is occupied by other mapping,
+> therefore updating last_pkmap_nr to this index is reasonable optimization.
 > 
-> So the hunged task never go to the OOM path and could be looping forever.
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 > 
+> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+> index ef788b5..97ad208 100644
+> --- a/include/linux/highmem.h
+> +++ b/include/linux/highmem.h
+> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+>  
+>  #ifdef CONFIG_HIGHMEM
+>  #include <asm/highmem.h>
+> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
+>  
+>  /* declarations for linux/mm/highmem.c */
+>  unsigned int nr_free_highpages(void);
+> diff --git a/mm/highmem.c b/mm/highmem.c
+> index d98b0a9..b365f7b 100644
+> --- a/mm/highmem.c
+> +++ b/mm/highmem.c
+> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
+>  	return virt_to_page(addr);
+>  }
+>  
+> -static void flush_all_zero_pkmaps(void)
+> +static unsigned int flush_all_zero_pkmaps(void)
+>  {
+>  	int i;
+> -	int need_flush = 0;
+> +	unsigned int index = PKMAP_INVALID_INDEX;
+>  
+>  	flush_cache_kmaps();
+>  
+> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
+>  			  &pkmap_page_table[i]);
+>  
+>  		set_page_address(page, NULL);
+> -		need_flush = 1;
+> +		if (index == PKMAP_INVALID_INDEX)
+> +			index = i;
+>  	}
+> -	if (need_flush)
+> +	if (index != PKMAP_INVALID_INDEX)
+>  		flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+> +
+> +	return index;
+>  }
+>  
+>  /**
+> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
+>   */
+>  void kmap_flush_unused(void)
+>  {
+> +	unsigned int index;
+> +
+>  	lock_kmap();
+> -	flush_all_zero_pkmaps();
+> +	index = flush_all_zero_pkmaps();
+> +	if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
+> +		last_pkmap_nr = index;
 
-Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct 
-reclaimers if PF_MEMALLOC reserves are low and swap is backed by network 
-storage").  Thanks for adding Mel to the cc.
+I don't know how kmap_flush_unused is really fast path so how my nitpick
+is effective. Anyway,
+What problem happens if we do following as?
 
-The oom killer specifically has logic for this condition: when calling 
-out_of_memory() the first thing it does is
+lock()
+index = flush_all_zero_pkmaps();
+if (index != PKMAP_INVALID_INDEX)
+        last_pkmap_nr = index;
+unlock();
 
-	if (fatal_signal_pending(current))
-		set_thread_flag(TIF_MEMDIE);
+Normally, last_pkmap_nr is increased with searching empty slot in
+map_new_virtual. So I expect return value of flush_all_zero_pkmaps
+in kmap_flush_unused normally become either less than last_pkmap_nr
+or last_pkmap_nr + 1.
 
-to allow it access to memory reserves so that it may exit if it's having 
-trouble.  But that ends up never happening because of the above code that 
-Minchan has identified.
-
-So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages() 
-as well or revert that early return entirely; there's no justification 
-given for it in the comment nor in the commit log.  I'd rather remove it 
-and allow the oom killer to trigger and grant access to memory reserves 
-itself if necessary.
-
-Mel, how does commit 5515061d22f0 deal with threads looping forever if 
-they need memory in the exit path since the oom killer never gets called?
-
-That aside, it doesn't seem like this is the issue that Luigi is reporting 
-since his patch that avoids deferring the oom killer presumably fixes the 
-issue for him.  So it turns out the oom killer must be getting called.
-
-Luigi, can you try this instead?  It applies to the latest git but should 
-be easily modified to apply to any 3.x kernel you're running.
----
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -310,26 +310,13 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
- 	if (!task->mm)
- 		return OOM_SCAN_CONTINUE;
  
--	if (task->flags & PF_EXITING) {
-+	if (task->flags & PF_EXITING && !force_kill) {
- 		/*
--		 * If task is current and is in the process of releasing memory,
--		 * allow the "kill" to set TIF_MEMDIE, which will allow it to
--		 * access memory reserves.  Otherwise, it may stall forever.
--		 *
--		 * The iteration isn't broken here, however, in case other
--		 * threads are found to have already been oom killed.
-+		 * If this task is not being ptraced on exit, then wait for it
-+		 * to finish before killing some other task unnecessarily.
- 		 */
--		if (task == current)
--			return OOM_SCAN_SELECT;
--		else if (!force_kill) {
--			/*
--			 * If this task is not being ptraced on exit, then wait
--			 * for it to finish before killing some other task
--			 * unnecessarily.
--			 */
--			if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
--				return OOM_SCAN_ABORT;
--		}
-+		if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
-+			return OOM_SCAN_ABORT;
- 	}
- 	return OOM_SCAN_OK;
- }
-@@ -706,11 +693,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		return;
- 
- 	/*
--	 * If current has a pending SIGKILL, then automatically select it.  The
--	 * goal is to allow it to allocate so that it may quickly exit and free
--	 * its memory.
-+	 * If current has a pending SIGKILL or is exiting, then automatically
-+	 * select it.  The goal is to allow it to allocate so that it may
-+	 * quickly exit and free its memory.
- 	 */
--	if (fatal_signal_pending(current)) {
-+	if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
- 		set_thread_flag(TIF_MEMDIE);
- 		return;
- 	}
+>  	unlock_kmap();
+>  }
+>  
+>  static inline unsigned long map_new_virtual(struct page *page)
+>  {
+>  	unsigned long vaddr;
+> +	unsigned int index = PKMAP_INVALID_INDEX;
+>  	int count;
+>  
+>  start:
+> @@ -168,40 +176,45 @@ start:
+>  	for (;;) {
+>  		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
+>  		if (!last_pkmap_nr) {
+> -			flush_all_zero_pkmaps();
+> -			count = LAST_PKMAP;
+> +			index = flush_all_zero_pkmaps();
+> +			break;
+>  		}
+> -		if (!pkmap_count[last_pkmap_nr])
+> +		if (!pkmap_count[last_pkmap_nr]) {
+> +			index = last_pkmap_nr;
+>  			break;	/* Found a usable entry */
+> -		if (--count)
+> -			continue;
+> -
+> -		/*
+> -		 * Sleep for somebody else to unmap their entries
+> -		 */
+> -		{
+> -			DECLARE_WAITQUEUE(wait, current);
+> -
+> -			__set_current_state(TASK_UNINTERRUPTIBLE);
+> -			add_wait_queue(&pkmap_map_wait, &wait);
+> -			unlock_kmap();
+> -			schedule();
+> -			remove_wait_queue(&pkmap_map_wait, &wait);
+> -			lock_kmap();
+> -
+> -			/* Somebody else might have mapped it while we slept */
+> -			if (page_address(page))
+> -				return (unsigned long)page_address(page);
+> -
+> -			/* Re-start */
+> -			goto start;
+>  		}
+> +		if (--count == 0)
+> +			break;
+>  	}
+> -	vaddr = PKMAP_ADDR(last_pkmap_nr);
+> +
+> +	/*
+> +	 * Sleep for somebody else to unmap their entries
+> +	 */
+> +	if (index == PKMAP_INVALID_INDEX) {
+> +		DECLARE_WAITQUEUE(wait, current);
+> +
+> +		__set_current_state(TASK_UNINTERRUPTIBLE);
+> +		add_wait_queue(&pkmap_map_wait, &wait);
+> +		unlock_kmap();
+> +		schedule();
+> +		remove_wait_queue(&pkmap_map_wait, &wait);
+> +		lock_kmap();
+> +
+> +		/* Somebody else might have mapped it while we slept */
+> +		vaddr = (unsigned long)page_address(page);
+> +		if (vaddr)
+> +			return vaddr;
+> +
+> +		/* Re-start */
+> +		goto start;
+> +	}
+> +
+> +	vaddr = PKMAP_ADDR(index);
+>  	set_pte_at(&init_mm, vaddr,
+> -		   &(pkmap_page_table[last_pkmap_nr]), mk_pte(page, kmap_prot));
+> +		   &(pkmap_page_table[index]), mk_pte(page, kmap_prot));
+>  
+> -	pkmap_count[last_pkmap_nr] = 1;
+> +	pkmap_count[index] = 1;
+> +	last_pkmap_nr = index;
+>  	set_page_address(page, (void *)vaddr);
+>  
+>  	return vaddr;
+> -- 
+> 1.7.9.5
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
