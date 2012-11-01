@@ -1,135 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 16DB86B0068
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:09 -0400 (EDT)
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 103BC6B006E
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:10 -0400 (EDT)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 14/29] Add documentation about the kmem controller
-Date: Thu,  1 Nov 2012 16:07:30 +0400
-Message-Id: <1351771665-11076-15-git-send-email-glommer@parallels.com>
+Subject: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
+Date: Thu,  1 Nov 2012 16:07:41 +0400
+Message-Id: <1351771665-11076-26-git-send-email-glommer@parallels.com>
 In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Frederic Weisbecker <fweisbec@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+
+This means that when we destroy a memcg cache that happened to be empty,
+those caches may take a lot of time to go away: removing the memcg
+reference won't destroy them - because there are pending references, and
+the empty pages will stay there, until a shrinker is called upon for any
+reason.
+
+In this patch, we will call kmem_cache_shrink for all dead caches that
+cannot be destroyed because of remaining pages. After shrinking, it is
+possible that it could be freed. If this is not the case, we'll schedule
+a lazy worker to keep trying.
+
+[ v2: also call verify_dead for the slab ]
+[ v3: use delayed_work to avoid calling verify_dead at every free]
+[ v6: do not spawn worker if work is already pending ]
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-CC: Frederic Weisbecker <fweisbec@redhat.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
+CC: Michal Hocko <mhocko@suse.cz>
+CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 CC: Johannes Weiner <hannes@cmpxchg.org>
 CC: Suleiman Souhlal <suleiman@google.com>
 CC: Tejun Heo <tj@kernel.org>
 ---
- Documentation/cgroups/memory.txt | 59 +++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 58 insertions(+), 1 deletion(-)
+ include/linux/slab.h |  2 +-
+ mm/memcontrol.c      | 55 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 50 insertions(+), 7 deletions(-)
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index c07f7b4..206853b 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -71,6 +71,11 @@ Brief summary of control files.
-  memory.oom_control		 # set/show oom controls.
-  memory.numa_stat		 # show the number of memory usage per numa node
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index ef2314e..0df42db 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -214,7 +214,7 @@ struct memcg_cache_params {
+ 			struct kmem_cache *root_cache;
+ 			bool dead;
+ 			atomic_t nr_pages;
+-			struct work_struct destroy;
++			struct delayed_work destroy;
+ 		};
+ 	};
+ };
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 31da8bc..6e2575a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3048,12 +3048,35 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
+ {
+ 	struct kmem_cache *cachep;
+ 	struct memcg_cache_params *p;
++	struct delayed_work *dw = to_delayed_work(w);
  
-+ memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
-+ memory.kmem.usage_in_bytes      # show current kernel memory allocation
-+ memory.kmem.failcnt             # show the number of kernel memory usage hits limits
-+ memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
-+
-  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
-  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
-  memory.kmem.tcp.failcnt            # show the number of tcp buf memory usage hits limits
-@@ -268,20 +273,66 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
- different than user memory, since it can't be swapped out, which makes it
- possible to DoS the system by consuming too much of this precious resource.
+-	p = container_of(w, struct memcg_cache_params, destroy);
++	p = container_of(dw, struct memcg_cache_params, destroy);
  
-+Kernel memory won't be accounted at all until limit on a group is set. This
-+allows for existing setups to continue working without disruption.  The limit
-+cannot be set if the cgroup have children, or if there are already tasks in the
-+cgroup. Attempting to set the limit under those conditions will return -EBUSY.
-+When use_hierarchy == 1 and a group is accounted, its children will
-+automatically be accounted regardless of their limit value.
-+
-+After a group is first limited, it will be kept being accounted until it
-+is removed. The memory limitation itself, can of course be removed by writing
-+-1 to memory.kmem.limit_in_bytes. In this case, kmem will be accounted, but not
-+limited.
-+
- Kernel memory limits are not imposed for the root cgroup. Usage for the root
--cgroup may or may not be accounted.
-+cgroup may or may not be accounted. The memory used is accumulated into
-+memory.kmem.usage_in_bytes, or in a separate counter when it makes sense.
-+(currently only for tcp).
-+The main "kmem" counter is fed into the main counter, so kmem charges will
-+also be visible from the user counter.
+ 	cachep = memcg_params_to_cache(p);
  
- Currently no soft limit is implemented for kernel memory. It is future work
- to trigger slab reclaim when those limits are reached.
+-	if (!atomic_read(&cachep->memcg_params->nr_pages))
++	/*
++	 * If we get down to 0 after shrink, we could delete right away.
++	 * However, memcg_release_pages() already puts us back in the workqueue
++	 * in that case. If we proceed deleting, we'll get a dangling
++	 * reference, and removing the object from the workqueue in that case
++	 * is unnecessary complication. We are not a fast path.
++	 *
++	 * Note that this case is fundamentally different from racing with
++	 * shrink_slab(): if memcg_cgroup_destroy_cache() is called in
++	 * kmem_cache_shrink, not only we would be reinserting a dead cache
++	 * into the queue, but doing so from inside the worker racing to
++	 * destroy it.
++	 *
++	 * So if we aren't down to zero, we'll just schedule a worker and try
++	 * again
++	 */
++	if (atomic_read(&cachep->memcg_params->nr_pages) != 0) {
++		kmem_cache_shrink(cachep);
++		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
++			return;
++		/* Once per minute should be good enough. */
++		schedule_delayed_work(&cachep->memcg_params->destroy, 60 * HZ);
++	} else
+ 		kmem_cache_destroy(cachep);
+ }
  
- 2.7.1 Current Kernel Memory resources accounted
+@@ -3063,10 +3086,30 @@ void mem_cgroup_destroy_cache(struct kmem_cache *cachep)
+ 		return;
  
-+* stack pages: every process consumes some stack pages. By accounting into
-+kernel memory, we prevent new processes from being created when the kernel
-+memory usage is too high.
-+
- * sockets memory pressure: some sockets protocols have memory pressure
- thresholds. The Memory Controller allows them to be controlled individually
- per cgroup, instead of globally.
+ 	/*
++	 * There are many ways in which we can get here.
++	 *
++	 * We can get to a memory-pressure situation while the delayed work is
++	 * still pending to run. The vmscan shrinkers can then release all
++	 * cache memory and get us to destruction. If this is the case, we'll
++	 * be executed twice, which is a bug (the second time will execute over
++	 * bogus data). In this case, cancelling the work should be fine.
++	 *
++	 * But we can also get here from the worker itself, if
++	 * kmem_cache_shrink is enough to shake all the remaining objects and
++	 * get the page count to 0. In this case, we'll deadlock if we try to
++	 * cancel the work (the worker runs with an internal lock held, which
++	 * is the same lock we would hold for cancel_delayed_work_sync().)
++	 *
++	 * Since we can't possibly know who got us here, just refrain from
++	 * running if there is already work pending
++	 */
++	if (delayed_work_pending(&cachep->memcg_params->destroy))
++		return;
++	/*
+ 	 * We have to defer the actual destroying to a workqueue, because
+ 	 * we might currently be in a context that cannot sleep.
+ 	 */
+-	schedule_work(&cachep->memcg_params->destroy);
++	schedule_delayed_work(&cachep->memcg_params->destroy, 0);
+ }
  
- * tcp memory pressure: sockets memory pressure for the tcp protocol.
- 
-+2.7.3 Common use cases
-+
-+Because the "kmem" counter is fed to the main user counter, kernel memory can
-+never be limited completely independently of user memory. Say "U" is the user
-+limit, and "K" the kernel limit. There are three possible ways limits can be
-+set:
-+
-+    U != 0, K = unlimited:
-+    This is the standard memcg limitation mechanism already present before kmem
-+    accounting. Kernel memory is completely ignored.
-+
-+    U != 0, K < U:
-+    Kernel memory is a subset of the user memory. This setup is useful in
-+    deployments where the total amount of memory per-cgroup is overcommited.
-+    Overcommiting kernel memory limits is definitely not recommended, since the
-+    box can still run out of non-reclaimable memory.
-+    In this case, the admin could set up K so that the sum of all groups is
-+    never greater than the total memory, and freely set U at the cost of his
-+    QoS.
-+
-+    U != 0, K >= U:
-+    Since kmem charges will also be fed to the user counter and reclaim will be
-+    triggered for the cgroup for both kinds of memory. This setup gives the
-+    admin a unified view of memory, and it is also useful for people who just
-+    want to track kernel memory usage.
-+
- 3. User Interface
- 
- 0. Configuration
-@@ -290,6 +341,7 @@ a. Enable CONFIG_CGROUPS
- b. Enable CONFIG_RESOURCE_COUNTERS
- c. Enable CONFIG_MEMCG
- d. Enable CONFIG_MEMCG_SWAP (to use swap extension)
-+d. Enable CONFIG_MEMCG_KMEM (to use kmem extension)
- 
- 1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
- # mount -t tmpfs none /sys/fs/cgroup
-@@ -406,6 +458,11 @@ About use_hierarchy, see Section 6.
-   Because rmdir() moves all pages to parent, some out-of-use page caches can be
-   moved to the parent. If you want to avoid that, force_empty will be useful.
- 
-+  Also, note that when memory.kmem.limit_in_bytes is set the charges due to
-+  kernel pages will still be seen. This is not considered a failure and the
-+  write will still return success. In this case, it is expected that
-+  memory.kmem.usage_in_bytes == memory.usage_in_bytes.
-+
-   About use_hierarchy, see Section 6.
- 
- 5.2 stat file
+ static char *memcg_cache_name(struct mem_cgroup *memcg, struct kmem_cache *s)
+@@ -3218,9 +3261,9 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+ 	list_for_each_entry(params, &memcg->memcg_slab_caches, list) {
+ 		cachep = memcg_params_to_cache(params);
+ 		cachep->memcg_params->dead = true;
+-		INIT_WORK(&cachep->memcg_params->destroy,
+-			  kmem_cache_destroy_work_func);
+-		schedule_work(&cachep->memcg_params->destroy);
++		INIT_DELAYED_WORK(&cachep->memcg_params->destroy,
++				  kmem_cache_destroy_work_func);
++		schedule_delayed_work(&cachep->memcg_params->destroy, 0);
+ 	}
+ 	mutex_unlock(&memcg->slab_caches_mutex);
+ }
 -- 
 1.7.11.7
 
