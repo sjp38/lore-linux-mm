@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 5CE8E6B0089
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:29:44 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2216694pad.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 14:29:43 -0700 (PDT)
-Date: Thu, 1 Nov 2012 14:29:40 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 4D8826B0062
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 17:36:17 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so2219970pad.14
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 14:36:16 -0700 (PDT)
+Date: Thu, 1 Nov 2012 14:36:14 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PART2 Patch] node: cleanup node_state_attr
-In-Reply-To: <50920E01.6060708@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1211011429240.19373@chino.kir.corp.google.com>
-References: <1351666528-8226-1-git-send-email-wency@cn.fujitsu.com> <1351666528-8226-2-git-send-email-wency@cn.fujitsu.com> <alpine.DEB.2.00.1210311128570.8809@chino.kir.corp.google.com> <50920E01.6060708@cn.fujitsu.com>
+Subject: Re: [PART3 Patch 00/14] introduce N_MEMORY
+In-Reply-To: <509212FC.8070802@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1211011431130.19373@chino.kir.corp.google.com>
+References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com> <alpine.DEB.2.00.1210311112010.8809@chino.kir.corp.google.com> <509212FC.8070802@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,38 +19,28 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org,
 
 On Thu, 1 Nov 2012, Wen Congyang wrote:
 
-> >> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> >> index af1a177..5d7731e 100644
-> >> --- a/drivers/base/node.c
-> >> +++ b/drivers/base/node.c
-> >> @@ -614,23 +614,23 @@ static ssize_t show_node_state(struct device *dev,
-> >>  	{ __ATTR(name, 0444, show_node_state, NULL), state }
-> >>  
-> >>  static struct node_attr node_state_attr[] = {
-> >> -	_NODE_ATTR(possible, N_POSSIBLE),
-> >> -	_NODE_ATTR(online, N_ONLINE),
-> >> -	_NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
-> >> -	_NODE_ATTR(has_cpu, N_CPU),
-> >> +	[N_POSSIBLE] = _NODE_ATTR(possible, N_POSSIBLE),
-> >> +	[N_ONLINE] = _NODE_ATTR(online, N_ONLINE),
-> >> +	[N_NORMAL_MEMORY] = _NODE_ATTR(has_normal_memory, N_NORMAL_MEMORY),
-> >>  #ifdef CONFIG_HIGHMEM
-> >> -	_NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
-> >> +	[N_HIGH_MEMORY] = _NODE_ATTR(has_high_memory, N_HIGH_MEMORY),
-> >>  #endif
-> >> +	[N_CPU] = _NODE_ATTR(has_cpu, N_CPU),
-> >>  };
-> >>  
-> > 
-> > Why change the index for N_CPU?
+> > This doesn't describe why we need the new node state, unfortunately.  It 
 > 
-> N_CPU > N_HIGH_MEMORY
+> 1. Somethimes, we use the node which contains the memory that can be used by
+>    kernel.
+> 2. Sometimes, we use the node which contains the memory.
 > 
-> We use this array to create attr file in sysfs. So changing the index for N_CPU
-> doesn't cause any other problem.
+> In case1, we use N_HIGH_MEMORY, and we use N_MEMORY in case2.
 > 
 
-Acked-by: David Rientjes <rientjes@google.com>
+Yeah, that's clear, but the question is still _why_ we want two different 
+nodemasks.  I know that this part of the patchset simply introduces the 
+new nodemask because the name "N_MEMORY" is more clear than 
+"N_HIGH_MEMORY", but there's no real incentive for making that change by 
+introducing a new nodemask where a simple rename would suffice.
+
+I can only assume that you want to later use one of them for a different 
+purpose: those that do not include nodes that consist of only 
+ZONE_MOVABLE.  But that change for MPOL_BIND is nacked since it 
+significantly changes the semantics of set_mempolicy() and you can't break 
+userspace (see my response to that from yesterday).  Until that problem is 
+addressed, then there's no reason for the additional nodemask so nack on 
+this series as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
