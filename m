@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 80DA06B0068
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 03:58:38 -0400 (EDT)
-Subject: [PATCH 2/3] mm: Only enforce stable page writes if the backing device
- requires it
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 655296B006C
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 03:58:54 -0400 (EDT)
+Subject: [PATCH 3/3] fs: Fix remaining filesystems to wait for stable page
+ writeback
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Thu, 01 Nov 2012 00:58:21 -0700
-Message-ID: <20121101075821.16153.38301.stgit@blackbox.djwong.org>
+Date: Thu, 01 Nov 2012 00:58:29 -0700
+Message-ID: <20121101075829.16153.92036.stgit@blackbox.djwong.org>
 In-Reply-To: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
 References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
 MIME-Version: 1.0
@@ -17,101 +17,97 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, darrick.wong@oracle.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov
 Cc: linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, bharrosh@panasas.com, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
 
-Create a helper function to check if a backing device requires stable page
-writes and, if so, performs the necessary wait.  Then, make it so that all
-points in the memory manager that handle making pages writable use the helper
-function.  This should provide stable page write support to most filesystems,
-while eliminating unnecessary waiting for devices that don't require the
-feature.
+Fix up the filesystems that provide their own ->page_mkwrite handlers to
+provide stable page writes if necessary.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/buffer.c             |    2 +-
- fs/ext4/inode.c         |    2 +-
- include/linux/pagemap.h |    1 +
- mm/filemap.c            |    3 ++-
- mm/page-writeback.c     |   11 +++++++++++
- 5 files changed, 16 insertions(+), 3 deletions(-)
+ fs/9p/vfs_file.c |    1 +
+ fs/afs/write.c   |    4 ++--
+ fs/ceph/addr.c   |    1 +
+ fs/cifs/file.c   |    1 +
+ fs/ocfs2/mmap.c  |    1 +
+ fs/ubifs/file.c  |    4 ++--
+ 6 files changed, 8 insertions(+), 4 deletions(-)
 
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index b5f0442..cac3007 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -2334,7 +2334,7 @@ int __block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	if (unlikely(ret < 0))
+diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
+index c2483e9..aa253f0 100644
+--- a/fs/9p/vfs_file.c
++++ b/fs/9p/vfs_file.c
+@@ -620,6 +620,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	lock_page(page);
+ 	if (page->mapping != inode->i_mapping)
  		goto out_unlock;
- 	set_page_dirty(page);
--	wait_on_page_writeback(page);
 +	wait_on_stable_page_write(page);
- 	return 0;
+ 
+ 	return VM_FAULT_LOCKED;
  out_unlock:
- 	unlock_page(page);
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index b3c243b..948d68a 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4814,7 +4814,7 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		if (!walk_page_buffers(NULL, page_buffers(page), 0, len, NULL,
- 					ext4_bh_unmapped)) {
- 			/* Wait so that we don't change page under IO */
--			wait_on_page_writeback(page);
-+			wait_on_stable_page_write(page);
- 			ret = VM_FAULT_LOCKED;
- 			goto out;
- 		}
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e42c762..c28da25 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -398,6 +398,7 @@ static inline void wait_on_page_writeback(struct page *page)
+diff --git a/fs/afs/write.c b/fs/afs/write.c
+index 9aa52d9..39eb2a4 100644
+--- a/fs/afs/write.c
++++ b/fs/afs/write.c
+@@ -758,7 +758,7 @@ int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+ #ifdef CONFIG_AFS_FSCACHE
+ 	fscache_wait_on_page_write(vnode->cache, page);
+ #endif
+-
++	wait_on_stable_page_write(page);
+ 	_leave(" = 0");
+-	return 0;
++	return VM_FAULT_LOCKED;
+ }
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index 6690269..e9734bf 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -1208,6 +1208,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 		set_page_dirty(page);
+ 		up_read(&mdsc->snap_rwsem);
+ 		ret = VM_FAULT_LOCKED;
++		wait_on_stable_page_write(page);
+ 	} else {
+ 		if (ret == -ENOMEM)
+ 			ret = VM_FAULT_OOM;
+diff --git a/fs/cifs/file.c b/fs/cifs/file.c
+index edb25b4..a8770bf 100644
+--- a/fs/cifs/file.c
++++ b/fs/cifs/file.c
+@@ -2997,6 +2997,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	struct page *page = vmf->page;
+ 
+ 	lock_page(page);
++	wait_on_stable_page_write(page);
+ 	return VM_FAULT_LOCKED;
  }
  
- extern void end_page_writeback(struct page *page);
-+void wait_on_stable_page_write(struct page *page);
- 
- /*
-  * Add an arbitrary waiter to a page's wait queue
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 83efee7..ee46141 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1728,6 +1728,7 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	 * see the dirty page and writeprotect it again.
- 	 */
- 	set_page_dirty(page);
+diff --git a/fs/ocfs2/mmap.c b/fs/ocfs2/mmap.c
+index 47a87dd..a0027b1 100644
+--- a/fs/ocfs2/mmap.c
++++ b/fs/ocfs2/mmap.c
+@@ -124,6 +124,7 @@ static int __ocfs2_page_mkwrite(struct file *file, struct buffer_head *di_bh,
+ 				     fsdata);
+ 	BUG_ON(ret != len);
+ 	ret = VM_FAULT_LOCKED;
 +	wait_on_stable_page_write(page);
  out:
- 	sb_end_pagefault(inode->i_sb);
  	return ret;
-@@ -2274,7 +2275,7 @@ repeat:
- 		return NULL;
+ }
+diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
+index 5bc7781..cb0d3aa 100644
+--- a/fs/ubifs/file.c
++++ b/fs/ubifs/file.c
+@@ -1522,8 +1522,8 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma,
+ 			ubifs_release_dirty_inode_budget(c, ui);
  	}
- found:
--	wait_on_page_writeback(page);
+ 
+-	unlock_page(page);
+-	return 0;
 +	wait_on_stable_page_write(page);
- 	return page;
- }
- EXPORT_SYMBOL(grab_cache_page_write_begin);
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 830893b..916dae1 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2275,3 +2275,14 @@ int mapping_tagged(struct address_space *mapping, int tag)
- 	return radix_tree_tagged(&mapping->page_tree, tag);
- }
- EXPORT_SYMBOL(mapping_tagged);
-+
-+void wait_on_stable_page_write(struct page *page)
-+{
-+	struct backing_dev_info *bdi = page->mapping->backing_dev_info;
-+
-+	if (!bdi_cap_stable_pages_required(bdi))
-+		return;
-+
-+	wait_on_page_writeback(page);
-+}
-+EXPORT_SYMBOL_GPL(wait_on_stable_page_write);
++	return VM_FAULT_LOCKED;
+ 
+ out_unlock:
+ 	unlock_page(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
