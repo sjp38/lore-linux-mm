@@ -1,221 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id F38F76B009E
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:09:20 -0400 (EDT)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v6 10/29] memcg: use static branches when code not in use
-Date: Thu,  1 Nov 2012 16:07:26 +0400
-Message-Id: <1351771665-11076-11-git-send-email-glommer@parallels.com>
-In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 3020C6B0062
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 08:20:34 -0400 (EDT)
+Date: Thu, 1 Nov 2012 12:20:27 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 17/31] mm/migrate: Introduce migrate_misplaced_page()
+Message-ID: <20121101122027.GV3888@suse.de>
+References: <20121025121617.617683848@chello.nl>
+ <20121025124833.785487250@chello.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121025124833.785487250@chello.nl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Ingo Molnar <mingo@kernel.org>
 
-We can use static branches to patch the code in or out when not used.
+On Thu, Oct 25, 2012 at 02:16:34PM +0200, Peter Zijlstra wrote:
+> Add migrate_misplaced_page() which deals with migrating pages from
+> faults. 
+> 
+> This includes adding a new MIGRATE_FAULT migration mode to
+> deal with the extra page reference required due to having to look up
+> the page.
+> 
+> Based-on-work-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
+> Cc: Paul Turner <pjt@google.com>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Ingo Molnar <mingo@kernel.org>
+> ---
+>  include/linux/migrate.h      |    7 +++
+>  include/linux/migrate_mode.h |    3 +
+>  mm/migrate.c                 |   85 ++++++++++++++++++++++++++++++++++++++-----
+>  3 files changed, 87 insertions(+), 8 deletions(-)
+> 
+> Index: tip/include/linux/migrate.h
+> ===================================================================
+> --- tip.orig/include/linux/migrate.h
+> +++ tip/include/linux/migrate.h
+> @@ -30,6 +30,7 @@ extern int migrate_vmas(struct mm_struct
+>  extern void migrate_page_copy(struct page *newpage, struct page *page);
+>  extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+>  				  struct page *newpage, struct page *page);
+> +extern int migrate_misplaced_page(struct page *page, int node);
+>  #else
+>  
+>  static inline void putback_lru_pages(struct list_head *l) {}
+> @@ -63,5 +64,11 @@ static inline int migrate_huge_page_move
+>  #define migrate_page NULL
+>  #define fail_migrate_page NULL
+>  
+> +static inline
+> +int migrate_misplaced_page(struct page *page, int node)
+> +{
+> +	return -EAGAIN; /* can't migrate now */
+> +}
+>  #endif /* CONFIG_MIGRATION */
+> +
+>  #endif /* _LINUX_MIGRATE_H */
+> Index: tip/include/linux/migrate_mode.h
+> ===================================================================
+> --- tip.orig/include/linux/migrate_mode.h
+> +++ tip/include/linux/migrate_mode.h
+> @@ -6,11 +6,14 @@
+>   *	on most operations but not ->writepage as the potential stall time
+>   *	is too significant
+>   * MIGRATE_SYNC will block when migrating pages
+> + * MIGRATE_FAULT called from the fault path to migrate-on-fault for mempolicy
+> + *	this path has an extra reference count
+>   */
+>  enum migrate_mode {
+>  	MIGRATE_ASYNC,
+>  	MIGRATE_SYNC_LIGHT,
+>  	MIGRATE_SYNC,
+> +	MIGRATE_FAULT,
+>  };
+>  
+>  #endif		/* MIGRATE_MODE_H_INCLUDED */
+> Index: tip/mm/migrate.c
+> ===================================================================
+> --- tip.orig/mm/migrate.c
+> +++ tip/mm/migrate.c
+> @@ -225,7 +225,7 @@ static bool buffer_migrate_lock_buffers(
+>  	struct buffer_head *bh = head;
+>  
+>  	/* Simple case, sync compaction */
+> -	if (mode != MIGRATE_ASYNC) {
+> +	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT) {
+>  		do {
+>  			get_bh(bh);
+>  			lock_buffer(bh);
+> @@ -279,12 +279,22 @@ static int migrate_page_move_mapping(str
+>  		struct page *newpage, struct page *page,
+>  		struct buffer_head *head, enum migrate_mode mode)
+>  {
+> -	int expected_count;
+> +	int expected_count = 0;
+>  	void **pslot;
+>  
+> +	if (mode == MIGRATE_FAULT) {
+> +		/*
+> +		 * MIGRATE_FAULT has an extra reference on the page and
+> +		 * otherwise acts like ASYNC, no point in delaying the
+> +		 * fault, we'll try again next time.
+> +		 */
+> +		expected_count++;
+> +	}
+> +
+>  	if (!mapping) {
+>  		/* Anonymous page without mapping */
+> -		if (page_count(page) != 1)
+> +		expected_count += 1;
+> +		if (page_count(page) != expected_count)
+>  			return -EAGAIN;
+>  		return 0;
+>  	}
+> @@ -294,7 +304,7 @@ static int migrate_page_move_mapping(str
+>  	pslot = radix_tree_lookup_slot(&mapping->page_tree,
+>   					page_index(page));
+>  
+> -	expected_count = 2 + page_has_private(page);
+> +	expected_count += 2 + page_has_private(page);
+>  	if (page_count(page) != expected_count ||
+>  		radix_tree_deref_slot_protected(pslot, &mapping->tree_lock) != page) {
+>  		spin_unlock_irq(&mapping->tree_lock);
+> @@ -313,7 +323,7 @@ static int migrate_page_move_mapping(str
+>  	 * the mapping back due to an elevated page count, we would have to
+>  	 * block waiting on other references to be dropped.
+>  	 */
+> -	if (mode == MIGRATE_ASYNC && head &&
+> +	if ((mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT) && head &&
+>  			!buffer_migrate_lock_buffers(head, mode)) {
+>  		page_unfreeze_refs(page, expected_count);
+>  		spin_unlock_irq(&mapping->tree_lock);
+> @@ -521,7 +531,7 @@ int buffer_migrate_page(struct address_s
+>  	 * with an IRQ-safe spinlock held. In the sync case, the buffers
+>  	 * need to be locked now
+>  	 */
+> -	if (mode != MIGRATE_ASYNC)
+> +	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT)
+>  		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
+>  
+>  	ClearPagePrivate(page);
+> @@ -687,7 +697,7 @@ static int __unmap_and_move(struct page
+>  	struct anon_vma *anon_vma = NULL;
+>  
+>  	if (!trylock_page(page)) {
+> -		if (!force || mode == MIGRATE_ASYNC)
+> +		if (!force || mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT)
+>  			goto out;
+>  
+>  		/*
+> @@ -1403,4 +1413,63 @@ int migrate_vmas(struct mm_struct *mm, c
+>   	}
+>   	return err;
+>  }
+> -#endif
+> +
+> +/*
+> + * Attempt to migrate a misplaced page to the specified destination
+> + * node.
+> + */
+> +int migrate_misplaced_page(struct page *page, int node)
+> +{
+> +	struct address_space *mapping = page_mapping(page);
+> +	int page_lru = page_is_file_cache(page);
+> +	struct page *newpage;
+> +	int ret = -EAGAIN;
+> +	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
+> +
+> +	/*
+> +	 * Don't migrate pages that are mapped in multiple processes.
+> +	 */
+> +	if (page_mapcount(page) != 1)
+> +		goto out;
+> +
 
-Because the _ACTIVE bit on kmem_accounted is only set after the
-increment is done, we guarantee that the root memcg will always be
-selected for kmem charges until all call sites are patched (see
-memcg_kmem_enabled).  This guarantees that no mischarges are applied.
+Why?
 
-static branch decrement happens when the last reference count from the
-kmem accounting in memcg dies. This will only happen when the charges
-drop down to 0.
+I know why -- it's because we don't want to ping-pong shared library
+pages.
 
-When that happen, we need to disable the static branch only on those
-memcgs that enabled it. To achieve this, we would be forced to
-complicate the code by keeping track of which memcgs were the ones
-that actually enabled limits, and which ones got it from its parents.
+However, what if it's a shmem mapping? We might want to consider migrating
+those but with this check that will never happen.
 
-It is a lot simpler just to do static_key_slow_inc() on every child
-that is accounted.
+> +	/*
+> +	 * Never wait for allocations just to migrate on fault, but don't dip
+> +	 * into reserves. And, only accept pages from the specified node. No
+> +	 * sense migrating to a different "misplaced" page!
+> +	 */
 
-[ v4: adapted this patch to the changes in kmem_accounted ]
+Not only that,  we do not want to reclaim on a remote node to allow
+migration. The cost of reclaim will exceed the benefit from local memory
+accesses.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-CC: Christoph Lameter <cl@linux.com>
-CC: Pekka Enberg <penberg@cs.helsinki.fi>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: Suleiman Souhlal <suleiman@google.com>
-CC: Tejun Heo <tj@kernel.org>
----
- include/linux/memcontrol.h |  4 ++-
- mm/memcontrol.c            | 79 +++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 78 insertions(+), 5 deletions(-)
+> +	if (mapping)
+> +		gfp = mapping_gfp_mask(mapping);
+> +	gfp &= ~__GFP_WAIT;
+> +	gfp |= __GFP_NOMEMALLOC | GFP_THISNODE;
+> +
+> +	newpage = alloc_pages_node(node, gfp, 0);
+> +	if (!newpage) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+> +
+> +	if (isolate_lru_page(page)) {
+> +		ret = -EBUSY;
+> +		goto put_new;
+> +	}
+> +
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e6ca1cf..2a2ae05 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -22,6 +22,7 @@
- #include <linux/cgroup.h>
- #include <linux/vm_event_item.h>
- #include <linux/hardirq.h>
-+#include <linux/jump_label.h>
- 
- struct mem_cgroup;
- struct page_cgroup;
-@@ -410,9 +411,10 @@ static inline void sock_release_memcg(struct sock *sk)
- #endif /* CONFIG_INET && CONFIG_MEMCG_KMEM */
- 
- #ifdef CONFIG_MEMCG_KMEM
-+extern struct static_key memcg_kmem_enabled_key;
- static inline bool memcg_kmem_enabled(void)
- {
--	return true;
-+	return static_key_false(&memcg_kmem_enabled_key);
- }
- 
- /*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 91a021a..403f5a7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -344,10 +344,13 @@ struct mem_cgroup {
- /* internal only representation about the status of kmem accounting. */
- enum {
- 	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
-+	KMEM_ACCOUNTED_ACTIVATED, /* static key enabled. */
- 	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
- };
- 
--#define KMEM_ACCOUNTED_MASK (1 << KMEM_ACCOUNTED_ACTIVE)
-+/* We account when limit is on, but only after call sites are patched */
-+#define KMEM_ACCOUNTED_MASK \
-+		((1 << KMEM_ACCOUNTED_ACTIVE) | (1 << KMEM_ACCOUNTED_ACTIVATED))
- 
- #ifdef CONFIG_MEMCG_KMEM
- static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
-@@ -360,6 +363,11 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
- }
- 
-+static void memcg_kmem_set_activated(struct mem_cgroup *memcg)
-+{
-+	set_bit(KMEM_ACCOUNTED_ACTIVATED, &memcg->kmem_account_flags);
-+}
-+
- static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
- {
- 	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
-@@ -530,6 +538,26 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
- }
- #endif
- 
-+#ifdef CONFIG_MEMCG_KMEM
-+struct static_key memcg_kmem_enabled_key;
-+
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
-+{
-+	if (memcg_kmem_is_active(memcg))
-+		static_key_slow_dec(&memcg_kmem_enabled_key);
-+}
-+#else
-+static void disarm_kmem_keys(struct mem_cgroup *memcg)
-+{
-+}
-+#endif /* CONFIG_MEMCG_KMEM */
-+
-+static void disarm_static_keys(struct mem_cgroup *memcg)
-+{
-+	disarm_sock_keys(memcg);
-+	disarm_kmem_keys(memcg);
-+}
-+
- static void drain_all_stock_async(struct mem_cgroup *memcg);
- 
- static struct mem_cgroup_per_zone *
-@@ -4167,6 +4195,8 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- {
- 	int ret = -EINVAL;
- #ifdef CONFIG_MEMCG_KMEM
-+	bool must_inc_static_branch = false;
-+
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
- 	/*
- 	 * For simplicity, we won't allow this to be disabled.  It also can't
-@@ -4197,7 +4227,15 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 		ret = res_counter_set_limit(&memcg->kmem, val);
- 		VM_BUG_ON(ret);
- 
--		memcg_kmem_set_active(memcg);
-+		/*
-+		 * After this point, kmem_accounted (that we test atomically in
-+		 * the beginning of this conditional), is no longer 0. This
-+		 * guarantees only one process will set the following boolean
-+		 * to true. We don't need test_and_set because we're protected
-+		 * by the set_limit_mutex anyway.
-+		 */
-+		memcg_kmem_set_activated(memcg);
-+		must_inc_static_branch = true;
- 		/*
- 		 * kmem charges can outlive the cgroup. In the case of slab
- 		 * pages, for instance, a page contain objects from various
-@@ -4210,6 +4248,27 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- out:
- 	mutex_unlock(&set_limit_mutex);
- 	cgroup_unlock();
-+
-+	/*
-+	 * We are by now familiar with the fact that we can't inc the static
-+	 * branch inside cgroup_lock. See disarm functions for details. A
-+	 * worker here is overkill, but also wrong: After the limit is set, we
-+	 * must start accounting right away. Since this operation can't fail,
-+	 * we can safely defer it to here - no rollback will be needed.
-+	 *
-+	 * The boolean used to control this is also safe, because
-+	 * KMEM_ACCOUNTED_ACTIVATED guarantees that only one process will be
-+	 * able to set it to true;
-+	 */
-+	if (must_inc_static_branch) {
-+		static_key_slow_inc(&memcg_kmem_enabled_key);
-+		/*
-+		 * setting the active bit after the inc will guarantee no one
-+		 * starts accounting before all call sites are patched
-+		 */
-+		memcg_kmem_set_active(memcg);
-+	}
-+
- #endif
- 	return ret;
- }
-@@ -4221,8 +4280,20 @@ static void memcg_propagate_kmem(struct mem_cgroup *memcg)
- 		return;
- 	memcg->kmem_account_flags = parent->kmem_account_flags;
- #ifdef CONFIG_MEMCG_KMEM
--	if (memcg_kmem_is_active(memcg))
-+	/*
-+	 * When that happen, we need to disable the static branch only on those
-+	 * memcgs that enabled it. To achieve this, we would be forced to
-+	 * complicate the code by keeping track of which memcgs were the ones
-+	 * that actually enabled limits, and which ones got it from its
-+	 * parents.
-+	 *
-+	 * It is a lot simpler just to do static_key_slow_inc() on every child
-+	 * that is accounted.
-+	 */
-+	if (memcg_kmem_is_active(memcg)) {
- 		mem_cgroup_get(memcg);
-+		static_key_slow_inc(&memcg_kmem_enabled_key);
-+	}
- #endif
- }
- 
-@@ -5147,7 +5218,7 @@ static void free_work(struct work_struct *work)
- 	 * to move this code around, and make sure it is outside
- 	 * the cgroup_lock.
- 	 */
--	disarm_sock_keys(memcg);
-+	disarm_static_keys(memcg);
- 	if (size < PAGE_SIZE)
- 		kfree(memcg);
- 	else
+Going to need to keep an eye on the hotness of the LRU lock during heavy
+migration states. Actually, a process using MPOL_MF_LAZY and then creating
+a large number of threads is going to hammer that lock. I've no proposed
+solution to this but if we see a bug report related to stalls after using
+that system call then this will be a candidate.
+
+Compaction had to use trylock-like logic to get around this problem but
+it's not necessarily the right choice for lazy migration unless you are
+willing to depend on the automatic detection to fix it up later.
+
+> +	inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
+> +	ret = __unmap_and_move(page, newpage, 0, 0, MIGRATE_FAULT);
+
+By bypassing __unmap_and_move, you miss the PageTransHuge() check in
+unmap_and_move and the splitting when a transhuge is encountered. Was that
+deliberate? Why?
+
+> +	/*
+> +	 * A page that has been migrated has all references removed and will be
+> +	 * freed. A page that has not been migrated will have kepts its
+> +	 * references and be restored.
+> +	 */
+> +	dec_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
+> +	putback_lru_page(page);
+> +put_new:
+> +	/*
+> +	 * Move the new page to the LRU. If migration was not successful
+> +	 * then this will free the page.
+> +	 */
+> +	putback_lru_page(newpage);
+> +out:
+> +	return ret;
+> +}
+> +
+> +#endif /* CONFIG_NUMA */
+> 
+> 
+
 -- 
-1.7.11.7
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
