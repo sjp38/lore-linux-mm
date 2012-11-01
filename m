@@ -1,122 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 5216E6B004D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 13:14:12 -0400 (EDT)
-Date: Thu, 1 Nov 2012 17:14:06 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [Bug 49361] New: configuring TRANSPARENT_HUGEPAGE_ALWAYS can
- make system unresponsive and reboot
-Message-ID: <20121101171406.GC8218@suse.de>
-References: <bug-49361-27@https.bugzilla.kernel.org/>
- <20121023123613.1bcdf3ab.akpm@linux-foundation.org>
- <alpine.DEB.2.00.1210232242590.22652@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1210291216330.15340@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 086246B004D
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 13:50:43 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so912518qcq.14
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 10:50:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1210291216330.15340@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
+	<CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
+	<alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
+	<CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+	<20121030001809.GL15767@bbox>
+	<CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com>
+	<alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com>
+	<CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com>
+	<20121031005738.GM15767@bbox>
+	<alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
+	<20121101024316.GB24883@bbox>
+	<alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com>
+Date: Thu, 1 Nov 2012 10:50:42 -0700
+Message-ID: <CAA25o9SdQ7e5w8=W0faz82nZ7_3N7xbbExKQe0-HsU87hs2MPA@mail.gmail.com>
+Subject: Re: zram OOM behavior
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: marc@offline.be, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, bugzilla-daemon@bugzilla.kernel.org
+Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Mon, Oct 29, 2012 at 01:33:06PM -0700, David Rientjes wrote:
-> On Tue, 23 Oct 2012, David Rientjes wrote:
-> 
-> > We'll need to collect some information before we can figure out what the 
-> > problem is with 3.5.2.
-> > 
+On Wed, Oct 31, 2012 at 9:48 PM, David Rientjes <rientjes@google.com> wrote:
+> On Thu, 1 Nov 2012, Minchan Kim wrote:
+>
+>> It's not true any more.
+>> 3.6 includes following code in try_to_free_pages
+>>
+>>         /*
+>>          * Do not enter reclaim if fatal signal is pending. 1 is returned so
+>>          * that the page allocator does not consider triggering OOM
+>>          */
+>>         if (fatal_signal_pending(current))
+>>                 return 1;
+>>
+>> So the hunged task never go to the OOM path and could be looping forever.
+>>
+>
+> Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct
+> reclaimers if PF_MEMALLOC reserves are low and swap is backed by network
+> storage").  Thanks for adding Mel to the cc.
+>
+> The oom killer specifically has logic for this condition: when calling
+> out_of_memory() the first thing it does is
+>
+>         if (fatal_signal_pending(current))
+>                 set_thread_flag(TIF_MEMDIE);
+>
+> to allow it access to memory reserves so that it may exit if it's having
+> trouble.  But that ends up never happening because of the above code that
+> Minchan has identified.
+>
+> So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages()
+> as well or revert that early return entirely; there's no justification
+> given for it in the comment nor in the commit log.  I'd rather remove it
+> and allow the oom killer to trigger and grant access to memory reserves
+> itself if necessary.
+>
+> Mel, how does commit 5515061d22f0 deal with threads looping forever if
+> they need memory in the exit path since the oom killer never gets called?
+>
+> That aside, it doesn't seem like this is the issue that Luigi is reporting
+> since his patch that avoids deferring the oom killer presumably fixes the
+> issue for him.  So it turns out the oom killer must be getting called.
+>
+> Luigi, can you try this instead?  It applies to the latest git but should
+> be easily modified to apply to any 3.x kernel you're running.
+> ---
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -310,26 +310,13 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
+>         if (!task->mm)
+>                 return OOM_SCAN_CONTINUE;
+>
+> -       if (task->flags & PF_EXITING) {
+> +       if (task->flags & PF_EXITING && !force_kill) {
+>                 /*
+> -                * If task is current and is in the process of releasing memory,
+> -                * allow the "kill" to set TIF_MEMDIE, which will allow it to
+> -                * access memory reserves.  Otherwise, it may stall forever.
+> -                *
+> -                * The iteration isn't broken here, however, in case other
+> -                * threads are found to have already been oom killed.
+> +                * If this task is not being ptraced on exit, then wait for it
+> +                * to finish before killing some other task unnecessarily.
+>                  */
+> -               if (task == current)
+> -                       return OOM_SCAN_SELECT;
+> -               else if (!force_kill) {
+> -                       /*
+> -                        * If this task is not being ptraced on exit, then wait
+> -                        * for it to finish before killing some other task
+> -                        * unnecessarily.
+> -                        */
+> -                       if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
+> -                               return OOM_SCAN_ABORT;
+> -               }
+> +               if (!(task->group_leader->ptrace & PT_TRACE_EXIT))
+> +                       return OOM_SCAN_ABORT;
+>         }
+>         return OOM_SCAN_OK;
+>  }
+> @@ -706,11 +693,11 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+>                 return;
+>
+>         /*
+> -        * If current has a pending SIGKILL, then automatically select it.  The
+> -        * goal is to allow it to allocate so that it may quickly exit and free
+> -        * its memory.
+> +        * If current has a pending SIGKILL or is exiting, then automatically
+> +        * select it.  The goal is to allow it to allocate so that it may
+> +        * quickly exit and free its memory.
+>          */
+> -       if (fatal_signal_pending(current)) {
+> +       if (fatal_signal_pending(current) || current->flags & PF_EXITING) {
+>                 set_thread_flag(TIF_MEMDIE);
+>                 return;
+>         }
 
-3.6.2 or 3.5.2?
+I tested this change with my load and it appears to also prevent the deadlocks.
 
-The bug mentioned "recently" but does not say what the last known
-working kernel was. What is the most recent working kernel so the
-problem candidate can be narrowed down?
+I have a question though.  I thought only one process was allowed to
+be in TIF_MEMDIE state, but I don't see anything that prevents this
+code (before or after the change) from setting the flag in multiple
+processes.  Is this a problem?
 
-> > First, let's take a look at khugepaged.  By default, it's supposed to wake 
-> > up rarely (10s at minimum) and only scan 4K pages before going back to 
-> > sleep.  Having a consistent and very high cpu usage suggests the settings 
-> > aren't the default.  Can you do
-> > 
-> > 	cat /sys/kernel/mm/transparent_hugepage/khugepaged/{alloc,scan}_sleep_millisecs
-> > 
-> > The defaults should be 60000 and 10000, respectively.  Then can you do
-> > 
-> > 	cat /sys/kernel/mm/transparent_hugepage/khugepaged/pages_to_scan
-> > 
-> > which should be 4096.  If those are your settings, then it seems like 
-> > khugepaged in 3.5.2 is going crazy and we'll need to look into that.  Try 
-> > collecting
-> > 
-> > 	grep -e "thp|compact" /proc/vmstat
-> > 
-> > and
-> > 
-> > 	cat /proc/$(pidof khugepaged)/stack
-> > 
-> > appended to a logfile at regular intervals after your start the build with 
-> > transparent hugepages enabled always.  After the machine becomes 
-> > unresponsive and reboots, post that log.
-> > 
-> 
-> This looks like an overly aggressive memory compaction issue; consider 
-> from your "49361.1" attachment:
-> 
-> Sat Oct 27 02:39:05 CEST 2012
-> 	compact_blocks_moved 488381
-> 	compact_pages_moved 581856
-> 	compact_pagemigrate_failed 52533
-> 	compact_stall 59
-> 	compact_fail 36
-> 	compact_success 23
-> Sat Oct 27 02:39:15 CEST 2012
-> 	compact_blocks_moved 7797480
-> 	compact_pages_moved 589996
-> 	compact_pagemigrate_failed 53507
-> 	compact_stall 90
-> 	compact_fail 56
-> 	compact_success 24
-> Sat Oct 27 02:43:07 CEST 2012
-> 	compact_blocks_moved 276422153
-> 	compact_pages_moved 597836
-> 	compact_pagemigrate_failed 53886
-> 	compact_stall 109
-> 	compact_fail 76
-> 	compact_success 26
-> 
-> In four minutes, transparent hugepage allocation has scanned 275933772 2MB 
-> pageblocks and only been successful three times in defragmenting enough 
-> memory for the allocation to succeed.  It's scanning on average 5518675 
-> pageblocks each time it is invoked.
-> 
-
-We had the bug recently about excessive scanning and lock contention
-within compaction after lumpy reclaim was removed between 3.4 and 3.5.
-The impact was not obvious because compaction was used less frequently
-when lumpy reclaim was in place but once the crutch went away, it fell
-over. The "solution" as it stands right now is the following patches on
-top of 3.6. Can they be tested please?
-
-e64c5237cf6ff474cb2f3f832f48f2b441dd9979 mm: compaction: abort compaction loop if lock is contended or run too long
-3cc668f4e30fbd97b3c0574d8cac7a83903c9bc7 mm: compaction: move fatal signal check out of compact_checklock_irqsave
-661c4cb9b829110cb68c18ea05a56be39f75a4d2 mm: compaction: Update try_to_compact_pages()kerneldoc comment
-2a1402aa044b55c2d30ab0ed9405693ef06fb07c mm: compaction: acquire the zone->lru_lock as late as possible
-f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e mm: compaction: acquire the zone->lock as late as possible
-753341a4b85ff337487b9959c71c529f522004f4 revert "mm: have order > 0 compaction start off where it left"
-bb13ffeb9f6bfeb301443994dfbf29f91117dfb3 mm: compaction: cache if a pageblock was scanned and no pages were isolated
-c89511ab2f8fe2b47585e60da8af7fd213ec877e mm: compaction: Restart compaction from near where it left off
-62997027ca5b3d4618198ed8b1aba40b61b1137b mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
-0db63d7e25f96e2c6da925c002badf6f144ddf30 mm: compaction: correct the nr_strict va isolated check for CMA
-
-I can provide a monolithic patch of these commits if that is preferred.
-
-> Adding Mel Gorman to the cc.
-
-Thanks David.
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
