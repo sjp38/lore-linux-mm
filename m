@@ -1,71 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 8868F6B0075
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 19:03:44 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so5317236ied.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 16:03:43 -0700 (PDT)
-Date: Thu, 1 Nov 2012 16:03:40 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-In-Reply-To: <20121101191052.GA5884@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211011546090.19377@eggly.anvils>
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 582C76B0075
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 19:05:40 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so1513442dad.14
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 16:05:39 -0700 (PDT)
+Date: Thu, 1 Nov 2012 16:05:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, oom: allow exiting threads to have access to memory
+ reserves
+In-Reply-To: <20121101154306.c0871efb.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1211011602110.28734@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com> <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com> <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com> <CAA25o9Rk_C=jaHJwWQ8TJL0NF5_Xv2umwxirtdugF6w3rHruXg@mail.gmail.com>
+ <20121030001809.GL15767@bbox> <CAA25o9R0zgW74NRGyZZHy4cFbfuVEmHWVC=4O7SuUjywN+Uvpw@mail.gmail.com> <alpine.DEB.2.00.1210292239290.13203@chino.kir.corp.google.com> <CAA25o9Tp5J6-9JzwEfcZJ4dHQCEKV9_GYO0ZQ05Ttc3QWP=5_Q@mail.gmail.com> <20121031005738.GM15767@bbox>
+ <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com> <20121101024316.GB24883@bbox> <alpine.DEB.2.00.1210312140090.17607@chino.kir.corp.google.com> <CAA25o9SdQ7e5w8=W0faz82nZ7_3N7xbbExKQe0-HsU87hs2MPA@mail.gmail.com>
+ <alpine.DEB.2.00.1211011448490.19373@chino.kir.corp.google.com> <alpine.DEB.2.00.1211011451480.19373@chino.kir.corp.google.com> <20121101154306.c0871efb.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Thu, 1 Nov 2012, Dave Jones wrote:
-> On Wed, Oct 24, 2012 at 09:36:27PM -0700, Hugh Dickins wrote:
->  > On Wed, 24 Oct 2012, Dave Jones wrote:
->  > 
->  > > Machine under significant load (4gb memory used, swap usage fluctuating)
->  > > triggered this...
->  > > 
->  > > WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
->  > > 
->  > > 1148                         error = shmem_add_to_page_cache(page, mapping, index,
->  > > 1149                                                 gfp, swp_to_radix_entry(swap));
->  > > 1150                         /* We already confirmed swap, and make no allocation */
->  > > 1151                         VM_BUG_ON(error);
->  > > 1152                 }
->  > 
->  > That's very surprising.  Easy enough to handle an error there, but
->  > of course I made it a VM_BUG_ON because it violates my assumptions:
->  > I rather need to understand how this can be, and I've no idea.
+On Thu, 1 Nov 2012, Andrew Morton wrote:
+
+> > Exiting threads, those with PF_EXITING set, can pagefault and require 
+> > memory before they can make forward progress.  This happens, for instance, 
+> > when a process must fault task->robust_list, a userspace structure, before 
+> > detaching its memory.
+> > 
+> > These threads also aren't guaranteed to get access to memory reserves 
+> > unless oom killed or killed from userspace.  The oom killer won't grant 
+> > memory reserves if other threads are also exiting other than current and 
+> > stalling at the same point.  This prevents needlessly killing processes 
+> > when others are already exiting.
+> > 
+> > Instead of special casing all the possible sitations between PF_EXITING 
+> > getting set and a thread detaching its mm where it may allocate memory, 
+> > which probably wouldn't get updated when a change is made to the exit 
+> > path, the solution is to give all exiting threads access to memory 
+> > reserves if they call the oom killer.  This allows them to quickly 
+> > allocate, detach its mm, and free the memory it represents.
 > 
-> I just noticed we had a user report hitting this same warning, but
-> with a different trace..
+> Seems very sensible.
 > 
-> : [<ffffffff8105b84f>] warn_slowpath_common+0x7f/0xc0
-> : [<ffffffff8105b8aa>] warn_slowpath_null+0x1a/0x20
-> : [<ffffffff81143c73>] shmem_getpage_gfp+0x7f3/0x830
-> : [<ffffffff81158c9d>] ? vma_adjust+0x3ed/0x620
-> : [<ffffffff81143f02>] shmem_file_aio_read+0x1f2/0x380
-> : [<ffffffff8118e487>] do_sync_read+0xa7/0xe0
-> : [<ffffffff8118eda9>] vfs_read+0xa9/0x180
-> : [<ffffffff8118eeca>] sys_read+0x4a/0x90
-> : [<ffffffff816226e9>] system_call_fastpath+0x16/0x1b
+> > Acked-by: Minchan Kim <minchan@kernel.org>
+> > Tested-by: Luigi Semenzato <semenzato@google.com>
+> 
+> What did Luigi actually test?  Was there some reproducible bad behavior
+> which this patch fixes?
+> 
 
-Equally explicable by Hannes's hypothesis;
-but useful supporting evidence, thank you.
+Yeah, it's briefly described in the first paragraph.  He had an oom 
+condition where threads were faulting on task->robust_list and repeatedly 
+called the oom killer but it would defer killing a thread because it saw 
+other PF_EXITING threads.  This can happen anytime we need to allocate 
+memory after setting PF_EXITING and before detaching our mm; if there are 
+other threads in the same state then the oom killer won't do anything 
+unless one of them happens to be killed from userspace.
 
-Except... earlier in the thread you explained how you hacked
-#define VM_BUG_ON(cond) WARN_ON(cond)
-to get this to come out as a warning instead of a bug,
-and now it looks as if "a user" has here done the same.
-
-Which is very much a user's right, of course; but does
-make me wonder whether that user might actually be davej ;)
-
-Never mind, whatever, it's more justification for the fix - which
-I've honestly not forgotten, but somehow not got around to sending
-(with a couple of others even longer outstanding).  On its way
-shortly, for some unpredictable value of shortly.
-
-Hugh
+So instead of only deferring for PF_EXITING and !task->robust_list, it's 
+better to just give them access to memory reserves to prevent a potential 
+livelock so that any other faults that may be introduced in the future in 
+the exit path don't cause the same problem (and hopefully we don't allow 
+too many of those!).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
