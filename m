@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id B6FC06B0062
-	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:05:46 -0400 (EDT)
-Date: Thu, 1 Nov 2012 11:11:45 +0900
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 6C1246B0062
+	for <linux-mm@kvack.org>; Wed, 31 Oct 2012 22:37:17 -0400 (EDT)
+Date: Thu, 1 Nov 2012 11:43:16 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: zram OOM behavior
-Message-ID: <20121101021145.GF26256@bbox>
+Message-ID: <20121101024316.GB24883@bbox>
 References: <alpine.DEB.2.00.1210222257580.22198@chino.kir.corp.google.com>
  <CAA25o9ScWUsRr2ziqiEt9U9UvuMuYim+tNpPCyN88Qr53uGhVQ@mail.gmail.com>
  <alpine.DEB.2.00.1210291158510.10845@chino.kir.corp.google.com>
@@ -23,7 +23,7 @@ In-Reply-To: <alpine.DEB.2.00.1210311151341.8809@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
+Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>, Mel Gorman <mgorman@suse.de>
 
 On Wed, Oct 31, 2012 at 11:54:07AM -0700, David Rientjes wrote:
 > On Wed, 31 Oct 2012, Minchan Kim wrote:
@@ -49,18 +49,21 @@ On Wed, Oct 31, 2012 at 11:54:07AM -0700, David Rientjes wrote:
 > though, if there are other PF_EXITING threads other than current.  So if 
 > multiple threads are page faulting on tsk->robust_list, then no thread 
 > ends up getting killed.  The temporary workaround would be to do a kill -9 
-
-If mutiple threads are page faulting and try to allocate memory, then they
-should go to oom path and they will reach following code.
-
-        if (task->flags & PF_EXITING) {
-               if (task == current)
-                        return OOM_SCAN_SELECT;
-
-So, the thread can access reseved memory pool and page fault will succeed.
-
 > so that the logic in out_of_memory() could immediately give such threads 
 > access to memory reserves so the page fault will succeed.  The real fix 
+
+It's not true any more.
+3.6 includes following code in try_to_free_pages
+
+        /*   
+         * Do not enter reclaim if fatal signal is pending. 1 is returned so
+         * that the page allocator does not consider triggering OOM
+         */
+        if (fatal_signal_pending(current))
+                return 1;
+
+So the hunged task never go to the OOM path and could be looping forever.
+
 > would be to audit all possible cases in between setting 
 > tsk->flags |= PF_EXITING and tsk->mm = NULL that could cause a memory 
 > allocation and make exemptions for them in oom_scan_process_thread().
