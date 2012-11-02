@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id B60B66B004D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:06:47 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so7130743ied.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:06:46 -0700 (PDT)
-Date: Fri, 2 Nov 2012 16:06:44 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 35CF46B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:26:00 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so7148628ied.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:25:59 -0700 (PDT)
+Date: Fri, 2 Nov 2012 16:26:03 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 00/31] numa/core patches
-In-Reply-To: <50933CB6.6000909@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211021558030.11106@eggly.anvils>
-References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121028175615.GC29827@cmpxchg.org> <508F73C5.7050409@redhat.com> <20121031004838.GA1657@cmpxchg.org> <alpine.LNX.2.00.1210302350140.5084@eggly.anvils>
- <50912478.2040403@redhat.com> <alpine.LNX.2.00.1210311005220.5685@eggly.anvils> <alpine.LNX.2.00.1211010636140.3648@eggly.anvils> <50933CB6.6000909@redhat.com>
+Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
+In-Reply-To: <20121102014336.GA1727@redhat.com>
+Message-ID: <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
+ <20121102014336.GA1727@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, CAI Qian <caiqian@redhat.com>
+To: Dave Jones <davej@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 2 Nov 2012, Zhouping Liu wrote:
-> On 11/01/2012 09:41 PM, Hugh Dickins wrote:
-> > 
-> > Here's a patch fixing and tidying up that and a few other things there.
-> > But I'm not signing it off yet, partly because I've barely tested it
-> > (quite probably I didn't even have any numa pmd migration happening
-> > at all), and partly because just a moment ago I ran across this
-> > instructive comment in __collapse_huge_page_isolate():
-> > 	/* cannot use mapcount: can't collapse if there's a gup pin */
-> > 	if (page_count(page) != 1) {
-> > 
-> > Hmm, yes, below I've added the page_mapcount() check I proposed to
-> > do_huge_pmd_numa_page(), but is even that safe enough?  Do we actually
-> > need a page_count() check (for 2?) to guard against get_user_pages()?
-> > I suspect we do, but then do we have enough locking to stabilize such
-> > a check?  Probably, but...
-> > 
-> > This will take more time, and I doubt get_user_pages() is an issue in
-> > your testing, so please would you try the patch below, to see if it
-> > does fix the BUGs you are seeing?  Thanks a lot.
+On Thu, 1 Nov 2012, Dave Jones wrote:
+> On Thu, Nov 01, 2012 at 04:48:41PM -0700, Hugh Dickins wrote:
+>  > 
+>  > Fedora turns on CONFIG_DEBUG_VM?
 > 
-> Hugh, I have tested the patch for 5 more hours,
-> the issue can't be reproduced again,
-> so I think it has fixed the issue, thank you :)
+> Yes.
+>  
+>  > All mm developers should thank you for the wider testing exposure;
+>  > but I'm not so sure that Fedora users should thank you for turning
+>  > it on - really it's for mm developers to wrap around !assertions or
+>  > more expensive checks (e.g. checking calls) in their development.
+> 
+> The last time I did some benchmarking the impact wasn't as ridiculous
+> as say lockdep, or spinlock debug.
 
-Thanks a lot for testing and reporting back, that's good news.
+I think you're safe to assume that (outside of an individual developer's
+private tree) it will never be nearly as heavy as lockdep or debug
+pagealloc.  I hadn't thought of spinlock debug as a heavy one, but
+yes, I guess it would be heavier than almost all VM_BUG_ON()s.
 
-However, I've meanwhile become convinced that more fixes are needed here,
-to be safe against get_user_pages() (including get_user_pages_fast());
-to get the Mlocked count right; and to recover correctly when !pmd_same
-with an Unevictable page.
+> Maybe the benchmarks I was using
+> weren't pushing the VM very hard, but it seemed to me that the value
+> in getting info in potential problems early was higher than a small
+> performance increase.
 
-Won't now have time to update the patch today,
-but these additional fixes shouldn't hold up your testing.
+We thank you.  I may have been over-estimating how much we put inside
+those VM_BUG_ON()s, sorry.  Just so long as you're aware that there's
+a danger that one day we might slip something heavier in there.
+
+Those few explicit #ifdef CONFIG_DEBUG_VMs sometimes found in mm/
+are probably the worst: you might want to check on the current crop.
+
+> 
+>  > Or did I read a few months ago that some change had been made to
+>  > such definitions, and VM_BUG_ON(contents) are evaluated even when
+>  > the config option is off?  I do hope I'm mistaken on that.
+> 
+> Pretty sure that isn't the case. I remember Andrew chastising people
+> a few times for putting checks in VM_BUG_ON's that needed to stay around 
+> even when the config option was off. Perhaps you were thinking of one
+> of those incidents ?
+
+Avoiding side-effects in BUG_ON and VM_BUG_ON.  Yes, that comes up
+from time to time, and I'm a believer on that.  I think the discussion
+I'm mis/remembering sprung out of one of those: someone was surprised
+by the disassembly they found when it was configured off.
+
+The correct answer is to try it for myself and see.  Not today.
 
 Hugh
 
