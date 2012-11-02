@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 35CF46B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:26:00 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so7148628ied.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:25:59 -0700 (PDT)
-Date: Fri, 2 Nov 2012 16:26:03 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-In-Reply-To: <20121102014336.GA1727@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
- <20121102014336.GA1727@redhat.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id C1D266B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:27:48 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id t2so1966890qcq.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:27:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20121102225341.GC2070@barrios>
+References: <CAA25o9SD8cZUaVT-SA2f9NVvPdmYo++WGn8Gfie3bhkrc8dCxQ@mail.gmail.com>
+	<20121102225341.GC2070@barrios>
+Date: Fri, 2 Nov 2012 16:27:47 -0700
+Message-ID: <CAA25o9SXNHFgQmVMNmGNwPDCRpRTsRDW8oRvnLyofGrVo6bnNQ@mail.gmail.com>
+Subject: Re: zram on ARM
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-On Thu, 1 Nov 2012, Dave Jones wrote:
-> On Thu, Nov 01, 2012 at 04:48:41PM -0700, Hugh Dickins wrote:
->  > 
->  > Fedora turns on CONFIG_DEBUG_VM?
-> 
-> Yes.
->  
->  > All mm developers should thank you for the wider testing exposure;
->  > but I'm not so sure that Fedora users should thank you for turning
->  > it on - really it's for mm developers to wrap around !assertions or
->  > more expensive checks (e.g. checking calls) in their development.
-> 
-> The last time I did some benchmarking the impact wasn't as ridiculous
-> as say lockdep, or spinlock debug.
+On Fri, Nov 2, 2012 at 3:53 PM, Minchan Kim <minchan@kernel.org> wrote:
+> Hi Luigi,
+>
+> I am embarrassed because recently I have tried to promote zram
+> from staging tree.
+>
+> I thought it's very stable because our production team already have
+> used recent zram on ARM and they don't report any problem to me until now.
+> But I'm not sure how they use it stressfully so I will check it.
+> And other many project of android have used it but I doubt it's recent zram
+> so it would be a problem of recent patch.
+>
+> Anyway I will look at it but unfortunately, as I said earlier, I should go
+> to training course during 2 weeks. So reply will be late.
+> I hope other people involve in during that.
+>
+> Thanks for the reporting.
 
-I think you're safe to assume that (outside of an individual developer's
-private tree) it will never be nearly as heavy as lockdep or debug
-pagealloc.  I hadn't thought of spinlock debug as a heavy one, but
-yes, I guess it would be heavier than almost all VM_BUG_ON()s.
+No, it is I who should be embarrassed because my results were
+premature and I jumped the gun.  The backport of ToT to 3.4 didn't
+work correctly, even if it compiled.  I was getting OOPSes in zram
+data transfers on x86---never mind ARM.
 
-> Maybe the benchmarks I was using
-> weren't pushing the VM very hard, but it seemed to me that the value
-> in getting info in potential problems early was higher than a small
-> performance increase.
+I am now trying a safer approach, by just applying the patch that
+removes the x86 dependency.  I have tested that change on x86 and it
+works fine (perhaps a bit more sluggish?  Could be subjective).  I am
+still working on getting the ARM side properly tested.
 
-We thank you.  I may have been over-estimating how much we put inside
-those VM_BUG_ON()s, sorry.  Just so long as you're aware that there's
-a danger that one day we might slip something heavier in there.
-
-Those few explicit #ifdef CONFIG_DEBUG_VMs sometimes found in mm/
-are probably the worst: you might want to check on the current crop.
-
-> 
->  > Or did I read a few months ago that some change had been made to
->  > such definitions, and VM_BUG_ON(contents) are evaluated even when
->  > the config option is off?  I do hope I'm mistaken on that.
-> 
-> Pretty sure that isn't the case. I remember Andrew chastising people
-> a few times for putting checks in VM_BUG_ON's that needed to stay around 
-> even when the config option was off. Perhaps you were thinking of one
-> of those incidents ?
-
-Avoiding side-effects in BUG_ON and VM_BUG_ON.  Yes, that comes up
-from time to time, and I'm a believer on that.  I think the discussion
-I'm mis/remembering sprung out of one of those: someone was surprised
-by the disassembly they found when it was configured off.
-
-The correct answer is to try it for myself and see.  Not today.
-
-Hugh
+Thank you and I hope your training goes well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
