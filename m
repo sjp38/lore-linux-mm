@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 45F8C6B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:06:44 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so3017672pbb.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:06:43 -0700 (PDT)
-Date: Fri, 2 Nov 2012 16:06:38 -0700
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
-Message-ID: <20121102230638.GE27843@mtj.dyndns.org>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
- <20121101170454.b7713bce.akpm@linux-foundation.org>
- <50937918.7080302@parallels.com>
- <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B60B66B004D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:06:47 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so7130743ied.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:06:46 -0700 (PDT)
+Date: Fri, 2 Nov 2012 16:06:44 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 00/31] numa/core patches
+In-Reply-To: <50933CB6.6000909@redhat.com>
+Message-ID: <alpine.LNX.2.00.1211021558030.11106@eggly.anvils>
+References: <20121025121617.617683848@chello.nl> <508A52E1.8020203@redhat.com> <1351242480.12171.48.camel@twins> <20121028175615.GC29827@cmpxchg.org> <508F73C5.7050409@redhat.com> <20121031004838.GA1657@cmpxchg.org> <alpine.LNX.2.00.1210302350140.5084@eggly.anvils>
+ <50912478.2040403@redhat.com> <alpine.LNX.2.00.1210311005220.5685@eggly.anvils> <alpine.LNX.2.00.1211010636140.3648@eggly.anvils> <50933CB6.6000909@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
+To: Zhouping Liu <zliu@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, CAI Qian <caiqian@redhat.com>
 
-Hey, Joonsoo.
+On Fri, 2 Nov 2012, Zhouping Liu wrote:
+> On 11/01/2012 09:41 PM, Hugh Dickins wrote:
+> > 
+> > Here's a patch fixing and tidying up that and a few other things there.
+> > But I'm not signing it off yet, partly because I've barely tested it
+> > (quite probably I didn't even have any numa pmd migration happening
+> > at all), and partly because just a moment ago I ran across this
+> > instructive comment in __collapse_huge_page_isolate():
+> > 	/* cannot use mapcount: can't collapse if there's a gup pin */
+> > 	if (page_count(page) != 1) {
+> > 
+> > Hmm, yes, below I've added the page_mapcount() check I proposed to
+> > do_huge_pmd_numa_page(), but is even that safe enough?  Do we actually
+> > need a page_count() check (for 2?) to guard against get_user_pages()?
+> > I suspect we do, but then do we have enough locking to stabilize such
+> > a check?  Probably, but...
+> > 
+> > This will take more time, and I doubt get_user_pages() is an issue in
+> > your testing, so please would you try the patch below, to see if it
+> > does fix the BUGs you are seeing?  Thanks a lot.
+> 
+> Hugh, I have tested the patch for 5 more hours,
+> the issue can't be reproduced again,
+> so I think it has fixed the issue, thank you :)
 
-On Sat, Nov 03, 2012 at 04:25:59AM +0900, JoonSoo Kim wrote:
-> I am worrying about data cache footprint which is possibly caused by
-> this patchset, especially slab implementation.
-> If there are several memcg cgroups, each cgroup has it's own kmem_caches.
-> When each group do slab-intensive job hard, data cache may be overflowed easily,
-> and cache miss rate will be high, therefore this would decrease system
-> performance highly.
+Thanks a lot for testing and reporting back, that's good news.
 
-It would be nice to be able to remove such overhead too, but the
-baselines for cgroup implementations (well, at least the ones that I
-think important) in somewhat decreasing priority are...
+However, I've meanwhile become convinced that more fixes are needed here,
+to be safe against get_user_pages() (including get_user_pages_fast());
+to get the Mlocked count right; and to recover correctly when !pmd_same
+with an Unevictable page.
 
-1. Don't over-complicate the target subsystem.
+Won't now have time to update the patch today,
+but these additional fixes shouldn't hold up your testing.
 
-2. Overhead when cgroup is not used should be minimal.  Prefereably to
-   the level of being unnoticeable.
-
-3. Overhead while cgroup is being actively used should be reasonable.
-
-If you wanna split your system into N groups and maintain memory
-resource segregation among them, I don't think it's unreasonable to
-ask for paying data cache footprint overhead.
-
-So, while improvements would be nice, I wouldn't consider overheads of
-this type as a blocker.
-
-Thanks.
-
--- 
-tejun
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
