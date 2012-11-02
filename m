@@ -1,66 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 5830B6B004D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 21:43:42 -0400 (EDT)
-Date: Thu, 1 Nov 2012 21:43:36 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-Message-ID: <20121102014336.GA1727@redhat.com>
-References: <20121025023738.GA27001@redhat.com>
- <alpine.LNX.2.00.1210242121410.1697@eggly.anvils>
- <20121101191052.GA5884@redhat.com>
- <alpine.LNX.2.00.1211011546090.19377@eggly.anvils>
- <20121101232030.GA25519@redhat.com>
- <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 253F16B0068
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 22:26:18 -0400 (EDT)
+Date: Fri, 2 Nov 2012 11:32:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] Support volatile range for anon vma
+Message-ID: <20121102023220.GA3326@bbox>
+References: <1351133820-14096-1-git-send-email-minchan@kernel.org>
+ <0000013a9881a86c-c0fb5823-b6e7-4bea-8707-f6b8eddae14d-000000@email.amazonses.com>
+ <20121026005851.GD15767@bbox>
+ <0000013abda6fc7d-6cfbef1e-bc7d-4f4f-bb38-221729e8c9f9-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
+In-Reply-To: <0000013abda6fc7d-6cfbef1e-bc7d-4f4f-bb38-221729e8c9f9-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Nov 01, 2012 at 04:48:41PM -0700, Hugh Dickins wrote:
- > On Thu, 1 Nov 2012, Dave Jones wrote:
- > > On Thu, Nov 01, 2012 at 04:03:40PM -0700, Hugh Dickins wrote:
- > >  > 
- > >  > Except... earlier in the thread you explained how you hacked
- > >  > #define VM_BUG_ON(cond) WARN_ON(cond)
- > >  > to get this to come out as a warning instead of a bug,
- > >  > and now it looks as if "a user" has here done the same.
- > >  > 
- > >  > Which is very much a user's right, of course; but does
- > >  > make me wonder whether that user might actually be davej ;)
- > > 
- > > indirectly. I made the same change in the Fedora kernel a while ago
- > > to test a hypothesis that we weren't getting any VM_BUG_ON reports.
- > 
- > Fedora turns on CONFIG_DEBUG_VM?
+Hi Christoph,
 
-Yes.
- 
- > All mm developers should thank you for the wider testing exposure;
- > but I'm not so sure that Fedora users should thank you for turning
- > it on - really it's for mm developers to wrap around !assertions or
- > more expensive checks (e.g. checking calls) in their development.
+On Thu, Nov 01, 2012 at 08:26:09PM +0000, Christoph Lameter wrote:
+> On Fri, 26 Oct 2012, Minchan Kim wrote:
+> 
+> > I guess it would improve system performance very well.
+> > But as I wrote down in description, downside of the patch is that we have to
+> > age anon lru although we don't have swap. But gain via the patch is bigger than
+> > loss via aging of anon lru when memory pressure happens. I don't see other downside
+> > other than it. What do you think about it?
+> > (I didn't implement anon lru aging in case of no-swap but it's trivial
+> > once we decide)
+> 
+> 
+> I am a bit confused like some of the others as to why this patch is
+> necessary since we already have DONT_NEED.
 
-The last time I did some benchmarking the impact wasn't as ridiculous
-as say lockdep, or spinlock debug. Maybe the benchmarks I was using
-weren't pushing the VM very hard, but it seemed to me that the value
-in getting info in potential problems early was higher than a small
-performance increase.
+Totally, my fault. I should have written clearly.
 
- > Or did I read a few months ago that some change had been made to
- > such definitions, and VM_BUG_ON(contents) are evaluated even when
- > the config option is off?  I do hope I'm mistaken on that.
+DONT_NEED have to zap all pte entries/tlb flush when system call
+happens so DONT_NEED isn't cheap.
+Even, later if user accesses address again, page fault happens.
 
-Pretty sure that isn't the case. I remember Andrew chastising people
-a few times for putting checks in VM_BUG_ON's that needed to stay around 
-even when the config option was off. Perhaps you were thinking of one
-of those incidents ?
+This patch is to remove above two overheads.
+while I discussed with KOSAKI, I found there was trial of simillar
+goal by Rik. https://lkml.org/lkml/2007/4/17/53
+But as I look over the code, it seems to have a cost about setting PG_lazyfree
+on all pages of range which isn't in my implementation.
 
-	Dave
+Anyway, I would like to know where Rik's patch wasn't merged at that time.
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
