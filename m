@@ -1,62 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 12A456B004D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 06:54:23 -0400 (EDT)
-Date: Fri, 2 Nov 2012 11:54:20 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: fix hotplugged memory zone oops
-Message-ID: <20121102105420.GB24073@dhcp22.suse.cz>
-References: <505187D4.7070404@cn.fujitsu.com>
- <20120913205935.GK1560@cmpxchg.org>
- <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
- <507CF789.6050307@cn.fujitsu.com>
- <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
- <20121018220306.GA1739@cmpxchg.org>
- <alpine.LNX.2.00.1211011822190.20048@eggly.anvils>
- <20121102102159.GA24073@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 439E66B004D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 08:47:44 -0400 (EDT)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [PATCH v3 0/3] acpi,memory-hotplug : implement framework for hot removing memory
+Date: Fri, 02 Nov 2012 13:51:49 +0100
+Message-ID: <1528960.KUfu6MoGpQ@vostro.rjw.lan>
+In-Reply-To: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
+References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121102102159.GA24073@dhcp22.suse.cz>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com, Tang Chen <tangchen@cn.fujitsu.com>
+To: wency@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, akpm@linux-foundation.org, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com
 
-On Fri 02-11-12 11:21:59, Michal Hocko wrote:
-> On Thu 01-11-12 18:28:02, Hugh Dickins wrote:
-[...]
+On Friday, October 26, 2012 06:31:00 PM wency@cn.fujitsu.com wrote:
+> From: Wen Congyang <wency@cn.fujitsu.com>
+> 
+> The patch-set implements a framework for hot removing memory.
+> 
+> The memory device can be removed by 2 ways:
+> 1. send eject request by SCI
+> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> 
+> In the 1st case, acpi_memory_disable_device() will be called.
+> In the 2nd case, acpi_memory_device_remove() will be called.
+> acpi_memory_device_remove() will also be called when we unbind the
+> memory device from the driver acpi_memhotplug or a driver initialization
+> fails.
+> 
+> acpi_memory_disable_device() has already implemented a code which
+> offlines memory and releases acpi_memory_info struct . But
+> acpi_memory_device_remove() has not implemented it yet.
+> 
+> So the patch prepares the framework for hot removing memory and
+> adds the framework into acpi_memory_device_remove().
+> 
+> The last version of this patchset is here:
+> https://lkml.org/lkml/2012/10/19/156
+> 
+> Changelogs from v2 to v3:
+>   Patch2: rename lock to list_lock
+> 
+> Changelogs from v1 to v2:
+>   Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
+>   Patch2: new patch, introduce a lock to protect the list
+>   Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
+>   Note: I don't send [Patch2-4 v1] in this series because they
+>   are no logical changes in these 3 patches.
+> 
+> Wen Congyang (2):
+>   acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
+>   acpi,memory-hotplug: introduce a mutex lock to protect the list in
+>     acpi_memory_device
+> 
+> Yasuaki Ishimatsu (1):
+>   acpi,memory-hotplug : add memory offline code to
+>     acpi_memory_device_remove()
+> 
+>  drivers/acpi/acpi_memhotplug.c | 51 +++++++++++++++++++++++++++++++++---------
+>  1 file changed, 41 insertions(+), 10 deletions(-)
 
-And I forgot to mention that the following hunk will clash with
-"memcg: Simplify mem_cgroup_force_empty_list error handling" which is in
-linux-next already (via Tejun's tree). 
-Would it be easier to split the patch into the real fix and the hunk
-bellow? That one doesn't have to go into stable anyway and we would save
-some merging conflicts. The updated fix on top of -mm tree is bellow for
-your convinience.
+All patches in the series applied to the linux-next branch of the linux-pm.git
+tree as v3.8 material.
 
-> >  /**
-> > @@ -3688,17 +3712,17 @@ unsigned long mem_cgroup_soft_limit_recl
-> >  static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
-> >  				int node, int zid, enum lru_list lru)
-> >  {
-> > -	struct mem_cgroup_per_zone *mz;
-> > +	struct lruvec *lruvec;
-> >  	unsigned long flags, loop;
-> >  	struct list_head *list;
-> >  	struct page *busy;
-> >  	struct zone *zone;
-> >  
-> >  	zone = &NODE_DATA(node)->node_zones[zid];
-> > -	mz = mem_cgroup_zoneinfo(memcg, node, zid);
-> > -	list = &mz->lruvec.lists[lru];
-> > +	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> > +	list = &lruvec->lists[lru];
-> >  
-> > -	loop = mz->lru_size[lru];
-> > +	loop = mem_cgroup_get_lru_size(lruvec, lru);
-> >  	/* give some margin against EBUSY etc...*/
-> >  	loop += 256;
-> >  	busy = NULL;
+Thanks,
+Rafael
 
----
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
