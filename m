@@ -1,91 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 9AD066B005D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 16:19:34 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so2548297eek.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 13:19:33 -0700 (PDT)
-Date: Fri, 2 Nov 2012 21:19:31 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 23/29] memcg: destroy memcg caches
-Message-ID: <20121102201931.GB8899@dhcp22.suse.cz>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
- <1351771665-11076-24-git-send-email-glommer@parallels.com>
- <20121101170548.86e0c7e5.akpm@linux-foundation.org>
- <50937A62.1060105@parallels.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 3C14D6B005D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 16:22:54 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so2964108pad.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 13:22:53 -0700 (PDT)
+Date: Fri, 2 Nov 2012 13:22:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: CK5 [02/18] slab: Simplify bootstrap
+In-Reply-To: <0000013abdf0becf-a3e4ca1c-e164-4445-b1ff-d253af740700-000000@email.amazonses.com>
+Message-ID: <alpine.DEB.2.00.1211021314590.5902@chino.kir.corp.google.com>
+References: <20121101214538.971500204@linux.com> <0000013abdf0becf-a3e4ca1c-e164-4445-b1ff-d253af740700-000000@email.amazonses.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50937A62.1060105@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, elezegarcia@gmail.com
 
-On Fri 02-11-12 11:46:42, Glauber Costa wrote:
-> On 11/02/2012 04:05 AM, Andrew Morton wrote:
-> > On Thu,  1 Nov 2012 16:07:39 +0400
-> > Glauber Costa <glommer@parallels.com> wrote:
-> > 
-> >> This patch implements destruction of memcg caches. Right now,
-> >> only caches where our reference counter is the last remaining are
-> >> deleted. If there are any other reference counters around, we just
-> >> leave the caches lying around until they go away.
-> >>
-> >> When that happen, a destruction function is called from the cache
-> >> code. Caches are only destroyed in process context, so we queue them
-> >> up for later processing in the general case.
-> >>
-> >>
-> >> ...
-> >>
-> >> @@ -5950,6 +6012,7 @@ static int mem_cgroup_pre_destroy(struct cgroup *cont)
-> >>  {
-> >>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> >>  
-> >> +	mem_cgroup_destroy_all_caches(memcg);
-> >>  	return mem_cgroup_force_empty(memcg, false);
-> >>  }
-> >>  
-> > 
-> > Conflicts with linux-next cgroup changes.  Looks pretty simple:
-> > 
-> > 
-> > static int mem_cgroup_pre_destroy(struct cgroup *cont)
-> > {
-> > 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-> > 	int ret;
-> > 
-> > 	css_get(&memcg->css);
-> > 	ret = mem_cgroup_reparent_charges(memcg);
-> > 	mem_cgroup_destroy_all_caches(memcg);
-> > 	css_put(&memcg->css);
-> > 
-> > 	return ret;
-> > }
-> > 
-> 
-> There is one significant difference between the code I had and the code
-> after your fix up.
-> 
-> In my patch, caches were destroyed before the call to
-> mem_cgroup_force_empty. In the final, version, they are destroyed after it.
-> 
-> I am here thinking, but I am not sure if this have any significant
-> impact... If we run mem_cgroup_destroy_all_caches() before reparenting,
-> we'll have shrunk a lot of the pending caches, and we will have less
-> pages to reparent. But we only reparent pages in the lru anyway, and
-> then expect kmem and remaining umem to match. So *in theory* it should
-> be fine.
-> 
-> Where can I grab your final tree so I can test it and make sure it is
-> all good ?
+On Thu, 1 Nov 2012, Christoph Lameter wrote:
 
-Everything is in the -mm git tree (I tend to take mmots trees if they
-compile).
+> The nodelists field in kmem_cache is pointing to the first unused
+> object in the array field when bootstrap is complete.
+> 
+> A problem with the current approach is that the statically sized
+> kmem_cache structure use on boot can only contain NR_CPUS entries.
+> If the number of nodes plus the number of cpus is greater then we
+> would overwrite memory following the kmem_cache_boot definition.
+> 
+> Increase the size of the array field to ensure that also the node
+> pointers fit into the array field.
+> 
+> Once we do that we no longer need the kmem_cache_nodelists
+> array and we can then also use that structure elsewhere.
+> 
+> V1->V2:
+> 	- No need to zap kmem_cache->nodelists since it is allocated
+> 		with kmem_cache_zalloc() [glommer]
+> 
+> Acked-by: Glauber Costa <glommer@parallels.com>
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> ---
+>  include/linux/slab_def.h |    2 +-
+>  mm/slab.c                |   18 +++++++++++++-----
+>  2 files changed, 14 insertions(+), 6 deletions(-)
+> 
+> Index: linux/include/linux/slab_def.h
+> ===================================================================
+> --- linux.orig/include/linux/slab_def.h	2012-11-01 10:09:47.073417947 -0500
+> +++ linux/include/linux/slab_def.h	2012-11-01 10:09:55.357555494 -0500
+> @@ -91,7 +91,7 @@ struct kmem_cache {
+>  	 * is statically defined, so we reserve the max number of cpus.
+>  	 */
+>  	struct kmem_list3 **nodelists;
+> -	struct array_cache *array[NR_CPUS];
+> +	struct array_cache *array[NR_CPUS + MAX_NUMNODES];
 
--- 
-Michal Hocko
-SUSE Labs
+Needs to update the comment which specifies this is only sized to NR_CPUS.
+
+>  	/*
+>  	 * Do not add fields after array[]
+>  	 */
+> Index: linux/mm/slab.c
+> ===================================================================
+> --- linux.orig/mm/slab.c	2012-11-01 10:09:47.073417947 -0500
+> +++ linux/mm/slab.c	2012-11-01 10:09:55.361555562 -0500
+> @@ -553,9 +553,7 @@ static struct arraycache_init initarray_
+>      { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
+>  
+>  /* internal cache of cache description objs */
+> -static struct kmem_list3 *kmem_cache_nodelists[MAX_NUMNODES];
+>  static struct kmem_cache kmem_cache_boot = {
+> -	.nodelists = kmem_cache_nodelists,
+>  	.batchcount = 1,
+>  	.limit = BOOT_CPUCACHE_ENTRIES,
+>  	.shared = 1,
+> @@ -1560,6 +1558,15 @@ static void __init set_up_list3s(struct
+>  }
+>  
+>  /*
+> + * The memory after the last cpu cache pointer is used for the
+> + * the nodelists pointer.
+> + */
+> +static void setup_nodelists_pointer(struct kmem_cache *s)
+
+cachep
+
+> +{
+> +	s->nodelists = (struct kmem_list3 **)&s->array[nr_cpu_ids];
+> +}
+> +
+> +/*
+>   * Initialisation.  Called after the page allocator have been initialised and
+>   * before smp_init().
+>   */
+> @@ -1573,15 +1580,14 @@ void __init kmem_cache_init(void)
+>  	int node;
+>  
+>  	kmem_cache = &kmem_cache_boot;
+> +	setup_nodelists_pointer(kmem_cache);
+>  
+>  	if (num_possible_nodes() == 1)
+>  		use_alien_caches = 0;
+>  
+> -	for (i = 0; i < NUM_INIT_LISTS; i++) {
+> +	for (i = 0; i < NUM_INIT_LISTS; i++)
+>  		kmem_list3_init(&initkmem_list3[i]);
+> -		if (i < MAX_NUMNODES)
+> -			kmem_cache->nodelists[i] = NULL;
+> -	}
+> +
+>  	set_up_list3s(kmem_cache, CACHE_CACHE);
+>  
+>  	/*
+> @@ -1619,7 +1625,6 @@ void __init kmem_cache_init(void)
+>  	list_add(&kmem_cache->list, &slab_caches);
+>  	kmem_cache->colour_off = cache_line_size();
+>  	kmem_cache->array[smp_processor_id()] = &initarray_cache.cache;
+> -	kmem_cache->nodelists[node] = &initkmem_list3[CACHE_CACHE + node];
+>  
+>  	/*
+>  	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+> @@ -2425,7 +2430,7 @@ __kmem_cache_create (struct kmem_cache *
+>  	else
+>  		gfp = GFP_NOWAIT;
+>  
+> -	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
+> +	setup_nodelists_pointer(cachep);
+>  #if DEBUG
+>  
+>  	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
