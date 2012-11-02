@@ -1,128 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id BD45B6B005D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:07:26 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id k14so4870457oag.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 12:07:26 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 8B4B56B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:26:00 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id va7so4798593obc.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 12:25:59 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20121101050347.GD24883@bbox>
-References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
-	<1351702597-10795-5-git-send-email-js1304@gmail.com>
-	<20121101050347.GD24883@bbox>
-Date: Sat, 3 Nov 2012 04:07:25 +0900
-Message-ID: <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
-Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
- index of first flushed entry
+In-Reply-To: <50937918.7080302@parallels.com>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+	<20121101170454.b7713bce.akpm@linux-foundation.org>
+	<50937918.7080302@parallels.com>
+Date: Sat, 3 Nov 2012 04:25:59 +0900
+Message-ID: <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
+Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
 
-Hello, Minchan.
+Hello, Glauber.
 
-2012/11/1 Minchan Kim <minchan@kernel.org>:
-> On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
->> In current code, after flush_all_zero_pkmaps() is invoked,
->> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
->> return index of first flushed entry. With this index,
->> we can immediately map highmem page to virtual address represented by index.
->> So change return type of flush_all_zero_pkmaps()
->> and return index of first flushed entry.
+2012/11/2 Glauber Costa <glommer@parallels.com>:
+> On 11/02/2012 04:04 AM, Andrew Morton wrote:
+>> On Thu,  1 Nov 2012 16:07:16 +0400
+>> Glauber Costa <glommer@parallels.com> wrote:
 >>
->> Additionally, update last_pkmap_nr to this index.
->> It is certain that entry which is below this index is occupied by other mapping,
->> therefore updating last_pkmap_nr to this index is reasonable optimization.
+>>> Hi,
+>>>
+>>> This work introduces the kernel memory controller for memcg. Unlike previous
+>>> submissions, this includes the whole controller, comprised of slab and stack
+>>> memory.
 >>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+>> I'm in the middle of (re)reading all this.  Meanwhile I'll push it all
+>> out to http://ozlabs.org/~akpm/mmots/ for the crazier testers.
 >>
->> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
->> index ef788b5..97ad208 100644
->> --- a/include/linux/highmem.h
->> +++ b/include/linux/highmem.h
->> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+>> One thing:
 >>
->>  #ifdef CONFIG_HIGHMEM
->>  #include <asm/highmem.h>
->> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
+>>> Numbers can be found at https://lkml.org/lkml/2012/9/13/239
 >>
->>  /* declarations for linux/mm/highmem.c */
->>  unsigned int nr_free_highpages(void);
->> diff --git a/mm/highmem.c b/mm/highmem.c
->> index d98b0a9..b365f7b 100644
->> --- a/mm/highmem.c
->> +++ b/mm/highmem.c
->> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
->>       return virt_to_page(addr);
->>  }
+>> You claim in the above that the fork worload is 'slab intensive".  Or
+>> at least, you seem to - it's a bit fuzzy.
 >>
->> -static void flush_all_zero_pkmaps(void)
->> +static unsigned int flush_all_zero_pkmaps(void)
->>  {
->>       int i;
->> -     int need_flush = 0;
->> +     unsigned int index = PKMAP_INVALID_INDEX;
+>> But how slab intensive is it, really?
 >>
->>       flush_cache_kmaps();
+>> What is extremely slab intensive is networking.  The networking guys
+>> are very sensitive to slab performance.  If this hasn't already been
+>> done, could you please determine what impact this has upon networking?
+>> I expect Eric Dumazet, Dave Miller and Tom Herbert could suggest
+>> testing approaches.
 >>
->> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
->>                         &pkmap_page_table[i]);
->>
->>               set_page_address(page, NULL);
->> -             need_flush = 1;
->> +             if (index == PKMAP_INVALID_INDEX)
->> +                     index = i;
->>       }
->> -     if (need_flush)
->> +     if (index != PKMAP_INVALID_INDEX)
->>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
->> +
->> +     return index;
->>  }
->>
->>  /**
->> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
->>   */
->>  void kmap_flush_unused(void)
->>  {
->> +     unsigned int index;
->> +
->>       lock_kmap();
->> -     flush_all_zero_pkmaps();
->> +     index = flush_all_zero_pkmaps();
->> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
->> +             last_pkmap_nr = index;
 >
-> I don't know how kmap_flush_unused is really fast path so how my nitpick
-> is effective. Anyway,
-> What problem happens if we do following as?
+> I can test it, but unfortunately I am unlikely to get to prepare a good
+> environment before Barcelona.
 >
-> lock()
-> index = flush_all_zero_pkmaps();
-> if (index != PKMAP_INVALID_INDEX)
->         last_pkmap_nr = index;
-> unlock();
->
-> Normally, last_pkmap_nr is increased with searching empty slot in
-> map_new_virtual. So I expect return value of flush_all_zero_pkmaps
-> in kmap_flush_unused normally become either less than last_pkmap_nr
-> or last_pkmap_nr + 1.
+> I know, however, that Greg Thelen was testing netperf in his setup.
+> Greg, do you have any publishable numbers you could share?
 
-There is a case that return value of kmap_flush_unused() is larger
-than last_pkmap_nr.
-Look at the following example.
-
-Assume last_pkmap = 20 and index 1-9, 11-19 is kmapped. 10 is kunmapped.
-
-do kmap_flush_unused() => flush index 10 => last_pkmap = 10;
-do kunmap() with index 17
-do kmap_flush_unused() => flush index 17
-
-So, little dirty implementation is needed.
+Below is my humble opinion.
+I am worrying about data cache footprint which is possibly caused by
+this patchset, especially slab implementation.
+If there are several memcg cgroups, each cgroup has it's own kmem_caches.
+When each group do slab-intensive job hard, data cache may be overflowed easily,
+and cache miss rate will be high, therefore this would decrease system
+performance highly.
+Is there any result about this?
 
 Thanks.
 
