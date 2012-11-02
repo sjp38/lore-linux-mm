@@ -1,60 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 9EE3A6B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 16:59:28 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so4885029obc.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 13:59:27 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id DF67F6B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 18:36:40 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3020786pad.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 15:36:40 -0700 (PDT)
+Date: Sat, 3 Nov 2012 07:36:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121102223630.GA2070@barrios>
+References: <20121102063958.GC3326@bbox>
+ <20121102083057.GG8218@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <506B6CE0.1060800@linaro.org>
-References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
- <20121002173928.2062004e@notabene.brown> <506B6CE0.1060800@linaro.org>
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Fri, 2 Nov 2012 21:59:07 +0100
-Message-ID: <CAHO5Pa0KvH+MTYm6BCM5LHj995HpO+t87szyJjjXgupVq2VTfA@mail.gmail.com>
-Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121102083057.GG8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: NeilBrown <neilb@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Hellwig <hch@infradead.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-John,
+On Fri, Nov 02, 2012 at 08:30:57AM +0000, Mel Gorman wrote:
+> On Fri, Nov 02, 2012 at 03:39:58PM +0900, Minchan Kim wrote:
+> > Hi Mel,
+> > 
+> > On Thu, Nov 01, 2012 at 08:28:14AM +0000, Mel Gorman wrote:
+> > > On Wed, Oct 31, 2012 at 09:48:57PM -0700, David Rientjes wrote:
+> > > > On Thu, 1 Nov 2012, Minchan Kim wrote:
+> > > > 
+> > > > > It's not true any more.
+> > > > > 3.6 includes following code in try_to_free_pages
+> > > > > 
+> > > > >         /*   
+> > > > >          * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> > > > >          * that the page allocator does not consider triggering OOM
+> > > > >          */
+> > > > >         if (fatal_signal_pending(current))
+> > > > >                 return 1;
+> > > > > 
+> > > > > So the hunged task never go to the OOM path and could be looping forever.
+> > > > > 
+> > > > 
+> > > > Ah, interesting.  This is from commit 5515061d22f0 ("mm: throttle direct 
+> > > > reclaimers if PF_MEMALLOC reserves are low and swap is backed by network 
+> > > > storage").  Thanks for adding Mel to the cc.
+> > > > 
+> > > 
+> > > Indeed, thanks.
+> > > 
+> > > > The oom killer specifically has logic for this condition: when calling 
+> > > > out_of_memory() the first thing it does is
+> > > > 
+> > > > 	if (fatal_signal_pending(current))
+> > > > 		set_thread_flag(TIF_MEMDIE);
+> > > > 
+> > > > to allow it access to memory reserves so that it may exit if it's having 
+> > > > trouble.  But that ends up never happening because of the above code that 
+> > > > Minchan has identified.
+> > > > 
+> > > > So we either need to do set_thread_flag(TIF_MEMDIE) in try_to_free_pages() 
+> > > > as well or revert that early return entirely; there's no justification 
+> > > > given for it in the comment nor in the commit log. 
+> > > 
+> > > The check for fatal signal is in the wrong place. The reason it was added
+> > > is because a throttled process sleeps in an interruptible sleep.  If a user
+> > > user forcibly kills a throttled process, it should not result in an OOM kill.
+> > > 
+> > > > I'd rather remove it 
+> > > > and allow the oom killer to trigger and grant access to memory reserves 
+> > > > itself if necessary.
+> > > > 
+> > > > Mel, how does commit 5515061d22f0 deal with threads looping forever if 
+> > > > they need memory in the exit path since the oom killer never gets called?
+> > > > 
+> > > 
+> > > It doesn't. How about this?
+> > > 
+> > > ---8<---
+> > > mm: vmscan: Check for fatal signals iff the process was throttled
+> > > 
+> > > commit 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+> > > are low and swap is backed by network storage") introduced a check for
+> > > fatal signals after a process gets throttled for network storage. The
+> > > intention was that if a process was throttled and got killed that it
+> > > should not trigger the OOM killer. As pointed out by Minchan Kim and
+> > > David Rientjes, this check is in the wrong place and too broad. If a
+> > > system is in am OOM situation and a process is exiting, it can loop in
+> > > __alloc_pages_slowpath() and calling direct reclaim in a loop. As the
+> > > fatal signal is pending it returns 1 as if it is making forward progress
+> > > and can effectively deadlock.
+> > > 
+> > > This patch moves the fatal_signal_pending() check after throttling to
+> > > throttle_direct_reclaim() where it belongs.
+> > 
+> > I'm not sure how below patch achieve your goal which is to prevent
+> > unnecessary OOM kill if throttled process is killed by user during
+> > throttling. If I misunderstood your goal, please correct me and
+> > write down it in description for making it more clear.
+> > 
+> > If user kills throttled process, throttle_direct_reclaim returns true by
+> > this patch so try_to_free_pages returns 1. It means it doesn't call OOM
+> > in first path of reclaim but shortly it will try to reclaim again
+> > by should_alloc_retry.
+> 
+> Yes and it returned without calling direct reclaim.
+> 
+> > And since this second path, throttle_direct_reclaim
+> > will continue to return false so that it could end up calling OOM kill.
+> > 
+> 
+> Yes except the second time it has not been throttled and it entered direct
+> reclaim. If it fails to make any progress it will return 0 but if this
+> happens, it potentially really is an OOM situation. If it manages to
+> reclaim, it'll be returning a positive number, is making forward
+> progress and should successfully exit without triggering OOM.
+> 
+> Note that throttle_direct_reclaim also now checks fatal_signal_pending
+> before deciding to throttle at all.
+> 
+> > Is it a your intention? If so, what's different with old version?
+> > This patch just delay OOM kill so what's benefit does it has?
+> > 
+> 
+> In the first version it would never try to enter direct reclaim if a
+> fatal signal was pending but always claim that forward progress was
+> being made.
 
-A question at on one point:
+Surely we need fix for preventing deadlock with OOM kill and that's why
+I have Cced you and this patch fixes it but my question is why we need 
+such fatal signal checking trick.
 
-On Wed, Oct 3, 2012 at 12:38 AM, John Stultz <john.stultz@linaro.org> wrote:
-> On 10/02/2012 12:39 AM, NeilBrown wrote:
-[...]
->>   The SIGBUS interface could have some merit if it really reduces
->> overhead.  I
->>   worry about app bugs that could result from the non-deterministic
->>   behaviour.   A range could get unmapped while it is in use and testing
->> for
->>   the case of "get a SIGBUS half way though accessing something" would not
->>   be straight forward (SIGBUS on first step of access should be easy).
->>   I guess that is up to the app writer, but I have never liked anything
->> about
->>   the signal interface and encouraging further use doesn't feel wise.
->
-> Initially I didn't like the idea, but have warmed considerably to it. Mainly
-> due to the concern that the constant unmark/access/mark pattern would be too
-> much overhead, and having a lazy method will be much nicer for performance.
-> But yes, at the cost of additional complexity of handling the signal,
-> marking the faulted address range as non-volatile, restoring the data and
-> continuing.
+How about this?
 
-At a finer level of detail, how do you see this as happening in the
-application. I mean: in the general case, repopulating the purged
-volatile page would have to be done outside the signal handler (I
-think, because async-signal-safety considerations would preclude too
-much compdex stuff going on inside the handler). That implies
-longjumping out of the handler, repopulating the pages with data, and
-then restarting whatever work was being done when the SIGBUS was
-generated.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 10090c8..881619e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2306,13 +2306,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 
+        throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+ 
+-       /*
+-        * Do not enter reclaim if fatal signal is pending. 1 is returned so
+-        * that the page allocator does not consider triggering OOM
+-        */
+-       if (fatal_signal_pending(current))
+-               return 1;
+-
+        trace_mm_vmscan_direct_reclaim_begin(order,
+                                sc.may_writepage,
+                                gfp_mask);
+ 
+In this case, after throttling, current will try to do direct reclaim and
+if he makes forward progress, he will get a memory and exit if he receive KILL signal.
+If he can't make forward progress with direct reclaim, he can ends up OOM path but
+out_of_memory checks signal check of current and allow to access reserved memory pool
+for quick exit and return without killing other victim selection.
+Is it a problem for your case?
 
-Cheers,
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
-Michael
+-- 
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
