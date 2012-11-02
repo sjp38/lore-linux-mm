@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 8B4B56B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:26:00 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id va7so4798593obc.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 12:25:59 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 6D8A96B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:45:12 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id c4so2533452eek.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 12:45:10 -0700 (PDT)
+Message-ID: <509422C3.1000803@suse.cz>
+Date: Fri, 02 Nov 2012 20:45:07 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <50937918.7080302@parallels.com>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-	<20121101170454.b7713bce.akpm@linux-foundation.org>
-	<50937918.7080302@parallels.com>
-Date: Sat, 3 Nov 2012 04:25:59 +0900
-Message-ID: <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
-Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: kswapd0: excessive CPU usage
+References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz>
+In-Reply-To: <5093A631.5020209@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Hello, Glauber.
+On 11/02/2012 11:53 AM, Jiri Slaby wrote:
+> On 11/02/2012 11:44 AM, Zdenek Kabelac wrote:
+>>>> Yes, applying this instead of the revert fixes the issue as well.
+>>
+>> I've applied this patch on 3.7.0-rc3 kernel - and I still see excessive
+>> CPU usage - mainly  after  suspend/resume
+>>
+>> Here is just simple  kswapd backtrace from running kernel:
+> 
+> Yup, this is what we were seeing with the former patch only too. Try to
+> apply the other one too:
+> https://patchwork.kernel.org/patch/1673231/
+> 
+> For me I would say, it is fixed by the two patches now. I won't be able
+> to report later, since I'm leaving to a conference tomorrow.
 
-2012/11/2 Glauber Costa <glommer@parallels.com>:
-> On 11/02/2012 04:04 AM, Andrew Morton wrote:
->> On Thu,  1 Nov 2012 16:07:16 +0400
->> Glauber Costa <glommer@parallels.com> wrote:
->>
->>> Hi,
->>>
->>> This work introduces the kernel memory controller for memcg. Unlike previous
->>> submissions, this includes the whole controller, comprised of slab and stack
->>> memory.
->>
->> I'm in the middle of (re)reading all this.  Meanwhile I'll push it all
->> out to http://ozlabs.org/~akpm/mmots/ for the crazier testers.
->>
->> One thing:
->>
->>> Numbers can be found at https://lkml.org/lkml/2012/9/13/239
->>
->> You claim in the above that the fork worload is 'slab intensive".  Or
->> at least, you seem to - it's a bit fuzzy.
->>
->> But how slab intensive is it, really?
->>
->> What is extremely slab intensive is networking.  The networking guys
->> are very sensitive to slab performance.  If this hasn't already been
->> done, could you please determine what impact this has upon networking?
->> I expect Eric Dumazet, Dave Miller and Tom Herbert could suggest
->> testing approaches.
->>
->
-> I can test it, but unfortunately I am unlikely to get to prepare a good
-> environment before Barcelona.
->
-> I know, however, that Greg Thelen was testing netperf in his setup.
-> Greg, do you have any publishable numbers you could share?
+Damn it. It recurred right now, with both patches applied. After I
+started a java program which consumed some more memory. Though there are
+still 2 gigs free, kswap is spinning:
+[<ffffffff810b00da>] __cond_resched+0x2a/0x40
+[<ffffffff811318a0>] shrink_slab+0x1c0/0x2d0
+[<ffffffff8113478d>] kswapd+0x66d/0xb60
+[<ffffffff810a25d0>] kthread+0xc0/0xd0
+[<ffffffff816aa29c>] ret_from_fork+0x7c/0xb0
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-Below is my humble opinion.
-I am worrying about data cache footprint which is possibly caused by
-this patchset, especially slab implementation.
-If there are several memcg cgroups, each cgroup has it's own kmem_caches.
-When each group do slab-intensive job hard, data cache may be overflowed easily,
-and cache miss rate will be high, therefore this would decrease system
-performance highly.
-Is there any result about this?
-
-Thanks.
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
