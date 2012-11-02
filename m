@@ -1,52 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id A61FF6B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 14:40:03 -0400 (EDT)
-Date: Fri, 2 Nov 2012 14:39:50 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 3/5] staging: zcache2+ramster: enable zcache2 to be
- built/loaded as a module
-Message-ID: <20121102183950.GD30100@konrad-lan.dumpdata.com>
-References: <1351696074-29362-1-git-send-email-dan.magenheimer@oracle.com>
- <1351696074-29362-4-git-send-email-dan.magenheimer@oracle.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id BD45B6B005D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:07:26 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so4870457oag.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 12:07:26 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1351696074-29362-4-git-send-email-dan.magenheimer@oracle.com>
+In-Reply-To: <20121101050347.GD24883@bbox>
+References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
+	<1351702597-10795-5-git-send-email-js1304@gmail.com>
+	<20121101050347.GD24883@bbox>
+Date: Sat, 3 Nov 2012 04:07:25 +0900
+Message-ID: <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
+Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
+ index of first flushed entry
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, sjenning@linux.vnet.ibm.com, minchan@kernel.org, fschmaus@gmail.com, andor.damm@googlemail.com, ilendir@googlemail.com, akpm@linux-foundation.org, mgorman@suse.de
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Wed, Oct 31, 2012 at 08:07:52AM -0700, Dan Magenheimer wrote:
-> Allow zcache2 to be built/loaded as a module.  Note runtime dependency
-> disallows loading if cleancache/frontswap lazy initialization patches
-> are not present.  Zsmalloc support has not yet been merged into zcache2
-> but, once merged, could now easily be selected via a module_param.
-> 
-> If built-in (not built as a module), the original mechanism of enabling via
-> a kernel boot parameter is retained, but this should be considered deprecated.
-> 
-> Note that module unload is explicitly not yet supported.
+Hello, Minchan.
 
-I had an issue putting it on v3.7-rc3 with the Kconfig. Not sure why
-as it looks exactly the same.
+2012/11/1 Minchan Kim <minchan@kernel.org>:
+> On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
+>> In current code, after flush_all_zero_pkmaps() is invoked,
+>> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
+>> return index of first flushed entry. With this index,
+>> we can immediately map highmem page to virtual address represented by index.
+>> So change return type of flush_all_zero_pkmaps()
+>> and return index of first flushed entry.
+>>
+>> Additionally, update last_pkmap_nr to this index.
+>> It is certain that entry which is below this index is occupied by other mapping,
+>> therefore updating last_pkmap_nr to this index is reasonable optimization.
+>>
+>> Cc: Mel Gorman <mel@csn.ul.ie>
+>> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+>>
+>> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+>> index ef788b5..97ad208 100644
+>> --- a/include/linux/highmem.h
+>> +++ b/include/linux/highmem.h
+>> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+>>
+>>  #ifdef CONFIG_HIGHMEM
+>>  #include <asm/highmem.h>
+>> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
+>>
+>>  /* declarations for linux/mm/highmem.c */
+>>  unsigned int nr_free_highpages(void);
+>> diff --git a/mm/highmem.c b/mm/highmem.c
+>> index d98b0a9..b365f7b 100644
+>> --- a/mm/highmem.c
+>> +++ b/mm/highmem.c
+>> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
+>>       return virt_to_page(addr);
+>>  }
+>>
+>> -static void flush_all_zero_pkmaps(void)
+>> +static unsigned int flush_all_zero_pkmaps(void)
+>>  {
+>>       int i;
+>> -     int need_flush = 0;
+>> +     unsigned int index = PKMAP_INVALID_INDEX;
+>>
+>>       flush_cache_kmaps();
+>>
+>> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
+>>                         &pkmap_page_table[i]);
+>>
+>>               set_page_address(page, NULL);
+>> -             need_flush = 1;
+>> +             if (index == PKMAP_INVALID_INDEX)
+>> +                     index = i;
+>>       }
+>> -     if (need_flush)
+>> +     if (index != PKMAP_INVALID_INDEX)
+>>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+>> +
+>> +     return index;
+>>  }
+>>
+>>  /**
+>> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
+>>   */
+>>  void kmap_flush_unused(void)
+>>  {
+>> +     unsigned int index;
+>> +
+>>       lock_kmap();
+>> -     flush_all_zero_pkmaps();
+>> +     index = flush_all_zero_pkmaps();
+>> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
+>> +             last_pkmap_nr = index;
+>
+> I don't know how kmap_flush_unused is really fast path so how my nitpick
+> is effective. Anyway,
+> What problem happens if we do following as?
+>
+> lock()
+> index = flush_all_zero_pkmaps();
+> if (index != PKMAP_INVALID_INDEX)
+>         last_pkmap_nr = index;
+> unlock();
+>
+> Normally, last_pkmap_nr is increased with searching empty slot in
+> map_new_virtual. So I expect return value of flush_all_zero_pkmaps
+> in kmap_flush_unused normally become either less than last_pkmap_nr
+> or last_pkmap_nr + 1.
 
-The patch looks good, however..
+There is a case that return value of kmap_flush_unused() is larger
+than last_pkmap_nr.
+Look at the following example.
 
-> @@ -1812,9 +1846,28 @@ static int __init zcache_init(void)
->  	}
->  	if (ramster_enabled)
->  		ramster_init(!disable_cleancache, !disable_frontswap,
-> -				frontswap_has_exclusive_gets);
-> +				frontswap_has_exclusive_gets,
-> +				!disable_frontswap_selfshrink);
->  out:
->  	return ret;
->  }
+Assume last_pkmap = 20 and index 1-9, 11-19 is kmapped. 10 is kunmapped.
 
-.. ramster_init change is in the next patch. So it looks like the
-patch order is a bit mismatched.
+do kmap_flush_unused() => flush index 10 => last_pkmap = 10;
+do kunmap() with index 17
+do kmap_flush_unused() => flush index 17
+
+So, little dirty implementation is needed.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
