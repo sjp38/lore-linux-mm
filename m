@@ -1,49 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id E76D56B004D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 06:53:41 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so2220229eek.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 03:53:40 -0700 (PDT)
-Message-ID: <5093A631.5020209@suse.cz>
-Date: Fri, 02 Nov 2012 11:53:37 +0100
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 12A456B004D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 06:54:23 -0400 (EDT)
+Date: Fri, 2 Nov 2012 11:54:20 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: fix hotplugged memory zone oops
+Message-ID: <20121102105420.GB24073@dhcp22.suse.cz>
+References: <505187D4.7070404@cn.fujitsu.com>
+ <20120913205935.GK1560@cmpxchg.org>
+ <alpine.LSU.2.00.1209131816070.1908@eggly.anvils>
+ <507CF789.6050307@cn.fujitsu.com>
+ <alpine.LSU.2.00.1210181129180.2137@eggly.anvils>
+ <20121018220306.GA1739@cmpxchg.org>
+ <alpine.LNX.2.00.1211011822190.20048@eggly.anvils>
+ <20121102102159.GA24073@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: kswapd0: excessive CPU usage
-References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com>
-In-Reply-To: <5093A3F4.8090108@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121102102159.GA24073@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zdenek Kabelac <zkabelac@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com, Tang Chen <tangchen@cn.fujitsu.com>
 
-On 11/02/2012 11:44 AM, Zdenek Kabelac wrote:
->>> Yes, applying this instead of the revert fixes the issue as well.
-> 
-> I've applied this patch on 3.7.0-rc3 kernel - and I still see excessive
-> CPU usage - mainly  after  suspend/resume
-> 
-> Here is just simple  kswapd backtrace from running kernel:
+On Fri 02-11-12 11:21:59, Michal Hocko wrote:
+> On Thu 01-11-12 18:28:02, Hugh Dickins wrote:
+[...]
 
-Yup, this is what we were seeing with the former patch only too. Try to
-apply the other one too:
-https://patchwork.kernel.org/patch/1673231/
+And I forgot to mention that the following hunk will clash with
+"memcg: Simplify mem_cgroup_force_empty_list error handling" which is in
+linux-next already (via Tejun's tree). 
+Would it be easier to split the patch into the real fix and the hunk
+bellow? That one doesn't have to go into stable anyway and we would save
+some merging conflicts. The updated fix on top of -mm tree is bellow for
+your convinience.
 
-For me I would say, it is fixed by the two patches now. I won't be able
-to report later, since I'm leaving to a conference tomorrow.
+> >  /**
+> > @@ -3688,17 +3712,17 @@ unsigned long mem_cgroup_soft_limit_recl
+> >  static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+> >  				int node, int zid, enum lru_list lru)
+> >  {
+> > -	struct mem_cgroup_per_zone *mz;
+> > +	struct lruvec *lruvec;
+> >  	unsigned long flags, loop;
+> >  	struct list_head *list;
+> >  	struct page *busy;
+> >  	struct zone *zone;
+> >  
+> >  	zone = &NODE_DATA(node)->node_zones[zid];
+> > -	mz = mem_cgroup_zoneinfo(memcg, node, zid);
+> > -	list = &mz->lruvec.lists[lru];
+> > +	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+> > +	list = &lruvec->lists[lru];
+> >  
+> > -	loop = mz->lru_size[lru];
+> > +	loop = mem_cgroup_get_lru_size(lruvec, lru);
+> >  	/* give some margin against EBUSY etc...*/
+> >  	loop += 256;
+> >  	busy = NULL;
 
-> kswapd0         R  running task        0    30      2 0x00000000
-...
->  [<ffffffff81141e2a>] shrink_slab+0xba/0x510
-
-thanks,
--- 
-js
-suse labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
