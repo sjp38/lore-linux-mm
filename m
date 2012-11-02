@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 72C0F6B004D
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 19:48:46 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id 10so5364784ied.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 16:48:45 -0700 (PDT)
-Date: Thu, 1 Nov 2012 16:48:41 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: shmem_getpage_gfp VM_BUG_ON triggered. [3.7rc2]
-In-Reply-To: <20121101232030.GA25519@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 1EEEB6B0044
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 20:04:56 -0400 (EDT)
+Date: Thu, 1 Nov 2012 17:04:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
+Message-Id: <20121101170454.b7713bce.akpm@linux-foundation.org>
+In-Reply-To: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Thu, 1 Nov 2012, Dave Jones wrote:
-> On Thu, Nov 01, 2012 at 04:03:40PM -0700, Hugh Dickins wrote:
->  > 
->  > Except... earlier in the thread you explained how you hacked
->  > #define VM_BUG_ON(cond) WARN_ON(cond)
->  > to get this to come out as a warning instead of a bug,
->  > and now it looks as if "a user" has here done the same.
->  > 
->  > Which is very much a user's right, of course; but does
->  > make me wonder whether that user might actually be davej ;)
+On Thu,  1 Nov 2012 16:07:16 +0400
+Glauber Costa <glommer@parallels.com> wrote:
+
+> Hi,
 > 
-> indirectly. I made the same change in the Fedora kernel a while ago
-> to test a hypothesis that we weren't getting any VM_BUG_ON reports.
+> This work introduces the kernel memory controller for memcg. Unlike previous
+> submissions, this includes the whole controller, comprised of slab and stack
+> memory.
 
-Fedora turns on CONFIG_DEBUG_VM?
+I'm in the middle of (re)reading all this.  Meanwhile I'll push it all
+out to http://ozlabs.org/~akpm/mmots/ for the crazier testers.
 
-All mm developers should thank you for the wider testing exposure;
-but I'm not so sure that Fedora users should thank you for turning
-it on - really it's for mm developers to wrap around !assertions or
-more expensive checks (e.g. checking calls) in their development.
+One thing:
 
-Or did I read a few months ago that some change had been made to
-such definitions, and VM_BUG_ON(contents) are evaluated even when
-the config option is off?  I do hope I'm mistaken on that.
+> Numbers can be found at https://lkml.org/lkml/2012/9/13/239
 
-Hugh
+You claim in the above that the fork worload is 'slab intensive".  Or
+at least, you seem to - it's a bit fuzzy.
+
+But how slab intensive is it, really?
+
+What is extremely slab intensive is networking.  The networking guys
+are very sensitive to slab performance.  If this hasn't already been
+done, could you please determine what impact this has upon networking? 
+I expect Eric Dumazet, Dave Miller and Tom Herbert could suggest
+testing approaches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
