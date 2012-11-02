@@ -1,140 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 982B26B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 18:42:45 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so2003230dad.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 15:42:44 -0700 (PDT)
-Date: Sat, 3 Nov 2012 07:42:36 +0900
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 96B586B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 18:53:49 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so2006169dad.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 15:53:48 -0700 (PDT)
+Date: Sat, 3 Nov 2012 07:53:41 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
- index of first flushed entry
-Message-ID: <20121102224236.GB2070@barrios>
-References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
- <1351702597-10795-5-git-send-email-js1304@gmail.com>
- <20121101050347.GD24883@bbox>
- <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
+Subject: Re: zram on ARM
+Message-ID: <20121102225341.GC2070@barrios>
+References: <CAA25o9SD8cZUaVT-SA2f9NVvPdmYo++WGn8Gfie3bhkrc8dCxQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
+In-Reply-To: <CAA25o9SD8cZUaVT-SA2f9NVvPdmYo++WGn8Gfie3bhkrc8dCxQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
 
-Hi Joonsoo,
+Hi Luigi,
 
-On Sat, Nov 03, 2012 at 04:07:25AM +0900, JoonSoo Kim wrote:
-> Hello, Minchan.
-> 
-> 2012/11/1 Minchan Kim <minchan@kernel.org>:
-> > On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
-> >> In current code, after flush_all_zero_pkmaps() is invoked,
-> >> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
-> >> return index of first flushed entry. With this index,
-> >> we can immediately map highmem page to virtual address represented by index.
-> >> So change return type of flush_all_zero_pkmaps()
-> >> and return index of first flushed entry.
-> >>
-> >> Additionally, update last_pkmap_nr to this index.
-> >> It is certain that entry which is below this index is occupied by other mapping,
-> >> therefore updating last_pkmap_nr to this index is reasonable optimization.
-> >>
-> >> Cc: Mel Gorman <mel@csn.ul.ie>
-> >> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> >>
-> >> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> >> index ef788b5..97ad208 100644
-> >> --- a/include/linux/highmem.h
-> >> +++ b/include/linux/highmem.h
-> >> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
-> >>
-> >>  #ifdef CONFIG_HIGHMEM
-> >>  #include <asm/highmem.h>
-> >> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
-> >>
-> >>  /* declarations for linux/mm/highmem.c */
-> >>  unsigned int nr_free_highpages(void);
-> >> diff --git a/mm/highmem.c b/mm/highmem.c
-> >> index d98b0a9..b365f7b 100644
-> >> --- a/mm/highmem.c
-> >> +++ b/mm/highmem.c
-> >> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
-> >>       return virt_to_page(addr);
-> >>  }
-> >>
-> >> -static void flush_all_zero_pkmaps(void)
-> >> +static unsigned int flush_all_zero_pkmaps(void)
-> >>  {
-> >>       int i;
-> >> -     int need_flush = 0;
-> >> +     unsigned int index = PKMAP_INVALID_INDEX;
-> >>
-> >>       flush_cache_kmaps();
-> >>
-> >> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
-> >>                         &pkmap_page_table[i]);
-> >>
-> >>               set_page_address(page, NULL);
-> >> -             need_flush = 1;
-> >> +             if (index == PKMAP_INVALID_INDEX)
-> >> +                     index = i;
-> >>       }
-> >> -     if (need_flush)
-> >> +     if (index != PKMAP_INVALID_INDEX)
-> >>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
-> >> +
-> >> +     return index;
-> >>  }
-> >>
-> >>  /**
-> >> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
-> >>   */
-> >>  void kmap_flush_unused(void)
-> >>  {
-> >> +     unsigned int index;
-> >> +
-> >>       lock_kmap();
-> >> -     flush_all_zero_pkmaps();
-> >> +     index = flush_all_zero_pkmaps();
-> >> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
-> >> +             last_pkmap_nr = index;
-> >
-> > I don't know how kmap_flush_unused is really fast path so how my nitpick
-> > is effective. Anyway,
-> > What problem happens if we do following as?
-> >
-> > lock()
-> > index = flush_all_zero_pkmaps();
-> > if (index != PKMAP_INVALID_INDEX)
-> >         last_pkmap_nr = index;
-> > unlock();
-> >
-> > Normally, last_pkmap_nr is increased with searching empty slot in
-> > map_new_virtual. So I expect return value of flush_all_zero_pkmaps
-> > in kmap_flush_unused normally become either less than last_pkmap_nr
-> > or last_pkmap_nr + 1.
-> 
-> There is a case that return value of kmap_flush_unused() is larger
-> than last_pkmap_nr.
+I am embarrassed because recently I have tried to promote zram
+from staging tree.
 
-I see but why it's problem? kmap_flush_unused returns larger value than
-last_pkmap_nr means that there is no free slot at below the value.
-So unconditional last_pkmap_nr update is vaild.
+I thought it's very stable because our production team already have
+used recent zram on ARM and they don't report any problem to me until now.
+But I'm not sure how they use it stressfully so I will check it.
+And other many project of android have used it but I doubt it's recent zram
+so it would be a problem of recent patch.
 
-> Look at the following example.
+Anyway I will look at it but unfortunately, as I said earlier, I should go
+to training course during 2 weeks. So reply will be late.
+I hope other people involve in during that.
+
+Thanks for the reporting.
+
+On Fri, Nov 02, 2012 at 12:59:13PM -0700, Luigi Semenzato wrote:
+> Does anybody have any information on the status of zram on ARM?
+> Specifically, how much it has been tested.
 > 
-> Assume last_pkmap = 20 and index 1-9, 11-19 is kmapped. 10 is kunmapped.
+> I noticed that zram and zsmalloc on ToT no longer have the x86
+> restriction, and they compile fine on our 3.4 branch.  Sadly, that's
+> where my luck ends.
 > 
-> do kmap_flush_unused() => flush index 10 => last_pkmap = 10;
-> do kunmap() with index 17
-> do kmap_flush_unused() => flush index 17
+> When I run my standard Chrome load (which just opens a bunch of
+> memory-intensive browser tabs), Chrome dies shortly after the system
+> starts swapping pages out.  For instance, here's are the SI and SO
+> fields of "vmstat 1":
 > 
-> So, little dirty implementation is needed.
+>    si   so
+>     0    0
+>     0    0
+>     0    0
+>     0    0
+>     0    0
+>     0    0
+>     0    0
+>     0    0
+>     0  168
+>     0    0
+>     0  924
+>   188 26332
+>   520 30672
+>  1304 32208
+>  2360 30804
+>  18836 24832
+>                      <--- chrome dies here
+>  6496    0
+>   892    0
+>   260    0
+>     8    0
 > 
-> Thanks.
+> I also have a simpler load: a program that allocates memory non-stop,
+> and fills part of it with data from /dev/urandom (to simulate the
+> observed compressibility). The program never reads its data though, so
+> it doesn't get swapped back in, as in the previous load.  This runs
+> for a while and partially fills the swap device, then the system
+> hangs.
+> 
+> Deja vu, eh?  I am running this with my patch, which may result in
+> extra OOM kills.  Interestingly, a few threads are blocked in
+> exit_mm(), but not on a page fault.  Most processes are in
+> congestion_wait(), so this is probably not the same situation I was
+> seeing earlier.
+> 
+> Anyway, I am attaching the output of SysRQ-X with lots of stack
+> traces.  Thank you very much for any information!
+> 
+> Luigi
+
+
 
 -- 
 Kind Regards,
