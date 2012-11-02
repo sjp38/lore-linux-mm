@@ -1,44 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 8917F6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 00:24:09 -0400 (EDT)
-Received: by mail-ia0-f169.google.com with SMTP id h37so3003091iak.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 21:24:08 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id C3C1B6B004D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 02:05:35 -0400 (EDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id CB5283EE0C1
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:05:33 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id B42DF45DE5F
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:05:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A27545DE5E
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:05:33 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DA951DB8054
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:05:33 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 44E581DB804A
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 15:05:33 +0900 (JST)
+Message-ID: <50936288.5090008@jp.fujitsu.com>
+Date: Fri, 02 Nov 2012 15:04:56 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFxK+xr0Gc+ZLgi3Ch8YgoV78vvr+Q-7cP=kC7asFB5k5w@mail.gmail.com>
-References: <1351622772-16400-1-git-send-email-levinsasha928@gmail.com>
- <20121030214257.GB2681@htj.dyndns.org> <CA+1xoqeCKS2E4TWCUCELjDqV2pWS4v6EyV6K-=w-GRi_K6quiQ@mail.gmail.com>
- <1351646186.4004.41.camel@gandalf.local.home> <CA+55aFzFMrOUwdHHJ5-YUtEzTHGvdRosQc+K+trjub0K-w-D3A@mail.gmail.com>
- <CA+1xoqd8vAn+N1JuhpXRjSr74OPtnnw_1UBhf8=c4WDC3jOirw@mail.gmail.com> <CA+55aFxK+xr0Gc+ZLgi3Ch8YgoV78vvr+Q-7cP=kC7asFB5k5w@mail.gmail.com>
-From: Sasha Levin <levinsasha928@gmail.com>
-Date: Fri, 2 Nov 2012 00:23:48 -0400
-Message-ID: <CA+1xoqdu-ar=-hh-+uVPtj=jy=rN0OiOGr09OxZsyphYzyJuEw@mail.gmail.com>
-Subject: Re: [PATCH v8 01/16] hashtable: introduce a small and naive hashtable
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PART6 Patch] mempolicy: fix is_valid_nodemask()
+References: <1351675458-11859-1-git-send-email-wency@cn.fujitsu.com> <1351675458-11859-2-git-send-email-wency@cn.fujitsu.com> <alpine.DEB.2.00.1210311119000.8809@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1210311119000.8809@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, davem@davemloft.net, mingo@elte.hu, ebiederm@xmission.com, aarcange@redhat.com, ericvh@gmail.com, netdev@vger.kernel.org, josh@joshtriplett.org, eric.dumazet@gmail.com, mathieu.desnoyers@efficios.com, axboe@kernel.dk, agk@redhat.com, dm-devel@redhat.com, neilb@suse.de, ccaulfie@redhat.com, teigland@redhat.com, Trond.Myklebust@netapp.com, bfields@fieldses.org, fweisbec@gmail.com, jesse@nicira.com, venkat.x.venkatsubra@oracle.com, ejt@redhat.com, snitzer@redhat.com, edumazet@google.com, linux-nfs@vger.kernel.org, dev@openvswitch.org, rds-devel@oss.oracle.com, lw@cn.fujitsu.com
+To: David Rientjes <rientjes@google.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-On Tue, Oct 30, 2012 at 10:23 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Tue, Oct 30, 2012 at 6:36 PM, Sasha Levin <levinsasha928@gmail.com> wrote:
->>
->> I can either rebase that on top of mainline, or we can ask maintainers
->> to take it to their own trees if you take only 01/16 into mainline.
->> What would you prefer?
+(2012/11/01 3:21), David Rientjes wrote:
+> On Wed, 31 Oct 2012, Wen Congyang wrote:
 >
-> I don't really care deeply. The only reason to merge it now would be
-> to avoid any pain with it during the next merge window. Just taking
-> 01/16 might be the sanest way to do that, then the rest can trickle in
-> independently at their own leisure.
+>> From: Lai Jiangshan <laijs@cn.fujitsu.com>
+>>
+>> is_valid_nodemask() is introduced by 19770b32. but it does not match
+>> its comments, because it does not check the zone which > policy_zone.
+>>
+>> Also in b377fd, this commits told us, if highest zone is ZONE_MOVABLE,
+>> we should also apply memory policies to it. so ZONE_MOVABLE should be valid zone
+>> for policies. is_valid_nodemask() need to be changed to match it.
+>>
+>> Fix: check all zones, even its zoneid > policy_zone.
+>> Use nodes_intersects() instead open code to check it.
+>>
+>
+> This changes the semantics of MPOL_BIND to be considerably different than
+> what it is today: slab allocations are no longer bound by such a policy
+> which isn't consistent with what userspace expects or is specified by
+> set_mempolicy() and there's no way, with your patch, to actually specify
+> that we don't care about ZONE_MOVABLE and that the slab allocations
+> _should_ actually be allocated on movable-only zones.  You have to respect
+> cases where people aren't interested in node hotplug and not cause a
+> regression.
+>
 
-Okay, I'll keep working on converting everything else as soon as 01/16
-makes it in your tree.
-
+I'm sorry if I misunderstand somehing....
+I think people doesn't insterested in node-hotplug will never have MOVABLE_ZONE.
+What causes regression ?
 
 Thanks,
-Sasha
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
