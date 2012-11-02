@@ -1,33 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id CDADE6B004D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 04:23:22 -0400 (EDT)
-Received: by mail-ea0-f169.google.com with SMTP id k11so1608285eaa.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 01:23:21 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 661656B004D
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 04:30:08 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id c4so2141652eek.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 01:30:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1351840367-4152-4-git-send-email-minchan@kernel.org>
-References: <1351840367-4152-1-git-send-email-minchan@kernel.org>
-	<1351840367-4152-4-git-send-email-minchan@kernel.org>
-Date: Fri, 2 Nov 2012 10:23:21 +0200
-Message-ID: <CAOJsxLFfH4R+mVtCgQB2xpRPBZerZLKLq5UNM0k2+2U5YyzRPw@mail.gmail.com>
-Subject: Re: [PATCH v4 3/3] zram: select ZSMALLOC when ZRAM is configured
+In-Reply-To: <20121101170454.b7713bce.akpm@linux-foundation.org>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+	<20121101170454.b7713bce.akpm@linux-foundation.org>
+Date: Fri, 2 Nov 2012 10:30:06 +0200
+Message-ID: <CAOJsxLH7w_qvMofLD3sNuWpyJ0FO8CNHVnYo03TvY46R2qryog@mail.gmail.com>
+Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
 From: Pekka Enberg <penberg@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, gaowanlong@cn.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
 
-On Fri, Nov 2, 2012 at 9:12 AM, Minchan Kim <minchan@kernel.org> wrote:
-> At the monent, we can configure zram in driver/block once zsmalloc
-> in /lib menu is configured firstly. It's not convenient.
+On Fri, Nov 2, 2012 at 2:04 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> One thing:
 >
-> User can configure zram in driver/block regardless of zsmalloc enabling
-> by this patch.
+>> Numbers can be found at https://lkml.org/lkml/2012/9/13/239
 >
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> You claim in the above that the fork worload is 'slab intensive".  Or
+> at least, you seem to - it's a bit fuzzy.
+>
+> But how slab intensive is it, really?
+>
+> What is extremely slab intensive is networking.  The networking guys
+> are very sensitive to slab performance.  If this hasn't already been
+> done, could you please determine what impact this has upon networking?
+> I expect Eric Dumazet, Dave Miller and Tom Herbert could suggest
+> testing approaches.
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+IIRC, networking guys have reduced their dependency on slab
+performance recently.
+
+Few simple benchmarks to run are hackbench, netperf, and Christoph's
+famous microbenchmarks. The sad reality is that you usually have to
+wait for few release cycles before people notice that you've destroyed
+performance of their favourite workload. :-/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
