@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id DE52D6B005D
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 16:34:45 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so2955826pbb.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 13:34:45 -0700 (PDT)
-Date: Fri, 2 Nov 2012 13:34:43 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: CK5 [03/18] create common functions for boot slab creation
-In-Reply-To: <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.00.1211021333030.5902@chino.kir.corp.google.com>
-References: <20121101214538.971500204@linux.com> <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 965F56B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 16:39:13 -0400 (EDT)
+Message-ID: <50942F67.70502@redhat.com>
+Date: Fri, 02 Nov 2012 16:39:03 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC PATCH 5/6] mm: use vm_unmapped_area() on x86_64 architecture
+References: <1351679605-4816-1-git-send-email-walken@google.com> <1351679605-4816-6-git-send-email-walken@google.com>
+In-Reply-To: <1351679605-4816-6-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, elezegarcia@gmail.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org
 
-On Thu, 1 Nov 2012, Christoph Lameter wrote:
+On 10/31/2012 06:33 AM, Michel Lespinasse wrote:
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-> Use a special function to create kmalloc caches and use that function in
-> SLAB and SLUB.
-> 
-> V1->V2:
-> 	Do check for slasb state in slub's __kmem_cache_create to avoid
-> 	unlocking a lock that was not taken
-> V2->V3:
-> 	Remove slab_state check from sysfs_slab_add(). [Joonsoo]
-> 
-> V3->V4:
-> 	- Use %zd instead of %td for size info.
-> 	- Do not add slab caches to the list of slab caches during early
-> 	  boot.
-> 
-> Acked-by: Joonsoo Kim <js1304@gmail.com>
-> Reviewed-by: Glauber Costa <glommer@parallels.com>
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+The patch could use a changelog.
 
-Acked-by: David Rientjes <rientjes@google.com>
+> +	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+> +	info.length = len;
+> +	info.low_limit = 0;  // XXX could be PAGE_SIZE ???
 
-Eek, the calls to __kmem_cache_create() in the boot path as it sits in 
-slab/next right now are ignoring SLAB_PANIC.
+Indeed.
+
+Everything else in the patch looks good to me.
+
+> +	info.high_limit = mm->mmap_base;
+> +	info.align_mask = filp ? get_align_mask() : 0;
+> +	info.align_offset = 0;
+> +	addr = vm_unmapped_area(&info);
+> +	if (!(addr & ~PAGE_MASK))
+> +		return addr;
+> +	VM_BUG_ON(addr != -ENOMEM);
+
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
