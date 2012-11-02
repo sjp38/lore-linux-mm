@@ -1,171 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id F31F16B0044
-	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 20:36:16 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so4083633vcb.14
-        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 17:36:16 -0700 (PDT)
-Date: Thu, 1 Nov 2012 20:36:08 -0400
-From: Jeff Layton <jlayton@samba.org>
-Subject: Re: [PATCH 3/3] fs: Fix remaining filesystems to wait for stable
- page writeback
-Message-ID: <20121101203608.336aff49@corrin.poochiereds.net>
-In-Reply-To: <20121101224730.GJ19591@blackbox.djwong.org>
-References: <20121101075805.16153.64714.stgit@blackbox.djwong.org>
-	<20121101075829.16153.92036.stgit@blackbox.djwong.org>
-	<5092C2CE.7070209@panasas.com>
-	<20121101162254.03dbbd9a@tlielax.poochiereds.net>
-	<20121101224730.GJ19591@blackbox.djwong.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 321A46B004D
+	for <linux-mm@kvack.org>; Thu,  1 Nov 2012 21:28:13 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id 10so5467092ied.14
+        for <linux-mm@kvack.org>; Thu, 01 Nov 2012 18:28:12 -0700 (PDT)
+Date: Thu, 1 Nov 2012 18:28:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] memcg: fix hotplugged memory zone oops
+In-Reply-To: <20121018220306.GA1739@cmpxchg.org>
+Message-ID: <alpine.LNX.2.00.1211011822190.20048@eggly.anvils>
+References: <505187D4.7070404@cn.fujitsu.com> <20120913205935.GK1560@cmpxchg.org> <alpine.LSU.2.00.1209131816070.1908@eggly.anvils> <507CF789.6050307@cn.fujitsu.com> <alpine.LSU.2.00.1210181129180.2137@eggly.anvils> <20121018220306.GA1739@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Boaz Harrosh <bharrosh@panasas.com>, axboe@kernel.dk, lucho@ionkov.net, tytso@mit.edu, sage@inktank.com, ericvh@gmail.com, mfasheh@suse.com, dedekind1@gmail.com, adrian.hunter@intel.com, dhowells@redhat.com, sfrench@samba.org, jlbec@evilplan.org, rminnich@sandia.gov, linux-cifs@vger.kernel.org, jack@suse.cz, martin.petersen@oracle.com, neilb@suse.de, david@fromorbit.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mtd@lists.infradead.org, linux-fsdevel@vger.kernel.org, v9fs-developer@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-afs@lists.infradead.org, ocfs2-devel@oss.oracle.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, Jiang Liu <liuj97@gmail.com>, mhocko@suse.cz, bsingharora@gmail.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, paul.gortmaker@windriver.com, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Thu, 1 Nov 2012 15:47:30 -0700
-"Darrick J. Wong" <darrick.wong@oracle.com> wrote:
+When MEMCG is configured on (even when it's disabled by boot option),
+when adding or removing a page to/from its lru list, the zone pointer
+used for stats updates is nowadays taken from the struct lruvec.
+(On many configurations, calculating zone from page is slower.)
 
-> On Thu, Nov 01, 2012 at 04:22:54PM -0400, Jeff Layton wrote:
-> > On Thu, 1 Nov 2012 11:43:26 -0700
-> > Boaz Harrosh <bharrosh@panasas.com> wrote:
-> > 
-> > > On 11/01/2012 12:58 AM, Darrick J. Wong wrote:
-> > > > Fix up the filesystems that provide their own ->page_mkwrite handlers to
-> > > > provide stable page writes if necessary.
-> > > > 
-> > > > Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
-> > > > ---
-> > > >  fs/9p/vfs_file.c |    1 +
-> > > >  fs/afs/write.c   |    4 ++--
-> > > >  fs/ceph/addr.c   |    1 +
-> > > >  fs/cifs/file.c   |    1 +
-> > > >  fs/ocfs2/mmap.c  |    1 +
-> > > >  fs/ubifs/file.c  |    4 ++--
-> > > >  6 files changed, 8 insertions(+), 4 deletions(-)
-> > > > 
-> > > > 
-> > > > diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-> > > > index c2483e9..aa253f0 100644
-> > > > --- a/fs/9p/vfs_file.c
-> > > > +++ b/fs/9p/vfs_file.c
-> > > > @@ -620,6 +620,7 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > >  	lock_page(page);
-> > > >  	if (page->mapping != inode->i_mapping)
-> > > >  		goto out_unlock;
-> > > > +	wait_on_stable_page_write(page);
-> > > >  
-> > > 
-> > > Good god thanks, yes please ;-)
-> > > 
-> > > >  	return VM_FAULT_LOCKED;
-> > > >  out_unlock:
-> > > > diff --git a/fs/afs/write.c b/fs/afs/write.c
-> > > > index 9aa52d9..39eb2a4 100644
-> > > > --- a/fs/afs/write.c
-> > > > +++ b/fs/afs/write.c
-> > > > @@ -758,7 +758,7 @@ int afs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
-> > > 
-> > > afs, is it not a network filesystem? which means that it has it's own emulated none-block-device
-> > > BDI, registered internally. So if you do need stable pages someone should call
-> > > bdi_require_stable_pages()
-> > > 
-> > > But again since it is a network filesystem I don't see how it is needed, and/or it might be
-> > > taken care of already.
-> > > 
-> > > >  #ifdef CONFIG_AFS_FSCACHE
-> > > >  	fscache_wait_on_page_write(vnode->cache, page);
-> > > >  #endif
-> > > > -
-> > > > +	wait_on_stable_page_write(page);
-> > > >  	_leave(" = 0");
-> > > > -	return 0;
-> > > > +	return VM_FAULT_LOCKED;
-> > > >  }
-> > > > diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
-> > > 
-> > > CEPH for sure has it's own "emulated none-block-device BDI". This one is also
-> > > a pure networking filesystem.
-> > > 
-> > > And it already does what it needs to do with wait_on_writeback().
-> > > 
-> > > So i do not think you should touch CEPH
-> > > 
-> > > > index 6690269..e9734bf 100644
-> > > > --- a/fs/ceph/addr.c
-> > > > +++ b/fs/ceph/addr.c
-> > > > @@ -1208,6 +1208,7 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > >  		set_page_dirty(page);
-> > > >  		up_read(&mdsc->snap_rwsem);
-> > > >  		ret = VM_FAULT_LOCKED;
-> > > > +		wait_on_stable_page_write(page);
-> > > >  	} else {
-> > > >  		if (ret == -ENOMEM)
-> > > >  			ret = VM_FAULT_OOM;
-> > > > diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-> > > 
-> > > Cifs also self-BDI network filesystem, but
-> > > 
-> > > > index edb25b4..a8770bf 100644
-> > > > --- a/fs/cifs/file.c
-> > > > +++ b/fs/cifs/file.c
-> > > > @@ -2997,6 +2997,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-> > > >  	struct page *page = vmf->page;
-> > > >  
-> > > >  	lock_page(page);
-> > > 
-> > > It waits by locking the page, that's cifs naive way of waiting for writeback
-> > > 
-> > > > +	wait_on_stable_page_write(page);
-> > > 
-> > > Instead it could do better and not override page_mkwrite at all, and all it needs
-> > > to do is call bdi_require_stable_pages() at it's own registered BDI
-> > > 
-> > 
-> > Hmm...I don't know...
-> > 
-> > I've never been crazy about using the page lock for this, but in the
-> > absence of a better way to guarantee stable pages, it was what I ended
-> > up with at the time. cifs_writepages will hold the page lock until
-> > kernel_sendmsg returns. At that point the TCP layer will have copied
-> > off the page data so it's safe to release it.
-> > 
-> > With this change though, we're going to end up blocking until the
-> > writeback flag clears, right? And I think that will happen when the
-> > reply comes in? So, we'll end up blocking for much longer than is
-> > really necessary in page_mkwrite with this change.
-> 
-> That's a very good point to make-- network FSes can stop the stable-waiting
-> after the request is sent.
+But we have no code to update all the lruvecs (per zone, per memcg)
+when a memory node is hotadded.  Here's an extract from the oops which
+results when running numactl to bind a program to a newly onlined node:
 
-Well, it depends...
+BUG: unable to handle kernel NULL pointer dereference at 0000000000000f60
+IP: [<ffffffff811870b9>] __mod_zone_page_state+0x9/0x60
+PGD 0 
+Oops: 0000 [#1] SMP 
+CPU 2 
+Pid: 1219, comm: numactl Not tainted 3.6.0-rc5+ #180 Bochs Bochs
+Process numactl (pid: 1219, threadinfo ffff880039abc000, task ffff8800383c4ce0)
+Stack:
+ ffff880039abdaf8 ffffffff8117390f ffff880039abdaf8 000000008167c601
+ ffffffff81174162 ffff88003a480f00 0000000000000001 ffff8800395e0000
+ ffff88003dbd0e80 0000000000000282 ffff880039abdb48 ffffffff81174181
+Call Trace:
+ [<ffffffff8117390f>] __pagevec_lru_add_fn+0xdf/0x140
+ [<ffffffff81174181>] pagevec_lru_move_fn+0xb1/0x100
+ [<ffffffff811741ec>] __pagevec_lru_add+0x1c/0x30
+ [<ffffffff81174383>] lru_add_drain_cpu+0xa3/0x130
+ [<ffffffff8117443f>] lru_add_drain+0x2f/0x40
+ ...
 
-If the fs in question uses kernel_sendpage (or the equivalent) then the
-page will be inlined into the fraglist of the skb. If you use that,
-then you can't just drop it after the send. It's also possible that the
-fs doesn't care about page stability at all (like if signatures aren't
-being used).
+The natural solution might be to use a memcg callback whenever memory
+is hotadded; but that solution has not been scoped out, and it happens
+that we do have an easy location at which to update lruvec->zone.  The
+lruvec pointer is discovered either by mem_cgroup_zone_lruvec() or by
+mem_cgroup_page_lruvec(), and both of those do know the right zone.
 
-So I think you probably need to account for several different
-possibilities of "page stability lifetimes" here...
+So check and set lruvec->zone in those; and remove the inadequate
+attempt to set lruvec->zone from lruvec_init(), which is called
+before NODE_DATA(node) has been allocated in such cases.
 
-> Can I interest you in a new page flag (PG_stable)
-> that indicates when a page has to be held for stable write?  Along with a
-> modification to wait_on_stable_page_write that uses the new PG_stable flag
-> instead of just writeback?  Then, you can clear PG_stable right after the
-> sendmsg() and release the page for further activity without having to overload
-> the page lock.
-> 
-> I wrote a patch that does exactly that as part of my work to defer the
-> integrity checksumming until the last possible instant.  However, I haven't
-> gotten that part to work yet, so I left the PG_stable patch out of this
-> submission.  On the other hand, it sounds like you could use it.
-> 
+Ah, there was one exceptionr.  For no particularly good reason,
+mem_cgroup_force_empty_list() has its own code for deciding lruvec.
+Change it to use the standard mem_cgroup_zone_lruvec() and
+mem_cgroup_get_lru_size() too.  In fact it was already safe against
+such an oops (the lru lists in danger could only be empty),
+but we're better proofed against future changes this way.
 
-That sounds much more suitable for CIFS and possibly for others too.
+Reported-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>
+Cc: stable@vger.kernel.org
+---
+I've marked this for stable (3.6) since we introduced the problem
+in 3.5 (now closed to stable); but I have no idea if this is the
+only fix needed to get memory hotadd working with memcg in 3.6,
+and received no answer when I enquired twice before.
 
--- 
-Jeff Layton <jlayton@samba.org>
+ include/linux/mmzone.h |    2 -
+ mm/memcontrol.c        |   46 +++++++++++++++++++++++++++++----------
+ mm/mmzone.c            |    6 -----
+ mm/page_alloc.c        |    2 -
+ 4 files changed, 38 insertions(+), 18 deletions(-)
+
+--- 3.7-rc3/include/linux/mmzone.h	2012-10-14 16:16:57.665308933 -0700
++++ linux/include/linux/mmzone.h	2012-11-01 14:31:04.284185741 -0700
+@@ -752,7 +752,7 @@ extern int init_currently_empty_zone(str
+ 				     unsigned long size,
+ 				     enum memmap_context context);
+ 
+-extern void lruvec_init(struct lruvec *lruvec, struct zone *zone);
++extern void lruvec_init(struct lruvec *lruvec);
+ 
+ static inline struct zone *lruvec_zone(struct lruvec *lruvec)
+ {
+--- 3.7-rc3/mm/memcontrol.c	2012-10-14 16:16:58.341309118 -0700
++++ linux/mm/memcontrol.c	2012-11-01 14:31:04.284185741 -0700
+@@ -1055,12 +1055,24 @@ struct lruvec *mem_cgroup_zone_lruvec(st
+ 				      struct mem_cgroup *memcg)
+ {
+ 	struct mem_cgroup_per_zone *mz;
++	struct lruvec *lruvec;
+ 
+-	if (mem_cgroup_disabled())
+-		return &zone->lruvec;
++	if (mem_cgroup_disabled()) {
++		lruvec = &zone->lruvec;
++		goto out;
++	}
+ 
+ 	mz = mem_cgroup_zoneinfo(memcg, zone_to_nid(zone), zone_idx(zone));
+-	return &mz->lruvec;
++	lruvec = &mz->lruvec;
++out:
++	/*
++	 * Since a node can be onlined after the mem_cgroup was created,
++	 * we have to be prepared to initialize lruvec->zone here;
++	 * and if offlined then reonlined, we need to reinitialize it.
++	 */
++	if (unlikely(lruvec->zone != zone))
++		lruvec->zone = zone;
++	return lruvec;
+ }
+ 
+ /*
+@@ -1087,9 +1099,12 @@ struct lruvec *mem_cgroup_page_lruvec(st
+ 	struct mem_cgroup_per_zone *mz;
+ 	struct mem_cgroup *memcg;
+ 	struct page_cgroup *pc;
++	struct lruvec *lruvec;
+ 
+-	if (mem_cgroup_disabled())
+-		return &zone->lruvec;
++	if (mem_cgroup_disabled()) {
++		lruvec = &zone->lruvec;
++		goto out;
++	}
+ 
+ 	pc = lookup_page_cgroup(page);
+ 	memcg = pc->mem_cgroup;
+@@ -1107,7 +1122,16 @@ struct lruvec *mem_cgroup_page_lruvec(st
+ 		pc->mem_cgroup = memcg = root_mem_cgroup;
+ 
+ 	mz = page_cgroup_zoneinfo(memcg, page);
+-	return &mz->lruvec;
++	lruvec = &mz->lruvec;
++out:
++	/*
++	 * Since a node can be onlined after the mem_cgroup was created,
++	 * we have to be prepared to initialize lruvec->zone here;
++	 * and if offlined then reonlined, we need to reinitialize it.
++	 */
++	if (unlikely(lruvec->zone != zone))
++		lruvec->zone = zone;
++	return lruvec;
+ }
+ 
+ /**
+@@ -3688,17 +3712,17 @@ unsigned long mem_cgroup_soft_limit_recl
+ static bool mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+ 				int node, int zid, enum lru_list lru)
+ {
+-	struct mem_cgroup_per_zone *mz;
++	struct lruvec *lruvec;
+ 	unsigned long flags, loop;
+ 	struct list_head *list;
+ 	struct page *busy;
+ 	struct zone *zone;
+ 
+ 	zone = &NODE_DATA(node)->node_zones[zid];
+-	mz = mem_cgroup_zoneinfo(memcg, node, zid);
+-	list = &mz->lruvec.lists[lru];
++	lruvec = mem_cgroup_zone_lruvec(zone, memcg);
++	list = &lruvec->lists[lru];
+ 
+-	loop = mz->lru_size[lru];
++	loop = mem_cgroup_get_lru_size(lruvec, lru);
+ 	/* give some margin against EBUSY etc...*/
+ 	loop += 256;
+ 	busy = NULL;
+@@ -4736,7 +4760,7 @@ static int alloc_mem_cgroup_per_zone_inf
+ 
+ 	for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+ 		mz = &pn->zoneinfo[zone];
+-		lruvec_init(&mz->lruvec, &NODE_DATA(node)->node_zones[zone]);
++		lruvec_init(&mz->lruvec);
+ 		mz->usage_in_excess = 0;
+ 		mz->on_tree = false;
+ 		mz->memcg = memcg;
+--- 3.7-rc3/mm/mmzone.c	2012-09-30 16:47:46.000000000 -0700
++++ linux/mm/mmzone.c	2012-11-01 14:31:04.284185741 -0700
+@@ -87,7 +87,7 @@ int memmap_valid_within(unsigned long pf
+ }
+ #endif /* CONFIG_ARCH_HAS_HOLES_MEMORYMODEL */
+ 
+-void lruvec_init(struct lruvec *lruvec, struct zone *zone)
++void lruvec_init(struct lruvec *lruvec)
+ {
+ 	enum lru_list lru;
+ 
+@@ -95,8 +95,4 @@ void lruvec_init(struct lruvec *lruvec,
+ 
+ 	for_each_lru(lru)
+ 		INIT_LIST_HEAD(&lruvec->lists[lru]);
+-
+-#ifdef CONFIG_MEMCG
+-	lruvec->zone = zone;
+-#endif
+ }
+--- 3.7-rc3/mm/page_alloc.c	2012-10-28 13:48:00.021774166 -0700
++++ linux/mm/page_alloc.c	2012-11-01 14:31:04.284185741 -0700
+@@ -4505,7 +4505,7 @@ static void __paginginit free_area_init_
+ 		zone->zone_pgdat = pgdat;
+ 
+ 		zone_pcp_init(zone);
+-		lruvec_init(&zone->lruvec, zone);
++		lruvec_init(&zone->lruvec);
+ 		if (!size)
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
