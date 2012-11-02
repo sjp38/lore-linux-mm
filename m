@@ -1,99 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 96B586B0044
-	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 18:53:49 -0400 (EDT)
-Received: by mail-da0-f41.google.com with SMTP id i14so2006169dad.14
-        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 15:53:48 -0700 (PDT)
-Date: Sat, 3 Nov 2012 07:53:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram on ARM
-Message-ID: <20121102225341.GC2070@barrios>
-References: <CAA25o9SD8cZUaVT-SA2f9NVvPdmYo++WGn8Gfie3bhkrc8dCxQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 45F8C6B0044
+	for <linux-mm@kvack.org>; Fri,  2 Nov 2012 19:06:44 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so3017672pbb.14
+        for <linux-mm@kvack.org>; Fri, 02 Nov 2012 16:06:43 -0700 (PDT)
+Date: Fri, 2 Nov 2012 16:06:38 -0700
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v6 00/29] kmem controller for memcg.
+Message-ID: <20121102230638.GE27843@mtj.dyndns.org>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+ <20121101170454.b7713bce.akpm@linux-foundation.org>
+ <50937918.7080302@parallels.com>
+ <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAA25o9SD8cZUaVT-SA2f9NVvPdmYo++WGn8Gfie3bhkrc8dCxQ@mail.gmail.com>
+In-Reply-To: <CAAmzW4O74e3J9M3Q86Y0wXX6Pfp8GDpv6jAB5ebJPHfAxAeL0Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Glauber Costa <glommer@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Greg Thelen <gthelen@google.com>
 
-Hi Luigi,
+Hey, Joonsoo.
 
-I am embarrassed because recently I have tried to promote zram
-from staging tree.
+On Sat, Nov 03, 2012 at 04:25:59AM +0900, JoonSoo Kim wrote:
+> I am worrying about data cache footprint which is possibly caused by
+> this patchset, especially slab implementation.
+> If there are several memcg cgroups, each cgroup has it's own kmem_caches.
+> When each group do slab-intensive job hard, data cache may be overflowed easily,
+> and cache miss rate will be high, therefore this would decrease system
+> performance highly.
 
-I thought it's very stable because our production team already have
-used recent zram on ARM and they don't report any problem to me until now.
-But I'm not sure how they use it stressfully so I will check it.
-And other many project of android have used it but I doubt it's recent zram
-so it would be a problem of recent patch.
+It would be nice to be able to remove such overhead too, but the
+baselines for cgroup implementations (well, at least the ones that I
+think important) in somewhat decreasing priority are...
 
-Anyway I will look at it but unfortunately, as I said earlier, I should go
-to training course during 2 weeks. So reply will be late.
-I hope other people involve in during that.
+1. Don't over-complicate the target subsystem.
 
-Thanks for the reporting.
+2. Overhead when cgroup is not used should be minimal.  Prefereably to
+   the level of being unnoticeable.
 
-On Fri, Nov 02, 2012 at 12:59:13PM -0700, Luigi Semenzato wrote:
-> Does anybody have any information on the status of zram on ARM?
-> Specifically, how much it has been tested.
-> 
-> I noticed that zram and zsmalloc on ToT no longer have the x86
-> restriction, and they compile fine on our 3.4 branch.  Sadly, that's
-> where my luck ends.
-> 
-> When I run my standard Chrome load (which just opens a bunch of
-> memory-intensive browser tabs), Chrome dies shortly after the system
-> starts swapping pages out.  For instance, here's are the SI and SO
-> fields of "vmstat 1":
-> 
->    si   so
->     0    0
->     0    0
->     0    0
->     0    0
->     0    0
->     0    0
->     0    0
->     0    0
->     0  168
->     0    0
->     0  924
->   188 26332
->   520 30672
->  1304 32208
->  2360 30804
->  18836 24832
->                      <--- chrome dies here
->  6496    0
->   892    0
->   260    0
->     8    0
-> 
-> I also have a simpler load: a program that allocates memory non-stop,
-> and fills part of it with data from /dev/urandom (to simulate the
-> observed compressibility). The program never reads its data though, so
-> it doesn't get swapped back in, as in the previous load.  This runs
-> for a while and partially fills the swap device, then the system
-> hangs.
-> 
-> Deja vu, eh?  I am running this with my patch, which may result in
-> extra OOM kills.  Interestingly, a few threads are blocked in
-> exit_mm(), but not on a page fault.  Most processes are in
-> congestion_wait(), so this is probably not the same situation I was
-> seeing earlier.
-> 
-> Anyway, I am attaching the output of SysRQ-X with lots of stack
-> traces.  Thank you very much for any information!
-> 
-> Luigi
+3. Overhead while cgroup is being actively used should be reasonable.
 
+If you wanna split your system into N groups and maintain memory
+resource segregation among them, I don't think it's unreasonable to
+ask for paying data cache footprint overhead.
 
+So, while improvements would be nice, I wouldn't consider overheads of
+this type as a blocker.
+
+Thanks.
 
 -- 
-Kind Regards,
-Minchan Kim
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
