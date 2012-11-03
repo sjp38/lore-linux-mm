@@ -1,91 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 643316B0044
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 03:58:17 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so2714001eek.14
-        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 00:58:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <506B6CE0.1060800@linaro.org>
-References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
- <20121002173928.2062004e@notabene.brown> <506B6CE0.1060800@linaro.org>
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Sat, 3 Nov 2012 08:57:55 +0100
-Message-ID: <CAHO5Pa2XiZ5_ZJ19amzKoRi=-=g2st-VahF1XHm9ovbYyPhgdw@mail.gmail.com>
-Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 81F7F6B0044
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 04:35:39 -0400 (EDT)
+Received: by mail-da0-f41.google.com with SMTP id i14so2150213dad.14
+        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 01:35:38 -0700 (PDT)
+From: Ming Lei <ming.lei@canonical.com>
+Subject: [PATCH v4 0/6] solve deadlock caused by memory allocation with I/O
+Date: Sat,  3 Nov 2012 16:35:08 +0800
+Message-Id: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: NeilBrown <neilb@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Hellwig <hch@infradead.org>, Linux API <linux-api@vger.kernel.org>, Jake Edge <jake@lwn.net>, Michael Kerrisk <mtk.linux.lists@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-[CC += linux-api, since this is an API change.]
+This patchset try to solve one deadlock problem which might be caused
+by memory allocation with block I/O during runtime PM and block device
+error handling path. Traditionly, the problem is addressed by passing
+GFP_NOIO statically to mm, but that is not a effective solution, see
+detailed description in patch 1's commit log.
 
-Hi John,
+This patch set introduces one process flag and trys to fix the deadlock
+problem on block device/network device during runtime PM or usb bus reset.
 
-A couple of other questions that occurred to me...
+The 1st one is the change on include/sched.h and mm.
 
-What are the expected/planned semantics of volatile ranges for mlocked
-pages? I noticed that Minchan's patch series
-(https://lwn.net/Articles/522154/) gives an error on attempt to mark
-locked pages as volatile (which seems sensible). I didn't see anything
-similar in your patches. Perhaps it's not easy to do because of the
-non-VMA-based implementation? Something to think about.
+The 2nd patch introduces the flag of memalloc_noio on 'dev_pm_info',
+and pm_runtime_set_memalloc_noio(), so that PM Core can teach mm to not
+allocate mm with GFP_IOFS during the runtime_resume callback only on
+device with the flag set.
 
-On Wed, Oct 3, 2012 at 12:38 AM, John Stultz <john.stultz@linaro.org> wrote:
-> On 10/02/2012 12:39 AM, NeilBrown wrote:
->>
->> On Fri, 28 Sep 2012 23:16:30 -0400 John Stultz <john.stultz@linaro.org>
->> wrote:
->>
->>   For example, allowing sub-page volatile region seems to be above and
->> beyond
->>   the call of duty.  You cannot mmap sub-pages, so why should they be
->> volatile?
->
-> Although if someone marked a page and a half as volatile, would it be
-> reasonable to throw away the second half of that second page? That seems
-> unexpected to me. So we're really only marking the whole pages specified as
-> volatlie,  similar to how FALLOC_FL_PUNCH_HOLE behaves.
->
-> But if it happens that the adjacent range is also a partial page, we can
-> coalesce them possibly into an purgable whole page. I think it makes sense,
-> especially from a userland point of view and wasn't really complicated to
-> add.
+The following 2 patches apply the introduced pm_runtime_set_memalloc_noio()
+to mark all devices as memalloc_noio_resume in the path from the block or
+network device to the root device in device tree.
 
-I must confess that I'm puzzled by this facility to lock sub-page
-range ranges as well. What's the use case? What I'm thinking is: the
-goal of volatile ranges is to help improve system performance by
-freeing up a (sizeable) block of pages. Why then would the user care
-too much about marking with sub-page granularity, or that such ranges
-might be merged? After all, the system calls to do this marking are
-expensive, and so for performance reasons, I suppose that a process
-would like to keep those system calls to a minimum.
+The last 2 patches are applied again PM and USB subsystem to demonstrate
+how to use the introduced mechanism to fix the deadlock problem.
 
-[...]
+Change logs:
+V4:
+	- patches from the 2nd to the 6th changed	
+	- call pm_runtime_set_memalloc_noio() after device_add() as pointed
+	by Alan
+	- set PF_MEMALLOC_NOIO during runtime_suspend()
 
->>   I think discarding whole ranges at a time is very sensible, and so
->> merging
->>   adjacent ranges is best avoided.  If you require page-aligned ranges
->> this
->>   becomes trivial - is that right?
->
-> True. If we avoid coalescing non-whole page ranges, keeping non-overlapping
-> ranges independent is fairly easy.
+V3:
+        - patch 2/6 and 5/6 changed, see their commit log
+        - remove RFC from title since several guys have expressed that
+        it is a reasonable solution
+V2:
+        - remove changes on 'may_writepage' and 'may_swap'(1/6)
+        - unset GFP_IOFS in try_to_free_pages() path(1/6)
+        - introduce pm_runtime_set_memalloc_noio()
+        - only apply the meachnism on block/network device and its ancestors
+        for runtime resume context
+V1:
+        - take Minchan's change to avoid the check in alloc_page hot path
+        - change the helpers' style into save/restore as suggested by Alan
+        - memory allocation with no io in usb bus reset path for all devices
+        as suggested by Greg and Oliver
 
-Regarding coalescing of adjacent ranges. Here's one possible argument
-against it (Jake Edge alerted me to this). If an application marked
-adjacent ranges using separate system calls, that might be an
-indication that the application intends to to have different access
-patterns against the two ranges: one frequent, the other rare. In that
-case, I suppose it would be better if the ranges were not merged.
+ block/genhd.c                |    9 +++++
+ drivers/base/power/runtime.c |   89 +++++++++++++++++++++++++++++++++++++++++-
+ drivers/usb/core/hub.c       |   13 ++++++
+ include/linux/pm.h           |    1 +
+ include/linux/pm_runtime.h   |    3 ++
+ include/linux/sched.h        |   10 +++++
+ mm/page_alloc.c              |   10 ++++-
+ mm/vmscan.c                  |   12 ++++++
+ net/core/net-sysfs.c         |    5 +++
 
-Cheers,
 
-Michael
-
--- 
-Michael Kerrisk Linux man-pages maintainer;
-http://www.kernel.org/doc/man-pages/
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
