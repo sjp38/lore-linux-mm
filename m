@@ -1,69 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 04B396B004D
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 04:36:42 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3222749pad.14
-        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 01:36:42 -0700 (PDT)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 79A316B0044
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 04:37:01 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so3206600pbb.14
+        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 01:37:00 -0700 (PDT)
 From: Ming Lei <ming.lei@canonical.com>
-Subject: [PATCH v4 4/6] net/core: apply pm_runtime_set_memalloc_noio on network devices
-Date: Sat,  3 Nov 2012 16:35:12 +0800
-Message-Id: <1351931714-11689-5-git-send-email-ming.lei@canonical.com>
+Subject: [PATCH v4 5/6] PM / Runtime: force memory allocation with no I/O during Runtime PM callbcack
+Date: Sat,  3 Nov 2012 16:35:13 +0800
+Message-Id: <1351931714-11689-6-git-send-email-ming.lei@canonical.com>
 In-Reply-To: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
 References: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@canonical.com>, Eric Dumazet <eric.dumazet@gmail.com>, David Decotigny <david.decotigny@google.com>, Tom Herbert <therbert@google.com>, Ingo Molnar <mingo@elte.hu>
+Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@canonical.com>
 
-Deadlock might be caused by allocating memory with GFP_KERNEL in
-runtime_resume and runtime_suspend callback of network devices in
-iSCSI situation, so mark network devices and its ancestor as
-'memalloc_noio' with the introduced pm_runtime_set_memalloc_noio().
+This patch applies the introduced memalloc_noio_save() and
+memalloc_noio_restore() to force memory allocation with no I/O
+during runtime_resume/runtime_suspend callback on device with
+the flag of 'memalloc_noio' set.
 
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: David Decotigny <david.decotigny@google.com>
-Cc: Tom Herbert <therbert@google.com>
-Cc: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Stern <stern@rowland.harvard.edu>
+Cc: Oliver Neukum <oneukum@suse.de>
+Cc: Rafael J. Wysocki <rjw@sisk.pl>
 Signed-off-by: Ming Lei <ming.lei@canonical.com>
 ---
 v4:
-	 - call pm_runtime_set_memalloc_noio(ddev, true) after
-	   device_add
+	- runtime_suspend need this too because rpm_resume may wait for
+	completion of concurrent runtime_suspend, so deadlock still may
+	be triggered in runtime_suspend path.
 ---
- net/core/net-sysfs.c |    5 +++++
- 1 file changed, 5 insertions(+)
+ drivers/base/power/runtime.c |   32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
 
-diff --git a/net/core/net-sysfs.c b/net/core/net-sysfs.c
-index bcf02f6..a55d255 100644
---- a/net/core/net-sysfs.c
-+++ b/net/core/net-sysfs.c
-@@ -22,6 +22,7 @@
- #include <linux/vmalloc.h>
- #include <linux/export.h>
- #include <linux/jiffies.h>
-+#include <linux/pm_runtime.h>
- #include <net/wext.h>
+diff --git a/drivers/base/power/runtime.c b/drivers/base/power/runtime.c
+index d477924..7ed17a9 100644
+--- a/drivers/base/power/runtime.c
++++ b/drivers/base/power/runtime.c
+@@ -368,6 +368,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
+ 	int (*callback)(struct device *);
+ 	struct device *parent = NULL;
+ 	int retval;
++	unsigned int noio_flag;
  
- #include "net-sysfs.h"
-@@ -1386,6 +1387,8 @@ void netdev_unregister_kobject(struct net_device * net)
+ 	trace_rpm_suspend(dev, rpmflags);
  
- 	remove_queue_kobjects(net);
+@@ -477,7 +478,20 @@ static int rpm_suspend(struct device *dev, int rpmflags)
+ 	if (!callback && dev->driver && dev->driver->pm)
+ 		callback = dev->driver->pm->runtime_suspend;
  
-+	pm_runtime_set_memalloc_noio(dev, false);
-+
- 	device_del(dev);
- }
+-	retval = rpm_callback(callback, dev);
++	/*
++	 * Deadlock might be caused if memory allocation with GFP_KERNEL
++	 * happens inside runtime_suspend callback of one block device's
++	 * ancestor or the block device itself. Network device might be
++	 * thought as part of iSCSI block device, so network device and
++	 * its ancestor should be marked as memalloc_noio.
++	 */
++	if (dev->power.memalloc_noio) {
++		memalloc_noio_save(noio_flag);
++		retval = rpm_callback(callback, dev);
++		memalloc_noio_restore(noio_flag);
++	} else {
++		retval = rpm_callback(callback, dev);
++	}
+ 	if (retval)
+ 		goto fail;
  
-@@ -1421,6 +1424,8 @@ int netdev_register_kobject(struct net_device *net)
- 		return error;
- 	}
+@@ -560,6 +574,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
+ 	int (*callback)(struct device *);
+ 	struct device *parent = NULL;
+ 	int retval = 0;
++	unsigned int noio_flag;
  
-+	pm_runtime_set_memalloc_noio(dev, true);
-+
- 	return error;
- }
+ 	trace_rpm_resume(dev, rpmflags);
  
+@@ -709,7 +724,20 @@ static int rpm_resume(struct device *dev, int rpmflags)
+ 	if (!callback && dev->driver && dev->driver->pm)
+ 		callback = dev->driver->pm->runtime_resume;
+ 
+-	retval = rpm_callback(callback, dev);
++	/*
++	 * Deadlock might be caused if memory allocation with GFP_KERNEL
++	 * happens inside runtime_resume callback of one block device's
++	 * ancestor or the block device itself. Network device might be
++	 * thought as part of iSCSI block device, so network device and
++	 * its ancestor should be marked as memalloc_noio.
++	 */
++	if (dev->power.memalloc_noio) {
++		memalloc_noio_save(noio_flag);
++		retval = rpm_callback(callback, dev);
++		memalloc_noio_restore(noio_flag);
++	} else {
++		retval = rpm_callback(callback, dev);
++	}
+ 	if (retval) {
+ 		__update_runtime_status(dev, RPM_SUSPENDED);
+ 		pm_runtime_cancel_pending(dev);
 -- 
 1.7.9.5
 
