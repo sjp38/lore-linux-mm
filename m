@@ -1,77 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 3140C6B005D
-	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 05:38:56 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id c4so2745260eek.14
-        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 02:38:54 -0700 (PDT)
-Message-ID: <5094E4A3.8020409@gmail.com>
-Date: Sat, 03 Nov 2012 10:32:19 +0100
-From: Marco Stornelli <marco.stornelli@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 7386A6B005D
+	for <linux-mm@kvack.org>; Sat,  3 Nov 2012 07:04:05 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id k14so5405570oag.14
+        for <linux-mm@kvack.org>; Sat, 03 Nov 2012 04:04:04 -0700 (PDT)
 MIME-Version: 1.0
-Subject: [PATCH 20/21] mm: drop vmtruncate
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121030122032.GC3888@suse.de>
+References: <20121025121617.617683848@chello.nl>
+	<20121030122032.GC3888@suse.de>
+Date: Sat, 3 Nov 2012 19:04:04 +0800
+Message-ID: <CAGjg+kHrbjr8T0+TOEKp6Mx4zZBbrh_3VPUt81nWj6u3xi=NNQ@mail.gmail.com>
+Subject: Re: [PATCH 00/31] numa/core patches
+From: Alex Shi <lkml.alex@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux FS Devel <linux-fsdevel@vger.kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-Removed vmtruncate
+>
+> In reality, this report is larger but I chopped it down a bit for
+> brevity. autonuma beats schednuma *heavily* on this benchmark both in
+> terms of average operations per numa node and overall throughput.
+>
+> SPECJBB PEAKS
+>                                        3.7.0                      3.7.0                      3.7.0
+>                               rc2-stats-v2r1         rc2-autonuma-v27r8         rc2-schednuma-v1r3
+>  Expctd Warehouse                   12.00 (  0.00%)                   12.00 (  0.00%)                   12.00 (  0.00%)
+>  Expctd Peak Bops               442225.00 (  0.00%)               596039.00 ( 34.78%)               555342.00 ( 25.58%)
+>  Actual Warehouse                    7.00 (  0.00%)                    9.00 ( 28.57%)                    8.00 ( 14.29%)
+>  Actual Peak Bops               550747.00 (  0.00%)               646124.00 ( 17.32%)               560635.00 (  1.80%)
 
-Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
----
- include/linux/mm.h |    1 -
- mm/truncate.c      |   23 -----------------------
- 2 files changed, 0 insertions(+), 24 deletions(-)
+It is impressive report!
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fa06804..95f70bb 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -977,7 +977,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
- 
- extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
- extern void truncate_setsize(struct inode *inode, loff_t newsize);
--extern int vmtruncate(struct inode *inode, loff_t offset);
- void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
- int truncate_inode_page(struct address_space *mapping, struct page *page);
- int generic_error_remove_page(struct address_space *mapping, struct page *page);
-diff --git a/mm/truncate.c b/mm/truncate.c
-index d51ce92..c75b736 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -577,29 +577,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
- EXPORT_SYMBOL(truncate_setsize);
- 
- /**
-- * vmtruncate - unmap mappings "freed" by truncate() syscall
-- * @inode: inode of the file used
-- * @newsize: file offset to start truncating
-- *
-- * This function is deprecated and truncate_setsize or truncate_pagecache
-- * should be used instead, together with filesystem specific block truncation.
-- */
--int vmtruncate(struct inode *inode, loff_t newsize)
--{
--	int error;
--
--	error = inode_newsize_ok(inode, newsize);
--	if (error)
--		return error;
--
--	truncate_setsize(inode, newsize);
--	if (inode->i_op->truncate)
--		inode->i_op->truncate(inode);
--	return 0;
--}
--EXPORT_SYMBOL(vmtruncate);
--
--/**
-  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
-  * @inode: inode
-  * @lstart: offset of beginning of hole
+Could you like to share the what JVM and options are you using in the
+testing, and based on which kinds of platform?
+
 -- 
-1.7.3.4
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
