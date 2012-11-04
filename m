@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id AE09C6B006E
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 07:51:22 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3667867pad.14
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 04:51:22 -0800 (PST)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id A46F46B0070
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 07:51:30 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so3650067pbb.14
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 04:51:30 -0800 (PST)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [ACPIHP PATCH part2 07/13] ACPIHP: analyse dependencies among ACPI hotplug slots
-Date: Sun,  4 Nov 2012 20:50:09 +0800
-Message-Id: <1352033415-5606-8-git-send-email-jiang.liu@huawei.com>
+Subject: [ACPIHP PATCH part2 08/13] ACPIHP: provide interface to cancel inprogress hotplug operations
+Date: Sun,  4 Nov 2012 20:50:10 +0800
+Message-Id: <1352033415-5606-9-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1352033415-5606-1-git-send-email-jiang.liu@huawei.com>
 References: <1352033415-5606-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,92 +15,75 @@ List-ID: <linux-mm.kvack.org>
 To: "Rafael J . Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Bjorn Helgaas <bhelgaas@google.com>
 Cc: Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Jiang Liu <liuj97@gmail.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org
 
-Due to hardware constraints, an ACPI hotplug slot may have dependencies
-on other ACPI hotplug slots. For example, if a hotpluggable memory board
-is connected to a hotpluggble physical processor, the physical processor
-must be powered on before powering the memory board on.
+Some hotplug operations, such as hot-removal of memory device, may take
+very long or even infinite time. One possible solution is to time out
+and retry, but it's sub-optimal.
 
-According to physical and device tree topology constraints, we need to
-consider following dependency relationships:
-1) The parent slot must be powered on before powering a child slot on.
-2) All child slots must be powered off before powering a parent slot off.
-3) All devices in a slot's _EDL list must be powered off before powering
-   a slot off.
-4) The parent ACPI device topology must be created before creating ACPI
-   devices for devices connecting to a child slot
-5) All ACPI devices connecting to child slots must be destroyed before
-   destroying ACPI device topology for a parent slot.
+This patch implements interfaces to cancel inprogress ACPI system device
+hotplug operations, so user could cancel a long-standing hotplug request
+on demand.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 Signed-off-by: Hanjun Guo <guohanjun@huawei.com>
 ---
  drivers/acpi/hotplug/Makefile     |    1 +
- drivers/acpi/hotplug/acpihp_drv.h |   27 ++++
- drivers/acpi/hotplug/dependency.c |  245 +++++++++++++++++++++++++++++++++++++
- 3 files changed, 273 insertions(+)
- create mode 100644 drivers/acpi/hotplug/dependency.c
+ drivers/acpi/hotplug/acpihp_drv.h |   19 ++++
+ drivers/acpi/hotplug/cancel.c     |  174 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 194 insertions(+)
+ create mode 100644 drivers/acpi/hotplug/cancel.c
 
 diff --git a/drivers/acpi/hotplug/Makefile b/drivers/acpi/hotplug/Makefile
-index 6257047..bfb677f 100644
+index bfb677f..f72f2c3 100644
 --- a/drivers/acpi/hotplug/Makefile
 +++ b/drivers/acpi/hotplug/Makefile
-@@ -12,3 +12,4 @@ acpihp_slot-$(CONFIG_ACPI_HOTPLUG_SLOT_FAKE)	+= slot_fake.o
- 
+@@ -13,3 +13,4 @@ acpihp_slot-$(CONFIG_ACPI_HOTPLUG_SLOT_FAKE)	+= slot_fake.o
  obj-$(CONFIG_ACPI_HOTPLUG_DRIVER)		+= acpihp_drv.o
  acpihp_drv-y					= drv_main.o
-+acpihp_drv-y					+= dependency.o
+ acpihp_drv-y					+= dependency.o
++acpihp_drv-y					+= cancel.o
 diff --git a/drivers/acpi/hotplug/acpihp_drv.h b/drivers/acpi/hotplug/acpihp_drv.h
-index 769ee74..32ea054 100644
+index 32ea054..dd8ea92 100644
 --- a/drivers/acpi/hotplug/acpihp_drv.h
 +++ b/drivers/acpi/hotplug/acpihp_drv.h
-@@ -25,14 +25,41 @@
- #ifndef	__ACPIHP_DRV_H__
- #define	__ACPIHP_DRV_H__
+@@ -38,8 +38,20 @@ enum acpihp_drv_cmd {
+ 	ACPIHP_DRV_CMD_MAX
+ };
  
-+/* Commands to drive hotplug slot state machine */
-+enum acpihp_drv_cmd {
-+	ACPIHP_DRV_CMD_NOOP = 0,
-+	ACPIHP_DRV_CMD_POWERON = 0x1,
-+	ACPIHP_DRV_CMD_CONNECT = 0x2,
-+	ACPIHP_DRV_CMD_CONFIGURE = 0x4,
-+	ACPIHP_DRV_CMD_UNCONFIGURE = 0x8,
-+	ACPIHP_DRV_CMD_DISCONNECT = 0x10,
-+	ACPIHP_DRV_CMD_POWEROFF = 0x20,
-+	ACPIHP_DRV_CMD_CANCEL = 0x40,
-+	ACPIHP_DRV_CMD_MAX
++enum acpihp_drv_cancel_state {
++	ACPIHP_DRV_CANCEL_INIT = 0,
++	ACPIHP_DRV_CANCEL_STARTED,
++	ACPIHP_DRV_CANCEL_OK,
++	ACPIHP_DRV_CANCEL_FAILED,
++	ACPIHP_DRV_CANCEL_MISSED,
++	ACPIHP_DRV_CANCEL_FINISHED
 +};
 +
  struct acpihp_slot_drv {
  	struct mutex		op_mutex;
++	atomic_t		cancel_state;
++	atomic_t		cancel_users;
++	struct acpihp_cancel_context	cancel_ctx;
  };
  
-+struct acpihp_slot_dependency {
-+	struct list_head		node;
-+	struct acpihp_slot		*slot;
-+	u32				opcodes;
-+};
-+
- void acpihp_drv_get_data(struct acpihp_slot *slot,
- 			 struct acpihp_slot_drv **data);
- int acpihp_drv_enumerate_devices(struct acpihp_slot *slot);
- void acpihp_drv_update_slot_state(struct acpihp_slot *slot);
- int acpihp_drv_update_slot_status(struct acpihp_slot *slot);
+ struct acpihp_slot_dependency {
+@@ -62,4 +74,11 @@ int acpihp_drv_filter_dependency_list(struct list_head *old_head,
+ int acpihp_drv_generate_dependency_list(struct acpihp_slot *slot,
+ 		struct list_head *slot_list, enum acpihp_drv_cmd cmd);
  
-+int acpihp_drv_add_slot_to_dependency_list(struct acpihp_slot *slot,
-+					   struct list_head *slot_list);
-+void acpihp_drv_destroy_dependency_list(struct list_head *slot_list);
-+int acpihp_drv_filter_dependency_list(struct list_head *old_head,
-+		struct list_head *new_head, u32 opcode);
-+int acpihp_drv_generate_dependency_list(struct acpihp_slot *slot,
-+		struct list_head *slot_list, enum acpihp_drv_cmd cmd);
++void acpihp_drv_cancel_init(struct list_head *list);
++void acpihp_drv_cancel_notify(struct acpihp_slot *slot,
++			      enum acpihp_drv_cancel_state state);
++void acpihp_drv_cancel_fini(struct list_head *list);
++int acpihp_drv_cancel_start(struct list_head *list);
++int acpihp_drv_cancel_wait(struct list_head *list);
 +
  #endif	/* __ACPIHP_DRV_H__ */
-diff --git a/drivers/acpi/hotplug/dependency.c b/drivers/acpi/hotplug/dependency.c
+diff --git a/drivers/acpi/hotplug/cancel.c b/drivers/acpi/hotplug/cancel.c
 new file mode 100644
-index 0000000..c2992f4
+index 0000000..c515c28
 --- /dev/null
-+++ b/drivers/acpi/hotplug/dependency.c
-@@ -0,0 +1,245 @@
++++ b/drivers/acpi/hotplug/cancel.c
+@@ -0,0 +1,174 @@
 +/*
 + * Copyright (C) 2012 Huawei Tech. Co., Ltd.
 + * Copyright (C) 2012 Jiang Liu <jiang.liu@huawei.com>
@@ -125,225 +108,154 @@ index 0000000..c2992f4
 + * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 + */
 +
-+#include <linux/kernel.h>
-+#include <linux/types.h>
-+#include <linux/list.h>
-+#include <linux/mutex.h>
-+#include <linux/acpi.h>
++#include <linux/wait.h>
 +#include <acpi/acpi_hotplug.h>
 +#include "acpihp_drv.h"
 +
-+#define	ACPI_METHOD_NAME__EDL	"_EDL"
-+
 +/*
-+ * Insert a slot onto the dependency list in FILO order.
-+ * Caller needs to protect from concurrent accesses to the dependency list.
++ * Implement interfaces to cancel inprogress hotplug operations.
++ * Currently only CONFIGURE and RELEASE operation stages support cancellation.
++ * Caller must serialize calls to following functions by holding the
++ * state_machine_mutex lock:
++ *	acpihp_drv_cancel_init()
++ *	acpihp_drv_cancel_start()
++ *	acpihp_drv_cancel_fini()
 + */
-+int acpihp_drv_add_slot_to_dependency_list(struct acpihp_slot *slot,
-+					   struct list_head *dep_list)
++static DECLARE_WAIT_QUEUE_HEAD(acpihp_drv_cancel_queue);
++
++static int acpihp_drv_check_cancel(struct acpihp_cancel_context *ctx)
 +{
++	struct acpihp_slot_drv *drv_data;
++
++	BUG_ON(ctx == NULL);
++	drv_data = container_of(ctx, struct acpihp_slot_drv, cancel_ctx);
++
++	return atomic_read(&drv_data->cancel_state) != ACPIHP_DRV_CANCEL_INIT;
++}
++
++void acpihp_drv_cancel_init(struct list_head *list)
++{
++	struct acpihp_slot_drv *drv_data;
 +	struct acpihp_slot_dependency *dep;
 +
-+	/*
-+	 * A dependent slot may be encountered when both analyzing the array
-+	 * returned by _EDL method and walking ACPI namespace topology.
-+	 * Should we move the slot to the list head? May need more work
-+	 * here on platforms with complex topology.
-+	 */
-+	list_for_each_entry(dep, dep_list, node)
-+		if (dep->slot == slot)
-+			return 0;
-+
-+	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
-+	if (!dep) {
-+		ACPIHP_SLOT_DEBUG(slot, "fails to allocate memory.\n");
-+		return -ENOMEM;
++	list_for_each_entry(dep, list, node) {
++		acpihp_drv_get_data(dep->slot, &drv_data);
++		drv_data->cancel_ctx.check_cancel = acpihp_drv_check_cancel;
++		atomic_set(&drv_data->cancel_state, ACPIHP_DRV_CANCEL_INIT);
++		atomic_set(&drv_data->cancel_users, 0);
 +	}
-+
-+	dep->slot = slot;
-+	list_add(&dep->node, dep_list);
-+
-+	return 0;
-+}
-+
-+static int acpihp_drv_get_online_dependency(struct acpihp_slot *slot,
-+					    struct list_head *dep_list)
-+{
-+	int ret = 0;
-+	struct acpihp_slot *temp;
-+
-+	/*
-+	 * When enabling a hotplug slot, all its ancestors must be enabled
-+	 * first.
-+	 */
-+	for (temp = slot; temp && ret == 0; temp = temp->parent)
-+		ret = acpihp_drv_add_slot_to_dependency_list(temp, dep_list);
-+
-+	return ret;
 +}
 +
 +/*
-+ * Analyze dependency relationships by evaulating ACPI _EDL method
-+ * when disabling a hotplug slot.
++ * Start cancellation on a list of hotplug slots.
++ *
++ * Caller must provide mechanism to avoid currently running
++ * acpihp_drv_cancel_start() and acpihp_drv_cancel_fini()
++ * on the same list.
 + */
-+static int acpihp_drv_for_each_edl(struct acpihp_slot *slot, void *argp,
-+	int(*cb)(struct device *dev, void *argp))
++int acpihp_drv_cancel_start(struct list_head *list)
 +{
-+	int i;
-+	acpi_status rc;
-+	struct acpi_buffer buf;
-+	union acpi_object *obj, *elem;
-+	struct acpihp_slot *tmp;
++	struct acpihp_slot_drv *drv_data;
++	struct acpihp_slot_dependency *dep;
 +
-+	buf.length = ACPI_ALLOCATE_BUFFER;
-+	rc = acpi_evaluate_object_typed(slot->handle, ACPI_METHOD_NAME__EDL,
-+					NULL, &buf, ACPI_TYPE_PACKAGE);
-+	if (rc == AE_NOT_FOUND) {
-+		/* ACPI _EDL method is optional. */
++	if (list_empty(list)) {
++		ACPIHP_DEBUG("dependency list is empty.\n");
 +		return 0;
-+	} else if (ACPI_FAILURE(rc)) {
-+		ACPIHP_SLOT_DEBUG(slot, "fails to evaluate _EDL.\n");
-+		return -EINVAL;
-+	}
-+	obj = buf.pointer;
-+
-+	/* validate the returned package object. */
-+	for (i = 0, elem = obj->package.elements;
-+	     i < obj->package.count; i++, elem++)
-+		if (elem->type != ACPI_TYPE_LOCAL_REFERENCE ||
-+		    elem->reference.actual_type != ACPI_TYPE_DEVICE ||
-+		    elem->reference.handle == NULL) {
-+			ACPIHP_SLOT_DEBUG(slot,
-+					  "invalid return from _EDL method.\n");
-+			rc = AE_ERROR;
-+			goto out;
-+		}
-+
-+	/*
-+	 * The dependency list will be handled in FILO order, so walk the array
-+	 * in reverse order to keep the same order as returned by _EDL.
-+	 */
-+	for (i = 0, elem--; i < obj->package.count && ACPI_SUCCESS(rc);
-+	     i++, elem--) {
-+		tmp = acpihp_get_slot(elem->reference.handle);
-+		if (tmp) {
-+			rc = (*cb)(&tmp->dev, argp);
-+			if (rc == AE_CTRL_DEPTH || rc == AE_CTRL_TERMINATE)
-+				rc = AE_OK;
-+		/*
-+		 * ACPI _EDL method may return PCI slots for a hotpluggable
-+		 * PCI host bridge, skip such cases. Only bail out if it's
-+		 * an ACPI hotplug slot for system devices.
-+		 */
-+		} else if (acpihp_is_slot(elem->reference.handle)) {
-+			ACPIHP_SLOT_WARN(slot,
-+					 "fails to get device for slot.\n");
-+			rc = AE_ERROR;
-+		}
 +	}
 +
-+out:
-+	ACPI_FREE(buf.pointer);
-+
-+	return ACPI_SUCCESS(rc) ? 0 : -EINVAL;
-+}
-+
-+static int acpihp_drv_add_offline_dependency(struct device *dev, void *argp)
-+{
-+	int ret;
-+	struct acpihp_slot *slot;
-+	struct list_head *list = argp;
-+
-+	slot = container_of(dev, struct acpihp_slot, dev);
-+	ret = acpihp_drv_add_slot_to_dependency_list(slot, list);
-+
-+	/* All child slots must be handled first when hot-removing. */
-+	if (!ret)
-+		ret = device_for_each_child(&slot->dev, argp,
-+					    &acpihp_drv_add_offline_dependency);
-+
-+	/* Add all slots from the _EDL list onto the dependency list */
-+	if (!ret)
-+		ret = acpihp_drv_for_each_edl(slot, argp,
-+				&acpihp_drv_add_offline_dependency);
-+
-+	return ret;
-+}
-+
-+/*
-+ * Genereate dependency list for a given slot according to command.
-+ * Caller needs to clean up the returned list if error happens.
-+ */
-+int acpihp_drv_generate_dependency_list(struct acpihp_slot *slot,
-+		struct list_head *slot_list, enum acpihp_drv_cmd cmd)
-+{
-+	int retval;
-+
-+	switch (cmd) {
-+	case ACPIHP_DRV_CMD_POWERON:
-+	/* fall through */
-+	case ACPIHP_DRV_CMD_CONNECT:
-+	/* fall through */
-+	case ACPIHP_DRV_CMD_CONFIGURE:
-+		retval = acpihp_drv_get_online_dependency(slot, slot_list);
-+		break;
-+
-+	case ACPIHP_DRV_CMD_POWEROFF:
-+	/* fall through */
-+	case ACPIHP_DRV_CMD_DISCONNECT:
-+	/* fall through */
-+	case ACPIHP_DRV_CMD_UNCONFIGURE:
-+		retval = acpihp_drv_add_offline_dependency(&slot->dev,
-+							   slot_list);
-+		break;
-+
-+	default:
-+		retval = -EINVAL;
-+		break;
-+	}
-+
-+	return retval;
-+}
-+
-+/*
-+ * Generate a new dependency list from the old list by filtering out slots
-+ * which don't need to execute a specific operation.
-+ */
-+int acpihp_drv_filter_dependency_list(struct list_head *old_head,
-+		struct list_head *new_head, u32 opcode)
-+{
-+	struct acpihp_slot_dependency *old_dep, *new_dep;
-+
-+	/* Initialize new list to empty */
-+	INIT_LIST_HEAD(new_head);
-+
-+	list_for_each_entry(old_dep, old_head, node) {
-+		/* Skip if the specified operation is not needed. */
-+		if (!(old_dep->opcodes & opcode))
-+			continue;
-+
-+		new_dep = kzalloc(sizeof(*new_dep), GFP_KERNEL);
-+		if (!new_dep) {
-+			ACPIHP_DEBUG("fails to filter depend list.\n");
-+			acpihp_drv_destroy_dependency_list(new_head);
-+			return -ENOMEM;
-+		}
-+
-+		new_dep->slot = old_dep->slot;
-+		new_dep->opcodes = old_dep->opcodes;
-+		list_add_tail(&new_dep->node, new_head);
++	/* Start cancellation on all slots. */
++	list_for_each_entry(dep, list, node) {
++		acpihp_drv_get_data(dep->slot, &drv_data);
++		atomic_inc(&drv_data->cancel_users);
++		atomic_cmpxchg(&drv_data->cancel_state,
++			       ACPIHP_DRV_CANCEL_INIT,
++			       ACPIHP_DRV_CANCEL_STARTED);
 +	}
 +
 +	return 0;
 +}
 +
-+void acpihp_drv_destroy_dependency_list(struct list_head *slot_list)
++/* Notify that the slot reaches a stable state */
++void acpihp_drv_cancel_notify(struct acpihp_slot *slot,
++			      enum acpihp_drv_cancel_state state)
 +{
-+	struct acpihp_slot_dependency *dep, *temp;
++	int old;
++	struct acpihp_slot_drv *drv_data;
 +
-+	list_for_each_entry_safe(dep, temp, slot_list, node) {
-+		list_del(&dep->node);
-+		kfree(dep);
++	acpihp_drv_get_data(slot, &drv_data);
++	old = atomic_cmpxchg(&drv_data->cancel_state, ACPIHP_DRV_CANCEL_INIT,
++			     ACPIHP_DRV_CANCEL_FINISHED);
++	if (old != ACPIHP_DRV_CANCEL_INIT) {
++		atomic_set(&drv_data->cancel_state, state);
++		wake_up_all(&acpihp_drv_cancel_queue);
++	}
++}
++
++/*
++ * Wait for all slots on the list to reach a stable state and then check
++ * cancellation result.
++ */
++int acpihp_drv_cancel_wait(struct list_head *list)
++{
++	int state, result = 0;
++	struct acpihp_slot_drv *drv_data;
++	struct acpihp_slot_dependency *dep;
++
++	list_for_each_entry(dep, list, node) {
++		acpihp_drv_get_data(dep->slot, &drv_data);
++		wait_event(acpihp_drv_cancel_queue,
++			   atomic_read(&drv_data->cancel_state)
++				!= ACPIHP_DRV_CANCEL_STARTED);
++
++		state = atomic_read(&drv_data->cancel_state);
++		if (state == ACPIHP_DRV_CANCEL_FAILED) {
++			ACPIHP_SLOT_DEBUG(dep->slot,
++					  "fails to cancel operation.\n");
++			result = result ? : -EBUSY;
++		} else if (state == ACPIHP_DRV_CANCEL_MISSED) {
++			ACPIHP_SLOT_DEBUG(dep->slot,
++					  "misses to cancel operation.\n");
++			result = result ? : -EBUSY;
++		}
++
++		atomic_set(&drv_data->cancel_state,
++			   ACPIHP_DRV_CANCEL_FINISHED);
++		atomic_dec(&drv_data->cancel_users);
++		wake_up_all(&acpihp_drv_cancel_queue);
++	}
++
++	return result;
++}
++
++/*
++ * Wait for all cancellation threads to give up their reference count.
++ *
++ * Caller must provide mechanism to avoid currently running
++ * acpihp_drv_cancel_start() and acpihp_drv_cancel_fini()
++ * on the same list.
++ */
++void acpihp_drv_cancel_fini(struct list_head *list)
++{
++	int state;
++	struct acpihp_slot_drv *drv_data;
++	struct acpihp_slot_dependency *dep;
++
++	list_for_each_entry(dep, list, node) {
++		acpihp_drv_get_data(dep->slot, &drv_data);
++
++		/*
++		 * Wake up all cancellation threads if they are still
++		 * STARTED state.
++		 */
++		state = atomic_cmpxchg(&drv_data->cancel_state,
++				       ACPIHP_DRV_CANCEL_STARTED,
++				       ACPIHP_DRV_CANCEL_MISSED);
++		if (state == ACPIHP_DRV_CANCEL_STARTED)
++			wake_up_all(&acpihp_drv_cancel_queue);
++
++		/* Wait for all cancellation threads to exit */
++		wait_event(acpihp_drv_cancel_queue,
++			   !atomic_read(&drv_data->cancel_users));
 +	}
 +}
 -- 
