@@ -1,65 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 989266B004D
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 06:26:40 -0500 (EST)
-Message-ID: <509650EA.5060508@redhat.com>
-Date: Sun, 04 Nov 2012 12:26:34 +0100
-From: Zdenek Kabelac <zkabelac@redhat.com>
-MIME-Version: 1.0
-Subject: Re: kswapd0: excessive CPU usage
-References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz>
-In-Reply-To: <509422C3.1000803@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 431156B004D
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 07:50:29 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3667633pad.14
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 04:50:28 -0800 (PST)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [ACPIHP PATCH part2 00/13] introduce ACPI based system device hotplug driver
+Date: Sun,  4 Nov 2012 20:50:02 +0800
+Message-Id: <1352033415-5606-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Slaby <jslaby@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: "Rafael J . Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Bjorn Helgaas <bhelgaas@google.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Jiang Liu <liuj97@gmail.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org
 
-Dne 2.11.2012 20:45, Jiri Slaby napsal(a):
-> On 11/02/2012 11:53 AM, Jiri Slaby wrote:
->> On 11/02/2012 11:44 AM, Zdenek Kabelac wrote:
->>>>> Yes, applying this instead of the revert fixes the issue as well.
->>>
->>> I've applied this patch on 3.7.0-rc3 kernel - and I still see excessive
->>> CPU usage - mainly  after  suspend/resume
->>>
->>> Here is just simple  kswapd backtrace from running kernel:
->>
->> Yup, this is what we were seeing with the former patch only too. Try to
->> apply the other one too:
->> https://patchwork.kernel.org/patch/1673231/
->>
->> For me I would say, it is fixed by the two patches now. I won't be able
->> to report later, since I'm leaving to a conference tomorrow.
->
-> Damn it. It recurred right now, with both patches applied. After I
-> started a java program which consumed some more memory. Though there are
-> still 2 gigs free, kswap is spinning:
-> [<ffffffff810b00da>] __cond_resched+0x2a/0x40
-> [<ffffffff811318a0>] shrink_slab+0x1c0/0x2d0
-> [<ffffffff8113478d>] kswapd+0x66d/0xb60
-> [<ffffffff810a25d0>] kthread+0xc0/0xd0
-> [<ffffffff816aa29c>] ret_from_fork+0x7c/0xb0
-> [<ffffffffffffffff>] 0xffffffffffffffff
->
+This is the second part of the new ACPI based system device hotplug
+framework, which implements the ACPI based system device hotplug
+driver (acpihp_drv). For an introduction of the new framework,
+please refer to:
+https://lkml.org/lkml/2012/11/3/143
+https://github.com/downloads/jiangliu/linux/ACPI%20Based%20System%20Device%20Dynamic%20Reconfiguration.pdf
 
-Yep - wanted to report myself again and noticed your replay.
+And you may pull from:
+https://github.com/jiangliu/linux.git acpihp_drv
 
-Yes - I've now also both patches installed - and I still observe kswapd eating 
-my CPU.  It seems (at least for me) that  prior suspend and resume is way to 
-trigger it more frequently.
+The hotplug driver provides following features:
+1) Configure/unconfigure affected system devices in optimal order
+2) Provide sysfs interfaces for user to trigger hotplug operations
+3) Provide interface to cancel ongoing hotplug opertions
+4) Resolve dependencies among hotplug slots
+5) Better error handling and recovery
 
-However there is a change in behaviour - while before kswapd was running 
-almost indefinitely now the> CPU spikes are in the range of minutes.
-(i.e. uptime  ~2days -   kswapd has over 32minutes CPU time)
-My machine has 4GB, and no swap (disabled)
+This patch set implements the core of the new ACPI hotplug framework,
+a state machine for ACPI hotplug slots. The state machine is:
 
-firefox (22mins), thunderbird(3mins) and pidgin(0.5min) are the 3 most memory 
-and CPU hungry apps for this moment.
+       (plug in)     (power on)    (connect)      (configure)
+ [ABSENT] <-> [PRESENT] <-> [POWERED] <-> [CONNECTED] <-> [CONFIGURED]
+       (plug out)   (power off)   (disconnect)   (unconfigure)
 
-Zdenek
+[...]: state
+(...): action
+(connect): create ACPI devices and bind ACPI device drivers
+(disconnect): unbind ACPI device drivers and destroy ACPI devices
+(configure): allocate resources and put system devices into working
+(unconfigure): stop system devices from working and free resources
 
+It depends on the ACPI hotplug slot enumeration driver to control each
+slot in platform specific ways, and also depends on ACPI device drivers
+for processor, memory, PCI host bridge and container to configure/
+unconfigure each system device.
+
+For example, Intel Emerald Ridge/Quantum S4R platform has
+1) 4 hotpluggable physical processors
+2) 8 hotpluggable memory boards (each processor has two memory boards)
+3) 1 hotpluggable IOH and 1 non-hotpluggable legacy IOH
+Following command sequence shows how to hot-remove and then hot-add
+a physical processor with two memory boards attached to it.
+
+Intel-server:~ # cd /sys/devices/LNXSYSTM\:00/acpihp/CPU03/
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # lscpu
+......
+CPU socket(s):         4
+NUMA node(s):          4
+......
+NUMA node0 CPU(s):     0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76
+NUMA node1 CPU(s):     2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78
+NUMA node2 CPU(s):     1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,73,77
+NUMA node3 CPU(s):     3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # free
+             total       used       free     shared    buffers     cached
+Mem:      57507896     506988   57000908          0       7520     151604
+-/+ buffers/cache:     347864   57160032
+Swap:      2096124          0    2096124
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # echo disconnect > control
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # lscpu
+......
+CPU socket(s):         3
+NUMA node(s):          3
+......
+NUMA node0 CPU(s):     0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76
+NUMA node1 CPU(s):     2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78
+NUMA node2 CPU(s):     1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,73,77
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # free
+             total       used       free     shared    buffers     cached
+Mem:      40730680     419024   40311656          0       7648     144020
+-/+ buffers/cache:     267356   40463324
+Swap:      2096124          0    2096124
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # echo configure > control
+Intel-server:/sys/devices/LNXSYSTM:00/acpihp/CPU03 # lscpu
+......
+CPU socket(s):         4
+NUMA node(s):          4
+Vendor ID:             GenuineIntel
+......
+NUMA node0 CPU(s):     0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76
+NUMA node1 CPU(s):     2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78
+NUMA node2 CPU(s):     1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61,65,69,73,77
+NUMA node3 CPU(s):     3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63,67,71,75,79
+
+And following patch sets will enhance ACPI container, processor, memory
+and PCI host bridge drivers to support the new hotplug framework.
+
+Jiang Liu (13):
+  ACPIHP: introduce interfaces to scan and walk ACPI devices attached
+    to a slot
+  ACPIHP: use klist to manage ACPI devices attached to a slot
+  ACPIHP: add callbacks into acpi_device_ops to support new hotplug
+    framework
+  ACPIHP: provide interfaces to manage driver data associated with
+    hotplug slots
+  ACPIHP: implement utility interfaces to support system device hotplug
+  ACPIHP: implement ACPI system device hotplug driver skeleton
+  ACPIHP: analyse dependencies among ACPI hotplug slots
+  ACPIHP: provide interface to cancel inprogress hotplug operations
+  ACPIHP: configure/unconfigure system devices attached to a hotplug
+    slot
+  ACPIHP: implement the core state machine to manage hotplug slots
+  ACPIHP: block ACPI device driver from unloading when doing hotplug
+  ACPIHP: implement sysfs interfaces for system device hotplug
+  ACPIHP: handle ACPI device hotplug events
+
+ drivers/acpi/Kconfig                 |   15 +
+ drivers/acpi/hotplug/Makefile        |   11 +-
+ drivers/acpi/hotplug/acpihp.h        |    1 +
+ drivers/acpi/hotplug/acpihp_drv.h    |  100 ++++++
+ drivers/acpi/hotplug/cancel.c        |  174 +++++++++
+ drivers/acpi/hotplug/configure.c     |  355 +++++++++++++++++++
+ drivers/acpi/hotplug/core.c          |  281 +++++++++++++++
+ drivers/acpi/hotplug/dependency.c    |  245 +++++++++++++
+ drivers/acpi/hotplug/device.c        |  208 +++++++++++
+ drivers/acpi/hotplug/drv_main.c      |  343 ++++++++++++++++++
+ drivers/acpi/hotplug/event.c         |  163 +++++++++
+ drivers/acpi/hotplug/state_machine.c |  639 ++++++++++++++++++++++++++++++++++
+ drivers/acpi/hotplug/sysfs.c         |  181 ++++++++++
+ drivers/acpi/internal.h              |    3 +
+ drivers/acpi/scan.c                  |   12 +-
+ include/acpi/acpi_bus.h              |    5 +
+ include/acpi/acpi_hotplug.h          |  121 +++++++
+ 17 files changed, 2854 insertions(+), 3 deletions(-)
+ create mode 100644 drivers/acpi/hotplug/acpihp_drv.h
+ create mode 100644 drivers/acpi/hotplug/cancel.c
+ create mode 100644 drivers/acpi/hotplug/configure.c
+ create mode 100644 drivers/acpi/hotplug/dependency.c
+ create mode 100644 drivers/acpi/hotplug/device.c
+ create mode 100644 drivers/acpi/hotplug/drv_main.c
+ create mode 100644 drivers/acpi/hotplug/event.c
+ create mode 100644 drivers/acpi/hotplug/state_machine.c
+ create mode 100644 drivers/acpi/hotplug/sysfs.c
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
