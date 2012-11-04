@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 127A26B0062
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 07:52:06 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 4494A6B0068
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 07:52:14 -0500 (EST)
 Received: by mail-da0-f41.google.com with SMTP id i14so2498174dad.14
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 04:52:05 -0800 (PST)
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 04:52:13 -0800 (PST)
 From: Jiang Liu <liuj97@gmail.com>
-Subject: [ACPIHP PATCH part2 12/13] ACPIHP: implement sysfs interfaces for system device hotplug
-Date: Sun,  4 Nov 2012 20:50:14 +0800
-Message-Id: <1352033415-5606-13-git-send-email-jiang.liu@huawei.com>
+Subject: [ACPIHP PATCH part2 13/13] ACPIHP: handle ACPI device hotplug events
+Date: Sun,  4 Nov 2012 20:50:15 +0800
+Message-Id: <1352033415-5606-14-git-send-email-jiang.liu@huawei.com>
 In-Reply-To: <1352033415-5606-1-git-send-email-jiang.liu@huawei.com>
 References: <1352033415-5606-1-git-send-email-jiang.liu@huawei.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,97 +15,87 @@ List-ID: <linux-mm.kvack.org>
 To: "Rafael J . Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Bjorn Helgaas <bhelgaas@google.com>
 Cc: Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Jiang Liu <liuj97@gmail.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org
 
-This patch implements sysfs interfaces to access system device hotplug
-functionalities. These sysfs interfaces are mainly used to drive the
-hotplug slot state machine as below:
- [ABSENT] <-> [PRESENT] <-> [POWERED] <-> [CONNECTED] <-> [CONFIGURED]
-
-[ABSENT]: no devices attached to the hotplug slot
-[PRESENT]: devices physically attached to the hotplug slot
-[POWERED]: devices attached to the hotplug slot are powered
-[CONNECTED]: ACPI device objects have been created for devices attached
-	     to the hotplug slot
-[CONFIGURED]: devices attached to the slot are in use by system
-
-Two sysfs interfaces have been implemented as below:
-SLOT/dependency: show dependency relationship among hotplug slots
-SLOT/control: trigger system device hotplug operations
-	read from control sysfs file gives some help messages and you may
-	write following commands to it:
-	poweron: transit to POWERED from PRESENT
-	connect: transit to CONNECTED from PRESENT/POWERED
-	configure: transit to CONFIGURED from PRESENT/POWERED/CONNECTED
-	unconfigure: transit to CONNECTED from CONFIGURED
-	disconnect: transit to POWERED from CONFIGURED/CONNECTED
-	poweroff: transit PRESENT from CONFIGURED/CONNECTED/POWERED
-	enable, 1: the same as configure
-	disable, 0: the same as poweroff
-	cancel: cancel inprogress hotplug operations
+Implement an event handler for ACPI system device hotplug events.
+The handler will relay hotplug events to userspace helper if it's
+configured to do so. Otherwise it will queue the hotplug event
+onto kacpi_hotplug_wq, which will then invoke acpihp_drv_change_state()
+to handle the hotplug event.
 
 Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Signed-off-by: Hanjun Guo <guohanjun@huawei.com>
 ---
  drivers/acpi/hotplug/Makefile     |    1 +
- drivers/acpi/hotplug/acpihp_drv.h |    3 +
- drivers/acpi/hotplug/drv_main.c   |    5 +
- drivers/acpi/hotplug/sysfs.c      |  181 +++++++++++++++++++++++++++++++++++++
- 4 files changed, 190 insertions(+)
- create mode 100644 drivers/acpi/hotplug/sysfs.c
+ drivers/acpi/hotplug/acpihp_drv.h |    2 +
+ drivers/acpi/hotplug/drv_main.c   |   11 +--
+ drivers/acpi/hotplug/event.c      |  163 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 168 insertions(+), 9 deletions(-)
+ create mode 100644 drivers/acpi/hotplug/event.c
 
 diff --git a/drivers/acpi/hotplug/Makefile b/drivers/acpi/hotplug/Makefile
-index 0f43933..57e348a 100644
+index 57e348a..640a625 100644
 --- a/drivers/acpi/hotplug/Makefile
 +++ b/drivers/acpi/hotplug/Makefile
-@@ -16,3 +16,4 @@ acpihp_drv-y					+= dependency.o
- acpihp_drv-y					+= cancel.o
+@@ -17,3 +17,4 @@ acpihp_drv-y					+= cancel.o
  acpihp_drv-y					+= configure.o
  acpihp_drv-y					+= state_machine.o
-+acpihp_drv-y					+= sysfs.o
+ acpihp_drv-y					+= sysfs.o
++acpihp_drv-y					+= event.o
 diff --git a/drivers/acpi/hotplug/acpihp_drv.h b/drivers/acpi/hotplug/acpihp_drv.h
-index 175ef81..2ec2547 100644
+index 2ec2547..aa64c91 100644
 --- a/drivers/acpi/hotplug/acpihp_drv.h
 +++ b/drivers/acpi/hotplug/acpihp_drv.h
-@@ -92,4 +92,7 @@ int acpihp_drv_unconfigure(struct list_head *list);
- /* The heart of the ACPI system device hotplug driver */
- int acpihp_drv_change_state(struct acpihp_slot *slot, enum acpihp_drv_cmd cmd);
+@@ -95,4 +95,6 @@ int acpihp_drv_change_state(struct acpihp_slot *slot, enum acpihp_drv_cmd cmd);
+ int acpihp_drv_create_sysfs(struct acpihp_slot *slot);
+ void acpihp_drv_remove_sysfs(struct acpihp_slot *slot);
  
-+int acpihp_drv_create_sysfs(struct acpihp_slot *slot);
-+void acpihp_drv_remove_sysfs(struct acpihp_slot *slot);
++void acpihp_drv_handle_event(acpi_handle handle, u32 event, void *context);
 +
  #endif	/* __ACPIHP_DRV_H__ */
 diff --git a/drivers/acpi/hotplug/drv_main.c b/drivers/acpi/hotplug/drv_main.c
-index 5a919e7..bd5c97c 100644
+index bd5c97c..1935357 100644
 --- a/drivers/acpi/hotplug/drv_main.c
 +++ b/drivers/acpi/hotplug/drv_main.c
-@@ -284,6 +284,10 @@ static int acpihp_drv_slot_add(struct device *dev, struct class_interface *intf)
- 		return -ENOMEM;
- 	}
- 
-+	if (acpihp_drv_create_sysfs(slot))
-+		ACPIHP_SLOT_DEBUG(slot,
-+			"fails to create sysfs interfaces, some functions will not be available to user.\n");
-+
- 	return 0;
+@@ -207,19 +207,12 @@ static void acpihp_drv_remove_devices(struct acpihp_slot *slot)
+ 		acpihp_remove_device_list(&slot->dev_lists[type]);
  }
  
-@@ -294,6 +298,7 @@ static void acpihp_drv_intf_remove(struct device *dev,
- 	struct acpihp_slot *slot =
- 			container_of(dev, struct acpihp_slot, dev);
+-/* Handle ACPI device hotplug notifications */
+-static void acpihp_drv_event_handler(acpi_handle handle, u32 event,
+-				     void *context)
+-{
+-	/* TODO: handle ACPI hotplug events */
+-}
+-
+ static acpi_status acpihp_drv_install_handler(struct acpihp_slot *slot)
+ {
+ 	acpi_status status;
  
-+	acpihp_drv_remove_sysfs(slot);
- 	acpihp_drv_uninstall_handler(slot);
- 	acpihp_drv_remove_devices(slot);
- 	acpihp_slot_detach_drv_data(slot, intf, (void **)&drv_data);
-diff --git a/drivers/acpi/hotplug/sysfs.c b/drivers/acpi/hotplug/sysfs.c
+ 	status = acpi_install_notify_handler(slot->handle, ACPI_SYSTEM_NOTIFY,
+-					     acpihp_drv_event_handler, slot);
++					     &acpihp_drv_handle_event, slot);
+ 	ACPIHP_SLOT_DEBUG(slot, "%s to install event handler.\n",
+ 			  ACPI_SUCCESS(status) ? "succeeds" : "fails");
+ 
+@@ -231,7 +224,7 @@ static void acpihp_drv_uninstall_handler(struct acpihp_slot *slot)
+ 	acpi_status status;
+ 
+ 	status = acpi_remove_notify_handler(slot->handle, ACPI_SYSTEM_NOTIFY,
+-					    acpihp_drv_event_handler);
++					    &acpihp_drv_handle_event);
+ 	ACPIHP_SLOT_DEBUG(slot, "%s to uninstall event handler.\n",
+ 			  ACPI_SUCCESS(status) ? "succeeds" : "fails");
+ }
+diff --git a/drivers/acpi/hotplug/event.c b/drivers/acpi/hotplug/event.c
 new file mode 100644
-index 0000000..4519eea
+index 0000000..a401b10
 --- /dev/null
-+++ b/drivers/acpi/hotplug/sysfs.c
-@@ -0,0 +1,181 @@
++++ b/drivers/acpi/hotplug/event.c
+@@ -0,0 +1,163 @@
 +/*
 + * Copyright (C) 2012 Huawei Tech. Co., Ltd.
 + * Copyright (C) 2012 Jiang Liu <jiang.liu@huawei.com>
-+ * Copyright (C) 2012 Hanjun Guo <guohanjun@huawei.com>
++ *
++ * This file is based on pci_root_hp.c from Yinghai Lu <yinghai@kernel.org>
++ * and modified by Jiang Liu <jiang.liu@huawei.com>
 + *
 + * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 + *
@@ -126,162 +116,142 @@ index 0000000..4519eea
 + * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 + */
 +
-+#include <linux/device.h>
-+#include <linux/mutex.h>
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include <linux/acpi.h>
 +#include <acpi/acpi_hotplug.h>
 +#include "acpihp_drv.h"
 +
-+static ssize_t acpihp_drv_control_show(struct device *dev,
-+		struct device_attribute *attr, char *page)
++static bool acpihp_notify_userspace;
++module_param_named(notify_userspace, acpihp_notify_userspace, bool,
++		   S_IRUGO | S_IWUSR);
++MODULE_PARM_DESC(notify_userspace, "relay hotplug event to userspace helper");
++
++struct acpihp_hotplug_work {
++	u32 event;
++	struct acpihp_slot *slot;
++	struct acpihp_slot_drv *data;
++	struct work_struct work;
++	struct module *owner;
++};
++
++/*
++ * Queue the event handler onto the kacpi_hotplug_wq, otherwise it may
++ * cause deadlock.
++ */
++static int acpihp_alloc_hotplug_work(struct acpihp_slot *slot,
++				     struct acpihp_slot_drv *data, u32 event,
++				     void (*func)(struct work_struct *work))
 +{
-+	ssize_t off;
-+	struct acpihp_slot *slot = container_of(dev, struct acpihp_slot, dev);
++	int ret = -ENOMEM;
++	struct acpihp_hotplug_work *hp_work;
 +
-+	off = snprintf(page, PAGE_SIZE, "supported commands:\n");
-+	if (slot->capabilities & ACPIHP_SLOT_CAP_POWERON)
-+		off += snprintf(page + off, PAGE_SIZE - off,
-+				"\tpoweron: power on the hotplug slot\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tconnect: create ACPI device nodes and bind ACPI device drivers\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tconfigure: put system devices into running state\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tunconfigure: stop system devices from running state\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tdisconnect: unbind ACPI device drivers and destroy ACPI device nodes\n");
-+	if (slot->capabilities & ACPIHP_SLOT_CAP_POWEROFF)
-+		off += snprintf(page + off, PAGE_SIZE - off,
-+				"\tpoweroff: power off the hotplug slot\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tcancel: cancel inprogress hotplug operations\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tenable, 1: the same as configure\n");
-+	off += snprintf(page + off, PAGE_SIZE - off,
-+			"\tdisable, 0: the same as poweroff\n");
++	hp_work = kzalloc(sizeof(*hp_work), GFP_KERNEL);
++	if (hp_work) {
++		hp_work->slot = slot;
++		hp_work->data = data;
++		hp_work->event = event;
++		hp_work->owner = THIS_MODULE;
++		__module_get(hp_work->owner);
 +
-+	return off;
-+}
-+
-+static ssize_t acpihp_drv_control_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	int result = -EINVAL;
-+	char *temp, *pos, *token;
-+	enum acpihp_drv_cmd cmd = ACPIHP_DRV_CMD_NOOP;
-+	struct acpihp_slot *slot = container_of(dev, struct acpihp_slot, dev);
-+
-+	if (!capable(CAP_SYS_ADMIN))
-+		return -EPERM;
-+
-+	temp = pos = kstrndup(buf, PAGE_SIZE - 1, GFP_KERNEL);
-+	if (!temp)
-+		return -ENOMEM;
-+
-+	token = strsep(&pos, " \t\r\n");
-+	if (!token)
-+		goto out;
-+
-+	if (!strcmp(token, "enable"))
-+		cmd = ACPIHP_DRV_CMD_CONFIGURE;
-+	else if (!strcmp(token, "1"))
-+		cmd = ACPIHP_DRV_CMD_CONFIGURE;
-+	else if (!strcmp(token, "disable"))
-+		cmd = ACPIHP_DRV_CMD_POWEROFF;
-+	else if (!strcmp(token, "0"))
-+		cmd = ACPIHP_DRV_CMD_POWEROFF;
-+	else if (!strcmp(token, "connect"))
-+		cmd = ACPIHP_DRV_CMD_CONNECT;
-+	else if (!strcmp(token, "configure"))
-+		cmd = ACPIHP_DRV_CMD_CONFIGURE;
-+	else if (!strcmp(token, "unconfigure"))
-+		cmd = ACPIHP_DRV_CMD_UNCONFIGURE;
-+	else if (!strcmp(token, "disconnect"))
-+		cmd = ACPIHP_DRV_CMD_DISCONNECT;
-+	else if (!strcmp(token, "cancel"))
-+		cmd = ACPIHP_DRV_CMD_CANCEL;
-+	else if (!strcmp(token, "poweron")) {
-+		if (slot->capabilities & ACPIHP_SLOT_CAP_POWERON)
-+			cmd = ACPIHP_DRV_CMD_POWERON;
-+	} else if (!strcmp(token, "poweroff")) {
-+		if (slot->capabilities & ACPIHP_SLOT_CAP_POWEROFF)
-+			cmd = ACPIHP_DRV_CMD_POWEROFF;
-+	}
-+
-+	if (cmd != ACPIHP_DRV_CMD_NOOP)
-+		result = acpihp_drv_change_state(slot, cmd);
-+out:
-+	kfree(temp);
-+
-+	return result < 0 ? result : count;
-+}
-+
-+static DEVICE_ATTR(control, S_IRUGO | S_IWUSR,
-+	    &acpihp_drv_control_show, &acpihp_drv_control_store);
-+
-+static ssize_t acpihp_drv_dependency_show(struct device *dev,
-+		struct device_attribute *attr, char *page)
-+{
-+	int ret;
-+	char *p, *end;
-+	struct list_head list;
-+	enum acpihp_drv_cmd cmd;
-+	struct acpihp_slot_dependency *dep;
-+	struct acpihp_slot *slot = container_of(dev, struct acpihp_slot, dev);
-+
-+	INIT_LIST_HEAD(&list);
-+	mutex_lock(&state_machine_mutex);
-+	cmd = acpihp_slot_powered(slot) ? ACPIHP_DRV_CMD_POWEROFF :
-+					  ACPIHP_DRV_CMD_POWERON;
-+	ret = acpihp_drv_generate_dependency_list(slot, &list, cmd);
-+	if (ret) {
-+		ret = -ENXIO;
-+	} else {
-+		p = page;
-+		end = page + PAGE_SIZE;
-+
-+		list_for_each_entry(dep, &list, node) {
-+			if (dep->slot == slot)
-+				continue;
-+			if (p + strlen(dep->slot->name) + 2 >= end)
-+				break;
-+			p += snprintf(p, end - p, "%s\n", dep->slot->name);
++		INIT_WORK(&hp_work->work, func);
++		if (queue_work(kacpi_hotplug_wq, &hp_work->work)) {
++			ret = 0;
++		} else {
++			module_put(hp_work->owner);
++			kfree(hp_work);
 +		}
-+
-+		acpihp_drv_destroy_dependency_list(&list);
-+		ret = p - page;
 +	}
-+	mutex_unlock(&state_machine_mutex);
 +
 +	return ret;
 +}
 +
-+static DEVICE_ATTR(dependency, S_IRUGO,
-+		   &acpihp_drv_dependency_show, NULL);
-+
-+int acpihp_drv_create_sysfs(struct acpihp_slot *slot)
++static void acpihp_drv_event_handler(struct work_struct *work)
 +{
-+	int retval;
-+	struct device *dev = &slot->dev;
++	u32 event;
++	struct acpihp_slot *slot;
++	struct acpihp_slot_drv *data;
++	struct acpihp_hotplug_work *hp_work;
++	enum acpihp_drv_cmd cmd = ACPIHP_DRV_CMD_NOOP;
 +
-+	retval = device_create_file(dev, &dev_attr_control);
-+	if (retval)
-+		goto out;
-+	retval = device_create_file(dev, &dev_attr_dependency);
-+	if (!retval)
-+		return 0;
++	hp_work = container_of(work, struct acpihp_hotplug_work, work);
++	slot = hp_work->slot;
++	data = hp_work->data;
++	event = hp_work->event;
 +
-+	device_remove_file(dev, &dev_attr_control);
-+out:
-+	ACPIHP_SLOT_DEBUG(slot, "fails to create sysfs interfaces for slot.\n");
-+	return retval;
++	switch (event) {
++	case ACPI_NOTIFY_BUS_CHECK:
++		/* bus enumerate */
++		ACPIHP_SLOT_DEBUG(slot, "Bus check notification.\n");
++		cmd = ACPIHP_DRV_CMD_CONFIGURE;
++		break;
++
++	case ACPI_NOTIFY_DEVICE_CHECK:
++		/* device check */
++		ACPIHP_SLOT_DEBUG(slot, "Device check notification.\n");
++		cmd = ACPIHP_DRV_CMD_CONFIGURE;
++		break;
++
++	case ACPI_NOTIFY_EJECT_REQUEST:
++		/* request device eject */
++		ACPIHP_SLOT_DEBUG(slot, "Device eject notification.\n");
++		cmd = ACPIHP_DRV_CMD_POWEROFF;
++		break;
++
++	default:
++		BUG_ON(event);
++		break;
++	}
++
++	if (acpihp_drv_change_state(slot, cmd))
++		ACPIHP_SLOT_WARN(slot,
++			"fails to handle hotplug event 0x%x.\n", event);
++
++	module_put(hp_work->owner);
++	kfree(hp_work);
 +}
 +
-+void acpihp_drv_remove_sysfs(struct acpihp_slot *slot)
++void acpihp_drv_handle_event(acpi_handle handle, u32 event, void *context)
 +{
-+	struct device *dev = &slot->dev;
++	int ret;
++	struct acpihp_slot *slot = context;
++	struct acpihp_slot_drv *data = NULL;
++	char objname[64];
++	struct acpi_buffer buffer = { .length = sizeof(objname),
++				      .pointer = objname };
 +
-+	device_remove_file(dev, &dev_attr_dependency);
-+	device_remove_file(dev, &dev_attr_control);
++	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
++	if (event != ACPI_NOTIFY_BUS_CHECK &&
++	    event != ACPI_NOTIFY_DEVICE_CHECK &&
++	    event != ACPI_NOTIFY_EJECT_REQUEST) {
++		ACPIHP_DEBUG("unsupported system event type 0x%x for %s.\n",
++			     event, objname);
++		return;
++	}
++
++	acpihp_drv_get_data(slot, &data);
++	BUG_ON(data == NULL);
++
++	/*
++	 * Send hotplug events to userspace helper, so they could
++	 * be handled more flexibly.
++	 */
++	if (acpihp_notify_userspace) {
++		ret = acpi_bus_generate_netlink_event("LNXSLOT", slot->name,
++						      event, 0);
++		if (ret)
++			ACPIHP_SLOT_WARN(slot,
++				"fails to send hotplug event to userspace.\n");
++		return;
++	}
++
++	/* Queue event onto kacpi_hotplug_wq */
++	if (acpihp_alloc_hotplug_work(slot, data, event,
++				      acpihp_drv_event_handler))
++		ACPIHP_WARN("fails to queue hotplug event 0x%x for %s.\n",
++			    event, objname);
 +}
 -- 
 1.7.9.5
