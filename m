@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 9C4126B002B
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 10:11:27 -0500 (EST)
-Date: Mon, 5 Nov 2012 15:11:25 +0000
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 33B856B002B
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 10:15:41 -0500 (EST)
+Date: Mon, 5 Nov 2012 15:15:39 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: CK5 [02/18] slab: Simplify bootstrap
-In-Reply-To: <alpine.DEB.2.00.1211021314590.5902@chino.kir.corp.google.com>
-Message-ID: <0000013ad1204a8c-e8e9a351-656c-4786-a680-b7f14e2bf075-000000@email.amazonses.com>
-References: <20121101214538.971500204@linux.com> <0000013abdf0becf-a3e4ca1c-e164-4445-b1ff-d253af740700-000000@email.amazonses.com> <alpine.DEB.2.00.1211021314590.5902@chino.kir.corp.google.com>
+Subject: Re: CK5 [03/18] create common functions for boot slab creation
+In-Reply-To: <alpine.DEB.2.00.1211021333030.5902@chino.kir.corp.google.com>
+Message-ID: <0000013ad1242d03-3810e49c-bad4-44b1-88bf-285da511a400-000000@email.amazonses.com>
+References: <20121101214538.971500204@linux.com> <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com> <alpine.DEB.2.00.1211021333030.5902@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,9 +17,14 @@ Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber C
 
 On Fri, 2 Nov 2012, David Rientjes wrote:
 
-> Needs to update the comment which specifies this is only sized to NR_CPUS.
+> Eek, the calls to __kmem_cache_create() in the boot path as it sits in
+> slab/next right now are ignoring SLAB_PANIC.
 
-Ok.
+Any failure to create a slab cache during early boot is fatal and we panic
+unconditionally. Like before as far as I can tell but without the use of
+SLAB_PANIC.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
