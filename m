@@ -1,45 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 63C906B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 15:13:13 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so4559992pbb.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 12:13:12 -0800 (PST)
-MIME-Version: 1.0
-Date: Tue, 6 Nov 2012 01:43:12 +0530
-Message-ID: <CAEtiSasbEXUeFwCNO09nT8TsEzLF-zZVyJ_pCO9V49hDPbpbAQ@mail.gmail.com>
-Subject: [PATCH] mm: bugfix: set current->reclaim_state to NULL while
- returning from kswapd()
-From: Aaditya Kumar <aaditya.kumar.30@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 1639C6B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 15:37:40 -0500 (EST)
+Date: Mon, 5 Nov 2012 12:37:38 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: fix NULL checking in dma_pool_create()
+Message-Id: <20121105123738.0a0490a7.akpm@linux-foundation.org>
+In-Reply-To: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
+References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Mel Gorman <mel@csn.ul.ie>, akpm@linux-foundation.org, Minchan Kim <minchan.kim@gmail.com>, takamori.yamaguchi@jp.sony.com, takuzo.ohara@ap.sony.com, amit.agarwal@ap.sony.com, tim.bird@am.sony.com, frank.rowand@am.sony.com, kan.iibuchi@jp.sony.com, aaditya.kumar@ap.sony.com
+To: Xi Wang <xi.wang@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Takamori Yamaguchi <takamori.yamaguchi@jp.sony.com>
+On Mon,  5 Nov 2012 01:46:36 -0500
+Xi Wang <xi.wang@gmail.com> wrote:
 
-In kswapd(), set current->reclaim_state to NULL before returning, as
-current->reclaim_state holds reference to variable on kswapd()'s stack.
+> First, `dev' is dereferenced in dev_to_node(dev), suggesting that it
+> must be non-null.  Later `dev' is checked against NULL, suggesting
+> the opposite.  This patch adds a NULL check before its use.
+> 
+> ...
+>
+> @@ -159,7 +160,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+>  		return NULL;
+>  	}
+>  
+> -	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+> +	node = dev ? dev_to_node(dev) : -1;
+> +
+> +	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, node);
+>  	if (!retval)
+>  		return retval;
 
-In rare cases, while returning from kswapd() during memory off lining,
-__free_slab() can access dangling pointer of current->reclaim_state.
+Well, the dma_pool_create() kerneldoc does not describe dev==NULL to be
+acceptable usage and given the lack of oops reports, we can assume that
+no code is calling this function with dev==NULL.
 
-Signed-off-by: Takamori Yamaguchi <takamori.yamaguchi@jp.sony.com>
-Signed-off-by: Aaditya Kumar <aaditya.kumar@ap.sony.com>
-
----
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 2624edc..8b055e9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3017,6 +3017,8 @@ static int kswapd(void *p)
- 						&balanced_classzone_idx);
- 		}
- 	}
-+
-+	current->reclaim_state = NULL;
- 	return 0;
- }
+So I think we can just remove the code which handles dev==NULL?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
