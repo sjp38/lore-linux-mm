@@ -1,48 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 57D796B002B
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 08:41:28 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id v13so7343635vbk.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 05:41:27 -0800 (PST)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 970CC6B002B
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 09:24:54 -0500 (EST)
+Date: Mon, 5 Nov 2012 14:24:49 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] Revert "mm: vmscan: scale number of pages reclaimed by
+ reclaim/compaction based on failures"
+Message-ID: <20121105142449.GI8218@suse.de>
+References: <50770905.5070904@suse.cz>
+ <119175.1349979570@turing-police.cc.vt.edu>
+ <5077434D.7080008@suse.cz>
+ <50780F26.7070007@suse.cz>
+ <20121012135726.GY29125@suse.de>
+ <507BDD45.1070705@suse.cz>
+ <20121015110937.GE29125@suse.de>
+ <5093A3F4.8090108@redhat.com>
+ <5093A631.5020209@suse.cz>
+ <509422C3.1000803@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com>
-References: <508086DA.3010600@oracle.com>
-	<5089A05E.7040000@gmail.com>
-	<CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com>
-	<CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
-	<CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
-	<CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com>
-	<CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com>
-Date: Mon, 5 Nov 2012 05:41:27 -0800
-Message-ID: <CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <509422C3.1000803@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Jiri Slaby <jslaby@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Nov 4, 2012 at 8:44 PM, Michel Lespinasse <walken@google.com> wrote:
-> On Sun, Nov 4, 2012 at 8:14 PM, Bob Liu <lliubbo@gmail.com> wrote:
->> Hmm, I attached a simple fix patch.
->
-> Reviewed-by: Michel Lespinasse <walken@google.com>
-> (also ran some tests with it, but I could never reproduce the original
-> issue anyway).
+Jiri Slaby reported the following:
 
-Wait a minute, this is actually wrong. You need to call
-vma_lock_anon_vma() / vma_unlock_anon_vma() to avoid the issue with
-vma->anon_vma == NULL.
+	(It's an effective revert of "mm: vmscan: scale number of pages
+	reclaimed by reclaim/compaction based on failures".) Given kswapd
+	had hours of runtime in ps/top output yesterday in the morning
+	and after the revert it's now 2 minutes in sum for the last 24h,
+	I would say, it's gone.
 
-I'll fix it and integrate it into my next patch series, which I intend
-to send later today. (I am adding new code into validate_mm(), so that
-it's easier to have it in the same patch series to avoid merge
-conflicts)
+The intention of the patch in question was to compensate for the loss
+of lumpy reclaim. Part of the reason lumpy reclaim worked is because
+it aggressively reclaimed pages and this patch was meant to be a sane
+compromise.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+When compaction fails, it gets deferred and both compaction and
+reclaim/compaction is deferred avoid excessive reclaim. However, since
+commit c6543459 (mm: remove __GFP_NO_KSWAPD), kswapd is woken up each time
+and continues reclaiming which was not taken into account when the patch
+was developed.
+
+Attempts to address the problem ended up just changing the shape of the
+problem instead of fixing it. The release window gets closer and while a
+THP allocation failing is not a major problem, kswapd chewing up a lot of
+CPU is. This patch reverts "mm: vmscan: scale number of pages reclaimed
+by reclaim/compaction based on failures" and will be revisited in the future.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c |   25 -------------------------
+ 1 file changed, 25 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 2624edc..e081ee8 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1760,28 +1760,6 @@ static bool in_reclaim_compaction(struct scan_control *sc)
+ 	return false;
+ }
+ 
+-#ifdef CONFIG_COMPACTION
+-/*
+- * If compaction is deferred for sc->order then scale the number of pages
+- * reclaimed based on the number of consecutive allocation failures
+- */
+-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
+-			struct lruvec *lruvec, struct scan_control *sc)
+-{
+-	struct zone *zone = lruvec_zone(lruvec);
+-
+-	if (zone->compact_order_failed <= sc->order)
+-		pages_for_compaction <<= zone->compact_defer_shift;
+-	return pages_for_compaction;
+-}
+-#else
+-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
+-			struct lruvec *lruvec, struct scan_control *sc)
+-{
+-	return pages_for_compaction;
+-}
+-#endif
+-
+ /*
+  * Reclaim/compaction is used for high-order allocation requests. It reclaims
+  * order-0 pages before compacting the zone. should_continue_reclaim() returns
+@@ -1829,9 +1807,6 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
+ 	 * inactive lists are large enough, continue reclaiming
+ 	 */
+ 	pages_for_compaction = (2UL << sc->order);
+-
+-	pages_for_compaction = scale_for_compaction(pages_for_compaction,
+-						    lruvec, sc);
+ 	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
+ 	if (nr_swap_pages > 0)
+ 		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
