@@ -1,37 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 18D746B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:52:04 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so4616014pbb.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 13:52:03 -0800 (PST)
-Date: Mon, 5 Nov 2012 13:52:01 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: CK5 [03/18] create common functions for boot slab creation
-In-Reply-To: <0000013ad1242d03-3810e49c-bad4-44b1-88bf-285da511a400-000000@email.amazonses.com>
-Message-ID: <alpine.DEB.2.00.1211051350140.5296@chino.kir.corp.google.com>
-References: <20121101214538.971500204@linux.com> <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com> <alpine.DEB.2.00.1211021333030.5902@chino.kir.corp.google.com>
- <0000013ad1242d03-3810e49c-bad4-44b1-88bf-285da511a400-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 848866B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:56:30 -0500 (EST)
+Date: Mon, 5 Nov 2012 13:56:28 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/2 v2] HWPOISON: fix action_result() to print out
+ dirty/clean
+Message-Id: <20121105135628.db79602c.akpm@linux-foundation.org>
+In-Reply-To: <1351873993-9373-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1351873993-9373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1351873993-9373-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, elezegarcia@gmail.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 5 Nov 2012, Christoph Lameter wrote:
+On Fri,  2 Nov 2012 12:33:12 -0400
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> > Eek, the calls to __kmem_cache_create() in the boot path as it sits in
-> > slab/next right now are ignoring SLAB_PANIC.
+> action_result() fails to print out "dirty" even if an error occurred on a
+> dirty pagecache, because when we check PageDirty in action_result() it was
+> cleared after page isolation even if it's dirty before error handling. This
+> can break some applications that monitor this message, so should be fixed.
 > 
-> Any failure to create a slab cache during early boot is fatal and we panic
-> unconditionally. Like before as far as I can tell but without the use of
-> SLAB_PANIC.
+> There are several callers of action_result() except page_action(), but
+> either of them are not for LRU pages but for free pages or kernel pages,
+> so we don't have to consider dirty or not for them.
 > 
+> Note that PG_dirty can be set outside page locks as described in commit
+> 554940dc8c1e, so this patch does not completely closes the race window,
+> but just narrows it.
 
-With your patch, yeah, but right now mm/slab.c calls directly into 
-__kmem_cache_create() with SLAB_PANIC which never gets respected during 
-bootstrap since it is handled in kmem_cache_create() in slab/next.  So 
-this patch could actually be marketed as a bugfix :)
+I can find no commit 554940dc8c1e.  What commit are you referring to here?
+
+This is one of the reasons why we ask people to refer to commits by
+both hash and by name, using the form
+
+078de5f706ece3 ("userns: Store uid and gid values in struct cred with
+kuid_t and kgid_t types")
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
