@@ -1,39 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 9C3486B002B
-	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 22:31:53 -0500 (EST)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so6816410vcb.14
-        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 19:31:52 -0800 (PST)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id B7B886B002B
+	for <linux-mm@kvack.org>; Sun,  4 Nov 2012 23:14:51 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id hq7so2156469wib.8
+        for <linux-mm@kvack.org>; Sun, 04 Nov 2012 20:14:50 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
+In-Reply-To: <CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
 References: <508086DA.3010600@oracle.com>
 	<5089A05E.7040000@gmail.com>
 	<CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com>
 	<CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
-Date: Sun, 4 Nov 2012 19:31:52 -0800
-Message-ID: <CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
+	<CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
+Date: Mon, 5 Nov 2012 12:14:50 +0800
+Message-ID: <CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com>
 Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: multipart/mixed; boundary=0016e6dd8b70011bd204cdb7ba25
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Sasha Levin <levinsasha928@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Michel Lespinasse <walken@google.com>, Sasha Levin <levinsasha928@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Sun, Nov 4, 2012 at 6:20 PM, Bob Liu <lliubbo@gmail.com> wrote:
-> The loop for each entry of vma->anon_vma_chain in validate_mm() is not
-> protected by anon_vma lock.
-> I think that may be the cause.
+--0016e6dd8b70011bd204cdb7ba25
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+On Mon, Nov 5, 2012 at 11:31 AM, Michel Lespinasse <walken@google.com> wrot=
+e:
+> On Sun, Nov 4, 2012 at 6:20 PM, Bob Liu <lliubbo@gmail.com> wrote:
+>> The loop for each entry of vma->anon_vma_chain in validate_mm() is not
+>> protected by anon_vma lock.
+>> I think that may be the cause.
+>>
+>> Michel, What's your opinion=EF=BC=9F
 >
-> Michel, What's your opinion=EF=BC=9F
+> Good catch, I think that's it. Somehow it had not occured to me to
 
-Good catch, I think that's it. Somehow it had not occured to me to
-verify the checker code - as in, who's checking the checker ? :)
+Hmm, I attached a simple fix patch.
+Sasha,
+Could you have a test to see whether it can fix your issue?
 
---=20
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Thanks,
+-Bob
+
+--0016e6dd8b70011bd204cdb7ba25
+Content-Type: application/octet-stream;
+	name="0001-mm-add-anon_vma_lock-to-validate_mm.patch"
+Content-Disposition: attachment;
+	filename="0001-mm-add-anon_vma_lock-to-validate_mm.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_h952n1cl0
+
+RnJvbSA4OWZmMTdiMzhiZWE5ODg5YzJkYjI0NGJhNzc0Y2JjYjg2Zjk4MTcwIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBCb2IgTGl1IDxsbGl1YmJvQGdtYWlsLmNvbT4KRGF0ZTogTW9u
+LCA1IE5vdiAyMDEyIDExOjQ4OjAwICswODAwClN1YmplY3Q6IFtQQVRDSF0gbW06IGFkZCBhbm9u
+X3ZtYV9sb2NrIHRvIHZhbGlkYXRlX21tKCkKCkl0ZXJhdGUgdm1hLT5hbm9uX3ZtYV9jaGFpbiB3
+aXRob3V0IGFub25fdm1hX2xvY2sgbWF5IGNhdXNlIE5VTEwgcHRyIGRlcmVmIGluCmFub25fdm1h
+X2ludGVydmFsX3RyZWVfdmVyaWZ5KCksIGJlY2F1c2UgdGhlIG5vZGUgaW4gdGhlIGNoYWluIG1p
+Z2h0IGhhdmUgYmVlbgpyZW1vdmVkLgoKWyAxNTIzLjY1Nzk1MF0gQlVHOiB1bmFibGUgdG8gaGFu
+ZGxlIGtlcm5lbCBwYWdpbmcgcmVxdWVzdCBhdCBmZmZmZmZmZmZmZmZmZmYwClsgMTUyMy42NjAw
+MjJdIElQOiBbPGZmZmZmZmZmODEyMmMyOWM+XSBhbm9uX3ZtYV9pbnRlcnZhbF90cmVlX3Zlcmlm
+eSsweGMvMHhhMApbIDE1MjMuNjYwMDIyXSBQR0QgNGUyODA2NyBQVUQgNGUyOTA2NyBQTUQgMApb
+IDE1MjMuNjc1NzI1XSBPb3BzOiAwMDAwIFsjMV0gUFJFRU1QVCBTTVAgREVCVUdfUEFHRUFMTE9D
+ClsgMTUyMy43NTAwNjZdIENQVSAwClsgMTUyMy43NTAwNjZdIFBpZDogOTA1MCwgY29tbTogdHJp
+bml0eS1jaGlsZDY0IFRhaW50ZWQ6IEcgICAgICAgIFcgICAgMy43LjAtcmMyLW5leHQtMjAxMjEw
+MjUtc2FzaGEtMDAwMDEtZzY3M2Y5OGUtZGlydHkgIzc3ClsgMTUyMy43NTAwNjZdIFJJUDogMDAx
+MDpbPGZmZmZmZmZmODEyMmMyOWM+XSAgWzxmZmZmZmZmZjgxMjJjMjljPl0gYW5vbl92bWFfaW50
+ZXJ2YWxfdHJlZV92ZXJpZnkrMHhjLzB4YTAKWyAxNTIzLjc1MDA2Nl0gUlNQOiAwMDE4OmZmZmY4
+ODAwNDVmODFkNDggIEVGTEFHUzogMDAwMTAyOTYKWyAxNTIzLjc1MDA2Nl0gUkFYOiAwMDAwMDAw
+MDAwMDAwMDAwIFJCWDogZmZmZmZmZmZmZmZmZmZmMCBSQ1g6IDAwMDAwMDAwMDAwMDAwMDAKWyAx
+NTIzLjc1MDA2Nl0gUkRYOiAwMDAwMDAwMDAwMDAwMDAwIFJTSTogMDAwMDAwMDAwMDAwMDAwMSBS
+REk6IGZmZmZmZmZmZmZmZmZmZjAKWyAxNTIzLjc1MDA2Nl0gUkJQOiBmZmZmODgwMDQ1ZjgxZDU4
+IFIwODogMDAwMDAwMDAwMDAwMDAwMCBSMDk6IDAwMDAwMDAwMDAwMDBmMTQKWyAxNTIzLjc1MDA2
+Nl0gUjEwOiAwMDAwMDAwMDAwMDAwZjEyIFIxMTogMDAwMDAwMDAwMDAwMDAwMCBSMTI6IGZmZmY4
+ODAwMDk2YzhkNzAKWyAxNTIzLjc1MDA2Nl0gUjEzOiBmZmZmODgwMDA5NmM4ZDAwIFIxNDogMDAw
+MDAwMDAwMDAwMDAwMCBSMTU6IGZmZmY4ODAwMDk1YjQ1ZTAKWyAxNTIzLjc1MDA2Nl0gRlM6ICAw
+MDAwN2Y3YTkyM2YzNzAwKDAwMDApIEdTOmZmZmY4ODAwMTM2MDAwMDAoMDAwMCkga25sR1M6MDAw
+MDAwMDAwMDAwMDAwMApbIDE1MjMuNzUwMDY2XSBDUzogIDAwMTAgRFM6IDAwMDAgRVM6IDAwMDAg
+Q1IwOiAwMDAwMDAwMDgwMDUwMDMzClsgMTUyMy43NTAwNjZdIENSMjogZmZmZmZmZmZmZmZmZmZm
+MCBDUjM6IDAwMDAwMDAwMDk2OWQwMDAgQ1I0OiAwMDAwMDAwMDAwMDQwNmYwClsgMTUyMy43NTAw
+NjZdIERSMDogMDAwMDAwMDAwMDAwMDAwMCBEUjE6IDAwMDAwMDAwMDAwMDAwMDAgRFIyOiAwMDAw
+MDAwMDAwMDAwMDAwClsgMTUyMy43NTAwNjZdIERSMzogMDAwMDAwMDAwMDAwMDAwMCBEUjY6IDAw
+MDAwMDAwZmZmZjBmZjAgRFI3OiAwMDAwMDAwMDAwMDAwNDAwClsgMTUyMy43NTAwNjZdIFByb2Nl
+c3MgdHJpbml0eS1jaGlsZDY0IChwaWQ6IDkwNTAsIHRocmVhZGluZm8gZmZmZjg4MDA0NWY4MDAw
+MCwgdGFzayBmZmZmODgwMDQ4ZWIwMDAwKQpbIDE1MjMuNzUwMDY2XSBTdGFjazoKWyAxNTIzLjc1
+MDA2Nl0gIGZmZmY4ODAwMGQ3NTMzZjAgZmZmZmZmZmZmZmZmZmZmMCBmZmZmODgwMDQ1ZjgxZGE4
+IGZmZmZmZmZmODEyMzYxZDgKWyAxNTIzLjc1MDA2Nl0gIGZmZmY4ODAwNDVmODFkOTggZmZmZjg4
+MDA0OGVlOTAwMCBmZmZmODgwMDA5NWI0NTgwIGZmZmY4ODAwMDk1YjQ1ODAKWyAxNTIzLjc1MDA2
+Nl0gIGZmZmY4ODAwMWQxY2RiMDAgZmZmZjg4MDAwOTViNDVmMCBmZmZmODgwMDIyYTRkNjMwIGZm
+ZmY4ODAwMDk1YjQ1ZTAKWyAxNTIzLjc1MDA2Nl0gQ2FsbCBUcmFjZToKWyAxNTIzLjc1MDA2Nl0g
+IFs8ZmZmZmZmZmY4MTIzNjFkOD5dIHZhbGlkYXRlX21tKzB4NTgvMHgxZTAKWyAxNTIzLjc1MDA2
+Nl0gIFs8ZmZmZmZmZmY4MTIzNmFhNT5dIHZtYV9hZGp1c3QrMHg2MzUvMHg2YjAKWyAxNTIzLjc1
+MDA2Nl0gIFs8ZmZmZmZmZmY4MTIzNmM4MT5dIF9fc3BsaXRfdm1hLmlzcmEuMjIrMHgxNjEvMHgy
+MjAKWyAxNTIzLjc1MDA2Nl0gIFs8ZmZmZmZmZmY4MTIzNzkzND5dIHNwbGl0X3ZtYSsweDI0LzB4
+MzAKWyAxNTIzLjc1MDA2Nl0gIFs8ZmZmZmZmZmY4MTIyY2U2YT5dIHN5c19tYWR2aXNlKzB4NWRh
+LzB4N2IwClsgMTUyMy43NTAwNjZdICBbPGZmZmZmZmZmODExY2QxNGM+XSA/IHJjdV9lcXNfZXhp
+dCsweDljLzB4YjAKWyAxNTIzLjc1MDA2Nl0gIFs8ZmZmZmZmZmY4MTE4MDJjZD5dID8gdHJhY2Vf
+aGFyZGlycXNfb24rMHhkLzB4MTAKWyAxNTIzLjc1MDA2Nl0gIFs8ZmZmZmZmZmY4M2FlZTE5OD5d
+IHRyYWNlc3lzKzB4ZTEvMHhlNgpbIDE1MjMuNzUwMDY2XSBDb2RlOiA0YyAwOSBmZiA0OCAzOSBj
+ZSA3NyA5ZSBmMyBjMyAwZiAxZiA0NCAwMCAwMCAzMSBjMCBjMyA2NiA2NiA2NiA2NiAyZSAwZiAx
+ZiA4NCAwMCAwMCAwMCAwMCAwMCA1NSA0OCA4OSBlNSA1Mwo0OCA4OSBmYiA0OCA4MyBlYyAwOCA8
+NDg+IDhiIDE3IDQ4IDhiIDhhIDkwIDAwIDAwIDAwIDQ4IDM5IDRmIDQwIDc0IDM0IDgwIDNkIGY3
+IDFmIDVjClsgMTUyMy43NTAwNjZdIFJJUCAgWzxmZmZmZmZmZjgxMjJjMjljPl0gYW5vbl92bWFf
+aW50ZXJ2YWxfdHJlZV92ZXJpZnkrMHhjLzB4YTAKWyAxNTIzLjc1MDA2Nl0gIFJTUCA8ZmZmZjg4
+MDA0NWY4MWQ0OD4KWyAxNTIzLjc1MDA2Nl0gQ1IyOiBmZmZmZmZmZmZmZmZmZmYwClsgMTUyMy43
+NTAwNjZdIC0tLVsgZW5kIHRyYWNlIGUzNWU1ZmE0OTA3MmZhZjkgXS0tLQoKUmVwb3J0ZWQtYnk6
+IFNhc2hhIExldmluIDxzYXNoYS5sZXZpbkBvcmFjbGUuY29tPgpTaWduZWQtb2ZmLWJ5OiBCb2Ig
+TGl1IDxsbGl1YmJvQGdtYWlsLmNvbT4KLS0tCiBtbS9tbWFwLmMgfCAgICAyICsrCiAxIGZpbGUg
+Y2hhbmdlZCwgMiBpbnNlcnRpb25zKCspCgpkaWZmIC0tZ2l0IGEvbW0vbW1hcC5jIGIvbW0vbW1h
+cC5jCmluZGV4IDJkOTQyMzUuLmNmMTg1MDIgMTAwNjQ0Ci0tLSBhL21tL21tYXAuYworKysgYi9t
+bS9tbWFwLmMKQEAgLTMzNCw4ICszMzQsMTAgQEAgdm9pZCB2YWxpZGF0ZV9tbShzdHJ1Y3QgbW1f
+c3RydWN0ICptbSkKIAlzdHJ1Y3Qgdm1fYXJlYV9zdHJ1Y3QgKnZtYSA9IG1tLT5tbWFwOwogCXdo
+aWxlICh2bWEpIHsKIAkJc3RydWN0IGFub25fdm1hX2NoYWluICphdmM7CisJCWFub25fdm1hX2xv
+Y2sodm1hLT5hbm9uX3ZtYSk7CiAJCWxpc3RfZm9yX2VhY2hfZW50cnkoYXZjLCAmdm1hLT5hbm9u
+X3ZtYV9jaGFpbiwgc2FtZV92bWEpCiAJCQlhbm9uX3ZtYV9pbnRlcnZhbF90cmVlX3ZlcmlmeShh
+dmMpOworCQlhbm9uX3ZtYV91bmxvY2sodm1hLT5hbm9uX3ZtYSk7CiAJCXZtYSA9IHZtYS0+dm1f
+bmV4dDsKIAkJaSsrOwogCX0KLS0gCjEuNy45LjUKCg==
+--0016e6dd8b70011bd204cdb7ba25--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
