@@ -1,46 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 848866B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:56:30 -0500 (EST)
-Date: Mon, 5 Nov 2012 13:56:28 -0800
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 764016B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:01:56 -0500 (EST)
+Date: Mon, 5 Nov 2012 14:01:54 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2 v2] HWPOISON: fix action_result() to print out
- dirty/clean
-Message-Id: <20121105135628.db79602c.akpm@linux-foundation.org>
-In-Reply-To: <1351873993-9373-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/2 v2] mm: print out information of file affected by
+ memory error
+Message-Id: <20121105140154.fce89f05.akpm@linux-foundation.org>
+In-Reply-To: <1351873993-9373-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1351873993-9373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1351873993-9373-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1351873993-9373-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On Fri,  2 Nov 2012 12:33:12 -0400
+On Fri,  2 Nov 2012 12:33:13 -0400
 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> action_result() fails to print out "dirty" even if an error occurred on a
-> dirty pagecache, because when we check PageDirty in action_result() it was
-> cleared after page isolation even if it's dirty before error handling. This
-> can break some applications that monitor this message, so should be fixed.
+> Printing out the information about which file can be affected by a
+> memory error in generic_error_remove_page() is helpful for user to
+> estimate the impact of the error.
 > 
-> There are several callers of action_result() except page_action(), but
-> either of them are not for LRU pages but for free pages or kernel pages,
-> so we don't have to consider dirty or not for them.
+> Changelog v2:
+>   - dereference mapping->host after if (!mapping) check for robustness
 > 
-> Note that PG_dirty can be set outside page locks as described in commit
-> 554940dc8c1e, so this patch does not completely closes the race window,
-> but just narrows it.
+> ...
+>
+> --- v3.7-rc3.orig/mm/truncate.c
+> +++ v3.7-rc3/mm/truncate.c
+> @@ -151,14 +151,20 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
+>   */
+>  int generic_error_remove_page(struct address_space *mapping, struct page *page)
+>  {
+> +	struct inode *inode;
+> +
+>  	if (!mapping)
+>  		return -EINVAL;
+> +	inode = mapping->host;
+>  	/*
+>  	 * Only punch for normal data pages for now.
+>  	 * Handling other types like directories would need more auditing.
+>  	 */
+> -	if (!S_ISREG(mapping->host->i_mode))
+> +	if (!S_ISREG(inode->i_mode))
+>  		return -EIO;
+> +	pr_info("MCE %#lx: file info pgoff:%lu, inode:%lu, dev:%s\n",
+> +		page_to_pfn(page), page_index(page),
+> +		inode->i_ino, inode->i_sb->s_id);
+>  	return truncate_inode_page(mapping, page);
+>  }
+>  EXPORT_SYMBOL(generic_error_remove_page);
 
-I can find no commit 554940dc8c1e.  What commit are you referring to here?
+A couple of things.
 
-This is one of the reasons why we ask people to refer to commits by
-both hash and by name, using the form
+- I worry that if a hardware error occurs, it might affect a large
+  amount of memory all at the same time.  For example, if a 4G memory
+  block goes bad, this message will be printed a million times?
 
-078de5f706ece3 ("userns: Store uid and gid values in struct cred with
-kuid_t and kgid_t types")
+- hard-wiring "MCE" in here seems a bit of a layering violation? 
+  What right does the generic, core .error_remove_page() implementation
+  have to assume that it was called because of an MCE?  Many CPU types
+  don't eveh have such a thing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
