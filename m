@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id CA9A56B004D
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 08D526B005D
 	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 09:50:28 -0500 (EST)
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: [RFC PATCH] zcache2 cleanups (s/int/bool + debugfs movement). 
-Date: Mon,  5 Nov 2012 09:37:23 -0500
-Message-Id: <1352126254-28933-1-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 05/11] zcache: The last of the atomic reads has now an accessory function.
+Date: Mon,  5 Nov 2012 09:37:28 -0500
+Message-Id: <1352126254-28933-6-git-send-email-konrad.wilk@oracle.com>
+In-Reply-To: <1352126254-28933-1-git-send-email-konrad.wilk@oracle.com>
+References: <1352126254-28933-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, ngupta@vflare.org, minchan@kernel.org, rcj@linux.vnet.ibm.com, linux-mm@kvack.org, gregkh@linuxfoundation.org, devel@driverdev.osuosl.org
-Cc: akpm@linux-foundation.org
+Cc: akpm@linux-foundation.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Looking at the zcache2 code there were a couple of things that I thought
-would make sense to move out of the code. For one thing it makes it easier
-to read, and for anoter - it can be cleanly compiled out. It also allows
-to have a clean seperation of counters that we _need_ vs the optional ones.
-Which means that in the future we could get rid of the optional ones.
+And now we can move the code to its own file.
+Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+---
+ drivers/staging/ramster/zcache-main.c |   13 +++++++++----
+ 1 files changed, 9 insertions(+), 4 deletions(-)
 
-This patchset is based on the patchset that Dan sent out
-(https://lkml.org/lkml/2012/10/31/790). I've stuck
-them (and addressed some review comments) and put them in my branch:
-
- git://git.kernel.org/pub/scm/linux/kernel/git/konrad/mm.git devel/zcache.v3
-
-I am going to repost the module loading some time later this week - Bob Liu had
-some comments that I want to address.
-
-So back to this patchset - it fixes some outstanding compile warnings, cleans
-up some of the code, and rips out the debug counters out of zcache-main.c
-and sticks them in a debug.c file.
-
-I was hoping it would end up with less code, but sadly it ended up with
-a bit more due to the empty non-debug functions.
-
- drivers/staging/ramster/Kconfig       |    8 +
- drivers/staging/ramster/Makefile      |    1 +
- drivers/staging/ramster/debug.c       |   66 ++++++
- drivers/staging/ramster/debug.h       |  225 +++++++++++++++++++
- drivers/staging/ramster/zcache-main.c |  384 ++++++++-------------------------
- 5 files changed, 389 insertions(+), 295 deletions(-)
-
-Konrad Rzeszutek Wilk (11):
-      zcache2: s/int/bool/ on the various options.
-      zcache: Module license is defined twice.
-      zcache: Provide accessory functions for counter increase
-      zcache: Provide accessory functions for counter decrease.
-      zcache: The last of the atomic reads has now an accessory function.
-      zcache: Fix compile warnings due to usage of debugfs_create_size_t
-      zcache: Make the debug code use pr_debug
-      zcache: Move debugfs code out of zcache-main.c file.
-      zcache: Use an array to initialize/use debugfs attributes.
-      zcache: Move the last of the debugfs counters out
-      zcache: Coalesce all debug under CONFIG_ZCACHE2_DEBUG
+diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/ramster/zcache-main.c
+index 29ffbf1..3402acc 100644
+--- a/drivers/staging/ramster/zcache-main.c
++++ b/drivers/staging/ramster/zcache-main.c
+@@ -250,6 +250,14 @@ static inline void dec_zcache_pers_zpages(unsigned zpages)
+ {
+ 	zcache_pers_zpages = atomic_sub_return(zpages, &zcache_pers_zpages_atomic);
+ }
++
++static inline unsigned long curr_pageframes_count(void)
++{
++	return zcache_pageframes_alloced -
++		atomic_read(&zcache_pageframes_freed_atomic) -
++		atomic_read(&zcache_eph_pageframes_atomic) -
++		atomic_read(&zcache_pers_pageframes_atomic);
++};
+ /* but for the rest of these, counting races are ok */
+ static unsigned long zcache_flush_total;
+ static unsigned long zcache_flush_found;
+@@ -549,10 +557,7 @@ static void zcache_free_page(struct page *page)
+ 		BUG();
+ 	__free_page(page);
+ 	inc_zcache_pageframes_freed();
+-	curr_pageframes = zcache_pageframes_alloced -
+-			atomic_read(&zcache_pageframes_freed_atomic) -
+-			atomic_read(&zcache_eph_pageframes_atomic) -
+-			atomic_read(&zcache_pers_pageframes_atomic);
++	curr_pageframes = curr_pageframes_count();
+ 	if (curr_pageframes > max_pageframes)
+ 		max_pageframes = curr_pageframes;
+ 	if (curr_pageframes < min_pageframes)
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
