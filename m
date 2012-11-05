@@ -1,46 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 1639C6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 15:37:40 -0500 (EST)
-Date: Mon, 5 Nov 2012 12:37:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 13DBB6B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 15:50:36 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so7938248vcb.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 12:50:34 -0800 (PST)
+Message-ID: <50982698.7050605@gmail.com>
+Date: Mon, 05 Nov 2012 15:50:32 -0500
+From: Xi Wang <xi.wang@gmail.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] mm: fix NULL checking in dma_pool_create()
-Message-Id: <20121105123738.0a0490a7.akpm@linux-foundation.org>
-In-Reply-To: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com> <20121105123738.0a0490a7.akpm@linux-foundation.org>
+In-Reply-To: <20121105123738.0a0490a7.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xi Wang <xi.wang@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon,  5 Nov 2012 01:46:36 -0500
-Xi Wang <xi.wang@gmail.com> wrote:
-
-> First, `dev' is dereferenced in dev_to_node(dev), suggesting that it
-> must be non-null.  Later `dev' is checked against NULL, suggesting
-> the opposite.  This patch adds a NULL check before its use.
+On 11/5/12 3:37 PM, Andrew Morton wrote:
 > 
-> ...
->
-> @@ -159,7 +160,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  		return NULL;
->  	}
->  
-> -	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
-> +	node = dev ? dev_to_node(dev) : -1;
-> +
-> +	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, node);
->  	if (!retval)
->  		return retval;
+> Well, the dma_pool_create() kerneldoc does not describe dev==NULL to be
+> acceptable usage and given the lack of oops reports, we can assume that
+> no code is calling this function with dev==NULL.
+> 
+> So I think we can just remove the code which handles dev==NULL?
 
-Well, the dma_pool_create() kerneldoc does not describe dev==NULL to be
-acceptable usage and given the lack of oops reports, we can assume that
-no code is calling this function with dev==NULL.
+Actually, a quick grep gives the following...
 
-So I think we can just remove the code which handles dev==NULL?
+arch/arm/mach-s3c64xx/dma.c:731:	dma_pool = dma_pool_create("DMA-LLI", NULL, sizeof(struct pl080s_lli), 16, 0);
+drivers/usb/gadget/amd5536udc.c:3136:	dev->data_requests = dma_pool_create("data_requests", NULL,
+drivers/usb/gadget/amd5536udc.c:3148:	dev->stp_requests = dma_pool_create("setup requests", NULL,
+drivers/net/wan/ixp4xx_hss.c:973:		if (!(dma_pool = dma_pool_create(DRV_NAME, NULL,
+drivers/net/ethernet/xscale/ixp4xx_eth.c:1106:		if (!(dma_pool = dma_pool_create(DRV_NAME, NULL,
+
+- xi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
