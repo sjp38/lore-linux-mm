@@ -1,119 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 3C2ED6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:30:48 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id dq12so3598901wgb.26
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 13:30:46 -0800 (PST)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 31FF16B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:36:07 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so3117426dad.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 13:36:06 -0800 (PST)
+Date: Mon, 5 Nov 2012 13:36:04 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: fix build warning for uninitialized value
+In-Reply-To: <alpine.DEB.2.00.1210312234180.31758@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.00.1211051334490.5296@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1210312234180.31758@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <1351958865-24394-3-git-send-email-jiang.liu@huawei.com>
-References: <1351958865-24394-1-git-send-email-jiang.liu@huawei.com> <1351958865-24394-3-git-send-email-jiang.liu@huawei.com>
-From: Bjorn Helgaas <bhelgaas@google.com>
-Date: Mon, 5 Nov 2012 14:30:25 -0700
-Message-ID: <CAErSpo49kJm3x2K_FT6vLpUUD2pk9Hf62uXqzHt2Vod2PriY8Q@mail.gmail.com>
-Subject: Re: [ACPIHP PATCH part1 2/4] ACPIHP: introduce acpihp_slot driver to
- enumerate hotplug slots
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-1000382528-1352151365=:5296"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Gaohuai Han <hangaohuai@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Haggai Eran <haggaie@mellanox.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Nov 3, 2012 at 10:07 AM, Jiang Liu <liuj97@gmail.com> wrote:
-> An ACPI hotplug slot is an abstraction of receptacles, where a group of
-> system devices could be connected to. This patch implements the skeleton
-> of the ACPI system device hotplug slot enumerator. On loading, it scans
-> the whole ACPI namespace for hotplug slots and creates a device node for
-> each hotplug slot found. Every hotplug slot is associated with a device
-> class named acpihp_slot_class. Later hotplug drivers will register onto
-> acpihp_slot_class to manage all hotplug slots.
->
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Signed-off-by: Gaohuai Han <hangaohuai@huawei.com>
-> ---
->  drivers/acpi/Kconfig          |   19 ++
->  drivers/acpi/hotplug/Makefile |    3 +
->  drivers/acpi/hotplug/slot.c   |  417 +++++++++++++++++++++++++++++++++++++++++
->  3 files changed, 439 insertions(+)
->  create mode 100644 drivers/acpi/hotplug/slot.c
->
-> diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
-> index 9577b23..af0aaf6 100644
-> --- a/drivers/acpi/Kconfig
-> +++ b/drivers/acpi/Kconfig
-> @@ -334,6 +334,25 @@ menuconfig ACPI_HOTPLUG
->           If your hardware platform does not support system device dynamic
->           reconfiguration at runtime, you need not to enable this option.
->
-> +config ACPI_HOTPLUG_SLOT
-> +       tristate "System Device Hotplug Slot Enumerator"
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-I don't really believe in hotplug drivers being modules.  I think the
-core should support hotplug directly, and the decision to configure or
-not should be made at build-time.
+--531381512-1000382528-1352151365=:5296
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-> +       depends on ACPI_HOTPLUG
-> +       default m
-> +       help
-> +         ACPI system device hotplug slot is an abstraction of ACPI based
-> +         system device dynamic reconfiguration control points. On load,
-> +         this driver enumerates system device hotplug slots by wakling the
-> +         ACPI namespace and provides platform specific methods to control
-> +         those hotplug slots.
-> +
-> +         By default, this driver detects system device hotplug slots by
-> +         checking avaliability of ACPI _EJ0 method. You may pass a module
-> +         parameter "fake_slot=0xf" to enable faking hotplug slots on
-> +         platforms without hardware dynamic reconfiguration capabilities.
-> +
-> +         To compile this driver as a module, choose M here:
-> +         the module will be called acpihp_slot.
-> +
+do_wp_page() sets mmun_called if mmun_start and mmun_end were initialized 
+and, if so, may call mmu_notifier_invalidate_range_end() with these 
+values.  This doesn't prevent gcc from emitting a build warning though:
 
-> +static int __init acpihp_slot_generate_name(struct acpihp_slot *slot)
-> +{
-> +       int found = 0;
-> +       u32 child_types = 0;
-> +       unsigned long long uid;
-> +       struct acpihp_slot_id *slot_id;
-> +
-> +       /*
-> +        * Figure out slot type by checking types of ACPI devices which could
-> +        * be attached to the slot.
-> +        */
-> +       slot->type = acpihp_slot_get_type_self(slot);
-> +       if (slot->type == ACPIHP_SLOT_TYPE_UNKNOWN) {
-> +               acpi_walk_namespace(ACPI_TYPE_DEVICE, slot->handle,
-> +                               ACPI_UINT32_MAX, acpihp_slot_get_dev_type,
-> +                               NULL, NULL, (void **)&child_types);
-> +               acpi_walk_namespace(ACPI_TYPE_PROCESSOR, slot->handle,
-> +                               ACPI_UINT32_MAX, acpihp_slot_get_dev_type,
-> +                               NULL, NULL, (void **)&child_types);
-> +               slot->type = acpihp_slot_get_type_child(child_types);
-> +       }
+mm/memory.c: In function a??do_wp_pagea??:
+mm/memory.c:2530: warning: a??mmun_starta?? may be used uninitialized in this function
+mm/memory.c:2531: warning: a??mmun_enda?? may be used uninitialized in this function
 
-If things can be hot-added below slot->handle, is there an ACPI
-requirement that there be *anything* in the existing namespace below
-slot->handle?  I'm not sure you can tell sort of things might be
-added.
+It's much easier to initialize the variables to impossible values and do a 
+simple comparison to determine if they were initialized to remove the bool 
+entirely.
 
-> +static int __init acpihp_slot_scan_slots(void)
-> +{
-> +       acpi_status status;
-> +
-> +       status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-> +                                    ACPI_UINT32_MAX, acpihp_slot_scan,
-> +                                    NULL, NULL, NULL);
-> +       if (!ACPI_SUCCESS(status))
-> +               goto out_err;
-> +
-> +       status = acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-> +                                    ACPI_UINT32_MAX, acpihp_slot_scan,
-> +                                    NULL, NULL, NULL);
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/memory.c |   10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
-Here's one reason I don't like this as a module: we have to walk the
-namespace again (twice, even).  What happens when you hot-add a node
-that itself *contains* another hot-pluggable receptacle?  Do you walk
-the namespace again, calling acpiphp_slot_scan() as needed?
+diff --git a/mm/memory.c b/mm/memory.c
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2527,9 +2527,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	int ret = 0;
+ 	int page_mkwrite = 0;
+ 	struct page *dirty_page = NULL;
+-	unsigned long mmun_start;	/* For mmu_notifiers */
+-	unsigned long mmun_end;		/* For mmu_notifiers */
+-	bool mmun_called = false;	/* For mmu_notifiers */
++	unsigned long mmun_start = 0;	/* For mmu_notifiers */
++	unsigned long mmun_end = 0;	/* For mmu_notifiers */
+ 
+ 	old_page = vm_normal_page(vma, address, orig_pte);
+ 	if (!old_page) {
+@@ -2708,8 +2707,7 @@ gotten:
+ 		goto oom_free_new;
+ 
+ 	mmun_start  = address & PAGE_MASK;
+-	mmun_end    = (address & PAGE_MASK) + PAGE_SIZE;
+-	mmun_called = true;
++	mmun_end    = mmun_start + PAGE_SIZE;
+ 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+ 
+ 	/*
+@@ -2778,7 +2776,7 @@ gotten:
+ 		page_cache_release(new_page);
+ unlock:
+ 	pte_unmap_unlock(page_table, ptl);
+-	if (mmun_called)
++	if (mmun_end > mmun_start)
+ 		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 	if (old_page) {
+ 		/*
+--531381512-1000382528-1352151365=:5296--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
