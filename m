@@ -1,42 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 80F466B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:33:15 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so4661613pad.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 14:33:14 -0800 (PST)
-Date: Mon, 5 Nov 2012 14:33:12 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
-In-Reply-To: <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
-Message-ID: <alpine.DEB.2.00.1211051418560.5296@chino.kir.corp.google.com>
-References: <1349654347-18337-1-git-send-email-kys@microsoft.com> <1349654386-18378-1-git-send-email-kys@microsoft.com> <20121008004358.GA12342@kroah.com> <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121008133539.GA15490@kroah.com> <20121009124755.ce1087b4.akpm@linux-foundation.org> <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com> <20121105134456.f655b85a.akpm@linux-foundation.org>
- <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 451956B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:40:41 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3] HWPOISON: fix action_result() to print out dirty/clean (Re: [PATCH 1/2 v2] HWPOISON: fix action_result() to print out) dirty/clean
+Date: Mon,  5 Nov 2012 17:40:24 -0500
+Message-Id: <1352155224-18649-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20121105135628.db79602c.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 5 Nov 2012, KY Srinivasan wrote:
+On Mon, Nov 05, 2012 at 01:56:28PM -0800, Andrew Morton wrote:
+> On Fri,  2 Nov 2012 12:33:12 -0400
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+>
+> > action_result() fails to print out "dirty" even if an error occurred on a
+> > dirty pagecache, because when we check PageDirty in action_result() it was
+> > cleared after page isolation even if it's dirty before error handling. This
+> > can break some applications that monitor this message, so should be fixed.
+> >
+> > There are several callers of action_result() except page_action(), but
+> > either of them are not for LRU pages but for free pages or kernel pages,
+> > so we don't have to consider dirty or not for them.
+> >
+> > Note that PG_dirty can be set outside page locks as described in commit
+> > 554940dc8c1e, so this patch does not completely closes the race window,
+> > but just narrows it.
+>
+> I can find no commit 554940dc8c1e.  What commit are you referring to here?
 
-> The Hyper-V host has a policy engine for managing available physical memory across
-> competing virtual machines. This policy decision is based on a number of parameters
-> including the memory pressure reported by the guest. Currently, the pressure calculation is
-> based on the memory commitment made by the guest. From what I can tell, the ratio of
-> currently allocated physical memory to the current memory commitment made by the guest
-> (vm_committed_as) is used as one of the parameters in making the memory balancing decision on
-> the host. This is what Windows guests report to the host. So, I need some measure of memory
-> commitments made by the Linux guest. This is the reason I want export vm_committed_as. 
-> 
+Sorry, I pointed to a wrong ID somehow. Here is one I intended:
 
-I don't think you should export the symbol itself to modules but rather a 
-helper function that returns s64 that just wraps 
-percpu_counter_read_positive() which your driver could use instead.
+  commit 6746aff74da293b5fd24e5c68b870b721e86cd5f
+  Author: Wu Fengguang <fengguang.wu@intel.com>
+  Date:   Wed Sep 16 11:50:14 2009 +0200
 
-(And why percpu_counter_read_positive() returns a signed type is a 
-mystery.)
+      HWPOISON: shmem: call set_page_dirty() with locked page
+
+Could you replace the previous one with an attached one?
+
+> This is one of the reasons why we ask people to refer to commits by
+> both hash and by name, using the form
+>
+> 078de5f706ece3 ("userns: Store uid and gid values in struct cred with
+> kuid_t and kgid_t types")
+
+OK, I'll keep this in my mind.
+
+Naoya
+
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Fri, 2 Nov 2012 13:44:41 -0400
+Subject: [PATCH v3] HWPOISON: fix action_result() to print out dirty/clean
+
+action_result() fails to print out "dirty" even if an error occurred on a
+dirty pagecache, because when we check PageDirty in action_result() it was
+cleared after page isolation even if it's dirty before error handling. This
+can break some applications that monitor this message, so should be fixed.
+
+There are several callers of action_result() except page_action(), but
+either of them are not for LRU pages but for free pages or kernel pages,
+so we don't have to consider dirty or not for them.
+
+Note that PG_dirty can be set outside page locks as described in commit
+6746aff74da29 ("HWPOISON: shmem: call set_page_dirty() with locked page"),
+so this patch does not completely closes the race window, but just narrows it.
+
+Changelog v3:
+  - fix commit ID in description
+
+Changelog v2:
+  - Add comment about setting PG_dirty outside page lock
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/memory-failure.c | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 1abffee..01509aa 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -781,16 +781,16 @@ static struct page_state {
+ 	{ compound,	compound,	"huge",		me_huge_page },
+ #endif
+ 
+-	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
+-	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
++	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
++	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
+ 
+-	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
+-	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
++	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
++	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
+ 
+-	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
+-	{ mlock,	mlock,		"mlocked LRU",	me_pagecache_clean },
++	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
++	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
+ 
+-	{ lru|dirty,	lru|dirty,	"LRU",		me_pagecache_dirty },
++	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
+ 	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
+ 
+ 	/*
+@@ -812,14 +812,14 @@ static struct page_state {
+ #undef slab
+ #undef reserved
+ 
++/*
++ * "Dirty/Clean" indication is not 100% accurate due to the possibility of
++ * setting PG_dirty outside page lock. See also comment above set_page_dirty().
++ */
+ static void action_result(unsigned long pfn, char *msg, int result)
+ {
+-	struct page *page = pfn_to_page(pfn);
+-
+-	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
+-		pfn,
+-		PageDirty(page) ? "dirty " : "",
+-		msg, action_name[result]);
++	pr_err("MCE %#lx: %s page recovery: %s\n",
++		pfn, msg, action_name[result]);
+ }
+ 
+ static int page_action(struct page_state *ps, struct page *p,
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
