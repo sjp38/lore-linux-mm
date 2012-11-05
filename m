@@ -1,71 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 573DA6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:26:53 -0500 (EST)
-Date: Mon, 5 Nov 2012 13:26:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix NULL checking in dma_pool_create()
-Message-Id: <20121105132651.f52549b6.akpm@linux-foundation.org>
-In-Reply-To: <50982698.7050605@gmail.com>
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-	<20121105123738.0a0490a7.akpm@linux-foundation.org>
-	<50982698.7050605@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 3C2ED6B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:30:48 -0500 (EST)
+Received: by mail-wg0-f45.google.com with SMTP id dq12so3598901wgb.26
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 13:30:46 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1351958865-24394-3-git-send-email-jiang.liu@huawei.com>
+References: <1351958865-24394-1-git-send-email-jiang.liu@huawei.com> <1351958865-24394-3-git-send-email-jiang.liu@huawei.com>
+From: Bjorn Helgaas <bhelgaas@google.com>
+Date: Mon, 5 Nov 2012 14:30:25 -0700
+Message-ID: <CAErSpo49kJm3x2K_FT6vLpUUD2pk9Hf62uXqzHt2Vod2PriY8Q@mail.gmail.com>
+Subject: Re: [ACPIHP PATCH part1 2/4] ACPIHP: introduce acpihp_slot driver to
+ enumerate hotplug slots
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xi Wang <xi.wang@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jiang Liu <liuj97@gmail.com>
+Cc: "Rafael J . Wysocki" <rjw@sisk.pl>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Gaohuai Han <hangaohuai@huawei.com>
 
-On Mon, 05 Nov 2012 15:50:32 -0500
-Xi Wang <xi.wang@gmail.com> wrote:
+On Sat, Nov 3, 2012 at 10:07 AM, Jiang Liu <liuj97@gmail.com> wrote:
+> An ACPI hotplug slot is an abstraction of receptacles, where a group of
+> system devices could be connected to. This patch implements the skeleton
+> of the ACPI system device hotplug slot enumerator. On loading, it scans
+> the whole ACPI namespace for hotplug slots and creates a device node for
+> each hotplug slot found. Every hotplug slot is associated with a device
+> class named acpihp_slot_class. Later hotplug drivers will register onto
+> acpihp_slot_class to manage all hotplug slots.
+>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> Signed-off-by: Gaohuai Han <hangaohuai@huawei.com>
+> ---
+>  drivers/acpi/Kconfig          |   19 ++
+>  drivers/acpi/hotplug/Makefile |    3 +
+>  drivers/acpi/hotplug/slot.c   |  417 +++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 439 insertions(+)
+>  create mode 100644 drivers/acpi/hotplug/slot.c
+>
+> diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
+> index 9577b23..af0aaf6 100644
+> --- a/drivers/acpi/Kconfig
+> +++ b/drivers/acpi/Kconfig
+> @@ -334,6 +334,25 @@ menuconfig ACPI_HOTPLUG
+>           If your hardware platform does not support system device dynamic
+>           reconfiguration at runtime, you need not to enable this option.
+>
+> +config ACPI_HOTPLUG_SLOT
+> +       tristate "System Device Hotplug Slot Enumerator"
 
-> On 11/5/12 3:37 PM, Andrew Morton wrote:
-> > 
-> > Well, the dma_pool_create() kerneldoc does not describe dev==NULL to be
-> > acceptable usage and given the lack of oops reports, we can assume that
-> > no code is calling this function with dev==NULL.
-> > 
-> > So I think we can just remove the code which handles dev==NULL?
-> 
-> Actually, a quick grep gives the following...
-> 
-> arch/arm/mach-s3c64xx/dma.c:731:	dma_pool = dma_pool_create("DMA-LLI", NULL, sizeof(struct pl080s_lli), 16, 0);
-> drivers/usb/gadget/amd5536udc.c:3136:	dev->data_requests = dma_pool_create("data_requests", NULL,
-> drivers/usb/gadget/amd5536udc.c:3148:	dev->stp_requests = dma_pool_create("setup requests", NULL,
-> drivers/net/wan/ixp4xx_hss.c:973:		if (!(dma_pool = dma_pool_create(DRV_NAME, NULL,
-> drivers/net/ethernet/xscale/ixp4xx_eth.c:1106:		if (!(dma_pool = dma_pool_create(DRV_NAME, NULL,
-> 
+I don't really believe in hotplug drivers being modules.  I think the
+core should support hotplug directly, and the decision to configure or
+not should be made at build-time.
 
-OK, so it seems that those drivers have never been tested on a
-CONFIG_NUMA kernel.  whee.
+> +       depends on ACPI_HOTPLUG
+> +       default m
+> +       help
+> +         ACPI system device hotplug slot is an abstraction of ACPI based
+> +         system device dynamic reconfiguration control points. On load,
+> +         this driver enumerates system device hotplug slots by wakling the
+> +         ACPI namespace and provides platform specific methods to control
+> +         those hotplug slots.
+> +
+> +         By default, this driver detects system device hotplug slots by
+> +         checking avaliability of ACPI _EJ0 method. You may pass a module
+> +         parameter "fake_slot=0xf" to enable faking hotplug slots on
+> +         platforms without hardware dynamic reconfiguration capabilities.
+> +
+> +         To compile this driver as a module, choose M here:
+> +         the module will be called acpihp_slot.
+> +
 
-So we have a large amount of code here which ostensibly supports
-dev==NULL but which has not been well tested.  Take a look at
-dma_alloc_coherent(), dma_free_coherent() - are they safe?  Unobvious.
+> +static int __init acpihp_slot_generate_name(struct acpihp_slot *slot)
+> +{
+> +       int found = 0;
+> +       u32 child_types = 0;
+> +       unsigned long long uid;
+> +       struct acpihp_slot_id *slot_id;
+> +
+> +       /*
+> +        * Figure out slot type by checking types of ACPI devices which could
+> +        * be attached to the slot.
+> +        */
+> +       slot->type = acpihp_slot_get_type_self(slot);
+> +       if (slot->type == ACPIHP_SLOT_TYPE_UNKNOWN) {
+> +               acpi_walk_namespace(ACPI_TYPE_DEVICE, slot->handle,
+> +                               ACPI_UINT32_MAX, acpihp_slot_get_dev_type,
+> +                               NULL, NULL, (void **)&child_types);
+> +               acpi_walk_namespace(ACPI_TYPE_PROCESSOR, slot->handle,
+> +                               ACPI_UINT32_MAX, acpihp_slot_get_dev_type,
+> +                               NULL, NULL, (void **)&child_types);
+> +               slot->type = acpihp_slot_get_type_child(child_types);
+> +       }
 
-dmam_pool_destroy() will clearly cause an oops:
+If things can be hot-added below slot->handle, is there an ACPI
+requirement that there be *anything* in the existing namespace below
+slot->handle?  I'm not sure you can tell sort of things might be
+added.
 
-devres_destroy()
-->devres_remove()
-  ->spin_lock_irqsave(&dev->devres_lock, flags);
+> +static int __init acpihp_slot_scan_slots(void)
+> +{
+> +       acpi_status status;
+> +
+> +       status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+> +                                    ACPI_UINT32_MAX, acpihp_slot_scan,
+> +                                    NULL, NULL, NULL);
+> +       if (!ACPI_SUCCESS(status))
+> +               goto out_err;
+> +
+> +       status = acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+> +                                    ACPI_UINT32_MAX, acpihp_slot_scan,
+> +                                    NULL, NULL, NULL);
 
-
-So what to do?
-
-I'm thinking we should disallow dev==NULL.  We have a lot of code in
-mm/dmapool.c which _attempts_ to support this case, but is largely
-untested and obviously isn't working.  I don't think it's a good idea
-to try to fix up and then support this case on behalf of a handful of
-scruffy drivers.  It would be better to fix the drivers, then simplify
-the core code.  drivers/usb/gadget/amd5536udc.c can probably use
-dev->gadget.dev and drivers/net/wan/ixp4xx_hss.c can probably use
-port->netdev->dev, etc.
-
-So how about we add a WARN_ON_ONCE(dev == NULL), notify the driver maintainers
-and later we can remove all that mm/dmapool.c code which is trying to
-handle dev==NULL?
+Here's one reason I don't like this as a module: we have to walk the
+namespace again (twice, even).  What happens when you hot-add a node
+that itself *contains* another hot-pluggable receptacle?  Do you walk
+the namespace again, calling acpiphp_slot_scan() as needed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
