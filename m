@@ -1,120 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 0AB566B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:47:31 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so4646108pbb.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 14:47:31 -0800 (PST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id B74FA6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:47:33 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so4669502pad.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 14:47:33 -0800 (PST)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 00/16] mm: use augmented rbtrees for finding unmapped areas
-Date: Mon,  5 Nov 2012 14:46:57 -0800
-Message-Id: <1352155633-8648-1-git-send-email-walken@google.com>
+Subject: [PATCH 01/16] mm: add anon_vma_lock to validate_mm()
+Date: Mon,  5 Nov 2012 14:46:58 -0800
+Message-Id: <1352155633-8648-2-git-send-email-walken@google.com>
+In-Reply-To: <1352155633-8648-1-git-send-email-walken@google.com>
+References: <1352155633-8648-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>
 Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-Earlier this year, Rik proposed using augmented rbtrees to optimize
-our search for a suitable unmapped area during mmap(). This prompted
-my work on improving the augmented rbtree code. Rik doesn't seem to
-have time to follow up on his idea at this time, so I'm sending this
-series to revive the idea.
+Iterate vma->anon_vma_chain without anon_vma_lock may cause NULL ptr deref in
+anon_vma_interval_tree_verify(), because the node in the chain might have been
+removed.
 
-These changes are against v3.7-rc4. I have not converted all applicable
-architectuers yet, but we don't necessarily need to get them all onboard
-at once - the series is fully bisectable and additional architectures
-can be added later on. I am confident enough in my tests for patches 1-8;
-however the second half of the series basically didn't get tested as
-I don't have access to all the relevant architectures.
+[ 1523.657950] BUG: unable to handle kernel paging request at fffffffffffffff0
+[ 1523.660022] IP: [<ffffffff8122c29c>] anon_vma_interval_tree_verify+0xc/0xa0
+[ 1523.660022] PGD 4e28067 PUD 4e29067 PMD 0
+[ 1523.675725] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 1523.750066] CPU 0
+[ 1523.750066] Pid: 9050, comm: trinity-child64 Tainted: G        W    3.7.0-rc2-next-20121025-sasha-00001-g673f98e-dirty #77
+[ 1523.750066] RIP: 0010:[<ffffffff8122c29c>]  [<ffffffff8122c29c>] anon_vma_interval_tree_verify+0xc/0xa0
+[ 1523.750066] RSP: 0018:ffff880045f81d48  EFLAGS: 00010296
+[ 1523.750066] RAX: 0000000000000000 RBX: fffffffffffffff0 RCX: 0000000000000000
+[ 1523.750066] RDX: 0000000000000000 RSI: 0000000000000001 RDI: fffffffffffffff0
+[ 1523.750066] RBP: ffff880045f81d58 R08: 0000000000000000 R09: 0000000000000f14
+[ 1523.750066] R10: 0000000000000f12 R11: 0000000000000000 R12: ffff8800096c8d70
+[ 1523.750066] R13: ffff8800096c8d00 R14: 0000000000000000 R15: ffff8800095b45e0
+[ 1523.750066] FS:  00007f7a923f3700(0000) GS:ffff880013600000(0000) knlGS:0000000000000000
+[ 1523.750066] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1523.750066] CR2: fffffffffffffff0 CR3: 000000000969d000 CR4: 00000000000406f0
+[ 1523.750066] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 1523.750066] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[ 1523.750066] Process trinity-child64 (pid: 9050, threadinfo ffff880045f80000, task ffff880048eb0000)
+[ 1523.750066] Stack:
+[ 1523.750066]  ffff88000d7533f0 fffffffffffffff0 ffff880045f81da8 ffffffff812361d8
+[ 1523.750066]  ffff880045f81d98 ffff880048ee9000 ffff8800095b4580 ffff8800095b4580
+[ 1523.750066]  ffff88001d1cdb00 ffff8800095b45f0 ffff880022a4d630 ffff8800095b45e0
+[ 1523.750066] Call Trace:
+[ 1523.750066]  [<ffffffff812361d8>] validate_mm+0x58/0x1e0
+[ 1523.750066]  [<ffffffff81236aa5>] vma_adjust+0x635/0x6b0
+[ 1523.750066]  [<ffffffff81236c81>] __split_vma.isra.22+0x161/0x220
+[ 1523.750066]  [<ffffffff81237934>] split_vma+0x24/0x30
+[ 1523.750066]  [<ffffffff8122ce6a>] sys_madvise+0x5da/0x7b0
+[ 1523.750066]  [<ffffffff811cd14c>] ? rcu_eqs_exit+0x9c/0xb0
+[ 1523.750066]  [<ffffffff811802cd>] ? trace_hardirqs_on+0xd/0x10
+[ 1523.750066]  [<ffffffff83aee198>] tracesys+0xe1/0xe6
+[ 1523.750066] Code: 4c 09 ff 48 39 ce 77 9e f3 c3 0f 1f 44 00 00 31 c0 c3 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 53
+48 89 fb 48 83 ec 08 <48> 8b 17 48 8b 8a 90 00 00 00 48 39 4f 40 74 34 80 3d f7 1f 5c
+[ 1523.750066] RIP  [<ffffffff8122c29c>] anon_vma_interval_tree_verify+0xc/0xa0
+[ 1523.750066]  RSP <ffff880045f81d48>
+[ 1523.750066] CR2: fffffffffffffff0
+[ 1523.750066] ---[ end trace e35e5fa49072faf9 ]---
 
-Change log  since the previous (RFC) send:
-- Added bug fix in validate_mm(), noticed by Sasha Levin and figured
-  out by Bob Liu, which sometimes caused NULL pointer dereference when
-  running with CONFIG_DEBUG_VM_RB=y
-- Fixed generic and x86_64 arch_get_unmapped_area_topdown to avoid
-  allocating new areas at addr=0 as suggested by Rik Van Riel
-- Converted more architectures to use the new vm_unmapped_area()
-  search function
-- Converted hugetlbfs (generic / i386 / sparc64 / tile) to use the new
-  vm_unmapped_area() search function as well.
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Figured-out-by: Bob Liu <lliubbo@gmail.com>
+Signed-off-by: Michel Lespinasse <walken@google.com>
 
-In this resend, I have kept Rik's Reviewed-by tags from the original
-RFC submission for patches that haven't been updated other than applying
-his suggestions.
+---
+ mm/mmap.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-Patch 1 is the validate_mm() fix from Bob Liu (+ fixed-the-fix from me :)
-
-Patch 2 augments the VMA rbtree with a new rb_subtree_gap field,
-indicating the length of the largest gap immediately preceding any
-VMAs in a subtree.
-
-Patch 3 adds new checks to CONFIG_DEBUG_VM_RB to verify the above
-information is correctly maintained.
-
-Patch 4 rearranges the vm_area_struct layout so that rbtree searches only
-need data that is contained in the first cacheline (this one is from
-Rik's original patch series)
-
-Patch 5 adds a generic vm_unmapped_area() search function, which
-allows for searching for an address space of any desired length,
-within [low; high[ address constraints, with any desired alignment.
-The generic arch_get_unmapped_area[_topdown] functions are also converted
-to use this.
-
-Patch 6 converts the x86_64 arch_get_unmapped_area[_topdown] functions
-to use vm_unmapped_area() as well.
-
-Patch 7 fixes cache coloring on x86_64, as suggested by Rik in his
-previous series.
-
-Patch 8 and 9 convert the generic and i386 hugetlbfs code to use
-vm_unmapped_area()
-
-Patches 10-16 convert extra architectures to use vm_unmapped_area()
-
-I'm happy that this series removes more code than it adds, as calling
-vm_unmapped_area() with the desired arguments is quite shorter than
-duplicating the brute force algorithm all over the place. There is
-still a bit of repetition between various implementations of
-arch_get_unmapped_area[_topdown] functions that could probably be
-simplified somehow, but I feel we can keep that for a later step...
-
-Michel Lespinasse (15):
-  mm: add anon_vma_lock to validate_mm()
-  mm: augment vma rbtree with rb_subtree_gap
-  mm: check rb_subtree_gap correctness
-  mm: vm_unmapped_area() lookup function
-  mm: use vm_unmapped_area() on x86_64 architecture
-  mm: fix cache coloring on x86_64 architecture
-  mm: use vm_unmapped_area() in hugetlbfs
-  mm: use vm_unmapped_area() in hugetlbfs on i386 architecture
-  mm: use vm_unmapped_area() on mips architecture
-  mm: use vm_unmapped_area() on arm architecture
-  mm: use vm_unmapped_area() on sh architecture
-  mm: use vm_unmapped_area() on sparc64 architecture
-  mm: use vm_unmapped_area() in hugetlbfs on sparc64 architecture
-  mm: use vm_unmapped_area() on sparc32 architecture
-  mm: use vm_unmapped_area() in hugetlbfs on tile architecture
-
-Rik van Riel (1):
-  mm: rearrange vm_area_struct for fewer cache misses
-
- arch/arm/mm/mmap.c               |  119 ++--------
- arch/mips/mm/mmap.c              |   99 ++-------
- arch/sh/mm/mmap.c                |  126 ++---------
- arch/sparc/kernel/sys_sparc_32.c |   24 +--
- arch/sparc/kernel/sys_sparc_64.c |  132 +++---------
- arch/sparc/mm/hugetlbpage.c      |  123 +++--------
- arch/tile/mm/hugetlbpage.c       |  139 ++----------
- arch/x86/include/asm/elf.h       |    6 +-
- arch/x86/kernel/sys_x86_64.c     |  151 +++----------
- arch/x86/mm/hugetlbpage.c        |  130 ++---------
- arch/x86/vdso/vma.c              |    2 +-
- fs/hugetlbfs/inode.c             |   42 +---
- include/linux/mm.h               |   31 +++
- include/linux/mm_types.h         |   19 ++-
- mm/mmap.c                        |  452 +++++++++++++++++++++++++++++---------
- 15 files changed, 616 insertions(+), 979 deletions(-)
-
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2d942353d681..9a796c41e7d9 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -334,8 +334,10 @@ void validate_mm(struct mm_struct *mm)
+ 	struct vm_area_struct *vma = mm->mmap;
+ 	while (vma) {
+ 		struct anon_vma_chain *avc;
++		vma_lock_anon_vma(vma);
+ 		list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+ 			anon_vma_interval_tree_verify(avc);
++		vma_unlock_anon_vma(vma);
+ 		vma = vma->vm_next;
+ 		i++;
+ 	}
 -- 
 1.7.7.3
 
