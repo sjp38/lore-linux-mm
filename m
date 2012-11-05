@@ -1,137 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 451956B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:40:41 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3] HWPOISON: fix action_result() to print out dirty/clean (Re: [PATCH 1/2 v2] HWPOISON: fix action_result() to print out) dirty/clean
-Date: Mon,  5 Nov 2012 17:40:24 -0500
-Message-Id: <1352155224-18649-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20121105135628.db79602c.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 0AB566B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 17:47:31 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so4646108pbb.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 14:47:31 -0800 (PST)
+From: Michel Lespinasse <walken@google.com>
+Subject: [PATCH 00/16] mm: use augmented rbtrees for finding unmapped areas
+Date: Mon,  5 Nov 2012 14:46:57 -0800
+Message-Id: <1352155633-8648-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Mon, Nov 05, 2012 at 01:56:28PM -0800, Andrew Morton wrote:
-> On Fri,  2 Nov 2012 12:33:12 -0400
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
->
-> > action_result() fails to print out "dirty" even if an error occurred on a
-> > dirty pagecache, because when we check PageDirty in action_result() it was
-> > cleared after page isolation even if it's dirty before error handling. This
-> > can break some applications that monitor this message, so should be fixed.
-> >
-> > There are several callers of action_result() except page_action(), but
-> > either of them are not for LRU pages but for free pages or kernel pages,
-> > so we don't have to consider dirty or not for them.
-> >
-> > Note that PG_dirty can be set outside page locks as described in commit
-> > 554940dc8c1e, so this patch does not completely closes the race window,
-> > but just narrows it.
->
-> I can find no commit 554940dc8c1e.  What commit are you referring to here?
+Earlier this year, Rik proposed using augmented rbtrees to optimize
+our search for a suitable unmapped area during mmap(). This prompted
+my work on improving the augmented rbtree code. Rik doesn't seem to
+have time to follow up on his idea at this time, so I'm sending this
+series to revive the idea.
 
-Sorry, I pointed to a wrong ID somehow. Here is one I intended:
+These changes are against v3.7-rc4. I have not converted all applicable
+architectuers yet, but we don't necessarily need to get them all onboard
+at once - the series is fully bisectable and additional architectures
+can be added later on. I am confident enough in my tests for patches 1-8;
+however the second half of the series basically didn't get tested as
+I don't have access to all the relevant architectures.
 
-  commit 6746aff74da293b5fd24e5c68b870b721e86cd5f
-  Author: Wu Fengguang <fengguang.wu@intel.com>
-  Date:   Wed Sep 16 11:50:14 2009 +0200
+Change log  since the previous (RFC) send:
+- Added bug fix in validate_mm(), noticed by Sasha Levin and figured
+  out by Bob Liu, which sometimes caused NULL pointer dereference when
+  running with CONFIG_DEBUG_VM_RB=y
+- Fixed generic and x86_64 arch_get_unmapped_area_topdown to avoid
+  allocating new areas at addr=0 as suggested by Rik Van Riel
+- Converted more architectures to use the new vm_unmapped_area()
+  search function
+- Converted hugetlbfs (generic / i386 / sparc64 / tile) to use the new
+  vm_unmapped_area() search function as well.
 
-      HWPOISON: shmem: call set_page_dirty() with locked page
+In this resend, I have kept Rik's Reviewed-by tags from the original
+RFC submission for patches that haven't been updated other than applying
+his suggestions.
 
-Could you replace the previous one with an attached one?
+Patch 1 is the validate_mm() fix from Bob Liu (+ fixed-the-fix from me :)
 
-> This is one of the reasons why we ask people to refer to commits by
-> both hash and by name, using the form
->
-> 078de5f706ece3 ("userns: Store uid and gid values in struct cred with
-> kuid_t and kgid_t types")
+Patch 2 augments the VMA rbtree with a new rb_subtree_gap field,
+indicating the length of the largest gap immediately preceding any
+VMAs in a subtree.
 
-OK, I'll keep this in my mind.
+Patch 3 adds new checks to CONFIG_DEBUG_VM_RB to verify the above
+information is correctly maintained.
 
-Naoya
+Patch 4 rearranges the vm_area_struct layout so that rbtree searches only
+need data that is contained in the first cacheline (this one is from
+Rik's original patch series)
 
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Fri, 2 Nov 2012 13:44:41 -0400
-Subject: [PATCH v3] HWPOISON: fix action_result() to print out dirty/clean
+Patch 5 adds a generic vm_unmapped_area() search function, which
+allows for searching for an address space of any desired length,
+within [low; high[ address constraints, with any desired alignment.
+The generic arch_get_unmapped_area[_topdown] functions are also converted
+to use this.
 
-action_result() fails to print out "dirty" even if an error occurred on a
-dirty pagecache, because when we check PageDirty in action_result() it was
-cleared after page isolation even if it's dirty before error handling. This
-can break some applications that monitor this message, so should be fixed.
+Patch 6 converts the x86_64 arch_get_unmapped_area[_topdown] functions
+to use vm_unmapped_area() as well.
 
-There are several callers of action_result() except page_action(), but
-either of them are not for LRU pages but for free pages or kernel pages,
-so we don't have to consider dirty or not for them.
+Patch 7 fixes cache coloring on x86_64, as suggested by Rik in his
+previous series.
 
-Note that PG_dirty can be set outside page locks as described in commit
-6746aff74da29 ("HWPOISON: shmem: call set_page_dirty() with locked page"),
-so this patch does not completely closes the race window, but just narrows it.
+Patch 8 and 9 convert the generic and i386 hugetlbfs code to use
+vm_unmapped_area()
 
-Changelog v3:
-  - fix commit ID in description
+Patches 10-16 convert extra architectures to use vm_unmapped_area()
 
-Changelog v2:
-  - Add comment about setting PG_dirty outside page lock
+I'm happy that this series removes more code than it adds, as calling
+vm_unmapped_area() with the desired arguments is quite shorter than
+duplicating the brute force algorithm all over the place. There is
+still a bit of repetition between various implementations of
+arch_get_unmapped_area[_topdown] functions that could probably be
+simplified somehow, but I feel we can keep that for a later step...
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Andi Kleen <ak@linux.intel.com>
----
- mm/memory-failure.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+Michel Lespinasse (15):
+  mm: add anon_vma_lock to validate_mm()
+  mm: augment vma rbtree with rb_subtree_gap
+  mm: check rb_subtree_gap correctness
+  mm: vm_unmapped_area() lookup function
+  mm: use vm_unmapped_area() on x86_64 architecture
+  mm: fix cache coloring on x86_64 architecture
+  mm: use vm_unmapped_area() in hugetlbfs
+  mm: use vm_unmapped_area() in hugetlbfs on i386 architecture
+  mm: use vm_unmapped_area() on mips architecture
+  mm: use vm_unmapped_area() on arm architecture
+  mm: use vm_unmapped_area() on sh architecture
+  mm: use vm_unmapped_area() on sparc64 architecture
+  mm: use vm_unmapped_area() in hugetlbfs on sparc64 architecture
+  mm: use vm_unmapped_area() on sparc32 architecture
+  mm: use vm_unmapped_area() in hugetlbfs on tile architecture
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 1abffee..01509aa 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -781,16 +781,16 @@ static struct page_state {
- 	{ compound,	compound,	"huge",		me_huge_page },
- #endif
- 
--	{ sc|dirty,	sc|dirty,	"swapcache",	me_swapcache_dirty },
--	{ sc|dirty,	sc,		"swapcache",	me_swapcache_clean },
-+	{ sc|dirty,	sc|dirty,	"dirty swapcache",	me_swapcache_dirty },
-+	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
- 
--	{ unevict|dirty, unevict|dirty,	"unevictable LRU", me_pagecache_dirty},
--	{ unevict,	unevict,	"unevictable LRU", me_pagecache_clean},
-+	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
-+	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
- 
--	{ mlock|dirty,	mlock|dirty,	"mlocked LRU",	me_pagecache_dirty },
--	{ mlock,	mlock,		"mlocked LRU",	me_pagecache_clean },
-+	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
-+	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
- 
--	{ lru|dirty,	lru|dirty,	"LRU",		me_pagecache_dirty },
-+	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
- 	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },
- 
- 	/*
-@@ -812,14 +812,14 @@ static struct page_state {
- #undef slab
- #undef reserved
- 
-+/*
-+ * "Dirty/Clean" indication is not 100% accurate due to the possibility of
-+ * setting PG_dirty outside page lock. See also comment above set_page_dirty().
-+ */
- static void action_result(unsigned long pfn, char *msg, int result)
- {
--	struct page *page = pfn_to_page(pfn);
--
--	printk(KERN_ERR "MCE %#lx: %s%s page recovery: %s\n",
--		pfn,
--		PageDirty(page) ? "dirty " : "",
--		msg, action_name[result]);
-+	pr_err("MCE %#lx: %s page recovery: %s\n",
-+		pfn, msg, action_name[result]);
- }
- 
- static int page_action(struct page_state *ps, struct page *p,
+Rik van Riel (1):
+  mm: rearrange vm_area_struct for fewer cache misses
+
+ arch/arm/mm/mmap.c               |  119 ++--------
+ arch/mips/mm/mmap.c              |   99 ++-------
+ arch/sh/mm/mmap.c                |  126 ++---------
+ arch/sparc/kernel/sys_sparc_32.c |   24 +--
+ arch/sparc/kernel/sys_sparc_64.c |  132 +++---------
+ arch/sparc/mm/hugetlbpage.c      |  123 +++--------
+ arch/tile/mm/hugetlbpage.c       |  139 ++----------
+ arch/x86/include/asm/elf.h       |    6 +-
+ arch/x86/kernel/sys_x86_64.c     |  151 +++----------
+ arch/x86/mm/hugetlbpage.c        |  130 ++---------
+ arch/x86/vdso/vma.c              |    2 +-
+ fs/hugetlbfs/inode.c             |   42 +---
+ include/linux/mm.h               |   31 +++
+ include/linux/mm_types.h         |   19 ++-
+ mm/mmap.c                        |  452 +++++++++++++++++++++++++++++---------
+ 15 files changed, 616 insertions(+), 979 deletions(-)
+
 -- 
-1.7.11.7
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
