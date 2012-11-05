@@ -1,65 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 02E686B005A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:44:57 -0500 (EST)
-Date: Mon, 5 Nov 2012 13:44:56 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-Message-Id: <20121105134456.f655b85a.akpm@linux-foundation.org>
-In-Reply-To: <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
-References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
-	<1349654386-18378-1-git-send-email-kys@microsoft.com>
-	<20121008004358.GA12342@kroah.com>
-	<426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
-	<20121008133539.GA15490@kroah.com>
-	<20121009124755.ce1087b4.akpm@linux-foundation.org>
-	<426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 18D746B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 16:52:04 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so4616014pbb.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 13:52:03 -0800 (PST)
+Date: Mon, 5 Nov 2012 13:52:01 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: CK5 [03/18] create common functions for boot slab creation
+In-Reply-To: <0000013ad1242d03-3810e49c-bad4-44b1-88bf-285da511a400-000000@email.amazonses.com>
+Message-ID: <alpine.DEB.2.00.1211051350140.5296@chino.kir.corp.google.com>
+References: <20121101214538.971500204@linux.com> <0000013abdf1353a-ae01273f-2188-478e-b0c1-b4bdbbaa2652-000000@email.amazonses.com> <alpine.DEB.2.00.1211021333030.5902@chino.kir.corp.google.com>
+ <0000013ad1242d03-3810e49c-bad4-44b1-88bf-285da511a400-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, linux-mm@kvack.org, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, elezegarcia@gmail.com
 
-On Sat, 3 Nov 2012 14:09:38 +0000
-KY Srinivasan <kys@microsoft.com> wrote:
+On Mon, 5 Nov 2012, Christoph Lameter wrote:
 
+> > Eek, the calls to __kmem_cache_create() in the boot path as it sits in
+> > slab/next right now are ignoring SLAB_PANIC.
 > 
-> 
-> > >
-> > > Ok, but you're going to have to get the -mm developers to agree that
-> > > this is ok before I can accept it.
-> > 
-> > Well I guess it won't kill us.
-> 
-> Andrew,
-> 
-> I presumed this was an Ack from you with regards to exporting the
-> symbol. Looks like Greg is waiting to hear from you before he can check
-> these patches in. Could you provide an explicit Ack.
+> Any failure to create a slab cache during early boot is fatal and we panic
+> unconditionally. Like before as far as I can tell but without the use of
+> SLAB_PANIC.
 > 
 
-Well, I do have some qualms about exporting vm_committed_as to modules.
-
-vm_committed_as is a global thing and only really makes sense in a
-non-containerised system.  If the application is running within a
-memory cgroup then vm_enough_memory() and the global overcommit policy
-are at best irrelevant and misleading.
-
-If use of vm_committed_as is indeed a bad thing, then exporting it to
-modules might increase the amount of badness in the kernel.
-
-
-I don't think these qualms are serious enough to stand in the way of
-this patch, but I'd be interested in hearing the memcg developers'
-thoughts on the matter?
-
-
-Perhaps you could provide a detailed description of why your module
-actually needs this?  Precisely what information is it looking for
-and why?  If we know that then perhaps a more comfortable alternative
-can be found.
+With your patch, yeah, but right now mm/slab.c calls directly into 
+__kmem_cache_create() with SLAB_PANIC which never gets respected during 
+bootstrap since it is handled in kmem_cache_create() in slab/next.  So 
+this patch could actually be marketed as a bugfix :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
