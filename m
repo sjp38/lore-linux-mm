@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 6D25B6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 18:34:19 -0500 (EST)
-Message-ID: <50984D8C.6080504@redhat.com>
-Date: Mon, 05 Nov 2012 18:36:44 -0500
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 5D1906B005A
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 18:34:40 -0500 (EST)
+Message-ID: <50984DA6.5070608@redhat.com>
+Date: Mon, 05 Nov 2012 18:37:10 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/16] mm: use vm_unmapped_area() in hugetlbfs on sparc64
- architecture
-References: <1352155633-8648-1-git-send-email-walken@google.com> <1352155633-8648-15-git-send-email-walken@google.com>
-In-Reply-To: <1352155633-8648-15-git-send-email-walken@google.com>
+Subject: Re: [PATCH 15/16] mm: use vm_unmapped_area() on sparc32 architecture
+References: <1352155633-8648-1-git-send-email-walken@google.com> <1352155633-8648-16-git-send-email-walken@google.com>
+In-Reply-To: <1352155633-8648-16-git-send-email-walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -18,7 +17,7 @@ To: Michel Lespinasse <walken@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
 On 11/05/2012 05:47 PM, Michel Lespinasse wrote:
-> Update the sparc64 hugetlb_get_unmapped_area function to make use of
+> Update the sparc32 arch_get_unmapped_area function to make use of
 > vm_unmapped_area() instead of implementing a brute force search.
 >
 > Signed-off-by: Michel Lespinasse <walken@google.com>
