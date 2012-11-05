@@ -1,29 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 37CFB6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 18:04:52 -0500 (EST)
-Message-ID: <509846AA.2090803@redhat.com>
-Date: Mon, 05 Nov 2012 18:07:22 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 09/16] mm: use vm_unmapped_area() in hugetlbfs on i386
- architecture
-References: <1352155633-8648-1-git-send-email-walken@google.com> <1352155633-8648-10-git-send-email-walken@google.com>
-In-Reply-To: <1352155633-8648-10-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id F24776B004D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 18:24:13 -0500 (EST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Updated MMAP/SHMGET 1GB patchkit
+Date: Mon,  5 Nov 2012 15:24:07 -0800
+Message-Id: <1352157848-29473-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mtk.manpages@gmail.com
 
-On 11/05/2012 05:47 PM, Michel Lespinasse wrote:
-> Update the i386 hugetlb_get_unmapped_area function to make use of
-> vm_unmapped_area() instead of implementing a brute force search.
->
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+This is the updated patchkit to allow to use 1GB pages for mmap/shmget
+directly. This is needed for various software and makes it far more
+convenient to use 1GB pages.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+There were a lot of discussions on the ABI of v6 due to a conflict of
+the new bits with the NOMMU only feature MAP_UNINITIALIZED.
+
+However I don't think this matters at all because this feature
+only works with HUGETLBFS and HUGETLBFS and NOMMU are mutually
+exclusive. So any architecture which suppors HUGETLBFS will
+never do MAP_UNINITIALIZED and vice versa. So there's no 
+actual conflict in these flags.
+
+Based on that I don't think any changes are needed.
+
+So I decided to just repost with a rebase. 
+
+Please consider applying,
+
+Thanks,
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
