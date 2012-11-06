@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id CD1186B004D
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:57:07 -0500 (EST)
-Date: Mon, 5 Nov 2012 16:57:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 26/29] Aggregate memcg cache values in slabinfo
-Message-Id: <20121105165706.f2f37f46.akpm@linux-foundation.org>
-In-Reply-To: <1351771665-11076-27-git-send-email-glommer@parallels.com>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-	<1351771665-11076-27-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 639916B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 20:25:06 -0500 (EST)
+Date: Mon, 05 Nov 2012 20:25:01 -0500 (EST)
+Message-Id: <20121105.202501.1246122770431623794.davem@davemloft.net>
+Subject: Re: [PATCH 15/16] mm: use vm_unmapped_area() on sparc32
+ architecture
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <1352155633-8648-16-git-send-email-walken@google.com>
+References: <1352155633-8648-1-git-send-email-walken@google.com>
+	<1352155633-8648-16-git-send-email-walken@google.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: walken@google.com
+Cc: akpm@linux-foundation.org, riel@redhat.com, hughd@google.com, linux-kernel@vger.kernel.org, linux@arm.linux.org.uk, ralf@linux-mips.org, lethal@linux-sh.org, cmetcalf@tilera.com, x86@kernel.org, wli@holomorphy.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Thu,  1 Nov 2012 16:07:42 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+From: Michel Lespinasse <walken@google.com>
+Date: Mon,  5 Nov 2012 14:47:12 -0800
 
-> When we create caches in memcgs, we need to display their usage
-> information somewhere. We'll adopt a scheme similar to /proc/meminfo,
-> with aggregate totals shown in the global file, and per-group
-> information stored in the group itself.
+> Update the sparc32 arch_get_unmapped_area function to make use of
+> vm_unmapped_area() instead of implementing a brute force search.
 > 
-> For the time being, only reads are allowed in the per-group cache.
-> 
-> ...
->
-> +#define for_each_memcg_cache_index(_idx)	\
-> +	for ((_idx) = 0; i < memcg_limited_groups_array_size; (_idx)++)
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-Use of this requires slab_mutex, yes?
+Hmmm...
 
-Please add a comment, and confirm that all callers do indeed hold the
-correct lock.
+> -	if (flags & MAP_SHARED)
+> -		addr = COLOUR_ALIGN(addr);
+> -	else
+> -		addr = PAGE_ALIGN(addr);
 
-
-We could add a mutex_is_locked() check to the macro perhaps, but this
-isn't the place to assume the presence of slab_mutex, so it gets messy.
-
->
-> ...
->
+What part of vm_unmapped_area() is going to duplicate this special
+aligning logic we need on sparc?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
