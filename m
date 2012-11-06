@@ -1,145 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id E7AEF6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:27:38 -0500 (EST)
-Date: Tue, 6 Nov 2012 13:27:37 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB
- v7
-Message-Id: <20121106132737.c2aa3c47.akpm@linux-foundation.org>
-In-Reply-To: <1352157848-29473-2-git-send-email-andi@firstfloor.org>
-References: <1352157848-29473-1-git-send-email-andi@firstfloor.org>
-	<1352157848-29473-2-git-send-email-andi@firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id A894F6B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:49:40 -0500 (EST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 6 Nov 2012 16:49:38 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 64C0B38C8045
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:49:25 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qA6LnOqL271622
+	for <linux-mm@kvack.org>; Tue, 6 Nov 2012 16:49:24 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qA6LnO0n009093
+	for <linux-mm@kvack.org>; Tue, 6 Nov 2012 19:49:24 -0200
+Message-ID: <509985DE.8000508@linux.vnet.ibm.com>
+Date: Tue, 06 Nov 2012 13:49:18 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 6/8] mm: Demarcate and maintain pageblocks in region-order
+ in the zones' freelists
+References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
+In-Reply-To: <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mtk.manpages@gmail.com, Andi Kleen <ak@linux.intel.com>, Hillf Danton <dhillf@gmail.com>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon,  5 Nov 2012 15:24:08 -0800
-Andi Kleen <andi@firstfloor.org> wrote:
-
-> From: Andi Kleen <ak@linux.intel.com>
+On 11/06/2012 11:53 AM, Srivatsa S. Bhat wrote:
+> This is the main change - we keep the pageblocks in region-sorted order,
+> where pageblocks belonging to region-0 come first, followed by those belonging
+> to region-1 and so on. But the pageblocks within a given region need *not* be
+> sorted, since we need them to be only region-sorted and not fully
+> address-sorted.
 > 
-> There was some desire in large applications using MAP_HUGETLB/SHM_HUGETLB
-> to use 1GB huge pages on some mappings, and stay with 2MB on others. This
-> is useful together with NUMA policy: use 2MB interleaving on some mappings,
-> but 1GB on local mappings.
-> 
-> This patch extends the IPC/SHM syscall interfaces slightly to allow specifying
-> the page size.
-> 
-> It borrows some upper bits in the existing flag arguments and allows encoding
-> the log of the desired page size in addition to the *_HUGETLB flag.
-> When 0 is specified the default size is used, this makes the change fully
-> compatible.
-> 
-> Extending the internal hugetlb code to handle this is straight forward. Instead
-> of a single mount it just keeps an array of them and selects the right
-> mount based on the specified page size. When no page size is specified
-> it uses the mount of the default page size.
-> 
-> The change is not visible in /proc/mounts because internal mounts
-> don't appear there. It also has very little overhead: the additional
-> mounts just consume a super block, but not more memory when not used.
-> 
-> I also exported the new flags to the user headers
-> (they were previously under __KERNEL__). Right now only symbols
-> for x86 and some other architecture for 1GB and 2MB are defined.
-> The interface should already work for all other architectures
-> though.  Only architectures that define multiple hugetlb sizes
-> actually need it (that is currently x86, tile, powerpc). However
-> tile and powerpc have user configurable hugetlb sizes, so it's
-> not easy to add defines. A program on those architectures would
-> need to query sysfs and use the appropiate log2.
+> This sorting is performed when adding pages back to the freelists, thus
+> avoiding any region-related overhead in the critical page allocation
+> paths.
 
-I can't say the userspace interface is a thing of beauty, but I guess
-we'll live.
-
-Did you have a test app?  If so, can we get it into
-tools/testing/selftests and point the arch maintainers at it?
-
->
-> ...
->
-> @@ -1011,8 +1029,9 @@ out_shm_unlock:
->  
->  static int __init init_hugetlbfs_fs(void)
->  {
-> +	struct hstate *h;
->  	int error;
-> -	struct vfsmount *vfsmount;
-> +	int i;
->  
->  	error = bdi_init(&hugetlbfs_backing_dev_info);
->  	if (error)
-> @@ -1029,14 +1048,27 @@ static int __init init_hugetlbfs_fs(void)
->  	if (error)
->  		goto out;
->  
-> -	vfsmount = kern_mount(&hugetlbfs_fs_type);
-> -
-> -	if (!IS_ERR(vfsmount)) {
-> -		hugetlbfs_vfsmount = vfsmount;
-> -		return 0;
-> +	i = 0;
-> +	for_each_hstate (h) {
-> +		char buf[50];
-> +		unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
-> +
-> +		snprintf(buf, sizeof buf, "pagesize=%uK", ps_kb);
-> +		hugetlbfs_vfsmount[i] = kern_mount_data(&hugetlbfs_fs_type,
-> +							buf);
-> +
-> +		if (IS_ERR(hugetlbfs_vfsmount[i])) {
-> +				pr_err(
-> +			"hugetlb: Cannot mount internal hugetlbfs for page size %uK",
-> +			       ps_kb);
-> +			error = PTR_ERR(hugetlbfs_vfsmount[i]);
-> +			hugetlbfs_vfsmount[i] = NULL;
-> +		}
-> +		i++;
->  	}
-
-hm, that's a bit messed up.
-
---- a/fs/hugetlbfs/inode.c~mm-support-more-pagesizes-for-map_hugetlb-shm_hugetlb-v7-fix
-+++ a/fs/hugetlbfs/inode.c
-@@ -1049,7 +1049,7 @@ static int __init init_hugetlbfs_fs(void
- 		goto out;
- 
- 	i = 0;
--	for_each_hstate (h) {
-+	for_each_hstate(h) {
- 		char buf[50];
- 		unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
- 
-@@ -1058,9 +1058,8 @@ static int __init init_hugetlbfs_fs(void
- 							buf);
- 
- 		if (IS_ERR(hugetlbfs_vfsmount[i])) {
--				pr_err(
--			"hugetlb: Cannot mount internal hugetlbfs for page size %uK",
--			       ps_kb);
-+			pr_err("hugetlb: Cannot mount internal hugetlbfs for "
-+				"page size %uK", ps_kb);
- 			error = PTR_ERR(hugetlbfs_vfsmount[i]);
- 			hugetlbfs_vfsmount[i] = NULL;
- 		}
-@@ -1090,7 +1089,7 @@ static void __exit exit_hugetlbfs_fs(voi
- 	rcu_barrier();
- 	kmem_cache_destroy(hugetlbfs_inode_cachep);
- 	i = 0;
--	for_each_hstate (h)
-+	for_each_hstate(h)
- 		kern_unmount(hugetlbfs_vfsmount[i++]);
- 	unregister_filesystem(&hugetlbfs_fs_type);
- 	bdi_destroy(&hugetlbfs_backing_dev_info);
-
-(we're not supposed to split strings like that, but screw 'em!)
-
+It's probably _better_ to do it at free time than alloc, but it's still
+pretty bad to be doing a linear walk over a potentially 256-entry array
+holding the zone lock.  The overhead is going to show up somewhere.  How
+does this do with a kernel compile?  Looks like exit() when a process
+has a bunch of memory might get painful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
