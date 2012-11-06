@@ -1,152 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id E03016B0062
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 14:54:11 -0500 (EST)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Wed, 7 Nov 2012 01:24:09 +0530
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qA6Js63454853782
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2012 01:24:06 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qA71MYoa004981
-	for <linux-mm@kvack.org>; Wed, 7 Nov 2012 12:22:35 +1100
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [RFC PATCH 3/8] mm: Introduce and initialize zone memory regions
-Date: Wed, 07 Nov 2012 01:23:02 +0530
-Message-ID: <20121106195256.6941.69079.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com>
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 2892E6B005A
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 14:54:28 -0500 (EST)
+Message-ID: <50996B8B.30404@redhat.com>
+Date: Tue, 06 Nov 2012 14:56:59 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH 19/19] mm: sched: numa: Implement slow start for working
+ set sampling
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de> <1352193295-26815-20-git-send-email-mgorman@suse.de>
+In-Reply-To: <1352193295-26815-20-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
-Cc: gargankita@gmail.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, srivatsa.bhat@linux.vnet.ibm.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Memory region boundaries don't necessarily fit on zone boundaries. So we need
-to maintain a zone-level mapping of the absolute memory region boundaries.
+On 11/06/2012 04:14 AM, Mel Gorman wrote:
+> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>
+> Add a 1 second delay before starting to scan the working set of
+> a task and starting to balance it amongst nodes.
+>
+> [ note that before the constant per task WSS sampling rate patch
+>    the initial scan would happen much later still, in effect that
+>    patch caused this regression. ]
+>
+> The theory is that short-run tasks benefit very little from NUMA
+> placement: they come and go, and they better stick to the node
+> they were started on. As tasks mature and rebalance to other CPUs
+> and nodes, so does their NUMA placement have to change and so
+> does it start to matter more and more.
+>
+> In practice this change fixes an observable kbuild regression:
+>
+>     # [ a perf stat --null --repeat 10 test of ten bzImage builds to /dev/shm ]
+>
+>     !NUMA:
+>     45.291088843 seconds time elapsed                                          ( +-  0.40% )
+>     45.154231752 seconds time elapsed                                          ( +-  0.36% )
+>
+>     +NUMA, no slow start:
+>     46.172308123 seconds time elapsed                                          ( +-  0.30% )
+>     46.343168745 seconds time elapsed                                          ( +-  0.25% )
+>
+>     +NUMA, 1 sec slow start:
+>     45.224189155 seconds time elapsed                                          ( +-  0.25% )
+>     45.160866532 seconds time elapsed                                          ( +-  0.17% )
+>
+> and it also fixes an observable perf bench (hackbench) regression:
+>
+>     # perf stat --null --repeat 10 perf bench sched messaging
+>
+>     -NUMA:
+>
+>     -NUMA:                  0.246225691 seconds time elapsed                   ( +-  1.31% )
+>     +NUMA no slow start:    0.252620063 seconds time elapsed                   ( +-  1.13% )
+>
+>     +NUMA 1sec delay:       0.248076230 seconds time elapsed                   ( +-  1.35% )
+>
+> The implementation is simple and straightforward, most of the patch
+> deals with adding the /proc/sys/kernel/balance_numa_scan_delay_ms tunable
+> knob.
+>
+> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> [ Wrote the changelog, ran measurements, tuned the default. ]
+> Signed-off-by: Ingo Molnar <mingo@kernel.org>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-"Node Memory Regions" will be used to capture the absolute region boundaries.
-Add "Zone Memory Regions" to track the subsets of the absolute memory regions
-that fall within the zone boundaries.
-
-Eg:
-
-	|<---------------------Node---------------------->|
-	 _________________________________________________
-	|      Node mem reg 0 	|      Node mem reg 1     |
-	|_______________________|_________________________|
-
-	 _________________________________________________
-	|   ZONE_DMA    |	ZONE_NORMAL		  |
-	|_______________|_________________________________|
-
-
-In the above figure,
-
-ZONE_DMA has only 1 zone memory region (say, Zone mem reg 0) which is a subset
-of Node mem reg 0.
-
-ZONE_NORMAL has 2 zone memory regions (say, Zone mem reg 0 and Zone mem reg 1)
-which are subsets of Node mem reg 0 and Node mem reg 1 respectively.
-
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
-
- include/linux/mmzone.h |    9 +++++++++
- mm/page_alloc.c        |   42 +++++++++++++++++++++++++++++++++++++++++-
- 2 files changed, 50 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index bb7c3ef..9f923aa 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -339,6 +339,12 @@ struct node_mem_region {
- 	struct pglist_data *pgdat;
- };
- 
-+struct zone_mem_region {
-+	unsigned long start_pfn;
-+	unsigned long spanned_pages;
-+	unsigned long present_pages;
-+};
-+
- struct zone {
- 	/* Fields commonly accessed by the page allocator */
- 
-@@ -403,6 +409,9 @@ struct zone {
- #endif
- 	struct free_area	free_area[MAX_ORDER];
- 
-+	struct zone_mem_region	zone_mem_region[MAX_NR_REGIONS];
-+	int 			nr_zone_regions;
-+
- #ifndef CONFIG_SPARSEMEM
- 	/*
- 	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 709e3c1..c00f72d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4594,6 +4594,46 @@ void init_node_memory_regions(struct pglist_data *pgdat)
- 	}
- }
- 
-+void init_zone_memory_regions(struct pglist_data *pgdat)
-+{
-+	unsigned long start_pfn, end_pfn, absent;
-+	int i, j, idx, nid = pgdat->node_id;
-+	struct node_mem_region *region;
-+	struct zone *z;
-+
-+	for (i = 0; i < pgdat->nr_zones; i++) {
-+		z = &pgdat->node_zones[i];
-+		idx = 0;
-+
-+		for (j = 0; j < pgdat->nr_node_regions; j++) {
-+			region = &pgdat->node_regions[j];
-+			start_pfn = max(z->zone_start_pfn, region->start_pfn);
-+			end_pfn = min(z->zone_start_pfn + z->spanned_pages,
-+				      region->start_pfn + region->spanned_pages);
-+
-+			if (start_pfn >= end_pfn)
-+				continue;
-+
-+			z->zone_mem_region[idx].start_pfn = start_pfn;
-+			z->zone_mem_region[idx].spanned_pages = end_pfn - start_pfn;
-+
-+			absent = __absent_pages_in_range(nid, start_pfn,
-+						         end_pfn);
-+			z->zone_mem_region[idx].present_pages =
-+						end_pfn - start_pfn - absent;
-+			idx++;
-+		}
-+
-+		z->nr_zone_regions = idx;
-+	}
-+}
-+
-+void init_memory_regions(struct pglist_data *pgdat)
-+{
-+	init_node_memory_regions(pgdat);
-+	init_zone_memory_regions(pgdat);
-+}
-+
- void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 		unsigned long node_start_pfn, unsigned long *zholes_size)
- {
-@@ -4615,7 +4655,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- #endif
- 
- 	free_area_init_core(pgdat, zones_size, zholes_size);
--	init_node_memory_regions(pgdat);
-+	init_memory_regions(pgdat);
- }
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
