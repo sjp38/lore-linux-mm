@@ -1,38 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id B81286B004D
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 17:45:42 -0500 (EST)
-Message-ID: <509993A5.2000605@redhat.com>
-Date: Tue, 06 Nov 2012 17:48:05 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 09/16] mm: use vm_unmapped_area() in hugetlbfs on i386
- architecture
-References: <1352155633-8648-1-git-send-email-walken@google.com> <1352155633-8648-10-git-send-email-walken@google.com> <20121106143826.dc3b960c.akpm@linux-foundation.org>
-In-Reply-To: <20121106143826.dc3b960c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 9407B6B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 17:52:22 -0500 (EST)
+Date: Tue, 6 Nov 2012 14:52:20 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2 v2] mm: print out information of file affected by
+ memory error
+Message-Id: <20121106145220.52a52829.akpm@linux-foundation.org>
+In-Reply-To: <1352241905-4657-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <20121106121220.d14696ac.akpm@linux-foundation.org>
+	<1352241905-4657-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On 11/06/2012 05:38 PM, Andrew Morton wrote:
-> On Mon,  5 Nov 2012 14:47:06 -0800
-> Michel Lespinasse <walken@google.com> wrote:
->
->> Update the i386 hugetlb_get_unmapped_area function to make use of
->> vm_unmapped_area() instead of implementing a brute force search.
->
-> The x86_64 coloring "fix" wasn't copied into i386?
+On Tue,  6 Nov 2012 17:45:05 -0500
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Only certain 64 bit AMD CPUs have that issue at all.
+> > "should be" and "unlikely" aren't very reassuring things to hear! 
+> > Emitting a million lines into syslog is pretty poor behaviour and
+> > should be reliably avoided.
+> 
+> So capping maximum lines of messages per some duration (a hour or a day)
+> is a possible option. BTW, even if we don't apply this patch, the kernel
+> can emit million lines of messages in the above-mentioned situation because
+> each memory error event emits a message like "MCE 0x3f57f4: dirty LRU page
+> recovery: Ignored" on syslog. If it's also bad, we need to do capping
+> also over existing printk()s, right?
 
-On x86, page coloring is really not much of an issue.
-
-All the x86-64 patch does is make the x86-64 page
-coloring code behave the same way page coloring
-does on MIPS, SPARC, ARM, PA-RISC and others...
+Yes, that sounds like a bug report waiting to happen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
