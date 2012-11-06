@@ -1,95 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 7D2156B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 15:43:17 -0500 (EST)
-Date: Tue, 6 Nov 2012 12:43:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: fix a regression with HIGHMEM introduced by
- changeset 7f1290f2f2a4d
-Message-Id: <20121106124315.79deb2bc.akpm@linux-foundation.org>
-In-Reply-To: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
-References: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 191096B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 15:48:28 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so1032917vcb.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 12:48:27 -0800 (PST)
+Message-ID: <5099779A.8050009@gmail.com>
+Date: Tue, 06 Nov 2012 15:48:26 -0500
+From: Xi Wang <xi.wang@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: fix NULL checking in dma_pool_create()
+References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com> <20121105123738.0a0490a7.akpm@linux-foundation.org> <50982698.7050605@gmail.com> <20121105132651.f52549b6.akpm@linux-foundation.org>
+In-Reply-To: <20121105132651.f52549b6.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Maciej Rutecki <maciej.rutecki@gmail.com>, Jianguo Wu <wujianguo@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 6 Nov 2012 09:31:57 +0800
-Jiang Liu <jiang.liu@huawei.com> wrote:
-
-> Changeset 7f1290f2f2 tries to fix a issue when calculating
-> zone->present_pages, but it causes a regression to 32bit systems with
-> HIGHMEM. With that changeset, function reset_zone_present_pages()
-> resets all zone->present_pages to zero, and fixup_zone_present_pages()
-> is called to recalculate zone->present_pages when boot allocator frees
-> core memory pages into buddy allocator. Because highmem pages are not
-> freed by bootmem allocator, all highmem zones' present_pages becomes
-> zero.
+On 11/5/12 4:26 PM, Andrew Morton wrote:
 > 
-> Actually there's no need to recalculate present_pages for highmem zone
-> because bootmem allocator never allocates pages from them. So fix the
-> regression by skipping highmem in function reset_zone_present_pages()
-> and fixup_zone_present_pages().
+> OK, so it seems that those drivers have never been tested on a
+> CONFIG_NUMA kernel.  whee.
 > 
-> ...
->
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6108,7 +6108,8 @@ void reset_zone_present_pages(void)
->  	for_each_node_state(nid, N_HIGH_MEMORY) {
->  		for (i = 0; i < MAX_NR_ZONES; i++) {
->  			z = NODE_DATA(nid)->node_zones + i;
-> -			z->present_pages = 0;
-> +			if (!is_highmem(z))
-> +				z->present_pages = 0;
->  		}
->  	}
->  }
-> @@ -6123,10 +6124,11 @@ void fixup_zone_present_pages(int nid, unsigned long start_pfn,
->  
->  	for (i = 0; i < MAX_NR_ZONES; i++) {
->  		z = NODE_DATA(nid)->node_zones + i;
-> +		if (is_highmem(z))
-> +			continue;
-> +
->  		zone_start_pfn = z->zone_start_pfn;
->  		zone_end_pfn = zone_start_pfn + z->spanned_pages;
-> -
-> -		/* if the two regions intersect */
->  		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
->  			z->present_pages += min(end_pfn, zone_end_pfn) -
->  					    max(start_pfn, zone_start_pfn);
+> So we have a large amount of code here which ostensibly supports
+> dev==NULL but which has not been well tested.  Take a look at
+> dma_alloc_coherent(), dma_free_coherent() - are they safe?  Unobvious.
 
-This ...  isn't very nice.  It is embeds within
-reset_zone_present_pages() and fixup_zone_present_pages() knowledge
-about their caller's state.  Or, more specifically, it is emebedding
-knowledge about the overall state of the system when these functions
-are called.
+It's probably ok to call dma_alloc_coherent()/dma_free_coherent() with a
+NULL dev.  Quite a few drivers do that.
 
-I mean, a function called "reset_zone_present_pages" should reset
-->present_pages!
+> dmam_pool_destroy() will clearly cause an oops:
+> 
+> devres_destroy()
+> ->devres_remove()
+>    ->spin_lock_irqsave(&dev->devres_lock, flags);
 
-The fact that fixup_zone_present_page() has multiple call sites makes
-this all even more risky.  And what are the interactions between this
-and memory hotplug?
+Not sure if I missed anything, but I haven't found any use of
+dmam_pool_destroy() in the tree..
 
-Can we find a cleaner fix?
+> I'm thinking we should disallow dev==NULL.  We have a lot of code in
+> mm/dmapool.c which _attempts_ to support this case, but is largely
+> untested and obviously isn't working.  I don't think it's a good idea
+> to try to fix up and then support this case on behalf of a handful of
+> scruffy drivers.  It would be better to fix the drivers, then simplify
+> the core code.  drivers/usb/gadget/amd5536udc.c can probably use
+> dev->gadget.dev and drivers/net/wan/ixp4xx_hss.c can probably use
+> port->netdev->dev, etc.
 
-Please tell us more about what's happening here.  Is it the case that
-reset_zone_present_pages() is being called *after* highmem has been
-populated?  If so, then fixup_zone_present_pages() should work
-correctly for highmem?  Or is it the case that highmem hasn't yet been
-setup?  IOW, what is the sequence of operations here?
+After more search I've still only found 4 files that invoke
+dma_pool_create() with a NULL dev.
 
-Is the problem that we're *missing* a call to
-fixup_zone_present_pages(), perhaps?  If we call
-fixup_zone_present_pages() after highmem has been populated,
-fixup_zone_present_pages() should correctly fill in the highmem zone's
-->present_pages?
+arch/arm/mach-s3c64xx/dma.c
+drivers/usb/gadget/amd5536udc.c
+drivers/net/wan/ixp4xx_hss.c
+drivers/net/ethernet/xscale/ixp4xx_eth.c
 
+So, yeah, we could fix those drivers instead, such as adding
+"WARN_ON_ONCE(dev == NULL)" as you suggested.
+
+- xi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
