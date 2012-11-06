@@ -1,99 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 302936B004D
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 05:54:30 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c4so217476eek.14
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 02:54:28 -0800 (PST)
-Date: Tue, 6 Nov 2012 11:54:26 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 11/29] memcg: allow a memcg with kmem charges to be
- destructed.
-Message-ID: <20121106105426.GE21167@dhcp22.suse.cz>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
- <1351771665-11076-12-git-send-email-glommer@parallels.com>
- <20121101170539.2e09dc8e.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 9FA836B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 07:53:58 -0500 (EST)
+Received: from mail234-tx2 (localhost [127.0.0.1])	by
+ mail234-tx2-R.bigfish.com (Postfix) with ESMTP id 2CAE5380143	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue,  6 Nov 2012 12:53:05 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
+Date: Tue, 6 Nov 2012 12:53:01 +0000
+Message-ID: <426367E2313C2449837CD2DE46E7EAF930DFBA2F@SN2PRD0310MB382.namprd03.prod.outlook.com>
+References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
+ <1349654386-18378-1-git-send-email-kys@microsoft.com>
+ <20121008004358.GA12342@kroah.com>
+ <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121008133539.GA15490@kroah.com>
+ <20121009124755.ce1087b4.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121105134456.f655b85a.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121106090539.GB21167@dhcp22.suse.cz>
+In-Reply-To: <20121106090539.GB21167@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121101170539.2e09dc8e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
 
-On Thu 01-11-12 17:05:39, Andrew Morton wrote:
-> On Thu,  1 Nov 2012 16:07:27 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
-> 
-> > Because the ultimate goal of the kmem tracking in memcg is to track slab
-> > pages as well, we can't guarantee that we'll always be able to point a
-> > page to a particular process, and migrate the charges along with it -
-> > since in the common case, a page will contain data belonging to multiple
-> > processes.
-> > 
-> > Because of that, when we destroy a memcg, we only make sure the
-> > destruction will succeed by discounting the kmem charges from the user
-> > charges when we try to empty the cgroup.
-> 
-> There was a significant conflict with the sched/numa changes in
-> linux-next,
 
-Just for record. The conflict was introduced by 2ef37d3f (memcg: Simplify
-mem_cgroup_force_empty_list error handling) which came in via Tejun's
-tree.
-Your resolution looks good to me. Sorry about the trouble.
 
-> which I resolved as below.  Please check it.
-> 
-> static int mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
-> {
-> 	struct cgroup *cgrp = memcg->css.cgroup;
-> 	int node, zid;
-> 	u64 usage;
-> 
-> 	do {
-> 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
-> 			return -EBUSY;
-> 		/* This is for making all *used* pages to be on LRU. */
-> 		lru_add_drain_all();
-> 		drain_all_stock_sync(memcg);
-> 		mem_cgroup_start_move(memcg);
-> 		for_each_node_state(node, N_HIGH_MEMORY) {
-> 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-> 				enum lru_list lru;
-> 				for_each_lru(lru) {
-> 					mem_cgroup_force_empty_list(memcg,
-> 							node, zid, lru);
-> 				}
-> 			}
-> 		}
-> 		mem_cgroup_end_move(memcg);
-> 		memcg_oom_recover(memcg);
-> 		cond_resched();
-> 
-> 		/*
-> 		 * Kernel memory may not necessarily be trackable to a specific
-> 		 * process. So they are not migrated, and therefore we can't
-> 		 * expect their value to drop to 0 here.
-> 		 * Having res filled up with kmem only is enough.
-> 		 *
-> 		 * This is a safety check because mem_cgroup_force_empty_list
-> 		 * could have raced with mem_cgroup_replace_page_cache callers
-> 		 * so the lru seemed empty but the page could have been added
-> 		 * right after the check. RES_USAGE should be safe as we always
-> 		 * charge before adding to the LRU.
-> 		 */
-> 		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
-> 			res_counter_read_u64(&memcg->kmem, RES_USAGE);
-> 	} while (usage > 0);
-> 
-> 	return 0;
-> }
-> 
+> -----Original Message-----
+> From: Michal Hocko [mailto:mstsxfx@gmail.com] On Behalf Of Michal Hocko
+> Sent: Tuesday, November 06, 2012 4:06 AM
+> To: KY Srinivasan
+> Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
+> andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; lin=
+ux-
+> mm@kvack.org; Hiroyuki Kamezawa; Johannes Weiner; Ying Han
+> Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
+>=20
+> On Mon 05-11-12 22:12:25, KY Srinivasan wrote:
+> >
+> >
+> > > -----Original Message-----
+> > > From: Andrew Morton [mailto:akpm@linux-foundation.org]
+> > > Sent: Monday, November 05, 2012 4:45 PM
+> > > To: KY Srinivasan
+> > > Cc: Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
+> andi@firstfloor.org;
+> > > apw@canonical.com; devel@linuxdriverproject.org; linux-mm@kvack.org;
+> > > Hiroyuki Kamezawa; Michal Hocko; Johannes Weiner; Ying Han
+> > > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
+> > >
+> > > On Sat, 3 Nov 2012 14:09:38 +0000
+> > > KY Srinivasan <kys@microsoft.com> wrote:
+> > >
+> > > >
+> > > >
+> > > > > >
+> > > > > > Ok, but you're going to have to get the -mm developers to agree=
+ that
+> > > > > > this is ok before I can accept it.
+> > > > >
+> > > > > Well I guess it won't kill us.
+> > > >
+> > > > Andrew,
+> > > >
+> > > > I presumed this was an Ack from you with regards to exporting the
+> > > > symbol. Looks like Greg is waiting to hear from you before he can c=
+heck
+> > > > these patches in. Could you provide an explicit Ack.
+> > > >
+> > >
+> > > Well, I do have some qualms about exporting vm_committed_as to module=
+s.
+> > >
+> > > vm_committed_as is a global thing and only really makes sense in a
+> > > non-containerised system.  If the application is running within a
+> > > memory cgroup then vm_enough_memory() and the global overcommit
+> policy
+> > > are at best irrelevant and misleading.
+> > >
+> > > If use of vm_committed_as is indeed a bad thing, then exporting it to
+> > > modules might increase the amount of badness in the kernel.
+> > >
+> > >
+> > > I don't think these qualms are serious enough to stand in the way of
+> > > this patch, but I'd be interested in hearing the memcg developers'
+> > > thoughts on the matter?
+> > >
+> > >
+> > > Perhaps you could provide a detailed description of why your module
+> > > actually needs this?  Precisely what information is it looking for
+> > > and why?  If we know that then perhaps a more comfortable alternative
+> > > can be found.
+> >
+> > The Hyper-V host has a policy engine for managing available physical
+> > memory across competing virtual machines. This policy decision
+> > is based on a number of parameters including the memory pressure
+> > reported by the guest. Currently, the pressure calculation is based
+> > on the memory commitment made by the guest. From what I can tell, the
+> > ratio of currently allocated physical memory to the current memory
+> > commitment made by the guest (vm_committed_as) is used as one of the
+> > parameters in making the memory balancing decision on the host. This
+> > is what Windows guests report to the host. So, I need some measure of
+> > memory commitments made by the Linux guest. This is the reason I want
+> > export vm_committed_as.
+>=20
+> So IIUC it will be guest who reports the value and the guest runs in the
+> ring-0 so it is not in any user process context, right?
+> If this is correct then memcg doesn't play any role here.
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks Michal. Yes, the kernel driver reports this metric to the host.
+Andrew, let me know how I should proceed here.
+
+Thanks,
+
+K. Y
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
