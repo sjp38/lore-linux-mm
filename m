@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 847546B0083
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 04:15:18 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 0240A6B0088
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 04:15:21 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 16/19] mm: numa: Add pte updates, hinting and migration stats
-Date: Tue,  6 Nov 2012 09:14:52 +0000
-Message-Id: <1352193295-26815-17-git-send-email-mgorman@suse.de>
+Subject: [PATCH 19/19] mm: sched: numa: Implement slow start for working set sampling
+Date: Tue,  6 Nov 2012 09:14:55 +0000
+Message-Id: <1352193295-26815-20-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352193295-26815-1-git-send-email-mgorman@suse.de>
 References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,186 +13,134 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-It is tricky to quantify the basic cost of automatic NUMA placement in a
-meaningful manner. This patch adds some vmstats that can be used as part
-of a basic costing model.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-u    = basic unit = sizeof(void *)
-Ca   = cost of struct page access = sizeof(struct page) / u
-Cpte = Cost PTE access = Ca
-Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
-	where Cpte is incurred twice for a read and a write and Wlock
-	is a constant representing the cost of taking or releasing a
-	lock
-Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
-Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
-Ci = Cost of page isolation = Ca + Wi
-	where Wi is a constant that should reflect the approximate cost
-	of the locking operation
-Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
-	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
-	would imply that remote accesses are 20% more expensive
+Add a 1 second delay before starting to scan the working set of
+a task and starting to balance it amongst nodes.
 
-Balancing cost = Cpte * numa_pte_updates +
-		Cnumahint * numa_hint_faults +
-		Ci * numa_pages_migrated +
-		Cpagecopy * numa_pages_migrated
+[ note that before the constant per task WSS sampling rate patch
+  the initial scan would happen much later still, in effect that
+  patch caused this regression. ]
 
-Note that numa_pages_migrated is used as a measure of how many pages
-were isolated even though it would miss pages that failed to migrate. A
-vmstat counter could have been added for it but the isolation cost is
-pretty marginal in comparison to the overall cost so it seemed overkill.
+The theory is that short-run tasks benefit very little from NUMA
+placement: they come and go, and they better stick to the node
+they were started on. As tasks mature and rebalance to other CPUs
+and nodes, so does their NUMA placement have to change and so
+does it start to matter more and more.
 
-The ideal way to measure automatic placement benefit would be to count
-the number of remote accesses versus local accesses and do something like
+In practice this change fixes an observable kbuild regression:
 
-	benefit = (remote_accesses_before - remove_access_after) * Wnuma
+   # [ a perf stat --null --repeat 10 test of ten bzImage builds to /dev/shm ]
 
-but the information is not readily available. As a workload converges, the
-expection would be that the number of remote numa hints would reduce to 0.
+   !NUMA:
+   45.291088843 seconds time elapsed                                          ( +-  0.40% )
+   45.154231752 seconds time elapsed                                          ( +-  0.36% )
 
-	convergence = numa_hint_faults_local / numa_hint_faults
-		where this is measured for the last N number of
-		numa hints recorded. When the workload is fully
-		converged the value is 1.
+   +NUMA, no slow start:
+   46.172308123 seconds time elapsed                                          ( +-  0.30% )
+   46.343168745 seconds time elapsed                                          ( +-  0.25% )
 
-This can measure if the placement policy is converging and how fast it is
-doing it.
+   +NUMA, 1 sec slow start:
+   45.224189155 seconds time elapsed                                          ( +-  0.25% )
+   45.160866532 seconds time elapsed                                          ( +-  0.17% )
 
+and it also fixes an observable perf bench (hackbench) regression:
+
+   # perf stat --null --repeat 10 perf bench sched messaging
+
+   -NUMA:
+
+   -NUMA:                  0.246225691 seconds time elapsed                   ( +-  1.31% )
+   +NUMA no slow start:    0.252620063 seconds time elapsed                   ( +-  1.13% )
+
+   +NUMA 1sec delay:       0.248076230 seconds time elapsed                   ( +-  1.35% )
+
+The implementation is simple and straightforward, most of the patch
+deals with adding the /proc/sys/kernel/balance_numa_scan_delay_ms tunable
+knob.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+[ Wrote the changelog, ran measurements, tuned the default. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/vm_event_item.h |    6 ++++++
- mm/huge_memory.c              |    1 +
- mm/memory.c                   |    3 +++
- mm/mempolicy.c                |    6 ++++++
- mm/migrate.c                  |    3 ++-
- mm/vmstat.c                   |    6 ++++++
- 6 files changed, 24 insertions(+), 1 deletion(-)
+ include/linux/sched.h |    1 +
+ kernel/sched/core.c   |    2 +-
+ kernel/sched/fair.c   |    5 +++++
+ kernel/sysctl.c       |    7 +++++++
+ 4 files changed, 14 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index a1f750b..dded0af 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -38,6 +38,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_BALANCE_NUMA
-+		NUMA_PTE_UPDATES,
-+		NUMA_HINT_FAULTS,
-+		NUMA_HINT_FAULTS_LOCAL,
-+		NUMA_PAGE_MIGRATE,
-+#endif
- #ifdef CONFIG_MIGRATION
- 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
- #endif
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 91f9b06..a82a313 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1033,6 +1033,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	page = pmd_page(pmd);
- 	get_page(page);
- 	spin_unlock(&mm->page_table_lock);
-+	count_vm_event(NUMA_HINT_FAULTS);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index abb1c70..a2b06ea 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2006,6 +2006,7 @@ enum sched_tunable_scaling {
+ };
+ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
  
- 	target_nid = mpol_misplaced(page, vma, haddr);
- 	if (target_nid == -1)
-diff --git a/mm/memory.c b/mm/memory.c
-index a63daf9..2780948 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3456,11 +3456,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(!pte_same(*ptep, pte)))
- 		goto out_unlock;
- 
-+	count_vm_event(NUMA_HINT_FAULTS);
- 	page = vm_normal_page(vma, addr, pte);
- 	BUG_ON(!page);
- 
- 	get_page(page);
- 	current_nid = page_to_nid(page);
-+	if (current_nid == numa_node_id())
-+		count_vm_event(NUMA_HINT_FAULTS_LOCAL);
- 	target_nid = mpol_misplaced(page, vma, addr);
- 	if (target_nid == -1)
- 		goto clear_pmdnuma;
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index abe2e45..e25da64 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -583,6 +583,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long _address, end;
- 	spinlock_t *ptl;
- 	int ret = 0;
-+	int nr_pte_updates = 0;
- 
- 	VM_BUG_ON(address & ~PAGE_MASK);
- 
-@@ -625,6 +626,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 
- 		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
-+		nr_pte_updates++;
- 		/* defer TLB flush to lower the overhead */
- 		spin_unlock(&mm->page_table_lock);
- 		goto out;
-@@ -654,6 +656,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 			continue;
- 
- 		set_pte_at(mm, _address, _pte, pte_mknuma(pteval));
-+		nr_pte_updates++;
- 
- 		/* defer TLB flush to lower the overhead */
- 		ret++;
-@@ -668,6 +671,8 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 
- out:
-+	if (nr_pte_updates)
-+		count_vm_events(NUMA_PTE_UPDATES, nr_pte_updates);
- 	return ret;
++extern unsigned int sysctl_balance_numa_scan_delay;
+ extern unsigned int sysctl_balance_numa_scan_period_min;
+ extern unsigned int sysctl_balance_numa_scan_period_max;
+ extern unsigned int sysctl_balance_numa_scan_size;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 81fa185..047e3c7 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1543,7 +1543,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->node_stamp = 0ULL;
+ 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+ 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
+-	p->numa_scan_period = sysctl_balance_numa_scan_period_min;
++	p->numa_scan_period = sysctl_balance_numa_scan_delay;
+ 	p->numa_work.next = &p->numa_work;
+ #endif /* CONFIG_BALANCE_NUMA */
  }
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 38b911ef..8c9c28e 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -788,6 +788,9 @@ unsigned int sysctl_balance_numa_scan_period_max = 2000*16;
+ /* Portion of address space to scan in MB */
+ unsigned int sysctl_balance_numa_scan_size = 256;
  
-@@ -694,6 +699,7 @@ change_prot_numa(struct vm_area_struct *vma,
- 	mmu_notifier_invalidate_range_start(vma->vm_mm, address, end);
- 	flush_tlb_range(vma, address, end);
- 	mmu_notifier_invalidate_range_end(vma->vm_mm, address, end);
++/* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
++unsigned int sysctl_balance_numa_scan_delay = 1000;
 +
- }
+ static void task_numa_placement(struct task_struct *p)
+ {
+ 	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+@@ -900,6 +903,8 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ 	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
  
- /*
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 4a92808..14e2a31 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1508,7 +1508,8 @@ int migrate_misplaced_page(struct page *page, int node)
- 		if (nr_remaining) {
- 			putback_lru_pages(&migratepages);
- 			isolated = 0;
--		}
-+		} else
-+			count_vm_event(NUMA_PAGE_MIGRATE);
- 	}
- 	BUG_ON(!list_empty(&migratepages));
- out:
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 3a067fa..cfa386da 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -774,6 +774,12 @@ const char * const vmstat_text[] = {
+ 	if (now - curr->node_stamp > period) {
++		if (!curr->node_stamp)
++			curr->numa_scan_period = sysctl_balance_numa_scan_period_min;
+ 		curr->node_stamp = now;
  
- 	"pgrotated",
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+	"numa_pte_updates",
-+	"numa_hint_faults",
-+	"numa_hint_faults_local",
-+	"numa_pages_migrated",
-+#endif
- #ifdef CONFIG_MIGRATION
- 	"pgmigrate_success",
- 	"pgmigrate_fail",
+ 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index d191203..5ee587d 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -353,6 +353,13 @@ static struct ctl_table kern_table[] = {
+ #endif /* CONFIG_SMP */
+ #ifdef CONFIG_BALANCE_NUMA
+ 	{
++		.procname	= "balance_numa_scan_delay_ms",
++		.data		= &sysctl_balance_numa_scan_delay,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++	{
+ 		.procname	= "balance_numa_scan_period_min_ms",
+ 		.data		= &sysctl_balance_numa_scan_period_min,
+ 		.maxlen		= sizeof(unsigned int),
 -- 
 1.7.9.2
 
