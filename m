@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 2A0016B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:40:17 -0500 (EST)
-Date: Mon, 5 Nov 2012 16:40:15 -0800
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 7D32B6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:48:15 -0500 (EST)
+Date: Mon, 5 Nov 2012 16:48:13 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 23/29] memcg: destroy memcg caches
-Message-Id: <20121105164015.4f82c958.akpm@linux-foundation.org>
-In-Reply-To: <1351771665-11076-24-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
+Message-Id: <20121105164813.2eba5ecb.akpm@linux-foundation.org>
+In-Reply-To: <1351771665-11076-26-git-send-email-glommer@parallels.com>
 References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-	<1351771665-11076-24-git-send-email-glommer@parallels.com>
+	<1351771665-11076-26-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,33 +17,35 @@ List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Thu,  1 Nov 2012 16:07:39 +0400
+On Thu,  1 Nov 2012 16:07:41 +0400
 Glauber Costa <glommer@parallels.com> wrote:
 
-> This patch implements destruction of memcg caches. Right now,
-> only caches where our reference counter is the last remaining are
-> deleted. If there are any other reference counters around, we just
-> leave the caches lying around until they go away.
+> This means that when we destroy a memcg cache that happened to be empty,
+> those caches may take a lot of time to go away: removing the memcg
+> reference won't destroy them - because there are pending references, and
+> the empty pages will stay there, until a shrinker is called upon for any
+> reason.
 > 
-> When that happen, a destruction function is called from the cache
-> code. Caches are only destroyed in process context, so we queue them
-> up for later processing in the general case.
-> 
-> ...
->
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -181,6 +181,7 @@ unsigned int kmem_cache_size(struct kmem_cache *);
->  #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
->  #endif
->  
-> +#include <linux/workqueue.h>
+> In this patch, we will call kmem_cache_shrink for all dead caches that
+> cannot be destroyed because of remaining pages. After shrinking, it is
+> possible that it could be freed. If this is not the case, we'll schedule
+> a lazy worker to keep trying.
 
-Was there any reason for putting this include 185 lines into the file?
+This patch is really quite nasty.  We poll the cache once per minute
+trying to shrink then free it?  a) it gives rise to concerns that there
+will be scenarios where the system could suffer unlimited memory windup
+but mainly b) it's just lame.
 
-If not, then let's not do it.  It reduces readability and increases the
-risk that someone will later include the saame file (or somthing it includes)
-a second time, to satisfy some dependency at line 100.
+The kernel doesn't do this sort of thing.  The kernel tries to be
+precise: in a situation like this we keep track of the number of
+outstanding objects and when that falls to zero, we free their
+container synchronously.  If those objects are normally left floating
+around in an allocated but reclaimable state then we can address that
+by synchronously freeing them if their container has been destroyed.
+
+Or something like that.  If it's something else then fine, but not this.
+
+What do we need to do to fix this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
