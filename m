@@ -1,92 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 155026B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:00:22 -0500 (EST)
-Date: Mon, 5 Nov 2012 16:00:20 -0800
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 142806B005A
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:23:32 -0500 (EST)
+Date: Mon, 5 Nov 2012 16:23:30 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 0/3] acpi,memory-hotplug : implement framework for
- hot removing memory
-Message-Id: <20121105160020.33b2f494.akpm@linux-foundation.org>
-In-Reply-To: <1528960.KUfu6MoGpQ@vostro.rjw.lan>
-References: <1351247463-5653-1-git-send-email-wency@cn.fujitsu.com>
-	<1528960.KUfu6MoGpQ@vostro.rjw.lan>
+Subject: Re: [PATCH v6 18/29] Allocate memory for memcg caches whenever a
+ new memcg appears
+Message-Id: <20121105162330.4aa629f8.akpm@linux-foundation.org>
+In-Reply-To: <1351771665-11076-19-git-send-email-glommer@parallels.com>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+	<1351771665-11076-19-git-send-email-glommer@parallels.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: wency@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, liuj97@gmail.com, len.brown@intel.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Fri, 02 Nov 2012 13:51:49 +0100
-"Rafael J. Wysocki" <rjw@sisk.pl> wrote:
+On Thu,  1 Nov 2012 16:07:34 +0400
+Glauber Costa <glommer@parallels.com> wrote:
 
-> On Friday, October 26, 2012 06:31:00 PM wency@cn.fujitsu.com wrote:
-> > From: Wen Congyang <wency@cn.fujitsu.com>
-> > 
-> > The patch-set implements a framework for hot removing memory.
-> > 
-> > The memory device can be removed by 2 ways:
-> > 1. send eject request by SCI
-> > 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> > 
-> > In the 1st case, acpi_memory_disable_device() will be called.
-> > In the 2nd case, acpi_memory_device_remove() will be called.
-> > acpi_memory_device_remove() will also be called when we unbind the
-> > memory device from the driver acpi_memhotplug or a driver initialization
-> > fails.
-> > 
-> > acpi_memory_disable_device() has already implemented a code which
-> > offlines memory and releases acpi_memory_info struct . But
-> > acpi_memory_device_remove() has not implemented it yet.
-> > 
-> > So the patch prepares the framework for hot removing memory and
-> > adds the framework into acpi_memory_device_remove().
-> > 
-> > The last version of this patchset is here:
-> > https://lkml.org/lkml/2012/10/19/156
-> > 
-> > Changelogs from v2 to v3:
-> >   Patch2: rename lock to list_lock
-> > 
-> > Changelogs from v1 to v2:
-> >   Patch1: use acpi_bus_trim() instead of acpi_bus_remove()
-> >   Patch2: new patch, introduce a lock to protect the list
-> >   Patch3: remove memory too when type is ACPI_BUS_REMOVAL_NORMAL
-> >   Note: I don't send [Patch2-4 v1] in this series because they
-> >   are no logical changes in these 3 patches.
-> > 
-> > Wen Congyang (2):
-> >   acpi,memory-hotplug: call acpi_bus_trim() to remove memory device
-> >   acpi,memory-hotplug: introduce a mutex lock to protect the list in
-> >     acpi_memory_device
-> > 
-> > Yasuaki Ishimatsu (1):
-> >   acpi,memory-hotplug : add memory offline code to
-> >     acpi_memory_device_remove()
-> > 
-> >  drivers/acpi/acpi_memhotplug.c | 51 +++++++++++++++++++++++++++++++++---------
-> >  1 file changed, 41 insertions(+), 10 deletions(-)
+> Every cache that is considered a root cache (basically the "original" caches,
+> tied to the root memcg/no-memcg) will have an array that should be large enough
+> to store a cache pointer per each memcg in the system.
 > 
-> All patches in the series applied to the linux-next branch of the linux-pm.git
-> tree as v3.8 material.
+> Theoreticaly, this is as high as 1 << sizeof(css_id), which is currently in the
+> 64k pointers range. Most of the time, we won't be using that much.
 > 
+> What goes in this patch, is a simple scheme to dynamically allocate such an
+> array, in order to minimize memory usage for memcg caches. Because we would
+> also like to avoid allocations all the time, at least for now, the array will
+> only grow. It will tend to be big enough to hold the maximum number of
+> kmem-limited memcgs ever achieved.
+> 
+> We'll allocate it to be a minimum of 64 kmem-limited memcgs. When we have more
+> than that, we'll start doubling the size of this array every time the limit is
+> reached.
+> 
+> Because we are only considering kmem limited memcgs, a natural point for this
+> to happen is when we write to the limit. At that point, we already have
+> set_limit_mutex held, so that will become our natural synchronization
+> mechanism.
+> 
+> ...
+>
+> +static struct ida kmem_limited_groups;
 
-That merge made a big mess of some patches I had queued, so I dropped
-them all:
+Could use DEFINE_IDA() here
 
-acpi_memhotplugc-fix-memory-leak-when-memory-device-is-unbound-from-the-module-acpi_memhotplug.patch
-acpi_memhotplugc-free-memory-device-if-acpi_memory_enable_device-failed.patch
-acpi_memhotplugc-remove-memory-info-from-list-before-freeing-it.patch
-acpi_memhotplugc-dont-allow-to-eject-the-memory-device-if-it-is-being-used.patch
-acpi_memhotplugc-bind-the-memory-device-when-the-driver-is-being-loaded.patch
-acpi_memhotplugc-auto-bind-the-memory-device-which-is-hotplugged-before-the-driver-is-loaded.patch
+>
+> ...
+>
+>  static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+>  {
+> +	int ret;
+> +
+>  	memcg->kmemcg_id = -1;
+> -	memcg_propagate_kmem(memcg);
+> +	ret = memcg_propagate_kmem(memcg);
+> +	if (ret)
+> +		return ret;
+> +
+> +	if (mem_cgroup_is_root(memcg))
+> +		ida_init(&kmem_limited_groups);
 
-I merged these all the way back in July, actually.  I sent them to Len
-in August to no effect and they've been sitting there since then.
-
-If they're still relevant and needed then they will need to be redone,
-retested and resent, sorry.
+and zap this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
