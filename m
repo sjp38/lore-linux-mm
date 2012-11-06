@@ -1,81 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 3D99D6B005A
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 00:08:14 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/2 v2] mm: print out information of file affected by memory error
-Date: Tue,  6 Nov 2012 00:07:53 -0500
-Message-Id: <1352178473-7217-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20121105140154.fce89f05.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 8A6E26B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 00:36:44 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so126523pbb.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 21:36:43 -0800 (PST)
+Date: Tue, 6 Nov 2012 13:36:28 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [PATCH RFC] mm/swap: automatic tuning for swapin readahead
+Message-ID: <20121106053628.GA1539@kernel.org>
+References: <506AACAC.2010609@openvz.org>
+ <alpine.LSU.2.00.1210031337320.1415@eggly.anvils>
+ <506DB816.9090107@openvz.org>
+ <alpine.LSU.2.00.1210081451410.1384@eggly.anvils>
+ <20121016005049.GA1467@kernel.org>
+ <20121022073654.GA7821@kernel.org>
+ <alpine.LNX.2.00.1210222141170.1136@eggly.anvils>
+ <20121023055127.GA24239@kernel.org>
+ <50869E6C.1080907@redhat.com>
+ <20121024011356.GA6400@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121024011356.GA6400@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Nov 05, 2012 at 02:01:54PM -0800, Andrew Morton wrote:
-> On Fri,  2 Nov 2012 12:33:13 -0400
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Printing out the information about which file can be affected by a
-> > memory error in generic_error_remove_page() is helpful for user to
-> > estimate the impact of the error.
+On Wed, Oct 24, 2012 at 09:13:56AM +0800, Shaohua Li wrote:
+> On Tue, Oct 23, 2012 at 09:41:00AM -0400, Rik van Riel wrote:
+> > On 10/23/2012 01:51 AM, Shaohua Li wrote:
 > > 
-> > Changelog v2:
-> >   - dereference mapping->host after if (!mapping) check for robustness
+> > >I have no strong point against the global state method. But I'd agree making the
+> > >heuristic simple is preferred currently. I'm happy about the patch if the '+1'
+> > >is removed.
 > > 
-> > ...
-> >
-> > --- v3.7-rc3.orig/mm/truncate.c
-> > +++ v3.7-rc3/mm/truncate.c
-> > @@ -151,14 +151,20 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
-> >   */
-> >  int generic_error_remove_page(struct address_space *mapping, struct page *page)
-> >  {
-> > +	struct inode *inode;
-> > +
-> >  	if (!mapping)
-> >  		return -EINVAL;
-> > +	inode = mapping->host;
-> >  	/*
-> >  	 * Only punch for normal data pages for now.
-> >  	 * Handling other types like directories would need more auditing.
-> >  	 */
-> > -	if (!S_ISREG(mapping->host->i_mode))
-> > +	if (!S_ISREG(inode->i_mode))
-> >  		return -EIO;
-> > +	pr_info("MCE %#lx: file info pgoff:%lu, inode:%lu, dev:%s\n",
-> > +		page_to_pfn(page), page_index(page),
-> > +		inode->i_ino, inode->i_sb->s_id);
-> >  	return truncate_inode_page(mapping, page);
-> >  }
-> >  EXPORT_SYMBOL(generic_error_remove_page);
+> > Without the +1, how will you figure out when to re-enable readahead?
 > 
-> A couple of things.
+> Below code in swapin_nr_pages can recover it.
+> +               if (offset == prev_offset + 1 || offset == prev_offset - 1)
+> +                       pages <<= 1;
 > 
-> - I worry that if a hardware error occurs, it might affect a large
->   amount of memory all at the same time.  For example, if a 4G memory
->   block goes bad, this message will be printed a million times?
+> Not perfect, but should work in some sort. This reminds me to think if
+> pagereadahead flag is really required, hit in swap cache is a more reliable way
+> to count readahead hit, and as Hugh mentioned, swap isn't vma bound.
 
-If the error on 4G memory block triggered by SRAO MCE and these 1M pages
-are all pagecache pages, the answer is yes.
-But I think that if it's a whole DIMM error, it should be reported by
-another type of MCE than SRAO, so printing a million times seems to be
-unlikely to happen.
-
-> - hard-wiring "MCE" in here seems a bit of a layering violation? 
->   What right does the generic, core .error_remove_page() implementation
->   have to assume that it was called because of an MCE?
-
-OK, we need not assume that. I change "MCE " prefix to more specific
-one like "Memory error ".
-
-> Many CPU types don't eveh have such a thing?
-
-No. At least currently, only SRAO MCE triggers memory_failure() and
-it's defined only on some newest highend models of Intel CPUs.
+Hugh,
+ping! Any chance you can check this again?
 
 Thanks,
-Naoya
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
