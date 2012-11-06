@@ -1,65 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 191096B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 15:48:28 -0500 (EST)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so1032917vcb.14
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 12:48:27 -0800 (PST)
-Message-ID: <5099779A.8050009@gmail.com>
-Date: Tue, 06 Nov 2012 15:48:26 -0500
-From: Xi Wang <xi.wang@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix NULL checking in dma_pool_create()
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com> <20121105123738.0a0490a7.akpm@linux-foundation.org> <50982698.7050605@gmail.com> <20121105132651.f52549b6.akpm@linux-foundation.org>
-In-Reply-To: <20121105132651.f52549b6.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id E7AEF6B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:27:38 -0500 (EST)
+Date: Tue, 6 Nov 2012 13:27:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB
+ v7
+Message-Id: <20121106132737.c2aa3c47.akpm@linux-foundation.org>
+In-Reply-To: <1352157848-29473-2-git-send-email-andi@firstfloor.org>
+References: <1352157848-29473-1-git-send-email-andi@firstfloor.org>
+	<1352157848-29473-2-git-send-email-andi@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mtk.manpages@gmail.com, Andi Kleen <ak@linux.intel.com>, Hillf Danton <dhillf@gmail.com>
 
-On 11/5/12 4:26 PM, Andrew Morton wrote:
+On Mon,  5 Nov 2012 15:24:08 -0800
+Andi Kleen <andi@firstfloor.org> wrote:
+
+> From: Andi Kleen <ak@linux.intel.com>
 > 
-> OK, so it seems that those drivers have never been tested on a
-> CONFIG_NUMA kernel.  whee.
+> There was some desire in large applications using MAP_HUGETLB/SHM_HUGETLB
+> to use 1GB huge pages on some mappings, and stay with 2MB on others. This
+> is useful together with NUMA policy: use 2MB interleaving on some mappings,
+> but 1GB on local mappings.
 > 
-> So we have a large amount of code here which ostensibly supports
-> dev==NULL but which has not been well tested.  Take a look at
-> dma_alloc_coherent(), dma_free_coherent() - are they safe?  Unobvious.
-
-It's probably ok to call dma_alloc_coherent()/dma_free_coherent() with a
-NULL dev.  Quite a few drivers do that.
-
-> dmam_pool_destroy() will clearly cause an oops:
+> This patch extends the IPC/SHM syscall interfaces slightly to allow specifying
+> the page size.
 > 
-> devres_destroy()
-> ->devres_remove()
->    ->spin_lock_irqsave(&dev->devres_lock, flags);
+> It borrows some upper bits in the existing flag arguments and allows encoding
+> the log of the desired page size in addition to the *_HUGETLB flag.
+> When 0 is specified the default size is used, this makes the change fully
+> compatible.
+> 
+> Extending the internal hugetlb code to handle this is straight forward. Instead
+> of a single mount it just keeps an array of them and selects the right
+> mount based on the specified page size. When no page size is specified
+> it uses the mount of the default page size.
+> 
+> The change is not visible in /proc/mounts because internal mounts
+> don't appear there. It also has very little overhead: the additional
+> mounts just consume a super block, but not more memory when not used.
+> 
+> I also exported the new flags to the user headers
+> (they were previously under __KERNEL__). Right now only symbols
+> for x86 and some other architecture for 1GB and 2MB are defined.
+> The interface should already work for all other architectures
+> though.  Only architectures that define multiple hugetlb sizes
+> actually need it (that is currently x86, tile, powerpc). However
+> tile and powerpc have user configurable hugetlb sizes, so it's
+> not easy to add defines. A program on those architectures would
+> need to query sysfs and use the appropiate log2.
 
-Not sure if I missed anything, but I haven't found any use of
-dmam_pool_destroy() in the tree..
+I can't say the userspace interface is a thing of beauty, but I guess
+we'll live.
 
-> I'm thinking we should disallow dev==NULL.  We have a lot of code in
-> mm/dmapool.c which _attempts_ to support this case, but is largely
-> untested and obviously isn't working.  I don't think it's a good idea
-> to try to fix up and then support this case on behalf of a handful of
-> scruffy drivers.  It would be better to fix the drivers, then simplify
-> the core code.  drivers/usb/gadget/amd5536udc.c can probably use
-> dev->gadget.dev and drivers/net/wan/ixp4xx_hss.c can probably use
-> port->netdev->dev, etc.
+Did you have a test app?  If so, can we get it into
+tools/testing/selftests and point the arch maintainers at it?
 
-After more search I've still only found 4 files that invoke
-dma_pool_create() with a NULL dev.
+>
+> ...
+>
+> @@ -1011,8 +1029,9 @@ out_shm_unlock:
+>  
+>  static int __init init_hugetlbfs_fs(void)
+>  {
+> +	struct hstate *h;
+>  	int error;
+> -	struct vfsmount *vfsmount;
+> +	int i;
+>  
+>  	error = bdi_init(&hugetlbfs_backing_dev_info);
+>  	if (error)
+> @@ -1029,14 +1048,27 @@ static int __init init_hugetlbfs_fs(void)
+>  	if (error)
+>  		goto out;
+>  
+> -	vfsmount = kern_mount(&hugetlbfs_fs_type);
+> -
+> -	if (!IS_ERR(vfsmount)) {
+> -		hugetlbfs_vfsmount = vfsmount;
+> -		return 0;
+> +	i = 0;
+> +	for_each_hstate (h) {
+> +		char buf[50];
+> +		unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
+> +
+> +		snprintf(buf, sizeof buf, "pagesize=%uK", ps_kb);
+> +		hugetlbfs_vfsmount[i] = kern_mount_data(&hugetlbfs_fs_type,
+> +							buf);
+> +
+> +		if (IS_ERR(hugetlbfs_vfsmount[i])) {
+> +				pr_err(
+> +			"hugetlb: Cannot mount internal hugetlbfs for page size %uK",
+> +			       ps_kb);
+> +			error = PTR_ERR(hugetlbfs_vfsmount[i]);
+> +			hugetlbfs_vfsmount[i] = NULL;
+> +		}
+> +		i++;
+>  	}
 
-arch/arm/mach-s3c64xx/dma.c
-drivers/usb/gadget/amd5536udc.c
-drivers/net/wan/ixp4xx_hss.c
-drivers/net/ethernet/xscale/ixp4xx_eth.c
+hm, that's a bit messed up.
 
-So, yeah, we could fix those drivers instead, such as adding
-"WARN_ON_ONCE(dev == NULL)" as you suggested.
+--- a/fs/hugetlbfs/inode.c~mm-support-more-pagesizes-for-map_hugetlb-shm_hugetlb-v7-fix
++++ a/fs/hugetlbfs/inode.c
+@@ -1049,7 +1049,7 @@ static int __init init_hugetlbfs_fs(void
+ 		goto out;
+ 
+ 	i = 0;
+-	for_each_hstate (h) {
++	for_each_hstate(h) {
+ 		char buf[50];
+ 		unsigned ps_kb = 1U << (h->order + PAGE_SHIFT - 10);
+ 
+@@ -1058,9 +1058,8 @@ static int __init init_hugetlbfs_fs(void
+ 							buf);
+ 
+ 		if (IS_ERR(hugetlbfs_vfsmount[i])) {
+-				pr_err(
+-			"hugetlb: Cannot mount internal hugetlbfs for page size %uK",
+-			       ps_kb);
++			pr_err("hugetlb: Cannot mount internal hugetlbfs for "
++				"page size %uK", ps_kb);
+ 			error = PTR_ERR(hugetlbfs_vfsmount[i]);
+ 			hugetlbfs_vfsmount[i] = NULL;
+ 		}
+@@ -1090,7 +1089,7 @@ static void __exit exit_hugetlbfs_fs(voi
+ 	rcu_barrier();
+ 	kmem_cache_destroy(hugetlbfs_inode_cachep);
+ 	i = 0;
+-	for_each_hstate (h)
++	for_each_hstate(h)
+ 		kern_unmount(hugetlbfs_vfsmount[i++]);
+ 	unregister_filesystem(&hugetlbfs_fs_type);
+ 	bdi_destroy(&hugetlbfs_backing_dev_info);
 
-- xi
+(we're not supposed to split strings like that, but screw 'em!)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
