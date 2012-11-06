@@ -1,90 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 6F3BE6B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 20:32:34 -0500 (EST)
-From: Jiang Liu <jiang.liu@huawei.com>
-Subject: [PATCH] mm: fix a regression with HIGHMEM introduced by changeset 7f1290f2f2a4d
-Date: Tue, 6 Nov 2012 09:31:57 +0800
-Message-ID: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 25F7E6B004D
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 20:32:47 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id 10so11318678ied.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 17:32:46 -0800 (PST)
+Date: Mon, 5 Nov 2012 17:32:41 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
+In-Reply-To: <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1211051729590.963@eggly.anvils>
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
+ <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Maciej Rutecki <maciej.rutecki@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Jianguo Wu <wujianguo@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Changeset 7f1290f2f2 tries to fix a issue when calculating
-zone->present_pages, but it causes a regression to 32bit systems with
-HIGHMEM. With that changeset, function reset_zone_present_pages()
-resets all zone->present_pages to zero, and fixup_zone_present_pages()
-is called to recalculate zone->present_pages when boot allocator frees
-core memory pages into buddy allocator. Because highmem pages are not
-freed by bootmem allocator, all highmem zones' present_pages becomes
-zero.
+Fuzzing with trinity hit the "impossible" VM_BUG_ON(error)
+(which Fedora has converted to WARNING) in shmem_getpage_gfp():
 
-Actually there's no need to recalculate present_pages for highmem zone
-because bootmem allocator never allocates pages from them. So fix the
-regression by skipping highmem in function reset_zone_present_pages()
-and fixup_zone_present_pages().
+WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
+Pid: 29795, comm: trinity-child4 Not tainted 3.7.0-rc2+ #49
+Call Trace:
+ [<ffffffff8107100f>] warn_slowpath_common+0x7f/0xc0
+ [<ffffffff8107106a>] warn_slowpath_null+0x1a/0x20
+ [<ffffffff811903fc>] shmem_getpage_gfp+0xa5c/0xa70
+ [<ffffffff81190e4f>] shmem_fault+0x4f/0xa0
+ [<ffffffff8119f391>] __do_fault+0x71/0x5c0
+ [<ffffffff811a2767>] handle_pte_fault+0x97/0xae0
+ [<ffffffff811a4a39>] handle_mm_fault+0x289/0x350
+ [<ffffffff816d091e>] __do_page_fault+0x18e/0x530
+ [<ffffffff816d0ceb>] do_page_fault+0x2b/0x50
+ [<ffffffff816cd3b8>] page_fault+0x28/0x30
+ [<ffffffff816d5688>] tracesys+0xe1/0xe6
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Reported-by: Maciej Rutecki <maciej.rutecki@gmail.com>
-Tested-by: Maciej Rutecki <maciej.rutecki@gmail.com>
-Cc: Chris Clayton <chris2553@googlemail.com>
-Cc: Rafael J. Wysocki <rjw@sisk.pl>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+Thanks to Johannes for pointing to truncation: free_swap_and_cache()
+only does a trylock on the page, so the page lock we've held since
+before confirming swap is not enough to protect against truncation.
 
+What cleanup is needed in this case?  Just delete_from_swap_cache(),
+which takes care of the memcg uncharge.
+
+Reported-by: Dave Jones <davej@redhat.com>
+Hypothesis-by: Johannes Weiner <hannes@cmpxchg.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
 ---
 
-Hi Maciej,
-	Thanks for reporting and bisecting. We have analyzed the regression
-and worked out a patch for it. Could you please help to verify whether it
-fix the regression?
-	Thanks!
-	Gerry
+ mm/shmem.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
----
- mm/page_alloc.c |    8 +++++---
- 1 files changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5b74de6..2311f15 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6108,7 +6108,8 @@ void reset_zone_present_pages(void)
- 	for_each_node_state(nid, N_HIGH_MEMORY) {
- 		for (i = 0; i < MAX_NR_ZONES; i++) {
- 			z = NODE_DATA(nid)->node_zones + i;
--			z->present_pages = 0;
-+			if (!is_highmem(z))
-+				z->present_pages = 0;
+--- 3.7-rc4/mm/shmem.c	2012-10-14 16:16:58.361309122 -0700
++++ linux/mm/shmem.c	2012-11-01 14:31:04.288185742 -0700
+@@ -1145,8 +1145,22 @@ repeat:
+ 		if (!error) {
+ 			error = shmem_add_to_page_cache(page, mapping, index,
+ 						gfp, swp_to_radix_entry(swap));
+-			/* We already confirmed swap, and make no allocation */
+-			VM_BUG_ON(error);
++			/*
++			 * We already confirmed swap under page lock, and make
++			 * no memory allocation here, so usually no possibility
++			 * of error; but free_swap_and_cache() only trylocks a
++			 * page, so it is just possible that the entry has been
++			 * truncated or holepunched since swap was confirmed.
++			 * shmem_undo_range() will have done some of the
++			 * unaccounting, now delete_from_swap_cache() will do
++			 * the rest (including mem_cgroup_uncharge_swapcache).
++			 * Reset swap.val? No, leave it so "failed" goes back to
++			 * "repeat": reading a hole and writing should succeed.
++			 */
++			if (error) {
++				VM_BUG_ON(error != -ENOENT);
++				delete_from_swap_cache(page);
++			}
  		}
- 	}
- }
-@@ -6123,10 +6124,11 @@ void fixup_zone_present_pages(int nid, unsigned long start_pfn,
- 
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		z = NODE_DATA(nid)->node_zones + i;
-+		if (is_highmem(z))
-+			continue;
-+
- 		zone_start_pfn = z->zone_start_pfn;
- 		zone_end_pfn = zone_start_pfn + z->spanned_pages;
--
--		/* if the two regions intersect */
- 		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
- 			z->present_pages += min(end_pfn, zone_end_pfn) -
- 					    max(start_pfn, zone_start_pfn);
--- 
-1.7.1
-
+ 		if (error)
+ 			goto failed;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
