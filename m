@@ -1,14 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 289536B004D
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 17:38:21 -0500 (EST)
-Date: Tue, 6 Nov 2012 14:38:19 -0800
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id AF5416B005A
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 17:38:27 -0500 (EST)
+Date: Tue, 6 Nov 2012 14:38:26 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 07/16] mm: fix cache coloring on x86_64 architecture
-Message-Id: <20121106143819.4309031c.akpm@linux-foundation.org>
-In-Reply-To: <1352155633-8648-8-git-send-email-walken@google.com>
+Subject: Re: [PATCH 09/16] mm: use vm_unmapped_area() in hugetlbfs on i386
+ architecture
+Message-Id: <20121106143826.dc3b960c.akpm@linux-foundation.org>
+In-Reply-To: <1352155633-8648-10-git-send-email-walken@google.com>
 References: <1352155633-8648-1-git-send-email-walken@google.com>
-	<1352155633-8648-8-git-send-email-walken@google.com>
+	<1352155633-8648-10-git-send-email-walken@google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,33 +18,13 @@ List-ID: <linux-mm.kvack.org>
 To: Michel Lespinasse <walken@google.com>
 Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On Mon,  5 Nov 2012 14:47:04 -0800
+On Mon,  5 Nov 2012 14:47:06 -0800
 Michel Lespinasse <walken@google.com> wrote:
 
-> Fix the x86-64 cache alignment code to take pgoff into account.
-> Use the x86 and MIPS cache alignment code as the basis for a generic
-> cache alignment function.
-> 
-> The old x86 code will always align the mmap to aliasing boundaries,
-> even if the program mmaps the file with a non-zero pgoff.
-> 
-> If program A mmaps the file with pgoff 0, and program B mmaps the
-> file with pgoff 1. The old code would align the mmaps, resulting in
-> misaligned pages:
-> 
-> A:  0123
-> B:  123
-> 
-> After this patch, they are aligned so the pages line up:
-> 
-> A: 0123
-> B:  123
+> Update the i386 hugetlb_get_unmapped_area function to make use of
+> vm_unmapped_area() instead of implementing a brute force search.
 
-We have a bit of a history of fiddling with coloring and finding that
-the changes made at best no improvement.  Or at least, that's my
-perhaps faulty memory of it.
-
-This one needs pretty careful testing, please.
+The x86_64 coloring "fix" wasn't copied into i386?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
