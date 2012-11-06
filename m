@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 142806B005A
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:23:32 -0500 (EST)
-Date: Mon, 5 Nov 2012 16:23:30 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 18/29] Allocate memory for memcg caches whenever a
- new memcg appears
-Message-Id: <20121105162330.4aa629f8.akpm@linux-foundation.org>
-In-Reply-To: <1351771665-11076-19-git-send-email-glommer@parallels.com>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-	<1351771665-11076-19-git-send-email-glommer@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id EE7886B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 19:25:59 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so4721108pad.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 16:25:59 -0800 (PST)
+Date: Tue, 6 Nov 2012 09:25:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121106002550.GA3530@barrios>
+References: <20121102063958.GC3326@bbox>
+ <20121102083057.GG8218@suse.de>
+ <20121102223630.GA2070@barrios>
+ <20121105144614.GJ8218@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121105144614.GJ8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Thu,  1 Nov 2012 16:07:34 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+On Mon, Nov 05, 2012 at 02:46:14PM +0000, Mel Gorman wrote:
+> On Sat, Nov 03, 2012 at 07:36:31AM +0900, Minchan Kim wrote:
+> > > <SNIP>
+> > > In the first version it would never try to enter direct reclaim if a
+> > > fatal signal was pending but always claim that forward progress was
+> > > being made.
+> > 
+> > Surely we need fix for preventing deadlock with OOM kill and that's why
+> > I have Cced you and this patch fixes it but my question is why we need 
+> > such fatal signal checking trick.
+> > 
+> > How about this?
+> > 
+> 
+> Both will work as expected but....
+> 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 10090c8..881619e 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2306,13 +2306,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> >  
+> >         throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+> >  
+> > -       /*
+> > -        * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> > -        * that the page allocator does not consider triggering OOM
+> > -        */
+> > -       if (fatal_signal_pending(current))
+> > -               return 1;
+> > -
+> >         trace_mm_vmscan_direct_reclaim_begin(order,
+> >                                 sc.may_writepage,
+> >                                 gfp_mask);
+> >  
+> > In this case, after throttling, current will try to do direct reclaim and
+> > if he makes forward progress, he will get a memory and exit if he receive KILL signal.
+> 
+> It may be completely unnecessary to reclaim memory if the process that was
+> throttled and killed just exits quickly. As the fatal signal is pending
+> it will be able to use the pfmemalloc reserves.
+> 
+> > If he can't make forward progress with direct reclaim, he can ends up OOM path but
+> > out_of_memory checks signal check of current and allow to access reserved memory pool
+> > for quick exit and return without killing other victim selection.
+> 
+> While this is true, what advantage is there to having a killed process
+> potentially reclaiming memory it does not need to?
 
-> Every cache that is considered a root cache (basically the "original" caches,
-> tied to the root memcg/no-memcg) will have an array that should be large enough
-> to store a cache pointer per each memcg in the system.
-> 
-> Theoreticaly, this is as high as 1 << sizeof(css_id), which is currently in the
-> 64k pointers range. Most of the time, we won't be using that much.
-> 
-> What goes in this patch, is a simple scheme to dynamically allocate such an
-> array, in order to minimize memory usage for memcg caches. Because we would
-> also like to avoid allocations all the time, at least for now, the array will
-> only grow. It will tend to be big enough to hold the maximum number of
-> kmem-limited memcgs ever achieved.
-> 
-> We'll allocate it to be a minimum of 64 kmem-limited memcgs. When we have more
-> than that, we'll start doubling the size of this array every time the limit is
-> reached.
-> 
-> Because we are only considering kmem limited memcgs, a natural point for this
-> to happen is when we write to the limit. At that point, we already have
-> set_limit_mutex held, so that will become our natural synchronization
-> mechanism.
-> 
-> ...
->
-> +static struct ida kmem_limited_groups;
+Killed process needs a memory for him to be terminated. I think it's not a good idea for him
+to use reserved memory pool unconditionally although he is throtlled and killed.
+Because reserved memory pool is very stricted resource for emergency so using reserved memory
+pool should be last resort after he fail to reclaim.
 
-Could use DEFINE_IDA() here
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
->
-> ...
->
->  static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
->  {
-> +	int ret;
-> +
->  	memcg->kmemcg_id = -1;
-> -	memcg_propagate_kmem(memcg);
-> +	ret = memcg_propagate_kmem(memcg);
-> +	if (ret)
-> +		return ret;
-> +
-> +	if (mem_cgroup_is_root(memcg))
-> +		ida_init(&kmem_limited_groups);
-
-and zap this?
+-- 
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
