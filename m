@@ -1,107 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 406086B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 15:12:22 -0500 (EST)
-Date: Tue, 6 Nov 2012 12:12:20 -0800
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 7D2156B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 15:43:17 -0500 (EST)
+Date: Tue, 6 Nov 2012 12:43:15 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2 v2] mm: print out information of file affected by
- memory error
-Message-Id: <20121106121220.d14696ac.akpm@linux-foundation.org>
-In-Reply-To: <1352178473-7217-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20121105140154.fce89f05.akpm@linux-foundation.org>
-	<1352178473-7217-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: fix a regression with HIGHMEM introduced by
+ changeset 7f1290f2f2a4d
+Message-Id: <20121106124315.79deb2bc.akpm@linux-foundation.org>
+In-Reply-To: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
+References: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Ingo Molnar <mingo@elte.hu>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Maciej Rutecki <maciej.rutecki@gmail.com>, Jianguo Wu <wujianguo@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue,  6 Nov 2012 00:07:53 -0500
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Tue, 6 Nov 2012 09:31:57 +0800
+Jiang Liu <jiang.liu@huawei.com> wrote:
 
-> On Mon, Nov 05, 2012 at 02:01:54PM -0800, Andrew Morton wrote:
-> > On Fri,  2 Nov 2012 12:33:13 -0400
-> > Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> > 
-> > > Printing out the information about which file can be affected by a
-> > > memory error in generic_error_remove_page() is helpful for user to
-> > > estimate the impact of the error.
-> > > 
-> > > Changelog v2:
-> > >   - dereference mapping->host after if (!mapping) check for robustness
-> > > 
-> > > ...
-> > >
-> > > --- v3.7-rc3.orig/mm/truncate.c
-> > > +++ v3.7-rc3/mm/truncate.c
-> > > @@ -151,14 +151,20 @@ int truncate_inode_page(struct address_space *mapping, struct page *page)
-> > >   */
-> > >  int generic_error_remove_page(struct address_space *mapping, struct page *page)
-> > >  {
-> > > +	struct inode *inode;
-> > > +
-> > >  	if (!mapping)
-> > >  		return -EINVAL;
-> > > +	inode = mapping->host;
-> > >  	/*
-> > >  	 * Only punch for normal data pages for now.
-> > >  	 * Handling other types like directories would need more auditing.
-> > >  	 */
-> > > -	if (!S_ISREG(mapping->host->i_mode))
-> > > +	if (!S_ISREG(inode->i_mode))
-> > >  		return -EIO;
-> > > +	pr_info("MCE %#lx: file info pgoff:%lu, inode:%lu, dev:%s\n",
-> > > +		page_to_pfn(page), page_index(page),
-> > > +		inode->i_ino, inode->i_sb->s_id);
-> > >  	return truncate_inode_page(mapping, page);
-> > >  }
-> > >  EXPORT_SYMBOL(generic_error_remove_page);
-> > 
-> > A couple of things.
-> > 
-> > - I worry that if a hardware error occurs, it might affect a large
-> >   amount of memory all at the same time.  For example, if a 4G memory
-> >   block goes bad, this message will be printed a million times?
+> Changeset 7f1290f2f2 tries to fix a issue when calculating
+> zone->present_pages, but it causes a regression to 32bit systems with
+> HIGHMEM. With that changeset, function reset_zone_present_pages()
+> resets all zone->present_pages to zero, and fixup_zone_present_pages()
+> is called to recalculate zone->present_pages when boot allocator frees
+> core memory pages into buddy allocator. Because highmem pages are not
+> freed by bootmem allocator, all highmem zones' present_pages becomes
+> zero.
 > 
-> If the error on 4G memory block triggered by SRAO MCE and these 1M pages
-> are all pagecache pages, the answer is yes.
-
-Well that's bad.
-
-> But I think that if it's a whole DIMM error, it should be reported by
-> another type of MCE than SRAO, so printing a million times seems to be
-> unlikely to happen.
-
-"should be" and "unlikely" aren't very reassuring things to hear! 
-Emitting a million lines into syslog is pretty poor behaviour and
-should be reliably avoided.
-
-> > - hard-wiring "MCE" in here seems a bit of a layering violation? 
-> >   What right does the generic, core .error_remove_page() implementation
-> >   have to assume that it was called because of an MCE?
+> Actually there's no need to recalculate present_pages for highmem zone
+> because bootmem allocator never allocates pages from them. So fix the
+> regression by skipping highmem in function reset_zone_present_pages()
+> and fixup_zone_present_pages().
 > 
-> OK, we need not assume that. I change "MCE " prefix to more specific
-> one like "Memory error ".
-> 
-> > Many CPU types don't eveh have such a thing?
-> 
-> No. At least currently, only SRAO MCE triggers memory_failure() and
-> it's defined only on some newest highend models of Intel CPUs.
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6108,7 +6108,8 @@ void reset_zone_present_pages(void)
+>  	for_each_node_state(nid, N_HIGH_MEMORY) {
+>  		for (i = 0; i < MAX_NR_ZONES; i++) {
+>  			z = NODE_DATA(nid)->node_zones + i;
+> -			z->present_pages = 0;
+> +			if (!is_highmem(z))
+> +				z->present_pages = 0;
+>  		}
+>  	}
+>  }
+> @@ -6123,10 +6124,11 @@ void fixup_zone_present_pages(int nid, unsigned long start_pfn,
+>  
+>  	for (i = 0; i < MAX_NR_ZONES; i++) {
+>  		z = NODE_DATA(nid)->node_zones + i;
+> +		if (is_highmem(z))
+> +			continue;
+> +
+>  		zone_start_pfn = z->zone_start_pfn;
+>  		zone_end_pfn = zone_start_pfn + z->spanned_pages;
+> -
+> -		/* if the two regions intersect */
+>  		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
+>  			z->present_pages += min(end_pfn, zone_end_pfn) -
+>  					    max(start_pfn, zone_start_pfn);
 
-Again, your reply is full of assumptions about one particualar
-implementation on one particular CPU.  But this is generic,
-cross-architecture code!
+This ...  isn't very nice.  It is embeds within
+reset_zone_present_pages() and fixup_zone_present_pages() knowledge
+about their caller's state.  Or, more specifically, it is emebedding
+knowledge about the overall state of the system when these functions
+are called.
 
-Now, it's pretty harmless to make these assumptions at this time.  But
-this new code will need to redone if/when other CPU types come along,
-and because there's a printk in there, that rework will cause
-user-visible changes in kernel behaviour.  It would be best if we can
-just avoid the problem on day one.
+I mean, a function called "reset_zone_present_pages" should reset
+->present_pages!
 
-Maybe move the printk into x86-specific code?  And just one printk
-please - not a million!
+The fact that fixup_zone_present_page() has multiple call sites makes
+this all even more risky.  And what are the interactions between this
+and memory hotplug?
+
+Can we find a cleaner fix?
+
+Please tell us more about what's happening here.  Is it the case that
+reset_zone_present_pages() is being called *after* highmem has been
+populated?  If so, then fixup_zone_present_pages() should work
+correctly for highmem?  Or is it the case that highmem hasn't yet been
+setup?  IOW, what is the sequence of operations here?
+
+Is the problem that we're *missing* a call to
+fixup_zone_present_pages(), perhaps?  If we call
+fixup_zone_present_pages() after highmem has been populated,
+fixup_zone_present_pages() should correctly fill in the highmem zone's
+->present_pages?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
