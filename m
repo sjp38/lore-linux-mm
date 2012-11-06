@@ -1,48 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id D79C96B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 18:24:28 -0500 (EST)
-Date: Tue, 6 Nov 2012 15:24:27 -0800
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id CE50B6B004D
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 18:32:14 -0500 (EST)
+Date: Tue, 6 Nov 2012 15:32:13 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 3/6] block/genhd.c: apply
- pm_runtime_set_memalloc_noio on block devices
-Message-Id: <20121106152427.dfde4c52.akpm@linux-foundation.org>
-In-Reply-To: <1351931714-11689-4-git-send-email-ming.lei@canonical.com>
-References: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
-	<1351931714-11689-4-git-send-email-ming.lei@canonical.com>
+Subject: Re: [PATCH v4 0/3] zram/zsmalloc promotion
+Message-Id: <20121106153213.03e9cc9f.akpm@linux-foundation.org>
+In-Reply-To: <1351840367-4152-1-git-send-email-minchan@kernel.org>
+References: <1351840367-4152-1-git-send-email-minchan@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com
 
-On Sat,  3 Nov 2012 16:35:11 +0800
-Ming Lei <ming.lei@canonical.com> wrote:
+On Fri,  2 Nov 2012 16:12:44 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-> This patch applyes the introduced pm_runtime_set_memalloc_noio on
-> block device so that PM core will teach mm to not allocate memory with
-> GFP_IOFS when calling the runtime_resume and runtime_suspend callback
-> for block devices and its ancestors.
-> 
-> ...
->
-> @@ -532,6 +533,13 @@ static void register_disk(struct gendisk *disk)
->  			return;
->  		}
->  	}
-> +
-> +	/* avoid probable deadlock caused by allocating memory with
+> This patchset promotes zram/zsmalloc from staging.
 
-Again, please fix the comment style.  Take a look at the rest of this file!
+The changelogs are distressingly short of *reasons* for doing this!
 
-> +	 * GFP_KERNEL in runtime_resume callback of its all ancestor
-> +	 * deivces
+> Both are very clean and zram have been used by many embedded product
+> for a long time.
 
-typo
+Well that's interesting.
 
-> +	 */
+Which embedded products?  How are they using zram and what benefit are
+they observing from it, in what scenarios?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
