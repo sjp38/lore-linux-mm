@@ -1,57 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 823A16B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 03:04:06 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id va7so169910obc.14
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 00:04:05 -0800 (PST)
-Date: Tue, 6 Nov 2012 09:03:54 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v6 19/29] memcg: infrastructure to match an allocation to
- the right cache
-Message-ID: <20121106080354.GA21167@dhcp22.suse.cz>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
- <1351771665-11076-20-git-send-email-glommer@parallels.com>
- <20121105162837.5fdac20c.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 811B96B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 03:24:50 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so218396vcb.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 00:24:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121105162837.5fdac20c.akpm@linux-foundation.org>
+In-Reply-To: <CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com>
+References: <508086DA.3010600@oracle.com>
+	<5089A05E.7040000@gmail.com>
+	<CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com>
+	<CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
+	<CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
+	<CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com>
+	<CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com>
+	<CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com>
+Date: Tue, 6 Nov 2012 00:24:49 -0800
+Message-ID: <CANN689F6=mkJmgLFbALRPeYKG4RwTef+_r2TsHOLuobAxXbtPg@mail.gmail.com>
+Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>, JoonSoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>
+To: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Mon 05-11-12 16:28:37, Andrew Morton wrote:
-> On Thu,  1 Nov 2012 16:07:35 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
-> 
-> > +static __always_inline struct kmem_cache *
-> > +memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
-> 
-> I still don't understand why this code uses __always_inline so much.
+On Mon, Nov 5, 2012 at 5:41 AM, Michel Lespinasse <walken@google.com> wrote:
+> On Sun, Nov 4, 2012 at 8:44 PM, Michel Lespinasse <walken@google.com> wrote:
+>> On Sun, Nov 4, 2012 at 8:14 PM, Bob Liu <lliubbo@gmail.com> wrote:
+>>> Hmm, I attached a simple fix patch.
+>>
+>> Reviewed-by: Michel Lespinasse <walken@google.com>
+>> (also ran some tests with it, but I could never reproduce the original
+>> issue anyway).
+>
+> Wait a minute, this is actually wrong. You need to call
+> vma_lock_anon_vma() / vma_unlock_anon_vma() to avoid the issue with
+> vma->anon_vma == NULL.
+>
+> I'll fix it and integrate it into my next patch series, which I intend
+> to send later today. (I am adding new code into validate_mm(), so that
+> it's easier to have it in the same patch series to avoid merge
+> conflicts)
 
-AFAIU, __always_inline (resp. __attribute__((always_inline))) is the
-same thing as inline if optimizations are enabled
-(http://ohse.de/uwe/articles/gcc-attributes.html#func-always_inline).
-Which is the case for the kernel. I was always wondering why we have
-this __always_inline thingy.
-It has been introduced back in 2004 by Andi but the commit log doesn't
-say much:
-"
-[PATCH] gcc-3.5 fixes
-    
-Trivial gcc-3.5 build fixes.
-"
-Andi what was the original motivation for this attribute?
- 
-> I don't recall seeing the compiler producing out-of-line versions of
-> "static inline" functions
+Hmmm, now I'm getting confused about anon_vma locking again :/
 
-and if it decides then __always_inline will not help, right?
+As Hugh privately remarked to me, the same_vma linked list is supposed
+to be protected by exclusive mmap_sem ownership, not by anon_vma lock.
+So now looking at it a bit more, I'm not sure what race we're
+preventing by taking the anon_vma lock in validate_mm() ???
 
 -- 
-Michal Hocko
-SUSE Labs
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
