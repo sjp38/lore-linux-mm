@@ -1,58 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 7BBB36B0044
-	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 20:34:54 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id 10so11321154ied.14
-        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 17:34:53 -0800 (PST)
-Date: Mon, 5 Nov 2012 17:34:56 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] tmpfs: change final i_blocks BUG to WARNING
-Message-ID: <alpine.LNX.2.00.1211051732591.963@eggly.anvils>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 4FA726B0044
+	for <linux-mm@kvack.org>; Mon,  5 Nov 2012 20:49:43 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so7741pbb.14
+        for <linux-mm@kvack.org>; Mon, 05 Nov 2012 17:49:42 -0800 (PST)
+Date: Tue, 6 Nov 2012 10:49:32 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v2] Support volatile range for anon vma
+Message-ID: <20121106014932.GA4623@barrios>
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
+ <20121031143524.0509665d.akpm@linux-foundation.org>
+ <CAPM31RKm89s6PaAnfySUD-f+eGdoZP6=9DHy58tx_4Zi8Z9WPQ@mail.gmail.com>
+ <CAHGf_=om34CQoPqgmVE5v8oVxntaJQ-bvFeEPMnfe_R+uvxqrQ@mail.gmail.com>
+ <20121105235443.GA27718@dev3310.snc6.facebook.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121105235443.GA27718@dev3310.snc6.facebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Arun Sharma <asharma@fb.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Paul Turner <pjt@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, sanjay@google.com, David Rientjes <rientjes@google.com>
 
-Under a particular load on one machine, I have hit shmem_evict_inode()'s
-BUG_ON(inode->i_blocks), enough times to narrow it down to a particular
-race between swapout and eviction.
+Hello,
 
-It comes from the "if (freed > 0)" asymmetry in shmem_recalc_inode(),
-and the lack of coherent locking between mapping's nrpages and shmem's
-swapped count.  There's a window in shmem_writepage(), between lowering
-nrpages in shmem_delete_from_page_cache() and then raising swapped count,
-when the freed count appears to be +1 when it should be 0, and then the
-asymmetry stops it from being corrected with -1 before hitting the BUG.
+On Mon, Nov 05, 2012 at 03:54:43PM -0800, Arun Sharma wrote:
+> On Wed, Oct 31, 2012 at 06:56:05PM -0400, KOSAKI Motohiro wrote:
+> > glibc malloc discard freed memory by using MADV_DONTNEED
+> > as tcmalloc. and it is often a source of large performance decrease.
+> > because of MADV_DONTNEED discard memory immediately and
+> > right after malloc() call fall into page fault and pagesize memset() path.
+> > then, using DONTNEED increased zero fill and cache miss rate.
+> 
+> The memcg based solution that I posted a few months ago is working well
+> for us. We see significantly less cpu in zero'ing pages.
+> 
+> Not everyone was comfortable with the security implications of recycling
+> pages between processes in a memcg, although it was disabled by default
+> and had to be explicitly opted-in.
+> 
+> Also, memory allocators have a second motivation in using madvise: to
+> create virtually contiguous regions of memory from a fragmented address 
+> space, without increasing the RSS.
 
-One answer is coherent locking: using tree_lock throughout, without
-info->lock; reasonable, but the raw_spin_lock in percpu_counter_add()
-on used_blocks makes that messier than expected.  Another answer may be
-a further effort to eliminate the weird shmem_recalc_inode() altogether,
-but previous attempts at that failed.
+I don't get it. How do we create contiguos region by madvise?
+Just out of curiosity.
+Could you elaborate that use case? :)
 
-So far undecided, but for now change the BUG_ON to WARN_ON:
-in usual circumstances it remains a useful consistency check.
+> 
+>  -Arun
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org
----
-
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
---- 3.7-rc4/mm/shmem.c	2012-10-14 16:16:58.361309122 -0700
-+++ linux/mm/shmem.c	2012-11-01 14:31:04.288185742 -0700
-@@ -643,7 +643,7 @@ static void shmem_evict_inode(struct ino
- 		kfree(info->symlink);
- 
- 	simple_xattrs_free(&info->xattrs);
--	BUG_ON(inode->i_blocks);
-+	WARN_ON(inode->i_blocks);
- 	shmem_free_inode(inode->i_sb);
- 	clear_inode(inode);
- }
+-- 
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
