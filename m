@@ -1,100 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 079096B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 04:05:42 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c4so140293eek.14
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 01:05:41 -0800 (PST)
-Date: Tue, 6 Nov 2012 10:05:39 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-Message-ID: <20121106090539.GB21167@dhcp22.suse.cz>
-References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
- <1349654386-18378-1-git-send-email-kys@microsoft.com>
- <20121008004358.GA12342@kroah.com>
- <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121008133539.GA15490@kroah.com>
- <20121009124755.ce1087b4.akpm@linux-foundation.org>
- <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121105134456.f655b85a.akpm@linux-foundation.org>
- <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 7214A6B004D
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 04:15:00 -0500 (EST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/19] mm: compaction: Move migration fail/success stats to migrate.c
+Date: Tue,  6 Nov 2012 09:14:37 +0000
+Message-Id: <1352193295-26815-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1352193295-26815-1-git-send-email-mgorman@suse.de>
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KY Srinivasan <kys@microsoft.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon 05-11-12 22:12:25, KY Srinivasan wrote:
-> 
-> 
-> > -----Original Message-----
-> > From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > Sent: Monday, November 05, 2012 4:45 PM
-> > To: KY Srinivasan
-> > Cc: Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org; andi@firstfloor.org;
-> > apw@canonical.com; devel@linuxdriverproject.org; linux-mm@kvack.org;
-> > Hiroyuki Kamezawa; Michal Hocko; Johannes Weiner; Ying Han
-> > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-> > 
-> > On Sat, 3 Nov 2012 14:09:38 +0000
-> > KY Srinivasan <kys@microsoft.com> wrote:
-> > 
-> > >
-> > >
-> > > > >
-> > > > > Ok, but you're going to have to get the -mm developers to agree that
-> > > > > this is ok before I can accept it.
-> > > >
-> > > > Well I guess it won't kill us.
-> > >
-> > > Andrew,
-> > >
-> > > I presumed this was an Ack from you with regards to exporting the
-> > > symbol. Looks like Greg is waiting to hear from you before he can check
-> > > these patches in. Could you provide an explicit Ack.
-> > >
-> > 
-> > Well, I do have some qualms about exporting vm_committed_as to modules.
-> > 
-> > vm_committed_as is a global thing and only really makes sense in a
-> > non-containerised system.  If the application is running within a
-> > memory cgroup then vm_enough_memory() and the global overcommit policy
-> > are at best irrelevant and misleading.
-> > 
-> > If use of vm_committed_as is indeed a bad thing, then exporting it to
-> > modules might increase the amount of badness in the kernel.
-> > 
-> > 
-> > I don't think these qualms are serious enough to stand in the way of
-> > this patch, but I'd be interested in hearing the memcg developers'
-> > thoughts on the matter?
-> > 
-> > 
-> > Perhaps you could provide a detailed description of why your module
-> > actually needs this?  Precisely what information is it looking for
-> > and why?  If we know that then perhaps a more comfortable alternative
-> > can be found.
-> 
-> The Hyper-V host has a policy engine for managing available physical
-> memory across competing virtual machines. This policy decision
-> is based on a number of parameters including the memory pressure
-> reported by the guest. Currently, the pressure calculation is based
-> on the memory commitment made by the guest. From what I can tell, the
-> ratio of currently allocated physical memory to the current memory
-> commitment made by the guest (vm_committed_as) is used as one of the
-> parameters in making the memory balancing decision on the host. This
-> is what Windows guests report to the host. So, I need some measure of
-> memory commitments made by the Linux guest. This is the reason I want
-> export vm_committed_as.
+The compact_pages_moved and compact_pagemigrate_failed events are
+convenient for determining if compaction is active and to what
+degree migration is succeeding but it's at the wrong level. Other
+users of migration may also want to know if migration is working
+properly and this will be particularly true for any automated
+NUMA migration. This patch moves the counters down to migration
+with the new events called pgmigrate_success and pgmigrate_fail.
+The compact_blocks_moved counter is removed because while it was
+useful for debugging initially, it's worthless now as no meaningful
+conclusions can be drawn from its value.
 
-So IIUC it will be guest who reports the value and the guest runs in the
-ring-0 so it is not in any user process context, right?
-If this is correct then memcg doesn't play any role here.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/vm_event_item.h |    4 +++-
+ mm/compaction.c               |    4 ----
+ mm/migrate.c                  |    6 ++++++
+ mm/vmstat.c                   |    7 ++++---
+ 4 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 3d31145..8aa7cb9 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -38,8 +38,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		KSWAPD_SKIP_CONGESTION_WAIT,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++#ifdef CONFIG_MIGRATION
++		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
++#endif
+ #ifdef CONFIG_COMPACTION
+-		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
+ 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
+ #endif
+ #ifdef CONFIG_HUGETLB_PAGE
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9eef558..00ad883 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -994,10 +994,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		update_nr_listpages(cc);
+ 		nr_remaining = cc->nr_migratepages;
+ 
+-		count_vm_event(COMPACTBLOCKS);
+-		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+-		if (nr_remaining)
+-			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+ 		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
+ 						nr_remaining);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..04687f6 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -962,6 +962,7 @@ int migrate_pages(struct list_head *from,
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
++	int nr_succeeded = 0;
+ 	int pass = 0;
+ 	struct page *page;
+ 	struct page *page2;
+@@ -988,6 +989,7 @@ int migrate_pages(struct list_head *from,
+ 				retry++;
+ 				break;
+ 			case 0:
++				nr_succeeded++;
+ 				break;
+ 			default:
+ 				/* Permanent failure */
+@@ -998,6 +1000,10 @@ int migrate_pages(struct list_head *from,
+ 	}
+ 	rc = 0;
+ out:
++	if (nr_succeeded)
++		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
++	if (nr_failed)
++		count_vm_events(PGMIGRATE_FAIL, nr_failed);
+ 	if (!swapwrite)
+ 		current->flags &= ~PF_SWAPWRITE;
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index c737057..89a7fd6 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -774,10 +774,11 @@ const char * const vmstat_text[] = {
+ 
+ 	"pgrotated",
+ 
++#ifdef CONFIG_MIGRATION
++	"pgmigrate_success",
++	"pgmigrate_fail",
++#endif
+ #ifdef CONFIG_COMPACTION
+-	"compact_blocks_moved",
+-	"compact_pages_moved",
+-	"compact_pagemigrate_failed",
+ 	"compact_stall",
+ 	"compact_fail",
+ 	"compact_success",
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
