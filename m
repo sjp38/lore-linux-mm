@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id A894F6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:49:40 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Tue, 6 Nov 2012 16:49:38 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 64C0B38C8045
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 16:49:25 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qA6LnOqL271622
-	for <linux-mm@kvack.org>; Tue, 6 Nov 2012 16:49:24 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qA6LnO0n009093
-	for <linux-mm@kvack.org>; Tue, 6 Nov 2012 19:49:24 -0200
-Message-ID: <509985DE.8000508@linux.vnet.ibm.com>
-Date: Tue, 06 Nov 2012 13:49:18 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 6/8] mm: Demarcate and maintain pageblocks in region-order
- in the zones' freelists
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id D0E756B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 17:11:39 -0500 (EST)
+Date: Tue, 6 Nov 2012 14:11:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 00/16] mm: use augmented rbtrees for finding unmapped
+ areas
+Message-Id: <20121106141137.68bbd4ea.akpm@linux-foundation.org>
+In-Reply-To: <1352155633-8648-1-git-send-email-walken@google.com>
+References: <1352155633-8648-1-git-send-email-walken@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org
 
-On 11/06/2012 11:53 AM, Srivatsa S. Bhat wrote:
-> This is the main change - we keep the pageblocks in region-sorted order,
-> where pageblocks belonging to region-0 come first, followed by those belonging
-> to region-1 and so on. But the pageblocks within a given region need *not* be
-> sorted, since we need them to be only region-sorted and not fully
-> address-sorted.
-> 
-> This sorting is performed when adding pages back to the freelists, thus
-> avoiding any region-related overhead in the critical page allocation
-> paths.
+On Mon,  5 Nov 2012 14:46:57 -0800
+Michel Lespinasse <walken@google.com> wrote:
 
-It's probably _better_ to do it at free time than alloc, but it's still
-pretty bad to be doing a linear walk over a potentially 256-entry array
-holding the zone lock.  The overhead is going to show up somewhere.  How
-does this do with a kernel compile?  Looks like exit() when a process
-has a bunch of memory might get painful.
+> Earlier this year, Rik proposed using augmented rbtrees to optimize
+> our search for a suitable unmapped area during mmap(). This prompted
+> my work on improving the augmented rbtree code. Rik doesn't seem to
+> have time to follow up on his idea at this time, so I'm sending this
+> series to revive the idea.
+
+Well, the key word here is "optimize".  Some quantitative testing
+results would be nice, please!
+
+People do occasionally see nasty meltdowns in the get_unmapped_area()
+vicinity.  There was one case 2-3 years ago which was just ghastly, but
+I can't find the email (it's on linux-mm somewhere).  This one might be
+another case:
+http://lkml.indiana.edu/hypermail/linux/kernel/1101.1/00896.html
+
+If you can demonstrate that this patchset fixes some of all of the bad
+search complexity scenarios then that's quite a win?
+
+> These changes are against v3.7-rc4. I have not converted all applicable
+> architectuers yet, but we don't necessarily need to get them all onboard
+> at once - the series is fully bisectable and additional architectures
+> can be added later on. I am confident enough in my tests for patches 1-8;
+> however the second half of the series basically didn't get tested as
+> I don't have access to all the relevant architectures.
+
+Yes, I'll try to get these into -next so that the thousand monkeys at
+least give us some compilation coverage testing.  Hopefully the
+relevant arch maintainers will find time to perform a runtime test.
+
+> Patch 1 is the validate_mm() fix from Bob Liu (+ fixed-the-fix from me :)
+
+I grabbed this one separately, as a post-3.6 fix.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
