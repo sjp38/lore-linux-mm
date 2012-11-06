@@ -1,105 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id E630C6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 05:23:45 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id k6so329279lbo.14
-        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 02:23:43 -0800 (PST)
-Message-ID: <5098E52C.7080203@googlemail.com>
-Date: Tue, 06 Nov 2012 10:23:40 +0000
-From: Chris Clayton <chris2553@googlemail.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 302936B004D
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 05:54:30 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id c4so217476eek.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 02:54:28 -0800 (PST)
+Date: Tue, 6 Nov 2012 11:54:26 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v6 11/29] memcg: allow a memcg with kmem charges to be
+ destructed.
+Message-ID: <20121106105426.GE21167@dhcp22.suse.cz>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+ <1351771665-11076-12-git-send-email-glommer@parallels.com>
+ <20121101170539.2e09dc8e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix a regression with HIGHMEM introduced by changeset
- 7f1290f2f2a4d
-References: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121101170539.2e09dc8e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Maciej Rutecki <maciej.rutecki@gmail.com>, Jianguo Wu <wujianguo@huawei.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
+On Thu 01-11-12 17:05:39, Andrew Morton wrote:
+> On Thu,  1 Nov 2012 16:07:27 +0400
+> Glauber Costa <glommer@parallels.com> wrote:
+> 
+> > Because the ultimate goal of the kmem tracking in memcg is to track slab
+> > pages as well, we can't guarantee that we'll always be able to point a
+> > page to a particular process, and migrate the charges along with it -
+> > since in the common case, a page will contain data belonging to multiple
+> > processes.
+> > 
+> > Because of that, when we destroy a memcg, we only make sure the
+> > destruction will succeed by discounting the kmem charges from the user
+> > charges when we try to empty the cgroup.
+> 
+> There was a significant conflict with the sched/numa changes in
+> linux-next,
 
+Just for record. The conflict was introduced by 2ef37d3f (memcg: Simplify
+mem_cgroup_force_empty_list error handling) which came in via Tejun's
+tree.
+Your resolution looks good to me. Sorry about the trouble.
 
-On 11/06/12 01:31, Jiang Liu wrote:
-> Changeset 7f1290f2f2 tries to fix a issue when calculating
-> zone->present_pages, but it causes a regression to 32bit systems with
-> HIGHMEM. With that changeset, function reset_zone_present_pages()
-> resets all zone->present_pages to zero, and fixup_zone_present_pages()
-> is called to recalculate zone->present_pages when boot allocator frees
-> core memory pages into buddy allocator. Because highmem pages are not
-> freed by bootmem allocator, all highmem zones' present_pages becomes
-> zero.
->
-> Actually there's no need to recalculate present_pages for highmem zone
-> because bootmem allocator never allocates pages from them. So fix the
-> regression by skipping highmem in function reset_zone_present_pages()
-> and fixup_zone_present_pages().
->
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> Reported-by: Maciej Rutecki <maciej.rutecki@gmail.com>
-> Tested-by: Maciej Rutecki <maciej.rutecki@gmail.com>
-> Cc: Chris Clayton <chris2553@googlemail.com>
-> Cc: Rafael J. Wysocki <rjw@sisk.pl>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: linux-mm@kvack.org
-> Cc: linux-kernel@vger.kernel.org
->
-> ---
->
-> Hi Maciej,
-> 	Thanks for reporting and bisecting. We have analyzed the regression
-> and worked out a patch for it. Could you please help to verify whether it
-> fix the regression?
-> 	Thanks!
-> 	Gerry
->
+> which I resolved as below.  Please check it.
+> 
+> static int mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
+> {
+> 	struct cgroup *cgrp = memcg->css.cgroup;
+> 	int node, zid;
+> 	u64 usage;
+> 
+> 	do {
+> 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
+> 			return -EBUSY;
+> 		/* This is for making all *used* pages to be on LRU. */
+> 		lru_add_drain_all();
+> 		drain_all_stock_sync(memcg);
+> 		mem_cgroup_start_move(memcg);
+> 		for_each_node_state(node, N_HIGH_MEMORY) {
+> 			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> 				enum lru_list lru;
+> 				for_each_lru(lru) {
+> 					mem_cgroup_force_empty_list(memcg,
+> 							node, zid, lru);
+> 				}
+> 			}
+> 		}
+> 		mem_cgroup_end_move(memcg);
+> 		memcg_oom_recover(memcg);
+> 		cond_resched();
+> 
+> 		/*
+> 		 * Kernel memory may not necessarily be trackable to a specific
+> 		 * process. So they are not migrated, and therefore we can't
+> 		 * expect their value to drop to 0 here.
+> 		 * Having res filled up with kmem only is enough.
+> 		 *
+> 		 * This is a safety check because mem_cgroup_force_empty_list
+> 		 * could have raced with mem_cgroup_replace_page_cache callers
+> 		 * so the lru seemed empty but the page could have been added
+> 		 * right after the check. RES_USAGE should be safe as we always
+> 		 * charge before adding to the LRU.
+> 		 */
+> 		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
+> 			res_counter_read_u64(&memcg->kmem, RES_USAGE);
+> 	} while (usage > 0);
+> 
+> 	return 0;
+> }
+> 
 
-Thanks Gerry.
-
-I've applied this patch to 3.7.0-rc4 and can confirm that it fixes the 
-problem I had with my laptop failing to resume after a suspend to disk.
-
-Tested-by: Chris Clayton <chris2553@googlemail.com>
-
-> ---
->   mm/page_alloc.c |    8 +++++---
->   1 files changed, 5 insertions(+), 3 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b74de6..2311f15 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6108,7 +6108,8 @@ void reset_zone_present_pages(void)
->   	for_each_node_state(nid, N_HIGH_MEMORY) {
->   		for (i = 0; i < MAX_NR_ZONES; i++) {
->   			z = NODE_DATA(nid)->node_zones + i;
-> -			z->present_pages = 0;
-> +			if (!is_highmem(z))
-> +				z->present_pages = 0;
->   		}
->   	}
->   }
-> @@ -6123,10 +6124,11 @@ void fixup_zone_present_pages(int nid, unsigned long start_pfn,
->
->   	for (i = 0; i < MAX_NR_ZONES; i++) {
->   		z = NODE_DATA(nid)->node_zones + i;
-> +		if (is_highmem(z))
-> +			continue;
-> +
->   		zone_start_pfn = z->zone_start_pfn;
->   		zone_end_pfn = zone_start_pfn + z->spanned_pages;
-> -
-> -		/* if the two regions intersect */
->   		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
->   			z->present_pages += min(end_pfn, zone_end_pfn) -
->   					    max(start_pfn, zone_start_pfn);
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
