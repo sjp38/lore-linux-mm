@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 277F36B006E
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 06:04:46 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so1231297pbb.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 03:04:45 -0800 (PST)
-Date: Wed, 7 Nov 2012 03:01:39 -0800
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 343D96B0070
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 06:04:59 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so704596dad.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 03:04:58 -0800 (PST)
+Date: Wed, 7 Nov 2012 03:01:52 -0800
 From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [RFC 2/3] tools/testing: Add vmpressure-test utility
-Message-ID: <20121107110139.GB30462@lizard>
+Subject: [RFC 3/3] man-pages: Add man page for vmpressure_fd(2)
+Message-ID: <20121107110152.GC30462@lizard>
 References: <20121107105348.GA25549@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
@@ -18,160 +18,298 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-Just a simple test/example utility for the vmpressure_fd(2) system call.
+VMPRESSURE_FD(2)        Linux Programmer's Manual       VMPRESSURE_FD(2)
+
+NAME
+       vmpressure_fd - Linux virtual memory pressure notifications
+
+SYNOPSIS
+       #define _GNU_SOURCE
+       #include <unistd.h>
+       #include <sys/syscall.h>
+       #include <asm/unistd.h>
+       #include <linux/types.h>
+       #include <linux/vmpressure.h>
+
+       int vmpressure_fd(struct vmpressure_config *config)
+       {
+            config->size = sizeof(*config);
+            return syscall(__NR_vmpressure_fd, config);
+       }
+
+DESCRIPTION
+       This  system  call creates a new file descriptor that can be used
+       with blocking (e.g.  read(2)) and/or polling (e.g.  poll(2)) rou-
+       tines to get notified about system's memory pressure.
+
+       Upon  these  notifications,  userland programs can cooperate with
+       the kernel, achieving better system's memory management.
+
+   Memory pressure levels
+       There are currently three memory pressure levels, each  level  is
+       defined via vmpressure_level enumeration, and correspond to these
+       constants:
+
+       VMPRESSURE_LOW
+              The system is reclaiming memory for new allocations. Moni-
+              toring reclaiming activity might be useful for maintaining
+              overall system's cache level.
+
+       VMPRESSURE_MEDIUM
+              The system is experiencing medium memory  pressure,  there
+              might  be  some  mild  swapping activity. Upon this event,
+              applications may decide to free any resources that can  be
+              easily reconstructed or re-read from a disk.
+
+       VMPRESSURE_OOM
+              The  system  is  actively thrashing, it is about to out of
+              memory (OOM) or even the in-kernel OOM killer  is  on  its
+              way  to  trigger. Applications should do whatever they can
+              to help the system. See proc(5) for more information about
+              OOM killer and its configuration options.
+
+       Note that the behaviour of some levels can be tuned through the
+       sysctl(5)      mechanism.      See      /usr/src/linux/Documenta-
+       tion/sysctl/vm.txt for various vmpressure_*  tunables  and  their
+       meanings.
+
+   Configuration
+       vmpressure_fd(2) accepts vmpressure_config structure to configure
+       the notifications:
+
+       struct vmpressure_config {
+            __u32 size;
+            __u32 threshold;
+       };
+
+       size is a part of ABI  versioning  and  must  be  initialized  to
+       sizeof(struct vmpressure_config).
+
+       threshold  is  used to setup a minimal value of the pressure upon
+       which the events will be delivered by the kernel  (for  algebraic
+       comparisons,   it   is  defined  that  VMPRESSURE_LOW  <  VMPRES-
+       SURE_MEDIUM < VMPRESSURE_OOM, but applications should not put any
+       meaning into the absolute values.)
+
+   Events
+       Upon  a  notification,  application  must  read  out events using
+       read(2) system call.  The events are delivered using the  follow-
+       ing structure:
+
+       struct vmpressure_event {
+            __u32 pressure;
+       };
+
+       The pressure shows the most recent system's pressure level.
+
+RETURN VALUE
+       On  success,  vmpressure_fd()  returns  a new file descriptor. On
+       error, a negative value is returned and errno is set to  indicate
+       the error.
+
+ERRORS
+       vmpressure_fd() can fail with errors similar to open(2).
+
+       In addition, the following errors are possible:
+
+       EINVAL The  failure  means  that  an improperly initalized config
+              structure has been passed to the call.
+
+       EFAULT The failure means that the kernel was unable to  read  the
+              configuration  structure, that is, config parameter points
+              to an inaccessible memory.
+
+VERSIONS
+       The system call is available on Linux since kernel  3.8.  Library
+       support is yet not provided by any glibc version.
+
+CONFORMING TO
+       The system call is Linux-specific.
+
+EXAMPLE
+       Examples can be found in /usr/src/linux/tools/testing/vmpressure/
+       directory.
+
+SEE ALSO
+       poll(2), read(2), proc(5), sysctl(5), vmstat(8)
+
+Linux                          2012-10-16               VMPRESSURE_FD(2)
 
 Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
 ---
- tools/testing/vmpressure/.gitignore        |  1 +
- tools/testing/vmpressure/Makefile          | 30 ++++++++++
- tools/testing/vmpressure/vmpressure-test.c | 93 ++++++++++++++++++++++++++++++
- 3 files changed, 124 insertions(+)
- create mode 100644 tools/testing/vmpressure/.gitignore
- create mode 100644 tools/testing/vmpressure/Makefile
- create mode 100644 tools/testing/vmpressure/vmpressure-test.c
+ man2/vmpressure_fd.2 | 163 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 163 insertions(+)
+ create mode 100644 man2/vmpressure_fd.2
 
-diff --git a/tools/testing/vmpressure/.gitignore b/tools/testing/vmpressure/.gitignore
+diff --git a/man2/vmpressure_fd.2 b/man2/vmpressure_fd.2
 new file mode 100644
-index 0000000..fe5e38c
+index 0000000..eaf07d4
 --- /dev/null
-+++ b/tools/testing/vmpressure/.gitignore
-@@ -0,0 +1 @@
-+vmpressure-test
-diff --git a/tools/testing/vmpressure/Makefile b/tools/testing/vmpressure/Makefile
-new file mode 100644
-index 0000000..7545f3e
---- /dev/null
-+++ b/tools/testing/vmpressure/Makefile
-@@ -0,0 +1,30 @@
-+WARNINGS := -Wcast-align
-+WARNINGS += -Wformat
-+WARNINGS += -Wformat-security
-+WARNINGS += -Wformat-y2k
-+WARNINGS += -Wshadow
-+WARNINGS += -Winit-self
-+WARNINGS += -Wpacked
-+WARNINGS += -Wredundant-decls
-+WARNINGS += -Wstrict-aliasing=3
-+WARNINGS += -Wswitch-default
-+WARNINGS += -Wno-system-headers
-+WARNINGS += -Wundef
-+WARNINGS += -Wwrite-strings
-+WARNINGS += -Wbad-function-cast
-+WARNINGS += -Wmissing-declarations
-+WARNINGS += -Wmissing-prototypes
-+WARNINGS += -Wnested-externs
-+WARNINGS += -Wold-style-definition
-+WARNINGS += -Wstrict-prototypes
-+WARNINGS += -Wdeclaration-after-statement
++++ b/man2/vmpressure_fd.2
+@@ -0,0 +1,163 @@
++.\" Copyright (C) 2008 Michael Kerrisk <mtk.manpages@gmail.com>
++.\" Copyright (C) 2012 Linaro Ltd.
++.\" 		       Anton Vorontsov <anton.vorontsov@linaro.org>
++.\"
++.\" Based on ideas from:
++.\" KOSAKI Motohiro, Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka
++.\" Enberg.
++.\"
++.\" This program is free software; you can redistribute it and/or modify
++.\" it under the terms of the GNU General Public License as published by
++.\" the Free Software Foundation; either version 2 of the License, or
++.\" (at your option) any later version.
++.\"
++.\" This program is distributed in the hope that it will be useful,
++.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
++.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++.\" GNU General Public License for more details.
++.\"
++.\" You should have received a copy of the GNU General Public License
++.\" along with this program; if not, write to the Free Software
++.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
++.\" MA  02111-1307  USA
++.\"
++.TH VMPRESSURE_FD 2 2012-10-16 Linux "Linux Programmer's Manual"
++.SH NAME
++vmpressure_fd \- Linux virtual memory pressure notifications
++.SH SYNOPSIS
++.nf
++.B #define _GNU_SOURCE
++.B #include <unistd.h>
++.B #include <sys/syscall.h>
++.B #include <asm/unistd.h>
++.B #include <linux/types.h>
++.B #include <linux/vmpressure.h>
++.\" TODO: libc wrapper
 +
-+CFLAGS  = -O3 -g -std=gnu99 $(WARNINGS)
-+
-+PROGRAMS = vmpressure-test
-+
-+all: $(PROGRAMS)
-+
-+clean:
-+	rm -f $(PROGRAMS) *.o
-+.PHONY: clean
-diff --git a/tools/testing/vmpressure/vmpressure-test.c b/tools/testing/vmpressure/vmpressure-test.c
-new file mode 100644
-index 0000000..1e448be
---- /dev/null
-+++ b/tools/testing/vmpressure/vmpressure-test.c
-@@ -0,0 +1,93 @@
-+/*
-+ * vmpressure_fd(2) test utility
-+ *
-+ * Copyright 2011-2012 Pekka Enberg <penberg@kernel.org>
-+ * Copyright 2011-2012 Linaro Ltd.
-+ *		       Anton Vorontsov <anton.vorontsov@linaro.org>
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License version 2 as published
-+ * by the Free Software Foundation.
-+ */
-+
-+/* TODO: glibc wrappers */
-+#include "../../../include/linux/vmpressure.h"
-+
-+#if defined(__x86_64__)
-+#include "../../../arch/x86/include/generated/asm/unistd_64.h"
-+#endif
-+#if defined(__arm__)
-+#include "../../../arch/arm/include/asm/unistd.h"
-+#endif
-+
-+#include <stdint.h>
-+#include <stdlib.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <errno.h>
-+#include <stdio.h>
-+#include <poll.h>
-+
-+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-+
-+static void pexit(const char *str)
++.BI "int vmpressure_fd(struct vmpressure_config *"config )
++.B
 +{
-+	perror(str);
-+	exit(1);
-+}
-+
-+static int vmpressure_fd(struct vmpressure_config *config)
-+{
++.B
 +	config->size = sizeof(*config);
-+
++.B
 +	return syscall(__NR_vmpressure_fd, config);
++.B
 +}
++.fi
++.SH DESCRIPTION
++This system call creates a new file descriptor that can be used with
++blocking (e.g.
++.BR read (2))
++and/or polling (e.g.
++.BR poll (2))
++routines to get notified about system's memory pressure.
 +
-+int main(int argc, char *argv[])
-+{
-+	struct vmpressure_config config[] = {
-+		/*
-+		 * We could just set the lowest priority, but we want to
-+		 * actually test if the thresholds work.
-+		 */
-+		{ .threshold = VMPRESSURE_LOW },
-+		{ .threshold = VMPRESSURE_MEDIUM },
-+		{ .threshold = VMPRESSURE_OOM },
-+	};
-+	const size_t num = ARRAY_SIZE(config);
-+	struct pollfd pfds[num];
-+	int i;
++Upon these notifications, userland programs can cooperate with the kernel,
++achieving better system's memory management.
++.SS Memory pressure levels
++There are currently three memory pressure levels, each level is defined
++via
++.IR vmpressure_level " enumeration,"
++and correspond to these constants:
++.TP
++.B VMPRESSURE_LOW
++The system is reclaiming memory for new allocations. Monitoring reclaiming
++activity might be useful for maintaining overall system's cache level.
++.TP
++.B VMPRESSURE_MEDIUM
++The system is experiencing medium memory pressure, there might be some
++mild swapping activity. Upon this event, applications may decide to free
++any resources that can be easily reconstructed or re-read from a disk.
++.TP
++.B VMPRESSURE_OOM
++The system is actively thrashing, it is about to out of memory (OOM) or
++even the in-kernel OOM killer is on its way to trigger. Applications
++should do whatever they can to help the system. See
++.BR proc (5)
++for more information about OOM killer and its configuration options.
++.TP 0
++Note that the behaviour of some levels can be tuned through the
++.BR sysctl (5)
++mechanism. See
++.I /usr/src/linux/Documentation/sysctl/vm.txt
++for various
++.I vmpressure_*
++tunables and their meanings.
++.SS Configuration
++.BR vmpressure_fd (2)
++accepts
++.I vmpressure_config
++structure to configure the notifications:
 +
-+	for (i = 0; i < num; i++) {
-+		pfds[i].fd = vmpressure_fd(&config[i]);
-+		if (pfds[i].fd < 0)
-+			pexit("vmpressure_fd failed");
++.nf
++struct vmpressure_config {
++	__u32 size;
++	__u32 threshold;
++};
++.fi
 +
-+		pfds[i].events = POLLIN;
-+	}
++.I size
++is a part of ABI versioning and must be initialized to
++.IR "sizeof(struct vmpressure_config)" .
 +
-+	while (poll(pfds, num, -1) > 0) {
-+		for (i = 0; i < num; i++) {
-+			struct vmpressure_event event;
++.I threshold
++is used to setup a minimal value of the pressure upon which the events
++will be delivered by the kernel (for algebraic comparisons, it is defined
++that
++.BR VMPRESSURE_LOW " <"
++.BR VMPRESSURE_MEDIUM " <"
++.BR VMPRESSURE_OOM ,
++but applications should not put any meaning into the absolute values.)
++.SS Events
++Upon a notification, application must read out events using
++.BR read (2)
++system call.
++The events are delivered using the following structure:
 +
-+			if (!pfds[i].revents)
-+				continue;
++.nf
++struct vmpressure_event {
++	__u32 pressure;
++};
++.fi
 +
-+			if (read(pfds[i].fd, &event, sizeof(event)) < 0)
-+				pexit("read failed");
++The
++.I pressure
++shows the most recent system's pressure level.
++.SH "RETURN VALUE"
++On success,
++.BR vmpressure_fd ()
++returns a new file descriptor. On error, a negative value is returned and
++.I errno
++is set to indicate the error.
++.SH ERRORS
++.BR vmpressure_fd ()
++can fail with errors similar to
++.BR open (2).
 +
-+			printf("VM pressure: 0x%.8x (threshold 0x%.8x)\n",
-+			       event.pressure, config[i].threshold);
-+		}
-+	}
-+
-+	perror("poll failed\n");
-+
-+	for (i = 0; i < num; i++) {
-+		if (close(pfds[i].fd) < 0)
-+			pexit("close failed");
-+	}
-+
-+	exit(1);
-+	return 0;
-+}
++In addition, the following errors are possible:
++.TP
++.B EINVAL
++The failure means that an improperly initalized
++.I config
++structure has been passed to the call.
++.TP
++.B EFAULT
++The failure means that the kernel was unable to read the configuration
++structure, that is,
++.I config
++parameter points to an inaccessible memory.
++.SH VERSIONS
++The system call is available on Linux since kernel 3.8. Library support is
++yet not provided by any glibc version.
++.SH CONFORMING TO
++The system call is Linux-specific.
++.SH EXAMPLE
++Examples can be found in
++.I /usr/src/linux/tools/testing/vmpressure/
++directory.
++.SH "SEE ALSO"
++.BR poll (2),
++.BR read (2),
++.BR proc (5),
++.BR sysctl (5),
++.BR vmstat (8)
 -- 
 1.8.0
 
