@@ -1,64 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id C01776B0062
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:56:55 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id rq2so1226003pbb.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 02:56:55 -0800 (PST)
-Date: Wed, 7 Nov 2012 02:53:49 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-Message-ID: <20121107105348.GA25549@lizard>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 405B86B0062
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:57:47 -0500 (EST)
+Date: Wed, 7 Nov 2012 10:57:42 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 16/19] mm: numa: Add pte updates, hinting and migration
+ stats
+Message-ID: <20121107105742.GV8218@suse.de>
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
+ <1352193295-26815-17-git-send-email-mgorman@suse.de>
+ <50996B1A.7040601@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <50996B1A.7040601@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi all,
+On Tue, Nov 06, 2012 at 02:55:06PM -0500, Rik van Riel wrote:
+> On 11/06/2012 04:14 AM, Mel Gorman wrote:
+> >It is tricky to quantify the basic cost of automatic NUMA placement in a
+> >meaningful manner. This patch adds some vmstats that can be used as part
+> >of a basic costing model.
+> >
+> >u    = basic unit = sizeof(void *)
+> >Ca   = cost of struct page access = sizeof(struct page) / u
+> >Cpte = Cost PTE access = Ca
+> >Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
+> >	where Cpte is incurred twice for a read and a write and Wlock
+> >	is a constant representing the cost of taking or releasing a
+> >	lock
+> >Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
+> >Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
+> >Ci = Cost of page isolation = Ca + Wi
+> >	where Wi is a constant that should reflect the approximate cost
+> >	of the locking operation
+> >Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
+> >	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
+> >	would imply that remote accesses are 20% more expensive
+> >
+> >Balancing cost = Cpte * numa_pte_updates +
+> >		Cnumahint * numa_hint_faults +
+> >		Ci * numa_pages_migrated +
+> >		Cpagecopy * numa_pages_migrated
+> >
+> >Note that numa_pages_migrated is used as a measure of how many pages
+> >were isolated even though it would miss pages that failed to migrate. A
+> >vmstat counter could have been added for it but the isolation cost is
+> >pretty marginal in comparison to the overall cost so it seemed overkill.
+> >
+> >The ideal way to measure automatic placement benefit would be to count
+> >the number of remote accesses versus local accesses and do something like
+> >
+> >	benefit = (remote_accesses_before - remove_access_after) * Wnuma
+> >
+> >but the information is not readily available. As a workload converges, the
+> >expection would be that the number of remote numa hints would reduce to 0.
+> >
+> >	convergence = numa_hint_faults_local / numa_hint_faults
+> >		where this is measured for the last N number of
+> >		numa hints recorded. When the workload is fully
+> >		converged the value is 1.
+> >
+> >This can measure if the placement policy is converging and how fast it is
+> >doing it.
+> >
+> >Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> I'm skipping the ACKing of the policy patches, which
+> appear to be meant to be placeholders for a "real"
+> policy. 
 
-This is the third RFC. As suggested by Minchan Kim, the API is much
-simplified now (comparing to vmevent_fd):
+I do expect the MORON policy to disappear or at least change so much it
+is not recognisable.
 
-- As well as Minchan, KOSAKI Motohiro didn't like the timers, so the
-  timers are gone now;
-- Pekka Enberg didn't like the complex attributes matching code, and so it
-  is no longer there;
-- Nobody liked the raw vmstat attributes, and so they were eliminated too.
+> However, you have a few more mechanism patches
+> left in the series, which would be required regardless
+> of what policy gets merged, so ...
+> 
 
-But, conceptually, it is the exactly the same approach as in v2: three
-discrete levels of the pressure -- low, medium and oom. The levels are
-based on the reclaimer inefficiency index as proposed by Mel Gorman, but
-userland does not see the raw index values. The description why I moved
-away from reporting the raw 'reclaimer inefficiency index' can be found in
-v2: http://lkml.org/lkml/2012/10/22/177
+Initially, I had the slow WSS sampling at the end because superficially
+they could be considered an optimisation and I wanted to avoid sneaking
+optimisations in. On reflection, the slow WSS sampling is pretty fundamental
+and I've moved it earlier in the series like so;
 
-While the new API is very simple, it is still extensible (i.e. versioned).
+ mm: mempolicy: Add MPOL_MF_LAZY mm: mempolicy: Use _PAGE_NUMA to migrate pages
+ mm: numa: Add fault driven placement and migration
+ mm: sched: numa: Implement constant, per task Working Set Sampling (WSS) rate
+ mm: sched: numa: Implement slow start for working set sampling
+ mm: numa: Add pte updates, hinting and migration stats
+ mm: numa: Migrate on reference policy
 
-As there are a lot of drastic changes in the API itself, I decided to just
-add a new files along with vmevent, it is much easier to review it this
-way (I can prepare a separate patch that removes vmevent files, if we care
-to preserve the history through the vmevent tree).
-
-Thanks,
-Anton.
-
---
- Documentation/sysctl/vm.txt                |  47 +++++
- arch/x86/syscalls/syscall_64.tbl           |   1 +
- include/linux/syscalls.h                   |   2 +
- include/linux/vmpressure.h                 | 128 ++++++++++++
- kernel/sys_ni.c                            |   1 +
- kernel/sysctl.c                            |  31 +++
- mm/Kconfig                                 |  13 ++
- mm/Makefile                                |   1 +
- mm/vmpressure.c                            | 231 +++++++++++++++++++++
- mm/vmscan.c                                |   5 +
- tools/testing/vmpressure/.gitignore        |   1 +
- tools/testing/vmpressure/Makefile          |  30 +++
- tools/testing/vmpressure/vmpressure-test.c |  93 +++++++++
- 13 files changed, 584 insertions(+)
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
