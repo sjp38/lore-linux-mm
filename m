@@ -1,38 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 572C96B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 17:53:42 -0500 (EST)
-Date: Wed, 7 Nov 2012 14:53:40 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] memcg: oom: fix totalpages calculation for
- memory.swappiness==0
-Message-Id: <20121107145340.b45a387c.akpm@linux-foundation.org>
-In-Reply-To: <20121107224640.GE26382@dhcp22.suse.cz>
-References: <20121011085038.GA29295@dhcp22.suse.cz>
-	<1349945859-1350-1-git-send-email-mhocko@suse.cz>
-	<20121015220354.GA11682@dhcp22.suse.cz>
-	<20121107141025.2ac62206.akpm@linux-foundation.org>
-	<20121107224640.GE26382@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 7FD546B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 19:01:25 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH v11 5/7] virtio_balloon: introduce migration primitives to balloon pages
+In-Reply-To: <265aaff9a79f503672f0cdcdff204114b5b5ba5b.1352256088.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com> <265aaff9a79f503672f0cdcdff204114b5b5ba5b.1352256088.git.aquini@redhat.com>
+Date: Thu, 08 Nov 2012 09:32:18 +1030
+Message-ID: <87625h3tl1.fsf@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, 7 Nov 2012 23:46:40 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+Rafael Aquini <aquini@redhat.com> writes:
+> + * virtballoon_migratepage - perform the balloon page migration on behalf of
+> + *			     a compation thread.     (called under page lock)
 
-> > Realistically, is anyone likely to hurt from this?
-> 
-> The primary motivation for the fix was a real report by a customer.
+> +	if (!mutex_trylock(&vb->balloon_lock))
+> +		return -EAGAIN;
 
-Describe it please and I'll copy it to the changelog.
+Erk, OK...
 
-So that Greg can understand why we sent this at him and so that others
-who hit the same problem (or any other problem!) will be able to
-determine whether this patch might solve it.
+> +	/* balloon's page migration 1st step  -- inflate "newpage" */
+> +	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
+> +	balloon_page_insert(newpage, mapping, &vb_dev_info->pages);
+> +	vb_dev_info->isolated_pages--;
+> +	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
+> +	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
+> +	set_page_pfns(vb->pfns, newpage);
+> +	tell_host(vb, vb->inflate_vq);
+
+tell_host does wait_event(), so you can't call it under the page_lock.
+Right?
+
+You probably get away with it because current qemu will service you
+immediately.  You could spin here in this case for the moment.
+
+There's a second call to tell_host():
+
+> +	/*
+> +	 * balloon's page migration 2nd step -- deflate "page"
+> +	 *
+> +	 * It's safe to delete page->lru here because this page is at
+> +	 * an isolated migration list, and this step is expected to happen here
+> +	 */
+> +	balloon_page_delete(page);
+> +	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
+> +	set_page_pfns(vb->pfns, page);
+> +	tell_host(vb, vb->deflate_vq);
+
+The first one can be delayed, the second one can be delayed if the host
+didn't ask for VIRTIO_BALLOON_F_MUST_TELL_HOST (qemu doesn't).
+
+We could implement a proper request queue for these, and return -EAGAIN
+if the queue fills.  Though in practice, it's not important (it might
+help performance).
+
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
