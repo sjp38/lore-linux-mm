@@ -1,112 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id C90BC6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:49:02 -0500 (EST)
-Date: Tue, 6 Nov 2012 19:48:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4 1/6] mm: teach mm by current context info to not do
- I/O during memory allocation
-Message-Id: <20121106194859.8eec3043.akpm@linux-foundation.org>
-In-Reply-To: <CACVXFVNs2JtEYQ3Y2rA8L89sAaMJ7TO-PxG3h4w+ihcZrBLtpg@mail.gmail.com>
-References: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
-	<1351931714-11689-2-git-send-email-ming.lei@canonical.com>
-	<20121106152354.90150a3b.akpm@linux-foundation.org>
-	<CACVXFVNs2JtEYQ3Y2rA8L89sAaMJ7TO-PxG3h4w+ihcZrBLtpg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 910556B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:54:01 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id v13so1397518vbk.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 19:54:00 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CANN689F6=mkJmgLFbALRPeYKG4RwTef+_r2TsHOLuobAxXbtPg@mail.gmail.com>
+References: <508086DA.3010600@oracle.com>
+	<5089A05E.7040000@gmail.com>
+	<CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com>
+	<CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
+	<CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
+	<CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com>
+	<CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com>
+	<CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com>
+	<CANN689F6=mkJmgLFbALRPeYKG4RwTef+_r2TsHOLuobAxXbtPg@mail.gmail.com>
+Date: Tue, 6 Nov 2012 19:54:00 -0800
+Message-ID: <CANN689F8ScQdtNFgtREQcQLJEKYDcUGngNFFF6to5eakCz9FnQ@mail.gmail.com>
+Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+To: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <levinsasha928@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Wed, 7 Nov 2012 11:11:24 +0800 Ming Lei <ming.lei@canonical.com> wrote:
+On Tue, Nov 6, 2012 at 12:24 AM, Michel Lespinasse <walken@google.com> wrote:
+> On Mon, Nov 5, 2012 at 5:41 AM, Michel Lespinasse <walken@google.com> wrote:
+>> On Sun, Nov 4, 2012 at 8:44 PM, Michel Lespinasse <walken@google.com> wrote:
+>>> On Sun, Nov 4, 2012 at 8:14 PM, Bob Liu <lliubbo@gmail.com> wrote:
+>>>> Hmm, I attached a simple fix patch.
+>>>
+>>> Reviewed-by: Michel Lespinasse <walken@google.com>
+>>> (also ran some tests with it, but I could never reproduce the original
+>>> issue anyway).
+>>
+>> Wait a minute, this is actually wrong. You need to call
+>> vma_lock_anon_vma() / vma_unlock_anon_vma() to avoid the issue with
+>> vma->anon_vma == NULL.
+>>
+>> I'll fix it and integrate it into my next patch series, which I intend
+>> to send later today. (I am adding new code into validate_mm(), so that
+>> it's easier to have it in the same patch series to avoid merge
+>> conflicts)
+>
+> Hmmm, now I'm getting confused about anon_vma locking again :/
+>
+> As Hugh privately remarked to me, the same_vma linked list is supposed
+> to be protected by exclusive mmap_sem ownership, not by anon_vma lock.
+> So now looking at it a bit more, I'm not sure what race we're
+> preventing by taking the anon_vma lock in validate_mm() ???
 
-> On Wed, Nov 7, 2012 at 7:23 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > It's unclear from the description why we're also clearing __GFP_FS in
-> > this situation.
-> >
-> > If we can avoid doing this then there will be a very small gain: there
-> > are some situations in which a filesystem can clean pagecache without
-> > performing I/O.
-> 
-> Firstly,  the patch follows the policy in the system suspend/resume situation,
-> in which the __GFP_FS is cleared, and basically the problem is very similar
-> with that in system PM path.
+Looking at it a bit more:
 
-I suspect that code is wrong.  Or at least, suboptimal.
+the same_vma linked list is *generally* protected by *exclusive*
+mmap_sem ownership. However, in expand_stack() we only have *shared*
+mmap_sem ownership, so that two concurrent expand_stack() calls
+(possibly on different vmas that have a different anon_vma lock) could
+race with each other. For this reason we do need the validate_mm()
+taking each vma's anon_vma lock (if any) before calling
+anon_vma_interval_tree_verify().
 
-> Secondly, inside shrink_page_list(), pageout() may be triggered on dirty anon
-> page if __GFP_FS is set.
+While this justifies Bob's patch, this does not explain Sasha's
+reports - in both of them the backtrace did not involve
+expand_stack(), and there should be exclusive mmap_sem ownership, so
+I'm still unclear as to what could be causing Sasha's issue.
 
-pageout() should be called if GFP_FS is set or if GFP_IO is set and the
-IO is against swap.
+Sasha, how reproduceable is this ?
 
-And that's what we want to happen: we want to enter the fs to try to
-turn dirty pagecache into clean pagecache without doing IO.  If we in
-fact enter the device drivers when GFP_IO was not set then that's a bug
-which we should fix.
+Also, would the following change print something when the issue triggers ?
 
-> IMO, if performing I/O can be completely avoided when __GFP_FS is set, the
-> flag can be kept, otherwise it is better to clear it in the situation.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 619b280505fe..4c09e7ebcfa7 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -404,8 +404,13 @@ void validate_mm(struct mm_struct *mm)
+        while (vma) {
+                struct anon_vma_chain *avc;
+                vma_lock_anon_vma(vma);
+-               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
++               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
++                       if (avc->vma != vma) {
++                               printk("avc->vma %p vma %p\n", avc->vma, vma);
++                               bug = 1;
++                       }
+                        anon_vma_interval_tree_verify(avc);
++               }
+                vma_unlock_anon_vma(vma);
+                highest_address = vma->vm_end;
+                vma = vma->vm_next;
 
-yup.
-
-> >
-> > Also, you can probably put the unlikely() inside memalloc_noio() and
-> > avoid repeating it at all the callsites.
-> >
-> > And it might be neater to do:
-> >
-> > /*
-> >  * Nice comment goes here
-> >  */
-> > static inline gfp_t memalloc_noio_flags(gfp_t flags)
-> > {
-> >         if (unlikely(current->flags & PF_MEMALLOC_NOIO))
-> >                 flags &= ~GFP_IOFS;
-> >         return flags;
-> > }
-> 
-> But without the check in callsites, some local variables will be write
-> two times,
-> so it is better to not do it.
-
-I don't see why - we just modify the incoming gfp_t at the start of the
-function, then use it.
-
-It gets a bit tricky with those struct initialisations.  Things like
-
-	struct foo bar {
-		.a = a1,
-		.b = b1,
-	};
-
-should not be turned into
-
-	struct foo bar {
-		.a = a1,
-	};
-	
-	bar.b = b1;
-
-and we don't want to do
-
-	struct foo bar { };
-
-	bar.a = a1;
-	bar.b = b1;
-
-either, because these are indeed a double-write.  But we can do
-
-	struct foo bar {
-		.flags = (flags = memalloc_noio_flags(flags)),
-		.b = b1,
-	};
-
-which is a bit arcane but not toooo bad.  Have a think about it...
-
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
