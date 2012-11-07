@@ -1,121 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 356E46B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 04:57:37 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id u3so771509wey.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 01:57:35 -0800 (PST)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 526F46B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:38:06 -0500 (EST)
+Received: by mail-lb0-f169.google.com with SMTP id k6so1407024lbo.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 02:38:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CANN689F8ScQdtNFgtREQcQLJEKYDcUGngNFFF6to5eakCz9FnQ@mail.gmail.com>
-References: <508086DA.3010600@oracle.com>
-	<5089A05E.7040000@gmail.com>
-	<CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com>
-	<CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com>
-	<CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com>
-	<CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com>
-	<CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com>
-	<CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com>
-	<CANN689F6=mkJmgLFbALRPeYKG4RwTef+_r2TsHOLuobAxXbtPg@mail.gmail.com>
-	<CANN689F8ScQdtNFgtREQcQLJEKYDcUGngNFFF6to5eakCz9FnQ@mail.gmail.com>
-Date: Wed, 7 Nov 2012 17:57:35 +0800
-Message-ID: <CAA_GA1ePuotRdHztKu-ORJgZ30pUR5hX+WjcxdUeE5ys+GO1ig@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CAEwNFnAA+PNh0OT7vdv5k5u3TXeBUDJZX75TQg_Si4yFnE6e-g@mail.gmail.com>
+References: <1351840367-4152-1-git-send-email-minchan@kernel.org>
+	<20121106153213.03e9cc9f.akpm@linux-foundation.org>
+	<CAEwNFnAA+PNh0OT7vdv5k5u3TXeBUDJZX75TQg_Si4yFnE6e-g@mail.gmail.com>
+Date: Wed, 7 Nov 2012 19:38:04 +0900
+Message-ID: <CAEwNFnD9tVywtb6s3YGMs7vcndCVZNZ0wU=RnOeVnG9UEXnmWQ@mail.gmail.com>
+Subject: Re: [PATCH v4 0/3] zram/zsmalloc promotion
+From: Minchan Kim <minchan@kernel.org>
+Content-Type: multipart/alternative; boundary=f46d042f94bc3ee74704cde550f3
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, hughd@google.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com
 
-Hi Michel,
+--f46d042f94bc3ee74704cde550f3
+Content-Type: text/plain; charset=UTF-8
 
-On Wed, Nov 7, 2012 at 11:54 AM, Michel Lespinasse <walken@google.com> wrote:
-> On Tue, Nov 6, 2012 at 12:24 AM, Michel Lespinasse <walken@google.com> wrote:
->> On Mon, Nov 5, 2012 at 5:41 AM, Michel Lespinasse <walken@google.com> wrote:
->>> On Sun, Nov 4, 2012 at 8:44 PM, Michel Lespinasse <walken@google.com> wrote:
->>>> On Sun, Nov 4, 2012 at 8:14 PM, Bob Liu <lliubbo@gmail.com> wrote:
->>>>> Hmm, I attached a simple fix patch.
->>>>
->>>> Reviewed-by: Michel Lespinasse <walken@google.com>
->>>> (also ran some tests with it, but I could never reproduce the original
->>>> issue anyway).
->>>
->>> Wait a minute, this is actually wrong. You need to call
->>> vma_lock_anon_vma() / vma_unlock_anon_vma() to avoid the issue with
->>> vma->anon_vma == NULL.
->>>
->>> I'll fix it and integrate it into my next patch series, which I intend
->>> to send later today. (I am adding new code into validate_mm(), so that
->>> it's easier to have it in the same patch series to avoid merge
->>> conflicts)
->>
->> Hmmm, now I'm getting confused about anon_vma locking again :/
->>
->> As Hugh privately remarked to me, the same_vma linked list is supposed
->> to be protected by exclusive mmap_sem ownership, not by anon_vma lock.
->> So now looking at it a bit more, I'm not sure what race we're
->> preventing by taking the anon_vma lock in validate_mm() ???
+Hi Andrew,
+
+On Wed, Nov 7, 2012 at 8:32 AM, Andrew Morton <akpm@linux-foundation.org>
+wrote:
+> On Fri, 2 Nov 2012 16:12:44 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 >
-> Looking at it a bit more:
+>> This patchset promotes zram/zsmalloc from staging.
 >
-> the same_vma linked list is *generally* protected by *exclusive*
-> mmap_sem ownership. However, in expand_stack() we only have *shared*
-> mmap_sem ownership, so that two concurrent expand_stack() calls
-> (possibly on different vmas that have a different anon_vma lock) could
-> race with each other. For this reason we do need the validate_mm()
-> taking each vma's anon_vma lock (if any) before calling
-> anon_vma_interval_tree_verify().
+> The changelogs are distressingly short of *reasons* for doing this!
+>
+>> Both are very clean and zram have been used by many embedded product
+>> for a long time.
+>
+> Well that's interesting.
+>
+> Which embedded products? How are they using zram and what benefit are
+> they observing from it, in what scenarios?
 >
 
-Sorry for the late response.
-Actually my origin concern was:
-avc was removed in some race place which caused the NULL pointer deref
-in validate_mm().
+At least, major TV companys have used zram as swap since two years ago and
+recently our production team released android smart phone with zram which
+is used as swap, too.
+And there is trial to use zram as swap in ChromeOS project, too. (Although
+they report some problem recently, it was not a problem of zram).
+When you google zram, you can find various usecase in xda-developers.
 
-But after looking it more, i didn't find out the race place.
-I think avc only freed at free_pgtable() --> unlink_anon_vmas().
+With my experience, the benefit in real practice was to remove jitter of
+video application. It would be effect of efficient memory usage by
+compression but more issue is whether swap is there or not in the system.
+As you know, recent mobile platform have used JAVA so there are lots of
+anonymous pages. But embedded system normally doesn't use eMMC or SDCard as
+swap because there is wear-leveling issue and latency so we can't reclaim
+anymous pages. It sometime ends up making system very slow when it requires
+to get contiguous memory and even many file-backed pages are evicted. It's
+never what embedded people want it. Zram is one of best solution for that.
 
-> While this justifies Bob's patch, this does not explain Sasha's
-> reports - in both of them the backtrace did not involve
-> expand_stack(), and there should be exclusive mmap_sem ownership, so
-> I'm still unclear as to what could be causing Sasha's issue.
->
-> Sasha, how reproduceable is this ?
->
-> Also, would the following change print something when the issue triggers ?
->
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 619b280505fe..4c09e7ebcfa7 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -404,8 +404,13 @@ void validate_mm(struct mm_struct *mm)
->         while (vma) {
->                 struct anon_vma_chain *avc;
->                 vma_lock_anon_vma(vma);
-
-And for our patch, i think vma_lock_anon_vma()/anon_vma_lock() is used
-to protect
-the same_anon_vma list.
-It seems not suitable here.
-
-> -               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
-> +               list_for_each_entry(avc, &vma->anon_vma_chain, same_vma) {
-> +                       if (avc->vma != vma) {
-> +                               printk("avc->vma %p vma %p\n", avc->vma, vma);
-> +                               bug = 1;
-> +                       }
->                         anon_vma_interval_tree_verify(avc);
-> +               }
->                 vma_unlock_anon_vma(vma);
->                 highest_address = vma->vm_end;
->                 vma = vma->vm_next;
->
-> --
-> Michel "Walken" Lespinasse
-> A program is never fully debugged until the last user dies.
+It's very hard to type with mobile phone. :(
 
 -- 
-Thanks,
---Bob
+Kind regards,
+Minchan Kim
+
+--f46d042f94bc3ee74704cde550f3
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<p>Hi Andrew,</p>
+<p>On Wed, Nov 7, 2012 at 8:32 AM, Andrew Morton &lt;<a href=3D"mailto:akpm=
+@linux-foundation.org">akpm@linux-foundation.org</a>&gt; wrote:<br>
+&gt; On Fri, 2 Nov 2012 16:12:44 +0900<br>
+&gt; Minchan Kim &lt;<a href=3D"mailto:minchan@kernel.org">minchan@kernel.o=
+rg</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; This patchset promotes zram/zsmalloc from staging.<br>
+&gt;<br>
+&gt; The changelogs are distressingly short of *reasons* for doing this!<br=
+>
+&gt;<br>
+&gt;&gt; Both are very clean and zram have been used by many embedded produ=
+ct<br>
+&gt;&gt; for a long time.<br>
+&gt;<br>
+&gt; Well that&#39;s interesting.<br>
+&gt;<br>
+&gt; Which embedded products? How are they using zram and what benefit are<=
+br>
+&gt; they observing from it, in what scenarios?<br>
+&gt;</p>
+<p>At least, major TV companys have used zram as swap since two years ago a=
+nd recently our production team released android smart phone with zram whic=
+h is used as swap, too.<br>
+And there is trial to use zram as swap in ChromeOS project, too. (Although =
+they report some problem recently, it was not a problem of zram).<br>
+When you google zram, you can find various usecase in xda-developers. </p>
+<p>With my experience, the benefit in real practice was to remove jitter of=
+ video application. It would be effect of efficient memory usage by compres=
+sion but more issue is whether swap is there or not in the system. As you k=
+now, recent mobile platform have used JAVA so there are lots of anonymous p=
+ages. But embedded system normally doesn&#39;t use eMMC or SDCard as swap b=
+ecause there is wear-leveling issue and latency so we can&#39;t reclaim any=
+mous pages. It sometime ends up making system very slow when it requires to=
+ get contiguous memory and even many file-backed pages are evicted. It&#39;=
+s never what embedded people want it. Zram is one of best solution for that=
+. </p>
+
+<p>It&#39;s very hard to type with mobile phone. :(<br></p>
+<p>-- <br>
+Kind regards,<br>
+Minchan Kim</p>
+
+--f46d042f94bc3ee74704cde550f3--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
