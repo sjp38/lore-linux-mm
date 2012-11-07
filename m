@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 9B6386B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 02:55:36 -0500 (EST)
-Message-ID: <509A137C.3020903@mellanox.com>
-Date: Wed, 7 Nov 2012 09:53:32 +0200
-From: Haggai Eran <haggaie@mellanox.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id ED4A56B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 03:17:09 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1123873pbb.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 00:17:09 -0800 (PST)
+Date: Wed, 7 Nov 2012 00:17:06 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, mempolicy: remove duplicate code
+Message-ID: <alpine.DEB.2.00.1211070016080.21854@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm: fix build warning for uninitialized value
-References: <alpine.DEB.2.00.1210312234180.31758@chino.kir.corp.google.com> <alpine.DEB.2.00.1211051334490.5296@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211051334490.5296@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/11/2012 23:36, David Rientjes wrote:
-> do_wp_page() sets mmun_called if mmun_start and mmun_end were initialized 
-> and, if so, may call mmu_notifier_invalidate_range_end() with these 
-> values.  This doesn't prevent gcc from emitting a build warning though:
-> 
-> mm/memory.c: In function a??do_wp_pagea??:
-> mm/memory.c:2530: warning: a??mmun_starta?? may be used uninitialized in this function
-> mm/memory.c:2531: warning: a??mmun_enda?? may be used uninitialized in this function
+Remove some duplicate code and simplify alloc_pages_vma().  No functional
+change.
 
-I haven't seen these warning. Perhaps I used a different compiler
-version, or the right flags.
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/mempolicy.c |   21 ++++-----------------
+ 1 file changed, 4 insertions(+), 17 deletions(-)
 
-> 
-> It's much easier to initialize the variables to impossible values and do a 
-> simple comparison to determine if they were initialized to remove the bool 
-> entirely.
-
-This solution looks great to me.
-
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/memory.c |   10 ++++------
->  1 file changed, 4 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2527,9 +2527,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  	int ret = 0;
->  	int page_mkwrite = 0;
->  	struct page *dirty_page = NULL;
-> -	unsigned long mmun_start;	/* For mmu_notifiers */
-> -	unsigned long mmun_end;		/* For mmu_notifiers */
-> -	bool mmun_called = false;	/* For mmu_notifiers */
-> +	unsigned long mmun_start = 0;	/* For mmu_notifiers */
-> +	unsigned long mmun_end = 0;	/* For mmu_notifiers */
->  
->  	old_page = vm_normal_page(vma, address, orig_pte);
->  	if (!old_page) {
-> @@ -2708,8 +2707,7 @@ gotten:
->  		goto oom_free_new;
->  
->  	mmun_start  = address & PAGE_MASK;
-> -	mmun_end    = (address & PAGE_MASK) + PAGE_SIZE;
-> -	mmun_called = true;
-> +	mmun_end    = mmun_start + PAGE_SIZE;
->  	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
->  
->  	/*
-> @@ -2778,7 +2776,7 @@ gotten:
->  		page_cache_release(new_page);
->  unlock:
->  	pte_unmap_unlock(page_table, ptl);
-> -	if (mmun_called)
-> +	if (mmun_end > mmun_start)
->  		mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
->  	if (old_page) {
->  		/*
-> 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1907,7 +1907,6 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ 		unsigned long addr, int node)
+ {
+ 	struct mempolicy *pol;
+-	struct zonelist *zl;
+ 	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
+ 
+@@ -1926,23 +1925,11 @@ retry_cpuset:
+ 
+ 		return page;
+ 	}
+-	zl = policy_zonelist(gfp, pol, node);
+-	if (unlikely(mpol_needs_cond_ref(pol))) {
+-		/*
+-		 * slow path: ref counted shared policy
+-		 */
+-		struct page *page =  __alloc_pages_nodemask(gfp, order,
+-						zl, policy_nodemask(gfp, pol));
+-		__mpol_put(pol);
+-		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+-			goto retry_cpuset;
+-		return page;
+-	}
+-	/*
+-	 * fast path:  default or task policy
+-	 */
+-	page = __alloc_pages_nodemask(gfp, order, zl,
++	page = __alloc_pages_nodemask(gfp, order,
++				      policy_zonelist(gfp, pol, node),
+ 				      policy_nodemask(gfp, pol));
++	if (unlikely(mpol_needs_cond_ref(pol)))
++		__mpol_put(pol);
+ 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+ 		goto retry_cpuset;
+ 	return page;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
