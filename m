@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id C7E616B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 17:03:21 -0500 (EST)
-Date: Wed, 7 Nov 2012 20:02:56 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v11 5/7] virtio_balloon: introduce migration primitives
- to balloon pages
-Message-ID: <20121107220255.GC10444@optiplex.redhat.com>
-References: <cover.1352256081.git.aquini@redhat.com>
- <265aaff9a79f503672f0cdcdff204114b5b5ba5b.1352256088.git.aquini@redhat.com>
- <20121107115810.1ae286ac.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121107115810.1ae286ac.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 990B96B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 17:10:27 -0500 (EST)
+Date: Wed, 7 Nov 2012 14:10:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] memcg: oom: fix totalpages calculation for
+ memory.swappiness==0
+Message-Id: <20121107141025.2ac62206.akpm@linux-foundation.org>
+In-Reply-To: <20121015220354.GA11682@dhcp22.suse.cz>
+References: <20121011085038.GA29295@dhcp22.suse.cz>
+	<1349945859-1350-1-git-send-email-mhocko@suse.cz>
+	<20121015220354.GA11682@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 07, 2012 at 11:58:10AM -0800, Andrew Morton wrote:
-> On Wed,  7 Nov 2012 01:05:52 -0200
-> Rafael Aquini <aquini@redhat.com> wrote:
-> 
-> > Memory fragmentation introduced by ballooning might reduce significantly
-> > the number of 2MB contiguous memory blocks that can be used within a guest,
-> > thus imposing performance penalties associated with the reduced number of
-> > transparent huge pages that could be used by the guest workload.
-> > 
-> > Besides making balloon pages movable at allocation time and introducing
-> > the necessary primitives to perform balloon page migration/compaction,
-> > this patch also introduces the following locking scheme, in order to
-> > enhance the syncronization methods for accessing elements of struct
-> > virtio_balloon, thus providing protection against concurrent access
-> > introduced by parallel memory migration threads.
-> > 
-> > ...
-> >
-> > @@ -122,18 +128,25 @@ static void set_page_pfns(u32 pfns[], struct page *page)
-> >  
-> >  static void fill_balloon(struct virtio_balloon *vb, size_t num)
-> >  {
-> > +	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
-> > +
-> > +	static DEFINE_RATELIMIT_STATE(fill_balloon_rs,
-> > +				      DEFAULT_RATELIMIT_INTERVAL,
-> > +				      DEFAULT_RATELIMIT_BURST);
-> > +
-> >  	/* We can only do one array worth at a time. */
-> >  	num = min(num, ARRAY_SIZE(vb->pfns));
-> >  
-> > +	mutex_lock(&vb->balloon_lock);
-> >  	for (vb->num_pfns = 0; vb->num_pfns < num;
-> >  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > -		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_NORETRY |
-> > -					__GFP_NOMEMALLOC | __GFP_NOWARN);
-> > +		struct page *page = balloon_page_enqueue(vb_dev_info);
-> > +
-> >  		if (!page) {
-> > -			if (printk_ratelimit())
-> > +			if (__ratelimit(&fill_balloon_rs))
-> >  				dev_printk(KERN_INFO, &vb->vdev->dev,
-> >  					   "Out of puff! Can't get %zu pages\n",
-> > -					   num);
-> > +					   VIRTIO_BALLOON_PAGES_PER_PAGE);
-> >  			/* Sleep for at least 1/5 of a second before retry. */
-> >  			msleep(200);
-> >  			break;
-> 
-> linux-next's fill_balloon() has already been converted to
-> dev_info_ratelimited().  I fixed everything up.  Please check the result.
+On Tue, 16 Oct 2012 00:04:08 +0200
+Michal Hocko <mhocko@suse.cz> wrote:
 
-Looks great, thanks for doing it
-
+> As Kosaki correctly pointed out, the glogal reclaim doesn't have this
+> issue because we _do_ swap on swappinnes==0 so the swap space has
+> to be considered. So the v2 is just acks + changelog fix.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Changes since v1
+> - drop a note about global swappiness affected as well from the
+>   changelog
+> - stable needs 3.2+ rather than 3.5+ because the fe35004f has been
+>   backported to stable
+> ---
+> >From c2ae4849f09dbfda6b61472c6dd1fd8c2fe8ac81 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Wed, 10 Oct 2012 15:46:54 +0200
+> Subject: [PATCH] memcg: oom: fix totalpages calculation for
+>  memory.swappiness==0
+> 
+> oom_badness takes totalpages argument which says how many pages are
+> available and it uses it as a base for the score calculation. The value
+> is calculated by mem_cgroup_get_limit which considers both limit and
+> total_swap_pages (resp. memsw portion of it).
+> 
+> This is usually correct but since fe35004f (mm: avoid swapping out
+> with swappiness==0) we do not swap when swappiness is 0 which means
+> that we cannot really use up all the totalpages pages. This in turn
+> confuses oom score calculation if the memcg limit is much smaller than
+> the available swap because the used memory (capped by the limit) is
+> negligible comparing to totalpages so the resulting score is too small
+> if adj!=0 (typically task with CAP_SYS_ADMIN or non zero oom_score_adj).
+> A wrong process might be selected as result.
+> 
+> The problem can be worked around by checking mem_cgroup_swappiness==0
+> and not considering swap at all in such a case.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: stable [3.2+]
+
+That's "Cc: <stable@vger.kernel.org>", please.
+
+It's unobvious from the changelog that a -stable backport is really
+needed.  The bug looks pretty obscure and has been there for a long
+time.  Realistically, is anyone likely to hurt from this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
