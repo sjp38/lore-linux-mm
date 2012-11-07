@@ -1,88 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 3962D6B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 17:46:14 -0500 (EST)
-Date: Wed, 7 Nov 2012 14:46:12 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
-Message-Id: <20121107144612.e822986f.akpm@linux-foundation.org>
-In-Reply-To: <509A2849.9090509@parallels.com>
-References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
-	<1351771665-11076-26-git-send-email-glommer@parallels.com>
-	<20121105164813.2eba5ecb.akpm@linux-foundation.org>
-	<509A0A04.2030503@parallels.com>
-	<20121106231627.3610c908.akpm@linux-foundation.org>
-	<509A2849.9090509@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 87D086B004D
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 17:46:43 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so1002305eaa.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 14:46:42 -0800 (PST)
+Date: Wed, 7 Nov 2012 23:46:40 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] memcg: oom: fix totalpages calculation for
+ memory.swappiness==0
+Message-ID: <20121107224640.GE26382@dhcp22.suse.cz>
+References: <20121011085038.GA29295@dhcp22.suse.cz>
+ <1349945859-1350-1-git-send-email-mhocko@suse.cz>
+ <20121015220354.GA11682@dhcp22.suse.cz>
+ <20121107141025.2ac62206.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121107141025.2ac62206.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 7 Nov 2012 10:22:17 +0100
-Glauber Costa <glommer@parallels.com> wrote:
-
-> >>> container synchronously.  If those objects are normally left floating
-> >>> around in an allocated but reclaimable state then we can address that
-> >>> by synchronously freeing them if their container has been destroyed.
-> >>>
-> >>> Or something like that.  If it's something else then fine, but not this.
-> >>>
-> >>> What do we need to do to fix this?
-> >>>
-> >> The original patch had a unlikely() test in the free path, conditional
-> >> on whether or not the cache is dead, that would then call this is the
-> >> cache would now be empty.
-> >>
-> >> I got several requests to remove it and change it to something like
-> >> this, because that is a fast path (I myself think an unlikely branch is
-> >> not that bad)
-> >>
-> >> If you think such a test is acceptable, I can bring it back and argue in
-> >> the basis of "akpm made me do it!". But meanwhile I will give this extra
-> >> though to see if there is any alternative way I can do it...
-> > 
-> > OK, thanks, please do take a look at it.
-> > 
-> > I'd be interested in seeing the old version of the patch which had this
-> > test-n-branch.  Perhaps there's some trick we can pull to lessen its cost.
-> > 
-> Attached.
+On Wed 07-11-12 14:10:25, Andrew Morton wrote:
+> On Tue, 16 Oct 2012 00:04:08 +0200
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> This is the last version that used it (well, I believe it is). There is
-> other unrelated things in this patch, that I got rid of. Look for
-> kmem_cache_verify_dead().
+> > As Kosaki correctly pointed out, the glogal reclaim doesn't have this
+> > issue because we _do_ swap on swappinnes==0 so the swap space has
+> > to be considered. So the v2 is just acks + changelog fix.
+> > 
+> > Changes since v1
+> > - drop a note about global swappiness affected as well from the
+> >   changelog
+> > - stable needs 3.2+ rather than 3.5+ because the fe35004f has been
+> >   backported to stable
+> > ---
+> > >From c2ae4849f09dbfda6b61472c6dd1fd8c2fe8ac81 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Wed, 10 Oct 2012 15:46:54 +0200
+> > Subject: [PATCH] memcg: oom: fix totalpages calculation for
+> >  memory.swappiness==0
+> > 
+> > oom_badness takes totalpages argument which says how many pages are
+> > available and it uses it as a base for the score calculation. The value
+> > is calculated by mem_cgroup_get_limit which considers both limit and
+> > total_swap_pages (resp. memsw portion of it).
+> > 
+> > This is usually correct but since fe35004f (mm: avoid swapping out
+> > with swappiness==0) we do not swap when swappiness is 0 which means
+> > that we cannot really use up all the totalpages pages. This in turn
+> > confuses oom score calculation if the memcg limit is much smaller than
+> > the available swap because the used memory (capped by the limit) is
+> > negligible comparing to totalpages so the resulting score is too small
+> > if adj!=0 (typically task with CAP_SYS_ADMIN or non zero oom_score_adj).
+> > A wrong process might be selected as result.
+> > 
+> > The problem can be worked around by checking mem_cgroup_swappiness==0
+> > and not considering swap at all in such a case.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > Acked-by: David Rientjes <rientjes@google.com>
+> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> > Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > Cc: stable [3.2+]
 > 
-> In a summary, all calls to the free function would as a last step do:
-> kmem_cache_verify_dead() that would either be an empty placeholder, or:
-> 
-> +static inline void kmem_cache_verify_dead(struct kmem_cache *s)
-> +{
-> +       if (unlikely(s->memcg_params.dead))
-> +               schedule_work(&s->memcg_params.cache_shrinker);
-> +}
+> That's "Cc: <stable@vger.kernel.org>", please.
 
-hm, a few things.
+Will do next time.
 
-What's up with kmem_cache_shrink?  It's global and exported to modules
-but its only external caller is some weird and hopelessly poorly
-documented site down in drivers/acpi/osl.c.  slab and slob implement
-kmem_cache_shrink() *only* for acpi!  wtf?  Let's work out what acpi is
-trying to actually do there, then do it properly, then killkillkill!
+> It's unobvious from the changelog that a -stable backport is really
+> needed.  The bug looks pretty obscure and has been there for a long
+> time.
 
-Secondly, as slab and slub (at least) have the ability to shed cached
-memory, why aren't they hooked into the core cache-shinking machinery. 
-After all, it's called "shrink_slab"!
+Yes but it is not _that_ long since fe35004f made it into stable trees
+(e.g. 3.2.29).
+The reason why we probably do not see many reports is because people
+didn't get used to swappiness==0 really works these days - especially
+with memcg where it means _really_ no swapping.
 
+> Realistically, is anyone likely to hurt from this?
 
-If we can fix all that up then I wonder whether this particular patch
-needs to exist at all.  If the kmem_cache is no longer used then we
-can simply leave it floating around in memory and the regular cache
-shrinking code out of shrink_slab() will clean up any remaining pages. 
-The kmem_cache itself can be reclaimed via another shrinker, if
-necessary?
+The primary motivation for the fix was a real report by a customer.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
