@@ -1,76 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id E495D6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:58:17 -0500 (EST)
-Message-ID: <5099DC30.1060407@oracle.com>
-Date: Tue, 06 Nov 2012 22:57:36 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id AE7516B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 23:35:16 -0500 (EST)
+Received: from mail-ee0-f41.google.com ([74.125.83.41])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1TVxMB-0005SU-Ml
+	for linux-mm@kvack.org; Wed, 07 Nov 2012 04:35:15 +0000
+Received: by mail-ee0-f41.google.com with SMTP id c4so814598eek.14
+        for <linux-mm@kvack.org>; Tue, 06 Nov 2012 20:35:15 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: mm: NULL ptr deref in anon_vma_interval_tree_verify
-References: <508086DA.3010600@oracle.com> <5089A05E.7040000@gmail.com> <CA+1xoqf2v_jEapwU68BzXyi4abSRmi_=AiaJVHM3dBbHtsBnqQ@mail.gmail.com> <CAA_GA1d-rw_vkDF98fcf9E0=h86dsp+83-0_RE5b482juxaGVw@mail.gmail.com> <CANN689HXoCMTP4ZRMUNOGAdOBmizKyo6jMqbqAFx8wwPXp+AzQ@mail.gmail.com> <CAA_GA1eYHi4zWZwKp5KGi4gP7V8bfnSF=aLKMiN-Wi5JyLaCdw@mail.gmail.com> <CANN689HfmX8uBa17t38PYv2Ap5d3LPjShq81tbcgET5ZqzjzeQ@mail.gmail.com> <CANN689HM=h2k33sJcoDYys9LHVadv+NaGz00kG7O-OEH=qadvA@mail.gmail.com> <CANN689F6=mkJmgLFbALRPeYKG4RwTef+_r2TsHOLuobAxXbtPg@mail.gmail.com> <CANN689F8ScQdtNFgtREQcQLJEKYDcUGngNFFF6to5eakCz9FnQ@mail.gmail.com>
-In-Reply-To: <CANN689F8ScQdtNFgtREQcQLJEKYDcUGngNFFF6to5eakCz9FnQ@mail.gmail.com>
+In-Reply-To: <20121106194859.8eec3043.akpm@linux-foundation.org>
+References: <1351931714-11689-1-git-send-email-ming.lei@canonical.com>
+	<1351931714-11689-2-git-send-email-ming.lei@canonical.com>
+	<20121106152354.90150a3b.akpm@linux-foundation.org>
+	<CACVXFVNs2JtEYQ3Y2rA8L89sAaMJ7TO-PxG3h4w+ihcZrBLtpg@mail.gmail.com>
+	<20121106194859.8eec3043.akpm@linux-foundation.org>
+Date: Wed, 7 Nov 2012 12:35:15 +0800
+Message-ID: <CACVXFVMe5QyA_yTO=Bq0s-u6V3mTDZ5iK12SGYUNpT4VY_tLPw@mail.gmail.com>
+Subject: Re: [PATCH v4 1/6] mm: teach mm by current context info to not do I/O
+ during memory allocation
+From: Ming Lei <ming.lei@canonical.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <levinsasha928@gmail.com>, hughd@google.com, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On 11/06/2012 10:54 PM, Michel Lespinasse wrote:
-> On Tue, Nov 6, 2012 at 12:24 AM, Michel Lespinasse <walken@google.com> wrote:
->> On Mon, Nov 5, 2012 at 5:41 AM, Michel Lespinasse <walken@google.com> wrote:
->>> On Sun, Nov 4, 2012 at 8:44 PM, Michel Lespinasse <walken@google.com> wrote:
->>>> On Sun, Nov 4, 2012 at 8:14 PM, Bob Liu <lliubbo@gmail.com> wrote:
->>>>> Hmm, I attached a simple fix patch.
->>>>
->>>> Reviewed-by: Michel Lespinasse <walken@google.com>
->>>> (also ran some tests with it, but I could never reproduce the original
->>>> issue anyway).
->>>
->>> Wait a minute, this is actually wrong. You need to call
->>> vma_lock_anon_vma() / vma_unlock_anon_vma() to avoid the issue with
->>> vma->anon_vma == NULL.
->>>
->>> I'll fix it and integrate it into my next patch series, which I intend
->>> to send later today. (I am adding new code into validate_mm(), so that
->>> it's easier to have it in the same patch series to avoid merge
->>> conflicts)
+On Wed, Nov 7, 2012 at 11:48 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
 >>
->> Hmmm, now I'm getting confused about anon_vma locking again :/
+>> Firstly,  the patch follows the policy in the system suspend/resume situation,
+>> in which the __GFP_FS is cleared, and basically the problem is very similar
+>> with that in system PM path.
+>
+> I suspect that code is wrong.  Or at least, suboptimal.
+>
+>> Secondly, inside shrink_page_list(), pageout() may be triggered on dirty anon
+>> page if __GFP_FS is set.
+>
+> pageout() should be called if GFP_FS is set or if GFP_IO is set and the
+> IO is against swap.
+>
+> And that's what we want to happen: we want to enter the fs to try to
+> turn dirty pagecache into clean pagecache without doing IO.  If we in
+> fact enter the device drivers when GFP_IO was not set then that's a bug
+> which we should fix.
+
+OK, I got it, and I'll not clear GFP_FS in -v5.
+
+>
+>> IMO, if performing I/O can be completely avoided when __GFP_FS is set, the
+>> flag can be kept, otherwise it is better to clear it in the situation.
+>
+> yup.
+>
+>> >
+>> > Also, you can probably put the unlikely() inside memalloc_noio() and
+>> > avoid repeating it at all the callsites.
+>> >
+>> > And it might be neater to do:
+>> >
+>> > /*
+>> >  * Nice comment goes here
+>> >  */
+>> > static inline gfp_t memalloc_noio_flags(gfp_t flags)
+>> > {
+>> >         if (unlikely(current->flags & PF_MEMALLOC_NOIO))
+>> >                 flags &= ~GFP_IOFS;
+>> >         return flags;
+>> > }
 >>
->> As Hugh privately remarked to me, the same_vma linked list is supposed
->> to be protected by exclusive mmap_sem ownership, not by anon_vma lock.
->> So now looking at it a bit more, I'm not sure what race we're
->> preventing by taking the anon_vma lock in validate_mm() ???
-> 
-> Looking at it a bit more:
-> 
-> the same_vma linked list is *generally* protected by *exclusive*
-> mmap_sem ownership. However, in expand_stack() we only have *shared*
-> mmap_sem ownership, so that two concurrent expand_stack() calls
-> (possibly on different vmas that have a different anon_vma lock) could
-> race with each other. For this reason we do need the validate_mm()
-> taking each vma's anon_vma lock (if any) before calling
-> anon_vma_interval_tree_verify().
-> 
-> While this justifies Bob's patch, this does not explain Sasha's
-> reports - in both of them the backtrace did not involve
-> expand_stack(), and there should be exclusive mmap_sem ownership, so
-> I'm still unclear as to what could be causing Sasha's issue.
-> 
-> Sasha, how reproduceable is this ?
+>> But without the check in callsites, some local variables will be write
+>> two times,
+>> so it is better to not do it.
+>
+> I don't see why - we just modify the incoming gfp_t at the start of the
+> function, then use it.
+>
+> It gets a bit tricky with those struct initialisations.  Things like
+>
+>         struct foo bar {
+>                 .a = a1,
+>                 .b = b1,
+>         };
+>
+> should not be turned into
+>
+>         struct foo bar {
+>                 .a = a1,
+>         };
+>
+>         bar.b = b1;
+>
+> and we don't want to do
+>
+>         struct foo bar { };
+>
+>         bar.a = a1;
+>         bar.b = b1;
+>
+> either, because these are indeed a double-write.  But we can do
+>
+>         struct foo bar {
+>                 .flags = (flags = memalloc_noio_flags(flags)),
+>                 .b = b1,
+>         };
+>
+> which is a bit arcane but not toooo bad.  Have a think about it...
 
-This is pretty hard to reproduce, I've seen this only twice so far.
-
-> 
-> Also, would the following change print something when the issue triggers ?
-
-I'll run it with your patch, but as I've mentioned above - it's a PITA
-to reproduce.
-
+Got it, looks memalloc_noio_flags() neater, and I will take it in v5.
 
 Thanks,
-Sasha
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
