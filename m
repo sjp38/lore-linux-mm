@@ -1,184 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 6D5606B004D
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 03:42:00 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so648014dad.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 00:42:00 -0800 (PST)
-From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 2/2] oom: rework dump_tasks to optimize memcg-oom situation
-Date: Wed,  7 Nov 2012 16:41:59 +0800
-Message-Id: <1352277719-21760-1-git-send-email-handai.szj@taobao.com>
-In-Reply-To: <1352277602-21687-1-git-send-email-handai.szj@taobao.com>
-References: <1352277602-21687-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 182F26B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 04:22:40 -0500 (EST)
+Message-ID: <509A2849.9090509@parallels.com>
+Date: Wed, 7 Nov 2012 10:22:17 +0100
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com> <1351771665-11076-26-git-send-email-glommer@parallels.com> <20121105164813.2eba5ecb.akpm@linux-foundation.org> <509A0A04.2030503@parallels.com> <20121106231627.3610c908.akpm@linux-foundation.org>
+In-Reply-To: <20121106231627.3610c908.akpm@linux-foundation.org>
+Content-Type: multipart/mixed;
+	boundary="------------090100090506080805050303"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com
-Cc: linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-From: Sha Zhengju <handai.szj@taobao.com>
+--------------090100090506080805050303
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 
-If memcg oom happening, don't scan all system tasks to dump memory state of
-eligible tasks, instead we iterates only over the process attached to the oom
-memcg and avoid the rcu lock.
+On 11/07/2012 08:16 AM, Andrew Morton wrote:
+> On Wed, 7 Nov 2012 08:13:08 +0100 Glauber Costa <glommer@parallels.com> wrote:
+> 
+>> On 11/06/2012 01:48 AM, Andrew Morton wrote:
+>>> On Thu,  1 Nov 2012 16:07:41 +0400
+>>> Glauber Costa <glommer@parallels.com> wrote:
+>>>
+>>>> This means that when we destroy a memcg cache that happened to be empty,
+>>>> those caches may take a lot of time to go away: removing the memcg
+>>>> reference won't destroy them - because there are pending references, and
+>>>> the empty pages will stay there, until a shrinker is called upon for any
+>>>> reason.
+>>>>
+>>>> In this patch, we will call kmem_cache_shrink for all dead caches that
+>>>> cannot be destroyed because of remaining pages. After shrinking, it is
+>>>> possible that it could be freed. If this is not the case, we'll schedule
+>>>> a lazy worker to keep trying.
+>>>
+>>> This patch is really quite nasty.  We poll the cache once per minute
+>>> trying to shrink then free it?  a) it gives rise to concerns that there
+>>> will be scenarios where the system could suffer unlimited memory windup
+>>> but mainly b) it's just lame.
+>>>
+>>> The kernel doesn't do this sort of thing.  The kernel tries to be
+>>> precise: in a situation like this we keep track of the number of
+>>> outstanding objects and when that falls to zero, we free their
+>>> container synchronously.  If those objects are normally left floating
+>>> around in an allocated but reclaimable state then we can address that
+>>> by synchronously freeing them if their container has been destroyed.
+>>>
+>>> Or something like that.  If it's something else then fine, but not this.
+>>>
+>>> What do we need to do to fix this?
+>>>
+>> The original patch had a unlikely() test in the free path, conditional
+>> on whether or not the cache is dead, that would then call this is the
+>> cache would now be empty.
+>>
+>> I got several requests to remove it and change it to something like
+>> this, because that is a fast path (I myself think an unlikely branch is
+>> not that bad)
+>>
+>> If you think such a test is acceptable, I can bring it back and argue in
+>> the basis of "akpm made me do it!". But meanwhile I will give this extra
+>> though to see if there is any alternative way I can do it...
+> 
+> OK, thanks, please do take a look at it.
+> 
+> I'd be interested in seeing the old version of the patch which had this
+> test-n-branch.  Perhaps there's some trick we can pull to lessen its cost.
+> 
+Attached.
 
+This is the last version that used it (well, I believe it is). There is
+other unrelated things in this patch, that I got rid of. Look for
+kmem_cache_verify_dead().
 
-Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
----
- include/linux/memcontrol.h |    7 +++++
- include/linux/oom.h        |    2 +
- mm/memcontrol.c            |   14 +++++++++++
- mm/oom_kill.c              |   55 ++++++++++++++++++++++++++-----------------
- 4 files changed, 56 insertions(+), 22 deletions(-)
+In a summary, all calls to the free function would as a last step do:
+kmem_cache_verify_dead() that would either be an empty placeholder, or:
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index c91e3c1..4322ca8 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -122,6 +122,8 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
- void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
- extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
- 					struct task_struct *p);
-+extern void dump_tasks_memcg(const struct mem_cgroup *memcg,
-+					const nodemask_t *nodemask);
- extern void mem_cgroup_replace_page_cache(struct page *oldpage,
- 					struct page *newpage);
- 
-@@ -337,6 +339,11 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
- {
- }
- 
-+static inline void
-+dump_tasks_memcg(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
++static inline void kmem_cache_verify_dead(struct kmem_cache *s)
 +{
++       if (unlikely(s->memcg_params.dead))
++               schedule_work(&s->memcg_params.cache_shrinker);
 +}
-+
- static inline void mem_cgroup_begin_update_page_stat(struct page *page,
- 					bool *locked, unsigned long *flags)
- {
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 20b5c46..9ba3344 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -57,6 +57,8 @@ extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
- 		unsigned long totalpages, const nodemask_t *nodemask,
- 		bool force_kill);
- 
-+extern inline void dump_per_task(struct task_struct *p,
-+				const nodemask_t *nodemask);
- extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
- 		int order, nodemask_t *mask, bool force_kill);
- extern int register_oom_notifier(struct notifier_block *nb);
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2df5e72..fe648f8 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1665,6 +1665,20 @@ static u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
- 	return min(limit, memsw);
- }
- 
-+void dump_tasks_memcg(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
-+{
-+	struct cgroup_iter it;
-+	struct task_struct *task;
-+	struct cgroup *cgroup = memcg->css.cgroup;
-+
-+	cgroup_iter_start(cgroup, &it);
-+	while ((task = cgroup_iter_next(cgroup, &it))) {
-+		dump_per_task(task, nodemask);
-+	}
-+
-+	cgroup_iter_end(cgroup, &it);
-+}
-+
- static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 				     int order)
- {
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 4b8a6dd..aaf6237 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -367,6 +367,32 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 	return chosen;
- }
- 
-+inline void dump_per_task(struct task_struct *p, const nodemask_t *nodemask)
-+{
-+	struct task_struct *task;
-+
-+	if (oom_unkillable_task(p, NULL, nodemask))
-+		return;
-+
-+	task = find_lock_task_mm(p);
-+	if (!task) {
-+		/*
-+		 * This is a kthread or all of p's threads have already
-+		 * detached their mm's.  There's no need to report
-+		 * them; they can't be oom killed anyway.
-+		 */
-+		return;
-+	}
-+
-+	pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5d %s\n",
-+		task->pid, from_kuid(&init_user_ns, task_uid(task)),
-+		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
-+		task->mm->nr_ptes,
-+		get_mm_counter(task->mm, MM_SWAPENTS),
-+		task->signal->oom_score_adj, task->comm);
-+	task_unlock(task);
-+}
-+
- /**
-  * dump_tasks - dump current memory state of all system tasks
-  * @memcg: current's memory controller, if constrained
-@@ -381,32 +407,17 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- static void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
- {
- 	struct task_struct *p;
--	struct task_struct *task;
- 
- 	pr_info("[ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name\n");
--	rcu_read_lock();
--	for_each_process(p) {
--		if (oom_unkillable_task(p, memcg, nodemask))
--			continue;
--
--		task = find_lock_task_mm(p);
--		if (!task) {
--			/*
--			 * This is a kthread or all of p's threads have already
--			 * detached their mm's.  There's no need to report
--			 * them; they can't be oom killed anyway.
--			 */
--			continue;
--		}
- 
--		pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5d %s\n",
--			task->pid, from_kuid(&init_user_ns, task_uid(task)),
--			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
--			task->mm->nr_ptes,
--			get_mm_counter(task->mm, MM_SWAPENTS),
--			task->signal->oom_score_adj, task->comm);
--		task_unlock(task);
-+	if (memcg) {
-+		dump_tasks_memcg(memcg, nodemask);
-+		return;
- 	}
-+
-+	rcu_read_lock();
-+	for_each_process(p)
-+		dump_per_task(p, nodemask);
- 	rcu_read_unlock();
- }
- 
--- 
-1.7.6.1
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+cache_shrinker got changed to the destroy worker. So if we are freeing
+an object from a cache that is dead, we try to schedule a worker that
+will eventually call kmem_cache_srhink(), and hopefully
+kmem_cache_destroy() - if last object.
+
+
+--------------090100090506080805050303
+Content-Type: text/x-patch;
+	name="0015-memcg-sl-au-b-shrink-dead-caches.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="0015-memcg-sl-au-b-shrink-dead-caches.patch"
+
+
+--------------090100090506080805050303--
