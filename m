@@ -1,81 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 3E6EF6B002B
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 11:40:17 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id c11so1435752qad.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 08:40:16 -0800 (PST)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id A87816B002B
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 12:20:39 -0500 (EST)
+Received: by mail-la0-f73.google.com with SMTP id b11so125097lam.2
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 09:20:37 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+References: <20121107105348.GA25549@lizard>
+	<20121107112136.GA31715@shutemov.name>
+Date: Wed, 07 Nov 2012 09:20:35 -0800
+In-Reply-To: <20121107112136.GA31715@shutemov.name> (Kirill A. Shutemov's
+	message of "Wed, 7 Nov 2012 13:21:36 +0200")
+Message-ID: <xr93liedfhy4.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAEwNFnD9tVywtb6s3YGMs7vcndCVZNZ0wU=RnOeVnG9UEXnmWQ@mail.gmail.com>
-References: <1351840367-4152-1-git-send-email-minchan@kernel.org>
-	<20121106153213.03e9cc9f.akpm@linux-foundation.org>
-	<CAEwNFnAA+PNh0OT7vdv5k5u3TXeBUDJZX75TQg_Si4yFnE6e-g@mail.gmail.com>
-	<CAEwNFnD9tVywtb6s3YGMs7vcndCVZNZ0wU=RnOeVnG9UEXnmWQ@mail.gmail.com>
-Date: Wed, 7 Nov 2012 08:40:16 -0800
-Message-ID: <CAA25o9S=XiO7b-HNbx1GHr+ETrA_p11WU+FUprMn_VhjU=jjvw@mail.gmail.com>
-Subject: Re: [PATCH v4 0/3] zram/zsmalloc promotion
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-Since Chrome OS was mentioned: the main reason why we don't use swap
-to a disk (rotating or SSD) is because it doesn't degrade gracefully
-and leads to a bad interactive experience.  Generally we prefer to
-manage RAM at a higher level, by transparently killing and restarting
-processes.  But we noticed that zram is fast enough to be competitive
-with the latter, and it lets us make more efficient use of the
-available RAM.
+On Wed, Nov 07 2012, Kirill A. Shutemov wrote:
 
-As Minchan said, the zram module in itself appears to work fine.  We
-are hitting other mm issues (one of which was recently fixed) which
-most likely are exposed by the different patterns of memory allocation
-when using zram.
+> On Wed, Nov 07, 2012 at 02:53:49AM -0800, Anton Vorontsov wrote:
+>> Hi all,
+>> 
+>> This is the third RFC. As suggested by Minchan Kim, the API is much
+>> simplified now (comparing to vmevent_fd):
+>> 
+>> - As well as Minchan, KOSAKI Motohiro didn't like the timers, so the
+>>   timers are gone now;
+>> - Pekka Enberg didn't like the complex attributes matching code, and so it
+>>   is no longer there;
+>> - Nobody liked the raw vmstat attributes, and so they were eliminated too.
+>> 
+>> But, conceptually, it is the exactly the same approach as in v2: three
+>> discrete levels of the pressure -- low, medium and oom. The levels are
+>> based on the reclaimer inefficiency index as proposed by Mel Gorman, but
+>> userland does not see the raw index values. The description why I moved
+>> away from reporting the raw 'reclaimer inefficiency index' can be found in
+>> v2: http://lkml.org/lkml/2012/10/22/177
+>> 
+>> While the new API is very simple, it is still extensible (i.e. versioned).
+>
+> Sorry, I didn't follow previous discussion on this, but could you
+> explain what's wrong with memory notifications from memcg?
+> As I can see you can get pretty similar functionality using memory
+> thresholds on the root cgroup. What's the point?
 
-On Wed, Nov 7, 2012 at 2:38 AM, Minchan Kim <minchan@kernel.org> wrote:
-> Hi Andrew,
->
-> On Wed, Nov 7, 2012 at 8:32 AM, Andrew Morton <akpm@linux-foundation.org>
-> wrote:
->> On Fri, 2 Nov 2012 16:12:44 +0900
->> Minchan Kim <minchan@kernel.org> wrote:
->>
->>> This patchset promotes zram/zsmalloc from staging.
->>
->> The changelogs are distressingly short of *reasons* for doing this!
->>
->>> Both are very clean and zram have been used by many embedded product
->>> for a long time.
->>
->> Well that's interesting.
->>
->> Which embedded products? How are they using zram and what benefit are
->> they observing from it, in what scenarios?
->>
->
-> At least, major TV companys have used zram as swap since two years ago and
-> recently our production team released android smart phone with zram which is
-> used as swap, too.
-> And there is trial to use zram as swap in ChromeOS project, too. (Although
-> they report some problem recently, it was not a problem of zram).
-> When you google zram, you can find various usecase in xda-developers.
->
-> With my experience, the benefit in real practice was to remove jitter of
-> video application. It would be effect of efficient memory usage by
-> compression but more issue is whether swap is there or not in the system. As
-> you know, recent mobile platform have used JAVA so there are lots of
-> anonymous pages. But embedded system normally doesn't use eMMC or SDCard as
-> swap because there is wear-leveling issue and latency so we can't reclaim
-> anymous pages. It sometime ends up making system very slow when it requires
-> to get contiguous memory and even many file-backed pages are evicted. It's
-> never what embedded people want it. Zram is one of best solution for that.
->
-> It's very hard to type with mobile phone. :(
->
-> --
-> Kind regards,
-> Minchan Kim
+Related question: are there plans to extend this system call to provide
+per-cgroup vm pressure notification?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
