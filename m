@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id DB5E86B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 03:41:41 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 6D5606B004D
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 03:42:00 -0500 (EST)
 Received: by mail-da0-f41.google.com with SMTP id i14so648014dad.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 00:41:41 -0800 (PST)
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 00:42:00 -0800 (PST)
 From: Sha Zhengju <handai.szj@gmail.com>
-Subject: [PATCH 1/2] memcg, oom: provide more precise dump info while memcg oom happening
-Date: Wed,  7 Nov 2012 16:41:36 +0800
-Message-Id: <1352277696-21724-1-git-send-email-handai.szj@taobao.com>
+Subject: [PATCH 2/2] oom: rework dump_tasks to optimize memcg-oom situation
+Date: Wed,  7 Nov 2012 16:41:59 +0800
+Message-Id: <1352277719-21760-1-git-send-email-handai.szj@taobao.com>
 In-Reply-To: <1352277602-21687-1-git-send-email-handai.szj@taobao.com>
 References: <1352277602-21687-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
@@ -17,9 +17,10 @@ Cc: linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
 From: Sha Zhengju <handai.szj@taobao.com>
 
-Current, when a memcg oom is happening the oom dump messages is still global
-state and provides few useful info for users. This patch prints more pointed
-memcg page statistics for memcg-oom.
+If memcg oom happening, don't scan all system tasks to dump memory state of
+eligible tasks, instead we iterates only over the process attached to the oom
+memcg and avoid the rcu lock.
+
 
 Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 Cc: Michal Hocko <mhocko@suse.cz>
@@ -27,131 +28,152 @@ Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/memcontrol.c |   71 ++++++++++++++++++++++++++++++++++++++++++++++++-------
- mm/oom_kill.c   |    6 +++-
- 2 files changed, 66 insertions(+), 11 deletions(-)
+ include/linux/memcontrol.h |    7 +++++
+ include/linux/oom.h        |    2 +
+ mm/memcontrol.c            |   14 +++++++++++
+ mm/oom_kill.c              |   55 ++++++++++++++++++++++++++-----------------
+ 4 files changed, 56 insertions(+), 22 deletions(-)
 
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index c91e3c1..4322ca8 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -122,6 +122,8 @@ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
+ void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
+ extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
+ 					struct task_struct *p);
++extern void dump_tasks_memcg(const struct mem_cgroup *memcg,
++					const nodemask_t *nodemask);
+ extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+ 					struct page *newpage);
+ 
+@@ -337,6 +339,11 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ {
+ }
+ 
++static inline void
++dump_tasks_memcg(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
++{
++}
++
+ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+ 					bool *locked, unsigned long *flags)
+ {
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 20b5c46..9ba3344 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -57,6 +57,8 @@ extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
+ 		unsigned long totalpages, const nodemask_t *nodemask,
+ 		bool force_kill);
+ 
++extern inline void dump_per_task(struct task_struct *p,
++				const nodemask_t *nodemask);
+ extern void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask,
+ 		int order, nodemask_t *mask, bool force_kill);
+ extern int register_oom_notifier(struct notifier_block *nb);
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0eab7d5..2df5e72 100644
+index 2df5e72..fe648f8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -118,6 +118,14 @@ static const char * const mem_cgroup_events_names[] = {
- 	"pgmajfault",
- };
- 
-+static const char * const mem_cgroup_lru_names[] = {
-+	"inactive_anon",
-+	"active_anon",
-+	"inactive_file",
-+	"active_file",
-+	"unevictable",
-+};
-+
- /*
-  * Per memcg event counter is incremented at every pagein/pageout. With THP,
-  * it will be incremated by the number of pages. This counter is used for
-@@ -1501,8 +1509,59 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
- 	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+@@ -1665,6 +1665,20 @@ static u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+ 	return min(limit, memsw);
  }
  
-+#define K(x) ((x) << (PAGE_SHIFT-10))
-+static void mem_cgroup_print_oom_stat(struct mem_cgroup *memcg)
++void dump_tasks_memcg(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
 +{
-+	struct mem_cgroup *mi;
-+	unsigned int i;
++	struct cgroup_iter it;
++	struct task_struct *task;
++	struct cgroup *cgroup = memcg->css.cgroup;
 +
-+	if (!memcg->use_hierarchy && memcg != root_mem_cgroup) {
-+		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-+			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+				continue;
-+			printk(KERN_CONT "%s:%ldKB ", mem_cgroup_stat_names[i],
-+				K(mem_cgroup_read_stat(memcg, i)));
-+		}
-+
-+		for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
-+			printk(KERN_CONT "%s:%lu ", mem_cgroup_events_names[i],
-+				mem_cgroup_read_events(memcg, i));
-+
-+		for (i = 0; i < NR_LRU_LISTS; i++)
-+			printk(KERN_CONT "%s:%luKB ", mem_cgroup_lru_names[i],
-+				K(mem_cgroup_nr_lru_pages(memcg, BIT(i))));
-+	} else {
-+
-+		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-+			long long val = 0;
-+
-+			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-+				continue;
-+			for_each_mem_cgroup_tree(mi, memcg)
-+				val += mem_cgroup_read_stat(mi, i);
-+			printk(KERN_CONT "%s:%lldKB ", mem_cgroup_stat_names[i], K(val));
-+		}
-+
-+		for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
-+			unsigned long long val = 0;
-+
-+			for_each_mem_cgroup_tree(mi, memcg)
-+				val += mem_cgroup_read_events(mi, i);
-+			printk(KERN_CONT "%s:%llu ",
-+				mem_cgroup_events_names[i], val);
-+		}
-+
-+		for (i = 0; i < NR_LRU_LISTS; i++) {
-+			unsigned long long val = 0;
-+
-+			for_each_mem_cgroup_tree(mi, memcg)
-+				val += mem_cgroup_nr_lru_pages(mi, BIT(i));
-+			printk(KERN_CONT "%s:%lluKB ", mem_cgroup_lru_names[i], K(val));
-+		}
++	cgroup_iter_start(cgroup, &it);
++	while ((task = cgroup_iter_next(cgroup, &it))) {
++		dump_per_task(task, nodemask);
 +	}
-+	printk(KERN_CONT "\n");
-+}
- /**
-- * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
-  * @memcg: The memory cgroup that went over limit
-  * @p: Task that is going to be killed
-  *
-@@ -1569,6 +1628,8 @@ done:
- 		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
- 		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
 +
-+	mem_cgroup_print_oom_stat(memcg);
- }
- 
- /*
-@@ -5195,14 +5256,6 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
- }
- #endif /* CONFIG_NUMA */
- 
--static const char * const mem_cgroup_lru_names[] = {
--	"inactive_anon",
--	"active_anon",
--	"inactive_file",
--	"active_file",
--	"unevictable",
--};
--
- static inline void mem_cgroup_lru_names_not_uptodate(void)
++	cgroup_iter_end(cgroup, &it);
++}
++
+ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 				     int order)
  {
- 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7e9e911..4b8a6dd 100644
+index 4b8a6dd..aaf6237 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -421,8 +421,10 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
- 	cpuset_print_task_mems_allowed(current);
- 	task_unlock(current);
- 	dump_stack();
--	mem_cgroup_print_oom_info(memcg, p);
--	show_mem(SHOW_MEM_FILTER_NODES);
-+	if (memcg)
-+		mem_cgroup_print_oom_info(memcg, p);
-+	else
-+		show_mem(SHOW_MEM_FILTER_NODES);
- 	if (sysctl_oom_dump_tasks)
- 		dump_tasks(memcg, nodemask);
+@@ -367,6 +367,32 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ 	return chosen;
  }
+ 
++inline void dump_per_task(struct task_struct *p, const nodemask_t *nodemask)
++{
++	struct task_struct *task;
++
++	if (oom_unkillable_task(p, NULL, nodemask))
++		return;
++
++	task = find_lock_task_mm(p);
++	if (!task) {
++		/*
++		 * This is a kthread or all of p's threads have already
++		 * detached their mm's.  There's no need to report
++		 * them; they can't be oom killed anyway.
++		 */
++		return;
++	}
++
++	pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5d %s\n",
++		task->pid, from_kuid(&init_user_ns, task_uid(task)),
++		task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
++		task->mm->nr_ptes,
++		get_mm_counter(task->mm, MM_SWAPENTS),
++		task->signal->oom_score_adj, task->comm);
++	task_unlock(task);
++}
++
+ /**
+  * dump_tasks - dump current memory state of all system tasks
+  * @memcg: current's memory controller, if constrained
+@@ -381,32 +407,17 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+ static void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ {
+ 	struct task_struct *p;
+-	struct task_struct *task;
+ 
+ 	pr_info("[ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name\n");
+-	rcu_read_lock();
+-	for_each_process(p) {
+-		if (oom_unkillable_task(p, memcg, nodemask))
+-			continue;
+-
+-		task = find_lock_task_mm(p);
+-		if (!task) {
+-			/*
+-			 * This is a kthread or all of p's threads have already
+-			 * detached their mm's.  There's no need to report
+-			 * them; they can't be oom killed anyway.
+-			 */
+-			continue;
+-		}
+ 
+-		pr_info("[%5d] %5d %5d %8lu %8lu %7lu %8lu         %5d %s\n",
+-			task->pid, from_kuid(&init_user_ns, task_uid(task)),
+-			task->tgid, task->mm->total_vm, get_mm_rss(task->mm),
+-			task->mm->nr_ptes,
+-			get_mm_counter(task->mm, MM_SWAPENTS),
+-			task->signal->oom_score_adj, task->comm);
+-		task_unlock(task);
++	if (memcg) {
++		dump_tasks_memcg(memcg, nodemask);
++		return;
+ 	}
++
++	rcu_read_lock();
++	for_each_process(p)
++		dump_per_task(p, nodemask);
+ 	rcu_read_unlock();
+ }
+ 
 -- 
 1.7.6.1
 
