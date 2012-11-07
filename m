@@ -1,65 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 6C6CE6B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 07:09:32 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so729614dad.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 04:09:31 -0800 (PST)
-Date: Wed, 7 Nov 2012 04:06:26 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 652AF6B004D
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 07:09:34 -0500 (EST)
+Date: Wed, 7 Nov 2012 14:11:10 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-Message-ID: <20121107120626.GB32565@lizard>
+Message-ID: <20121107121110.GA32402@shutemov.name>
 References: <20121107105348.GA25549@lizard>
- <CAOJsxLFz+Zi=A0uyuNMj411ngjwpstakNY3fEWy6tW_h4whr7w@mail.gmail.com>
+ <20121107112136.GA31715@shutemov.name>
+ <20121107114346.GA32565@lizard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOJsxLFz+Zi=A0uyuNMj411ngjwpstakNY3fEWy6tW_h4whr7w@mail.gmail.com>
+In-Reply-To: <20121107114346.GA32565@lizard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, Glauber Costa <glommer@parallels.com>
 
-On Wed, Nov 07, 2012 at 01:30:16PM +0200, Pekka Enberg wrote: [...]
-> I love the API and implementation simplifications but I hate the new
-> ABI. It's a specialized, single-purpose syscall and bunch of procfs
-> tunables and I don't see how it's 'extensible' to anything but VM
+On Wed, Nov 07, 2012 at 03:43:46AM -0800, Anton Vorontsov wrote:
+> On Wed, Nov 07, 2012 at 01:21:36PM +0200, Kirill A. Shutemov wrote:
+> [...]
+> > Sorry, I didn't follow previous discussion on this, but could you
+> > explain what's wrong with memory notifications from memcg?
+> > As I can see you can get pretty similar functionality using memory
+> > thresholds on the root cgroup. What's the point?
+> 
+> There are a few reasons we don't use cgroup notifications:
+> 
+> 1. We're not interested in the absolute number of pages/KB of available
+>    memory, as provided by cgroup memory controller. What we're interested
+>    in is the amount of easily reclaimable memory and new memory
+>    allocations' cost.
+> 
+>    We can have plenty of "free" memory, of which say 90% will be caches,
+>    and say 10% idle. But we do want to differentiate these types of memory
+>    (although not going into details about it), i.e. we want to get
+>    notified when kernel is reclaiming. And we also want to know when the
+>    memory comes from swapping others' pages out (well, actually we don't
+>    call it swap, it's "new allocations cost becomes high" -- it might be a
+>    result of many factors (swapping, fragmentation, etc.) -- and userland
+>    might analyze the situation when this happens).
+> 
+>    Exposing all the VM details to userland is not an option
 
-It is extensible to VM pressure notifications, yeah. We're probably not
-going to add the raw vmstat values to it (and that's why we changed the
-name). But having three levels is not the best thing we can do -- we can
-do better. As I described here:
+IIUC, you want MemFree + Buffers + Cached + SwapCached, right?
+It's already exposed to userspace.
 
-	http://lkml.org/lkml/2012/10/25/115
+> -- it is not
+>    possible to build a stable ABI on this. Plus, it makes it really hard
+>    for userland to deal with all the low level details of Linux VM
+>    internals.
+> 
+>    So, no, raw numbers of "free/used KBs" are not interesting at all.
+> 
+> 1.5. But it is important to understand that vmpressure_fd() is not
+>      orthogonal to cgroups (like it was with vmevent_fd()). We want it to
+>      be "cgroup'able" too. :) But optionally.
+> 
+> 2. The last time I checked, cgroups memory controller did not (and I guess
+>    still does not) not account kernel-owned slabs. I asked several times
+>    why so, but nobody answered.
 
-That is, later we might want to tell the kernel how much reclaimable
-memory userland has. So this can be two-way communication, which to me
-sounds pretty cool. :) And who knows what we'll do after that.
+Almost there. Glauber works on it.
 
-But these are just plans. We might end up not having this, but we always
-have an option to have it one day.
-
-> If people object to vmevent_fd() system call, we should consider using
-> something more generic like perf_event_open() instead of inventing our
-> own special purpose ABI.
-
-Ugh. While I *love* perf, but, IIUC, it was designed for other things:
-handling tons of events, so it has many stuff that are completely
-unnecessary here: we don't need ring buffers, formats, 7+k LOC, etc. Folks
-will complain that we need the whole perf stuff for such a simple thing
-(just like cgroups).
-
-Also note that for pre-OOM we have to be really fast, i.e. use shortest
-possible path (and, btw, that's why in this version the read() now can be
-blocking -- and so we no longer have to do two poll()+read() syscalls,
-just single read is now possible).
-
-So I really don't see the need for perf here: it doesn't result in any
-code reuse, but instead it just complicates our task. As for ABI
-maintenance point of view, it is just the same thing as the dedicated
-syscall.
-
-Thanks,
-Anton.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
