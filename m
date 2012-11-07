@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 25CEE6B0062
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:49:46 -0500 (EST)
-Date: Wed, 7 Nov 2012 10:49:40 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 15/19] mm: numa: Add fault driven placement and migration
-Message-ID: <20121107104940.GU8218@suse.de>
-References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
- <1352193295-26815-16-git-send-email-mgorman@suse.de>
- <509967D9.7050706@redhat.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id C01776B0062
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:56:55 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so1226003pbb.14
+        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 02:56:55 -0800 (PST)
+Date: Wed, 7 Nov 2012 02:53:49 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+Message-ID: <20121107105348.GA25549@lizard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <509967D9.7050706@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-On Tue, Nov 06, 2012 at 02:41:13PM -0500, Rik van Riel wrote:
-> On 11/06/2012 04:14 AM, Mel Gorman wrote:
-> >From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >
-> >NOTE: This patch is based on "sched, numa, mm: Add fault driven
-> >	placement and migration policy" but as it throws away all the policy
-> >	to just leave a basic foundation I had to drop the signed-offs-by.
-> >
-> >This patch creates a bare-bones method for setting PTEs pte_numa in the
-> >context of the scheduler that when faulted later will be faulted onto the
-> >node the CPU is running on.  In itself this does nothing useful but any
-> >placement policy will fundamentally depend on receiving hints on placement
-> >from fault context and doing something intelligent about it.
-> >
-> >Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> Excellent basis for implementing a smarter NUMA
-> policy.
-> 
-> Not sure if such a policy should be implemented
-> as a replacement for this patch, or on top of it...
-> 
+Hi all,
 
-I'm expecting on top of it. As a POC, I'm looking at implementing the CPU
-Follows Memory algorithm (mostly from autonuma) on top of this but using the
-home-node logic from schednuma to handle how processes get scheduled. MORON
-will need to relax to take the home node into account to avoid fighting
-the home-node decisions. task_numa_fault() determines if the home node
-needs to change based on statistics it gathers from faults. So far I am
-keeping within the framework but it is still a WIP.
+This is the third RFC. As suggested by Minchan Kim, the API is much
+simplified now (comparing to vmevent_fd):
 
-> Either way, thank you for cleaning up all of the
-> NUMA base code, while I was away at conferences
-> and stuck in airports :)
-> 
+- As well as Minchan, KOSAKI Motohiro didn't like the timers, so the
+  timers are gone now;
+- Pekka Enberg didn't like the complex attributes matching code, and so it
+  is no longer there;
+- Nobody liked the raw vmstat attributes, and so they were eliminated too.
 
-My pleasure. Thanks a lot for reviewing this!
+But, conceptually, it is the exactly the same approach as in v2: three
+discrete levels of the pressure -- low, medium and oom. The levels are
+based on the reclaimer inefficiency index as proposed by Mel Gorman, but
+userland does not see the raw index values. The description why I moved
+away from reporting the raw 'reclaimer inefficiency index' can be found in
+v2: http://lkml.org/lkml/2012/10/22/177
 
--- 
-Mel Gorman
-SUSE Labs
+While the new API is very simple, it is still extensible (i.e. versioned).
+
+As there are a lot of drastic changes in the API itself, I decided to just
+add a new files along with vmevent, it is much easier to review it this
+way (I can prepare a separate patch that removes vmevent files, if we care
+to preserve the history through the vmevent tree).
+
+Thanks,
+Anton.
+
+--
+ Documentation/sysctl/vm.txt                |  47 +++++
+ arch/x86/syscalls/syscall_64.tbl           |   1 +
+ include/linux/syscalls.h                   |   2 +
+ include/linux/vmpressure.h                 | 128 ++++++++++++
+ kernel/sys_ni.c                            |   1 +
+ kernel/sysctl.c                            |  31 +++
+ mm/Kconfig                                 |  13 ++
+ mm/Makefile                                |   1 +
+ mm/vmpressure.c                            | 231 +++++++++++++++++++++
+ mm/vmscan.c                                |   5 +
+ tools/testing/vmpressure/.gitignore        |   1 +
+ tools/testing/vmpressure/Makefile          |  30 +++
+ tools/testing/vmpressure/vmpressure-test.c |  93 +++++++++
+ 13 files changed, 584 insertions(+)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
