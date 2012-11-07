@@ -1,52 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id E52906B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 20:10:21 -0500 (EST)
-Message-ID: <5099B4F2.2090602@infradead.org>
-Date: Tue, 06 Nov 2012 17:10:10 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: [PATCH] mm: fix slab.c kernel-doc warnings
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id E34116B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:06:32 -0500 (EST)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH v11 1/7] mm: adjust address_space_operations.migratepage() return code
+Date: Wed,  7 Nov 2012 01:05:48 -0200
+Message-Id: <74bc30697313206e1225f6fc658bc5952b588dcc.1352256085.git.aquini@redhat.com>
+In-Reply-To: <cover.1352256081.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
+In-Reply-To: <cover.1352256081.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, aquini@redhat.com
 
-From: Randy Dunlap <rdunlap@infradead.org>
+This patch introduces MIGRATEPAGE_SUCCESS as the default return code
+for address_space_operations.migratepage() method and documents the
+expected return code for the same method in failure cases.
 
-Fix new kernel-doc warnings in mm/slab.c:
-
-Warning(mm/slab.c:2358): No description found for parameter 'cachep'
-Warning(mm/slab.c:2358): Excess function parameter 'name' description in '__kmem_cache_create'
-Warning(mm/slab.c:2358): Excess function parameter 'size' description in '__kmem_cache_create'
-Warning(mm/slab.c:2358): Excess function parameter 'align' description in '__kmem_cache_create'
-Warning(mm/slab.c:2358): Excess function parameter 'ctor' description in '__kmem_cache_create'
-
-Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-Cc:	Christoph Lameter <cl@linux-foundation.org>
-Cc:	Pekka Enberg <penberg@kernel.org>
-Cc:	Matt Mackall <mpm@selenic.com>
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
 ---
- mm/slab.c |    5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ fs/hugetlbfs/inode.c    |  4 ++--
+ include/linux/migrate.h |  7 +++++++
+ mm/migrate.c            | 22 +++++++++++-----------
+ 3 files changed, 20 insertions(+), 13 deletions(-)
 
---- lnx-37-rc4.orig/mm/slab.c
-+++ lnx-37-rc4/mm/slab.c
-@@ -2331,11 +2331,8 @@ static int __init_refok setup_cpu_cache(
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index c5bc355..bdeda2c 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -608,11 +608,11 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
+ 	int rc;
  
- /**
-  * __kmem_cache_create - Create a cache.
-- * @name: A string which is used in /proc/slabinfo to identify this cache.
-- * @size: The size of objects to be created in this cache.
-- * @align: The required alignment for the objects.
-+ * @cachep: cache management descriptor
-  * @flags: SLAB flags
-- * @ctor: A constructor for the objects.
-  *
-  * Returns a ptr to the cache on success, NULL on failure.
-  * Cannot be called within a int, but can be interrupted.
+ 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
+-	if (rc)
++	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+ 	migrate_page_copy(newpage, page);
+ 
+-	return 0;
++	return MIGRATEPAGE_SUCCESS;
+ }
+ 
+ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ce7e667..a4e886d 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -7,6 +7,13 @@
+ 
+ typedef struct page *new_page_t(struct page *, unsigned long private, int **);
+ 
++/*
++ * Return values from addresss_space_operations.migratepage():
++ * - negative errno on page migration failure;
++ * - zero on page migration success;
++ */
++#define MIGRATEPAGE_SUCCESS		0
++
+ #ifdef CONFIG_MIGRATION
+ 
+ extern void putback_lru_pages(struct list_head *l);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..98c7a89 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -286,7 +286,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 		/* Anonymous page without mapping */
+ 		if (page_count(page) != 1)
+ 			return -EAGAIN;
+-		return 0;
++		return MIGRATEPAGE_SUCCESS;
+ 	}
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+@@ -356,7 +356,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 	}
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 
+-	return 0;
++	return MIGRATEPAGE_SUCCESS;
+ }
+ 
+ /*
+@@ -372,7 +372,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 	if (!mapping) {
+ 		if (page_count(page) != 1)
+ 			return -EAGAIN;
+-		return 0;
++		return MIGRATEPAGE_SUCCESS;
+ 	}
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+@@ -399,7 +399,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 	page_unfreeze_refs(page, expected_count - 1);
+ 
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	return 0;
++	return MIGRATEPAGE_SUCCESS;
+ }
+ 
+ /*
+@@ -486,11 +486,11 @@ int migrate_page(struct address_space *mapping,
+ 
+ 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode);
+ 
+-	if (rc)
++	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+ 
+ 	migrate_page_copy(newpage, page);
+-	return 0;
++	return MIGRATEPAGE_SUCCESS;
+ }
+ EXPORT_SYMBOL(migrate_page);
+ 
+@@ -513,7 +513,7 @@ int buffer_migrate_page(struct address_space *mapping,
+ 
+ 	rc = migrate_page_move_mapping(mapping, newpage, page, head, mode);
+ 
+-	if (rc)
++	if (rc != MIGRATEPAGE_SUCCESS)
+ 		return rc;
+ 
+ 	/*
+@@ -549,7 +549,7 @@ int buffer_migrate_page(struct address_space *mapping,
+ 
+ 	} while (bh != head);
+ 
+-	return 0;
++	return MIGRATEPAGE_SUCCESS;
+ }
+ EXPORT_SYMBOL(buffer_migrate_page);
+ #endif
+@@ -814,7 +814,7 @@ skip_unmap:
+ 		put_anon_vma(anon_vma);
+ 
+ uncharge:
+-	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
++	mem_cgroup_end_migration(mem, page, newpage, rc == MIGRATEPAGE_SUCCESS);
+ unlock:
+ 	unlock_page(page);
+ out:
+@@ -987,7 +987,7 @@ int migrate_pages(struct list_head *from,
+ 			case -EAGAIN:
+ 				retry++;
+ 				break;
+-			case 0:
++			case MIGRATEPAGE_SUCCESS:
+ 				break;
+ 			default:
+ 				/* Permanent failure */
+@@ -1024,7 +1024,7 @@ int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
+ 			/* try again */
+ 			cond_resched();
+ 			break;
+-		case 0:
++		case MIGRATEPAGE_SUCCESS:
+ 			goto out;
+ 		default:
+ 			rc = -EIO;
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
