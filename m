@@ -1,64 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id C1BC36B0068
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:46:02 -0500 (EST)
-Message-ID: <509A3C7E.9040809@redhat.com>
-Date: Wed, 07 Nov 2012 05:48:30 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 25CEE6B0062
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 05:49:46 -0500 (EST)
+Date: Wed, 7 Nov 2012 10:49:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 15/19] mm: numa: Add fault driven placement and migration
+Message-ID: <20121107104940.GU8218@suse.de>
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
+ <1352193295-26815-16-git-send-email-mgorman@suse.de>
+ <509967D9.7050706@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/19] mm: numa: Create basic numa page hinting infrastructure
-References: <1352193295-26815-1-git-send-email-mgorman@suse.de> <1352193295-26815-9-git-send-email-mgorman@suse.de> <50995DD2.8000200@redhat.com> <20121107103839.GT8218@suse.de>
-In-Reply-To: <20121107103839.GT8218@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <509967D9.7050706@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
+To: Rik van Riel <riel@redhat.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/07/2012 05:38 AM, Mel Gorman wrote:
-> On Tue, Nov 06, 2012 at 01:58:26PM -0500, Rik van Riel wrote:
->> On 11/06/2012 04:14 AM, Mel Gorman wrote:
->>> Note: This patch started as "mm/mpol: Create special PROT_NONE
->>> 	infrastructure" and preserves the basic idea but steals *very*
->>> 	heavily from "autonuma: numa hinting page faults entry points" for
->>> 	the actual fault handlers without the migration parts.	The end
->>> 	result is barely recognisable as either patch so all Signed-off
->>> 	and Reviewed-bys are dropped. If Peter, Ingo and Andrea are ok with
->>> 	this version, I will re-add the signed-offs-by to reflect the history.
->>>
->>> In order to facilitate a lazy -- fault driven -- migration of pages, create
->>> a special transient PAGE_NUMA variant, we can then use the 'spurious'
->>> protection faults to drive our migrations from.
->>>
->>> Pages that already had an effective PROT_NONE mapping will not be detected
->>
->> The patch itself is good, but the changelog needs a little
->> fix. While you are defining _PAGE_NUMA to _PAGE_PROTNONE on
->> x86, this may be different on other architectures.
->>
->> Therefore, the changelog should refer to PAGE_NUMA, not
->> PROT_NONE.
->>
->
-> Fair point. I still want to record the point that PROT_NONE will not
-> generate the faults though. How about this?
->
->      In order to facilitate a lazy -- fault driven -- migration of pages, create
->      a special transient PAGE_NUMA variant, we can then use the 'spurious'
->      protection faults to drive our migrations from.
->
->      The meaning of PAGE_NUMA depends on the architecture but on x86 it is
->      effectively PROT_NONE. In this case, PROT_NONE mappings will not be detected
->      to generate these 'spurious' faults for the simple reason that we cannot
->      distinguish them on their protection bits, see pte_numa(). This isn't
->      a problem since PROT_NONE (and possible PROT_WRITE with dirty tracking)
->      aren't used or are rare enough for us to not care about their placement.
+On Tue, Nov 06, 2012 at 02:41:13PM -0500, Rik van Riel wrote:
+> On 11/06/2012 04:14 AM, Mel Gorman wrote:
+> >From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> >
+> >NOTE: This patch is based on "sched, numa, mm: Add fault driven
+> >	placement and migration policy" but as it throws away all the policy
+> >	to just leave a basic foundation I had to drop the signed-offs-by.
+> >
+> >This patch creates a bare-bones method for setting PTEs pte_numa in the
+> >context of the scheduler that when faulted later will be faulted onto the
+> >node the CPU is running on.  In itself this does nothing useful but any
+> >placement policy will fundamentally depend on receiving hints on placement
+> >from fault context and doing something intelligent about it.
+> >
+> >Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Excellent basis for implementing a smarter NUMA
+> policy.
+> 
+> Not sure if such a policy should be implemented
+> as a replacement for this patch, or on top of it...
+> 
 
-Actual PROT_NONE mappings will not generate these NUMA faults
-for the reason that the page fault code checks the permission
-on the VMA (and will throw a segmentation fault on actual
-PROT_NONE mappings), before it ever calls handle_mm_fault.
+I'm expecting on top of it. As a POC, I'm looking at implementing the CPU
+Follows Memory algorithm (mostly from autonuma) on top of this but using the
+home-node logic from schednuma to handle how processes get scheduled. MORON
+will need to relax to take the home node into account to avoid fighting
+the home-node decisions. task_numa_fault() determines if the home node
+needs to change based on statistics it gathers from faults. So far I am
+keeping within the framework but it is still a WIP.
+
+> Either way, thank you for cleaning up all of the
+> NUMA base code, while I was away at conferences
+> and stuck in airports :)
+> 
+
+My pleasure. Thanks a lot for reviewing this!
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
