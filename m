@@ -1,85 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 075DD6B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 19:39:07 -0500 (EST)
-Date: Wed, 7 Nov 2012 01:39:05 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] MM: Support more pagesizes for MAP_HUGETLB/SHM_HUGETLB v7
-Message-ID: <20121107003905.GA16230@one.firstfloor.org>
-References: <1352157848-29473-1-git-send-email-andi@firstfloor.org> <1352157848-29473-2-git-send-email-andi@firstfloor.org> <20121106132737.c2aa3c47.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121106132737.c2aa3c47.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id E52906B0044
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 20:10:21 -0500 (EST)
+Message-ID: <5099B4F2.2090602@infradead.org>
+Date: Tue, 06 Nov 2012 17:10:10 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
+MIME-Version: 1.0
+Subject: [PATCH] mm: fix slab.c kernel-doc warnings
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mtk.manpages@gmail.com, Andi Kleen <ak@linux.intel.com>, Hillf Danton <dhillf@gmail.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Tue, Nov 06, 2012 at 01:27:37PM -0800, Andrew Morton wrote:
-> On Mon,  5 Nov 2012 15:24:08 -0800
-> Andi Kleen <andi@firstfloor.org> wrote:
-> 
-> > From: Andi Kleen <ak@linux.intel.com>
-> > 
-> > There was some desire in large applications using MAP_HUGETLB/SHM_HUGETLB
-> > to use 1GB huge pages on some mappings, and stay with 2MB on others. This
-> > is useful together with NUMA policy: use 2MB interleaving on some mappings,
-> > but 1GB on local mappings.
-> > 
-> > This patch extends the IPC/SHM syscall interfaces slightly to allow specifying
-> > the page size.
-> > 
-> > It borrows some upper bits in the existing flag arguments and allows encoding
-> > the log of the desired page size in addition to the *_HUGETLB flag.
-> > When 0 is specified the default size is used, this makes the change fully
-> > compatible.
-> > 
-> > Extending the internal hugetlb code to handle this is straight forward. Instead
-> > of a single mount it just keeps an array of them and selects the right
-> > mount based on the specified page size. When no page size is specified
-> > it uses the mount of the default page size.
-> > 
-> > The change is not visible in /proc/mounts because internal mounts
-> > don't appear there. It also has very little overhead: the additional
-> > mounts just consume a super block, but not more memory when not used.
-> > 
-> > I also exported the new flags to the user headers
-> > (they were previously under __KERNEL__). Right now only symbols
-> > for x86 and some other architecture for 1GB and 2MB are defined.
-> > The interface should already work for all other architectures
-> > though.  Only architectures that define multiple hugetlb sizes
-> > actually need it (that is currently x86, tile, powerpc). However
-> > tile and powerpc have user configurable hugetlb sizes, so it's
-> > not easy to add defines. A program on those architectures would
-> > need to query sysfs and use the appropiate log2.
-> 
-> I can't say the userspace interface is a thing of beauty, but I guess
-> we'll live.
+From: Randy Dunlap <rdunlap@infradead.org>
 
-Thanks.
+Fix new kernel-doc warnings in mm/slab.c:
 
-> 
-> Did you have a test app?  If so, can we get it into
-> tools/testing/selftests and point the arch maintainers at it?
+Warning(mm/slab.c:2358): No description found for parameter 'cachep'
+Warning(mm/slab.c:2358): Excess function parameter 'name' description in '__kmem_cache_create'
+Warning(mm/slab.c:2358): Excess function parameter 'size' description in '__kmem_cache_create'
+Warning(mm/slab.c:2358): Excess function parameter 'align' description in '__kmem_cache_create'
+Warning(mm/slab.c:2358): Excess function parameter 'ctor' description in '__kmem_cache_create'
 
-Yes I do. I'll send a patch separately.
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+Cc:	Christoph Lameter <cl@linux-foundation.org>
+Cc:	Pekka Enberg <penberg@kernel.org>
+Cc:	Matt Mackall <mpm@selenic.com>
+---
+ mm/slab.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-However you have to run with the right options and it may 
-be slightly x86 specific.
-
->  	unregister_filesystem(&hugetlbfs_fs_type);
->  	bdi_destroy(&hugetlbfs_backing_dev_info);
-> 
-> (we're not supposed to split strings like that, but screw 'em!)
-
-Thanks I assume you handle that.
-
--Andi
-
-
--- 
-ak@linux.intel.com -- Speaking for myself only.
+--- lnx-37-rc4.orig/mm/slab.c
++++ lnx-37-rc4/mm/slab.c
+@@ -2331,11 +2331,8 @@ static int __init_refok setup_cpu_cache(
+ 
+ /**
+  * __kmem_cache_create - Create a cache.
+- * @name: A string which is used in /proc/slabinfo to identify this cache.
+- * @size: The size of objects to be created in this cache.
+- * @align: The required alignment for the objects.
++ * @cachep: cache management descriptor
+  * @flags: SLAB flags
+- * @ctor: A constructor for the objects.
+  *
+  * Returns a ptr to the cache on success, NULL on failure.
+  * Cannot be called within a int, but can be interrupted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
