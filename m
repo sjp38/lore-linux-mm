@@ -1,154 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id AE8A96B0044
-	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:06:33 -0500 (EST)
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 2605A6B005A
+	for <linux-mm@kvack.org>; Tue,  6 Nov 2012 22:06:35 -0500 (EST)
 From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v11 0/7] make balloon pages movable by compaction
-Date: Wed,  7 Nov 2012 01:05:47 -0200
-Message-Id: <cover.1352256081.git.aquini@redhat.com>
+Subject: [PATCH v11 2/7] mm: redefine address_space.assoc_mapping
+Date: Wed,  7 Nov 2012 01:05:49 -0200
+Message-Id: <b6cc6e80a47d500e23499c85adba6cd8e1246874.1352256086.git.aquini@redhat.com>
+In-Reply-To: <cover.1352256081.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
+In-Reply-To: <cover.1352256081.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, aquini@redhat.com
 
-Memory fragmentation introduced by ballooning might reduce significantly
-the number of 2MB contiguous memory blocks that can be used within a guest,
-thus imposing performance penalties associated with the reduced number of
-transparent huge pages that could be used by the guest workload.
+This patch overhauls struct address_space.assoc_mapping renaming it to
+address_space.private_data and its type is redefined to void*.
+By this approach we consistently name the .private_* elements from
+struct address_space as well as allow extended usage for address_space
+association with other data structures through ->private_data.
 
-This patch-set follows the main idea discussed at 2012 LSFMMS session:
-"Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
-to introduce the required changes to the virtio_balloon driver, as well as
-the changes to the core compaction & migration bits, in order to make those
-subsystems aware of ballooned pages and allow memory balloon pages become
-movable within a guest, thus avoiding the aforementioned fragmentation issue
+Also, all users of old ->assoc_mapping element are converted to reflect
+its new name and type change.
 
-Following are numbers that prove this patch benefits on allowing compaction
-to be more effective at memory ballooned guests.
+Signed-off-by: Rafael Aquini <aquini@redhat.com>
+---
+ fs/buffer.c        | 12 ++++++------
+ fs/gfs2/glock.c    |  2 +-
+ fs/inode.c         |  2 +-
+ fs/nilfs2/page.c   |  2 +-
+ include/linux/fs.h |  2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)
 
-Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
-running on a 4gB RAM KVM guest which was ballooning 512mB RAM in 64mB chunks,
-at every minute (inflating/deflating), while test was running:
-
-===BEGIN stress-highalloc
-
-STRESS-HIGHALLOC
-                 highalloc-3.7     highalloc-3.7
-                     rc4-clean         rc4-patch
-Pass 1          55.00 ( 0.00%)    62.00 ( 7.00%)
-Pass 2          54.00 ( 0.00%)    62.00 ( 8.00%)
-while Rested    75.00 ( 0.00%)    80.00 ( 5.00%)
-
-MMTests Statistics: duration
-                 3.7         3.7
-           rc4-clean   rc4-patch
-User         1207.59     1207.46
-System       1300.55     1299.61
-Elapsed      2273.72     2157.06
-
-MMTests Statistics: vmstat
-                                3.7         3.7
-                          rc4-clean   rc4-patch
-Page Ins                    3581516     2374368
-Page Outs                  11148692    10410332
-Swap Ins                         80          47
-Swap Outs                      3641         476
-Direct pages scanned          37978       33826
-Kswapd pages scanned        1828245     1342869
-Kswapd pages reclaimed      1710236     1304099
-Direct pages reclaimed        32207       31005
-Kswapd efficiency               93%         97%
-Kswapd velocity             804.077     622.546
-Direct efficiency               84%         91%
-Direct velocity              16.703      15.682
-Percentage direct scans          2%          2%
-Page writes by reclaim        79252        9704
-Page writes file              75611        9228
-Page writes anon               3641         476
-Page reclaim immediate        16764       11014
-Page rescued immediate            0           0
-Slabs scanned               2171904     2152448
-Direct inode steals             385        2261
-Kswapd inode steals          659137      609670
-Kswapd skipped wait               1          69
-THP fault alloc                 546         631
-THP collapse alloc              361         339
-THP splits                      259         263
-THP fault fallback               98          50
-THP collapse fail                20          17
-Compaction stalls               747         499
-Compaction success              244         145
-Compaction failures             503         354
-Compaction pages moved       370888      474837
-Compaction move failure       77378       65259
-
-===END stress-highalloc
-
-Rafael Aquini (7):
-  mm: adjust address_space_operations.migratepage() return code
-  mm: redefine address_space.assoc_mapping
-  mm: introduce a common interface for balloon pages mobility
-  mm: introduce compaction and migration for ballooned pages
-  virtio_balloon: introduce migration primitives to balloon pages
-  mm: introduce putback_movable_pages()
-  mm: add vm event counters for balloon pages compaction
-
- drivers/virtio/virtio_balloon.c    | 136 +++++++++++++++++--
- fs/buffer.c                        |  12 +-
- fs/gfs2/glock.c                    |   2 +-
- fs/hugetlbfs/inode.c               |   4 +-
- fs/inode.c                         |   2 +-
- fs/nilfs2/page.c                   |   2 +-
- include/linux/balloon_compaction.h | 220 ++++++++++++++++++++++++++++++
- include/linux/fs.h                 |   2 +-
- include/linux/migrate.h            |  19 +++
- include/linux/pagemap.h            |  16 +++
- include/linux/vm_event_item.h      |   8 +-
- mm/Kconfig                         |  15 ++
- mm/Makefile                        |   1 +
- mm/balloon_compaction.c            | 271 +++++++++++++++++++++++++++++++++++++
- mm/compaction.c                    |  27 +++-
- mm/migrate.c                       |  77 +++++++++--
- mm/page_alloc.c                    |   2 +-
- mm/vmstat.c                        |  10 +-
- 18 files changed, 782 insertions(+), 44 deletions(-)
- create mode 100644 include/linux/balloon_compaction.h
- create mode 100644 mm/balloon_compaction.c
-
-Change log:
-v11:
- * Address AKPM's last review suggestions;
- * Extend the balloon compaction common API and simplify its usage at driver;
- * Minor nitpicks on code commentary;
-v10:
- * Adjust leak_balloon() wait_event logic to make a clear locking scheme (MST);
- * Drop the RCU protection approach for dereferencing balloon's page->mapping;
- * Minor nitpitcks on code commentaries (MST);
-v9:
- * Adjust rcu_dereference usage to leverage page lock protection  (Paul, Peter);
- * Enhance doc on compaction interface introduced to balloon driver   (Michael);
- * Fix issue with isolated pages breaking leak_balloon() logics       (Michael);
-v8:
- * introduce a common MM interface for balloon driver page compaction (Michael);
- * remove the global state preventing multiple balloon device support (Michael);
- * introduce RCU protection/syncrhonization to balloon page->mapping  (Michael);
-v7:
- * fix a potential page leak case at 'putback_balloon_page'               (Mel);
- * adjust vm-events-counter patch and remove its drop-on-merge message    (Rik);
- * add 'putback_movable_pages' to avoid hacks on 'putback_lru_pages'  (Minchan);
-v6:
- * rename 'is_balloon_page()' to 'movable_balloon_page()'                 (Rik);
-v5:
- * address Andrew Morton's review comments on the patch series;
- * address a couple extra nitpick suggestions on PATCH 01             (Minchan);
-v4:
- * address Rusty Russel's review comments on PATCH 02;
- * re-base virtio_balloon patch on 9c378abc5c0c6fc8e3acf5968924d274503819b3;
-V3:
- * address reviewers nitpick suggestions on PATCH 01             (Mel, Minchan);
-V2:
- * address Mel Gorman's review comments on PATCH 01;
-
+diff --git a/fs/buffer.c b/fs/buffer.c
+index b5f0442..e0bad95 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -555,7 +555,7 @@ void emergency_thaw_all(void)
+  */
+ int sync_mapping_buffers(struct address_space *mapping)
+ {
+-	struct address_space *buffer_mapping = mapping->assoc_mapping;
++	struct address_space *buffer_mapping = mapping->private_data;
+ 
+ 	if (buffer_mapping == NULL || list_empty(&mapping->private_list))
+ 		return 0;
+@@ -588,10 +588,10 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+ 	struct address_space *buffer_mapping = bh->b_page->mapping;
+ 
+ 	mark_buffer_dirty(bh);
+-	if (!mapping->assoc_mapping) {
+-		mapping->assoc_mapping = buffer_mapping;
++	if (!mapping->private_data) {
++		mapping->private_data = buffer_mapping;
+ 	} else {
+-		BUG_ON(mapping->assoc_mapping != buffer_mapping);
++		BUG_ON(mapping->private_data != buffer_mapping);
+ 	}
+ 	if (!bh->b_assoc_map) {
+ 		spin_lock(&buffer_mapping->private_lock);
+@@ -788,7 +788,7 @@ void invalidate_inode_buffers(struct inode *inode)
+ 	if (inode_has_buffers(inode)) {
+ 		struct address_space *mapping = &inode->i_data;
+ 		struct list_head *list = &mapping->private_list;
+-		struct address_space *buffer_mapping = mapping->assoc_mapping;
++		struct address_space *buffer_mapping = mapping->private_data;
+ 
+ 		spin_lock(&buffer_mapping->private_lock);
+ 		while (!list_empty(list))
+@@ -811,7 +811,7 @@ int remove_inode_buffers(struct inode *inode)
+ 	if (inode_has_buffers(inode)) {
+ 		struct address_space *mapping = &inode->i_data;
+ 		struct list_head *list = &mapping->private_list;
+-		struct address_space *buffer_mapping = mapping->assoc_mapping;
++		struct address_space *buffer_mapping = mapping->private_data;
+ 
+ 		spin_lock(&buffer_mapping->private_lock);
+ 		while (!list_empty(list)) {
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index e6c2fd5..0f22d09 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -768,7 +768,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
+ 		mapping->host = s->s_bdev->bd_inode;
+ 		mapping->flags = 0;
+ 		mapping_set_gfp_mask(mapping, GFP_NOFS);
+-		mapping->assoc_mapping = NULL;
++		mapping->private_data = NULL;
+ 		mapping->backing_dev_info = s->s_bdi;
+ 		mapping->writeback_index = 0;
+ 	}
+diff --git a/fs/inode.c b/fs/inode.c
+index b03c719..4cac8e1 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -165,7 +165,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+ 	mapping->host = inode;
+ 	mapping->flags = 0;
+ 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
+-	mapping->assoc_mapping = NULL;
++	mapping->private_data = NULL;
+ 	mapping->backing_dev_info = &default_backing_dev_info;
+ 	mapping->writeback_index = 0;
+ 
+diff --git a/fs/nilfs2/page.c b/fs/nilfs2/page.c
+index 3e7b2a0..07f76db 100644
+--- a/fs/nilfs2/page.c
++++ b/fs/nilfs2/page.c
+@@ -431,7 +431,7 @@ void nilfs_mapping_init(struct address_space *mapping, struct inode *inode,
+ 	mapping->host = inode;
+ 	mapping->flags = 0;
+ 	mapping_set_gfp_mask(mapping, GFP_NOFS);
+-	mapping->assoc_mapping = NULL;
++	mapping->private_data = NULL;
+ 	mapping->backing_dev_info = bdi;
+ 	mapping->a_ops = &empty_aops;
+ }
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b33cfc9..0982565 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -418,7 +418,7 @@ struct address_space {
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+-	struct address_space	*assoc_mapping;	/* ditto */
++	void			*private_data;	/* ditto */
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
 -- 
 1.7.11.7
 
