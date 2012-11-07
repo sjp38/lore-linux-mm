@@ -1,34 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id D965A6B0044
-	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 15:52:59 -0500 (EST)
-Received: by mail-la0-f41.google.com with SMTP id p5so1957501lag.14
-        for <linux-mm@kvack.org>; Wed, 07 Nov 2012 12:52:57 -0800 (PST)
-Message-ID: <509ACA28.307@kernel.org>
-Date: Wed, 07 Nov 2012 22:52:56 +0200
-From: Pekka Enberg <penberg@kernel.org>
-MIME-Version: 1.0
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <xr93liedfhy4.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93liedfhy4.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 821426B0044
+	for <linux-mm@kvack.org>; Wed,  7 Nov 2012 16:02:09 -0500 (EST)
+Date: Wed, 7 Nov 2012 13:02:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v11 3/7] mm: introduce a common interface for balloon
+ pages mobility
+Message-Id: <20121107130207.214f16ea.akpm@linux-foundation.org>
+In-Reply-To: <4ea10ef1eb1544e12524c8ca7df20cf621395463.1352256087.git.aquini@redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
+	<4ea10ef1eb1544e12524c8ca7df20cf621395463.1352256087.git.aquini@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Anton Vorontsov <anton.vorontsov@linaro.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Hi Greg,
+On Wed,  7 Nov 2012 01:05:50 -0200
+Rafael Aquini <aquini@redhat.com> wrote:
 
-On 11/7/12 7:20 PM, Greg Thelen wrote:
- > Related question: are there plans to extend this system call to
- > provide per-cgroup vm pressure notification?
+> Memory fragmentation introduced by ballooning might reduce significantly
+> the number of 2MB contiguous memory blocks that can be used within a guest,
+> thus imposing performance penalties associated with the reduced number of
+> transparent huge pages that could be used by the guest workload.
+> 
+> This patch introduces a common interface to help a balloon driver on
+> making its page set movable to compaction, and thus allowing the system
+> to better leverage the compation efforts on memory defragmentation.
 
-Yes, that's something that needs to be addressed before we can ever
-consider merging something like this to mainline.  We probably need help
-with that, though. Preferably from someone who knows cgroups. :-)
 
-                         Pekka
+mm/migrate.c: In function 'unmap_and_move':
+mm/migrate.c:899: error: 'COMPACTBALLOONRELEASED' undeclared (first use in this function)
+mm/migrate.c:899: error: (Each undeclared identifier is reported only once
+mm/migrate.c:899: error: for each function it appears in.)
+
+You've been bad - you didn't test with your feature disabled. 
+Please do that.  And not just compilation testing.
+
+
+We can fix this one with a sucky macro.  I think that's better than
+unconditionally defining the enums.
+
+--- a/include/linux/balloon_compaction.h~mm-introduce-a-common-interface-for-balloon-pages-mobility-fix
++++ a/include/linux/balloon_compaction.h
+@@ -207,10 +207,8 @@ static inline gfp_t balloon_mapping_gfp_
+ 	return GFP_HIGHUSER;
+ }
+ 
+-static inline void balloon_event_count(enum vm_event_item item)
+-{
+-	return;
+-}
++/* A macro, to avoid generating references to the undefined COMPACTBALLOON* */
++#define balloon_event_count(item) do { } while (0)
+ 
+ static inline bool balloon_compaction_check(void)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
