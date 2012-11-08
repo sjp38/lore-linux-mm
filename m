@@ -1,58 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id 18BA76B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 03:36:00 -0500 (EST)
-Date: Thu, 8 Nov 2012 09:35:55 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] memcg: oom: fix totalpages calculation for
- memory.swappiness==0
-Message-ID: <20121108083454.GA30792@dhcp22.suse.cz>
-References: <20121011085038.GA29295@dhcp22.suse.cz>
- <1349945859-1350-1-git-send-email-mhocko@suse.cz>
- <20121015220354.GA11682@dhcp22.suse.cz>
- <20121107141025.2ac62206.akpm@linux-foundation.org>
- <20121107224640.GE26382@dhcp22.suse.cz>
- <20121107145340.b45a387c.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 2E17E6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 04:00:10 -0500 (EST)
+Message-ID: <509B75FF.6070806@cn.fujitsu.com>
+Date: Thu, 08 Nov 2012 17:06:07 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121107145340.b45a387c.akpm@linux-foundation.org>
+Subject: [PATCH v2] memory-hotplug: fix NR_FREE_PAGES mismatch's fix
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+Cc: Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, lai jiangshan <laijs@cn.fujitsu.com>, Wen congyang <wency@cn.fujitsu.com>
 
-On Wed 07-11-12 14:53:40, Andrew Morton wrote:
-> On Wed, 7 Nov 2012 23:46:40 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > > Realistically, is anyone likely to hurt from this?
-> > 
-> > The primary motivation for the fix was a real report by a customer.
-> 
-> Describe it please and I'll copy it to the changelog.
 
-The original issue (a wrong tasks get killed in a small group and memcg
-swappiness=0) has been reported on top of our 3.0 based kernel (with
-fe35004f backported). I have tried to replicate it by the test case
-mentioned https://lkml.org/lkml/2012/10/10/223.
+When a page is freed and put into pcp list, get_freepage_migratetype()
+doesn't return MIGRATE_ISOLATE even if this pageblock is isolated.
+So we should use get_freepage_migratetype() instead of mt to check
+whether it is isolated.
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-As David correctly pointed out (https://lkml.org/lkml/2012/10/10/418)
-the significant role played the fact that all the processes in the group
-have CAP_SYS_ADMIN but oom_score_adj has the similar effect. 
-Say there is 2G of swap space which is 524288 pages. If you add
-CAP_SYS_ADMIN bonus then you have -15728 score for the bias. This means
-that all tasks with less than 60M get the minimum score and it is tasks
-ordering which determines who gets killed as a result.
-
-To summarize it. Users of small groups (relatively to the swap size)
-with CAP_SYS_ADMIN tasks resp. oom_score_adj are affected the most
-others might see an unexpected oom_badness calculation.
-Whether this is a workload which is representative, I don't know but
-I think that it is worth fixing and pushing to stable as well.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 027afd0..795875f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -667,7 +667,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+ 			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+ 			__free_one_page(page, zone, 0, mt);
+ 			trace_mm_page_pcpu_drain(page, 0, mt);
+-			if (likely(mt != MIGRATE_ISOLATE)) {
++			if (likely(get_pageblock_migratetype(page) != MIGRATE_ISOLATE)) {
+ 				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+ 				if (is_migrate_cma(mt))
+ 					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
 -- 
-Michal Hocko
-SUSE Labs
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
