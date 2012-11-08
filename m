@@ -1,231 +1,246 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 2909F6B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 10:51:15 -0500 (EST)
-Date: Thu, 8 Nov 2012 16:51:12 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm, oom: fix race when specifying a thread as the
- oom origin
-Message-ID: <20121108155112.GN31821@dhcp22.suse.cz>
-References: <alpine.DEB.2.00.1211080125150.3450@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1211080126390.3450@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211080126390.3450@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 4105B6B004D
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 10:53:00 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id rq2so2317619pbb.14
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 07:52:59 -0800 (PST)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH V3] memcg, oom: provide more precise dump info while memcg oom happening
+Date: Thu,  8 Nov 2012 23:52:47 +0800
+Message-Id: <1352389967-23270-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com
+Cc: linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Thu 08-11-12 01:27:00, David Rientjes wrote:
-> test_set_oom_score_adj() and compare_swap_oom_score_adj() are used to
-> specify that current should be killed first if an oom condition occurs in
-> between the two calls.
-> 
-> The usage is
-> 
-> 	short oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
-> 	...
-> 	compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX, oom_score_adj);
-> 
-> to store the thread's oom_score_adj, temporarily change it to the maximum
-> score possible, and then restore the old value if it is still the same.
-> 
-> This happens to still be racy, however, if the user writes
-> OOM_SCORE_ADJ_MAX to /proc/pid/oom_score_adj in between the two calls.
-> The compare_swap_oom_score_adj() will then incorrectly reset the old
-> value prior to the write of OOM_SCORE_ADJ_MAX.
-> 
-> To fix this, introduce a new oom_flags_t member in struct signal_struct
-> that will be used for per-thread oom killer flags.  KSM and swapoff can
-> now use a bit in this member to specify that threads should be killed
-> first in oom conditions without playing around with oom_score_adj.
-> 
-> This also allows the correct oom_score_adj to always be shown when
-> reading /proc/pid/oom_score.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+From: Sha Zhengju <handai.szj@taobao.com>
 
-I didn't like the previous playing with the oom_score_adj and what you
-propose looks much nicer.
-Maybe s/oom_task_origin/task_oom_origin/ would be a better fit with
-{set,clear}_current_oom_origin but I do not care much.
+Current when a memcg oom is happening the oom dump messages is still global
+state and provides few useful info for users. This patch prints more pointed
+memcg page statistics for memcg-oom.
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks!
-> ---
->  include/linux/oom.h   |   19 +++++++++++++++++--
->  include/linux/sched.h |    1 +
->  include/linux/types.h |    1 +
->  mm/ksm.c              |    7 ++-----
->  mm/oom_kill.c         |   49 +++++++------------------------------------------
->  mm/swapfile.c         |    5 ++---
->  6 files changed, 30 insertions(+), 52 deletions(-)
-> 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -29,8 +29,23 @@ enum oom_scan_t {
->  	OOM_SCAN_SELECT,	/* always select this thread first */
->  };
->  
-> -extern void compare_swap_oom_score_adj(short old_val, short new_val);
-> -extern short test_set_oom_score_adj(short new_val);
-> +/* Thread is the potential origin of an oom condition; kill first on oom */
-> +#define OOM_FLAG_ORIGIN		((__force oom_flags_t)0x1)
-> +
-> +static inline void set_current_oom_origin(void)
-> +{
-> +	current->signal->oom_flags |= OOM_FLAG_ORIGIN;
-> +}
-> +
-> +static inline void clear_current_oom_origin(void)
-> +{
-> +	current->signal->oom_flags &= ~OOM_FLAG_ORIGIN;
-> +}
-> +
-> +static inline bool oom_task_origin(const struct task_struct *p)
-> +{
-> +	return !!(p->signal->oom_flags & OOM_FLAG_ORIGIN);
-> +}
->  
->  extern unsigned long oom_badness(struct task_struct *p,
->  		struct mem_cgroup *memcg, const nodemask_t *nodemask,
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -631,6 +631,7 @@ struct signal_struct {
->  	struct rw_semaphore group_rwsem;
->  #endif
->  
-> +	oom_flags_t oom_flags;
->  	short oom_score_adj;		/* OOM kill score adjustment */
->  	short oom_score_adj_min;	/* OOM kill score adjustment min value.
->  					 * Only settable by CAP_SYS_RESOURCE. */
-> diff --git a/include/linux/types.h b/include/linux/types.h
-> --- a/include/linux/types.h
-> +++ b/include/linux/types.h
-> @@ -156,6 +156,7 @@ typedef u32 dma_addr_t;
->  #endif
->  typedef unsigned __bitwise__ gfp_t;
->  typedef unsigned __bitwise__ fmode_t;
-> +typedef unsigned __bitwise__ oom_flags_t;
->  
->  #ifdef CONFIG_PHYS_ADDR_T_64BIT
->  typedef u64 phys_addr_t;
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1929,12 +1929,9 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
->  	if (ksm_run != flags) {
->  		ksm_run = flags;
->  		if (flags & KSM_RUN_UNMERGE) {
-> -			short oom_score_adj;
-> -
-> -			oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
-> +			set_current_oom_origin();
->  			err = unmerge_and_remove_all_rmap_items();
-> -			compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX,
-> -								oom_score_adj);
-> +			clear_current_oom_origin();
->  			if (err) {
->  				ksm_run = KSM_RUN_STOP;
->  				count = err;
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -44,48 +44,6 @@ int sysctl_oom_kill_allocating_task;
->  int sysctl_oom_dump_tasks = 1;
->  static DEFINE_SPINLOCK(zone_scan_lock);
->  
-> -/*
-> - * compare_swap_oom_score_adj() - compare and swap current's oom_score_adj
-> - * @old_val: old oom_score_adj for compare
-> - * @new_val: new oom_score_adj for swap
-> - *
-> - * Sets the oom_score_adj value for current to @new_val iff its present value is
-> - * @old_val.  Usually used to reinstate a previous value to prevent racing with
-> - * userspacing tuning the value in the interim.
-> - */
-> -void compare_swap_oom_score_adj(short old_val, short new_val)
-> -{
-> -	struct sighand_struct *sighand = current->sighand;
-> -
-> -	spin_lock_irq(&sighand->siglock);
-> -	if (current->signal->oom_score_adj == old_val)
-> -		current->signal->oom_score_adj = new_val;
-> -	trace_oom_score_adj_update(current);
-> -	spin_unlock_irq(&sighand->siglock);
-> -}
-> -
-> -/**
-> - * test_set_oom_score_adj() - set current's oom_score_adj and return old value
-> - * @new_val: new oom_score_adj value
-> - *
-> - * Sets the oom_score_adj value for current to @new_val with proper
-> - * synchronization and returns the old value.  Usually used to temporarily
-> - * set a value, save the old value in the caller, and then reinstate it later.
-> - */
-> -short test_set_oom_score_adj(short new_val)
-> -{
-> -	struct sighand_struct *sighand = current->sighand;
-> -	int old_val;
-> -
-> -	spin_lock_irq(&sighand->siglock);
-> -	old_val = current->signal->oom_score_adj;
-> -	current->signal->oom_score_adj = new_val;
-> -	trace_oom_score_adj_update(current);
-> -	spin_unlock_irq(&sighand->siglock);
-> -
-> -	return old_val;
-> -}
-> -
->  #ifdef CONFIG_NUMA
->  /**
->   * has_intersects_mems_allowed() - check task eligiblity for kill
-> @@ -310,6 +268,13 @@ enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
->  	if (!task->mm)
->  		return OOM_SCAN_CONTINUE;
->  
-> +	/*
-> +	 * If task is allocating a lot of memory and has been marked to be
-> +	 * killed first if it triggers an oom, then select it.
-> +	 */
-> +	if (oom_task_origin(task))
-> +		return OOM_SCAN_SELECT;
-> +
->  	if (task->flags & PF_EXITING) {
->  		/*
->  		 * If task is current and is in the process of releasing memory,
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1484,7 +1484,6 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  	struct address_space *mapping;
->  	struct inode *inode;
->  	struct filename *pathname;
-> -	short oom_score_adj;
->  	int i, type, prev;
->  	int err;
->  
-> @@ -1544,9 +1543,9 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->  	p->flags &= ~SWP_WRITEOK;
->  	spin_unlock(&swap_lock);
->  
-> -	oom_score_adj = test_set_oom_score_adj(OOM_SCORE_ADJ_MAX);
-> +	set_current_oom_origin();
->  	err = try_to_unuse(type, false, 0); /* force all pages to be unused */
-> -	compare_swap_oom_score_adj(OOM_SCORE_ADJ_MAX, oom_score_adj);
-> +	clear_current_oom_origin();
->  
->  	if (err) {
->  		/*
+We set up a simple cgroup hierarchy for test:
+	root_memcg
+	    |
+	    1 (use_hierachy=1, with a process)
+	    |
+	    2 (its process will be killed by memcg oom)
 
+Following are samples of oom output:
+
+(1)Before change:
+
+[  295.754215] mal invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+[  295.754219] mal cpuset=/ mems_allowed=0-1
+[  295.754221] Pid: 4623, comm: mal Not tainted 3.6.0+ #26
+[  295.754223] Call Trace:
+[  295.754230]  [<ffffffff8111b9c4>] dump_header+0x84/0xd0
+[  295.754233]  [<ffffffff8111c691>] oom_kill_process+0x331/0x350
+		..... (call trace)
+[  295.754288]  [<ffffffff815171e5>] page_fault+0x25/0x30
+[  295.754291] Task in /1/2 killed as a result of limit of /1
+[  295.754293] memory: usage 511640kB, limit 512000kB, failcnt 4471
+[  295.754294] memory+swap: usage 563200kB, limit 563200kB, failcnt 22
+[  295.754296] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
+[  295.754297] Mem-Info:
+[  295.754298] Node 0 DMA per-cpu:           <<<<<<<<<<<<<<<<<<<<< print per cpu pageset stat
+[  295.754300] CPU    0: hi:    0, btch:   1 usd:   0
+	       ......
+[  295.754302] CPU    15: hi:    0, btch:   1 usd:   0
+
+[  295.754448] Node 0 DMA32 per-cpu:
+[  295.754450] CPU    0: hi:  186, btch:  31 usd: 181
+	       ......
+[  295.754451] CPU    15: hi:  186, btch:  31 usd:  25
+
+[  295.754470] Node 0 Normal per-cpu:
+[  295.754472] CPU    0: hi:  186, btch:  31 usd:  56
+	       ......
+[  295.754473] CPU    15: hi:  186, btch:  31 usd: 150
+
+[  295.754493] Node 1 Normal per-cpu:
+[  295.754495] CPU    0: hi:  186, btch:  31 usd:   0
+	       ......
+[  295.754496] CPU    15: hi:  186, btch:  31 usd:   0
+					     <<<<<<<<<<<<<<<<<<<<< print global page state
+[  295.754519] active_anon:57756 inactive_anon:73437 isolated_anon:0
+[  295.754519]  active_file:2659 inactive_file:14291 isolated_file:0
+[  295.754519]  unevictable:1268 dirty:0 writeback:4961 unstable:0
+[  295.754519]  free:5979740 slab_reclaimable:2955 slab_unreclaimable:5460
+[  295.754519]  mapped:2478 shmem:62 pagetables:994 bounce:0
+[  295.754519]  free_cma:0
+					     <<<<<<<<<<<<<<<<<<<<< print per zone page state
+[  295.754522] Node 0 DMA free:15884kB min:56kB low:68kB high:84kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15884kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+[  295.754527] lowmem_reserve[]: 0 2966 12013 12013
+[  295.754530] Node 0 DMA32 free:3041228kB min:11072kB .....
+[  295.754535] lowmem_reserve[]: 0 0 9046 9046
+[  295.754537] Node 0 Normal free:8616716kB min:33756kB .....
+[  295.754542] lowmem_reserve[]: 0 0 0 0
+[  295.754545] Node 1 Normal free:12245132kB min:45220kB ....
+[  295.754550] lowmem_reserve[]: 0 0 0 0
+[  295.754552] Node 0 DMA: 1*4kB (U) 1*8kB (U) 0*16kB 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (R) 3*4096kB (M) = 15884kB
+[  295.754563] Node 0 DMA32: 5*4kB (M) 3*8kB (M) 6*16kB (UM) ... 738*4096kB (MR) = 3041228kB
+[  295.754574] Node 0 Normal: 16*4kB (EM) 165*8kB (UEM) ... 2101*4096kB (MR) = 8616840kB
+[  295.754586] Node 1 Normal: 768*4kB (UEM) 924*8kB (UEM) ... 048kB (EM) 2976*4096kB (MR) = 12245264kB
+[  295.754598] 25266 total pagecache pages
+[  295.754599] 7227 pages in swap cache
+					     <<<<<<<<<<<<<<<<<<<<< print global swap cache stat
+[  295.754600] Swap cache stats: add 21474, delete 14247, find 533/576
+[  295.754601] Free swap  = 2016000kB
+[  295.754602] Total swap = 2096444kB
+[  295.816119] 6291440 pages RAM
+[  295.816121] 108291 pages reserved
+[  295.816122] 9427 pages shared
+[  295.816123] 195843 pages non-shared
+[  295.816124] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+[  295.816161] [ 4569]     0  4569    16626      475      18       30             0 bash
+[  295.816164] [ 4622]     0  4622   103328    87541     208    14950             0 mal
+[  295.816167] [ 4623]     0  4623   103328    33468      85     5162             0 mal
+[  295.816171] Memory cgroup out of memory: Kill process 4622 (mal) score 699 or sacrifice child
+[  295.816173] Killed process 4622 (mal) total-vm:413312kB, anon-rss:349872kB, file-rss:292kB
+
+We can see that messages dumped by show_free_areas() are longsome and can provide so limited info for memcg that just happen oom.
+
+(2) After change
+[  269.225628] mal invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+[  269.225633] mal cpuset=/ mems_allowed=0-1
+[  269.225636] Pid: 4616, comm: mal Not tainted 3.6.0+ #25
+[  269.225637] Call Trace:
+[  269.225647]  [<ffffffff8111b9c4>] dump_header+0x84/0xd0
+[  269.225650]  [<ffffffff8111c691>] oom_kill_process+0x331/0x350
+[  269.225710]  .......(call trace)
+[  269.225713]  [<ffffffff81517325>] page_fault+0x25/0x30
+[  269.225716] Task in /1/2 killed as a result of limit of /1
+[  269.225718] memory: usage 511732kB, limit 512000kB, failcnt 5071
+[  269.225720] memory+swap: usage 563200kB, limit 563200kB, failcnt 57
+[  269.225721] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
+[  269.225722] Memory cgroup stats:cache:8KB rss:511724KB mapped_file:4KB swap:51468KB inactive_anon:265864KB active_anon:245832KB inactive_file:0KB active_file:0KB unevictable:0KB
+[  269.225741] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+[  269.225757] [ 4554]     0  4554    16626      473      17       25             0 bash
+[  269.225759] [ 4611]     0  4611   103328    90231     208    12260             0 mal
+[  269.225762] [ 4616]     0  4616   103328    32799      88     7562             0 mal
+[  269.225764] Memory cgroup out of memory: Kill process 4611 (mal) score 699 or sacrifice child
+[  269.225766] Killed process 4611 (mal) total-vm:413312kB, anon-rss:360632kB, file-rss:292kB
+
+This version provides more pointed info for memcg in "Memory cgroup stats" section.
+
+Change log:
+v3 <--- v2
+	1. fix towards hierarchy
+	2. undo rework dump_tasks
+v2 <--- v1
+	1. some modification towards hierarchy
+	2. rework dump_tasks
+	3. rebased on Michal's mm tree since-3.6
+
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ mm/memcontrol.c |   41 +++++++++++++++++++++++++++++++----------
+ mm/oom_kill.c   |    6 ++++--
+ 2 files changed, 35 insertions(+), 12 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0eab7d5..17317fa 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -118,6 +118,14 @@ static const char * const mem_cgroup_events_names[] = {
+ 	"pgmajfault",
+ };
+ 
++static const char * const mem_cgroup_lru_names[] = {
++	"inactive_anon",
++	"active_anon",
++	"inactive_file",
++	"active_file",
++	"unevictable",
++};
++
+ /*
+  * Per memcg event counter is incremented at every pagein/pageout. With THP,
+  * it will be incremated by the number of pages. This counter is used for
+@@ -1501,8 +1509,8 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
+ 	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+ }
+ 
++#define K(x) ((x) << (PAGE_SHIFT-10))
+ /**
+- * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
+  * @memcg: The memory cgroup that went over limit
+  * @p: Task that is going to be killed
+  *
+@@ -1520,8 +1528,10 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 	 */
+ 	static char memcg_name[PATH_MAX];
+ 	int ret;
++	struct mem_cgroup *mi;
++	unsigned int i;
+ 
+-	if (!memcg || !p)
++	if (!p)
+ 		return;
+ 
+ 	rcu_read_lock();
+@@ -1569,6 +1579,25 @@ done:
+ 		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
+ 		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
+ 		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
++
++	printk(KERN_INFO "Memory cgroup stats:");
++	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
++		long long val = 0;
++		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
++			continue;
++		for_each_mem_cgroup_tree(mi, memcg)
++			val += mem_cgroup_read_stat(mi, i);
++		printk(KERN_CONT "%s:%lldKB ", mem_cgroup_stat_names[i], K(val));
++	}
++
++	for (i = 0; i < NR_LRU_LISTS; i++) {
++		unsigned long long val = 0;
++
++		for_each_mem_cgroup_tree(mi, memcg)
++			val += mem_cgroup_nr_lru_pages(mi, BIT(i));
++		printk(KERN_CONT "%s:%lluKB ", mem_cgroup_lru_names[i], K(val));
++	}
++	printk(KERN_CONT "\n");
+ }
+ 
+ /*
+@@ -5195,14 +5224,6 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ }
+ #endif /* CONFIG_NUMA */
+ 
+-static const char * const mem_cgroup_lru_names[] = {
+-	"inactive_anon",
+-	"active_anon",
+-	"inactive_file",
+-	"active_file",
+-	"unevictable",
+-};
+-
+ static inline void mem_cgroup_lru_names_not_uptodate(void)
+ {
+ 	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 7e9e911..4b8a6dd 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -421,8 +421,10 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
+ 	cpuset_print_task_mems_allowed(current);
+ 	task_unlock(current);
+ 	dump_stack();
+-	mem_cgroup_print_oom_info(memcg, p);
+-	show_mem(SHOW_MEM_FILTER_NODES);
++	if (memcg)
++		mem_cgroup_print_oom_info(memcg, p);
++	else
++		show_mem(SHOW_MEM_FILTER_NODES);
+ 	if (sysctl_oom_dump_tasks)
+ 		dump_tasks(memcg, nodemask);
+ }
 -- 
-Michal Hocko
-SUSE Labs
+1.7.6.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
