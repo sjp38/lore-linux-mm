@@ -1,61 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id B41FE6B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 17:18:59 -0500 (EST)
-Date: Thu, 8 Nov 2012 14:18:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-Message-Id: <20121108141857.5a643a98.akpm@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.00.1211081413350.20544@chino.kir.corp.google.com>
-References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
-	<1349654386-18378-1-git-send-email-kys@microsoft.com>
-	<20121008004358.GA12342@kroah.com>
-	<426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
-	<20121008133539.GA15490@kroah.com>
-	<20121009124755.ce1087b4.akpm@linux-foundation.org>
-	<426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
-	<20121105134456.f655b85a.akpm@linux-foundation.org>
-	<426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
-	<alpine.DEB.2.00.1211051418560.5296@chino.kir.corp.google.com>
-	<426367E2313C2449837CD2DE46E7EAF930E0D0CC@CH1PRD0310MB381.namprd03.prod.outlook.com>
-	<20121108140529.af7849c8.akpm@linux-foundation.org>
-	<alpine.DEB.2.00.1211081413350.20544@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 120E16B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 17:31:37 -0500 (EST)
+Message-ID: <509C32B4.7050105@parallels.com>
+Date: Thu, 8 Nov 2012 23:31:16 +0100
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com> <1351771665-11076-26-git-send-email-glommer@parallels.com> <20121105164813.2eba5ecb.akpm@linux-foundation.org> <509A0A04.2030503@parallels.com> <20121106231627.3610c908.akpm@linux-foundation.org> <509A2849.9090509@parallels.com> <20121107144612.e822986f.akpm@linux-foundation.org> <0000013ae1050e6f-7f908e0b-720a-4e68-a275-e5086a4f5c74-000000@email.amazonses.com> <20121108112120.fc964c29.akpm@linux-foundation.org>
+In-Reply-To: <20121108112120.fc964c29.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: KY Srinivasan <kys@microsoft.com>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>
 
-On Thu, 8 Nov 2012 14:14:35 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Thu, 8 Nov 2012, Andrew Morton wrote:
+On 11/08/2012 08:21 PM, Andrew Morton wrote:
+> On Thu, 8 Nov 2012 17:15:36 +0000
+> Christoph Lameter <cl@linux.com> wrote:
 > 
-> > > > I don't think you should export the symbol itself to modules but rather a
-> > > > helper function that returns s64 that just wraps
-> > > > percpu_counter_read_positive() which your driver could use instead.
-> > > > 
-> > > > (And why percpu_counter_read_positive() returns a signed type is a
-> > > > mystery.)
-> > > 
-> > > Yes, this makes sense. I just want to access (read) this metric. Andrew, if you are willing to
-> > > take this patch, I could send one.
-> > 
-> > Sure.  I suppose that's better, although any module which modifies
-> > committed_as would never pass review (rofl).
-> > 
+>> On Wed, 7 Nov 2012, Andrew Morton wrote:
+>>
+>>> What's up with kmem_cache_shrink?  It's global and exported to modules
+>>> but its only external caller is some weird and hopelessly poorly
+>>> documented site down in drivers/acpi/osl.c.  slab and slob implement
+>>> kmem_cache_shrink() *only* for acpi!  wtf?  Let's work out what acpi is
+>>> trying to actually do there, then do it properly, then killkillkill!
+>>
+>> kmem_cache_shrink is also used internally. Its simply releasing unused
+>> cached objects.
 > 
-> I was thinking of a function that all hypervisors can use (since xen also 
-> uses it) that can be well documented and maintain the semantics that they 
-> expect, whether that relines on vm_commited_as in the future or not.
+> Only in slub.  It could be removed outright from the others and
+> simplified in slub.
+> 
+>>> Secondly, as slab and slub (at least) have the ability to shed cached
+>>> memory, why aren't they hooked into the core cache-shinking machinery.
+>>> After all, it's called "shrink_slab"!
+>>
+>> Because the core cache shrinking needs the slab caches to free up memory
+>> from inodes and dentries. We could call kmem_cache_shrink at the end of
+>> the shrink passes in vmscan. The price would be that the caches would have
+>> to be repopulated when new allocations occur.
+> 
+> Well, the shrinker shouldn't strips away all the cache.  It will perform
+> a partial trim, the magnitude of which increases with perceived
+> external memory pressure.
+> 
+> AFACIT, this is correct and desirable behaviour for shrinking
+> slab's internal caches.
+> 
 
-Yes, it would be nice to have some central site where people can go to
-understand what's happening here.
-
-It's still unclear to me that committed_as is telling the
-hypervisors precisely what they want to know.
+I believe calling this from shrink_slab() is not a bad idea at all. If
+you're all in favour, I'll cook a patch for this soon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
