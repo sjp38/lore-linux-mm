@@ -1,49 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 5A6E76B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 08:58:49 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2201638pad.14
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 05:58:48 -0800 (PST)
-Message-ID: <509BBA9C.7050007@gmail.com>
-Date: Thu, 08 Nov 2012 21:58:52 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 6CC396B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 09:33:59 -0500 (EST)
+Date: Thu, 8 Nov 2012 15:33:54 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v6 19/29] memcg: infrastructure to match an allocation to
+ the right cache
+Message-ID: <20121108143354.GJ31821@dhcp22.suse.cz>
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com>
+ <1351771665-11076-20-git-send-email-glommer@parallels.com>
+ <20121105162837.5fdac20c.akpm@linux-foundation.org>
+ <20121106080354.GA21167@dhcp22.suse.cz>
+ <20121108110513.GE31821@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] oom: rework dump_tasks to optimize memcg-oom situation
-References: <1352277602-21687-1-git-send-email-handai.szj@taobao.com> <1352277719-21760-1-git-send-email-handai.szj@taobao.com> <20121107223437.GC26382@dhcp22.suse.cz>
-In-Reply-To: <20121107223437.GC26382@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121108110513.GE31821@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>, JoonSoo Kim <js1304@gmail.com>, Andi Kleen <ak@linux.intel.com>
 
-On 11/08/2012 06:34 AM, Michal Hocko wrote:
-> On Wed 07-11-12 16:41:59, Sha Zhengju wrote:
->> From: Sha Zhengju<handai.szj@taobao.com>
->>
->> If memcg oom happening, don't scan all system tasks to dump memory state of
->> eligible tasks, instead we iterates only over the process attached to the oom
->> memcg and avoid the rcu lock.
-> you have replaced rcu lock by css_set_lock which is, well, heavier than
-> rcu. Besides that the patch is not correct because you have excluded
-> all tasks that are from subgroups because you iterate only through the
-> top level one.
-> I am not sure the whole optimization would be a win even if implemented
-> correctly. Well, we scan through more tasks currently and most of them
-> are not relevant but then you would need to exclude task_in_mem_cgroup
-> from oom_unkillable_task and that would be more code churn than the
-> win.
+On Thu 08-11-12 12:05:13, Michal Hocko wrote:
+> On Tue 06-11-12 09:03:54, Michal Hocko wrote:
+> > On Mon 05-11-12 16:28:37, Andrew Morton wrote:
+> > > On Thu,  1 Nov 2012 16:07:35 +0400
+> > > Glauber Costa <glommer@parallels.com> wrote:
+> > > 
+> > > > +static __always_inline struct kmem_cache *
+> > > > +memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+> > > 
+> > > I still don't understand why this code uses __always_inline so much.
+> > 
+> > AFAIU, __always_inline (resp. __attribute__((always_inline))) is the
+> > same thing as inline if optimizations are enabled
+> > (http://ohse.de/uwe/articles/gcc-attributes.html#func-always_inline).
+> 
+> And this doesn't tell the whole story because there is -fearly-inlining
+> which enabled by default and it makes a difference when optimizations
+> are enabled so __always_inline really enforces inlining.
 
-Thanks for your and David's advice.
-This piece is trying to save some expense while dumping memcg tasks, but 
-failed to
-scanning subgroups by iterating the cgroup. I'm agreed with your cost&win
-opinion, so I decide to give up this one. : )
+and -fearly-inlining is another doc trap. I have tried with -O2
+-fno-early-inlining and __always_inline code has been inlined with gcc
+4.3 and 4.7 while simple inline is ignored so it really seems that
+__always_inline is always inlined but man page is little a bit mean to
+tell us all the details.
 
-
-Thanks,
-Sha
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
