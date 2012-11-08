@@ -1,75 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 8F5A46B002B
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 17:01:51 -0500 (EST)
-Date: Thu, 8 Nov 2012 14:01:50 -0800
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] Add a test program for variable page sizes in
- mmap/shmget v2
-Message-ID: <20121108220150.GA2726@tassilo.jf.intel.com>
-References: <1352408486-4318-1-git-send-email-andi@firstfloor.org>
- <20121108132946.c2b9e8b7.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 9E1CB6B002B
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 17:02:40 -0500 (EST)
+Received: from mail173-co9 (localhost [127.0.0.1])	by
+ mail173-co9-R.bigfish.com (Postfix) with ESMTP id 711FF180ACC	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu,  8 Nov 2012 22:01:37 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
+Date: Thu, 8 Nov 2012 22:01:33 +0000
+Message-ID: <426367E2313C2449837CD2DE46E7EAF930E0D0CC@CH1PRD0310MB381.namprd03.prod.outlook.com>
+References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
+ <1349654386-18378-1-git-send-email-kys@microsoft.com>
+ <20121008004358.GA12342@kroah.com>
+ <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121008133539.GA15490@kroah.com>
+ <20121009124755.ce1087b4.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121105134456.f655b85a.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <alpine.DEB.2.00.1211051418560.5296@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1211051418560.5296@chino.kir.corp.google.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121108132946.c2b9e8b7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
-
-On Thu, Nov 08, 2012 at 01:29:46PM -0800, Andrew Morton wrote:
-> On Thu,  8 Nov 2012 13:01:26 -0800
-> Andi Kleen <andi@firstfloor.org> wrote:
-> 
-> > From: Andi Kleen <ak@linux.intel.com>
-> > 
-> > Not hooked up to the harness so far, because it usually needs
-> > special boot options for 1GB pages.
-> 
-> This isn't the case from my reading: we *can* hook it up now?
-
-Yes, but also need to set the sysctls.
-
-> > index b336b24..7300d07 100644
-> > --- a/tools/testing/selftests/vm/Makefile
-> > +++ b/tools/testing/selftests/vm/Makefile
-> > @@ -1,9 +1,9 @@
-> >  # Makefile for vm selftests
-> >  
-> >  CC = $(CROSS_COMPILE)gcc
-> > -CFLAGS = -Wall -Wextra
-> > +CFLAGS = -Wall
-> 
-> Why this?  It doesn't change anything with my gcc so I think
-> I'll revert that.
-
-There were lots of warnings with signed/unsigned comparisons on my gcc
-(4.6) and since I personally consider those useless I just disabled
-the warning.
-
-> 
-> I just tried a `make run_vmtests' and it fell on its face. 
-> There's a little comment in there saying "please run as root", but we
-> don't *want* that.  The selftests should be runnable as non-root and
-> should, where unavoidable, emit a warning and proceed if elevated
-> permissions are required.
-
-My test requires root. That is only the ipc test requires root.
-To be honest I have no idea why but I don't claim to understand
-why ipcperms() does all the weird stuff it does.
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
 
 
-> 
-> I tried running it as root and my workstation hung, requiring a reboot.
-> Won't be doing that again.
 
-My test system didn't hang FWIW.
+> -----Original Message-----
+> From: David Rientjes [mailto:rientjes@google.com]
+> Sent: Monday, November 05, 2012 5:33 PM
+> To: KY Srinivasan
+> Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
+> andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; lin=
+ux-
+> mm@kvack.org; Hiroyuki Kamezawa; Michal Hocko; Johannes Weiner; Ying Han
+> Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
+>=20
+> On Mon, 5 Nov 2012, KY Srinivasan wrote:
+>=20
+> > The Hyper-V host has a policy engine for managing available physical me=
+mory
+> across
+> > competing virtual machines. This policy decision is based on a number o=
+f
+> parameters
+> > including the memory pressure reported by the guest. Currently, the pre=
+ssure
+> calculation is
+> > based on the memory commitment made by the guest. From what I can tell,
+> the ratio of
+> > currently allocated physical memory to the current memory commitment ma=
+de
+> by the guest
+> > (vm_committed_as) is used as one of the parameters in making the memory
+> balancing decision on
+> > the host. This is what Windows guests report to the host. So, I need so=
+me
+> measure of memory
+> > commitments made by the Linux guest. This is the reason I want export
+> vm_committed_as.
+> >
+>=20
+> I don't think you should export the symbol itself to modules but rather a
+> helper function that returns s64 that just wraps
+> percpu_counter_read_positive() which your driver could use instead.
+>=20
+> (And why percpu_counter_read_positive() returns a signed type is a
+> mystery.)
 
--Andi
+Yes, this makes sense. I just want to access (read) this metric. Andrew, if=
+ you are willing to
+take this patch, I could send one.
 
--- 
-ak@linux.intel.com -- Speaking for myself only
+Regards,
+
+K. Y
+=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
