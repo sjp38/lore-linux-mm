@@ -1,125 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id A20566B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 02:01:22 -0500 (EST)
-Message-ID: <509B5953.4000608@redhat.com>
-Date: Thu, 08 Nov 2012 15:03:47 +0800
-From: Zhouping Liu <zliu@redhat.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id EEA2A6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 02:13:31 -0500 (EST)
+Message-ID: <509B5B86.4040106@parallels.com>
+Date: Thu, 8 Nov 2012 08:13:10 +0100
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/19] Foundation for automatic NUMA balancing
-References: <1352193295-26815-1-git-send-email-mgorman@suse.de> <509A2970.9000408@redhat.com> <20121107152558.GZ8218@suse.de> <509B533B.7090907@redhat.com> <CAOHXNFG=T63dmc3smkJ2juE7HpxTv6qbavBXycRsXiLBzAwMGw@mail.gmail.com>
-In-Reply-To: <CAOHXNFG=T63dmc3smkJ2juE7HpxTv6qbavBXycRsXiLBzAwMGw@mail.gmail.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v6 25/29] memcg/sl[au]b: shrink dead caches
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com> <1351771665-11076-26-git-send-email-glommer@parallels.com> <20121105164813.2eba5ecb.akpm@linux-foundation.org> <509A0A04.2030503@parallels.com> <20121106231627.3610c908.akpm@linux-foundation.org> <509A2849.9090509@parallels.com> <20121107144612.e822986f.akpm@linux-foundation.org>
+In-Reply-To: <20121107144612.e822986f.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?GB2312?B?0e7W8Q==?= <richardyangr@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, CAI Qian <caiqian@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman
+ Souhlal <suleiman@google.com>
 
-On 11/08/2012 02:39 PM, NiOn wrote:
-> Hi all:
->           I got a problemGBPo
->           1. on intel cpu xeon E5000 family which support xapic GBP!one NIC
-> irq  can share on the CPUs basic on smp_affinity.
->           2. but on intel cpu xeon E5-2600 family which support x2apic, one
-> NIC irq only on CPU0 whatever  i set the smp_affinfiy like as "aa"; "55";
-> "ff".
->          My OS is CentOS 6.2  x32 GBP!i test 4 cpus!GBP the result is which only
-> support apic can share one irq to all cpusGBP!which support x2apic only make
-> the irq to one cpu!GBP
-
-richard, I'm not sure whether your problem is occurred with the
-patch-set or not,
-if it's not related to the patches, you should report it on a *new* subject.
-
-Thanks,
-Zhouping
-
->
->
-> want help me
->
->                                                              richard
->
->
-> 2012/11/8 Zhouping Liu <zliu@redhat.com>
->
->> On 11/07/2012 11:25 PM, Mel Gorman wrote:
->>
->>> On Wed, Nov 07, 2012 at 05:27:12PM +0800, Zhouping Liu wrote:
->>>
->>>> Hello Mel,
+On 11/07/2012 11:46 PM, Andrew Morton wrote:
+> On Wed, 7 Nov 2012 10:22:17 +0100
+> Glauber Costa <glommer@parallels.com> wrote:
+> 
+>>>>> container synchronously.  If those objects are normally left floating
+>>>>> around in an allocated but reclaimable state then we can address that
+>>>>> by synchronously freeing them if their container has been destroyed.
+>>>>>
+>>>>> Or something like that.  If it's something else then fine, but not this.
+>>>>>
+>>>>> What do we need to do to fix this?
+>>>>>
+>>>> The original patch had a unlikely() test in the free path, conditional
+>>>> on whether or not the cache is dead, that would then call this is the
+>>>> cache would now be empty.
 >>>>
->>>> my 2 nodes machine hit a panic fault after applied the patch
->>>> set(based on kernel-3.7.0-rc4), please review it:
+>>>> I got several requests to remove it and change it to something like
+>>>> this, because that is a fast path (I myself think an unlikely branch is
+>>>> not that bad)
 >>>>
->>>> <SNIP>
->>>>
->>> Early initialisation problem by the looks of things. Try this please
+>>>> If you think such a test is acceptable, I can bring it back and argue in
+>>>> the basis of "akpm made me do it!". But meanwhile I will give this extra
+>>>> though to see if there is any alternative way I can do it...
 >>>
->> Tested the patch, and the issue is gone.
+>>> OK, thanks, please do take a look at it.
+>>>
+>>> I'd be interested in seeing the old version of the patch which had this
+>>> test-n-branch.  Perhaps there's some trick we can pull to lessen its cost.
+>>>
+>> Attached.
 >>
+>> This is the last version that used it (well, I believe it is). There is
+>> other unrelated things in this patch, that I got rid of. Look for
+>> kmem_cache_verify_dead().
 >>
->>> ---8<---
->>> mm: numa: Check that preferred_node_policy is initialised
->>>
->>> Zhouping Liu reported the following
->>>
->>> [ 0.000000] ------------[ cut here ]------------
->>> [ 0.000000] kernel BUG at mm/mempolicy.c:1785!
->>> [ 0.000000] invalid opcode: 0000 [#1] SMP
->>> [ 0.000000] Modules linked in:
->>> [ 0.000000] CPU 0
->>> ....
->>> [    0.000000] Call Trace:
->>> [    0.000000] [<ffffffff81176966>] alloc_pages_current+0xa6/0x170
->>> [    0.000000] [<ffffffff81137a44>] __get_free_pages+0x14/0x50
->>> [    0.000000] [<ffffffff819efd9b>] kmem_cache_init+0x53/0x2d2
->>> [    0.000000] [<ffffffff819caa53>] start_kernel+0x1e0/0x3c7
->>>
->>> Problem is that early in boot preferred_nod_policy and SLUB
->>> initialisation trips up. Check it is initialised.
->>>
->>> Signed-off-by: Mel Gorman <mgorman@suse.de>
->>>
->> Tested-by: Zhouping Liu <zliu@redhat.com>
+>> In a summary, all calls to the free function would as a last step do:
+>> kmem_cache_verify_dead() that would either be an empty placeholder, or:
 >>
->> Thanks,
->> Zhouping
->>
->>  ---
->>>   mm/mempolicy.c |    4 ++++
->>>   1 file changed, 4 insertions(+)
->>>
->>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->>> index 11d4b6b..8cfa6dc 100644
->>> --- a/mm/mempolicy.c
->>> +++ b/mm/mempolicy.c
->>> @@ -129,6 +129,10 @@ static struct mempolicy *get_task_policy(struct
->>> task_struct *p)
->>>                 node = numa_node_id();
->>>                 if (node != -1)
->>>                         pol = &preferred_node_policy[node];
->>> +
->>> +               /* preferred_node_policy is not initialised early in boot
->>> */
->>> +               if (!pol->mode)
->>> +                       pol = NULL;
->>>         }
->>>         return pol;
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/**majordomo-info.html<http://vger.kernel.org/majordomo-info.html>
->> Please read the FAQ at  http://www.tux.org/lkml/
->>
+>> +static inline void kmem_cache_verify_dead(struct kmem_cache *s)
+>> +{
+>> +       if (unlikely(s->memcg_params.dead))
+>> +               schedule_work(&s->memcg_params.cache_shrinker);
+>> +}
+> 
+> hm, a few things.
+> 
+> What's up with kmem_cache_shrink?  It's global and exported to modules
+> but its only external caller is some weird and hopelessly poorly
+> documented site down in drivers/acpi/osl.c.  slab and slob implement
+> kmem_cache_shrink() *only* for acpi!  wtf?  Let's work out what acpi is
+> trying to actually do there, then do it properly, then killkillkill!
+> 
+> Secondly, as slab and slub (at least) have the ability to shed cached
+> memory, why aren't they hooked into the core cache-shinking machinery. 
+> After all, it's called "shrink_slab"!
+> 
+> 
+> If we can fix all that up then I wonder whether this particular patch
+> needs to exist at all.  If the kmem_cache is no longer used then we
+> can simply leave it floating around in memory and the regular cache
+> shrinking code out of shrink_slab() will clean up any remaining pages. 
+> The kmem_cache itself can be reclaimed via another shrinker, if
+> necessary?
+> 
+
+So my motivation here, is that when you free the last object on a cache,
+or even the last object on a specific page, it won't necessarily free
+the page.
+
+The page is left there in the system, until kmem_cache_shrink is called.
+Because I am taking action on pages, not objects, I would like them to
+be released, so I know the cache went down,  and I can destroy it. As a
+matter of fact, at least the slub, when kmem_cache_destroy is explicitly
+called, will call flush_slab, which is pretty much the core of
+kmem_cache_shrink().
+
+shrink_slab() will only call into caches with a registered shrinker, so
+my fear was that if I don't call kmem_cache_shrink() explicitly, that
+memory may not ever be released.
+
+If you have any idea about to fix that, I am all years. I don't actually
+like this patch very much, it was a PITA to get right =(
+I will love to ditch it.
+
+Maybe we can do this from vmscan.c? It would be still calling the same
+function, we don't get any beauty points for that, but at least it is
+done in a place that makes sense
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
