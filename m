@@ -1,149 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 995FC6B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 08:29:41 -0500 (EST)
-Received: from mail164-ch1 (localhost [127.0.0.1])	by
- mail164-ch1-R.bigfish.com (Postfix) with ESMTP id 742B92010C	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu,  8 Nov 2012 13:28:39 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
-Date: Thu, 8 Nov 2012 13:28:32 +0000
-Message-ID: <426367E2313C2449837CD2DE46E7EAF930DFC381@SN2PRD0310MB382.namprd03.prod.outlook.com>
-References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
- <1349654386-18378-1-git-send-email-kys@microsoft.com>
- <20121008004358.GA12342@kroah.com>
- <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121008133539.GA15490@kroah.com>
- <20121009124755.ce1087b4.akpm@linux-foundation.org>
- <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121105134456.f655b85a.akpm@linux-foundation.org>
- <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <20121106090539.GB21167@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 5A6E76B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 08:58:49 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so2201638pad.14
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 05:58:48 -0800 (PST)
+Message-ID: <509BBA9C.7050007@gmail.com>
+Date: Thu, 08 Nov 2012 21:58:52 +0800
+From: Sha Zhengju <handai.szj@gmail.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] oom: rework dump_tasks to optimize memcg-oom situation
+References: <1352277602-21687-1-git-send-email-handai.szj@taobao.com> <1352277719-21760-1-git-send-email-handai.szj@taobao.com> <20121107223437.GC26382@dhcp22.suse.cz>
+In-Reply-To: <20121107223437.GC26382@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
+
+On 11/08/2012 06:34 AM, Michal Hocko wrote:
+> On Wed 07-11-12 16:41:59, Sha Zhengju wrote:
+>> From: Sha Zhengju<handai.szj@taobao.com>
+>>
+>> If memcg oom happening, don't scan all system tasks to dump memory state of
+>> eligible tasks, instead we iterates only over the process attached to the oom
+>> memcg and avoid the rcu lock.
+> you have replaced rcu lock by css_set_lock which is, well, heavier than
+> rcu. Besides that the patch is not correct because you have excluded
+> all tasks that are from subgroups because you iterate only through the
+> top level one.
+> I am not sure the whole optimization would be a win even if implemented
+> correctly. Well, we scan through more tasks currently and most of them
+> are not relevant but then you would need to exclude task_in_mem_cgroup
+> from oom_unkillable_task and that would be more code churn than the
+> win.
+
+Thanks for your and David's advice.
+This piece is trying to save some expense while dumping memcg tasks, but 
+failed to
+scanning subgroups by iterating the cgroup. I'm agreed with your cost&win
+opinion, so I decide to give up this one. : )
 
 
-
-> -----Original Message-----
-> From: KY Srinivasan
-> Sent: Tuesday, November 06, 2012 7:53 AM
-> To: 'Michal Hocko'
-> Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
-> andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; lin=
-ux-
-> mm@kvack.org; Hiroyuki Kamezawa; Johannes Weiner; Ying Han
-> Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
->=20
->=20
->=20
-> > -----Original Message-----
-> > From: Michal Hocko [mailto:mstsxfx@gmail.com] On Behalf Of Michal Hocko
-> > Sent: Tuesday, November 06, 2012 4:06 AM
-> > To: KY Srinivasan
-> > Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.or=
-g;
-> > andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; l=
-inux-
-> > mm@kvack.org; Hiroyuki Kamezawa; Johannes Weiner; Ying Han
-> > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-> >
-> > On Mon 05-11-12 22:12:25, KY Srinivasan wrote:
-> > >
-> > >
-> > > > -----Original Message-----
-> > > > From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> > > > Sent: Monday, November 05, 2012 4:45 PM
-> > > > To: KY Srinivasan
-> > > > Cc: Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
-> > andi@firstfloor.org;
-> > > > apw@canonical.com; devel@linuxdriverproject.org; linux-mm@kvack.org=
-;
-> > > > Hiroyuki Kamezawa; Michal Hocko; Johannes Weiner; Ying Han
-> > > > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
-> > > >
-> > > > On Sat, 3 Nov 2012 14:09:38 +0000
-> > > > KY Srinivasan <kys@microsoft.com> wrote:
-> > > >
-> > > > >
-> > > > >
-> > > > > > >
-> > > > > > > Ok, but you're going to have to get the -mm developers to agr=
-ee that
-> > > > > > > this is ok before I can accept it.
-> > > > > >
-> > > > > > Well I guess it won't kill us.
-> > > > >
-> > > > > Andrew,
-> > > > >
-> > > > > I presumed this was an Ack from you with regards to exporting the
-> > > > > symbol. Looks like Greg is waiting to hear from you before he can=
- check
-> > > > > these patches in. Could you provide an explicit Ack.
-> > > > >
-> > > >
-> > > > Well, I do have some qualms about exporting vm_committed_as to
-> modules.
-> > > >
-> > > > vm_committed_as is a global thing and only really makes sense in a
-> > > > non-containerised system.  If the application is running within a
-> > > > memory cgroup then vm_enough_memory() and the global overcommit
-> > policy
-> > > > are at best irrelevant and misleading.
-> > > >
-> > > > If use of vm_committed_as is indeed a bad thing, then exporting it =
-to
-> > > > modules might increase the amount of badness in the kernel.
-> > > >
-> > > >
-> > > > I don't think these qualms are serious enough to stand in the way o=
-f
-> > > > this patch, but I'd be interested in hearing the memcg developers'
-> > > > thoughts on the matter?
-> > > >
-> > > >
-> > > > Perhaps you could provide a detailed description of why your module
-> > > > actually needs this?  Precisely what information is it looking for
-> > > > and why?  If we know that then perhaps a more comfortable alternati=
-ve
-> > > > can be found.
-> > >
-> > > The Hyper-V host has a policy engine for managing available physical
-> > > memory across competing virtual machines. This policy decision
-> > > is based on a number of parameters including the memory pressure
-> > > reported by the guest. Currently, the pressure calculation is based
-> > > on the memory commitment made by the guest. From what I can tell, the
-> > > ratio of currently allocated physical memory to the current memory
-> > > commitment made by the guest (vm_committed_as) is used as one of the
-> > > parameters in making the memory balancing decision on the host. This
-> > > is what Windows guests report to the host. So, I need some measure of
-> > > memory commitments made by the Linux guest. This is the reason I want
-> > > export vm_committed_as.
-> >
-> > So IIUC it will be guest who reports the value and the guest runs in th=
-e
-> > ring-0 so it is not in any user process context, right?
-> > If this is correct then memcg doesn't play any role here.
->=20
-> Thanks Michal. Yes, the kernel driver reports this metric to the host.
-> Andrew, let me know how I should proceed here.
-
-Ping.
-
-Regards,
-
-K. Y
->=20
-> Thanks,
->=20
-> K. Y
-
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
