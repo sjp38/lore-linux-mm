@@ -1,127 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id C60446B0044
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 08:11:57 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so1292565dad.14
-        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 05:11:57 -0800 (PST)
-Message-ID: <509BAFA0.4010604@gmail.com>
-Date: Thu, 08 Nov 2012 21:12:00 +0800
-From: Sha Zhengju <handai.szj@gmail.com>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 995FC6B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 08:29:41 -0500 (EST)
+Received: from mail164-ch1 (localhost [127.0.0.1])	by
+ mail164-ch1-R.bigfish.com (Postfix) with ESMTP id 742B92010C	for
+ <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Thu,  8 Nov 2012 13:28:39 +0000
+ (UTC)
+From: KY Srinivasan <kys@microsoft.com>
+Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
+Date: Thu, 8 Nov 2012 13:28:32 +0000
+Message-ID: <426367E2313C2449837CD2DE46E7EAF930DFC381@SN2PRD0310MB382.namprd03.prod.outlook.com>
+References: <1349654347-18337-1-git-send-email-kys@microsoft.com>
+ <1349654386-18378-1-git-send-email-kys@microsoft.com>
+ <20121008004358.GA12342@kroah.com>
+ <426367E2313C2449837CD2DE46E7EAF930A1FB31@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121008133539.GA15490@kroah.com>
+ <20121009124755.ce1087b4.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DF7FBB@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121105134456.f655b85a.akpm@linux-foundation.org>
+ <426367E2313C2449837CD2DE46E7EAF930DFA7B8@SN2PRD0310MB382.namprd03.prod.outlook.com>
+ <20121106090539.GB21167@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] memcg, oom: provide more precise dump info while
- memcg oom happening
-References: <1352277602-21687-1-git-send-email-handai.szj@taobao.com> <1352277696-21724-1-git-send-email-handai.szj@taobao.com> <509B7658.1020807@jp.fujitsu.com>
-In-Reply-To: <509B7658.1020807@jp.fujitsu.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
-
-On 11/08/2012 05:07 PM, Kamezawa Hiroyuki wrote:
-> (2012/11/07 17:41), Sha Zhengju wrote:
->> From: Sha Zhengju <handai.szj@taobao.com>
->>
->> Current, when a memcg oom is happening the oom dump messages is still global
->> state and provides few useful info for users. This patch prints more pointed
->> memcg page statistics for memcg-oom.
->>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->> Cc: Michal Hocko <mhocko@suse.cz>
->> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> ---
->>   mm/memcontrol.c |   71 ++++++++++++++++++++++++++++++++++++++++++++++++-------
->>   mm/oom_kill.c   |    6 +++-
->>   2 files changed, 66 insertions(+), 11 deletions(-)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 0eab7d5..2df5e72 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -118,6 +118,14 @@ static const char * const mem_cgroup_events_names[] = {
->>   	"pgmajfault",
->>   };
->>   
->> +static const char * const mem_cgroup_lru_names[] = {
->> +	"inactive_anon",
->> +	"active_anon",
->> +	"inactive_file",
->> +	"active_file",
->> +	"unevictable",
->> +};
->> +
-> Is this for the same strings with show_free_areas() ?
->
-
-I just move the declaration here from the bottom of source file to make
-the following use error-free.
-
->>   /*
->>    * Per memcg event counter is incremented at every pagein/pageout. With THP,
->>    * it will be incremated by the number of pages. This counter is used for
->> @@ -1501,8 +1509,59 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
->>   	spin_unlock_irqrestore(&memcg->move_lock, *flags);
->>   }
->>   
->> +#define K(x) ((x) << (PAGE_SHIFT-10))
->> +static void mem_cgroup_print_oom_stat(struct mem_cgroup *memcg)
->> +{
->> +	struct mem_cgroup *mi;
->> +	unsigned int i;
->> +
->> +	if (!memcg->use_hierarchy && memcg != root_mem_cgroup) {
-> Why do you need to have this condition check ?
->
-
-Yes, the check is unnecessary... I'll remove it next version.
-
->> +		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
->> +			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
->> +				continue;
->> +			printk(KERN_CONT "%s:%ldKB ", mem_cgroup_stat_names[i],
->> +				K(mem_cgroup_read_stat(memcg, i)));
-> Hm, how about using the same style with show_free_areas() ?
->
-
-I'm also trying do so. show_free_areas() prints the memory related info
-in two style:
-one is in page unit and the oher is in KB (I've no idea why we distinct
-them), but
-I think the KB format is more readable.
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg KH <gregkh@linuxfoundation.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "andi@firstfloor.org" <andi@firstfloor.org>, "apw@canonical.com" <apw@canonical.com>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hiroyuki Kamezawa <kamezawa.hiroyuki@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>
 
 
->> +		}
->> +
->> +		for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
->> +			printk(KERN_CONT "%s:%lu ", mem_cgroup_events_names[i],
->> +				mem_cgroup_read_events(memcg, i));
->> +
-> I don't think EVENTS info is useful for oom.
->
 
-It seems you're right. : )
+> -----Original Message-----
+> From: KY Srinivasan
+> Sent: Tuesday, November 06, 2012 7:53 AM
+> To: 'Michal Hocko'
+> Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
+> andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; lin=
+ux-
+> mm@kvack.org; Hiroyuki Kamezawa; Johannes Weiner; Ying Han
+> Subject: RE: [PATCH 1/2] mm: Export vm_committed_as
+>=20
+>=20
+>=20
+> > -----Original Message-----
+> > From: Michal Hocko [mailto:mstsxfx@gmail.com] On Behalf Of Michal Hocko
+> > Sent: Tuesday, November 06, 2012 4:06 AM
+> > To: KY Srinivasan
+> > Cc: Andrew Morton; Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.or=
+g;
+> > andi@firstfloor.org; apw@canonical.com; devel@linuxdriverproject.org; l=
+inux-
+> > mm@kvack.org; Hiroyuki Kamezawa; Johannes Weiner; Ying Han
+> > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
+> >
+> > On Mon 05-11-12 22:12:25, KY Srinivasan wrote:
+> > >
+> > >
+> > > > -----Original Message-----
+> > > > From: Andrew Morton [mailto:akpm@linux-foundation.org]
+> > > > Sent: Monday, November 05, 2012 4:45 PM
+> > > > To: KY Srinivasan
+> > > > Cc: Greg KH; olaf@aepfle.de; linux-kernel@vger.kernel.org;
+> > andi@firstfloor.org;
+> > > > apw@canonical.com; devel@linuxdriverproject.org; linux-mm@kvack.org=
+;
+> > > > Hiroyuki Kamezawa; Michal Hocko; Johannes Weiner; Ying Han
+> > > > Subject: Re: [PATCH 1/2] mm: Export vm_committed_as
+> > > >
+> > > > On Sat, 3 Nov 2012 14:09:38 +0000
+> > > > KY Srinivasan <kys@microsoft.com> wrote:
+> > > >
+> > > > >
+> > > > >
+> > > > > > >
+> > > > > > > Ok, but you're going to have to get the -mm developers to agr=
+ee that
+> > > > > > > this is ok before I can accept it.
+> > > > > >
+> > > > > > Well I guess it won't kill us.
+> > > > >
+> > > > > Andrew,
+> > > > >
+> > > > > I presumed this was an Ack from you with regards to exporting the
+> > > > > symbol. Looks like Greg is waiting to hear from you before he can=
+ check
+> > > > > these patches in. Could you provide an explicit Ack.
+> > > > >
+> > > >
+> > > > Well, I do have some qualms about exporting vm_committed_as to
+> modules.
+> > > >
+> > > > vm_committed_as is a global thing and only really makes sense in a
+> > > > non-containerised system.  If the application is running within a
+> > > > memory cgroup then vm_enough_memory() and the global overcommit
+> > policy
+> > > > are at best irrelevant and misleading.
+> > > >
+> > > > If use of vm_committed_as is indeed a bad thing, then exporting it =
+to
+> > > > modules might increase the amount of badness in the kernel.
+> > > >
+> > > >
+> > > > I don't think these qualms are serious enough to stand in the way o=
+f
+> > > > this patch, but I'd be interested in hearing the memcg developers'
+> > > > thoughts on the matter?
+> > > >
+> > > >
+> > > > Perhaps you could provide a detailed description of why your module
+> > > > actually needs this?  Precisely what information is it looking for
+> > > > and why?  If we know that then perhaps a more comfortable alternati=
+ve
+> > > > can be found.
+> > >
+> > > The Hyper-V host has a policy engine for managing available physical
+> > > memory across competing virtual machines. This policy decision
+> > > is based on a number of parameters including the memory pressure
+> > > reported by the guest. Currently, the pressure calculation is based
+> > > on the memory commitment made by the guest. From what I can tell, the
+> > > ratio of currently allocated physical memory to the current memory
+> > > commitment made by the guest (vm_committed_as) is used as one of the
+> > > parameters in making the memory balancing decision on the host. This
+> > > is what Windows guests report to the host. So, I need some measure of
+> > > memory commitments made by the Linux guest. This is the reason I want
+> > > export vm_committed_as.
+> >
+> > So IIUC it will be guest who reports the value and the guest runs in th=
+e
+> > ring-0 so it is not in any user process context, right?
+> > If this is correct then memcg doesn't play any role here.
+>=20
+> Thanks Michal. Yes, the kernel driver reports this metric to the host.
+> Andrew, let me know how I should proceed here.
 
->> +		for (i = 0; i < NR_LRU_LISTS; i++)
->> +			printk(KERN_CONT "%s:%luKB ", mem_cgroup_lru_names[i],
->> +				K(mem_cgroup_nr_lru_pages(memcg, BIT(i))));
-> How far does your new information has different format than usual oom ?
-> Could you show a sample and difference in changelog ?
->
-> Of course, I prefer both of them has similar format.
->
->
->
-The new memcg-oom info excludes global state out and prints the memcg
-statistics instead
-which seems more brevity. I'll add a sample next time. Thanks for
-reminding me!
+Ping.
 
+Regards,
 
-Thanks,
-Sha
+K. Y
+>=20
+> Thanks,
+>=20
+> K. Y
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
