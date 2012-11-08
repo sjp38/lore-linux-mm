@@ -1,152 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 3F17B6B004D
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 01:59:57 -0500 (EST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MD500HSIQ3JB5B0@mailout2.samsung.com> for
- linux-mm@kvack.org; Thu, 08 Nov 2012 15:59:56 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MD500GVNQ3NRE60@mmp1.samsung.com> for linux-mm@kvack.org;
- Thu, 08 Nov 2012 15:59:55 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] mm: remove watermark hacks for CMA
-Date: Thu, 08 Nov 2012 07:59:45 +0100
-Message-id: <1352357985-14869-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id A20566B0044
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 02:01:22 -0500 (EST)
+Message-ID: <509B5953.4000608@redhat.com>
+Date: Thu, 08 Nov 2012 15:03:47 +0800
+From: Zhouping Liu <zliu@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH 00/19] Foundation for automatic NUMA balancing
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de> <509A2970.9000408@redhat.com> <20121107152558.GZ8218@suse.de> <509B533B.7090907@redhat.com> <CAOHXNFG=T63dmc3smkJ2juE7HpxTv6qbavBXycRsXiLBzAwMGw@mail.gmail.com>
+In-Reply-To: <CAOHXNFG=T63dmc3smkJ2juE7HpxTv6qbavBXycRsXiLBzAwMGw@mail.gmail.com>
+Content-Type: text/plain; charset=GB2312
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: =?GB2312?B?0e7W8Q==?= <richardyangr@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, CAI Qian <caiqian@redhat.com>
 
-Commits 2139cbe627b89 ("cma: fix counting of isolated pages") and
-d95ea5d18e69951 ("cma: fix watermark checking") introduced a reliable
-method of free page accounting when memory is being allocated from CMA
-regions, so the workaround introduced earlier by commit 49f223a9cd96c72
-("mm: trigger page reclaim in alloc_contig_range() to stabilise
-watermarks") can be finally removed.
+On 11/08/2012 02:39 PM, NiOn wrote:
+> Hi all:
+>           I got a problemGBPo
+>           1. on intel cpu xeon E5000 family which support xapic GBP!one NIC
+> irq  can share on the CPUs basic on smp_affinity.
+>           2. but on intel cpu xeon E5-2600 family which support x2apic, one
+> NIC irq only on CPU0 whatever  i set the smp_affinfiy like as "aa"; "55";
+> "ff".
+>          My OS is CentOS 6.2  x32 GBP!i test 4 cpus!GBP the result is which only
+> support apic can share one irq to all cpusGBP!which support x2apic only make
+> the irq to one cpu!GBP
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- include/linux/mmzone.h |    9 --------
- mm/page_alloc.c        |   57 ------------------------------------------------
- 2 files changed, 66 deletions(-)
+richard, I'm not sure whether your problem is occurred with the
+patch-set or not,
+if it's not related to the patches, you should report it on a *new* subject.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index c9fcd8f..f010b23 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -63,10 +63,8 @@ enum {
- 
- #ifdef CONFIG_CMA
- #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
--#  define cma_wmark_pages(zone)	zone->min_cma_pages
- #else
- #  define is_migrate_cma(migratetype) false
--#  define cma_wmark_pages(zone) 0
- #endif
- 
- #define for_each_migratetype_order(order, type) \
-@@ -372,13 +370,6 @@ struct zone {
- 	/* see spanned/present_pages for more description */
- 	seqlock_t		span_seqlock;
- #endif
--#ifdef CONFIG_CMA
--	/*
--	 * CMA needs to increase watermark levels during the allocation
--	 * process to make sure that the system is not starved.
--	 */
--	unsigned long		min_cma_pages;
--#endif
- 	struct free_area	free_area[MAX_ORDER];
- 
- #ifndef CONFIG_SPARSEMEM
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 43ab09f..5028a18 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5217,10 +5217,6 @@ static void __setup_per_zone_wmarks(void)
- 		zone->watermark[WMARK_LOW]  = min_wmark_pages(zone) + (tmp >> 2);
- 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
- 
--		zone->watermark[WMARK_MIN] += cma_wmark_pages(zone);
--		zone->watermark[WMARK_LOW] += cma_wmark_pages(zone);
--		zone->watermark[WMARK_HIGH] += cma_wmark_pages(zone);
--
- 		setup_zone_migrate_reserve(zone);
- 		spin_unlock_irqrestore(&zone->lock, flags);
- 	}
-@@ -5765,54 +5761,6 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
- 	return ret > 0 ? 0 : ret;
- }
- 
--/*
-- * Update zone's cma pages counter used for watermark level calculation.
-- */
--static inline void __update_cma_watermarks(struct zone *zone, int count)
--{
--	unsigned long flags;
--	spin_lock_irqsave(&zone->lock, flags);
--	zone->min_cma_pages += count;
--	spin_unlock_irqrestore(&zone->lock, flags);
--	setup_per_zone_wmarks();
--}
--
--/*
-- * Trigger memory pressure bump to reclaim some pages in order to be able to
-- * allocate 'count' pages in single page units. Does similar work as
-- *__alloc_pages_slowpath() function.
-- */
--static int __reclaim_pages(struct zone *zone, gfp_t gfp_mask, int count)
--{
--	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
--	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
--	int did_some_progress = 0;
--	int order = 1;
--
--	/*
--	 * Increase level of watermarks to force kswapd do his job
--	 * to stabilise at new watermark level.
--	 */
--	__update_cma_watermarks(zone, count);
--
--	/* Obey watermarks as if the page was being allocated */
--	while (!zone_watermark_ok(zone, 0, low_wmark_pages(zone), 0, 0)) {
--		wake_all_kswapd(order, zonelist, high_zoneidx, zone_idx(zone));
--
--		did_some_progress = __perform_reclaim(gfp_mask, order, zonelist,
--						      NULL);
--		if (!did_some_progress) {
--			/* Exhausted what can be done so it's blamo time */
--			out_of_memory(zonelist, gfp_mask, order, NULL, false);
--		}
--	}
--
--	/* Restore original watermark levels. */
--	__update_cma_watermarks(zone, -count);
--
--	return count;
--}
--
- /**
-  * alloc_contig_range() -- tries to allocate given range of pages
-  * @start:	start PFN to allocate
-@@ -5921,11 +5869,6 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		goto done;
- 	}
- 
--	/*
--	 * Reclaim enough pages to make sure that contiguous allocation
--	 * will not starve the system.
--	 */
--	__reclaim_pages(zone, GFP_HIGHUSER_MOVABLE, end-start);
- 
- 	/* Grab isolated pages from freelists. */
- 	outer_end = isolate_freepages_range(&cc, outer_start, end);
--- 
-1.7.9.5
+Thanks,
+Zhouping
+
+>
+>
+> want help me
+>
+>                                                              richard
+>
+>
+> 2012/11/8 Zhouping Liu <zliu@redhat.com>
+>
+>> On 11/07/2012 11:25 PM, Mel Gorman wrote:
+>>
+>>> On Wed, Nov 07, 2012 at 05:27:12PM +0800, Zhouping Liu wrote:
+>>>
+>>>> Hello Mel,
+>>>>
+>>>> my 2 nodes machine hit a panic fault after applied the patch
+>>>> set(based on kernel-3.7.0-rc4), please review it:
+>>>>
+>>>> <SNIP>
+>>>>
+>>> Early initialisation problem by the looks of things. Try this please
+>>>
+>> Tested the patch, and the issue is gone.
+>>
+>>
+>>> ---8<---
+>>> mm: numa: Check that preferred_node_policy is initialised
+>>>
+>>> Zhouping Liu reported the following
+>>>
+>>> [ 0.000000] ------------[ cut here ]------------
+>>> [ 0.000000] kernel BUG at mm/mempolicy.c:1785!
+>>> [ 0.000000] invalid opcode: 0000 [#1] SMP
+>>> [ 0.000000] Modules linked in:
+>>> [ 0.000000] CPU 0
+>>> ....
+>>> [    0.000000] Call Trace:
+>>> [    0.000000] [<ffffffff81176966>] alloc_pages_current+0xa6/0x170
+>>> [    0.000000] [<ffffffff81137a44>] __get_free_pages+0x14/0x50
+>>> [    0.000000] [<ffffffff819efd9b>] kmem_cache_init+0x53/0x2d2
+>>> [    0.000000] [<ffffffff819caa53>] start_kernel+0x1e0/0x3c7
+>>>
+>>> Problem is that early in boot preferred_nod_policy and SLUB
+>>> initialisation trips up. Check it is initialised.
+>>>
+>>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>>
+>> Tested-by: Zhouping Liu <zliu@redhat.com>
+>>
+>> Thanks,
+>> Zhouping
+>>
+>>  ---
+>>>   mm/mempolicy.c |    4 ++++
+>>>   1 file changed, 4 insertions(+)
+>>>
+>>> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+>>> index 11d4b6b..8cfa6dc 100644
+>>> --- a/mm/mempolicy.c
+>>> +++ b/mm/mempolicy.c
+>>> @@ -129,6 +129,10 @@ static struct mempolicy *get_task_policy(struct
+>>> task_struct *p)
+>>>                 node = numa_node_id();
+>>>                 if (node != -1)
+>>>                         pol = &preferred_node_policy[node];
+>>> +
+>>> +               /* preferred_node_policy is not initialised early in boot
+>>> */
+>>> +               if (!pol->mode)
+>>> +                       pol = NULL;
+>>>         }
+>>>         return pol;
+>>>
+>>> --
+>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>> see: http://www.linux-mm.org/ .
+>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/**majordomo-info.html<http://vger.kernel.org/majordomo-info.html>
+>> Please read the FAQ at  http://www.tux.org/lkml/
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
