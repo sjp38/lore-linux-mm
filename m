@@ -1,80 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id C26086B002B
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 18:37:58 -0500 (EST)
-Date: Thu, 8 Nov 2012 15:37:56 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: Fix calculation of dirtyable memory
-Message-Id: <20121108153756.cca505da.akpm@linux-foundation.org>
-In-Reply-To: <1352417135-25122-1-git-send-email-sonnyrao@chromium.org>
-References: <1352417135-25122-1-git-send-email-sonnyrao@chromium.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 24ED76B002B
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 19:38:20 -0500 (EST)
+Date: Thu, 8 Nov 2012 16:38:18 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] Add a test program for variable page sizes in
+ mmap/shmget v2
+Message-ID: <20121109003818.GC2726@tassilo.jf.intel.com>
+References: <1352408486-4318-1-git-send-email-andi@firstfloor.org>
+ <20121108132946.c2b9e8b7.akpm@linux-foundation.org>
+ <20121108220150.GA2726@tassilo.jf.intel.com>
+ <20121108140938.357228e0.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121108140938.357228e0.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sonny Rao <sonnyrao@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Johannes Weiner <jweiner@redhat.com>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>, Puneet Kumar <puneetster@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
 
-On Thu,  8 Nov 2012 15:25:35 -0800
-Sonny Rao <sonnyrao@chromium.org> wrote:
-
-> The system uses global_dirtyable_memory() to calculate
-> number of dirtyable pages/pages that can be allocated
-> to the page cache.  A bug causes an underflow thus making
-> the page count look like a big unsigned number.  This in turn
-> confuses the dirty writeback throttling to aggressively write
-> back pages as they become dirty (usually 1 page at a time).
+> > My test system didn't hang FWIW.
 > 
-> Fix is to ensure there is no underflow while doing the math.
-> 
-> Signed-off-by: Sonny Rao <sonnyrao@chromium.org>
-> Signed-off-by: Puneet Kumar <puneetster@chromium.org>
-> ---
->  mm/page-writeback.c |   17 +++++++++++++----
->  1 files changed, 13 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 830893b..2a6356c 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -194,11 +194,19 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
->  	unsigned long x = 0;
->  
->  	for_each_node_state(node, N_HIGH_MEMORY) {
-> +		unsigned long nr_pages;
->  		struct zone *z =
->  			&NODE_DATA(node)->node_zones[ZONE_HIGHMEM];
->  
-> -		x += zone_page_state(z, NR_FREE_PAGES) +
-> -		     zone_reclaimable_pages(z) - z->dirty_balance_reserve;
-> +		nr_pages = zone_page_state(z, NR_FREE_PAGES) +
-> +			zone_reclaimable_pages(z);
-> +		/*
-> +		 * Unreclaimable memory (kernel memory or anonymous memory
-> +		 * without swap) can bring down the dirtyable pages below
-> +		 * the zone's dirty balance reserve.
-> +		 */
-> +		if (nr_pages >= z->dirty_balance_reserve)
-> +			x += nr_pages - z->dirty_balance_reserve;
+> It wasn't thuge-gen which hung.  It happened really early in
+> run_vmtests, perhaps setting nr_hugepages.
 
-If the system has two nodes and one is below its dirty_balance_reserve,
-we could end up with something like:
+I mean it didn't hang for the full script.
 
-	x = 0;
-	...
-	x += 1000;
-	...
-	x += -100;
+Ah this causes compaction so if you have a lot of fragmented memory
+it may run for a lot time with very long latencies, but inhibiting
+page faults of other processes.
 
-In this case, your fix would cause highmem_dirtyable_memory() to return
-1000.  Would it be better to instead return 900?
+It probably would have recovered.
 
-IOW, we instead add logic along the lines of
+it's a general problem that others are complaining about too.
 
-	if ((long)x < 0)
-		x = 0;
-	return x;
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
