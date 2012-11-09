@@ -1,321 +1,806 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 063B76B002B
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 00:15:26 -0500 (EST)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <svaidy@linux.vnet.ibm.com>;
-	Fri, 9 Nov 2012 10:45:23 +0530
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qA95FH2v55967932
-	for <linux-mm@kvack.org>; Fri, 9 Nov 2012 10:45:17 +0530
-Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qA95FGuo000717
-	for <linux-mm@kvack.org>; Fri, 9 Nov 2012 16:15:17 +1100
-Date: Fri, 9 Nov 2012 10:44:16 +0530
-From: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 0/8][Sorted-buddy] mm: Linux VM Infrastructure to
- support Memory Power Management
-Message-ID: <20121109051247.GA499@dirshya.in.ibm.com>
-Reply-To: svaidy@linux.vnet.ibm.com
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com>
- <20121108180257.GC8218@suse.de>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 2D3416B002B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 01:01:28 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id hm6so161006wib.8
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 22:01:26 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20121108180257.GC8218@suse.de>
+In-Reply-To: <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
+References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com>
+From: Ankita Garg <gargankita@gmail.com>
+Date: Fri, 9 Nov 2012 00:01:06 -0600
+Message-ID: <CAKD8Uxd=BguLj=4VvRRfKBDdqrz+p_6Sj6JF2UNEjLd-HNmHMw@mail.gmail.com>
+Subject: Re: [RFC PATCH 6/8] mm: Demarcate and maintain pageblocks in
+ region-order in the zones' freelists
+Content-Type: multipart/alternative; boundary=14dae9cc92a49e788d04ce09ae57
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, akpm@linux-foundation.org, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-* Mel Gorman <mgorman@suse.de> [2012-11-08 18:02:57]:
+--14dae9cc92a49e788d04ce09ae57
+Content-Type: text/plain; charset=ISO-8859-1
 
-> On Wed, Nov 07, 2012 at 01:22:13AM +0530, Srivatsa S. Bhat wrote:
-> > ------------------------------------------------------------
+Hi Srivatsa,
 
-Hi Mel,
+I understand that you are maintaining the page blocks in region sorted
+order. So that way, when the memory requests come in, you can hand out
+memory from the regions in that order. However, do you take this scenario
+into account - in some bucket of the buddy allocator, there might not be
+any pages belonging to, lets say, region 0, while the next higher bucket
+has them. So, instead of handing out memory from whichever region thats
+present there, to probably go to the next bucket and split that region 0
+pageblock there and allocate from it ? (Here, region 0 is just an example).
+Been a while since I looked at kernel code, so I might be missing something!
 
-Thanks for detailed review and comments.  The goal of this patch
-series is to brainstorm on ideas that enable Linux VM to record and
-exploit memory region boundaries.
+Regards,
+Ankita
 
-The first approach that we had last year (hierarchy) has more runtime
-overhead.  This approach of sorted-buddy was one of the alternative
-discussed earlier and we are trying to find out if simple requirements
-of biasing memory allocations can be achieved with this approach.
 
-Smart reclaim based on this approach is a key piece we still need to
-design.  Ideas from compaction will certainly help.
+On Tue, Nov 6, 2012 at 1:53 PM, Srivatsa S. Bhat <
+srivatsa.bhat@linux.vnet.ibm.com> wrote:
 
-> > Today memory subsystems are offer a wide range of capabilities for managing
-> > memory power consumption. As a quick example, if a block of memory is not
-> > referenced for a threshold amount of time, the memory controller can decide to
-> > put that chunk into a low-power content-preserving state. And the next
-> > reference to that memory chunk would bring it back to full power for read/write.
-> > With this capability in place, it becomes important for the OS to understand
-> > the boundaries of such power-manageable chunks of memory and to ensure that
-> > references are consolidated to a minimum number of such memory power management
-> > domains.
-> > 
-> 
-> How much power is saved?
+> The zones' freelists need to be made region-aware, in order to influence
+> page allocation and freeing algorithms. So in every free list in the zone,
+> we
+> would like to demarcate the pageblocks belonging to different memory
+> regions
+> (we can do this using a set of pointers, and thus avoid splitting up the
+> freelists).
+>
+> Also, we would like to keep the pageblocks in the freelists sorted in
+> region-order. That is, pageblocks belonging to region-0 would come first,
+> followed by pageblocks belonging to region-1 and so on, within a given
+> freelist. Of course, a set of pageblocks belonging to the same region need
+> not be sorted; it is sufficient if we maintain the pageblocks in
+> region-sorted-order, rather than a full address-sorted-order.
+>
+> For each freelist within the zone, we maintain a set of pointers to
+> pageblocks belonging to the various memory regions in that zone.
+>
+> Eg:
+>
+>     |<---Region0--->|   |<---Region1--->|   |<-------Region2--------->|
+>      ____      ____      ____      ____      ____      ____      ____
+> --> |____|--> |____|--> |____|--> |____|--> |____|--> |____|--> |____|-->
+>
+>                  ^                  ^                              ^
+>                  |                  |                              |
+>                 Reg0               Reg1                          Reg2
+>
+>
+> Page allocation will proceed as usual - pick the first item on the free
+> list.
+> But we don't want to keep updating these region pointers every time we
+> allocate
+> a pageblock from the freelist. So, instead of pointing to the *first*
+> pageblock
+> of that region, we maintain the region pointers such that they point to the
+> *last* pageblock in that region, as shown in the figure above. That way, as
+> long as there are > 1 pageblocks in that region in that freelist, that
+> region
+> pointer doesn't need to be updated.
+>
+>
+> Page allocation algorithm:
+> -------------------------
+>
+> The heart of the page allocation algorithm remains it is - pick the first
+> item on the appropriate freelist and return it.
+>
+>
+> Pageblock order in the zone freelists:
+> -------------------------------------
+>
+> This is the main change - we keep the pageblocks in region-sorted order,
+> where pageblocks belonging to region-0 come first, followed by those
+> belonging
+> to region-1 and so on. But the pageblocks within a given region need *not*
+> be
+> sorted, since we need them to be only region-sorted and not fully
+> address-sorted.
+>
+> This sorting is performed when adding pages back to the freelists, thus
+> avoiding any region-related overhead in the critical page allocation
+> paths.
+>
+> Page reclaim [Todo]:
+> --------------------
+>
+> Page allocation happens in the order of increasing region number. We would
+> like to do page reclaim in the reverse order, to keep allocated pages
+> within
+> a minimal number of regions (approximately).
+>
+> ---------------------------- Increasing region
+> number---------------------->
+>
+> Direction of allocation--->                         <---Direction of
+> reclaim
+>
+> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+> ---
+>
+>  mm/page_alloc.c |  128
+> +++++++++++++++++++++++++++++++++++++++++++++++++------
+>  1 file changed, 113 insertions(+), 15 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 62d0a9a..52ff914 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -502,6 +502,79 @@ static inline int page_is_buddy(struct page *page,
+> struct page *buddy,
+>         return 0;
+>  }
+>
+> +static void add_to_freelist(struct page *page, struct list_head *lru,
+> +                           struct free_list *free_list)
+> +{
+> +       struct mem_region_list *region;
+> +       struct list_head *prev_region_list;
+> +       int region_id, i;
+> +
+> +       region_id = page_zone_region_id(page);
+> +
+> +       region = &free_list->mr_list[region_id];
+> +       region->nr_free++;
+> +
+> +       if (region->page_block) {
+> +               list_add_tail(lru, region->page_block);
+> +               return;
+> +       }
+> +
+> +       if (!list_empty(&free_list->list)) {
+> +               for (i = region_id - 1; i >= 0; i--) {
+> +                       if (free_list->mr_list[i].page_block) {
+> +                               prev_region_list =
+> +                                       free_list->mr_list[i].page_block;
+> +                               goto out;
+> +                       }
+> +               }
+> +       }
+> +
+> +       /* This is the first region, so add to the head of the list */
+> +       prev_region_list = &free_list->list;
+> +
+> +out:
+> +       list_add(lru, prev_region_list);
+> +
+> +       /* Save pointer to page block of this region */
+> +       region->page_block = lru;
+> +}
+> +
+> +static void del_from_freelist(struct page *page, struct list_head *lru,
+> +                             struct free_list *free_list)
+> +{
+> +       struct mem_region_list *region;
+> +       struct list_head *prev_page_lru;
+> +       int region_id;
+> +
+> +       region_id = page_zone_region_id(page);
+> +       region = &free_list->mr_list[region_id];
+> +       region->nr_free--;
+> +
+> +       if (lru != region->page_block) {
+> +               list_del(lru);
+> +               return;
+> +       }
+> +
+> +       prev_page_lru = lru->prev;
+> +       list_del(lru);
+> +
+> +       if (region->nr_free == 0)
+> +               region->page_block = NULL;
+> +       else
+> +               region->page_block = prev_page_lru;
+> +}
+> +
+> +/**
+> + * Move pages of a given order from freelist of one migrate-type to
+> another.
+> + */
+> +static void move_pages_freelist(struct page *page, struct list_head *lru,
+> +                               struct free_list *old_list,
+> +                               struct free_list *new_list)
+> +{
+> +       del_from_freelist(page, lru, old_list);
+> +       add_to_freelist(page, lru, new_list);
+> +}
+> +
+>  /*
+>   * Freeing function for a buddy system allocator.
+>   *
+> @@ -534,6 +607,7 @@ static inline void __free_one_page(struct page *page,
+>         unsigned long combined_idx;
+>         unsigned long uninitialized_var(buddy_idx);
+>         struct page *buddy;
+> +       struct free_area *area;
+>
+>         if (unlikely(PageCompound(page)))
+>                 if (unlikely(destroy_compound_page(page, order)))
+> @@ -561,8 +635,10 @@ static inline void __free_one_page(struct page *page,
+>                         __mod_zone_freepage_state(zone, 1 << order,
+>                                                   migratetype);
+>                 } else {
+> -                       list_del(&buddy->lru);
+> -                       zone->free_area[order].nr_free--;
+> +                       area = &zone->free_area[order];
+> +                       del_from_freelist(buddy, &buddy->lru,
+> +                                         &area->free_list[migratetype]);
+> +                       area->nr_free--;
+>                         rmv_page_order(buddy);
+>                 }
+>                 combined_idx = buddy_idx & page_idx;
+> @@ -587,14 +663,23 @@ static inline void __free_one_page(struct page *page,
+>                 buddy_idx = __find_buddy_index(combined_idx, order + 1);
+>                 higher_buddy = higher_page + (buddy_idx - combined_idx);
+>                 if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
+> -                       list_add_tail(&page->lru,
+> -
+> &zone->free_area[order].free_list[migratetype].list);
+> +
+> +                       /*
+> +                        * Implementing an add_to_freelist_tail() won't be
+> +                        * very useful because both of them (almost) add to
+> +                        * the tail within the region. So we could
+> potentially
+> +                        * switch off this entire "is next-higher buddy
+> free?"
+> +                        * logic when memory regions are used.
+> +                        */
+> +                       area = &zone->free_area[order];
+> +                       add_to_freelist(page, &page->lru,
+> +                                       &area->free_list[migratetype]);
+>                         goto out;
+>                 }
+>         }
+>
+> -       list_add(&page->lru,
+> -               &zone->free_area[order].free_list[migratetype].list);
+> +       add_to_freelist(page, &page->lru,
+> +                       &zone->free_area[order].free_list[migratetype]);
+>  out:
+>         zone->free_area[order].nr_free++;
+>  }
+> @@ -812,7 +897,8 @@ static inline void expand(struct zone *zone, struct
+> page *page,
+>                         continue;
+>                 }
+>  #endif
+> -               list_add(&page[size].lru,
+> &area->free_list[migratetype].list);
+> +               add_to_freelist(&page[size], &page[size].lru,
+> +                                       &area->free_list[migratetype]);
+>                 area->nr_free++;
+>                 set_page_order(&page[size], high);
+>         }
+> @@ -879,7 +965,8 @@ struct page *__rmqueue_smallest(struct zone *zone,
+> unsigned int order,
+>
+>                 page = list_entry(area->free_list[migratetype].list.next,
+>                                                         struct page, lru);
+> -               list_del(&page->lru);
+> +               del_from_freelist(page, &page->lru,
+> +                                 &area->free_list[migratetype]);
+>                 rmv_page_order(page);
+>                 area->nr_free--;
+>                 expand(zone, page, order, current_order, area,
+> migratetype);
+> @@ -918,7 +1005,8 @@ int move_freepages(struct zone *zone,
+>  {
+>         struct page *page;
+>         unsigned long order;
+> -       int pages_moved = 0;
+> +       struct free_area *area;
+> +       int pages_moved = 0, old_mt;
+>
+>  #ifndef CONFIG_HOLES_IN_ZONE
+>         /*
+> @@ -946,8 +1034,11 @@ int move_freepages(struct zone *zone,
+>                 }
+>
+>                 order = page_order(page);
+> -               list_move(&page->lru,
+> -
+> &zone->free_area[order].free_list[migratetype].list);
+> +               old_mt = get_freepage_migratetype(page);
+> +               area = &zone->free_area[order];
+> +               move_pages_freelist(page, &page->lru,
+> +                                   &area->free_list[old_mt],
+> +                                   &area->free_list[migratetype]);
+>                 set_freepage_migratetype(page, migratetype);
+>                 page += 1 << order;
+>                 pages_moved += 1 << order;
+> @@ -1045,7 +1136,8 @@ __rmqueue_fallback(struct zone *zone, int order, int
+> start_migratetype)
+>                         }
+>
+>                         /* Remove the page from the freelists */
+> -                       list_del(&page->lru);
+> +                       del_from_freelist(page, &page->lru,
+> +                                         &area->free_list[migratetype]);
+>                         rmv_page_order(page);
+>
+>                         /* Take ownership for orders >= pageblock_order */
+> @@ -1399,12 +1491,14 @@ int capture_free_page(struct page *page, int
+> alloc_order, int migratetype)
+>         if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+>                 return 0;
+>
+> +       mt = get_pageblock_migratetype(page);
+> +
+>         /* Remove page from free list */
+> -       list_del(&page->lru);
+> +       del_from_freelist(page, &page->lru,
+> +                         &zone->free_area[order].free_list[mt]);
+>         zone->free_area[order].nr_free--;
+>         rmv_page_order(page);
+>
+> -       mt = get_pageblock_migratetype(page);
+>         if (unlikely(mt != MIGRATE_ISOLATE))
+>                 __mod_zone_freepage_state(zone, -(1UL << order), mt);
+>
+> @@ -6040,6 +6134,8 @@ __offline_isolated_pages(unsigned long start_pfn,
+> unsigned long end_pfn)
+>         int order, i;
+>         unsigned long pfn;
+>         unsigned long flags;
+> +       int mt;
+> +
+>         /* find the first valid pfn */
+>         for (pfn = start_pfn; pfn < end_pfn; pfn++)
+>                 if (pfn_valid(pfn))
+> @@ -6062,7 +6158,9 @@ __offline_isolated_pages(unsigned long start_pfn,
+> unsigned long end_pfn)
+>                 printk(KERN_INFO "remove from free list %lx %d %lx\n",
+>                        pfn, 1 << order, end_pfn);
+>  #endif
+> -               list_del(&page->lru);
+> +               mt = get_freepage_migratetype(page);
+> +               del_from_freelist(page, &page->lru,
+> +                                 &zone->free_area[order].free_list[mt]);
+>                 rmv_page_order(page);
+>                 zone->free_area[order].nr_free--;
+>                 __mod_zone_page_state(zone, NR_FREE_PAGES,
+>
+>
 
-On embedded platform the savings could be around 5% as discussed in
-the earlier thread: http://article.gmane.org/gmane.linux.kernel.mm/65935
 
-On larger servers with large amounts of memory the savings could be
-more.  We do not yet have all the pieces together to evaluate.
+-- 
+Regards,
+Ankita
+Graduate Student
+Department of Computer Science
+University of Texas at Austin
 
-> > ACPI 5.0 has introduced MPST tables (Memory Power State Tables) [5] so that
-> > the firmware can expose information regarding the boundaries of such memory
-> > power management domains to the OS in a standard way.
-> > 
-> 
-> I'm not familiar with the ACPI spec but is there support for parsing of
-> MPST and interpreting the associated ACPI events? For example, if ACPI
-> fires an event indicating that a memory power node is to enter a low
-> state then presumably the OS should actively migrate pages away -- even
-> if it's going into a state where the contents are still refreshed
-> as exiting that state could take a long time.
-> 
-> I did not look closely at the patchset at all because it looked like the
-> actual support to use it and measure the benefit is missing.
+--14dae9cc92a49e788d04ce09ae57
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-Correct.  The platform interface part is not included in this patch
-set mainly because there is not much design required there.  Each
-platform can have code to collect the memory region boundaries from
-BIOS/firmware and load it into the Linux VM.  The goal of this patch
-is to brainstorm on the idea of hos core VM should used the region
-information.
- 
-> > How can Linux VM help memory power savings?
-> > 
-> > o Consolidate memory allocations and/or references such that they are
-> > not spread across the entire memory address space.  Basically area of memory
-> > that is not being referenced, can reside in low power state.
-> > 
-> 
-> Which the series does not appear to do.
+Hi Srivatsa,<div><br></div><div>I understand that you are maintaining the p=
+age blocks in region sorted order. So that way, when the memory requests co=
+me in, you can hand out memory from the regions in that order. However, do =
+you take this scenario into account - in some bucket of the buddy allocator=
+, there might not be any pages belonging to, lets say, region 0, while the =
+next higher bucket has them. So, instead of handing out memory from whichev=
+er region thats present there, to probably go to the next bucket and split =
+that region 0 pageblock there and allocate from it ? (Here, region 0 is jus=
+t an example). Been a while since I looked at kernel code, so I might be mi=
+ssing something!</div>
 
-Correct.  We need to design the correct reclaim strategy for this to
-work.  However having buddy list sorted by region address could get us
-one step closer to shaping the allocations.
+<div><br></div><div>Regards,</div><div>Ankita</div><div class=3D"gmail_extr=
+a"><br><br><div class=3D"gmail_quote">On Tue, Nov 6, 2012 at 1:53 PM, Sriva=
+tsa S. Bhat <span dir=3D"ltr">&lt;<a href=3D"mailto:srivatsa.bhat@linux.vne=
+t.ibm.com" target=3D"_blank">srivatsa.bhat@linux.vnet.ibm.com</a>&gt;</span=
+> wrote:<br>
 
-> > o Support targeted memory reclaim, where certain areas of memory that can be
-> > easily freed can be offlined, allowing those areas of memory to be put into
-> > lower power states.
-> > 
-> 
-> Which the series does not appear to do judging from this;
-> 
->   include/linux/mm.h     |   38 +++++++
->   include/linux/mmzone.h |   52 +++++++++
->   mm/compaction.c        |    8 +
->   mm/page_alloc.c        |  263 ++++++++++++++++++++++++++++++++++++++++++++----
->   mm/vmstat.c            |   59 ++++++++++-
-> 
-> This does not appear to be doing anything with reclaim and not enough with
-> compaction to indicate that the series actively manages memory placement
-> in response to ACPI events.
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">The zones&#39; freelists need to be made reg=
+ion-aware, in order to influence<br>
+page allocation and freeing algorithms. So in every free list in the zone, =
+we<br>
+would like to demarcate the pageblocks belonging to different memory region=
+s<br>
+(we can do this using a set of pointers, and thus avoid splitting up the<br=
+>
+freelists).<br>
+<br>
+Also, we would like to keep the pageblocks in the freelists sorted in<br>
+region-order. That is, pageblocks belonging to region-0 would come first,<b=
+r>
+followed by pageblocks belonging to region-1 and so on, within a given<br>
+freelist. Of course, a set of pageblocks belonging to the same region need<=
+br>
+not be sorted; it is sufficient if we maintain the pageblocks in<br>
+region-sorted-order, rather than a full address-sorted-order.<br>
+<br>
+For each freelist within the zone, we maintain a set of pointers to<br>
+pageblocks belonging to the various memory regions in that zone.<br>
+<br>
+Eg:<br>
+<br>
+=A0 =A0 |&lt;---Region0---&gt;| =A0 |&lt;---Region1---&gt;| =A0 |&lt;------=
+-Region2---------&gt;|<br>
+=A0 =A0 =A0____ =A0 =A0 =A0____ =A0 =A0 =A0____ =A0 =A0 =A0____ =A0 =A0 =A0=
+____ =A0 =A0 =A0____ =A0 =A0 =A0____<br>
+--&gt; |____|--&gt; |____|--&gt; |____|--&gt; |____|--&gt; |____|--&gt; |__=
+__|--&gt; |____|--&gt;<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0^ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0^ =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0^<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0| =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0|<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 Reg0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 Reg1 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0Reg2<br>
+<br>
+<br>
+Page allocation will proceed as usual - pick the first item on the free lis=
+t.<br>
+But we don&#39;t want to keep updating these region pointers every time we =
+allocate<br>
+a pageblock from the freelist. So, instead of pointing to the *first* pageb=
+lock<br>
+of that region, we maintain the region pointers such that they point to the=
+<br>
+*last* pageblock in that region, as shown in the figure above. That way, as=
+<br>
+long as there are &gt; 1 pageblocks in that region in that freelist, that r=
+egion<br>
+pointer doesn&#39;t need to be updated.<br>
+<br>
+<br>
+Page allocation algorithm:<br>
+-------------------------<br>
+<br>
+The heart of the page allocation algorithm remains it is - pick the first<b=
+r>
+item on the appropriate freelist and return it.<br>
+<br>
+<br>
+Pageblock order in the zone freelists:<br>
+-------------------------------------<br>
+<br>
+This is the main change - we keep the pageblocks in region-sorted order,<br=
+>
+where pageblocks belonging to region-0 come first, followed by those belong=
+ing<br>
+to region-1 and so on. But the pageblocks within a given region need *not* =
+be<br>
+sorted, since we need them to be only region-sorted and not fully<br>
+address-sorted.<br>
+<br>
+This sorting is performed when adding pages back to the freelists, thus<br>
+avoiding any region-related overhead in the critical page allocation<br>
+paths.<br>
+<br>
+Page reclaim [Todo]:<br>
+--------------------<br>
+<br>
+Page allocation happens in the order of increasing region number. We would<=
+br>
+like to do page reclaim in the reverse order, to keep allocated pages withi=
+n<br>
+a minimal number of regions (approximately).<br>
+<br>
+---------------------------- Increasing region number----------------------=
+&gt;<br>
+<br>
+Direction of allocation---&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 &lt;---Direction of reclaim<br>
+<br>
+Signed-off-by: Srivatsa S. Bhat &lt;<a href=3D"mailto:srivatsa.bhat@linux.v=
+net.ibm.com">srivatsa.bhat@linux.vnet.ibm.com</a>&gt;<br>
+---<br>
+<br>
+=A0mm/page_alloc.c | =A0128 +++++++++++++++++++++++++++++++++++++++++++++++=
+++------<br>
+=A01 file changed, 113 insertions(+), 15 deletions(-)<br>
+<br>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c<br>
+index 62d0a9a..52ff914 100644<br>
+--- a/mm/page_alloc.c<br>
++++ b/mm/page_alloc.c<br>
+@@ -502,6 +502,79 @@ static inline int page_is_buddy(struct page *page, str=
+uct page *buddy,<br>
+=A0 =A0 =A0 =A0 return 0;<br>
+=A0}<br>
+<br>
++static void add_to_freelist(struct page *page, struct list_head *lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct free_list *fre=
+e_list)<br>
++{<br>
++ =A0 =A0 =A0 struct mem_region_list *region;<br>
++ =A0 =A0 =A0 struct list_head *prev_region_list;<br>
++ =A0 =A0 =A0 int region_id, i;<br>
++<br>
++ =A0 =A0 =A0 region_id =3D page_zone_region_id(page);<br>
++<br>
++ =A0 =A0 =A0 region =3D &amp;free_list-&gt;mr_list[region_id];<br>
++ =A0 =A0 =A0 region-&gt;nr_free++;<br>
++<br>
++ =A0 =A0 =A0 if (region-&gt;page_block) {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add_tail(lru, region-&gt;page_block);<br=
+>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;<br>
++ =A0 =A0 =A0 }<br>
++<br>
++ =A0 =A0 =A0 if (!list_empty(&amp;free_list-&gt;list)) {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 for (i =3D region_id - 1; i &gt;=3D 0; i--) {=
+<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (free_list-&gt;mr_list[i].=
+page_block) {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 prev_region_l=
+ist =3D<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 free_list-&gt;mr_list[i].page_block;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
++ =A0 =A0 =A0 }<br>
++<br>
++ =A0 =A0 =A0 /* This is the first region, so add to the head of the list *=
+/<br>
++ =A0 =A0 =A0 prev_region_list =3D &amp;free_list-&gt;list;<br>
++<br>
++out:<br>
++ =A0 =A0 =A0 list_add(lru, prev_region_list);<br>
++<br>
++ =A0 =A0 =A0 /* Save pointer to page block of this region */<br>
++ =A0 =A0 =A0 region-&gt;page_block =3D lru;<br>
++}<br>
++<br>
++static void del_from_freelist(struct page *page, struct list_head *lru,<br=
+>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct free_list =
+*free_list)<br>
++{<br>
++ =A0 =A0 =A0 struct mem_region_list *region;<br>
++ =A0 =A0 =A0 struct list_head *prev_page_lru;<br>
++ =A0 =A0 =A0 int region_id;<br>
++<br>
++ =A0 =A0 =A0 region_id =3D page_zone_region_id(page);<br>
++ =A0 =A0 =A0 region =3D &amp;free_list-&gt;mr_list[region_id];<br>
++ =A0 =A0 =A0 region-&gt;nr_free--;<br>
++<br>
++ =A0 =A0 =A0 if (lru !=3D region-&gt;page_block) {<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(lru);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 return;<br>
++ =A0 =A0 =A0 }<br>
++<br>
++ =A0 =A0 =A0 prev_page_lru =3D lru-&gt;prev;<br>
++ =A0 =A0 =A0 list_del(lru);<br>
++<br>
++ =A0 =A0 =A0 if (region-&gt;nr_free =3D=3D 0)<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 region-&gt;page_block =3D NULL;<br>
++ =A0 =A0 =A0 else<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 region-&gt;page_block =3D prev_page_lru;<br>
++}<br>
++<br>
++/**<br>
++ * Move pages of a given order from freelist of one migrate-type to anothe=
+r.<br>
++ */<br>
++static void move_pages_freelist(struct page *page, struct list_head *lru,<=
+br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct free_l=
+ist *old_list,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct free_l=
+ist *new_list)<br>
++{<br>
++ =A0 =A0 =A0 del_from_freelist(page, lru, old_list);<br>
++ =A0 =A0 =A0 add_to_freelist(page, lru, new_list);<br>
++}<br>
++<br>
+=A0/*<br>
+=A0 * Freeing function for a buddy system allocator.<br>
+=A0 *<br>
+@@ -534,6 +607,7 @@ static inline void __free_one_page(struct page *page,<b=
+r>
+=A0 =A0 =A0 =A0 unsigned long combined_idx;<br>
+=A0 =A0 =A0 =A0 unsigned long uninitialized_var(buddy_idx);<br>
+=A0 =A0 =A0 =A0 struct page *buddy;<br>
++ =A0 =A0 =A0 struct free_area *area;<br>
+<br>
+=A0 =A0 =A0 =A0 if (unlikely(PageCompound(page)))<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (unlikely(destroy_compound_page(page, or=
+der)))<br>
+@@ -561,8 +635,10 @@ static inline void __free_one_page(struct page *page,<=
+br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mod_zone_freepage_state(z=
+one, 1 &lt;&lt; order,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 migratetype);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 } else {<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&amp;buddy-&gt;lru);=
+<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone-&gt;free_area[order].nr_=
+free--;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 area =3D &amp;zone-&gt;free_a=
+rea[order];<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_from_freelist(buddy, &amp=
+;buddy-&gt;lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 &amp;area-&gt;free_list[migratetype]);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 area-&gt;nr_free--;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rmv_page_order(buddy);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 combined_idx =3D buddy_idx &amp; page_idx;<=
+br>
+@@ -587,14 +663,23 @@ static inline void __free_one_page(struct page *page,=
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 buddy_idx =3D __find_buddy_index(combined_i=
+dx, order + 1);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 higher_buddy =3D higher_page + (buddy_idx -=
+ combined_idx);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (page_is_buddy(higher_page, higher_buddy=
+, order + 1)) {<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add_tail(&amp;page-&gt;l=
+ru,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone-&gt=
+;free_area[order].free_list[migratetype].list);<br>
++<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /*<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* Implementing an add_to_f=
+reelist_tail() won&#39;t be<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* very useful because both=
+ of them (almost) add to<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* the tail within the regi=
+on. So we could potentially<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* switch off this entire &=
+quot;is next-higher buddy free?&quot;<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0* logic when memory region=
+s are used.<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0*/<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 area =3D &amp;zone-&gt;free_a=
+rea[order];<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 add_to_freelist(page, &amp;pa=
+ge-&gt;lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 &amp;area-&gt;free_list[migratetype]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto out;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+=A0 =A0 =A0 =A0 }<br>
+<br>
+- =A0 =A0 =A0 list_add(&amp;page-&gt;lru,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone-&gt;free_area[order].free_list[migr=
+atetype].list);<br>
++ =A0 =A0 =A0 add_to_freelist(page, &amp;page-&gt;lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone-&gt;free_area[order=
+].free_list[migratetype]);<br>
+=A0out:<br>
+=A0 =A0 =A0 =A0 zone-&gt;free_area[order].nr_free++;<br>
+=A0}<br>
+@@ -812,7 +897,8 @@ static inline void expand(struct zone *zone, struct pag=
+e *page,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 continue;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+=A0#endif<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_add(&amp;page[size].lru, &amp;area-&gt;f=
+ree_list[migratetype].list);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 add_to_freelist(&amp;page[size], &amp;page[si=
+ze].lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 &amp;area-&gt;free_list[migratetype]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 area-&gt;nr_free++;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_page_order(&amp;page[size], high);<br>
+=A0 =A0 =A0 =A0 }<br>
+@@ -879,7 +965,8 @@ struct page *__rmqueue_smallest(struct zone *zone, unsi=
+gned int order,<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page =3D list_entry(area-&gt;free_list[migr=
+atetype].list.next,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 struct page, lru);<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&amp;page-&gt;lru);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_from_freelist(page, &amp;page-&gt;lru,<br=
+>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;area=
+-&gt;free_list[migratetype]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rmv_page_order(page);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 area-&gt;nr_free--;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 expand(zone, page, order, current_order, ar=
+ea, migratetype);<br>
+@@ -918,7 +1005,8 @@ int move_freepages(struct zone *zone,<br>
+=A0{<br>
+=A0 =A0 =A0 =A0 struct page *page;<br>
+=A0 =A0 =A0 =A0 unsigned long order;<br>
+- =A0 =A0 =A0 int pages_moved =3D 0;<br>
++ =A0 =A0 =A0 struct free_area *area;<br>
++ =A0 =A0 =A0 int pages_moved =3D 0, old_mt;<br>
+<br>
+=A0#ifndef CONFIG_HOLES_IN_ZONE<br>
+=A0 =A0 =A0 =A0 /*<br>
+@@ -946,8 +1034,11 @@ int move_freepages(struct zone *zone,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 order =3D page_order(page);<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_move(&amp;page-&gt;lru,<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone-&gt;free_area[o=
+rder].free_list[migratetype].list);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 old_mt =3D get_freepage_migratetype(page);<br=
+>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 area =3D &amp;zone-&gt;free_area[order];<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 move_pages_freelist(page, &amp;page-&gt;lru,<=
+br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;=
+area-&gt;free_list[old_mt],<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;=
+area-&gt;free_list[migratetype]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 set_freepage_migratetype(page, migratetype)=
+;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 page +=3D 1 &lt;&lt; order;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 pages_moved +=3D 1 &lt;&lt; order;<br>
+@@ -1045,7 +1136,8 @@ __rmqueue_fallback(struct zone *zone, int order, int =
+start_migratetype)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 }<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Remove the page from the=
+ freelists */<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&amp;page-&gt;lru);<=
+br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_from_freelist(page, &amp;=
+page-&gt;lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 &amp;area-&gt;free_list[migratetype]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rmv_page_order(page);<br>
+<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 /* Take ownership for order=
+s &gt;=3D pageblock_order */<br>
+@@ -1399,12 +1491,14 @@ int capture_free_page(struct page *page, int alloc_=
+order, int migratetype)<br>
+=A0 =A0 =A0 =A0 if (!zone_watermark_ok(zone, 0, watermark, 0, 0))<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 return 0;<br>
+<br>
++ =A0 =A0 =A0 mt =3D get_pageblock_migratetype(page);<br>
++<br>
+=A0 =A0 =A0 =A0 /* Remove page from free list */<br>
+- =A0 =A0 =A0 list_del(&amp;page-&gt;lru);<br>
++ =A0 =A0 =A0 del_from_freelist(page, &amp;page-&gt;lru,<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone-&gt;free_area[o=
+rder].free_list[mt]);<br>
+=A0 =A0 =A0 =A0 zone-&gt;free_area[order].nr_free--;<br>
+=A0 =A0 =A0 =A0 rmv_page_order(page);<br>
+<br>
+- =A0 =A0 =A0 mt =3D get_pageblock_migratetype(page);<br>
+=A0 =A0 =A0 =A0 if (unlikely(mt !=3D MIGRATE_ISOLATE))<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mod_zone_freepage_state(zone, -(1UL &lt;&=
+lt; order), mt);<br>
+<br>
+@@ -6040,6 +6134,8 @@ __offline_isolated_pages(unsigned long start_pfn, uns=
+igned long end_pfn)<br>
+=A0 =A0 =A0 =A0 int order, i;<br>
+=A0 =A0 =A0 =A0 unsigned long pfn;<br>
+=A0 =A0 =A0 =A0 unsigned long flags;<br>
++ =A0 =A0 =A0 int mt;<br>
++<br>
+=A0 =A0 =A0 =A0 /* find the first valid pfn */<br>
+=A0 =A0 =A0 =A0 for (pfn =3D start_pfn; pfn &lt; end_pfn; pfn++)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 if (pfn_valid(pfn))<br>
+@@ -6062,7 +6158,9 @@ __offline_isolated_pages(unsigned long start_pfn, uns=
+igned long end_pfn)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 printk(KERN_INFO &quot;remove from free lis=
+t %lx %d %lx\n&quot;,<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0pfn, 1 &lt;&lt; order, end_p=
+fn);<br>
+=A0#endif<br>
+- =A0 =A0 =A0 =A0 =A0 =A0 =A0 list_del(&amp;page-&gt;lru);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 mt =3D get_freepage_migratetype(page);<br>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 del_from_freelist(page, &amp;page-&gt;lru,<br=
+>
++ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 &amp;zone=
+-&gt;free_area[order].free_list[mt]);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 rmv_page_order(page);<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 zone-&gt;free_area[order].nr_free--;<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 __mod_zone_page_state(zone, NR_FREE_PAGES,<=
+br>
+<br>
+</blockquote></div><br><br clear=3D"all"><div><br></div>-- <br>Regards,<br>=
+Ankita<div>Graduate Student</div><div>Department of Computer Science</div><=
+div>University of Texas at Austin<br><br></div><br>
+</div>
 
-Correct.  Evaluating different ideas for reclaim will be next step
-before getting into the platform interface parts.
-
-> Further in section 5.2.21.4 the spec says that power node regions can
-> overlap (but are not hierarchal for some reason) but have no gaps yet the
-> structure you use to represent is assumes there can be gaps and there are
-> no overlaps. Again, this is just glancing at the spec and a quick skim of
-> the patches so maybe I missed something that explains why this structure
-> is suitable.
-
-This patch is roughly based on the idea that ACPI MPST will give us
-memory region boundaries.  It is not designed to implement all options
-defined in the spec.  We have taken a general case of regions do not
-overlap while memory addresses itself can be discontinuous.
-
-> It seems to me that superficially the VM implementation for the support
-> would have
-> 
-> a) Involved a tree that managed the overlapping regions (even if it's
->    not hierarchal it feels more sensible) and picked the highest-power-state
->    common denominator in the tree. This would only be allocated if support
->    for MPST is available.
-> b) Leave memory allocations and reclaim as they are in the active state.
-> c) Use a "sticky" migrate list MIGRATE_LOWPOWER for regions that are in lower
->    power but still usable with a latency penalty. This might be a single
->    migrate type but could also be a parallel set of free_area called
->    free_area_lowpower that is only used when free_area is depleted and in
->    the very slow path of the allocator.
-> d) Use memory hot-remove for power states where the refresh rates were
->    not constant
-> 
-> and only did anything expensive in response to an ACPI event -- none of
-> the fast paths should be touched.
-> 
-> When transitioning to the low power state, memory should be migrated in
-> a vaguely similar fashion to what CMA does. For low-power, migration
-> failure is acceptable. If contents are not preserved, ACPI needs to know
-> if the migration failed because it cannot enter that power state.
-> 
-> For any of this to be worthwhile, low power states would need to be achieved
-> for long periods of time because that migration is not free.
-
-In this patch series we are assuming the simple case of hardware
-managing the actual power states and OS facilitates them by keeping
-the allocations in less number of memory regions.  As we keep
-allocations and references low to a regions, it becomes case (c)
-above.  We are addressing only a small subset of the above list.
-
-> > Memory Regions:
-> > ---------------
-> > 
-> > "Memory Regions" is a way of capturing the boundaries of power-managable
-> > chunks of memory, within the MM subsystem.
-> > 
-> > Short description of the "Sorted-buddy" design:
-> > -----------------------------------------------
-> > 
-> > In this design, the memory region boundaries are captured in a parallel
-> > data-structure instead of fitting regions between nodes and zones in the
-> > hierarchy. Further, the buddy allocator is altered, such that we maintain the
-> > zones' freelists in region-sorted-order and thus do page allocation in the
-> > order of increasing memory regions.
-> 
-> Implying that this sorting has to happen in the either the alloc or free
-> fast path.
-
-Yes, in the free path. This optimization can be actually be delayed in
-the free fast path and completely avoided if our memory is full and we
-are doing direct reclaim during allocations.
-
-> > (The freelists need not be fully
-> > address-sorted, they just need to be region-sorted. Patch 6 explains this
-> > in more detail).
-> > 
-> > The idea is to do page allocation in increasing order of memory regions
-> > (within a zone) and perform page reclaim in the reverse order, as illustrated
-> > below.
-> > 
-> > ---------------------------- Increasing region number---------------------->
-> > 
-> > Direction of allocation--->                         <---Direction of reclaim
-> > 
-> 
-> Compaction will work against this because it uses a PFN walker to isolate
-> free pages and will ignore memory regions. If pageblocks were used, it
-> could take that into account at least.
-> 
-> > The sorting logic (to maintain freelist pageblocks in region-sorted-order)
-> > lies in the page-free path and not the page-allocation path and hence the
-> > critical page allocation paths remain fast.
-> 
-> Page free can be a critical path for application performance as well.
-> Think network buffer heavy alloc and freeing of buffers.
-> 
-> However, migratetype information is already looked up for THP so ideally
-> power awareness would piggyback on it.
-> 
-> > Moreover, the heart of the page
-> > allocation algorithm itself remains largely unchanged, and the region-related
-> > data-structures are optimized to avoid unnecessary updates during the
-> > page-allocator's runtime.
-> > 
-> > Advantages of this design:
-> > --------------------------
-> > 1. No zone-fragmentation (IOW, we don't create more zones than necessary) and
-> >    hence we avoid its associated problems (like too many zones, extra page
-> >    reclaim threads, question of choosing watermarks etc).
-> >    [This is an advantage over the "Hierarchy" design]
-> > 
-> > 2. Performance overhead is expected to be low: Since we retain the simplicity
-> >    of the algorithm in the page allocation path, page allocation can
-> >    potentially remain as fast as it would be without memory regions. The
-> >    overhead is pushed to the page-freeing paths which are not that critical.
-> > 
-> > 
-> > Results:
-> > =======
-> > 
-> > Test setup:
-> > -----------
-> > This patchset applies cleanly on top of 3.7-rc3.
-> > 
-> > x86 dual-socket quad core HT-enabled machine booted with mem=8G
-> > Memory region size = 512 MB
-> > 
-> > Functional testing:
-> > -------------------
-> > 
-> > Ran pagetest, a simple C program that allocates and touches a required number
-> > of pages.
-> > 
-> > Below is the statistics from the regions within ZONE_NORMAL, at various sizes
-> > of allocations from pagetest.
-> > 
-> > 	     Present pages   |	Free pages at various allocations        |
-> > 			     |  start	|  512 MB  |  1024 MB | 2048 MB  |
-> >   Region 0      16	     |   0      |    0     |     0    |    0     |
-> >   Region 1      131072       |  87219   |  8066    |   7892   |  7387    |
-> >   Region 2      131072       | 131072   |  79036   |     0    |    0     |
-> >   Region 3      131072       | 131072   | 131072   |   79061  |    0     |
-> >   Region 4      131072       | 131072   | 131072   |  131072  |    0     |
-> >   Region 5      131072       | 131072   | 131072   |  131072  |  79051   |
-> >   Region 6      131072       | 131072   | 131072   |  131072  |  131072  |
-> >   Region 7      131072       | 131072   | 131072   |  131072  |  131072  |
-> >   Region 8      131056       | 105475   | 105472   |  105472  |  105472  |
-> > 
-> > This shows that page allocation occurs in the order of increasing region
-> > numbers, as intended in this design.
-> > 
-> > Performance impact:
-> > -------------------
-> > 
-> > Kernbench results didn't show much of a difference between the performance
-> > of vanilla 3.7-rc3 and this patchset.
-> > 
-> > 
-> > Todos:
-> > =====
-> > 
-> > 1. Memory-region aware page-reclamation:
-> > ----------------------------------------
-> > 
-> > We would like to do page reclaim in the reverse order of page allocation
-> > within a zone, ie., in the order of decreasing region numbers.
-> > To achieve that, while scanning lru pages to reclaim, we could potentially
-> > look for pages belonging to higher regions (considering region boundaries)
-> > or perhaps simply prefer pages of higher pfns (and skip lower pfns) as
-> > reclaim candidates.
-> > 
-> 
-> This would disrupting LRU ordering and if those pages were recently
-> allocated and you force a situation where swap has to be used then any
-> saving in low memory will be lost by having to access the disk instead.
-> 
-> > 2. Compile-time exclusion of Memory Power Management, and extending the
-> > support to also work with other features such as Mem cgroups, kexec etc.
-> >  
-> 
-> Compile-time exclusion is pointless because it'll be always activated by
-> distribution configs. Support for MPST should be detected at runtime and
-> 
-> 3. ACPI support to actually use this thing and validate the design is
->    compatible with the spec and actually works in hardware
-
-This is required to actually evaluate power saving benefit once we
-have candidate implementations in the VM.
-
-At this point we want to look at overheads of having region
-infrastructure in VM and how does that trade off in terms of
-requirements that we can meet.
-
-The first goal is to have memory allocations fill as few regions as
-possible when system's memory usage is significantly lower.  Next we
-would like VM to actively move pages around to cooperate with platform
-memory power saving features like notifications or policy changes.
-
---Vaidy
+--14dae9cc92a49e788d04ce09ae57--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
