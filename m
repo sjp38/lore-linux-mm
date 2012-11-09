@@ -1,44 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 8855D6B005D
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:07:47 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so1723306dad.14
-        for <linux-mm@kvack.org>; Fri, 09 Nov 2012 01:07:46 -0800 (PST)
-Date: Fri, 9 Nov 2012 01:04:40 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-Message-ID: <20121109090440.GA20998@lizard>
-References: <20121107105348.GA25549@lizard>
- <20121109093203.4358eaf2@doriath>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 6EB906B005D
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:13:03 -0500 (EST)
+Date: Fri, 9 Nov 2012 09:12:58 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] Revert "mm: vmscan: scale number of pages reclaimed by
+ reclaim/compaction based on failures"
+Message-ID: <20121109091258.GH8218@suse.de>
+References: <119175.1349979570@turing-police.cc.vt.edu>
+ <5077434D.7080008@suse.cz>
+ <50780F26.7070007@suse.cz>
+ <20121012135726.GY29125@suse.de>
+ <507BDD45.1070705@suse.cz>
+ <20121015110937.GE29125@suse.de>
+ <5093A3F4.8090108@redhat.com>
+ <5093A631.5020209@suse.cz>
+ <509422C3.1000803@suse.cz>
+ <20121105142449.GI8218@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121109093203.4358eaf2@doriath>
+In-Reply-To: <20121105142449.GI8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Jiri Slaby <jslaby@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Nov 09, 2012 at 09:32:03AM +0100, Luiz Capitulino wrote:
-> Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
-> > This is the third RFC. As suggested by Minchan Kim, the API is much
-> > simplified now (comparing to vmevent_fd):
+On Mon, Nov 05, 2012 at 02:24:49PM +0000, Mel Gorman wrote:
+> Jiri Slaby reported the following:
 > 
-> Which tree is this against? I'd like to try this series, but it doesn't
-> apply to Linus tree.
+> 	(It's an effective revert of "mm: vmscan: scale number of pages
+> 	reclaimed by reclaim/compaction based on failures".) Given kswapd
+> 	had hours of runtime in ps/top output yesterday in the morning
+> 	and after the revert it's now 2 minutes in sum for the last 24h,
+> 	I would say, it's gone.
+> 
+> The intention of the patch in question was to compensate for the loss
+> of lumpy reclaim. Part of the reason lumpy reclaim worked is because
+> it aggressively reclaimed pages and this patch was meant to be a sane
+> compromise.
+> 
+> When compaction fails, it gets deferred and both compaction and
+> reclaim/compaction is deferred avoid excessive reclaim. However, since
+> commit c6543459 (mm: remove __GFP_NO_KSWAPD), kswapd is woken up each time
+> and continues reclaiming which was not taken into account when the patch
+> was developed.
+> 
+> Attempts to address the problem ended up just changing the shape of the
+> problem instead of fixing it. The release window gets closer and while a
+> THP allocation failing is not a major problem, kswapd chewing up a lot of
+> CPU is. This patch reverts "mm: vmscan: scale number of pages reclaimed
+> by reclaim/compaction based on failures" and will be revisited in the future.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Thanks for trying!
+Andrew, can you pick up this patch please and drop
+mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-only-in-direct-reclaim.patch
+?
 
-The tree is a mix of Pekka's linux-vmevent tree and Linus' tree. You can
-just clone my tree to get the whole thing:
+There are mixed reports on how much it helps but it comes down to "this
+fixes a problem" versus "kswapd is still showing higher usage". I think
+the higher kswapd usage is explained by the removal of __GFP_NO_KSWAPD
+and so while higher usage is bad, it is not necessarily unjustified.
+Ideally it would have been proven that having kswapd doing the work
+reduced application stalls in direct reclaim but unfortunately I do not
+have concrete evidence of that at this time.
 
-	git://git.infradead.org/users/cbou/linux-vmevent.git
-
-Note that the tree is rebasable. Also be sure to select CONFIG_VMPRESSURE,
-not CONFIG_VMEVENT.
-
-Thanks!
-Anton.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
