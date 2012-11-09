@@ -1,262 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id A6A176B002B
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:01:03 -0500 (EST)
-Date: Fri, 9 Nov 2012 09:00:52 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC PATCH 0/8][Sorted-buddy] mm: Linux VM Infrastructure to
- support Memory Power Management
-Message-ID: <20121109090052.GF8218@suse.de>
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com>
- <20121108180257.GC8218@suse.de>
- <20121109051247.GA499@dirshya.in.ibm.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 57BA16B002B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:04:50 -0500 (EST)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Fri, 9 Nov 2012 19:01:33 +1000
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qA98sCsO62783502
+	for <linux-mm@kvack.org>; Fri, 9 Nov 2012 19:54:12 +1100
+Received: from d23av01.au.ibm.com (loopback [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qA994aZ1022330
+	for <linux-mm@kvack.org>; Fri, 9 Nov 2012 20:04:37 +1100
+Message-ID: <509CC6D2.6090700@linux.vnet.ibm.com>
+Date: Fri, 09 Nov 2012 14:33:14 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121109051247.GA499@dirshya.in.ibm.com>
+Subject: Re: [RFC PATCH 6/8] mm: Demarcate and maintain pageblocks in region-order
+ in the zones' freelists
+References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195342.6941.94892.stgit@srivatsabhat.in.ibm.com> <CAKD8Uxd=BguLj=4VvRRfKBDdqrz+p_6Sj6JF2UNEjLd-HNmHMw@mail.gmail.com>
+In-Reply-To: <CAKD8Uxd=BguLj=4VvRRfKBDdqrz+p_6Sj6JF2UNEjLd-HNmHMw@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, akpm@linux-foundation.org, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ankita Garg <gargankita@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, andi@firstfloor.org
 
-On Fri, Nov 09, 2012 at 10:44:16AM +0530, Vaidyanathan Srinivasan wrote:
-> * Mel Gorman <mgorman@suse.de> [2012-11-08 18:02:57]:
-> 
-> > On Wed, Nov 07, 2012 at 01:22:13AM +0530, Srivatsa S. Bhat wrote:
-> > > ------------------------------------------------------------
-> 
-> Hi Mel,
-> 
-> Thanks for detailed review and comments.  The goal of this patch
-> series is to brainstorm on ideas that enable Linux VM to record and
-> exploit memory region boundaries.
-> 
+Hi Ankita,
 
-I see.
+On 11/09/2012 11:31 AM, Ankita Garg wrote:
+> Hi Srivatsa,
+> 
+> I understand that you are maintaining the page blocks in region sorted
+> order. So that way, when the memory requests come in, you can hand out
+> memory from the regions in that order.
 
-> The first approach that we had last year (hierarchy) has more runtime
-> overhead.  This approach of sorted-buddy was one of the alternative
-> discussed earlier and we are trying to find out if simple requirements
-> of biasing memory allocations can be achieved with this approach.
-> 
-> Smart reclaim based on this approach is a key piece we still need to
-> design.  Ideas from compaction will certainly help.
-> 
-> > > Today memory subsystems are offer a wide range of capabilities for managing
-> > > memory power consumption. As a quick example, if a block of memory is not
-> > > referenced for a threshold amount of time, the memory controller can decide to
-> > > put that chunk into a low-power content-preserving state. And the next
-> > > reference to that memory chunk would bring it back to full power for read/write.
-> > > With this capability in place, it becomes important for the OS to understand
-> > > the boundaries of such power-manageable chunks of memory and to ensure that
-> > > references are consolidated to a minimum number of such memory power management
-> > > domains.
-> > > 
-> > 
-> > How much power is saved?
-> 
-> On embedded platform the savings could be around 5% as discussed in
-> the earlier thread: http://article.gmane.org/gmane.linux.kernel.mm/65935
-> 
-> On larger servers with large amounts of memory the savings could be
-> more.  We do not yet have all the pieces together to evaluate.
+Yes, that's right.
+
+> However, do you take this
+> scenario into account - in some bucket of the buddy allocator, there
+> might not be any pages belonging to, lets say, region 0, while the next
+> higher bucket has them. So, instead of handing out memory from whichever
+> region thats present there, to probably go to the next bucket and split
+> that region 0 pageblock there and allocate from it ? (Here, region 0 is
+> just an example). Been a while since I looked at kernel code, so I might
+> be missing something!
 > 
 
-Ok, it's something to keep an eye on because if memory power savings
-require large amounts of CPU (for smart placement or migration) or more
-disk accesses (due to reclaim) then the savings will be offset by
-increased power usage elsehwere.
+This patchset doesn't attempt to do that because that can hurt the fast
+path performance of page allocation (ie., because we could end up trying
+to split pageblocks even when we already have pageblocks of the required
+order ready at hand... and not to mention the searching involved in finding
+out whether any higher order free lists really contain pageblocks belonging
+to this region 0). In this patchset, I have consciously tried to keep the
+overhead from memory regions as low as possible, and have moved most of
+the overhead to the page free path.
 
-> > > ACPI 5.0 has introduced MPST tables (Memory Power State Tables) [5] so that
-> > > the firmware can expose information regarding the boundaries of such memory
-> > > power management domains to the OS in a standard way.
-> > > 
-> > 
-> > I'm not familiar with the ACPI spec but is there support for parsing of
-> > MPST and interpreting the associated ACPI events? For example, if ACPI
-> > fires an event indicating that a memory power node is to enter a low
-> > state then presumably the OS should actively migrate pages away -- even
-> > if it's going into a state where the contents are still refreshed
-> > as exiting that state could take a long time.
-> > 
-> > I did not look closely at the patchset at all because it looked like the
-> > actual support to use it and measure the benefit is missing.
+But the scenario that you brought out is very relevant, because that would
+help achieve more aggressive power-savings. I will try to implement
+something to that end with least overhead in the next version and measure
+whether its cost vs benefit really works out or not. Thank you very much
+for pointing it out!
+
+Regards,
+Srivatsa S. Bhat
+
 > 
-> Correct.  The platform interface part is not included in this patch
-> set mainly because there is not much design required there.  Each
-> platform can have code to collect the memory region boundaries from
-> BIOS/firmware and load it into the Linux VM.  The goal of this patch
-> is to brainstorm on the idea of hos core VM should used the region
-> information.
->  
-
-Ok. It does mean that the patches should not be merged until there is
-some platform support that can take advantage of them.
-
-> > > How can Linux VM help memory power savings?
-> > > 
-> > > o Consolidate memory allocations and/or references such that they are
-> > > not spread across the entire memory address space.  Basically area of memory
-> > > that is not being referenced, can reside in low power state.
-> > > 
-> > 
-> > Which the series does not appear to do.
 > 
-> Correct.  We need to design the correct reclaim strategy for this to
-> work.  However having buddy list sorted by region address could get us
-> one step closer to shaping the allocations.
+> On Tue, Nov 6, 2012 at 1:53 PM, Srivatsa S. Bhat
+> <srivatsa.bhat@linux.vnet.ibm.com
+> <mailto:srivatsa.bhat@linux.vnet.ibm.com>> wrote:
 > 
-
-If you reclaim, it means that the information is going to disk and will
-have to be refaulted in sooner rather than later. If you concentrate on
-reclaiming low memory regions and memory is almost full, it will lead to
-a situation where you almost always reclaim newer pages and increase
-faulting. You will save a few milliwatts on memory and lose way more
-than that on increase disk traffic and CPU usage.
-
-> > > o Support targeted memory reclaim, where certain areas of memory that can be
-> > > easily freed can be offlined, allowing those areas of memory to be put into
-> > > lower power states.
-> > > 
-> > 
-> > Which the series does not appear to do judging from this;
-> > 
-> >   include/linux/mm.h     |   38 +++++++
-> >   include/linux/mmzone.h |   52 +++++++++
-> >   mm/compaction.c        |    8 +
-> >   mm/page_alloc.c        |  263 ++++++++++++++++++++++++++++++++++++++++++++----
-> >   mm/vmstat.c            |   59 ++++++++++-
-> > 
-> > This does not appear to be doing anything with reclaim and not enough with
-> > compaction to indicate that the series actively manages memory placement
-> > in response to ACPI events.
+>     The zones' freelists need to be made region-aware, in order to influence
+>     page allocation and freeing algorithms. So in every free list in the
+>     zone, we
+>     would like to demarcate the pageblocks belonging to different memory
+>     regions
+>     (we can do this using a set of pointers, and thus avoid splitting up the
+>     freelists).
 > 
-> Correct.  Evaluating different ideas for reclaim will be next step
-> before getting into the platform interface parts.
+>     Also, we would like to keep the pageblocks in the freelists sorted in
+>     region-order. That is, pageblocks belonging to region-0 would come
+>     first,
+>     followed by pageblocks belonging to region-1 and so on, within a given
+>     freelist. Of course, a set of pageblocks belonging to the same
+>     region need
+>     not be sorted; it is sufficient if we maintain the pageblocks in
+>     region-sorted-order, rather than a full address-sorted-order.
 > 
-> > Further in section 5.2.21.4 the spec says that power node regions can
-> > overlap (but are not hierarchal for some reason) but have no gaps yet the
-> > structure you use to represent is assumes there can be gaps and there are
-> > no overlaps. Again, this is just glancing at the spec and a quick skim of
-> > the patches so maybe I missed something that explains why this structure
-> > is suitable.
+>     For each freelist within the zone, we maintain a set of pointers to
+>     pageblocks belonging to the various memory regions in that zone.
 > 
-> This patch is roughly based on the idea that ACPI MPST will give us
-> memory region boundaries.  It is not designed to implement all options
-> defined in the spec. 
-
-Ok, but as it is the only potential consumer of this interface that you
-mentioned then it should at least be able to handle it. The spec talks about
-overlapping memory regions where the regions potentially have differnet
-power states. This is pretty damn remarkable and hard to see how it could
-be interpreted in a sensible way but it forces your implementation to take
-it into account.
-
-> We have taken a general case of regions do not
-> overlap while memory addresses itself can be discontinuous.
+>     Eg:
 > 
-
-Why is the general case? You referred to the ACPI spec where it is not
-the case and no other examples.
-
-> > It seems to me that superficially the VM implementation for the support
-> > would have
-> > 
-> > a) Involved a tree that managed the overlapping regions (even if it's
-> >    not hierarchal it feels more sensible) and picked the highest-power-state
-> >    common denominator in the tree. This would only be allocated if support
-> >    for MPST is available.
-> > b) Leave memory allocations and reclaim as they are in the active state.
-> > c) Use a "sticky" migrate list MIGRATE_LOWPOWER for regions that are in lower
-> >    power but still usable with a latency penalty. This might be a single
-> >    migrate type but could also be a parallel set of free_area called
-> >    free_area_lowpower that is only used when free_area is depleted and in
-> >    the very slow path of the allocator.
-> > d) Use memory hot-remove for power states where the refresh rates were
-> >    not constant
-> > 
-> > and only did anything expensive in response to an ACPI event -- none of
-> > the fast paths should be touched.
-> > 
-> > When transitioning to the low power state, memory should be migrated in
-> > a vaguely similar fashion to what CMA does. For low-power, migration
-> > failure is acceptable. If contents are not preserved, ACPI needs to know
-> > if the migration failed because it cannot enter that power state.
-> > 
-> > For any of this to be worthwhile, low power states would need to be achieved
-> > for long periods of time because that migration is not free.
+>         |<---Region0--->|   |<---Region1--->|   |<-------Region2--------->|
+>          ____      ____      ____      ____      ____      ____      ____
+>     --> |____|--> |____|--> |____|--> |____|--> |____|--> |____|-->
+>     |____|-->
 > 
-> In this patch series we are assuming the simple case of hardware
-> managing the actual power states and OS facilitates them by keeping
-> the allocations in less number of memory regions.  As we keep
-> allocations and references low to a regions, it becomes case (c)
-> above. We are addressing only a small subset of the above list.
+>                      ^                  ^                              ^
+>                      |                  |                              |
+>                     Reg0               Reg1                          Reg2
 > 
-> > > Memory Regions:
-> > > ---------------
-> > > 
-> > > "Memory Regions" is a way of capturing the boundaries of power-managable
-> > > chunks of memory, within the MM subsystem.
-> > > 
-> > > Short description of the "Sorted-buddy" design:
-> > > -----------------------------------------------
-> > > 
-> > > In this design, the memory region boundaries are captured in a parallel
-> > > data-structure instead of fitting regions between nodes and zones in the
-> > > hierarchy. Further, the buddy allocator is altered, such that we maintain the
-> > > zones' freelists in region-sorted-order and thus do page allocation in the
-> > > order of increasing memory regions.
-> > 
-> > Implying that this sorting has to happen in the either the alloc or free
-> > fast path.
 > 
-> Yes, in the free path. This optimization can be actually be delayed in
-> the free fast path and completely avoided if our memory is full and we
-> are doing direct reclaim during allocations.
+>     Page allocation will proceed as usual - pick the first item on the
+>     free list.
+>     But we don't want to keep updating these region pointers every time
+>     we allocate
+>     a pageblock from the freelist. So, instead of pointing to the
+>     *first* pageblock
+>     of that region, we maintain the region pointers such that they point
+>     to the
+>     *last* pageblock in that region, as shown in the figure above. That
+>     way, as
+>     long as there are > 1 pageblocks in that region in that freelist,
+>     that region
+>     pointer doesn't need to be updated.
 > 
-
-Hurting the free fast path is a bad idea as there are workloads that depend
-on it (buffer allocation and free) even though many workloads do *not*
-notice it because the bulk of the cost is incurred at exit time. As
-memory low power usage has many caveats (may be impossible if a page
-table is allocated in the region for example) but CPU usage has less
-restrictions it is more important that the CPU usage be kept low.
-
-That means, little or no modification to the fastpath. Sorting or linear
-searches should be minimised or avoided.
-
-> > > <SNIPPED where I pointed out that compaction will bust sorting>
-> > 
-> > Compile-time exclusion is pointless because it'll be always activated by
-> > distribution configs. Support for MPST should be detected at runtime and
-> > 
-> > 3. ACPI support to actually use this thing and validate the design is
-> >    compatible with the spec and actually works in hardware
 > 
-> This is required to actually evaluate power saving benefit once we
-> have candidate implementations in the VM.
+>     Page allocation algorithm:
+>     -------------------------
 > 
-> At this point we want to look at overheads of having region
-> infrastructure in VM and how does that trade off in terms of
-> requirements that we can meet.
+>     The heart of the page allocation algorithm remains it is - pick the
+>     first
+>     item on the appropriate freelist and return it.
 > 
-> The first goal is to have memory allocations fill as few regions as
-> possible when system's memory usage is significantly lower. 
-
-While it's a reasonable starting objective, the fast path overhead is very
-unfortunate and such a strategy can be easily defeated by running sometime
-metadata intensive (like find over the entire system) while a large memory
-user starts at the same time to spread kernel and user space allocations
-throughout the address space. This will spread the allocations throughout
-the address space and persist even after the two processes exit due to
-the page cache usage from the metadata intensive workload.
-
-Basically, it'll only work as long as the system is idle or never uses
-much memory during the lifetime of the system.
-
--- 
-Mel Gorman
-SUSE Labs
+> 
+>     Pageblock order in the zone freelists:
+>     -------------------------------------
+> 
+>     This is the main change - we keep the pageblocks in region-sorted order,
+>     where pageblocks belonging to region-0 come first, followed by those
+>     belonging
+>     to region-1 and so on. But the pageblocks within a given region need
+>     *not* be
+>     sorted, since we need them to be only region-sorted and not fully
+>     address-sorted.
+> 
+>     This sorting is performed when adding pages back to the freelists, thus
+>     avoiding any region-related overhead in the critical page allocation
+>     paths.
+> 
+>     Page reclaim [Todo]:
+>     --------------------
+> 
+>     Page allocation happens in the order of increasing region number. We
+>     would
+>     like to do page reclaim in the reverse order, to keep allocated
+>     pages within
+>     a minimal number of regions (approximately).
+> 
+>     ---------------------------- Increasing region
+>     number---------------------->
+> 
+>     Direction of allocation--->                         <---Direction of
+>     reclaim
+> 
+>     Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
