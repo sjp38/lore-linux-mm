@@ -1,70 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 6EB906B005D
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:13:03 -0500 (EST)
-Date: Fri, 9 Nov 2012 09:12:58 +0000
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DBE786B002B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 04:50:29 -0500 (EST)
+Date: Fri, 9 Nov 2012 09:50:24 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] Revert "mm: vmscan: scale number of pages reclaimed by
- reclaim/compaction based on failures"
-Message-ID: <20121109091258.GH8218@suse.de>
-References: <119175.1349979570@turing-police.cc.vt.edu>
- <5077434D.7080008@suse.cz>
- <50780F26.7070007@suse.cz>
- <20121012135726.GY29125@suse.de>
- <507BDD45.1070705@suse.cz>
- <20121015110937.GE29125@suse.de>
- <5093A3F4.8090108@redhat.com>
- <5093A631.5020209@suse.cz>
- <509422C3.1000803@suse.cz>
- <20121105142449.GI8218@suse.de>
+Subject: Re: zram OOM behavior
+Message-ID: <20121109095024.GI8218@suse.de>
+References: <20121102063958.GC3326@bbox>
+ <20121102083057.GG8218@suse.de>
+ <20121102223630.GA2070@barrios>
+ <20121105144614.GJ8218@suse.de>
+ <20121106002550.GA3530@barrios>
+ <20121106085822.GN8218@suse.de>
+ <20121106101719.GA2005@barrios>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121105142449.GI8218@suse.de>
+In-Reply-To: <20121106101719.GA2005@barrios>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Zdenek Kabelac <zkabelac@redhat.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Jiri Slaby <jslaby@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Mon, Nov 05, 2012 at 02:24:49PM +0000, Mel Gorman wrote:
-> Jiri Slaby reported the following:
+On Tue, Nov 06, 2012 at 07:17:20PM +0900, Minchan Kim wrote:
+> On Tue, Nov 06, 2012 at 08:58:22AM +0000, Mel Gorman wrote:
+> > On Tue, Nov 06, 2012 at 09:25:50AM +0900, Minchan Kim wrote:
+> > > On Mon, Nov 05, 2012 at 02:46:14PM +0000, Mel Gorman wrote:
+> > > > On Sat, Nov 03, 2012 at 07:36:31AM +0900, Minchan Kim wrote:
+> > > > > > <SNIP>
+> > > > > > In the first version it would never try to enter direct reclaim if a
+> > > > > > fatal signal was pending but always claim that forward progress was
+> > > > > > being made.
+> > > > > 
+> > > > > Surely we need fix for preventing deadlock with OOM kill and that's why
+> > > > > I have Cced you and this patch fixes it but my question is why we need 
+> > > > > such fatal signal checking trick.
+> > > > > 
+> > > > > How about this?
+> > > > > 
+> > > > 
+> > > > Both will work as expected but....
+> > > > 
+> > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > index 10090c8..881619e 100644
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -2306,13 +2306,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> > > > >  
+> > > > >         throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+> > > > >  
+> > > > > -       /*
+> > > > > -        * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> > > > > -        * that the page allocator does not consider triggering OOM
+> > > > > -        */
+> > > > > -       if (fatal_signal_pending(current))
+> > > > > -               return 1;
+> > > > > -
+> > > > >         trace_mm_vmscan_direct_reclaim_begin(order,
+> > > > >                                 sc.may_writepage,
+> > > > >                                 gfp_mask);
+> > > > >  
+> > > > > In this case, after throttling, current will try to do direct reclaim and
+> > > > > if he makes forward progress, he will get a memory and exit if he receive KILL signal.
+> > > > 
+> > > > It may be completely unnecessary to reclaim memory if the process that was
+> > > > throttled and killed just exits quickly. As the fatal signal is pending
+> > > > it will be able to use the pfmemalloc reserves.
+> > > > 
+> > > > > If he can't make forward progress with direct reclaim, he can ends up OOM path but
+> > > > > out_of_memory checks signal check of current and allow to access reserved memory pool
+> > > > > for quick exit and return without killing other victim selection.
+> > > > 
+> > > > While this is true, what advantage is there to having a killed process
+> > > > potentially reclaiming memory it does not need to?
+> > > 
+> > > Killed process needs a memory for him to be terminated. I think it's not a good idea for him
+> > > to use reserved memory pool unconditionally although he is throtlled and killed.
+> > > Because reserved memory pool is very stricted resource for emergency so using reserved memory
+> > > pool should be last resort after he fail to reclaim.
+> > > 
+> > 
+> > Part of that reclaim can be the process reclaiming its own pages and
+> > putting them in swap just so it can exit shortly afterwards. If it was
+> > throttled in this path, it implies that swap-over-NFS is enabled where
 > 
-> 	(It's an effective revert of "mm: vmscan: scale number of pages
-> 	reclaimed by reclaim/compaction based on failures".) Given kswapd
-> 	had hours of runtime in ps/top output yesterday in the morning
-> 	and after the revert it's now 2 minutes in sum for the last 24h,
-> 	I would say, it's gone.
-> 
-> The intention of the patch in question was to compensate for the loss
-> of lumpy reclaim. Part of the reason lumpy reclaim worked is because
-> it aggressively reclaimed pages and this patch was meant to be a sane
-> compromise.
-> 
-> When compaction fails, it gets deferred and both compaction and
-> reclaim/compaction is deferred avoid excessive reclaim. However, since
-> commit c6543459 (mm: remove __GFP_NO_KSWAPD), kswapd is woken up each time
-> and continues reclaiming which was not taken into account when the patch
-> was developed.
-> 
-> Attempts to address the problem ended up just changing the shape of the
-> problem instead of fixing it. The release window gets closer and while a
-> THP allocation failing is not a major problem, kswapd chewing up a lot of
-> CPU is. This patch reverts "mm: vmscan: scale number of pages reclaimed
-> by reclaim/compaction based on failures" and will be revisited in the future.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Could we make sure it's only the case for swap-over-NFS?
 
-Andrew, can you pick up this patch please and drop
-mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-only-in-direct-reclaim.patch
-?
+The PFMEMALLOC reserves being consumed to the point of throttline is only
+expected in the case of swap-over-network -- check the pgscan_direct_throttle
+counter to be sure. So it's already the case that this throttling logic and
+its signal handling is mostly a swap-over-NFS thing. It is possible that
+a badly behaving driver using GFP_ATOMIC to allocate long-lived buffers
+could force a situation where a process gets throttled but I'm not aware
+of a case where this happens todays.
 
-There are mixed reports on how much it helps but it comes down to "this
-fixes a problem" versus "kswapd is still showing higher usage". I think
-the higher kswapd usage is explained by the removal of __GFP_NO_KSWAPD
-and so while higher usage is bad, it is not necessarily unjustified.
-Ideally it would have been proven that having kswapd doing the work
-reduced application stalls in direct reclaim but unfortunately I do not
-have concrete evidence of that at this time.
+> I think it can happen if the system has very slow thumb card.
+> 
+
+How? They shouldn't be stuck in throttling in this case. They should be
+blocked on IO, congestion wait, dirty throttling etc.
+
+> > such reclaim in fact might require the pfmemalloc reserves to be used to
+> > allocate network buffers. It's potentially unnecessary work because the
+> 
+> You mean we need pfmemalloc reserve to swap out anon pages by swap-over-NFS?
+
+In very low-memory situations - yes. We can be at the min watermark but
+still need to allocate a page for a network buffer to swap out the anon page.
+
+> Yes. In this case, you're right. I would be better to use reserve pool for
+> just exiting instead of swap out over network. But how can you make sure that
+> we have only anonymous page when we try to reclaim? 
+> If there are some file-backed pages, we can avoid swapout at that time.
+> Maybe we need some check.
+> 
+
+That would be a fairly invasive set of checks for a corner case. if
+swap-over-nfs + critically low + about to OOM + file pages available then
+only reclaim files.
+
+It's getting off track as to why we're having this discussion in the first
+place -- looping due to improper handling of fatal signal pending.
+
+> > same reserves could have been used to just exit the process.
+> > 
+> > I'll go your way if you insist because it's not like getting throttled
+> > and killed before exit is a common situation and it should work either
+> > way.
+> 
+> I don't want to insist on. Just want to know what's the problem and find
+> better solution. :) 
+> 
+
+In that case, I'm going to send the patch to Andrew on Monday and avoid
+direct reclaim when a fatal signal is pending in the swap-over-network
+case. Are you ok with that?
 
 -- 
 Mel Gorman
