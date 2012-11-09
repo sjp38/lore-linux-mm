@@ -1,44 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 24ED76B002B
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 19:38:20 -0500 (EST)
-Date: Thu, 8 Nov 2012 16:38:18 -0800
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] Add a test program for variable page sizes in
- mmap/shmget v2
-Message-ID: <20121109003818.GC2726@tassilo.jf.intel.com>
-References: <1352408486-4318-1-git-send-email-andi@firstfloor.org>
- <20121108132946.c2b9e8b7.akpm@linux-foundation.org>
- <20121108220150.GA2726@tassilo.jf.intel.com>
- <20121108140938.357228e0.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121108140938.357228e0.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 1615C6B002B
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 19:42:20 -0500 (EST)
+Received: by mail-yh0-f73.google.com with SMTP id i33so407242yhi.2
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 16:42:19 -0800 (PST)
+From: Sonny Rao <sonnyrao@chromium.org>
+Subject: [PATCHv2] mm: Fix calculation of dirtyable memory
+Date: Thu,  8 Nov 2012 16:42:03 -0800
+Message-Id: <1352421724-5366-1-git-send-email-sonnyrao@chromium.org>
+In-Reply-To: <20121108153756.cca505da.akpm@linux-foundation.org>
+References: <20121108153756.cca505da.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Johannes Weiner <jweiner@redhat.com>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>
 
-> > My test system didn't hang FWIW.
-> 
-> It wasn't thuge-gen which hung.  It happened really early in
-> run_vmtests, perhaps setting nr_hugepages.
-
-I mean it didn't hang for the full script.
-
-Ah this causes compaction so if you have a lot of fragmented memory
-it may run for a lot time with very long latencies, but inhibiting
-page faults of other processes.
-
-It probably would have recovered.
-
-it's a general problem that others are complaining about too.
-
--Andi
-
--- 
-ak@linux.intel.com -- Speaking for myself only
+add apkm's suggestion
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
