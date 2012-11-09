@@ -1,80 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id ED5BA6B002B
-	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 21:36:42 -0500 (EST)
-Date: Fri, 9 Nov 2012 10:36:38 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [PATCHv2] mm: Fix calculation of dirtyable memory
-Message-ID: <20121109023638.GA11105@localhost>
-References: <CAPz6YkVruULzvmn4a8G05xPJUEXdhHqAZnW4sZAHCWMZpW338g@mail.gmail.com>
- <1352422353-11229-1-git-send-email-sonnyrao@chromium.org>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id B693E6B002B
+	for <linux-mm@kvack.org>; Thu,  8 Nov 2012 22:37:55 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id v13so4259707vbk.14
+        for <linux-mm@kvack.org>; Thu, 08 Nov 2012 19:37:54 -0800 (PST)
+Message-ID: <509C7A77.3020206@gmail.com>
+Date: Thu, 08 Nov 2012 22:37:27 -0500
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352422353-11229-1-git-send-email-sonnyrao@chromium.org>
+Subject: Re: [PATCH v6 28/29] slub: slub-specific propagation changes.
+References: <1351771665-11076-1-git-send-email-glommer@parallels.com> <1351771665-11076-29-git-send-email-glommer@parallels.com> <509A83F8.6040402@oracle.com> <509B5673.8020801@parallels.com>
+In-Reply-To: <509B5673.8020801@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sonny Rao <sonnyrao@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Johannes Weiner <jweiner@redhat.com>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>, Puneet Kumar <puneetster@chromium.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>, Suleiman Souhlal <suleiman@google.com>, Dave Jones <davej@redhat.com>
 
-On Thu, Nov 08, 2012 at 04:52:33PM -0800, Sonny Rao wrote:
-> The system uses global_dirtyable_memory() to calculate
-> number of dirtyable pages/pages that can be allocated
-> to the page cache.  A bug causes an underflow thus making
-> the page count look like a big unsigned number.  This in turn
-> confuses the dirty writeback throttling to aggressively write
-> back pages as they become dirty (usually 1 page at a time).
+On 11/08/2012 01:51 AM, Glauber Costa wrote:
+> On 11/07/2012 04:53 PM, Sasha Levin wrote:
+>> On 11/01/2012 08:07 AM, Glauber Costa wrote:
+>>> SLUB allows us to tune a particular cache behavior with sysfs-based
+>>> tunables.  When creating a new memcg cache copy, we'd like to preserve
+>>> any tunables the parent cache already had.
+>>>
+>>> This can be done by tapping into the store attribute function provided
+>>> by the allocator. We of course don't need to mess with read-only
+>>> fields. Since the attributes can have multiple types and are stored
+>>> internally by sysfs, the best strategy is to issue a ->show() in the
+>>> root cache, and then ->store() in the memcg cache.
+>>>
+>>> The drawback of that, is that sysfs can allocate up to a page in
+>>> buffering for show(), that we are likely not to need, but also can't
+>>> guarantee. To avoid always allocating a page for that, we can update the
+>>> caches at store time with the maximum attribute size ever stored to the
+>>> root cache. We will then get a buffer big enough to hold it. The
+>>> corolary to this, is that if no stores happened, nothing will be
+>>> propagated.
+>>>
+>>> It can also happen that a root cache has its tunables updated during
+>>> normal system operation. In this case, we will propagate the change to
+>>> all caches that are already active.
+>>>
+>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>>> CC: Christoph Lameter <cl@linux.com>
+>>> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+>>> CC: Michal Hocko <mhocko@suse.cz>
+>>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>>> CC: Suleiman Souhlal <suleiman@google.com>
+>>> CC: Tejun Heo <tj@kernel.org>
+>>> ---
+>>
+>> Hi guys,
+>>
+>> This patch is making lockdep angry! *bark bark*
+>>
+>> [  351.935003] ======================================================
+>> [  351.937693] [ INFO: possible circular locking dependency detected ]
+>> [  351.939720] 3.7.0-rc4-next-20121106-sasha-00008-g353b62f #117 Tainted: G        W
+>> [  351.942444] -------------------------------------------------------
+>> [  351.943528] trinity-child13/6961 is trying to acquire lock:
+>> [  351.943528]  (s_active#43){++++.+}, at: [<ffffffff812f9e11>] sysfs_addrm_finish+0x31/0x60
+>> [  351.943528]
+>> [  351.943528] but task is already holding lock:
+>> [  351.943528]  (slab_mutex){+.+.+.}, at: [<ffffffff81228a42>] kmem_cache_destroy+0x22/0xe0
+>> [  351.943528]
+>> [  351.943528] which lock already depends on the new lock.
+>> [  351.943528]
+>> [  351.943528]
+>> [  351.943528] the existing dependency chain (in reverse order) is:
+>> [  351.943528]
+>> -> #1 (slab_mutex){+.+.+.}:
+>> [  351.960334]        [<ffffffff8118536a>] lock_acquire+0x1aa/0x240
+>> [  351.960334]        [<ffffffff83a944d9>] __mutex_lock_common+0x59/0x5a0
+>> [  351.960334]        [<ffffffff83a94a5f>] mutex_lock_nested+0x3f/0x50
+>> [  351.960334]        [<ffffffff81256a6e>] slab_attr_store+0xde/0x110
+>> [  351.960334]        [<ffffffff812f820a>] sysfs_write_file+0xfa/0x150
+>> [  351.960334]        [<ffffffff8127a220>] vfs_write+0xb0/0x180
+>> [  351.960334]        [<ffffffff8127a540>] sys_pwrite64+0x60/0xb0
+>> [  351.960334]        [<ffffffff83a99298>] tracesys+0xe1/0xe6
+>> [  351.960334]
+>> -> #0 (s_active#43){++++.+}:
+>> [  351.960334]        [<ffffffff811825af>] __lock_acquire+0x14df/0x1ca0
+>> [  351.960334]        [<ffffffff8118536a>] lock_acquire+0x1aa/0x240
+>> [  351.960334]        [<ffffffff812f9272>] sysfs_deactivate+0x122/0x1a0
+>> [  351.960334]        [<ffffffff812f9e11>] sysfs_addrm_finish+0x31/0x60
+>> [  351.960334]        [<ffffffff812fa369>] sysfs_remove_dir+0x89/0xd0
+>> [  351.960334]        [<ffffffff819e1d96>] kobject_del+0x16/0x40
+>> [  351.960334]        [<ffffffff8125ed40>] __kmem_cache_shutdown+0x40/0x60
+>> [  351.960334]        [<ffffffff81228a60>] kmem_cache_destroy+0x40/0xe0
+>> [  351.960334]        [<ffffffff82b21058>] mon_text_release+0x78/0xe0
+>> [  351.960334]        [<ffffffff8127b3b2>] __fput+0x122/0x2d0
+>> [  351.960334]        [<ffffffff8127b569>] ____fput+0x9/0x10
+>> [  351.960334]        [<ffffffff81131b4e>] task_work_run+0xbe/0x100
+>> [  351.960334]        [<ffffffff81110742>] do_exit+0x432/0xbd0
+>> [  351.960334]        [<ffffffff81110fa4>] do_group_exit+0x84/0xd0
+>> [  351.960334]        [<ffffffff8112431d>] get_signal_to_deliver+0x81d/0x930
+>> [  351.960334]        [<ffffffff8106d5aa>] do_signal+0x3a/0x950
+>> [  351.960334]        [<ffffffff8106df1e>] do_notify_resume+0x3e/0x90
+>> [  351.960334]        [<ffffffff83a993aa>] int_signal+0x12/0x17
+>> [  351.960334]
+>> [  351.960334] other info that might help us debug this:
+>> [  351.960334]
+>> [  351.960334]  Possible unsafe locking scenario:
+>> [  351.960334]
+>> [  351.960334]        CPU0                    CPU1
+>> [  351.960334]        ----                    ----
+>> [  351.960334]   lock(slab_mutex);
+>> [  351.960334]                                lock(s_active#43);
+>> [  351.960334]                                lock(slab_mutex);
+>> [  351.960334]   lock(s_active#43);
+>> [  351.960334]
+>> [  351.960334]  *** DEADLOCK ***
+>> [  351.960334]
+>> [  351.960334] 2 locks held by trinity-child13/6961:
+>> [  351.960334]  #0:  (mon_lock){+.+.+.}, at: [<ffffffff82b21005>] mon_text_release+0x25/0xe0
+>> [  351.960334]  #1:  (slab_mutex){+.+.+.}, at: [<ffffffff81228a42>] kmem_cache_destroy+0x22/0xe0
+>> [  351.960334]
+>> [  351.960334] stack backtrace:
+>> [  351.960334] Pid: 6961, comm: trinity-child13 Tainted: G        W    3.7.0-rc4-next-20121106-sasha-00008-g353b62f #117
+>> [  351.960334] Call Trace:
+>> [  351.960334]  [<ffffffff83a3c736>] print_circular_bug+0x1fb/0x20c
+>> [  351.960334]  [<ffffffff811825af>] __lock_acquire+0x14df/0x1ca0
+>> [  351.960334]  [<ffffffff81184045>] ? debug_check_no_locks_freed+0x185/0x1e0
+>> [  351.960334]  [<ffffffff8118536a>] lock_acquire+0x1aa/0x240
+>> [  351.960334]  [<ffffffff812f9e11>] ? sysfs_addrm_finish+0x31/0x60
+>> [  351.960334]  [<ffffffff812f9272>] sysfs_deactivate+0x122/0x1a0
+>> [  351.960334]  [<ffffffff812f9e11>] ? sysfs_addrm_finish+0x31/0x60
+>> [  351.960334]  [<ffffffff812f9e11>] sysfs_addrm_finish+0x31/0x60
+>> [  351.960334]  [<ffffffff812fa369>] sysfs_remove_dir+0x89/0xd0
+>> [  351.960334]  [<ffffffff819e1d96>] kobject_del+0x16/0x40
+>> [  351.960334]  [<ffffffff8125ed40>] __kmem_cache_shutdown+0x40/0x60
+>> [  351.960334]  [<ffffffff81228a60>] kmem_cache_destroy+0x40/0xe0
+>> [  351.960334]  [<ffffffff82b21058>] mon_text_release+0x78/0xe0
+>> [  351.960334]  [<ffffffff8127b3b2>] __fput+0x122/0x2d0
+>> [  351.960334]  [<ffffffff8127b569>] ____fput+0x9/0x10
+>> [  351.960334]  [<ffffffff81131b4e>] task_work_run+0xbe/0x100
+>> [  351.960334]  [<ffffffff81110742>] do_exit+0x432/0xbd0
+>> [  351.960334]  [<ffffffff811243b9>] ? get_signal_to_deliver+0x8b9/0x930
+>> [  351.960334]  [<ffffffff8117d402>] ? get_lock_stats+0x22/0x70
+>> [  351.960334]  [<ffffffff8117d48e>] ? put_lock_stats.isra.16+0xe/0x40
+>> [  351.960334]  [<ffffffff83a977fb>] ? _raw_spin_unlock_irq+0x2b/0x80
+>> [  351.960334]  [<ffffffff81110fa4>] do_group_exit+0x84/0xd0
+>> [  351.960334]  [<ffffffff8112431d>] get_signal_to_deliver+0x81d/0x930
+>> [  351.960334]  [<ffffffff8117d48e>] ? put_lock_stats.isra.16+0xe/0x40
+>> [  351.960334]  [<ffffffff8106d5aa>] do_signal+0x3a/0x950
+>> [  351.960334]  [<ffffffff811c8b33>] ? rcu_cleanup_after_idle+0x23/0x170
+>> [  351.960334]  [<ffffffff811cc1c4>] ? rcu_eqs_exit_common+0x64/0x3a0
+>> [  351.960334]  [<ffffffff811caa5d>] ? rcu_user_enter+0x10d/0x140
+>> [  351.960334]  [<ffffffff811cc8d5>] ? rcu_user_exit+0xc5/0xf0
+>> [  351.960334]  [<ffffffff8106df1e>] do_notify_resume+0x3e/0x90
+>> [  351.960334]  [<ffffffff83a993aa>] int_signal+0x12/0x17
+>>
+>>
+>> Thanks,
+>> Sasha
 > 
-> Fix is to ensure there is no underflow while doing the math.
-
-Good catch, thanks!
-
-> Signed-off-by: Sonny Rao <sonnyrao@chromium.org>
-> Signed-off-by: Puneet Kumar <puneetster@chromium.org>
-> ---
->  v2: added apkm's suggestion to make the highmem calculation better
->  mm/page-writeback.c |   17 +++++++++++++++--
->  1 files changed, 15 insertions(+), 2 deletions(-)
+> Hello Sasha,
 > 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 830893b..ce62442 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -201,6 +201,18 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
->  		     zone_reclaimable_pages(z) - z->dirty_balance_reserve;
->  	}
->  	/*
-> +	 * Unreclaimable memory (kernel memory or anonymous memory
-> +	 * without swap) can bring down the dirtyable pages below
-> +	 * the zone's dirty balance reserve and the above calculation
-> +	 * will underflow.  However we still want to add in nodes
-> +	 * which are below threshold (negative values) to get a more
-> +	 * accurate calculation but make sure that the total never
-> +	 * underflows.
-> +	 */
-> +	if ((long)x < 0)
-> +		x = 0;
-> +
-> +	/*
->  	 * Make sure that the number of highmem pages is never larger
->  	 * than the number of the total dirtyable memory. This can only
->  	 * occur in very strange VM situations but we want to make sure
-> @@ -222,8 +234,9 @@ static unsigned long global_dirtyable_memory(void)
->  {
->  	unsigned long x;
->  
-> -	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages() -
-> -	    dirty_balance_reserve;
-> +	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-> +	if (x >= dirty_balance_reserve)
-> +		x -= dirty_balance_reserve;
+> May I ask how did you trigger this ?
 
-That can be converted to "if ((long)x < 0) x = 0;", too.
+Fuzzing with trinity, inside a KVM guest.
 
-And I suspect zone_dirtyable_memory() needs similar fix, too.
 
 Thanks,
-Fengguang
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
