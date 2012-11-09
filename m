@@ -1,80 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 924D06B002B
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 03:07:51 -0500 (EST)
-Message-ID: <509CB9D1.6060704@redhat.com>
-Date: Fri, 09 Nov 2012 09:07:45 +0100
-From: Zdenek Kabelac <zkabelac@redhat.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id E16186B002B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 03:13:16 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 133A43EE0AE
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 17:13:15 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E5E9145DEC1
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 17:13:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id CAB1145DEBC
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 17:13:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id BA5691DB8047
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 17:13:14 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 602621DB803B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 17:13:14 +0900 (JST)
+Message-ID: <509CBB07.9050709@jp.fujitsu.com>
+Date: Fri, 09 Nov 2012 17:12:55 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: kswapd0: excessive CPU usage
-References: <507688CC.9000104@suse.cz> <106695.1349963080@turing-police.cc.vt.edu> <5076E700.2030909@suse.cz> <118079.1349978211@turing-police.cc.vt.edu> <50770905.5070904@suse.cz> <119175.1349979570@turing-police.cc.vt.edu> <5077434D.7080008@suse.cz> <50780F26.7070007@suse.cz> <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com>
-In-Reply-To: <509C84ED.8090605@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: Re: [PATCH V3] memcg, oom: provide more precise dump info while memcg
+ oom happening
+References: <1352389967-23270-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1352389967-23270-1-git-send-email-handai.szj@taobao.com>
+Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Jiri Slaby <jslaby@suse.cz>, Mel Gorman <mgorman@suse.de>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, akpm@linux-foundation.org, rientjes@google.com, linux-kernel@vger.kernel.org, Sha Zhengju <handai.szj@taobao.com>
 
-Dne 9.11.2012 05:22, Seth Jennings napsal(a):
-> On 11/02/2012 02:45 PM, Jiri Slaby wrote:
->> On 11/02/2012 11:53 AM, Jiri Slaby wrote:
->>> On 11/02/2012 11:44 AM, Zdenek Kabelac wrote:
->>>>>> Yes, applying this instead of the revert fixes the issue as well.
->>>>
->>>> I've applied this patch on 3.7.0-rc3 kernel - and I still see excessive
->>>> CPU usage - mainly  after  suspend/resume
->>>>
->>>> Here is just simple  kswapd backtrace from running kernel:
->>>
->>> Yup, this is what we were seeing with the former patch only too. Try to
->>> apply the other one too:
->>> https://patchwork.kernel.org/patch/1673231/
->>>
->>> For me I would say, it is fixed by the two patches now. I won't be able
->>> to report later, since I'm leaving to a conference tomorrow.
->>
->> Damn it. It recurred right now, with both patches applied. After I
->> started a java program which consumed some more memory. Though there are
->> still 2 gigs free, kswap is spinning:
->> [<ffffffff810b00da>] __cond_resched+0x2a/0x40
->> [<ffffffff811318a0>] shrink_slab+0x1c0/0x2d0
->> [<ffffffff8113478d>] kswapd+0x66d/0xb60
->> [<ffffffff810a25d0>] kthread+0xc0/0xd0
->> [<ffffffff816aa29c>] ret_from_fork+0x7c/0xb0
->> [<ffffffffffffffff>] 0xffffffffffffffff
->
-> I'm also hitting this issue in v3.7-rc4.  It appears that the last
-> release not effected by this issue was v3.3.  Bisecting the changes
-> included for v3.4-rc1 showed that this commit introduced the issue:
->
-> fe2c2a106663130a5ab45cb0e3414b52df2fff0c is the first bad commit
-> commit fe2c2a106663130a5ab45cb0e3414b52df2fff0c
-> Author: Rik van Riel <riel@redhat.com>
-> Date:   Wed Mar 21 16:33:51 2012 -0700
->
->      vmscan: reclaim at order 0 when compaction is enabled
-> ...
->
-> This is plausible since the issue seems to be in the kswapd + compaction
-> realm.  I've yet to figure out exactly what about this commit results in
-> kswapd spinning.
->
-> I would be interested if someone can confirm this finding.
->
-> --
-> Seth
->
+(2012/11/09 0:52), Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
+> 
+> Current when a memcg oom is happening the oom dump messages is still global
+> state and provides few useful info for users. This patch prints more pointed
+> memcg page statistics for memcg-oom.
+> 
+> 
+> We set up a simple cgroup hierarchy for test:
+> 	root_memcg
+> 	    |
+> 	    1 (use_hierachy=1, with a process)
+> 	    |
+> 	    2 (its process will be killed by memcg oom)
+> 
+> Following are samples of oom output:
+> 
+> (1)Before change:
+> 
+> [  295.754215] mal invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+> [  295.754219] mal cpuset=/ mems_allowed=0-1
+> [  295.754221] Pid: 4623, comm: mal Not tainted 3.6.0+ #26
+> [  295.754223] Call Trace:
+> [  295.754230]  [<ffffffff8111b9c4>] dump_header+0x84/0xd0
+> [  295.754233]  [<ffffffff8111c691>] oom_kill_process+0x331/0x350
+> 		..... (call trace)
+> [  295.754288]  [<ffffffff815171e5>] page_fault+0x25/0x30
+> [  295.754291] Task in /1/2 killed as a result of limit of /1
+> [  295.754293] memory: usage 511640kB, limit 512000kB, failcnt 4471
+> [  295.754294] memory+swap: usage 563200kB, limit 563200kB, failcnt 22
+> [  295.754296] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
+> [  295.754297] Mem-Info:
+> [  295.754298] Node 0 DMA per-cpu:           <<<<<<<<<<<<<<<<<<<<< print per cpu pageset stat
+> [  295.754300] CPU    0: hi:    0, btch:   1 usd:   0
+> 	       ......
+> [  295.754302] CPU    15: hi:    0, btch:   1 usd:   0
+> 
+> [  295.754448] Node 0 DMA32 per-cpu:
+> [  295.754450] CPU    0: hi:  186, btch:  31 usd: 181
+> 	       ......
+> [  295.754451] CPU    15: hi:  186, btch:  31 usd:  25
+> 
+> [  295.754470] Node 0 Normal per-cpu:
+> [  295.754472] CPU    0: hi:  186, btch:  31 usd:  56
+> 	       ......
+> [  295.754473] CPU    15: hi:  186, btch:  31 usd: 150
+> 
+> [  295.754493] Node 1 Normal per-cpu:
+> [  295.754495] CPU    0: hi:  186, btch:  31 usd:   0
+> 	       ......
+> [  295.754496] CPU    15: hi:  186, btch:  31 usd:   0
+> 					     <<<<<<<<<<<<<<<<<<<<< print global page state
+> [  295.754519] active_anon:57756 inactive_anon:73437 isolated_anon:0
+> [  295.754519]  active_file:2659 inactive_file:14291 isolated_file:0
+> [  295.754519]  unevictable:1268 dirty:0 writeback:4961 unstable:0
+> [  295.754519]  free:5979740 slab_reclaimable:2955 slab_unreclaimable:5460
+> [  295.754519]  mapped:2478 shmem:62 pagetables:994 bounce:0
+> [  295.754519]  free_cma:0
+> 					     <<<<<<<<<<<<<<<<<<<<< print per zone page state
+> [  295.754522] Node 0 DMA free:15884kB min:56kB low:68kB high:84kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15884kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> [  295.754527] lowmem_reserve[]: 0 2966 12013 12013
+> [  295.754530] Node 0 DMA32 free:3041228kB min:11072kB .....
+> [  295.754535] lowmem_reserve[]: 0 0 9046 9046
+> [  295.754537] Node 0 Normal free:8616716kB min:33756kB .....
+> [  295.754542] lowmem_reserve[]: 0 0 0 0
+> [  295.754545] Node 1 Normal free:12245132kB min:45220kB ....
+> [  295.754550] lowmem_reserve[]: 0 0 0 0
+> [  295.754552] Node 0 DMA: 1*4kB (U) 1*8kB (U) 0*16kB 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (R) 3*4096kB (M) = 15884kB
+> [  295.754563] Node 0 DMA32: 5*4kB (M) 3*8kB (M) 6*16kB (UM) ... 738*4096kB (MR) = 3041228kB
+> [  295.754574] Node 0 Normal: 16*4kB (EM) 165*8kB (UEM) ... 2101*4096kB (MR) = 8616840kB
+> [  295.754586] Node 1 Normal: 768*4kB (UEM) 924*8kB (UEM) ... 048kB (EM) 2976*4096kB (MR) = 12245264kB
+> [  295.754598] 25266 total pagecache pages
+> [  295.754599] 7227 pages in swap cache
+> 					     <<<<<<<<<<<<<<<<<<<<< print global swap cache stat
+> [  295.754600] Swap cache stats: add 21474, delete 14247, find 533/576
+> [  295.754601] Free swap  = 2016000kB
+> [  295.754602] Total swap = 2096444kB
+> [  295.816119] 6291440 pages RAM
+> [  295.816121] 108291 pages reserved
+> [  295.816122] 9427 pages shared
+> [  295.816123] 195843 pages non-shared
+> [  295.816124] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+> [  295.816161] [ 4569]     0  4569    16626      475      18       30             0 bash
+> [  295.816164] [ 4622]     0  4622   103328    87541     208    14950             0 mal
+> [  295.816167] [ 4623]     0  4623   103328    33468      85     5162             0 mal
+> [  295.816171] Memory cgroup out of memory: Kill process 4622 (mal) score 699 or sacrifice child
+> [  295.816173] Killed process 4622 (mal) total-vm:413312kB, anon-rss:349872kB, file-rss:292kB
+> 
+> We can see that messages dumped by show_free_areas() are longsome and can provide so limited info for memcg that just happen oom.
+> 
+> (2) After change
+> [  269.225628] mal invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+> [  269.225633] mal cpuset=/ mems_allowed=0-1
+> [  269.225636] Pid: 4616, comm: mal Not tainted 3.6.0+ #25
+> [  269.225637] Call Trace:
+> [  269.225647]  [<ffffffff8111b9c4>] dump_header+0x84/0xd0
+> [  269.225650]  [<ffffffff8111c691>] oom_kill_process+0x331/0x350
+> [  269.225710]  .......(call trace)
+> [  269.225713]  [<ffffffff81517325>] page_fault+0x25/0x30
+> [  269.225716] Task in /1/2 killed as a result of limit of /1
+> [  269.225718] memory: usage 511732kB, limit 512000kB, failcnt 5071
+> [  269.225720] memory+swap: usage 563200kB, limit 563200kB, failcnt 57
+> [  269.225721] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
+> [  269.225722] Memory cgroup stats:cache:8KB rss:511724KB mapped_file:4KB swap:51468KB inactive_anon:265864KB active_anon:245832KB inactive_file:0KB active_file:0KB unevictable:0KB
+> [  269.225741] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
+> [  269.225757] [ 4554]     0  4554    16626      473      17       25             0 bash
+> [  269.225759] [ 4611]     0  4611   103328    90231     208    12260             0 mal
+> [  269.225762] [ 4616]     0  4616   103328    32799      88     7562             0 mal
+> [  269.225764] Memory cgroup out of memory: Kill process 4611 (mal) score 699 or sacrifice child
+> [  269.225766] Killed process 4611 (mal) total-vm:413312kB, anon-rss:360632kB, file-rss:292kB
+> 
+> This version provides more pointed info for memcg in "Memory cgroup stats" section.
+> 
+
+seems very nice !
+some nitpicks below.
+
+> Change log:
+> v3 <--- v2
+> 	1. fix towards hierarchy
+> 	2. undo rework dump_tasks
+> v2 <--- v1
+> 	1. some modification towards hierarchy
+> 	2. rework dump_tasks
+> 	3. rebased on Michal's mm tree since-3.6
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+> ---
+>   mm/memcontrol.c |   41 +++++++++++++++++++++++++++++++----------
+>   mm/oom_kill.c   |    6 ++++--
+>   2 files changed, 35 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 0eab7d5..17317fa 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -118,6 +118,14 @@ static const char * const mem_cgroup_events_names[] = {
+>   	"pgmajfault",
+>   };
+>   
+> +static const char * const mem_cgroup_lru_names[] = {
+> +	"inactive_anon",
+> +	"active_anon",
+> +	"inactive_file",
+> +	"active_file",
+> +	"unevictable",
+> +};
+> +
+>   /*
+>    * Per memcg event counter is incremented at every pagein/pageout. With THP,
+>    * it will be incremated by the number of pages. This counter is used for
+> @@ -1501,8 +1509,8 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
+>   	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+>   }
+>   
+> +#define K(x) ((x) << (PAGE_SHIFT-10))
+>   /**
+> - * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
+>    * @memcg: The memory cgroup that went over limit
+>    * @p: Task that is going to be killed
+>    *
+> @@ -1520,8 +1528,10 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>   	 */
+>   	static char memcg_name[PATH_MAX];
+>   	int ret;
+> +	struct mem_cgroup *mi;
+
+A nitpick but I prefer using 'iter' as variable name as other for_each_mem_cgroup_tree()
+in memcontrol.c
 
 
-On my system 3.7-rc4 the problem seems to be effectively solved by revert 
-patch: https://lkml.org/lkml/2012/11/5/308
+> +	unsigned int i;
+>   
+> -	if (!memcg || !p)
+> +	if (!p)
+>   		return;
+>   
+>   	rcu_read_lock();
+> @@ -1569,6 +1579,25 @@ done:
+>   		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
+>   		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
+>   		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
+> +
+> +	printk(KERN_INFO "Memory cgroup stats:");
 
-i.e. in 2 days uptime kswapd0 eats 6 seconds which is IMHO ok - I'm not 
-observing any busy loops on CPU with kswapd0.
+why KERN_INFO rather than default_log_level ?
 
-
-Zdenek
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
