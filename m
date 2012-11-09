@@ -1,57 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id B09776B0044
-	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 10:26:08 -0500 (EST)
-Date: Fri, 9 Nov 2012 12:58:29 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v11 7/7] mm: add vm event counters for balloon pages
- compaction
-Message-ID: <20121109145829.GC4308@optiplex.redhat.com>
-References: <cover.1352256081.git.aquini@redhat.com>
- <8dde7996f3e36a5efbe569afe1aadfc84355e79e.1352256088.git.aquini@redhat.com>
- <20121109122033.GR3886@csn.ul.ie>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 2657E6B002B
+	for <linux-mm@kvack.org>; Fri,  9 Nov 2012 10:34:05 -0500 (EST)
+Message-ID: <509D226B.30904@linux.intel.com>
+Date: Fri, 09 Nov 2012 07:34:03 -0800
+From: Arjan van de Ven <arjan@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121109122033.GR3886@csn.ul.ie>
+Subject: Re: [RFC PATCH 0/8][Sorted-buddy] mm: Linux VM Infrastructure to
+ support Memory Power Management
+References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121108180257.GC8218@suse.de> <20121109051247.GA499@dirshya.in.ibm.com>
+In-Reply-To: <20121109051247.GA499@dirshya.in.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: svaidy@linux.vnet.ibm.com
+Cc: Mel Gorman <mgorman@suse.de>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, akpm@linux-foundation.org, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 09, 2012 at 12:20:33PM +0000, Mel Gorman wrote:
-> On Wed, Nov 07, 2012 at 01:05:54AM -0200, Rafael Aquini wrote:
-> > This patch introduces a new set of vm event counters to keep track of
-> > ballooned pages compaction activity.
-> > 
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
+On 11/8/2012 9:14 PM, Vaidyanathan Srinivasan wrote:
+> * Mel Gorman <mgorman@suse.de> [2012-11-08 18:02:57]:
 > 
-> Other than confirming the thing actually works can any meaningful
-> conclusions be drawn from this counters?
+>> On Wed, Nov 07, 2012 at 01:22:13AM +0530, Srivatsa S. Bhat wrote:
+>>> ------------------------------------------------------------
 > 
-> I know I have been inconsistent on this myself in the past but recently
-> I've been taking the attitude that the counters can be used to fit into
-> some other metric. I'm looking to change the compaction counters to be
-> able to build a basic cost model for example. The same idea could be
-> used for balloons of course but it's a less critical path than
-> compaction for THP for example.
+> Hi Mel,
 > 
-> Assuming it builds and all the defines are correct when the feature is
-> not configured (I didn't check) then there is nothing wrong with the
-> patch. However, if it was dropped would it make life very hard or would
-> you notice?
+> Thanks for detailed review and comments.  The goal of this patch
+> series is to brainstorm on ideas that enable Linux VM to record and
+> exploit memory region boundaries.
 > 
+> The first approach that we had last year (hierarchy) has more runtime
+> overhead.  This approach of sorted-buddy was one of the alternative
+> discussed earlier and we are trying to find out if simple requirements
+> of biasing memory allocations can be achieved with this approach.
+> 
+> Smart reclaim based on this approach is a key piece we still need to
+> design.  Ideas from compaction will certainly help.
 
-Originally, I proposed this patch as droppable (and it's still droppable)
-because its major purpose was solely to show the thing working consistently
+reclaim may be needed for the embedded use case
+but at least we are also looking at memory power savings that come for content-preserving power states.
+For that, Linux should *statistically* not be actively using (e.g. read or write from it) a percentage of memory...
+and statistically clustering is quite sufficient for that.
 
-OTOH, it might make the life easier to spot breakages if it remains with the
-merged bits, and per a reviewer request I removed its 'DROP BEFORE MERGE'
-disclaimer.
+(for example, if you don't use a DIMM for a certain amount of time,
+the link and other pieces can go to a lower power state,
+even on todays server systems.
+In a many-dimm system..  if each app is, on a per app basis,
+preferring one dimm for its allocations, the process scheduler will
+help us naturally keeping the other dimms "dark")
 
-   https://lkml.org/lkml/2012/8/8/616
+If you have to actually free the memory, it is a much much harder problem,
+increasingly so if the region you MUST free is quite large.
 
--- Rafael
+if one solution can solve both cases, great, but lets not make both not happen
+because one of the cases is hard...
+(and please lets not use moving or freeing of pages as a solution for at least the
+content preserving case)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
