@@ -1,129 +1,19 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id C36E26B002B
-	for <linux-mm@kvack.org>; Sat, 10 Nov 2012 10:53:10 -0500 (EST)
-Date: Sat, 10 Nov 2012 17:55:38 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v11 7/7] mm: add vm event counters for balloon pages
- compaction
-Message-ID: <20121110155538.GC13846@redhat.com>
-References: <cover.1352256081.git.aquini@redhat.com>
- <8dde7996f3e36a5efbe569afe1aadfc84355e79e.1352256088.git.aquini@redhat.com>
+Return-Path: <sudiegeorgann@c2as.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8dde7996f3e36a5efbe569afe1aadfc84355e79e.1352256088.git.aquini@redhat.com>
-Sender: owner-linux-mm@kvack.org
+Subject: results. 7hxors3
+From: "Berta Roma" <sudiegeorgann@c2as.com>
+Message-ID: <77a96x40z54-35754430-643u2m20@cfmngnfd>
+Date: Sun, 11 Nov 2012 00:48:28 +0700
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, Nov 07, 2012 at 01:05:54AM -0200, Rafael Aquini wrote:
-> This patch introduces a new set of vm event counters to keep track of
-> ballooned pages compaction activity.
-> 
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> ---
->  drivers/virtio/virtio_balloon.c |  1 +
->  include/linux/vm_event_item.h   |  8 +++++++-
->  mm/balloon_compaction.c         |  2 ++
->  mm/migrate.c                    |  1 +
->  mm/vmstat.c                     | 10 +++++++++-
->  5 files changed, 20 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 69eede7..3756fc1 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -411,6 +411,7 @@ int virtballoon_migratepage(struct address_space *mapping,
->  	tell_host(vb, vb->deflate_vq);
->  
->  	mutex_unlock(&vb->balloon_lock);
-> +	balloon_event_count(COMPACTBALLOONMIGRATED);
->  
->  	return MIGRATEPAGE_BALLOON_SUCCESS;
->  }
+     
+Enlarge your penis - Penis enlargement - Penis size 
 
-Looks like any ballon would need to do this.
-Can this  chunk go into caller instead?
+Increase your penis size 1-3 inches. Enlarge your penis 1-3 inches or more, in just few days and from your home! Guaranteed 
+results. Tested! Number one penis pill...
 
-> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-> index 3d31145..cbd72fc 100644
-> --- a/include/linux/vm_event_item.h
-> +++ b/include/linux/vm_event_item.h
-> @@ -41,7 +41,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
->  #ifdef CONFIG_COMPACTION
->  		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
->  		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
-> -#endif
-> +#ifdef CONFIG_BALLOON_COMPACTION
-> +		COMPACTBALLOONISOLATED, /* isolated from balloon pagelist */
-> +		COMPACTBALLOONMIGRATED, /* balloon page sucessfully migrated */
-> +		COMPACTBALLOONRELEASED, /* old-page released after migration */
-> +		COMPACTBALLOONRETURNED, /* putback to pagelist, not-migrated */
-> +#endif /* CONFIG_BALLOON_COMPACTION */
-> +#endif /* CONFIG_COMPACTION */
->  #ifdef CONFIG_HUGETLB_PAGE
->  		HTLB_BUDDY_PGALLOC, HTLB_BUDDY_PGALLOC_FAIL,
->  #endif
-> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> index 90935aa..32927eb 100644
-> --- a/mm/balloon_compaction.c
-> +++ b/mm/balloon_compaction.c
-> @@ -215,6 +215,7 @@ bool balloon_page_isolate(struct page *page)
->  			if (__is_movable_balloon_page(page) &&
->  			    page_count(page) == 2) {
->  				__isolate_balloon_page(page);
-> +				balloon_event_count(COMPACTBALLOONISOLATED);
->  				unlock_page(page);
->  				return true;
->  			}
-> @@ -237,6 +238,7 @@ void balloon_page_putback(struct page *page)
->  	if (__is_movable_balloon_page(page)) {
->  		__putback_balloon_page(page);
->  		put_page(page);
-> +		balloon_event_count(COMPACTBALLOONRETURNED);
->  	} else {
->  		__WARN();
->  		dump_page(page);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index adb3d44..ee3037d 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -896,6 +896,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
->  				    page_is_file_cache(page));
->  		put_page(page);
->  		__free_page(page);
-> +		balloon_event_count(COMPACTBALLOONRELEASED);
->  		return 0;
->  	}
->  out:
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index c737057..1363edc 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -781,7 +781,15 @@ const char * const vmstat_text[] = {
->  	"compact_stall",
->  	"compact_fail",
->  	"compact_success",
-> -#endif
-> +
-> +#ifdef CONFIG_BALLOON_COMPACTION
-> +	"compact_balloon_isolated",
-> +	"compact_balloon_migrated",
-> +	"compact_balloon_released",
-> +	"compact_balloon_returned",
-> +#endif /* CONFIG_BALLOON_COMPACTION */
-> +
-> +#endif /* CONFIG_COMPACTION */
->  
->  #ifdef CONFIG_HUGETLB_PAGE
->  	"htlb_buddy_alloc_success",
-> -- 
-> 1.7.11.7
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://herbmax.ru
+        
