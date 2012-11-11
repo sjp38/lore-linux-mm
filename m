@@ -1,244 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 46B8A6B0044
-	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 07:35:08 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so4074622pad.14
-        for <linux-mm@kvack.org>; Sun, 11 Nov 2012 04:35:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id E68AB6B004D
+	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 07:35:23 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so2549694dad.14
+        for <linux-mm@kvack.org>; Sun, 11 Nov 2012 04:35:22 -0800 (PST)
 From: Ming Lei <ming.lei@canonical.com>
-Subject: [PATCH v5 1/6] mm: teach mm by current context info to not do I/O during memory allocation
-Date: Sun, 11 Nov 2012 20:34:33 +0800
-Message-Id: <1352637278-19968-2-git-send-email-ming.lei@canonical.com>
+Subject: [PATCH v5 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
+Date: Sun, 11 Nov 2012 20:34:34 +0800
+Message-Id: <1352637278-19968-3-git-send-email-ming.lei@canonical.com>
 In-Reply-To: <1352637278-19968-1-git-send-email-ming.lei@canonical.com>
 References: <1352637278-19968-1-git-send-email-ming.lei@canonical.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@canonical.com>, Jiri Kosina <jiri.kosina@suse.com>, Mel Gorman <mel@csn.ul.ie>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
+Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@canonical.com>
 
-This patch introduces PF_MEMALLOC_NOIO on process flag('flags' field of
-'struct task_struct'), so that the flag can be set by one task
-to avoid doing I/O inside memory allocation in the task's context.
+The patch introduces the flag of memalloc_noio in 'struct dev_pm_info'
+to help PM core to teach mm not allocating memory with GFP_KERNEL
+flag for avoiding probable deadlock.
 
-The patch trys to solve one deadlock problem caused by block device,
-and the problem may happen at least in the below situations:
-
-- during block device runtime resume, if memory allocation with
-GFP_KERNEL is called inside runtime resume callback of any one
-of its ancestors(or the block device itself), the deadlock may be
-triggered inside the memory allocation since it might not complete
-until the block device becomes active and the involed page I/O finishes.
-The situation is pointed out first by Alan Stern. It is not a good
-approach to convert all GFP_KERNEL[1] in the path into GFP_NOIO because
-several subsystems may be involved(for example, PCI, USB and SCSI may
-be involved for usb mass stoarage device, network devices involved too
-in the iSCSI case)
-
-- during block device runtime suspend, because runtime resume need
-to wait for completion of concurrent runtime suspend.
-
-- during error handling of usb mass storage deivce, USB bus reset
-will be put on the device, so there shouldn't have any
-memory allocation with GFP_KERNEL during USB bus reset, otherwise
-the deadlock similar with above may be triggered. Unfortunately, any
-usb device may include one mass storage interface in theory, so it
-requires all usb interface drivers to handle the situation. In fact,
-most usb drivers don't know how to handle bus reset on the device
-and don't provide .pre_set() and .post_reset() callback at all, so
-USB core has to unbind and bind driver for these devices. So it
-is still not practical to resort to GFP_NOIO for solving the problem.
-
-Also the introduced solution can be used by block subsystem or block
-drivers too, for example, set the PF_MEMALLOC_NOIO flag before doing
-actual I/O transfer.
-
-It is not a good idea to convert all these GFP_KERNEL in the
-affected path into GFP_NOIO because these functions doing that may be
-implemented as library and will be called in many other contexts.
-
-In fact, memalloc_noio_flags() can convert some of current static GFP_NOIO
-allocation into GFP_KERNEL back in other non-affected contexts, at least
-almost all GFP_NOIO in USB subsystem can be converted into GFP_KERNEL
-after applying the approach and make allocation with GFP_NOIO
-only happen in runtime resume/bus reset/block I/O transfer contexts
-generally.
-
-[1], several GFP_KERNEL allocation examples in runtime resume path
-
-- pci subsystem
-acpi_os_allocate
-	<-acpi_ut_allocate
-		<-ACPI_ALLOCATE_ZEROED
-			<-acpi_evaluate_object
-				<-__acpi_bus_set_power
-					<-acpi_bus_set_power
-						<-acpi_pci_set_power_state
-							<-platform_pci_set_power_state
-								<-pci_platform_power_transition
-									<-__pci_complete_power_transition
-										<-pci_set_power_state
-											<-pci_restore_standard_config
-												<-pci_pm_runtime_resume
-- usb subsystem
-usb_get_status
-	<-finish_port_resume
-		<-usb_port_resume
-			<-generic_resume
-				<-usb_resume_device
-					<-usb_resume_both
-						<-usb_runtime_resume
-
-- some individual usb drivers
-usblp, uvc, gspca, most of dvb-usb-v2 media drivers, cpia2, az6007, ....
-
-That is just what I have found.  Unfortunately, this allocation can
-only be found by human being now, and there should be many not found
-since any function in the resume path(call tree) may allocate memory
-with GFP_KERNEL.
+As explained in the comment, any GFP_KERNEL allocation inside
+runtime_resume() or runtime_suspend() on any one of device in
+the path from one block or network device to the root device
+in the device tree may cause deadlock, the introduced
+pm_runtime_set_memalloc_noio() sets or clears the flag on
+device in the path recursively.
 
 Cc: Alan Stern <stern@rowland.harvard.edu>
-Cc: Oliver Neukum <oneukum@suse.de>
-Cc: Jiri Kosina <jiri.kosina@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Ming Lei <ming.lei@canonical.com>
 ---
 v5:
-	- use inline instead of macro to define memalloc_noio_*
-	- replace memalloc_noio() with memalloc_noio_flags() to
-	make code neater
-	- don't clear GFP_FS because no GFP_IO means
-	that allocation won't enter device driver as pointed by
-	Andrew Morton
-
+	- fix code style error
+	- add comment on clear the device memalloc_noio flag
 v4:
-	- fix comment
+	- rename memalloc_noio_resume as memalloc_noio
+	- remove pm_runtime_get_memalloc_noio()
+	- add comments on pm_runtime_set_memalloc_noio
 v3:
-	- no change
+	- introduce pm_runtime_get_memalloc_noio()
+	- hold one global lock on pm_runtime_set_memalloc_noio
+	- hold device power lock when accessing memalloc_noio_resume
+	  flag suggested by Alan Stern
+	- implement pm_runtime_set_memalloc_noio without recursion
+	  suggested by Alan Stern
 v2:
-        - remove changes on 'may_writepage' and 'may_swap' because that
-          isn't related with the patchset, and can't introduce I/O in
-          allocation path if GFP_IOFS is unset, so handing 'may_swap'
-          and may_writepage on GFP_NOIO or GFP_NOFS  should be a
-          mm internal thing, and let mm guys deal with that, :-).
-
-          Looks clearing the two may_XXX flag only excludes dirty pages
-	  	  and anon pages for relaiming, and the behaviour should be decided
-          by GFP FLAG, IMO.
-
-        - unset GFP_IOFS in try_to_free_pages() path since
-          alloc_page_buffers()
-          and dma_alloc_from_contiguous may drop into the path, as
-          pointed by KAMEZAWA Hiroyuki
-v1:
-        - take Minchan's change to avoid the check in alloc_page hot
-          path
-
-        - change the helpers' style into save/restore as suggested by
-          Alan Stern
+	- introduce pm_runtime_set_memalloc_noio()
 ---
- include/linux/sched.h |   22 ++++++++++++++++++++++
- mm/page_alloc.c       |    9 ++++++++-
- mm/vmscan.c           |    4 ++--
- 3 files changed, 32 insertions(+), 3 deletions(-)
+ drivers/base/power/runtime.c |   60 ++++++++++++++++++++++++++++++++++++++++++
+ include/linux/pm.h           |    1 +
+ include/linux/pm_runtime.h   |    3 +++
+ 3 files changed, 64 insertions(+)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index f2ece18..527f2a4 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -51,6 +51,7 @@ struct sched_param {
- #include <linux/cred.h>
- #include <linux/llist.h>
- #include <linux/uidgid.h>
-+#include <linux/gfp.h>
+diff --git a/drivers/base/power/runtime.c b/drivers/base/power/runtime.c
+index 3148b10..3e198a0 100644
+--- a/drivers/base/power/runtime.c
++++ b/drivers/base/power/runtime.c
+@@ -124,6 +124,66 @@ unsigned long pm_runtime_autosuspend_expiration(struct device *dev)
+ }
+ EXPORT_SYMBOL_GPL(pm_runtime_autosuspend_expiration);
  
- #include <asm/processor.h>
- 
-@@ -1807,6 +1808,7 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
- #define PF_FROZEN	0x00010000	/* frozen for system suspend */
- #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
- #define PF_KSWAPD	0x00040000	/* I am kswapd */
-+#define PF_MEMALLOC_NOIO 0x00080000	/* Allocating memory without IO involved */
- #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
- #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
- #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
-@@ -1844,6 +1846,26 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
- #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
- #define used_math() tsk_used_math(current)
- 
-+/* GFP_NOIO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
-+static inline gfp_t memalloc_noio_flags(gfp_t flags)
++static int dev_memalloc_noio(struct device *dev, void *data)
 +{
-+	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
-+		flags &= ~GFP_NOIO;
-+	return flags;
++	return dev->power.memalloc_noio;
 +}
 +
-+static inline gfp_t memalloc_noio_save(void)
++/*
++ * pm_runtime_set_memalloc_noio - Set a device's memalloc_noio flag.
++ * @dev: Device to handle.
++ * @enable: True for setting the flag and False for clearing the flag.
++ *
++ * Set the flag for all devices in the path from the device to the
++ * root device in the device tree if @enable is true, otherwise clear
++ * the flag for devices in the path whose siblings don't set the flag.
++ *
++ * The function should only be called by block device, or network
++ * device driver for solving the deadlock problem during runtime
++ * resume/suspend:
++ *
++ *     If memory allocation with GFP_KERNEL is called inside runtime
++ *     resume/suspend callback of any one of its ancestors(or the
++ *     block device itself), the deadlock may be triggered inside the
++ *     memory allocation since it might not complete until the block
++ *     device becomes active and the involed page I/O finishes. The
++ *     situation is pointed out first by Alan Stern. Network device
++ *     are involved in iSCSI kind of situation.
++ *
++ * The lock of dev_hotplug_mutex is held in the function for handling
++ * hotplug race because pm_runtime_set_memalloc_noio() may be called
++ * in async probe().
++ *
++ * The function should be called between device_add() and device_del()
++ * on the affected device(block/network device).
++ */
++void pm_runtime_set_memalloc_noio(struct device *dev, bool enable)
 +{
-+	gfp_t flags = current->flags & PF_MEMALLOC_NOIO;
-+	current->flags |= PF_MEMALLOC_NOIO;
-+	return flags;
-+}
++	static DEFINE_MUTEX(dev_hotplug_mutex);
 +
-+static inline void memalloc_noio_restore(gfp_t flags)
-+{
-+	current->flags = (current->flags & ~PF_MEMALLOC_NOIO) | flags;
-+}
++	mutex_lock(&dev_hotplug_mutex);
++	for (;;) {
++		/* hold power lock since bitfield is not SMP-safe. */
++		spin_lock_irq(&dev->power.lock);
++		dev->power.memalloc_noio = enable;
++		spin_unlock_irq(&dev->power.lock);
 +
- /*
-  * task->jobctl flags
-  */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6b990cb..b56f763 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2644,10 +2644,17 @@ retry_cpuset:
- 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
- 			zonelist, high_zoneidx, alloc_flags,
- 			preferred_zone, migratetype);
--	if (unlikely(!page))
-+	if (unlikely(!page)) {
++		dev = dev->parent;
++
 +		/*
-+		 * Runtime PM, block IO and its error handling path
-+		 * can deadlock because I/O on the device might not
-+		 * complete.
++		 * clear flag of the parent device only if all the
++		 * children don't set the flag because ancestor's
++		 * flag was set by any one of the descendants.
 +		 */
-+		gfp_mask = memalloc_noio_flags(gfp_mask);
- 		page = __alloc_pages_slowpath(gfp_mask, order,
- 				zonelist, high_zoneidx, nodemask,
- 				preferred_zone, migratetype);
++		if (!dev || (!enable &&
++			     device_for_each_child(dev, NULL,
++						   dev_memalloc_noio)))
++			break;
 +	}
++	mutex_unlock(&dev_hotplug_mutex);
++}
++EXPORT_SYMBOL_GPL(pm_runtime_set_memalloc_noio);
++
+ /**
+  * rpm_check_suspend_allowed - Test whether a device may be suspended.
+  * @dev: Device to test.
+diff --git a/include/linux/pm.h b/include/linux/pm.h
+index 03d7bb1..1a8a69d 100644
+--- a/include/linux/pm.h
++++ b/include/linux/pm.h
+@@ -538,6 +538,7 @@ struct dev_pm_info {
+ 	unsigned int		irq_safe:1;
+ 	unsigned int		use_autosuspend:1;
+ 	unsigned int		timer_autosuspends:1;
++	unsigned int		memalloc_noio:1;
+ 	enum rpm_request	request;
+ 	enum rpm_status		runtime_status;
+ 	int			runtime_error;
+diff --git a/include/linux/pm_runtime.h b/include/linux/pm_runtime.h
+index f271860..775e063 100644
+--- a/include/linux/pm_runtime.h
++++ b/include/linux/pm_runtime.h
+@@ -47,6 +47,7 @@ extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
+ extern unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
+ extern void pm_runtime_update_max_time_suspended(struct device *dev,
+ 						 s64 delta_ns);
++extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
  
- 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 370244c..f28919a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2301,7 +2301,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ static inline bool pm_children_suspended(struct device *dev)
  {
- 	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
--		.gfp_mask = gfp_mask,
-+		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
- 		.may_writepage = !laptop_mode,
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.may_unmap = 1,
-@@ -3308,7 +3308,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 		.may_swap = 1,
- 		.nr_to_reclaim = max_t(unsigned long, nr_pages,
- 				       SWAP_CLUSTER_MAX),
--		.gfp_mask = gfp_mask,
-+		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
- 		.order = order,
- 		.priority = ZONE_RECLAIM_PRIORITY,
- 	};
+@@ -149,6 +150,8 @@ static inline void pm_runtime_set_autosuspend_delay(struct device *dev,
+ 						int delay) {}
+ static inline unsigned long pm_runtime_autosuspend_expiration(
+ 				struct device *dev) { return 0; }
++static inline void pm_runtime_set_memalloc_noio(struct device *dev,
++						bool enable){}
+ 
+ #endif /* !CONFIG_PM_RUNTIME */
+ 
 -- 
 1.7.9.5
 
