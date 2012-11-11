@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id D1E526B004D
-	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 14:01:53 -0500 (EST)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id C8BC06B004D
+	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 14:01:55 -0500 (EST)
 From: Rafael Aquini <aquini@redhat.com>
-Subject: [PATCH v12 1/7] mm: adjust address_space_operations.migratepage() return code
-Date: Sun, 11 Nov 2012 17:01:14 -0200
-Message-Id: <92253be03db6dad679198d1ac6d782bb74274833.1352656285.git.aquini@redhat.com>
+Subject: [PATCH v12 2/7] mm: redefine address_space.assoc_mapping
+Date: Sun, 11 Nov 2012 17:01:15 -0200
+Message-Id: <b018642bb74fb43533d48053b0f140b9fab10c49.1352656285.git.aquini@redhat.com>
 In-Reply-To: <cover.1352656285.git.aquini@redhat.com>
 References: <cover.1352656285.git.aquini@redhat.com>
 In-Reply-To: <cover.1352656285.git.aquini@redhat.com>
@@ -15,188 +15,121 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Rusty Russell <rusty@rustcorp.com.au>, aquini@redhat.com
 
-This patch introduces MIGRATEPAGE_SUCCESS as the default return code
-for address_space_operations.migratepage() method and documents the
-expected return code for the same method in failure cases.
+This patch overhauls struct address_space.assoc_mapping renaming it to
+address_space.private_data and its type is redefined to void*.
+By this approach we consistently name the .private_* elements from
+struct address_space as well as allow extended usage for address_space
+association with other data structures through ->private_data.
+
+Also, all users of old ->assoc_mapping element are converted to reflect
+its new name and type change (->private_data).
 
 Signed-off-by: Rafael Aquini <aquini@redhat.com>
 ---
- fs/hugetlbfs/inode.c    |  4 ++--
- include/linux/migrate.h |  7 +++++++
- mm/migrate.c            | 33 +++++++++++++++------------------
- 3 files changed, 24 insertions(+), 20 deletions(-)
+ fs/buffer.c        | 12 ++++++------
+ fs/gfs2/glock.c    |  2 +-
+ fs/inode.c         |  2 +-
+ fs/nilfs2/page.c   |  2 +-
+ include/linux/fs.h |  2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 14bc0c1..fed1cd5 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -582,11 +582,11 @@ static int hugetlbfs_migrate_page(struct address_space *mapping,
- 	int rc;
- 
- 	rc = migrate_huge_page_move_mapping(mapping, newpage, page);
--	if (rc)
-+	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
- 	migrate_page_copy(newpage, page);
- 
--	return 0;
-+	return MIGRATEPAGE_SUCCESS;
- }
- 
- static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 9a5afea..fab15ae 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -7,6 +7,13 @@
- 
- typedef struct page *new_page_t(struct page *, unsigned long private, int **);
- 
-+/*
-+ * Return values from addresss_space_operations.migratepage():
-+ * - negative errno on page migration failure;
-+ * - zero on page migration success;
-+ */
-+#define MIGRATEPAGE_SUCCESS		0
-+
- #ifdef CONFIG_MIGRATION
- 
- extern void putback_lru_pages(struct list_head *l);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 0c5ec37..6f408c7 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -286,7 +286,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
- 		expected_count += 1;
- 		if (page_count(page) != expected_count)
- 			return -EAGAIN;
--		return 0;
-+		return MIGRATEPAGE_SUCCESS;
- 	}
- 
- 	spin_lock_irq(&mapping->tree_lock);
-@@ -356,7 +356,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
- 	}
- 	spin_unlock_irq(&mapping->tree_lock);
- 
--	return 0;
-+	return MIGRATEPAGE_SUCCESS;
- }
- 
- /*
-@@ -372,7 +372,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
- 	if (!mapping) {
- 		if (page_count(page) != 1)
- 			return -EAGAIN;
--		return 0;
-+		return MIGRATEPAGE_SUCCESS;
- 	}
- 
- 	spin_lock_irq(&mapping->tree_lock);
-@@ -399,7 +399,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
- 	page_unfreeze_refs(page, expected_count - 1);
- 
- 	spin_unlock_irq(&mapping->tree_lock);
--	return 0;
-+	return MIGRATEPAGE_SUCCESS;
- }
- 
- /*
-@@ -486,11 +486,11 @@ int migrate_page(struct address_space *mapping,
- 
- 	rc = migrate_page_move_mapping(mapping, newpage, page, NULL, mode);
- 
--	if (rc)
-+	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
- 
- 	migrate_page_copy(newpage, page);
--	return 0;
-+	return MIGRATEPAGE_SUCCESS;
- }
- EXPORT_SYMBOL(migrate_page);
- 
-@@ -513,7 +513,7 @@ int buffer_migrate_page(struct address_space *mapping,
- 
- 	rc = migrate_page_move_mapping(mapping, newpage, page, head, mode);
- 
--	if (rc)
-+	if (rc != MIGRATEPAGE_SUCCESS)
- 		return rc;
- 
- 	/*
-@@ -549,7 +549,7 @@ int buffer_migrate_page(struct address_space *mapping,
- 
- 	} while (bh != head);
- 
--	return 0;
-+	return MIGRATEPAGE_SUCCESS;
- }
- EXPORT_SYMBOL(buffer_migrate_page);
- #endif
-@@ -628,7 +628,7 @@ static int fallback_migrate_page(struct address_space *mapping,
-  *
-  * Return value:
-  *   < 0 - error code
-- *  == 0 - success
-+ *  MIGRATEPAGE_SUCCESS - success
+diff --git a/fs/buffer.c b/fs/buffer.c
+index b5f0442..e0bad95 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -555,7 +555,7 @@ void emergency_thaw_all(void)
   */
- static int move_to_new_page(struct page *newpage, struct page *page,
- 				int remap_swapcache, enum migrate_mode mode)
-@@ -665,7 +665,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 	else
- 		rc = fallback_migrate_page(mapping, newpage, page, mode);
+ int sync_mapping_buffers(struct address_space *mapping)
+ {
+-	struct address_space *buffer_mapping = mapping->assoc_mapping;
++	struct address_space *buffer_mapping = mapping->private_data;
  
--	if (rc) {
-+	if (rc != MIGRATEPAGE_SUCCESS) {
- 		newpage->mapping = NULL;
+ 	if (buffer_mapping == NULL || list_empty(&mapping->private_list))
+ 		return 0;
+@@ -588,10 +588,10 @@ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode)
+ 	struct address_space *buffer_mapping = bh->b_page->mapping;
+ 
+ 	mark_buffer_dirty(bh);
+-	if (!mapping->assoc_mapping) {
+-		mapping->assoc_mapping = buffer_mapping;
++	if (!mapping->private_data) {
++		mapping->private_data = buffer_mapping;
  	} else {
- 		if (remap_swapcache)
-@@ -814,7 +814,7 @@ skip_unmap:
- 		put_anon_vma(anon_vma);
- 
- uncharge:
--	mem_cgroup_end_migration(mem, page, newpage, rc == 0);
-+	mem_cgroup_end_migration(mem, page, newpage, rc == MIGRATEPAGE_SUCCESS);
- unlock:
- 	unlock_page(page);
- out:
-@@ -987,7 +987,7 @@ int migrate_pages(struct list_head *from,
- 			case -EAGAIN:
- 				retry++;
- 				break;
--			case 0:
-+			case MIGRATEPAGE_SUCCESS:
- 				break;
- 			default:
- 				/* Permanent failure */
-@@ -996,15 +996,12 @@ int migrate_pages(struct list_head *from,
- 			}
- 		}
+-		BUG_ON(mapping->assoc_mapping != buffer_mapping);
++		BUG_ON(mapping->private_data != buffer_mapping);
  	}
--	rc = 0;
-+	rc = nr_failed + retry;
- out:
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
+ 	if (!bh->b_assoc_map) {
+ 		spin_lock(&buffer_mapping->private_lock);
+@@ -788,7 +788,7 @@ void invalidate_inode_buffers(struct inode *inode)
+ 	if (inode_has_buffers(inode)) {
+ 		struct address_space *mapping = &inode->i_data;
+ 		struct list_head *list = &mapping->private_list;
+-		struct address_space *buffer_mapping = mapping->assoc_mapping;
++		struct address_space *buffer_mapping = mapping->private_data;
  
--	if (rc)
--		return rc;
--
--	return nr_failed + retry;
-+	return rc;
+ 		spin_lock(&buffer_mapping->private_lock);
+ 		while (!list_empty(list))
+@@ -811,7 +811,7 @@ int remove_inode_buffers(struct inode *inode)
+ 	if (inode_has_buffers(inode)) {
+ 		struct address_space *mapping = &inode->i_data;
+ 		struct list_head *list = &mapping->private_list;
+-		struct address_space *buffer_mapping = mapping->assoc_mapping;
++		struct address_space *buffer_mapping = mapping->private_data;
+ 
+ 		spin_lock(&buffer_mapping->private_lock);
+ 		while (!list_empty(list)) {
+diff --git a/fs/gfs2/glock.c b/fs/gfs2/glock.c
+index 6114571..904a808 100644
+--- a/fs/gfs2/glock.c
++++ b/fs/gfs2/glock.c
+@@ -766,7 +766,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
+ 		mapping->host = s->s_bdev->bd_inode;
+ 		mapping->flags = 0;
+ 		mapping_set_gfp_mask(mapping, GFP_NOFS);
+-		mapping->assoc_mapping = NULL;
++		mapping->private_data = NULL;
+ 		mapping->backing_dev_info = s->s_bdi;
+ 		mapping->writeback_index = 0;
+ 	}
+diff --git a/fs/inode.c b/fs/inode.c
+index b03c719..4cac8e1 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -165,7 +165,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
+ 	mapping->host = inode;
+ 	mapping->flags = 0;
+ 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
+-	mapping->assoc_mapping = NULL;
++	mapping->private_data = NULL;
+ 	mapping->backing_dev_info = &default_backing_dev_info;
+ 	mapping->writeback_index = 0;
+ 
+diff --git a/fs/nilfs2/page.c b/fs/nilfs2/page.c
+index 3e7b2a0..07f76db 100644
+--- a/fs/nilfs2/page.c
++++ b/fs/nilfs2/page.c
+@@ -431,7 +431,7 @@ void nilfs_mapping_init(struct address_space *mapping, struct inode *inode,
+ 	mapping->host = inode;
+ 	mapping->flags = 0;
+ 	mapping_set_gfp_mask(mapping, GFP_NOFS);
+-	mapping->assoc_mapping = NULL;
++	mapping->private_data = NULL;
+ 	mapping->backing_dev_info = bdi;
+ 	mapping->a_ops = &empty_aops;
  }
- 
- int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
-@@ -1024,7 +1021,7 @@ int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
- 			/* try again */
- 			cond_resched();
- 			break;
--		case 0:
-+		case MIGRATEPAGE_SUCCESS:
- 			goto out;
- 		default:
- 			rc = -EIO;
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index b33cfc9..0982565 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -418,7 +418,7 @@ struct address_space {
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+-	struct address_space	*assoc_mapping;	/* ditto */
++	void			*private_data;	/* ditto */
+ } __attribute__((aligned(sizeof(long))));
+ 	/*
+ 	 * On most architectures that alignment is already the case; but
 -- 
 1.7.11.7
 
