@@ -1,116 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 0937B6B002B
-	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 12:22:56 -0500 (EST)
-Date: Sun, 11 Nov 2012 18:22:43 +0100
-From: Andrew Lunn <andrew@lunn.ch>
-Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all
- dma_alloc_coherent() calls
-Message-ID: <20121111172243.GB821@lunn.ch>
-References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id BC5D36B002B
+	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 14:01:52 -0500 (EST)
+From: Rafael Aquini <aquini@redhat.com>
+Subject: [PATCH v12 0/7] make balloon pages movable by compaction
+Date: Sun, 11 Nov 2012 17:01:13 -0200
+Message-Id: <cover.1352656285.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Soren Moch <smoch@web.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Rusty Russell <rusty@rustcorp.com.au>, aquini@redhat.com
 
-On Thu, Nov 08, 2012 at 07:38:57AM +0100, Marek Szyprowski wrote:
-> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag, regardless
-> the flags provided by the caller. This causes excessive pruning of
-> emergency memory pools without any good reason. This patch changes the code
-> to correctly use gfp flags provided by the dmapool caller. This should
-> solve the dmapool usage on ARM architecture, where GFP_ATOMIC DMA
-> allocations can be served only from the special, very limited memory pool.
-> 
-> Reported-by: Soren Moch <smoch@web.de>
-> Reported-by: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Memory fragmentation introduced by ballooning might reduce significantly
+the number of 2MB contiguous memory blocks that can be used within a guest,
+thus imposing performance penalties associated with the reduced number of
+transparent huge pages that could be used by the guest workload.
 
-Tested-by: Andrew Lunn <andrew@lunn.ch>
+This patch-set follows the main idea discussed at 2012 LSFMMS session:
+"Ballooning for transparent huge pages" -- http://lwn.net/Articles/490114/
+to introduce the required changes to the virtio_balloon driver, as well as
+the changes to the core compaction & migration bits, in order to make those
+subsystems aware of ballooned pages and allow memory balloon pages become
+movable within a guest, thus avoiding the aforementioned fragmentation issue
 
-I tested this on a Kirkwood QNAP after removing the call to
-init_dma_coherent_pool_size().
+Following are numbers that prove this patch benefits on allowing compaction
+to be more effective at memory ballooned guests.
 
-	Andrew
+Results for STRESS-HIGHALLOC benchmark, from Mel Gorman's mmtests suite,
+running on a 4gB RAM KVM guest which was ballooning 512mB RAM in 64mB chunks,
+at every minute (inflating/deflating), while test was running:
 
+===BEGIN stress-highalloc
 
-> ---
->  mm/dmapool.c |   27 +++++++--------------------
->  1 file changed, 7 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/dmapool.c b/mm/dmapool.c
-> index c5ab33b..86de9b2 100644
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -62,8 +62,6 @@ struct dma_page {		/* cacheable header for 'allocation' bytes */
->  	unsigned int offset;
->  };
->  
-> -#define	POOL_TIMEOUT_JIFFIES	((100 /* msec */ * HZ) / 1000)
-> -
->  static DEFINE_MUTEX(pools_lock);
->  
->  static ssize_t
-> @@ -227,7 +225,6 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
->  		memset(page->vaddr, POOL_POISON_FREED, pool->allocation);
->  #endif
->  		pool_initialise_page(pool, page);
-> -		list_add(&page->page_list, &pool->page_list);
->  		page->in_use = 0;
->  		page->offset = 0;
->  	} else {
-> @@ -315,30 +312,21 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
->  	might_sleep_if(mem_flags & __GFP_WAIT);
->  
->  	spin_lock_irqsave(&pool->lock, flags);
-> - restart:
->  	list_for_each_entry(page, &pool->page_list, page_list) {
->  		if (page->offset < pool->allocation)
->  			goto ready;
->  	}
-> -	page = pool_alloc_page(pool, GFP_ATOMIC);
-> -	if (!page) {
-> -		if (mem_flags & __GFP_WAIT) {
-> -			DECLARE_WAITQUEUE(wait, current);
->  
-> -			__set_current_state(TASK_UNINTERRUPTIBLE);
-> -			__add_wait_queue(&pool->waitq, &wait);
-> -			spin_unlock_irqrestore(&pool->lock, flags);
-> +	/* pool_alloc_page() might sleep, so temporarily drop &pool->lock */
-> +	spin_unlock_irqrestore(&pool->lock, flags);
->  
-> -			schedule_timeout(POOL_TIMEOUT_JIFFIES);
-> +	page = pool_alloc_page(pool, mem_flags);
-> +	if (!page)
-> +		return NULL;
->  
-> -			spin_lock_irqsave(&pool->lock, flags);
-> -			__remove_wait_queue(&pool->waitq, &wait);
-> -			goto restart;
-> -		}
-> -		retval = NULL;
-> -		goto done;
-> -	}
-> +	spin_lock_irqsave(&pool->lock, flags);
->  
-> +	list_add(&page->page_list, &pool->page_list);
->   ready:
->  	page->in_use++;
->  	offset = page->offset;
-> @@ -348,7 +336,6 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
->  #ifdef	DMAPOOL_DEBUG
->  	memset(retval, POOL_POISON_ALLOCATED, pool->size);
->  #endif
-> - done:
->  	spin_unlock_irqrestore(&pool->lock, flags);
->  	return retval;
->  }
-> -- 
-> 1.7.9.5
-> 
+STRESS-HIGHALLOC
+                 highalloc-3.7     highalloc-3.7
+                     rc4-clean         rc4-patch
+Pass 1          55.00 ( 0.00%)    62.00 ( 7.00%)
+Pass 2          54.00 ( 0.00%)    62.00 ( 8.00%)
+while Rested    75.00 ( 0.00%)    80.00 ( 5.00%)
+
+MMTests Statistics: duration
+                 3.7         3.7
+           rc4-clean   rc4-patch
+User         1207.59     1207.46
+System       1300.55     1299.61
+Elapsed      2273.72     2157.06
+
+MMTests Statistics: vmstat
+                                3.7         3.7
+                          rc4-clean   rc4-patch
+Page Ins                    3581516     2374368
+Page Outs                  11148692    10410332
+Swap Ins                         80          47
+Swap Outs                      3641         476
+Direct pages scanned          37978       33826
+Kswapd pages scanned        1828245     1342869
+Kswapd pages reclaimed      1710236     1304099
+Direct pages reclaimed        32207       31005
+Kswapd efficiency               93%         97%
+Kswapd velocity             804.077     622.546
+Direct efficiency               84%         91%
+Direct velocity              16.703      15.682
+Percentage direct scans          2%          2%
+Page writes by reclaim        79252        9704
+Page writes file              75611        9228
+Page writes anon               3641         476
+Page reclaim immediate        16764       11014
+Page rescued immediate            0           0
+Slabs scanned               2171904     2152448
+Direct inode steals             385        2261
+Kswapd inode steals          659137      609670
+Kswapd skipped wait               1          69
+THP fault alloc                 546         631
+THP collapse alloc              361         339
+THP splits                      259         263
+THP fault fallback               98          50
+THP collapse fail                20          17
+Compaction stalls               747         499
+Compaction success              244         145
+Compaction failures             503         354
+Compaction pages moved       370888      474837
+Compaction move failure       77378       65259
+
+===END stress-highalloc
+
+Rafael Aquini (7):
+  mm: adjust address_space_operations.migratepage() return code
+  mm: redefine address_space.assoc_mapping
+  mm: introduce a common interface for balloon pages mobility
+  mm: introduce compaction and migration for ballooned pages
+  virtio_balloon: introduce migration primitives to balloon pages
+  mm: introduce putback_movable_pages()
+  mm: add vm event counters for balloon pages compaction
+
+ drivers/virtio/virtio_balloon.c    | 139 +++++++++++++++--
+ fs/buffer.c                        |  12 +-
+ fs/gfs2/glock.c                    |   2 +-
+ fs/hugetlbfs/inode.c               |   4 +-
+ fs/inode.c                         |   2 +-
+ fs/nilfs2/page.c                   |   2 +-
+ include/linux/balloon_compaction.h | 263 ++++++++++++++++++++++++++++++++
+ include/linux/fs.h                 |   2 +-
+ include/linux/migrate.h            |  19 +++
+ include/linux/pagemap.h            |  16 ++
+ include/linux/vm_event_item.h      |   7 +-
+ mm/Kconfig                         |  15 ++
+ mm/Makefile                        |   3 +-
+ mm/balloon_compaction.c            | 304 +++++++++++++++++++++++++++++++++++++
+ mm/compaction.c                    |  27 +++-
+ mm/migrate.c                       |  86 ++++++++---
+ mm/page_alloc.c                    |   2 +-
+ mm/vmstat.c                        |   9 +-
+ 18 files changed, 862 insertions(+), 52 deletions(-)
+ create mode 100644 include/linux/balloon_compaction.h
+ create mode 100644 mm/balloon_compaction.c
+
+Change log:
+v12:
+ * Address last suggestions on sorting the barriers usage out      (Mel Gorman);
+ * Fix reported build breakages for CONFIG_BALLOON_COMPACTION=n (Andrew Morton);
+ * Enhance commentary on the locking scheme used for balloon page compaction;
+ * Move all the 'balloon vm_event counter' changes to PATCH 07;
+v11:
+ * Address AKPM's last review suggestions;
+ * Extend the balloon compaction common API and simplify its usage at driver;
+ * Minor nitpicks on code commentary;
+v10:
+ * Adjust leak_balloon() wait_event logic to make a clear locking scheme (MST);
+ * Drop the RCU protection approach for dereferencing balloon's page->mapping;
+ * Minor nitpitcks on code commentaries (MST);
+v9:
+ * Adjust rcu_dereference usage to leverage page lock protection  (Paul, Peter);
+ * Enhance doc on compaction interface introduced to balloon driver   (Michael);
+ * Fix issue with isolated pages breaking leak_balloon() logics       (Michael);
+v8:
+ * introduce a common MM interface for balloon driver page compaction (Michael);
+ * remove the global state preventing multiple balloon device support (Michael);
+ * introduce RCU protection/syncrhonization to balloon page->mapping  (Michael);
+v7:
+ * fix a potential page leak case at 'putback_balloon_page'               (Mel);
+ * adjust vm-events-counter patch and remove its drop-on-merge message    (Rik);
+ * add 'putback_movable_pages' to avoid hacks on 'putback_lru_pages'  (Minchan);
+v6:
+ * rename 'is_balloon_page()' to 'movable_balloon_page()'                 (Rik);
+v5:
+ * address Andrew Morton's review comments on the patch series;
+ * address a couple extra nitpick suggestions on PATCH 01             (Minchan);
+v4:
+ * address Rusty Russel's review comments on PATCH 02;
+ * re-base virtio_balloon patch on 9c378abc5c0c6fc8e3acf5968924d274503819b3;
+V3:
+ * address reviewers nitpick suggestions on PATCH 01             (Mel, Minchan);
+V2:
+ * address Mel Gorman's review comments on PATCH 01;
+
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
