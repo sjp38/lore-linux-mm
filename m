@@ -1,74 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id CD57D6B005A
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 08:31:44 -0500 (EST)
-Date: Mon, 12 Nov 2012 13:31:39 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: kswapd0: excessive CPU usage
-Message-ID: <20121112133139.GU8218@suse.de>
-References: <20121015110937.GE29125@suse.de>
- <5093A3F4.8090108@redhat.com>
- <5093A631.5020209@suse.cz>
- <509422C3.1000803@suse.cz>
- <509C84ED.8090605@linux.vnet.ibm.com>
- <509CB9D1.6060704@redhat.com>
- <20121109090635.GG8218@suse.de>
- <509F6C2A.9060502@redhat.com>
- <20121112121956.GT8218@suse.de>
- <50A0F5F0.6090400@redhat.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id CF33B6B005A
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 08:32:28 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so2991213dad.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 05:32:28 -0800 (PST)
+Date: Mon, 12 Nov 2012 22:32:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: zram OOM behavior
+Message-ID: <20121112133218.GA3156@barrios>
+References: <20121102063958.GC3326@bbox>
+ <20121102083057.GG8218@suse.de>
+ <20121102223630.GA2070@barrios>
+ <20121105144614.GJ8218@suse.de>
+ <20121106002550.GA3530@barrios>
+ <20121106085822.GN8218@suse.de>
+ <20121106101719.GA2005@barrios>
+ <20121109095024.GI8218@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50A0F5F0.6090400@redhat.com>
+In-Reply-To: <20121109095024.GI8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zdenek Kabelac <zkabelac@redhat.com>
-Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Mon, Nov 12, 2012 at 02:13:20PM +0100, Zdenek Kabelac wrote:
-> Dne 12.11.2012 13:19, Mel Gorman napsal(a):
-> >On Sun, Nov 11, 2012 at 10:13:14AM +0100, Zdenek Kabelac wrote:
-> >>Hmm,  so it's just took longer to hit the problem and observe kswapd0
-> >>spinning on my CPU again - it's not as endless like before - but
-> >>still it easily eats minutes - it helps to  turn off  Firefox or TB
-> >>(memory hungry apps) so kswapd0 stops soon - and restart those apps
-> >>again.
-> >>(And I still have like >1GB of cached memory)
-> >>
-> >
-> >I posted a "safe" patch that I believe explains why you are seeing what
-> >you are seeing. It does mean that there will still be some stalls due to
-> >THP because kswapd is not helping and it's avoiding the problem rather
-> >than trying to deal with it.
-> >
-> >Hence, I'm also going to post this patch even though I have not tested
-> >it myself. If you find it fixes the problem then it would be a
-> >preferable patch to the revert. It still is the case that the
-> >balance_pgdat() logic is in sort need of a rethink as it's pretty
-> >twisted right now.
-> >
-> 
-> 
-> Should I apply them all together for 3.7-rc5 ?
-> 
-> 1) https://lkml.org/lkml/2012/11/5/308
-> 2) https://lkml.org/lkml/2012/11/12/113
-> 3) https://lkml.org/lkml/2012/11/12/151
-> 
+Sorry for the late reply.
+I'm still going on training course until this week so my response would be delayed, too.
 
-Not all together. Test either 1+2 or 1+3. 1+2 is the safer choice but
-does nothing about THP stalls. 1+3 is a riskier version but depends on
-me being correct on what the root cause of the problem you see it.
+On Fri, Nov 09, 2012 at 09:50:24AM +0000, Mel Gorman wrote:
+> On Tue, Nov 06, 2012 at 07:17:20PM +0900, Minchan Kim wrote:
+> > On Tue, Nov 06, 2012 at 08:58:22AM +0000, Mel Gorman wrote:
+> > > On Tue, Nov 06, 2012 at 09:25:50AM +0900, Minchan Kim wrote:
+> > > > On Mon, Nov 05, 2012 at 02:46:14PM +0000, Mel Gorman wrote:
+> > > > > On Sat, Nov 03, 2012 at 07:36:31AM +0900, Minchan Kim wrote:
+> > > > > > > <SNIP>
+> > > > > > > In the first version it would never try to enter direct reclaim if a
+> > > > > > > fatal signal was pending but always claim that forward progress was
+> > > > > > > being made.
+> > > > > > 
+> > > > > > Surely we need fix for preventing deadlock with OOM kill and that's why
+> > > > > > I have Cced you and this patch fixes it but my question is why we need 
+> > > > > > such fatal signal checking trick.
+> > > > > > 
+> > > > > > How about this?
+> > > > > > 
+> > > > > 
+> > > > > Both will work as expected but....
+> > > > > 
+> > > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > > index 10090c8..881619e 100644
+> > > > > > --- a/mm/vmscan.c
+> > > > > > +++ b/mm/vmscan.c
+> > > > > > @@ -2306,13 +2306,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> > > > > >  
+> > > > > >         throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+> > > > > >  
+> > > > > > -       /*
+> > > > > > -        * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> > > > > > -        * that the page allocator does not consider triggering OOM
+> > > > > > -        */
+> > > > > > -       if (fatal_signal_pending(current))
+> > > > > > -               return 1;
+> > > > > > -
+> > > > > >         trace_mm_vmscan_direct_reclaim_begin(order,
+> > > > > >                                 sc.may_writepage,
+> > > > > >                                 gfp_mask);
+> > > > > >  
+> > > > > > In this case, after throttling, current will try to do direct reclaim and
+> > > > > > if he makes forward progress, he will get a memory and exit if he receive KILL signal.
+> > > > > 
+> > > > > It may be completely unnecessary to reclaim memory if the process that was
+> > > > > throttled and killed just exits quickly. As the fatal signal is pending
+> > > > > it will be able to use the pfmemalloc reserves.
+> > > > > 
+> > > > > > If he can't make forward progress with direct reclaim, he can ends up OOM path but
+> > > > > > out_of_memory checks signal check of current and allow to access reserved memory pool
+> > > > > > for quick exit and return without killing other victim selection.
+> > > > > 
+> > > > > While this is true, what advantage is there to having a killed process
+> > > > > potentially reclaiming memory it does not need to?
+> > > > 
+> > > > Killed process needs a memory for him to be terminated. I think it's not a good idea for him
+> > > > to use reserved memory pool unconditionally although he is throtlled and killed.
+> > > > Because reserved memory pool is very stricted resource for emergency so using reserved memory
+> > > > pool should be last resort after he fail to reclaim.
+> > > > 
+> > > 
+> > > Part of that reclaim can be the process reclaiming its own pages and
+> > > putting them in swap just so it can exit shortly afterwards. If it was
+> > > throttled in this path, it implies that swap-over-NFS is enabled where
+> > 
+> > Could we make sure it's only the case for swap-over-NFS?
+> 
+> The PFMEMALLOC reserves being consumed to the point of throttline is only
+> expected in the case of swap-over-network -- check the pgscan_direct_throttle
+> counter to be sure. So it's already the case that this throttling logic and
+> its signal handling is mostly a swap-over-NFS thing. It is possible that
+> a badly behaving driver using GFP_ATOMIC to allocate long-lived buffers
+> could force a situation where a process gets throttled but I'm not aware
+> of a case where this happens todays.
 
-If both 1+2 and 1+3 work for you, I'd choose 1+3 for merging. If you only
-have the time to test one combination then it would be preferred that you
-test the safe option of 1+2.
+I saw some custom drviers in embedded side have used GFP_ATOMIC easily to protect
+avoiding deadlock. Of course, it's not a good behavior but it lives with us.
+Even, we can't fix it because we don't have any source. :(
 
-Thanks.
+> 
+> > I think it can happen if the system has very slow thumb card.
+> > 
+> 
+> How? They shouldn't be stuck in throttling in this case. They should be
+> blocked on IO, congestion wait, dirty throttling etc.
+
+Some block driver(ex, mmc) uses a thread model with PF_MEMALLOC so I think
+they can be stucked by the throttling logic.
+
+> 
+> > > such reclaim in fact might require the pfmemalloc reserves to be used to
+> > > allocate network buffers. It's potentially unnecessary work because the
+> > 
+> > You mean we need pfmemalloc reserve to swap out anon pages by swap-over-NFS?
+> 
+> In very low-memory situations - yes. We can be at the min watermark but
+> still need to allocate a page for a network buffer to swap out the anon page.
+> 
+> > Yes. In this case, you're right. I would be better to use reserve pool for
+> > just exiting instead of swap out over network. But how can you make sure that
+> > we have only anonymous page when we try to reclaim? 
+> > If there are some file-backed pages, we can avoid swapout at that time.
+> > Maybe we need some check.
+> > 
+> 
+> That would be a fairly invasive set of checks for a corner case. if
+> swap-over-nfs + critically low + about to OOM + file pages available then
+> only reclaim files.
+> 
+> It's getting off track as to why we're having this discussion in the first
+> place -- looping due to improper handling of fatal signal pending.
+
+If some user tune /proc/sys/vm/swappiness, we could have many page cache pages
+when swap-over-NFS happens.
+My point is that why do we should use emergency memory pool although we have
+reclaimalble memory?
+
+> 
+> > > same reserves could have been used to just exit the process.
+> > > 
+> > > I'll go your way if you insist because it's not like getting throttled
+> > > and killed before exit is a common situation and it should work either
+> > > way.
+> > 
+> > I don't want to insist on. Just want to know what's the problem and find
+> > better solution. :) 
+> > 
+> 
+> In that case, I'm going to send the patch to Andrew on Monday and avoid
+> direct reclaim when a fatal signal is pending in the swap-over-network
+> case. Are you ok with that?
+
+Sorry but I don't think your patch is best approach.
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 -- 
-Mel Gorman
-SUSE Labs
+Kind Regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
