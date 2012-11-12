@@ -1,74 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 989C36B005D
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 06:03:13 -0500 (EST)
-Message-ID: <50A0D764.204@web.de>
-Date: Mon, 12 Nov 2012 12:03:00 +0100
-From: Soeren Moch <smoch@web.de>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com> <20121111172243.GB821@lunn.ch> <50A0C5D2.7000806@web.de> <20121112103820.GX22029@lunn.ch>
-In-Reply-To: <20121112103820.GX22029@lunn.ch>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 939DC6B005D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 06:07:52 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MDD004SQG92MYZ0@mailout2.samsung.com> for
+ linux-mm@kvack.org; Mon, 12 Nov 2012 20:07:50 +0900 (KST)
+Received: from localhost.localdomain ([106.116.147.30])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MDD005O9G8TX340@mmp1.samsung.com> for linux-mm@kvack.org;
+ Mon, 12 Nov 2012 20:07:50 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH] mm: cma: WARN if freed memory is still in use
+Date: Mon, 12 Nov 2012 12:07:26 +0100
+Message-id: <1352718446-32313-1-git-send-email-m.szyprowski@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lunn <andrew@lunn.ch>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On 12.11.2012 11:38, Andrew Lunn wrote:
-> On Mon, Nov 12, 2012 at 10:48:02AM +0100, Soeren Moch wrote:
->> On 11.11.2012 18:22, Andrew Lunn wrote:
->>> On Thu, Nov 08, 2012 at 07:38:57AM +0100, Marek Szyprowski wrote:
->>>> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
->> regardless
->>>> the flags provided by the caller. This causes excessive pruning of
->>>> emergency memory pools without any good reason. This patch
->> changes the code
->>>> to correctly use gfp flags provided by the dmapool caller. This should
->>>> solve the dmapool usage on ARM architecture, where GFP_ATOMIC DMA
->>>> allocations can be served only from the special, very limited
->> memory pool.
->>>> Reported-by: Soren Moch <smoch@web.de>
->> Please use
->> Reported-by: Soeren Moch <smoch@web.de>
->>
->>>> Reported-by: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
->>>> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->>> Tested-by: Andrew Lunn <andrew@lunn.ch>
->>>
->>> I tested this on a Kirkwood QNAP after removing the call to
->>> init_dma_coherent_pool_size().
->>>
->>>      Andrew
->> Tested-by: Soeren Moch <smoch@web.de>
->>
->> Now I had a chance to test this patch on my Kirkwood guruplug
->> system with linux-3.6.6 . It is running much better now, but with the
->> original 256K coherent pool size I still see errors after several hours
->> of runtime:
->>
->> Nov 12 09:42:32 guru kernel: ERROR: 256 KiB atomic DMA coherent pool
->> is too small!
->> Nov 12 09:42:32 guru kernel: Please increase it with coherent_pool=
->> kernel parameter!
-> Hi Soeren
->
-> Could you tell us what DVB devices you are using.
->
-> Thanks
-> 	Andrew
+Memory return to free_contig_range() must have no other references. Let
+kernel to complain loudly if page reference count is not equal to 1.
 
-from lsusb:
-Bus 001 Device 005: ID 0ccd:00b2 TerraTec Electronic GmbH
-Bus 001 Device 006: ID 2040:5200 Hauppauge
-Bus 001 Device 009: ID 2304:0242 Pinnacle Systems, Inc.
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
+---
+ mm/page_alloc.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-If you want to check the drivers, I recommend to start with "em28xx".
-
-Regards,
-Soeren
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 022e4ed..290c2eb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5888,8 +5888,13 @@ done:
+ 
+ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ {
+-	for (; nr_pages--; ++pfn)
+-		__free_page(pfn_to_page(pfn));
++	struct page *page = pfn_to_page(pfn);
++	int refcount = nr_pages;
++	for (; nr_pages--; page++) {
++		refcount -= page_count(page) == 1;
++		__free_page(page);
++	}
++	WARN(refcount != 0, "some pages are still in use!\n");
+ }
+ #endif
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
