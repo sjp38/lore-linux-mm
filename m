@@ -1,41 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id C54726B0089
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 11:34:24 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so754815pbc.14
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 08:34:24 -0800 (PST)
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id D67846B008A
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 11:34:29 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so3060402dad.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 08:34:29 -0800 (PST)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [PATCH 2/4] avr32, kconfig: remove HAVE_ARCH_BOOTMEM
-Date: Tue, 13 Nov 2012 01:31:53 +0900
-Message-Id: <1352737915-30906-2-git-send-email-js1304@gmail.com>
+Subject: [PATCH 3/4] bootmem: remove alloc_arch_preferred_bootmem()
+Date: Tue, 13 Nov 2012 01:31:54 +0900
+Message-Id: <1352737915-30906-3-git-send-email-js1304@gmail.com>
 In-Reply-To: <1352737915-30906-1-git-send-email-js1304@gmail.com>
 References: <1352737915-30906-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Haavard Skinnemoen <hskinnemoen@gmail.com>, Hans-Christian Egtvedt <egtvedt@samfundet.no>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-Now, there is no code for CONFIG_HAVE_ARCH_BOOTMEM.
-So remove it.
+The name of function is not suitable for now.
+And removing function and inlining it's code to each call sites
+makes code more understandable.
 
-Cc: Haavard Skinnemoen <hskinnemoen@gmail.com>
-Cc: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+Additionally, we shouldn't do allocation from bootmem
+when slab_is_available(), so directly return kmalloc*'s return value.
+
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-diff --git a/arch/avr32/Kconfig b/arch/avr32/Kconfig
-index 06e73bf..c2bbc9a 100644
---- a/arch/avr32/Kconfig
-+++ b/arch/avr32/Kconfig
-@@ -193,9 +193,6 @@ source "kernel/Kconfig.preempt"
- config QUICKLIST
- 	def_bool y
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 6f62c03e..cd5c5a2 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -583,14 +583,6 @@ find_block:
+ 	return NULL;
+ }
  
--config HAVE_ARCH_BOOTMEM
--	def_bool n
+-static void * __init alloc_arch_preferred_bootmem(bootmem_data_t *bdata,
+-					unsigned long size, unsigned long align,
+-					unsigned long goal, unsigned long limit)
+-{
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc(size, GFP_NOWAIT);
+-}
 -
- config ARCH_HAVE_MEMORY_PRESENT
- 	def_bool n
+ static void * __init alloc_bootmem_core(unsigned long size,
+ 					unsigned long align,
+ 					unsigned long goal,
+@@ -599,9 +591,8 @@ static void * __init alloc_bootmem_core(unsigned long size,
+ 	bootmem_data_t *bdata;
+ 	void *region;
  
+-	region = alloc_arch_preferred_bootmem(NULL, size, align, goal, limit);
+-	if (region)
+-		return region;
++	if (WARN_ON_ONCE(slab_is_available()))
++		return kzalloc(size, GFP_NOWAIT);
+ 
+ 	list_for_each_entry(bdata, &bdata_list, list) {
+ 		if (goal && bdata->node_low_pfn <= PFN_DOWN(goal))
+@@ -699,11 +690,9 @@ void * __init ___alloc_bootmem_node_nopanic(pg_data_t *pgdat,
+ {
+ 	void *ptr;
+ 
++	if (WARN_ON_ONCE(slab_is_available()))
++		return kzalloc(size, GFP_NOWAIT);
+ again:
+-	ptr = alloc_arch_preferred_bootmem(pgdat->bdata, size,
+-					   align, goal, limit);
+-	if (ptr)
+-		return ptr;
+ 
+ 	/* do not panic in alloc_bootmem_bdata() */
+ 	if (limit && goal + size > limit)
 -- 
 1.7.9.5
 
