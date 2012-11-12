@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 704C26B004D
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 08:40:37 -0500 (EST)
-Message-ID: <50A0FC50.4060203@redhat.com>
-Date: Mon, 12 Nov 2012 08:40:32 -0500
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id D0BF76B005A
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 09:04:16 -0500 (EST)
+Message-ID: <50A0FC41.5020802@redhat.com>
+Date: Mon, 12 Nov 2012 08:40:17 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/3] mm: debug code to verify rb_subtree_gap updates are
- safe
-References: <1352721091-27022-1-git-send-email-walken@google.com> <1352721091-27022-4-git-send-email-walken@google.com>
-In-Reply-To: <1352721091-27022-4-git-send-email-walken@google.com>
+Subject: Re: [PATCH 2/3] mm: ensure safe rb_subtree_gap update when removing
+ VMA
+References: <1352721091-27022-1-git-send-email-walken@google.com> <1352721091-27022-3-git-send-email-walken@google.com>
+In-Reply-To: <1352721091-27022-3-git-send-email-walken@google.com>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -36,10 +36,13 @@ On 11/12/2012 06:51 AM, Michel Lespinasse wrote:
 > before any rbtree insertion or erase, with the possible exception that
 > the node being erased doesn't need to have an up to date rb_subtree_gap.
 >
-> This change: introduce validate_mm_rb() to verify that the rbtree does
-> not include any stale rb_subtree_gap values before node insertion or
-> erase, so as to avoid the issue where a subsequent vma_gap_update() would
-> fail to propagate the rb_subtree_gap updates as high up as necessary.
+> This change: during VMA removal, remove VMA from the rbtree before we
+> remove it from the linked list. The implication is the next vma's
+> rb_subtree_gap value becomes stale when next->vm_prev is updated,
+> and we want to make sure vma_rb_erase() runs before there are any
+> such stale rb_subtree_gap values in the rbtree.
+>
+> (I don't know of a reproduceable test case for this particular issue)
 >
 > Signed-off-by: Michel Lespinasse <walken@google.com>
 
