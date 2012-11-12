@@ -1,82 +1,343 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 950066B006E
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 11:23:22 -0500 (EST)
-Message-Id: <20121112161215.584642205@chello.nl>
-Date: Mon, 12 Nov 2012 17:04:54 +0100
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id A0AFB6B0070
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 11:23:21 -0500 (EST)
+Message-Id: <20121112161215.974518139@chello.nl>
+Date: Mon, 12 Nov 2012 17:04:58 +0100
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Subject: [PATCH 3/8] sched, numa, mm: Add credits for NUMA placement
+Subject: [PATCH 7/8] sched, numa, mm: Count WS scanning against present PTEs, not virtual memory ranges
 References: <20121112160451.189715188@chello.nl>
-Content-Disposition: inline; filename=0003-sched-numa-mm-Add-credits-for-NUMA-placement.patch
+Content-Disposition: inline; filename=0007-numa-better-scan.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
 
-The NUMA placement code has been rewritten several times, but
-the basic ideas took a lot of work to develop. The people who
-put in the work deserve credit for it. Thanks Andrea & Peter :)
+By accounting against the present PTEs, scanning speed reflects the
+actual present (mapped) memory.
 
-[ The Documentation/scheduler/numa-problem.txt file should
-  probably be rewritten once we figure out the final details of
-  what the NUMA code needs to do, and why. ]
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Suggested-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
-----
-This is against tip.git numa/core
 ---
- CREDITS             |    1 +
- kernel/sched/fair.c |    3 +++
- mm/memory.c         |    2 ++
- 3 files changed, 6 insertions(+)
+ include/linux/hugetlb.h |    8 ++++++--
+ include/linux/mm.h      |    6 +++---
+ kernel/sched/fair.c     |   37 +++++++++++++++++++++----------------
+ mm/hugetlb.c            |   10 ++++++++--
+ mm/mprotect.c           |   41 ++++++++++++++++++++++++++++++-----------
+ 5 files changed, 68 insertions(+), 34 deletions(-)
 
-Index: linux/CREDITS
+Index: linux/include/linux/hugetlb.h
 ===================================================================
---- linux.orig/CREDITS
-+++ linux/CREDITS
-@@ -125,6 +125,7 @@ D: Author of pscan that helps to fix lp/
- D: Author of lil (Linux Interrupt Latency benchmark)
- D: Fixed the shm swap deallocation at swapoff time (try_to_unuse message)
- D: VM hacker
-+D: NUMA task placement
- D: Various other kernel hacks
- S: Imola 40026
- S: Italy
+--- linux.orig/include/linux/hugetlb.h
++++ linux/include/linux/hugetlb.h
+@@ -87,7 +87,7 @@ struct page *follow_huge_pud(struct mm_s
+ 				pud_t *pud, int write);
+ int pmd_huge(pmd_t pmd);
+ int pud_huge(pud_t pmd);
+-void hugetlb_change_protection(struct vm_area_struct *vma,
++unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot);
+ 
+ #else /* !CONFIG_HUGETLB_PAGE */
+@@ -132,7 +132,11 @@ static inline void copy_huge_page(struct
+ {
+ }
+ 
+-#define hugetlb_change_protection(vma, address, end, newprot)
++static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
++		unsigned long address, unsigned long end, pgprot_t newprot)
++{
++	return 0;
++}
+ 
+ static inline void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+ 			struct vm_area_struct *vma, unsigned long start,
+Index: linux/include/linux/mm.h
+===================================================================
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -1099,7 +1099,7 @@ extern unsigned long move_page_tables(st
+ extern unsigned long do_mremap(unsigned long addr,
+ 			       unsigned long old_len, unsigned long new_len,
+ 			       unsigned long flags, unsigned long new_addr);
+-extern void change_protection(struct vm_area_struct *vma, unsigned long start,
++extern unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
+ 			      unsigned long end, pgprot_t newprot,
+ 			      int dirty_accountable);
+ extern int mprotect_fixup(struct vm_area_struct *vma,
+@@ -1581,10 +1581,10 @@ static inline pgprot_t vma_prot_none(str
+ 	return pgprot_modify(vma->vm_page_prot, vm_get_page_prot(vmflags));
+ }
+ 
+-static inline void
++static inline unsigned long
+ change_prot_none(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+ {
+-	change_protection(vma, start, end, vma_prot_none(vma), 0);
++	return change_protection(vma, start, end, vma_prot_none(vma), 0);
+ }
+ 
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
 Index: linux/kernel/sched/fair.c
 ===================================================================
 --- linux.orig/kernel/sched/fair.c
 +++ linux/kernel/sched/fair.c
-@@ -18,6 +18,9 @@
-  *
-  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
-  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
-+ *
-+ *  NUMA placement, statistics and algorithm by Andrea Arcangeli,
-+ *  CFS balancing changes by Peter Zijlstra. Copyright (C) 2012 Red Hat, Inc.
-  */
+@@ -914,8 +914,8 @@ void task_numa_work(struct callback_head
+ 	struct task_struct *p = current;
+ 	struct mm_struct *mm = p->mm;
+ 	struct vm_area_struct *vma;
+-	unsigned long offset, end;
+-	long length;
++	unsigned long start, end;
++	long pages;
  
- #include <linux/latencytop.h>
-Index: linux/mm/memory.c
+ 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
+ 
+@@ -942,30 +942,35 @@ void task_numa_work(struct callback_head
+ 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
+ 		return;
+ 
+-	offset = mm->numa_scan_offset;
+-	length = sysctl_sched_numa_scan_size;
+-	length <<= 20;
++	start = mm->numa_scan_offset;
++	pages = sysctl_sched_numa_scan_size;
++	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
++	if (!pages)
++		return;
+ 
+ 	down_write(&mm->mmap_sem);
+-	vma = find_vma(mm, offset);
++	vma = find_vma(mm, start);
+ 	if (!vma) {
+ 		ACCESS_ONCE(mm->numa_scan_seq)++;
+-		offset = 0;
++		start = 0;
+ 		vma = mm->mmap;
+ 	}
+-	for (; vma && length > 0; vma = vma->vm_next) {
++	for (; vma; vma = vma->vm_next) {
+ 		if (!vma_migratable(vma))
+ 			continue;
+ 
+-		offset = max(offset, vma->vm_start);
+-		end = min(ALIGN(offset + length, HPAGE_SIZE), vma->vm_end);
+-		length -= end - offset;
+-
+-		change_prot_none(vma, offset, end);
+-
+-		offset = end;
++		do {
++			start = max(start, vma->vm_start);
++			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
++			end = min(end, vma->vm_end);
++			pages -= change_prot_none(vma, start, end);
++			start = end;
++			if (pages <= 0)
++				goto out;
++		} while (end != vma->vm_end);
+ 	}
+-	mm->numa_scan_offset = offset;
++out:
++	mm->numa_scan_offset = start;
+ 	up_write(&mm->mmap_sem);
+ }
+ 
+Index: linux/mm/hugetlb.c
 ===================================================================
---- linux.orig/mm/memory.c
-+++ linux/mm/memory.c
-@@ -36,6 +36,8 @@
-  *		(Gerhard.Wichert@pdb.siemens.de)
-  *
-  * Aug/Sep 2004 Changed to four level page tables (Andi Kleen)
-+ *
-+ * 2012 - NUMA placement page faults (Andrea Arcangeli, Peter Zijlstra)
-  */
+--- linux.orig/mm/hugetlb.c
++++ linux/mm/hugetlb.c
+@@ -3014,7 +3014,7 @@ same_page:
+ 	return i ? i : -EFAULT;
+ }
  
- #include <linux/kernel_stat.h>
+-void hugetlb_change_protection(struct vm_area_struct *vma,
++unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+@@ -3022,6 +3022,7 @@ void hugetlb_change_protection(struct vm
+ 	pte_t *ptep;
+ 	pte_t pte;
+ 	struct hstate *h = hstate_vma(vma);
++	unsigned long pages = 0;
+ 
+ 	BUG_ON(address >= end);
+ 	flush_cache_range(vma, address, end);
+@@ -3032,12 +3033,15 @@ void hugetlb_change_protection(struct vm
+ 		ptep = huge_pte_offset(mm, address);
+ 		if (!ptep)
+ 			continue;
+-		if (huge_pmd_unshare(mm, &address, ptep))
++		if (huge_pmd_unshare(mm, &address, ptep)) {
++			pages++;
+ 			continue;
++		}
+ 		if (!huge_pte_none(huge_ptep_get(ptep))) {
+ 			pte = huge_ptep_get_and_clear(mm, address, ptep);
+ 			pte = pte_mkhuge(pte_modify(pte, newprot));
+ 			set_huge_pte_at(mm, address, ptep, pte);
++			pages++;
+ 		}
+ 	}
+ 	spin_unlock(&mm->page_table_lock);
+@@ -3049,6 +3053,8 @@ void hugetlb_change_protection(struct vm
+ 	 */
+ 	flush_tlb_range(vma, start, end);
+ 	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++
++	return pages << h->order;
+ }
+ 
+ int hugetlb_reserve_pages(struct inode *inode,
+Index: linux/mm/mprotect.c
+===================================================================
+--- linux.orig/mm/mprotect.c
++++ linux/mm/mprotect.c
+@@ -28,12 +28,13 @@
+ #include <asm/cacheflush.h>
+ #include <asm/tlbflush.h>
+ 
+-static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
++static unsigned long change_pte_range(struct mm_struct *mm, pmd_t *pmd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+ 	pte_t *pte, oldpte;
+ 	spinlock_t *ptl;
++	unsigned long pages = 0;
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+ 	arch_enter_lazy_mmu_mode();
+@@ -53,6 +54,7 @@ static void change_pte_range(struct mm_s
+ 				ptent = pte_mkwrite(ptent);
+ 
+ 			ptep_modify_prot_commit(mm, addr, pte, ptent);
++			pages++;
+ 		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
+ 			swp_entry_t entry = pte_to_swp_entry(oldpte);
+ 
+@@ -65,18 +67,22 @@ static void change_pte_range(struct mm_s
+ 				set_pte_at(mm, addr, pte,
+ 					swp_entry_to_pte(entry));
+ 			}
++			pages++;
+ 		}
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
++
++	return pages;
+ }
+ 
+-static inline void change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
++static inline unsigned long change_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+ 	pmd_t *pmd;
+ 	unsigned long next;
++	unsigned long pages = 0;
+ 
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+@@ -84,35 +90,42 @@ static inline void change_pmd_range(stru
+ 		if (pmd_trans_huge(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE)
+ 				split_huge_page_pmd(vma->vm_mm, pmd);
+-			else if (change_huge_pmd(vma, pmd, addr, newprot))
++			else if (change_huge_pmd(vma, pmd, addr, newprot)) {
++				pages += HPAGE_PMD_NR;
+ 				continue;
++			}
+ 			/* fall through */
+ 		}
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+-		change_pte_range(vma->vm_mm, pmd, addr, next, newprot,
++		pages += change_pte_range(vma->vm_mm, pmd, addr, next, newprot,
+ 				 dirty_accountable);
+ 	} while (pmd++, addr = next, addr != end);
++
++	return pages;
+ }
+ 
+-static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
++static inline unsigned long change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+ 	pud_t *pud;
+ 	unsigned long next;
++	unsigned long pages = 0;
+ 
+ 	pud = pud_offset(pgd, addr);
+ 	do {
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		change_pmd_range(vma, pud, addr, next, newprot,
++		pages += change_pmd_range(vma, pud, addr, next, newprot,
+ 				 dirty_accountable);
+ 	} while (pud++, addr = next, addr != end);
++
++	return pages;
+ }
+ 
+-static void change_protection_range(struct vm_area_struct *vma,
++static unsigned long change_protection_range(struct vm_area_struct *vma,
+ 		unsigned long addr, unsigned long end, pgprot_t newprot,
+ 		int dirty_accountable)
+ {
+@@ -120,6 +133,7 @@ static void change_protection_range(stru
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 	unsigned long start = addr;
++	unsigned long pages = 0;
+ 
+ 	BUG_ON(addr >= end);
+ 	pgd = pgd_offset(mm, addr);
+@@ -128,24 +142,29 @@ static void change_protection_range(stru
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+ 			continue;
+-		change_pud_range(vma, pgd, addr, next, newprot,
++		pages += change_pud_range(vma, pgd, addr, next, newprot,
+ 				 dirty_accountable);
+ 	} while (pgd++, addr = next, addr != end);
+ 	flush_tlb_range(vma, start, end);
++
++	return pages;
+ }
+ 
+-void change_protection(struct vm_area_struct *vma, unsigned long start,
++unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
+ 		       unsigned long end, pgprot_t newprot,
+ 		       int dirty_accountable)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
++	unsigned long pages;
+ 
+ 	mmu_notifier_invalidate_range_start(mm, start, end);
+ 	if (is_vm_hugetlb_page(vma))
+-		hugetlb_change_protection(vma, start, end, newprot);
++		pages = hugetlb_change_protection(vma, start, end, newprot);
+ 	else
+-		change_protection_range(vma, start, end, newprot, dirty_accountable);
++		pages = change_protection_range(vma, start, end, newprot, dirty_accountable);
+ 	mmu_notifier_invalidate_range_end(mm, start, end);
++
++	return pages;
+ }
+ 
+ int
 
 
 --
