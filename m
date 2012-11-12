@@ -1,47 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 403E36B005D
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 16:08:54 -0500 (EST)
-Message-ID: <1352754038.12509.16.camel@misato.fc.hp.com>
-Subject: Re: [Patch v4 1/7] acpi,memory-hotplug: introduce a mutex lock to
- protect the list in acpi_memory_device
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 12 Nov 2012 14:00:38 -0700
-In-Reply-To: <1352372693-32411-2-git-send-email-wency@cn.fujitsu.com>
-References: <1352372693-32411-1-git-send-email-wency@cn.fujitsu.com>
-	 <1352372693-32411-2-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id F026A6B004D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 16:36:01 -0500 (EST)
+Received: by mail-bk0-f73.google.com with SMTP id jf3so36160bkc.2
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 13:36:00 -0800 (PST)
+From: Sonny Rao <sonnyrao@chromium.org>
+Subject: [PATCHv4] mm: Fix calculation of dirtyable memory
+Date: Mon, 12 Nov 2012 13:35:46 -0800
+Message-Id: <1352756146-11837-1-git-send-email-sonnyrao@chromium.org>
+In-Reply-To: <20121112203221.GB4511@redhat.com>
+References: <20121112203221.GB4511@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J.
- Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
+To: linux-kernel@vger.kernel.org
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Johannes Weiner <jweiner@redhat.com>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>, stable@vger.kernel.org, Sonny Rao <sonnyrao@chromium.org>, Puneet Kumar <puneetster@chromium.org>
 
-On Thu, 2012-11-08 at 19:04 +0800, Wen Congyang wrote:
-> The memory device can be removed by 2 ways:
-> 1. send eject request by SCI
-> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> 
-> This 2 events may happen at the same time, so we may touch
-> acpi_memory_device.res_list at the same time. This patch
-> introduce a lock to protect this list.
+The system uses global_dirtyable_memory() to calculate
+number of dirtyable pages/pages that can be allocated
+to the page cache.  A bug causes an underflow thus making
+the page count look like a big unsigned number.  This in turn
+confuses the dirty writeback throttling to aggressively write
+back pages as they become dirty (usually 1 page at a time).
+This generally only affects systems with highmem because the
+underflowed count gets subtracted from the global count of
+dirtyable memory.
 
-Hi Wen,
+The problem was introduced with v3.2-4896-gab8fabd
 
-This race condition is not unique in memory hot-remove as the sysfs
-eject interface is created for all objects with _EJ0.  For CPU
-hot-remove, I addressed this race condition by making the notify handler
-to run the hot-remove operation on kacpi_hotplug_wq by calling
-acpi_os_hotplug_execute().  This serializes the hot-remove operations
-among the two events since the sysfs eject also runs on
-kacpi_hotplug_wq.  This way is much simpler and is easy to maintain,
-although it does not allow both operations to run simultaneously (which
-I do not think we need).  Can it be used for memory hot-remove as well?
+Fix is to ensure we don't get an underflowed total of either highmem
+or global dirtyable memory.
 
-Thanks,
--Toshi
+Signed-off-by: Sonny Rao <sonnyrao@chromium.org>
+Signed-off-by: Puneet Kumar <puneetster@chromium.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+CC: stable@vger.kernel.org
+---
+ v2: added apkm's suggestion to make the highmem calculation better
+ v3: added Fengguang Wu's suggestions fix zone_dirtyable_memory() and
+     (offlist mail) to use max() in global_dirtyable_memory()
+ v4: Added suggestions to description clarifying the role of highmem
+      and the commit which originally caused the problem
+ mm/page-writeback.c |   25 ++++++++++++++++++++-----
+ 1 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 830893b..f9efbe8 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -201,6 +201,18 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+ 		     zone_reclaimable_pages(z) - z->dirty_balance_reserve;
+ 	}
+ 	/*
++	 * Unreclaimable memory (kernel memory or anonymous memory
++	 * without swap) can bring down the dirtyable pages below
++	 * the zone's dirty balance reserve and the above calculation
++	 * will underflow.  However we still want to add in nodes
++	 * which are below threshold (negative values) to get a more
++	 * accurate calculation but make sure that the total never
++	 * underflows.
++	 */
++	if ((long)x < 0)
++		x = 0;
++
++	/*
+ 	 * Make sure that the number of highmem pages is never larger
+ 	 * than the number of the total dirtyable memory. This can only
+ 	 * occur in very strange VM situations but we want to make sure
+@@ -222,8 +234,8 @@ static unsigned long global_dirtyable_memory(void)
+ {
+ 	unsigned long x;
+ 
+-	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages() -
+-	    dirty_balance_reserve;
++	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
++	x -= max(x, dirty_balance_reserve);
+ 
+ 	if (!vm_highmem_is_dirtyable)
+ 		x -= highmem_dirtyable_memory(x);
+@@ -290,9 +302,12 @@ static unsigned long zone_dirtyable_memory(struct zone *zone)
+ 	 * highmem zone can hold its share of dirty pages, so we don't
+ 	 * care about vm_highmem_is_dirtyable here.
+ 	 */
+-	return zone_page_state(zone, NR_FREE_PAGES) +
+-	       zone_reclaimable_pages(zone) -
+-	       zone->dirty_balance_reserve;
++	unsigned long nr_pages = zone_page_state(zone, NR_FREE_PAGES) +
++		zone_reclaimable_pages(zone);
++
++	/* don't allow this to underflow */
++	nr_pages -= max(nr_pages, zone->dirty_balance_reserve);
++	return nr_pages;
+ }
+ 
+ /**
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
