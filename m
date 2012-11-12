@@ -1,77 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 610996B002B
-	for <linux-mm@kvack.org>; Sun, 11 Nov 2012 22:55:08 -0500 (EST)
-Message-ID: <50A07477.2050002@cn.fujitsu.com>
-Date: Mon, 12 Nov 2012 12:00:55 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 8FAF96B004D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 02:50:14 -0500 (EST)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH v11 5/7] virtio_balloon: introduce migration primitives to balloon pages
+In-Reply-To: <20121108003403.GE10444@optiplex.redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com> <265aaff9a79f503672f0cdcdff204114b5b5ba5b.1352256088.git.aquini@redhat.com> <87625h3tl1.fsf@rustcorp.com.au> <20121108003403.GE10444@optiplex.redhat.com>
+Date: Mon, 12 Nov 2012 18:19:23 +1030
+Message-ID: <87lie71csc.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/3] acpi: Introduce prepare_remove device operation
-References: <1352399371-8015-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-In-Reply-To: <1352399371-8015-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mel@csn.ul.ie>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-At 11/09/2012 02:29 AM, Vasilis Liaskovitis Wrote:
-> As discussed in
-> https://patchwork.kernel.org/patch/1581581/
-> the driver core remove function needs to always succeed. This means we need
-> to know that the device can be successfully removed before acpi_bus_trim / 
-> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
-> eject (echo 1 > /sys/bus/acpi/devices/PNP/eject) of memory devices fails, since
-> the ACPI core goes ahead and ejects the device regardless of whether the memory
-> is still in use or not.
-> 
-> For this reason a new acpi_device operation called prepare_remove is introduced.
-> This operation should be registered for acpi devices whose removal (from kernel
-> perspective) can fail.  Memory devices fall in this category.
-> 
-> acpi_bus_hot_remove_device is changed to handle removal in 2 steps:
-> - preparation for removal i.e. perform part of removal that can fail outside of
->   ACPI core. Should succeed for device and all its children.
-> - if above step was successfull, proceed to actual ACPI removal
+Rafael Aquini <aquini@redhat.com> writes:
 
-If we unbind the device from the driver, we still need to do preparation. But
-you don't do it in your patch.
+> On Thu, Nov 08, 2012 at 09:32:18AM +1030, Rusty Russell wrote:
+>> The first one can be delayed, the second one can be delayed if the host
+>> didn't ask for VIRTIO_BALLOON_F_MUST_TELL_HOST (qemu doesn't).
+>> 
+>> We could implement a proper request queue for these, and return -EAGAIN
+>> if the queue fills.  Though in practice, it's not important (it might
+>> help performance).
+>
+> I liked the idea. Give me the directions to accomplish it and I'll give it a try
+> for sure.
 
-Thanks
-Wen Congyang
-> 
-> acpi_bus_trim is changed accordingly to handle preparation for removal and
-> actual removal.
-> 
-> With this patchset, only acpi memory devices use the new prepare_remove
-> device operation. The actual memory removal (VM-related offline and other memory
-> cleanups) is moved to prepare_remove. The old remove operation just cleans up
-> the acpi structures. Directly ejecting PNP0C80 memory devices works safely. I
-> haven't tested yet with an ACPI container which contains memory devices.
-> 
-> Other ACPI devices (e.g. CPU) do not register prepare_remove callbacks, and
-> their OSPM-side eject should not be affected.
-> 
-> I am not happy with the name prepare_remove. Comments welcome. Let me know if I
-> should work more in this direction (I think Yasuaki might also look into this
-> and might have a simpler idea)
-> 
-> Patches are on top of Rafael's linux-pm/linux-next
-> 
-> Vasilis Liaskovitis (3):
->   acpi: Introduce prepare_remove operation in acpi_device_ops
->   acpi: Make acpi_bus_trim handle device removal preparation
->   acpi_memhotplug: Add prepare_remove operation
-> 
->  drivers/acpi/acpi_memhotplug.c     |   24 +++++++++++++++++++++---
->  drivers/acpi/dock.c                |    2 +-
->  drivers/acpi/scan.c                |   32 +++++++++++++++++++++++++++++---
->  drivers/pci/hotplug/acpiphp_glue.c |    4 ++--
->  drivers/pci/hotplug/sgi_hotplug.c  |    2 +-
->  include/acpi/acpi_bus.h            |    4 +++-
->  6 files changed, 57 insertions(+), 11 deletions(-)
-> 
+OK, let's get this applied first, but here are some pointers:
+
+Here's the current callback function when the host has processed the
+buffers we put in the queue:
+
+ static void balloon_ack(struct virtqueue *vq)
+ {
+	struct virtio_balloon *vb = vq->vdev->priv;
+
+	wake_up(&vb->acked);
+ }
+
+It's almost a noop: here's how we use it to make our queues synchronous:
+
+ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+ {
+	struct scatterlist sg;
+	unsigned int len;
+
+	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
+
+	/* We should always be able to add one buffer to an empty queue. */
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
+		BUG();
+	virtqueue_kick(vq);
+
+	/* When host has read buffer, this completes via balloon_ack */
+	wait_event(vb->acked, virtqueue_get_buf(vq, &len));
+ }
+
+And we set up the callback when we create the virtqueue:
+
+	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
+...
+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
+
+So off the top of my head it should be as simple as changing tell_host()
+to only wait if the virtqueue_add_buf() fails (ie. queue is full).
+
+Hmm, though you will want to synchronize the inflate and deflate queues:
+if we tell the host we're giving a page up we want it to have seen that
+before we tell it we're using it again...
+
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
