@@ -1,141 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id AAB286B005A
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 04:48:10 -0500 (EST)
-Message-ID: <50A0C5D2.7000806@web.de>
-Date: Mon, 12 Nov 2012 10:48:02 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 8896C6B004D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 04:50:14 -0500 (EST)
+Date: Mon, 12 Nov 2012 09:50:08 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/31] numa/core patches
+Message-ID: <20121112095008.GR8218@suse.de>
+References: <20121025121617.617683848@chello.nl>
+ <20121030122032.GC3888@suse.de>
+ <CAGjg+kHrbjr8T0+TOEKp6Mx4zZBbrh_3VPUt81nWj6u3xi=NNQ@mail.gmail.com>
+ <20121103122157.GH8218@suse.de>
+ <CAGjg+kHm=d6_pV29QgMP0H3Z3Tcahz8gi-rLVJpAqtF8jFPc-g@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com> <20121111172243.GB821@lunn.ch>
-In-Reply-To: <20121111172243.GB821@lunn.ch>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAGjg+kHm=d6_pV29QgMP0H3Z3Tcahz8gi-rLVJpAqtF8jFPc-g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Lunn <andrew@lunn.ch>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Alex Shi <lkml.alex@gmail.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Alex Shi <alex.shi@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>
 
-On 11.11.2012 18:22, Andrew Lunn wrote:
- > On Thu, Nov 08, 2012 at 07:38:57AM +0100, Marek Szyprowski wrote:
- >> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag, 
-regardless
- >> the flags provided by the caller. This causes excessive pruning of
- >> emergency memory pools without any good reason. This patch changes 
-the code
- >> to correctly use gfp flags provided by the dmapool caller. This should
- >> solve the dmapool usage on ARM architecture, where GFP_ATOMIC DMA
- >> allocations can be served only from the special, very limited memory 
-pool.
- >>
- >> Reported-by: Soren Moch <smoch@web.de>
-Please use
-Reported-by: Soeren Moch <smoch@web.de>
+On Sat, Nov 10, 2012 at 10:47:41AM +0800, Alex Shi wrote:
+> On Sat, Nov 3, 2012 at 8:21 PM, Mel Gorman <mgorman@suse.de> wrote:
+> > On Sat, Nov 03, 2012 at 07:04:04PM +0800, Alex Shi wrote:
+> >> >
+> >> > In reality, this report is larger but I chopped it down a bit for
+> >> > brevity. autonuma beats schednuma *heavily* on this benchmark both in
+> >> > terms of average operations per numa node and overall throughput.
+> >> >
+> >> > SPECJBB PEAKS
+> >> >                                        3.7.0                      3.7.0                      3.7.0
+> >> >                               rc2-stats-v2r1         rc2-autonuma-v27r8         rc2-schednuma-v1r3
+> >> >  Expctd Warehouse                   12.00 (  0.00%)                   12.00 (  0.00%)                   12.00 (  0.00%)
+> >> >  Expctd Peak Bops               442225.00 (  0.00%)               596039.00 ( 34.78%)               555342.00 ( 25.58%)
+> >> >  Actual Warehouse                    7.00 (  0.00%)                    9.00 ( 28.57%)                    8.00 ( 14.29%)
+> >> >  Actual Peak Bops               550747.00 (  0.00%)               646124.00 ( 17.32%)               560635.00 (  1.80%)
+> >>
+> >> It is impressive report!
+> >>
+> >> Could you like to share the what JVM and options are you using in the
+> >> testing, and based on which kinds of platform?
+> >>
+> >
+> > Oracle JVM version "1.7.0_07"
+> > Java(TM) SE Runtime Environment (build 1.7.0_07-b10)
+> > Java HotSpot(TM) 64-Bit Server VM (build 23.3-b01, mixed mode)
+> >
+> > 4 JVMs were run, one for each node.
+> >
+> > JVM switch specified was -Xmx12901m so it would consume roughly 80% of
+> > memory overall.
+> >
+> > Machine is x86-64 4-node, 64G of RAM, CPUs are E7-4807, 48 cores in
+> > total with HT enabled.
+> >
+> 
+> Thanks for configuration sharing!
+> 
+> I used Jrockit and openjdk with Hugepage plus pin JVM to cpu socket.
 
- >> Reported-by: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- >> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
- >
- > Tested-by: Andrew Lunn <andrew@lunn.ch>
- >
- > I tested this on a Kirkwood QNAP after removing the call to
- > init_dma_coherent_pool_size().
- >
- >     Andrew
+If you are using hugepages then automatic numa is not migrating those
+pages. If you are pinning the JVMs to the socket then automatic numa
+balancing is unnecessary as they are already on the correct node.
 
-Tested-by: Soeren Moch <smoch@web.de>
+> In previous sched numa version, I had found 20% dropping with Jrockit
+> with our configuration. but for this version. No clear regression
+> found. also has no benefit found.
+> 
 
-Now I had a chance to test this patch on my Kirkwood guruplug
-system with linux-3.6.6 . It is running much better now, but with the
-original 256K coherent pool size I still see errors after several hours
-of runtime:
+You are only checking for regressions with your configuration which is
+important because it showed that schednuma introduced only overhead in
+an optimisation NUMA configuration.
 
-Nov 12 09:42:32 guru kernel: ERROR: 256 KiB atomic DMA coherent pool is 
-too small!
-Nov 12 09:42:32 guru kernel: Please increase it with coherent_pool= 
-kernel parameter!
+In your case, you will see little or not benefit with any automatic NUMA
+balancing implementation as the most important pages neiter can migrate
+nor need to.
 
-   Soeren
-
- >> ---
- >>  mm/dmapool.c |   27 +++++++--------------------
- >>  1 file changed, 7 insertions(+), 20 deletions(-)
- >>
- >> diff --git a/mm/dmapool.c b/mm/dmapool.c
- >> index c5ab33b..86de9b2 100644
- >> --- a/mm/dmapool.c
- >> +++ b/mm/dmapool.c
- >> @@ -62,8 +62,6 @@ struct dma_page {        /* cacheable header for 
-'allocation' bytes */
- >>      unsigned int offset;
- >>  };
- >>
- >> -#define    POOL_TIMEOUT_JIFFIES    ((100 /* msec */ * HZ) / 1000)
- >> -
- >>  static DEFINE_MUTEX(pools_lock);
- >>
- >>  static ssize_t
- >> @@ -227,7 +225,6 @@ static struct dma_page *pool_alloc_page(struct 
-dma_pool *pool, gfp_t mem_flags)
- >>          memset(page->vaddr, POOL_POISON_FREED, pool->allocation);
- >>  #endif
- >>          pool_initialise_page(pool, page);
- >> -        list_add(&page->page_list, &pool->page_list);
- >>          page->in_use = 0;
- >>          page->offset = 0;
- >>      } else {
- >> @@ -315,30 +312,21 @@ void *dma_pool_alloc(struct dma_pool *pool, 
-gfp_t mem_flags,
- >>      might_sleep_if(mem_flags & __GFP_WAIT);
- >>
- >>      spin_lock_irqsave(&pool->lock, flags);
- >> - restart:
- >>      list_for_each_entry(page, &pool->page_list, page_list) {
- >>          if (page->offset < pool->allocation)
- >>              goto ready;
- >>      }
- >> -    page = pool_alloc_page(pool, GFP_ATOMIC);
- >> -    if (!page) {
- >> -        if (mem_flags & __GFP_WAIT) {
- >> -            DECLARE_WAITQUEUE(wait, current);
- >>
- >> -            __set_current_state(TASK_UNINTERRUPTIBLE);
- >> -            __add_wait_queue(&pool->waitq, &wait);
- >> -            spin_unlock_irqrestore(&pool->lock, flags);
- >> +    /* pool_alloc_page() might sleep, so temporarily drop 
-&pool->lock */
- >> +    spin_unlock_irqrestore(&pool->lock, flags);
- >>
- >> -            schedule_timeout(POOL_TIMEOUT_JIFFIES);
- >> +    page = pool_alloc_page(pool, mem_flags);
- >> +    if (!page)
- >> +        return NULL;
- >>
- >> -            spin_lock_irqsave(&pool->lock, flags);
- >> -            __remove_wait_queue(&pool->waitq, &wait);
- >> -            goto restart;
- >> -        }
- >> -        retval = NULL;
- >> -        goto done;
- >> -    }
- >> +    spin_lock_irqsave(&pool->lock, flags);
- >>
- >> +    list_add(&page->page_list, &pool->page_list);
- >>   ready:
- >>      page->in_use++;
- >>      offset = page->offset;
- >> @@ -348,7 +336,6 @@ void *dma_pool_alloc(struct dma_pool *pool, 
-gfp_t mem_flags,
- >>  #ifdef    DMAPOOL_DEBUG
- >>      memset(retval, POOL_POISON_ALLOCATED, pool->size);
- >>  #endif
- >> - done:
- >>      spin_unlock_irqrestore(&pool->lock, flags);
- >>      return retval;
- >>  }
- >> --
- >> 1.7.9.5
- >>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
