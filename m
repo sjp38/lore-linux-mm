@@ -1,48 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 2E3BA6B0070
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 15:32:31 -0500 (EST)
-Date: Mon, 12 Nov 2012 15:32:21 -0500
-From: Johannes Weiner <jweiner@redhat.com>
-Subject: Re: [PATCH] mm: Fix calculation of dirtyable memory
-Message-ID: <20121112203221.GB4511@redhat.com>
-References: <20121109023638.GA11105@localhost>
- <1352748928-738-1-git-send-email-sonnyrao@chromium.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id CE17C6B002B
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 15:55:04 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id v13so101347vbk.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 12:55:03 -0800 (PST)
+Message-ID: <50A16212.8090507@gmail.com>
+Date: Mon, 12 Nov 2012 15:54:42 -0500
+From: Sasha Levin <levinsasha928@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352748928-738-1-git-send-email-sonnyrao@chromium.org>
+Subject: Re: [PATCH 0/3] fix missing rb_subtree_gap updates on vma insert/erase
+References: <1352721091-27022-1-git-send-email-walken@google.com>
+In-Reply-To: <1352721091-27022-1-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sonny Rao <sonnyrao@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>, Puneet Kumar <puneetster@chromium.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Nov 12, 2012 at 11:35:28AM -0800, Sonny Rao wrote:
-> The system uses global_dirtyable_memory() to calculate
-> number of dirtyable pages/pages that can be allocated
-> to the page cache.  A bug causes an underflow thus making
-> the page count look like a big unsigned number.  This in turn
-> confuses the dirty writeback throttling to aggressively write
-> back pages as they become dirty (usually 1 page at a time).
+On 11/12/2012 06:51 AM, Michel Lespinasse wrote:
+> Using the trinity fuzzer, Sasha Levin uncovered a case where
+> rb_subtree_gap wasn't correctly updated.
 > 
-> Fix is to ensure there is no underflow while doing the math.
+> Digging into this, the root cause was that vma insertions and removals
+> require both an rbtree insert or erase operation (which may trigger
+> tree rotations), and an update of the next vma's gap (which does not
+> change the tree topology, but may require iterating on the node's
+> ancestors to propagate the update). The rbtree rotations caused the
+> rb_subtree_gap values to be updated in some of the internal nodes, but
+> without upstream propagation. Then the subsequent update on the next
+> vma didn't iterate as high up the tree as it should have, as it
+> stopped as soon as it hit one of the internal nodes that had been
+> updated as part of a tree rotation.
 > 
-> Signed-off-by: Sonny Rao <sonnyrao@chromium.org>
-> Signed-off-by: Puneet Kumar <puneetster@chromium.org>
+> The fix is to impose that all rb_subtree_gap values must be up to date
+> before any rbtree insertion or erase, with the possible exception that
+> the node being erased doesn't need to have an up to date rb_subtree_gap.
+> 
+> These 3 patches apply on top of the stack I previously sent (or equally,
+> on top of the last published mmotm).
+> 
+> Michel Lespinasse (3):
+>   mm: ensure safe rb_subtree_gap update when inserting new VMA
+>   mm: ensure safe rb_subtree_gap update when removing VMA
+>   mm: debug code to verify rb_subtree_gap updates are safe
+> 
+>  mm/mmap.c |  121 +++++++++++++++++++++++++++++++++++++------------------------
+>  1 files changed, 73 insertions(+), 48 deletions(-)
+> 
 
-Thanks for debugging and sending in the patch.
+Looking good: old warnings gone, no new warnings.
 
-It might be useful to note in the changelog that the crawling
-writeback problem only affects highmem systems because of the way the
-underflowed count of high memory is subtracted from the overall amount
-of dirtyable memory.
 
-And that the problem was introduced with v3.2-4896-gab8fabd (which
-means that we should include Cc: stable@kernel.org for 3.3+).
-
-The diff itself looks good to me, thanks again:
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
