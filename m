@@ -1,46 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id E96F16B004D
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 06:55:17 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id v13so7575597vbk.14
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 03:55:16 -0800 (PST)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 010FA6B004D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 07:20:01 -0500 (EST)
+Date: Mon, 12 Nov 2012 12:19:57 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd0: excessive CPU usage
+Message-ID: <20121112121956.GT8218@suse.de>
+References: <20121012135726.GY29125@suse.de>
+ <507BDD45.1070705@suse.cz>
+ <20121015110937.GE29125@suse.de>
+ <5093A3F4.8090108@redhat.com>
+ <5093A631.5020209@suse.cz>
+ <509422C3.1000803@suse.cz>
+ <509C84ED.8090605@linux.vnet.ibm.com>
+ <509CB9D1.6060704@redhat.com>
+ <20121109090635.GG8218@suse.de>
+ <509F6C2A.9060502@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <509D0F86.30607@gmail.com>
-References: <1352155633-8648-1-git-send-email-walken@google.com>
-	<1352155633-8648-4-git-send-email-walken@google.com>
-	<509D0F86.30607@gmail.com>
-Date: Mon, 12 Nov 2012 03:55:16 -0800
-Message-ID: <CANN689E4jXT-VA3j54h_MBgCCc9YK0o_E7PY326NnvdiHmAgFQ@mail.gmail.com>
-Subject: Re: [PATCH 03/16] mm: check rb_subtree_gap correctness
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <509F6C2A.9060502@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, Paul Mundt <lethal@linux-sh.org>, "David S. Miller" <davem@davemloft.net>, Chris Metcalf <cmetcalf@tilera.com>, x86@kernel.org, William Irwin <wli@holomorphy.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-mips@linux-mips.org, linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, Dave Jones <davej@redhat.com>
+To: Zdenek Kabelac <zkabelac@redhat.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
 
-On Fri, Nov 9, 2012 at 6:13 AM, Sasha Levin <levinsasha928@gmail.com> wrote:
-> While fuzzing with trinity inside a KVM tools (lkvm) guest, using today's -next
-> kernel, I'm getting these:
->
-> [  117.007714] free gap 7fba0dd1c000, correct 7fba0dcfb000
-> [  117.019773] map_count 750 rb -1
-> [  117.028362] ------------[ cut here ]------------
-> [  117.029813] kernel BUG at mm/mmap.c:439!
->
-> Note that they are very easy to reproduce.
+On Sun, Nov 11, 2012 at 10:13:14AM +0100, Zdenek Kabelac wrote:
+> Hmm,  so it's just took longer to hit the problem and observe kswapd0
+> spinning on my CPU again - it's not as endless like before - but
+> still it easily eats minutes - it helps to  turn off  Firefox or TB
+> (memory hungry apps) so kswapd0 stops soon - and restart those apps
+> again.
+> (And I still have like >1GB of cached memory)
+> 
 
-Thanks for the report. I had trouble reproducing this on Friday, but
-after Hugh came up with an easy test case I think I have it figured
-out. I sent out a proposed fix as "[PATCH 0/3] fix missing
-rb_subtree_gap updates on vma insert/erase". Let's follow up the
-discussion there if necessary.
+I posted a "safe" patch that I believe explains why you are seeing what
+you are seeing. It does mean that there will still be some stalls due to
+THP because kswapd is not helping and it's avoiding the problem rather
+than trying to deal with it.
 
-Cheers,
+Hence, I'm also going to post this patch even though I have not tested
+it myself. If you find it fixes the problem then it would be a
+preferable patch to the revert. It still is the case that the
+balance_pgdat() logic is in sort need of a rethink as it's pretty
+twisted right now.
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Thanks
+
+---8<---
+mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
+
+With "mm: vmscan: scale number of pages reclaimed by reclaim/compaction
+based on failures" reverted, Zdenek Kabelac reported the following
+
+	Hmm,  so it's just took longer to hit the problem and observe
+	kswapd0 spinning on my CPU again - it's not as endless like before -
+	but still it easily eats minutes - it helps to	turn off  Firefox
+	or TB  (memory hungry apps) so kswapd0 stops soon - and restart
+	those apps again.  (And I still have like >1GB of cached memory)
+
+	kswapd0         R  running task        0    30      2 0x00000000
+	 ffff8801331efae8 0000000000000082 0000000000000018 0000000000000246
+	 ffff880135b9a340 ffff8801331effd8 ffff8801331effd8 ffff8801331effd8
+	 ffff880055dfa340 ffff880135b9a340 00000000331efad8 ffff8801331ee000
+	Call Trace:
+	 [<ffffffff81555bf2>] preempt_schedule+0x42/0x60
+	 [<ffffffff81557a95>] _raw_spin_unlock+0x55/0x60
+	 [<ffffffff81192971>] put_super+0x31/0x40
+	 [<ffffffff81192a42>] drop_super+0x22/0x30
+	 [<ffffffff81193b89>] prune_super+0x149/0x1b0
+	 [<ffffffff81141e2a>] shrink_slab+0xba/0x510
+
+The sysrq+m indicates the system has no swap so it'll never reclaim
+anonymous pages as part of reclaim/compaction. That is one part of the
+problem but not the root cause as file-backed pages could also be reclaimed.
+
+The likely underlying problem is that kswapd is woken up or kept awake
+for each THP allocation request in the page allocator slow path.
+
+If compaction fails for the requesting process then compaction will be
+deferred for a time and direct reclaim is avoided. However, if there
+are a storm of THP requests that are simply rejected, it will still
+be the the case that kswapd is awake for a prolonged period of time
+as pgdat->kswapd_max_order is updated each time. This is noticed by
+the main kswapd() loop and it will not call kswapd_try_to_sleep().
+Instead it will loopp, shrinking a small number of pages and calling
+shrink_slab() on each iteration.
+
+This patch defers when kswapd gets woken up for THP allocations. For !THP
+allocations, kswapd is always woken up. For THP allocations, kswapd is
+woken up iff the process is willing to enter into direct
+reclaim/compaction.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index bb90971..0b469b4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2378,6 +2378,15 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return !!(gfp_to_alloc_flags(gfp_mask) & ALLOC_NO_WATERMARKS);
+ }
+ 
++/* Returns true if the allocation is likely for THP */
++static bool is_thp_alloc(gfp_t gfp_mask, unsigned int order)
++{
++	if (order == pageblock_order &&
++	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
++		return true;
++	return false;
++}
++
+ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+@@ -2416,7 +2425,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto nopage;
+ 
+ restart:
+-	wake_all_kswapd(order, zonelist, high_zoneidx,
++	/* The decision whether to wake kswapd for THP is made later */
++	if (!is_thp_alloc(gfp_mask, order))
++		wake_all_kswapd(order, zonelist, high_zoneidx,
+ 					zone_idx(preferred_zone));
+ 
+ 	/*
+@@ -2487,15 +2498,21 @@ rebalance:
+ 		goto got_pg;
+ 	sync_migration = true;
+ 
+-	/*
+-	 * If compaction is deferred for high-order allocations, it is because
+-	 * sync compaction recently failed. In this is the case and the caller
+-	 * requested a movable allocation that does not heavily disrupt the
+-	 * system then fail the allocation instead of entering direct reclaim.
+-	 */
+-	if ((deferred_compaction || contended_compaction) &&
+-	    (gfp_mask & (__GFP_MOVABLE|__GFP_REPEAT)) == __GFP_MOVABLE)
+-		goto nopage;
++	if (is_thp_alloc(gfp_mask, order)) {
++		/*
++		 * If compaction is deferred for high-order allocations, it is
++		 * because sync compaction recently failed. In this is the case
++		 * and the caller requested a movable allocation that does not
++		 * heavily disrupt the system then fail the allocation instead
++		 * of entering direct reclaim.
++		 */
++		if (deferred_compaction || contended_compaction)
++			goto nopage;
++
++		/* If process is willing to reclaim/compact then wake kswapd */
++		wake_all_kswapd(order, zonelist, high_zoneidx,
++					zone_idx(preferred_zone));
++	}
+ 
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
