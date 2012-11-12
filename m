@@ -1,89 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 9D7AF6B004D
-	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 17:59:56 -0500 (EST)
-Received: from mail93-co9 (localhost [127.0.0.1])	by mail93-co9-R.bigfish.com
- (Postfix) with ESMTP id AC282660170	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Mon, 12 Nov 2012 22:58:18 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] mm: Export a function to read vm_committed_as
-Date: Mon, 12 Nov 2012 22:58:11 +0000
-Message-ID: <426367E2313C2449837CD2DE46E7EAF930E39FBC@SN2PRD0310MB382.namprd03.prod.outlook.com>
-References: <1352600728-17766-1-git-send-email-kys@microsoft.com>
- <alpine.DEB.2.00.1211101830250.18494@chino.kir.corp.google.com>
- <426367E2313C2449837CD2DE46E7EAF930E35B45@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <alpine.DEB.2.00.1211121349130.23347@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211121349130.23347@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 782286B005D
+	for <linux-mm@kvack.org>; Mon, 12 Nov 2012 18:23:44 -0500 (EST)
+Date: Mon, 12 Nov 2012 15:23:42 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/4] bootmem: fix wrong call parameter for
+ free_bootmem()
+Message-Id: <20121112152342.ce90052a.akpm@linux-foundation.org>
+In-Reply-To: <1352737915-30906-4-git-send-email-js1304@gmail.com>
+References: <1352737915-30906-1-git-send-email-js1304@gmail.com>
+	<1352737915-30906-4-git-send-email-js1304@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "mhocko@suse.cz" <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>, "dan.magenheimer@oracle.com" <dan.magenheimer@oracle.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Johannes Weiner <hannes@cmpxchg.org>, FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+
+On Tue, 13 Nov 2012 01:31:55 +0900
+Joonsoo Kim <js1304@gmail.com> wrote:
+
+> It is somehow strange that alloc_bootmem return virtual address
+> and free_bootmem require physical address.
+> Anyway, free_bootmem()'s first parameter should be physical address.
+> 
+> There are some call sites for free_bootmem() with virtual address.
+> So fix them.
+
+Well gee, I wonder how that happened :(
 
 
+How does this look?
 
-> -----Original Message-----
-> From: David Rientjes [mailto:rientjes@google.com]
-> Sent: Monday, November 12, 2012 4:54 PM
-> To: KY Srinivasan
-> Cc: gregkh@linuxfoundation.org; linux-kernel@vger.kernel.org;
-> devel@linuxdriverproject.org; olaf@aepfle.de; apw@canonical.com;
-> andi@firstfloor.org; akpm@linux-foundation.org; linux-mm@kvack.org;
-> kamezawa.hiroyuki@gmail.com; mhocko@suse.cz; hannes@cmpxchg.org;
-> yinghan@google.com
-> Subject: RE: [PATCH 1/1] mm: Export a function to read vm_committed_as
->=20
-> On Sun, 11 Nov 2012, KY Srinivasan wrote:
->=20
-> > Thanks for the prompt response. For the Linux balloon driver for Hyper-=
-V, I
-> need access
-> > to the metric that reflects the system wide memory commitment made by t=
-he
-> guest kernel.
-> > In the Hyper-V case, this information is one of the many metrics used t=
-o drive
-> the policy engine
-> > on the host. Granted, the interface name I have chosen here could be mo=
-re
-> generic; how about
-> > read_mem_commit_info(void). I am open to suggestions here.
-> >
->=20
-> I would suggest vm_memory_committed() and there shouldn't be a comment
-> describing that this is just a wrapper for modules to read
-> vm_committed_as, that's apparent from the implementation: it should be
-> describing exactly what this value represents and why it is a useful
-> metric (at least in the case that you're concerned about).
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: bootmem-fix-wrong-call-parameter-for-free_bootmem-fix
 
-Will do; thanks.
->=20
-> > With regards to making changes to the Xen self ballooning code, I would=
- like to
-> separate that patch
-> > from the patch that implements the exported mechanism to access the
-> memory commitment information.
->=20
-> Why?  Is xen using it for a different inference?
+improve free_bootmem() and free_bootmem_pate() documentation
 
-I think it is good to separate these patches. Dan (copied here) wrote the c=
-ode for the
-Xen self balloon driver. If it is ok with him I can submit the patch for Xe=
-n as well.=20
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
+Cc: Haavard Skinnemoen <hskinnemoen@gmail.com>
+Cc: Hans-Christian Egtvedt <egtvedt@samfundet.no>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Joonsoo Kim <js1304@gmail.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
 
+ include/linux/bootmem.h |    4 ++--
+ mm/bootmem.c            |   20 ++++++++++----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)
 
-Regards,
-
-K. Y
-
-
-
->=20
-
+--- a/mm/bootmem.c~bootmem-fix-wrong-call-parameter-for-free_bootmem-fix
++++ a/mm/bootmem.c
+@@ -147,21 +147,21 @@ unsigned long __init init_bootmem(unsign
+ 
+ /*
+  * free_bootmem_late - free bootmem pages directly to page allocator
+- * @addr: starting address of the range
++ * @addr: starting physical address of the range
+  * @size: size of the range in bytes
+  *
+  * This is only useful when the bootmem allocator has already been torn
+  * down, but we are still initializing the system.  Pages are given directly
+  * to the page allocator, no bootmem metadata is updated because it is gone.
+  */
+-void __init free_bootmem_late(unsigned long addr, unsigned long size)
++void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
+ {
+ 	unsigned long cursor, end;
+ 
+-	kmemleak_free_part(__va(addr), size);
++	kmemleak_free_part(__va(physaddr), size);
+ 
+-	cursor = PFN_UP(addr);
+-	end = PFN_DOWN(addr + size);
++	cursor = PFN_UP(physaddr);
++	end = PFN_DOWN(physaddr + size);
+ 
+ 	for (; cursor < end; cursor++) {
+ 		__free_pages_bootmem(pfn_to_page(cursor), 0);
+@@ -385,21 +385,21 @@ void __init free_bootmem_node(pg_data_t 
+ 
+ /**
+  * free_bootmem - mark a page range as usable
+- * @addr: starting address of the range
++ * @addr: starting physical address of the range
+  * @size: size of the range in bytes
+  *
+  * Partial pages will be considered reserved and left as they are.
+  *
+  * The range must be contiguous but may span node boundaries.
+  */
+-void __init free_bootmem(unsigned long addr, unsigned long size)
++void __init free_bootmem(unsigned long physaddr, unsigned long size)
+ {
+ 	unsigned long start, end;
+ 
+-	kmemleak_free_part(__va(addr), size);
++	kmemleak_free_part(__va(physaddr), size);
+ 
+-	start = PFN_UP(addr);
+-	end = PFN_DOWN(addr + size);
++	start = PFN_UP(physaddr);
++	end = PFN_DOWN(physaddr + size);
+ 
+ 	mark_bootmem(start, end, 0, 0);
+ }
+--- a/include/linux/bootmem.h~bootmem-fix-wrong-call-parameter-for-free_bootmem-fix
++++ a/include/linux/bootmem.h
+@@ -51,8 +51,8 @@ extern unsigned long free_all_bootmem(vo
+ extern void free_bootmem_node(pg_data_t *pgdat,
+ 			      unsigned long addr,
+ 			      unsigned long size);
+-extern void free_bootmem(unsigned long addr, unsigned long size);
+-extern void free_bootmem_late(unsigned long addr, unsigned long size);
++extern void free_bootmem(unsigned long physaddr, unsigned long size);
++extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+ 
+ /*
+  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
