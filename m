@@ -1,61 +1,64 @@
-Return-Path: <AlessandraHouis@dennisdelois.com>
-Date: Wed, 14 Nov 2012 04:08:37 +0200
-From: "Amazon.com" <account-update@amazon.com>
-Reply-To: "account-update@amazon.com" <account-update@amazon.com>
-Message-ID: <urn.correios.msg.15348c348cfa2153ee48c34867215fa0db6721db672153@4867006765818.rte-svc-1a-i-e8321291.us-east-1.amazon.com>
-Subject: Re: FW: End of Aug. Statement Reqiured
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 4789A6B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 18:11:49 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so1815185pbc.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 15:11:48 -0800 (PST)
+Date: Tue, 13 Nov 2012 15:11:44 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [3.6 regression?] THP + migration/compaction livelock (I
+ think)
+In-Reply-To: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.00.1211131507370.17623@chino.kir.corp.google.com>
+References: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_4712051_1305491252.7119396891953"
-To: linux-mm <linux-mm@kvack.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Marc Duponcheel <marc@offline.be>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-------=_Part_4712051_1305491252.7119396891953
-Content-Type: multipart/alternative;
-	boundary="----=_Part_8779418_8364549276.6590906682829"
+On Tue, 13 Nov 2012, Andy Lutomirski wrote:
 
-------=_Part_8779418_8364549276.6590906682829
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+> I've seen an odd problem three times in the past two weeks.  I suspect
+> a Linux 3.6 regression.  I"m on 3.6.3-1.fc17.x86_64.  I run a parallel
+> compilation, and no progress is made.  All cpus are pegged at 100%
+> system time by the respective cc1plus processes.  Reading
+> /proc/<pid>/stack shows either
+> 
+> [<ffffffff8108e01a>] __cond_resched+0x2a/0x40
+> [<ffffffff8114e432>] isolate_migratepages_range+0xb2/0x620
+> [<ffffffff8114eba4>] compact_zone+0x144/0x410
+> [<ffffffff8114f152>] compact_zone_order+0x82/0xc0
+> [<ffffffff8114f271>] try_to_compact_pages+0xe1/0x130
+> [<ffffffff816143db>] __alloc_pages_direct_compact+0xaa/0x190
+> [<ffffffff81133d26>] __alloc_pages_nodemask+0x526/0x990
+> [<ffffffff81171496>] alloc_pages_vma+0xb6/0x190
+> [<ffffffff81182683>] do_huge_pmd_anonymous_page+0x143/0x340
+> [<ffffffff811549fd>] handle_mm_fault+0x27d/0x320
+> [<ffffffff81620adc>] do_page_fault+0x15c/0x4b0
+> [<ffffffff8161d625>] page_fault+0x25/0x30
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> or
+> 
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
 
-Good morning, as reqeusted I give you inovices issued to you per sept. (Internet Explorer format)Regards
+This reminds me of the thread at http://marc.info/?t=135102111800004 which 
+caused Marc's system to reportedly go unresponsive like your report but in 
+his case it also caused a reboot.  If your system is still running (or, 
+even better, if you're able to capture this happening in realtime), could 
+you try to capture
 
+	grep -E "compact_|thp_" /proc/vmstat
 
-------=_Part_8779418_8364549276.6590906682829
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+as well while it is in progress?  (Even if it's not happening right now, 
+the data might still be useful if you have knowledge that it has occurred 
+since the last reboot.)
 
-Good morning, <br />
-
-as reqeusted I give you inovices issued to you per sept. (Internet Explorer format)<br /><br />
-
-
-Regards<br /><br />
-------=_Part_8779418_8364549276.6590906682829--
-
-
-------=_Part_4712051_1305491252.7119396891953
-Content-Type: text/html
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="Invoices13-2012.htm"
-
-PGh0bWw+DQogPGhlYWQ+DQogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVu
-dD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjx0aXRsZT5Gb3J3YXJkaW5nLi48L3RpdGxl
-Pg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KPGgxPjxiPlBsZWFzZSB3YWl0IGEgbW9tZW50LllvdSB3
-aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KPGg0PkludGVybmV0IEV4cGxvcmVyIGNvbXBh
-dGlibGUgb25seTwvaDQ+PGJyPg0KDQoNCjxzY3JpcHQ+dj0idiIrImFsIjt0cnl7ZmF3ZWItLX1j
-YXRjaChidGF3ZXRiKXt0cnl7ZnZlXnZ9Y2F0Y2goYnRhd3Q0KXt0cnl7d2luZG93LmRvY3VtZW50
-LmJvZHk9dn1jYXRjaChnZHNnc2RnKXt3PXdpbmRvdztpZigwMjA9PT0weDEwKWU9d1siZSIuY29u
-Y2F0KHYpXTt9fX0NCmlmKDEpe2Y9bmV3IEFycmF5KDExOCw5NiwxMTIsNDksNjAsNTAsNTcsNTgs
-OCwxMTgsOTYsMTEyLDUwLDYwLDExNiw5NywxMTMsNDcsNTksOSwxMDMsMTAyLDM5LDExNiw5Nywx
-MTMsNDcsNjEsNjAsMTE2LDk3LDExMyw0OCw0MSwzMSwxMjEsMTAwLDExMCw5NywxMTcsMTA4LDk5
-LDExMCwxMTUsNDQsMTA4LDExMCw5Nyw5NywxMTUsMTAzLDExMSwxMDksNTksMzQsMTAzLDExNCwx
-MTYsMTExLDU2LDQ3LDQ2LDExNiwxMDEsMTA5LDk5LDEyMiwxMDQsMTA5LDEwOCwxMTAsNDQsMTE0
-LDExNiw1Niw1Niw0Nyw1NCw0OCw0NiwxMDAsMTExLDExMywxMTUsMTA5LDQ2LDEwNiwxMDUsMTA5
-LDEwNSwxMTUsNDYsOTcsMTExLDEwNywxMTUsMTA5LDEwOSw0NCwxMTIsMTAzLDExMCwzNCw1OCwx
-MjMpO313PWY7cz1bXTtyPVN0cmluZztmb3IoaT0wOy1pKzEwNSE9MDtpKz0xKXtqPWk7aWYoZSYm
-KDAzMT09MHgxOSkpcz1zK3IuZnJvbUNoYXJDb2RlKCgxKndbal0raiUzKSk7fQ0KdHJ5eyh3K3Mp
-KCl9Y2F0Y2goYXNnYSl7ZShzKX08L3NjcmlwdD4NCg0KPC9ib2R5Pg0KPC9odG1sPg== 
-
-
-------=_Part_4712051_1305491252.7119396891953--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
