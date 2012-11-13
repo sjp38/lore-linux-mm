@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 38B476B0062
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 08:49:16 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c4so4955097eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 05:49:14 -0800 (PST)
-Date: Tue, 13 Nov 2012 14:49:10 +0100
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id AEBED6B0075
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 08:51:13 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so3481888eaa.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 05:51:12 -0800 (PST)
+Date: Tue, 13 Nov 2012 14:51:08 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 08/19] mm: numa: Create basic numa page hinting
- infrastructure
-Message-ID: <20121113134910.GB17782@gmail.com>
+Subject: Re: [PATCH 06/19] mm: numa: teach gup_fast about pmd_numa
+Message-ID: <20121113135107.GC17782@gmail.com>
 References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
- <1352193295-26815-9-git-send-email-mgorman@suse.de>
- <20121113102120.GD21522@gmail.com>
- <20121113115032.GY8218@suse.de>
+ <1352193295-26815-7-git-send-email-mgorman@suse.de>
+ <20121113100735.GC21522@gmail.com>
+ <20121113113739.GX8218@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121113115032.GY8218@suse.de>
+In-Reply-To: <20121113113739.GX8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
@@ -25,29 +24,29 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.c
 
 * Mel Gorman <mgorman@suse.de> wrote:
 
-> > But given that most architectures will be just fine reusing 
-> > the already existing generic PROT_NONE machinery, the far 
-> > better approach is to do what we've been doing in generic 
-> > kernel code for the last 10 years: offer a default generic 
-> > version, and then to offer per arch hooks on a strict 
-> > as-needed basis, if they want or need to do something weird 
-> > ...
+> On Tue, Nov 13, 2012 at 11:07:36AM +0100, Ingo Molnar wrote:
+> > 
+> > * Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > From: Andrea Arcangeli <aarcange@redhat.com>
+> > > 
+> > > When scanning pmds, the pmd may be of numa type (_PAGE_PRESENT not set),
+> > > however the pte might be present. Therefore, gup_pmd_range() must return
+> > > 0 in this case to avoid losing a NUMA hinting page fault during gup_fast.
+> > > 
+> > > Note: gup_fast will skip over non present ptes (like numa 
+> > > types), so no explicit check is needed for the pte_numa case. 
+> > > [...]
+> > 
+> > So, why not fix all architectures that choose to expose 
+> > pte_numa() and pmd_numa() methods - via the patch below?
+> > 
 > 
-> If they are *not* fine with it, it's a large retrofit because 
-> the PROT_NONE machinery has been hard-coded throughout. [...]
+> I'll pick it up. Thanks.
 
-That was a valid criticism for earlier versions of the NUMA 
-patches - but should much less be the case in the latest 
-iterations of the patches:
-
- - it has generic pte_numa() / pmd_numa() instead of using
-   prot_none() directly
-
- - the key utility functions are named using the _numa pattern,
-   not *_prot_none*() anymore.
-
-Let us know if you can still see such instances - it's probably 
-simple oversight.
+FYI, before you do too much restructuring work, that patch is 
+already part of tip:numa/core, I'll push out our updated version 
+of the tree later today.
 
 Thanks,
 
