@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 94A2F6B0075
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:10 -0500 (EST)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id B08876B0073
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:11 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 06/31] mm: numa: teach gup_fast about pmd_numa
-Date: Tue, 13 Nov 2012 11:12:35 +0000
-Message-Id: <1352805180-1607-7-git-send-email-mgorman@suse.de>
+Subject: [PATCH 07/31] mm: numa: split_huge_page: transfer the NUMA type from the pmd to the pte
+Date: Tue, 13 Nov 2012 11:12:36 +0000
+Message-Id: <1352805180-1607-8-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,48 +15,28 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-When scanning pmds, the pmd may be of numa type (_PAGE_PRESENT not set),
-however the pte might be present. Therefore, gup_pmd_range() must return
-0 in this case to avoid losing a NUMA hinting page fault during gup_fast.
+When we split a transparent hugepage, transfer the NUMA type from the
+pmd to the pte if needed.
 
-Note: gup_fast will skip over non present ptes (like numa types), so
-no explicit check is needed for the pte_numa case. gup_fast will also
-skip over THP when the trans huge pmd is non present. So, the pmd_numa
-case will also be correctly skipped with no additional code changes
-required.
-
-Acked-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- arch/x86/mm/gup.c |   13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ mm/huge_memory.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index dd74e46..02c5ec5 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -163,8 +163,19 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		 * can't because it has irq disabled and
- 		 * wait_split_huge_page() would never return as the
- 		 * tlb flush IPI wouldn't run.
-+		 *
-+		 * The pmd_numa() check is needed because the code
-+		 * doesn't check the _PAGE_PRESENT bit of the pmd if
-+		 * the gup_pte_range() path is taken. NOTE: not all
-+		 * gup_fast users will will access the page contents
-+		 * using the CPU through the NUMA memory channels like
-+		 * KVM does. So we're forced to trigger NUMA hinting
-+		 * page faults unconditionally for all gup_fast users
-+		 * even though NUMA hinting page faults aren't useful
-+		 * to I/O drivers that will access the page with DMA
-+		 * and not with the CPU.
- 		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd) || pmd_trans_splitting(pmd) || pmd_numa(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 40f17c3..3aaf242 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1363,6 +1363,8 @@ static int __split_huge_page_map(struct page *page,
+ 				BUG_ON(page_mapcount(page) != 1);
+ 			if (!pmd_young(*pmd))
+ 				entry = pte_mkold(entry);
++			if (pmd_numa(*pmd))
++				entry = pte_mknuma(entry);
+ 			pte = pte_offset_map(&_pmd, haddr);
+ 			BUG_ON(!pte_none(*pte));
+ 			set_pte_at(mm, haddr, pte, entry);
 -- 
 1.7.9.2
 
