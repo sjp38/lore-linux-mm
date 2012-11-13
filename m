@@ -1,237 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 14E296B004D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 13:48:51 -0500 (EST)
-Date: Tue, 13 Nov 2012 13:48:35 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 21/31] sched, numa, mm: Implement THP migration
-Message-ID: <20121113184835.GH10092@cmpxchg.org>
-References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
- <1352826834-11774-22-git-send-email-mingo@kernel.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 99A3E6B005A
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 16:05:00 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so5814074pad.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 13:04:59 -0800 (PST)
+Date: Tue, 13 Nov 2012 13:04:57 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: RE: [PATCH 1/1] mm: Export a function to read vm_committed_as
+In-Reply-To: <d85b47d7-00d0-4ebd-afdf-1e69747d0a91@default>
+Message-ID: <alpine.DEB.2.00.1211131255310.5164@chino.kir.corp.google.com>
+References: <1352600728-17766-1-git-send-email-kys@microsoft.com> <alpine.DEB.2.00.1211101830250.18494@chino.kir.corp.google.com> <426367E2313C2449837CD2DE46E7EAF930E35B45@SN2PRD0310MB382.namprd03.prod.outlook.com> <alpine.DEB.2.00.1211121349130.23347@chino.kir.corp.google.com>
+ <426367E2313C2449837CD2DE46E7EAF930E39FBC@SN2PRD0310MB382.namprd03.prod.outlook.com> <c04bb062-bbce-4980-b2b3-fbbb18e64b66@default> <alpine.DEB.2.00.1211121547450.3841@chino.kir.corp.google.com> <426367E2313C2449837CD2DE46E7EAF930E3E0B5@BL2PRD0310MB375.namprd03.prod.outlook.com>
+ <d85b47d7-00d0-4ebd-afdf-1e69747d0a91@default>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352826834-11774-22-git-send-email-mingo@kernel.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: KY Srinivasan <kys@microsoft.com>, Konrad Wilk <konrad.wilk@oracle.com>, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com
 
-[Put Hugh back on CC]
+On Tue, 13 Nov 2012, Dan Magenheimer wrote:
 
-What happened to Hugh's fixes to the LRU handling?  I believe it was
-racy beyond affecting memcg, it's just that memcg code had a BUG_ON in
-the right place to point it out.
+> KY is simply asking that the data item be exported so that he can
+> use it from a new module.  No change to the Xen selfballoon driver
+> is necessary right now and requiring one only gets in the way of the
+> patch.  At some future time, the Xen selfballoon driver can, at its
+> leisure, switch to use the new exported function but need not
+> unless/until it is capable of being loaded as a module.
+> 
 
-On Tue, Nov 13, 2012 at 06:13:44PM +0100, Ingo Molnar wrote:
-> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+That's obvious.
+
+> And, IIUC, you are asking that KY's proposed new function include a
+> comment about how it is used by Xen?  How many kernel globals/functions
+> document at their point of declaration the intent of all the in-kernel
+> users that use/call them?  That seems a bit unreasonable.  There is a
+> very long explanatory comment at the beginning of the Xen
+> selfballoon driver code already.
 > 
-> Add THP migration for the NUMA working set scanning fault case.
-> 
-> It uses the page lock to serialize. No migration pte dance is
-> necessary because the pte is already unmapped when we decide
-> to migrate.
-> 
-> Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Link: http://lkml.kernel.org/n/tip-yv9vbiz2s455zxq1ffzx3fye@git.kernel.org
-> [ Significant fixes and changelog. ]
-> Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> ---
->  mm/huge_memory.c | 131 +++++++++++++++++++++++++++++++++++++++++++------------
->  mm/migrate.c     |   2 +-
->  2 files changed, 103 insertions(+), 30 deletions(-)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index c4c0a57..931caf4 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -742,12 +742,13 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  			   unsigned int flags, pmd_t entry)
->  {
->  	unsigned long haddr = address & HPAGE_PMD_MASK;
-> +	struct page *new_page = NULL;
->  	struct page *page = NULL;
-> -	int node;
-> +	int node, lru;
->  
->  	spin_lock(&mm->page_table_lock);
->  	if (unlikely(!pmd_same(*pmd, entry)))
-> -		goto out_unlock;
-> +		goto unlock;
->  
->  	if (unlikely(pmd_trans_splitting(entry))) {
->  		spin_unlock(&mm->page_table_lock);
-> @@ -755,45 +756,117 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		return;
->  	}
->  
-> -#ifdef CONFIG_NUMA
->  	page = pmd_page(entry);
-> -	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
-> +	if (page) {
-> +		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
->  
-> -	get_page(page);
-> -	spin_unlock(&mm->page_table_lock);
-> +		get_page(page);
-> +		node = mpol_misplaced(page, vma, haddr);
-> +		if (node != -1)
-> +			goto migrate;
-> +	}
->  
-> -	/*
-> -	 * XXX should we serialize against split_huge_page ?
-> -	 */
-> +fixup:
-> +	/* change back to regular protection */
-> +	entry = pmd_modify(entry, vma->vm_page_prot);
-> +	set_pmd_at(mm, haddr, pmd, entry);
-> +	update_mmu_cache_pmd(vma, address, entry);
->  
-> -	node = mpol_misplaced(page, vma, haddr);
-> -	if (node == -1)
-> -		goto do_fixup;
-> +unlock:
-> +	spin_unlock(&mm->page_table_lock);
-> +	if (page)
-> +		put_page(page);
->  
-> -	/*
-> -	 * Due to lacking code to migrate thp pages, we'll split
-> -	 * (which preserves the special PROT_NONE) and re-take the
-> -	 * fault on the normal pages.
-> -	 */
-> -	split_huge_page(page);
-> -	put_page(page);
->  	return;
->  
-> -do_fixup:
-> +migrate:
-> +	spin_unlock(&mm->page_table_lock);
-> +
-> +	lock_page(page);
->  	spin_lock(&mm->page_table_lock);
-> -	if (unlikely(!pmd_same(*pmd, entry)))
-> -		goto out_unlock;
-> -#endif
-> +	if (unlikely(!pmd_same(*pmd, entry))) {
-> +		spin_unlock(&mm->page_table_lock);
-> +		unlock_page(page);
-> +		put_page(page);
-> +		return;
-> +	}
-> +	spin_unlock(&mm->page_table_lock);
->  
-> -	/* change back to regular protection */
-> -	entry = pmd_modify(entry, vma->vm_page_prot);
-> -	if (pmdp_set_access_flags(vma, haddr, pmd, entry, 1))
-> -		update_mmu_cache_pmd(vma, address, entry);
-> +	new_page = alloc_pages_node(node,
-> +	    (GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT,
-> +	    HPAGE_PMD_ORDER);
->  
-> -out_unlock:
-> +	if (!new_page)
-> +		goto alloc_fail;
-> +
-> +	lru = PageLRU(page);
-> +
-> +	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
-> +		goto alloc_fail;
-> +
-> +	if (!trylock_page(new_page))
-> +		BUG();
-> +
-> +	/* anon mapping, we can simply copy page->mapping to the new page: */
-> +	new_page->mapping = page->mapping;
-> +	new_page->index = page->index;
-> +
-> +	migrate_page_copy(new_page, page);
-> +
-> +	WARN_ON(PageLRU(new_page));
-> +
-> +	spin_lock(&mm->page_table_lock);
-> +	if (unlikely(!pmd_same(*pmd, entry))) {
-> +		spin_unlock(&mm->page_table_lock);
-> +		if (lru)
-> +			putback_lru_page(page);
-> +
-> +		unlock_page(new_page);
-> +		ClearPageActive(new_page);	/* Set by migrate_page_copy() */
-> +		new_page->mapping = NULL;
-> +		put_page(new_page);		/* Free it */
-> +
-> +		unlock_page(page);
-> +		put_page(page);			/* Drop the local reference */
-> +
-> +		return;
-> +	}
-> +
-> +	entry = mk_pmd(new_page, vma->vm_page_prot);
-> +	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> +	entry = pmd_mkhuge(entry);
-> +
-> +	page_add_new_anon_rmap(new_page, vma, haddr);
-> +
-> +	set_pmd_at(mm, haddr, pmd, entry);
-> +	update_mmu_cache_pmd(vma, address, entry);
-> +	page_remove_rmap(page);
->  	spin_unlock(&mm->page_table_lock);
-> -	if (page)
-> +
-> +	put_page(page);			/* Drop the rmap reference */
-> +
-> +	if (lru)
-> +		put_page(page);		/* drop the LRU isolation reference */
-> +
-> +	unlock_page(new_page);
-> +	unlock_page(page);
-> +	put_page(page);			/* Drop the local reference */
-> +
-> +	return;
-> +
-> +alloc_fail:
-> +	if (new_page)
-> +		put_page(new_page);
-> +
-> +	unlock_page(page);
-> +
-> +	spin_lock(&mm->page_table_lock);
-> +	if (unlikely(!pmd_same(*pmd, entry))) {
->  		put_page(page);
-> +		page = NULL;
-> +		goto unlock;
-> +	}
-> +	goto fixup;
->  }
->  
->  int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 3299949..72d1056 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -417,7 +417,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
->   */
->  void migrate_page_copy(struct page *newpage, struct page *page)
->  {
-> -	if (PageHuge(page))
-> +	if (PageHuge(page) || PageTransHuge(page))
->  		copy_huge_page(newpage, page);
->  	else
->  		copy_highpage(newpage, page);
-> -- 
-> 1.7.11.7
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+Sorry, I don't think it's unreasonable at all: if you're going to be using 
+a symbol which was always assumed to be internal to the VM for other 
+purposes and then that usage becomes convoluted with additional usage like 
+in KY's patch, then no VM hacker will ever know what a change to that 
+symbol means outside of the VM.  There's been a lot of confusion about why 
+this heuristic is needed outside the VM and whether the symbol is actually 
+the correct choice, so verbosity as to the intent of what it is to 
+represent is helpful for a maintainable kernel.
+
+Presumably xen is hijacking that symbol for a similar purpose to KY's 
+purpose, but perhaps I was too optimistic that others would help to 
+solidify the semantics in which it is being used and describe it 
+concisely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
