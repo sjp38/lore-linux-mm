@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 165DD6B00AE
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:14:08 -0500 (EST)
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 265766B00B0
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:14:09 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 25/31] sched: numa: Introduce tsk_home_node()
-Date: Tue, 13 Nov 2012 11:12:54 +0000
-Message-Id: <1352805180-1607-26-git-send-email-mgorman@suse.de>
+Subject: [PATCH 26/31] sched: numa: Make mempolicy home-node aware
+Date: Tue, 13 Nov 2012 11:12:55 +0000
+Message-Id: <1352805180-1607-27-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,136 +15,109 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Introduce the home-node concept for tasks. In order to keep memory
-locality we need to have a something to stay local to, we define the
-home-node of a task as the node we prefer to allocate memory from and
-prefer to execute on.
+Add another layer of fallback policy to make the home node concept
+useful from a memory allocation PoV.
 
-These are no hard guarantees, merely soft preferences. This allows for
-optimal resource usage, we can run a task away from the home-node, the
-remote memory hit -- while expensive -- is less expensive than not
-running at all, or very little, due to severe cpu overload.
+This changes the mpol order to:
 
-Similarly, we can allocate memory from another node if our home-node
-is depleted, again, some memory is better than no memory.
+ - vma->vm_ops->get_policy	[if applicable]
+ - vma->vm_policy		[if applicable]
+ - task->mempolicy
+ - tsk_home_node() preferred	[NEW]
+ - default_policy
 
-This patch merely introduces the basic infrastructure, all policy
-comes later.
+Note that the tsk_home_node() policy has Migrate-on-Fault enabled to
+facilitate efficient on-demand memory migration.
 
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Paul Turner <pjt@google.com>
 Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/init_task.h |    8 ++++++++
- include/linux/sched.h     |   10 ++++++++++
- kernel/sched/core.c       |   36 ++++++++++++++++++++++++++++++++++++
- 3 files changed, 54 insertions(+)
+ include/uapi/linux/mempolicy.h |    9 ++++++++-
+ mm/mempolicy.c                 |   30 ++++++++++++++++++++----------
+ 2 files changed, 28 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/init_task.h b/include/linux/init_task.h
-index 6d087c5..fdf0692 100644
---- a/include/linux/init_task.h
-+++ b/include/linux/init_task.h
-@@ -143,6 +143,13 @@ extern struct task_group root_task_group;
- 
- #define INIT_TASK_COMM "swapper"
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+# define INIT_TASK_NUMA(tsk)						\
-+	.home_node = -1,
-+#else
-+# define INIT_TASK_NUMA(tsk)
-+#endif
-+
- /*
-  *  INIT_TASK is used to set up the first task table, touch at
-  * your own risk!. Base=0, limit=0x1fffff (=2MB)
-@@ -210,6 +217,7 @@ extern struct task_group root_task_group;
- 	INIT_TRACE_RECURSION						\
- 	INIT_TASK_RCU_PREEMPT(tsk)					\
- 	INIT_CPUSET_SEQ							\
-+	INIT_TASK_NUMA(tsk)						\
- }
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index b25064f..bc7b611 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -69,7 +69,14 @@ enum mpol_rebind_step {
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+ #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
+ #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
+-#define MPOL_F_MORON	(1 << 4) /* Migrate On pte_numa Reference On Node */
++#define MPOL_F_HOME	(1 << 4) /*
++				  * Migrate towards referencing node.
++				  * By building up stats on faults, the
++				  * scheduler will reinforce the choice
++				  * by identifying a home node and
++				  * queueing the task on that node
++				  * where possible.
++				  */
  
  
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 51e2944..2677f22 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1480,6 +1480,7 @@ struct task_struct {
- 	short pref_node_fork;
- #endif
- #ifdef CONFIG_BALANCE_NUMA
-+	int home_node;
- 	int numa_scan_seq;
- 	int numa_migrate_seq;
- 	unsigned int numa_scan_period;
-@@ -1569,6 +1570,15 @@ static inline void task_numa_fault(int node, int pages, bool was_misplaced)
- }
- #endif
+ #endif /* _UAPI_LINUX_MEMPOLICY_H */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f2111b7..076f8f8 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -126,9 +126,10 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
+ 	int node;
  
-+static inline int tsk_home_node(struct task_struct *p)
-+{
-+#ifdef CONFIG_BALANCE_NUMA
-+	return p->home_node;
-+#else
-+	return -1;
-+#endif
-+}
-+
- /*
-  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
-  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 047e3c7..55dcf53 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -5972,6 +5972,42 @@ static struct sched_domain_topology_level default_topology[] = {
+ 	if (!pol) {
+-		node = numa_node_id();
+-		if (node != -1)
+-			pol = &preferred_node_policy[node];
++		node = tsk_home_node(p);
++		if (node == -1)
++			node = numa_node_id();
++		pol = &preferred_node_policy[node];
  
- static struct sched_domain_topology_level *sched_domain_topology = default_topology;
+ 		/* preferred_node_policy is not initialised early in boot */
+ 		if (!pol->mode)
+@@ -2422,12 +2423,21 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 		BUG();
+ 	}
  
-+#ifdef CONFIG_BALANCE_NUMA
-+
-+/*
-+ * Requeues a task ensuring its on the right load-balance list so
-+ * that it might get migrated to its new home.
-+ *
-+ * Note that we cannot actively migrate ourselves since our callers
-+ * can be from atomic context. We rely on the regular load-balance
-+ * mechanisms to move us around -- its all preference anyway.
-+ */
-+void sched_setnode(struct task_struct *p, int node)
-+{
-+	unsigned long flags;
-+	int on_rq, running;
-+	struct rq *rq;
-+
-+	rq = task_rq_lock(p, &flags);
-+	on_rq = p->on_rq;
-+	running = task_current(rq, p);
-+
-+	if (on_rq)
-+		dequeue_task(rq, p, 0);
-+	if (running)
-+		p->sched_class->put_prev_task(rq, p);
-+
-+	p->home_node = node;
-+
-+	if (running)
-+		p->sched_class->set_curr_task(rq);
-+	if (on_rq)
-+		enqueue_task(rq, p, 0);
-+	task_rq_unlock(rq, p, &flags);
-+}
-+
-+#endif /* CONFIG_BALANCE_NUMA */
-+
- #ifdef CONFIG_NUMA
+-	/*
+-	 * Moronic node selection policy. Migrate the page to the node that is
+-	 * currently referencing it
+-	 */
+-	if (pol->flags & MPOL_F_MORON)
+-		polnid = numa_node_id();
++	/* Migrate pages towards their home node or the referencing node */
++	if (pol->flags & MPOL_F_HOME) {
++		/*
++		 * Make a placement decision based on the home node.
++		 * NOTE: Potentially this can result in a remote->remote
++		 * copy but it's not migrated now the numa_fault will
++		 * be lost or accounted for incorrectly making it a rock
++		 * and a hard place.
++		 */
++		polnid = tsk_home_node(current);
++		if (polnid == -1) {
++			/* No home node, migrate to the referencing node */
++			polnid = numa_node_id();
++		}
++	}
  
- static int sched_domains_numa_levels;
+ 	if (curnid != polnid)
+ 		ret = polnid;
+@@ -2621,7 +2631,7 @@ void __init numa_policy_init(void)
+ 		preferred_node_policy[nid] = (struct mempolicy) {
+ 			.refcnt = ATOMIC_INIT(1),
+ 			.mode = MPOL_PREFERRED,
+-			.flags = MPOL_F_MOF | MPOL_F_MORON,
++			.flags = MPOL_F_MOF | MPOL_F_HOME,
+ 			.v = { .preferred_node = nid, },
+ 		};
+ 	}
 -- 
 1.7.9.2
 
