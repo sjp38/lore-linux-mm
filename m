@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 45DDD6B0080
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:27 -0500 (EST)
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 6EA986B009D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:28 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 20/31] mm: numa: Add pte updates, hinting and migration stats
-Date: Tue, 13 Nov 2012 11:12:49 +0000
-Message-Id: <1352805180-1607-21-git-send-email-mgorman@suse.de>
+Subject: [PATCH 21/31] mm: numa: Migrate on reference policy
+Date: Tue, 13 Nov 2012 11:12:50 +0000
+Message-Id: <1352805180-1607-22-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,206 +13,110 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-It is tricky to quantify the basic cost of automatic NUMA placement in a
-meaningful manner. This patch adds some vmstats that can be used as part
-of a basic costing model.
-
-u    = basic unit = sizeof(void *)
-Ca   = cost of struct page access = sizeof(struct page) / u
-Cpte = Cost PTE access = Ca
-Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
-	where Cpte is incurred twice for a read and a write and Wlock
-	is a constant representing the cost of taking or releasing a
-	lock
-Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
-Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
-Ci = Cost of page isolation = Ca + Wi
-	where Wi is a constant that should reflect the approximate cost
-	of the locking operation
-Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
-	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
-	would imply that remote accesses are 20% more expensive
-
-Balancing cost = Cpte * numa_pte_updates +
-		Cnumahint * numa_hint_faults +
-		Ci * numa_pages_migrated +
-		Cpagecopy * numa_pages_migrated
-
-Note that numa_pages_migrated is used as a measure of how many pages
-were isolated even though it would miss pages that failed to migrate. A
-vmstat counter could have been added for it but the isolation cost is
-pretty marginal in comparison to the overall cost so it seemed overkill.
-
-The ideal way to measure automatic placement benefit would be to count
-the number of remote accesses versus local accesses and do something like
-
-	benefit = (remote_accesses_before - remove_access_after) * Wnuma
-
-but the information is not readily available. As a workload converges, the
-expection would be that the number of remote numa hints would reduce to 0.
-
-	convergence = numa_hint_faults_local / numa_hint_faults
-		where this is measured for the last N number of
-		numa hints recorded. When the workload is fully
-		converged the value is 1.
-
-This can measure if the placement policy is converging and how fast it is
-doing it.
+This is the dumbest possible policy that still does something of note.
+When a pte_numa is faulted, it is moved immediately. Any replacement
+policy must at least do better than this and in all likelihood this
+policy regresses normal workloads.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/vm_event_item.h |    6 ++++++
- mm/huge_memory.c              |    1 +
- mm/memory.c                   |   12 ++++++++++++
- mm/mempolicy.c                |    5 +++++
- mm/migrate.c                  |    3 ++-
- mm/vmstat.c                   |    6 ++++++
- 6 files changed, 32 insertions(+), 1 deletion(-)
+ include/uapi/linux/mempolicy.h |    1 +
+ mm/mempolicy.c                 |   41 ++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 40 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index a1f750b..dded0af 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -38,6 +38,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_BALANCE_NUMA
-+		NUMA_PTE_UPDATES,
-+		NUMA_HINT_FAULTS,
-+		NUMA_HINT_FAULTS_LOCAL,
-+		NUMA_PAGE_MIGRATE,
-+#endif
- #ifdef CONFIG_MIGRATION
- 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
- #endif
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 833a601..f45f25b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1033,6 +1033,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	page = pmd_page(pmd);
- 	get_page(page);
- 	spin_unlock(&mm->page_table_lock);
-+	count_vm_event(NUMA_HINT_FAULTS);
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 6a1baae..b25064f 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -69,6 +69,7 @@ enum mpol_rebind_step {
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+ #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
+ #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
++#define MPOL_F_MORON	(1 << 4) /* Migrate On pte_numa Reference On Node */
  
- 	target_nid = mpol_misplaced(page, vma, haddr);
- 	if (target_nid == -1)
-diff --git a/mm/memory.c b/mm/memory.c
-index 73fa203..95c9abb 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3457,11 +3457,14 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(!pte_same(*ptep, pte)))
- 		goto out_unlock;
  
-+	count_vm_event(NUMA_HINT_FAULTS);
- 	page = vm_normal_page(vma, addr, pte);
- 	BUG_ON(!page);
- 
- 	get_page(page);
- 	current_nid = page_to_nid(page);
-+	if (current_nid == numa_node_id())
-+		count_vm_event(NUMA_HINT_FAULTS_LOCAL);
- 	target_nid = mpol_misplaced(page, vma, addr);
- 	if (target_nid == -1) {
- 		/*
-@@ -3520,6 +3523,9 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long offset;
- 	spinlock_t *ptl;
- 	bool numa = false;
-+	int local_nid = numa_node_id();
-+	unsigned long nr_faults = 0;
-+	unsigned long nr_faults_local = 0;
- 
- 	spin_lock(&mm->page_table_lock);
- 	pmd = *pmdp;
-@@ -3566,10 +3572,16 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		curr_nid = page_to_nid(page);
- 		task_numa_fault(curr_nid, 1, false);
- 
-+		nr_faults++;
-+		if (curr_nid == local_nid)
-+			nr_faults_local++;
-+
- 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
- 	}
- 	pte_unmap_unlock(orig_pte, ptl);
- 
-+	count_vm_events(NUMA_HINT_FAULTS, nr_faults);
-+	count_vm_events(NUMA_HINT_FAULTS_LOCAL, nr_faults_local);
- 	return 0;
- }
- 
+ #endif /* _UAPI_LINUX_MEMPOLICY_H */
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 11052ea..860341e 100644
+index 860341e..f2111b7 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -583,6 +583,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long _address, end;
- 	spinlock_t *ptl;
- 	int ret = 0;
-+	int nr_pte_updates = 0;
+@@ -118,6 +118,26 @@ static struct mempolicy default_policy = {
+ 	.flags = MPOL_F_LOCAL,
+ };
  
- 	VM_BUG_ON(address & ~PAGE_MASK);
++static struct mempolicy preferred_node_policy[MAX_NUMNODES];
++
++static struct mempolicy *get_task_policy(struct task_struct *p)
++{
++	struct mempolicy *pol = p->mempolicy;
++	int node;
++
++	if (!pol) {
++		node = numa_node_id();
++		if (node != -1)
++			pol = &preferred_node_policy[node];
++
++		/* preferred_node_policy is not initialised early in boot */
++		if (!pol->mode)
++			pol = NULL;
++	}
++
++	return pol;
++}
++
+ static const struct mempolicy_operations {
+ 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
+ 	/*
+@@ -1704,7 +1724,7 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
+ struct mempolicy *get_vma_policy(struct task_struct *task,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+-	struct mempolicy *pol = task->mempolicy;
++	struct mempolicy *pol = get_task_policy(task);
  
-@@ -626,6 +627,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (vma) {
+ 		if (vma->vm_ops && vma->vm_ops->get_policy) {
+@@ -2127,7 +2147,7 @@ retry_cpuset:
+  */
+ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ {
+-	struct mempolicy *pol = current->mempolicy;
++	struct mempolicy *pol = get_task_policy(current);
+ 	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
  
- 		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
- 		ret += HPAGE_PMD_NR;
-+		nr_pte_updates++;
- 		/* defer TLB flush to lower the overhead */
- 		spin_unlock(&mm->page_table_lock);
- 		goto out;
-@@ -652,6 +654,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
- 			continue;
- 
- 		set_pte_at(mm, _address, _pte, pte_mknuma(pteval));
-+		nr_pte_updates++;
- 
- 		/* defer TLB flush to lower the overhead */
- 		ret++;
-@@ -666,6 +669,8 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
+@@ -2401,6 +2421,14 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 	default:
+ 		BUG();
  	}
- 
++
++	/*
++	 * Moronic node selection policy. Migrate the page to the node that is
++	 * currently referencing it
++	 */
++	if (pol->flags & MPOL_F_MORON)
++		polnid = numa_node_id();
++
+ 	if (curnid != polnid)
+ 		ret = polnid;
  out:
-+	if (nr_pte_updates)
-+		count_vm_events(NUMA_PTE_UPDATES, nr_pte_updates);
- 	return ret;
- }
+@@ -2589,6 +2617,15 @@ void __init numa_policy_init(void)
+ 				     sizeof(struct sp_node),
+ 				     0, SLAB_PANIC, NULL);
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 631b2c5..a890429 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1517,7 +1517,8 @@ struct page *migrate_misplaced_page(struct page *page, int node)
- 		if (nr_remaining) {
- 			putback_lru_pages(&migratepages);
- 			req.newpage = NULL;
--		}
-+		} else
-+			count_vm_event(NUMA_PAGE_MIGRATE);
- 	}
- 	BUG_ON(!list_empty(&migratepages));
- out:
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 3a067fa..cfa386da 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -774,6 +774,12 @@ const char * const vmstat_text[] = {
- 
- 	"pgrotated",
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+	"numa_pte_updates",
-+	"numa_hint_faults",
-+	"numa_hint_faults_local",
-+	"numa_pages_migrated",
-+#endif
- #ifdef CONFIG_MIGRATION
- 	"pgmigrate_success",
- 	"pgmigrate_fail",
++	for_each_node(nid) {
++		preferred_node_policy[nid] = (struct mempolicy) {
++			.refcnt = ATOMIC_INIT(1),
++			.mode = MPOL_PREFERRED,
++			.flags = MPOL_F_MOF | MPOL_F_MORON,
++			.v = { .preferred_node = nid, },
++		};
++	}
++
+ 	/*
+ 	 * Set interleaving policy for system init. Interleaving is only
+ 	 * enabled across suitably sized nodes (default is >= 16MB), or
 -- 
 1.7.9.2
 
