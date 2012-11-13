@@ -1,76 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 24D686B0074
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 10:14:28 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id k11so3519431eaa.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 07:14:26 -0800 (PST)
-Date: Tue, 13 Nov 2012 16:14:16 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH 00/31] Foundation for automatic NUMA balancing V2
-Message-ID: <20121113151416.GA20044@gmail.com>
-References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id F07B26B0092
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 10:31:18 -0500 (EST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC] rework mem_cgroup iterator
+Date: Tue, 13 Nov 2012 16:30:34 +0100
+Message-Id: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
 
+Hi all,
+this patch set tries to make mem_cgroup_iter saner in the way how it
+walks hierarchies. css->id based traversal is far from being ideal as it
+is not deterministic because it depends on the creation ordering.
 
-* Mel Gorman <mgorman@suse.de> wrote:
+Diffstat looks promising but it is fair the say that the biggest cleanup is
+just css_get_next removal. The memcg code has grown a bit but I think it is
+worth the resulting outcome (the sanity ;)).
 
-> (Since I wrote this changelog there has been another release 
-> of schednuma. I had delayed releasing this series long enough 
-> and decided not to delay further. Of course, I plan to dig 
-> into that new revision and see what has changed.)
+The first patch fixes a potential misbehaving which I haven't seen but the
+fix is needed for the later patches anyway. We could take it alone as well
+but I do not have any bug report to base the fix on.
 
-Thanks, I've picked up a number of cleanups from your series and 
-propagated them into tip:numa/core tree.
+The second patch replaces css_get_next by cgroup iterators which are
+scheduled for 3.8 in Tejun's tree and I depend on the following two patches:
+fe1e904c cgroup: implement generic child / descendant walk macros
+7e187c6c cgroup: use rculist ops for cgroup->children
 
-FYI, in addition to the specific patches to which I replied to 
-earier today, I've also propagated all your:
+The third patch is an attempt for simplification of the mem_cgroup_iter. It
+basically removes all css usages to make the code easier. The next patch
+removes the big while(!memcg) loop around the iterating logic. It could have
+been folded into #3 but I rather have the rework separate from the code
+moving noise.
 
-   CONFIG_SCHED_NUMA -> CONFIG_BALANCE_NUMA
+The last patch just removes css_get_next as there is no user for it any
+longer.
 
-renames thoughout the patches - I fundamentally agree that 
-CONFIG_BALANCE_NUMA is a better, more generic name.
+I am also thinking that leaf-to-root iteration makes more sense but this
+patch is not included in the series yet because I have to think some
+more about the justification.
 
-My structural criticism of the architecture specific bits of 
-your patch-queue still applies to this version as well. That 
-change inflicted much of the changes that you had to do to 
-Peter's patches. It blew up the size of your tree and forks the 
-code into per architecture variants for no good reason.
+So far I didn't get to testing but I am posting this early if everybody is
+OK with this change.
 
-Had you not done that and had you kept the code generic you'd 
-essentially end up close to where tip:numa/core is today.
+Any thoughts?
 
-So if we can clear that core issue up we'll have quite a bit of 
-agreement.
+Cumulative diffstat:
+ include/linux/cgroup.h |    7 ---
+ kernel/cgroup.c        |   49 ---------------------
+ mm/memcontrol.c        |  110 +++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 75 insertions(+), 91 deletions(-)
 
-I'd also like to add another, structural side note: you mixed 
-new vm-stats bits into the whole queue, needlessly blowing up 
-the size and the mm/ specific portions of the tree. I'd suggest 
-to post and keep those bits separately, preferably on top of 
-what we have already once it has settled down. I'm keeping the 
-'perf bench numa' bits separate as well.
-
-Anyway, I've applied all applicable cleanups from you and picked 
-up Peter's latest code with the modifications I've indicated in 
-that thread, to the latest tip:numa/core tree, which I'll send 
-out for review in the next hour or so.
-
-This version is supposed to address all review feedback received 
-so far: it refines the MM specific split-up of the patches, 
-fixes regressions - see the changelogs for more details.
-
-I'll (re-)send the full series of the latest patches and any 
-additional feedback will be welcome.
-
-Thanks,
-
-	Ingo
+Michal Hocko (5):
+      memcg: synchronize per-zone iterator access by a spinlock
+      memcg: rework mem_cgroup_iter to use cgroup iterators
+      memcg: simplify mem_cgroup_iter
+      memcg: clean up mem_cgroup_iter
+      cgroup: remove css_get_next
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
