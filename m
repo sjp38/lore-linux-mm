@@ -1,80 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 4838E6B0075
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 11:09:26 -0500 (EST)
-Message-ID: <50A270AB.5040305@redhat.com>
-Date: Tue, 13 Nov 2012 11:09:15 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D0A006B0075
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 11:14:47 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so3560394dad.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 08:14:47 -0800 (PST)
+Date: Tue, 13 Nov 2012 08:14:42 -0800
+From: Tejun Heo <htejun@gmail.com>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+Message-ID: <20121113161442.GA18227@mtj.dyndns.org>
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+ <1352820639-13521-3-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/8] sched, numa, mm: Add last_cpu to page flags
-References: <20121112160451.189715188@chello.nl> <20121112161215.685202629@chello.nl>
-In-Reply-To: <20121112161215.685202629@chello.nl>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1352820639-13521-3-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>
 
-On 11/12/2012 11:04 AM, Peter Zijlstra wrote:
-> @@ -706,6 +669,51 @@ static inline int page_to_nid(const stru
->   }
->   #endif
->
-> +#ifdef CONFIG_SCHED_NUMA
-> +#ifdef LAST_CPU_NOT_IN_PAGE_FLAGS
-> +static inline int page_xchg_last_cpu(struct page *page, int cpu)
-> +{
-> +	return xchg(&page->_last_cpu, cpu);
-> +}
-> +
-> +static inline int page_last_cpu(struct page *page)
-> +{
-> +	return page->_last_cpu;
-> +}
-> +#else
-> +static inline int page_xchg_last_cpu(struct page *page, int cpu)
-> +{
-> +	unsigned long old_flags, flags;
-> +	int last_cpu;
-> +
-> +	do {
-> +		old_flags = flags = page->flags;
-> +		last_cpu = (flags >> LAST_CPU_PGSHIFT) & LAST_CPU_MASK;
-> +
-> +		flags &= ~(LAST_CPU_MASK << LAST_CPU_PGSHIFT);
-> +		flags |= (cpu & LAST_CPU_MASK) << LAST_CPU_PGSHIFT;
-> +	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
-> +
-> +	return last_cpu;
-> +}
+On Tue, Nov 13, 2012 at 04:30:36PM +0100, Michal Hocko wrote:
+> @@ -1063,8 +1063,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  				   struct mem_cgroup *prev,
+>  				   struct mem_cgroup_reclaim_cookie *reclaim)
+>  {
+> -	struct mem_cgroup *memcg = NULL;
+> -	int id = 0;
+> +	struct mem_cgroup *memcg = NULL,
+> +			  *last_visited = NULL;
 
-These functions, and the accompanying config option, could
-use some comments and documentation, explaining why things
-are done this way, why it is safe, and what (if any) constraints
-it places on other users of page.flags ...
+Nitpick but please don't do this.
 
-> +static inline int page_last_cpu(struct page *page)
-> +{
-> +	return (page->flags >> LAST_CPU_PGSHIFT) & LAST_CPU_MASK;
-> +}
-> +#endif /* LAST_CPU_NOT_IN_PAGE_FLAGS */
-> +#else /* CONFIG_SCHED_NUMA */
-> +static inline int page_xchg_last_cpu(struct page *page, int cpu)
-> +{
-> +	return page_to_nid(page);
-> +}
+> +		/*
+> +		 * Root is not visited by cgroup iterators so it needs a special
+> +		 * treatment.
+> +		 */
+> +		if (!last_visited) {
+> +			css = &root->css;
+> +		} else {
+> +			struct cgroup *next_cgroup;
 > +
-> +static inline int page_last_cpu(struct page *page)
-> +{
-> +	return page_to_nid(page);
-> +}
-> +#endif /* CONFIG_SCHED_NUMA */
-> +
+> +			next_cgroup = cgroup_next_descendant_pre(
+> +					last_visited->css.cgroup,
+> +					root->css.cgroup);
+> +			if (next_cgroup)
+> +				css = cgroup_subsys_state(next_cgroup,
+> +						mem_cgroup_subsys_id);
 
+Hmmm... wouldn't it be better to move the reclaim logic into a
+function and do the following?
+
+	reclaim(root);
+	for_each_descendent_pre()
+		reclaim(descendant);
+
+If this is a problem, I'd be happy to add a iterator which includes
+the top node.  I'd prefer controllers not using the next functions
+directly.
+
+Thanks.
 
 -- 
-All rights reversed
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
