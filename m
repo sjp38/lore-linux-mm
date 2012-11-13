@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 3F4A36B0095
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:21 -0500 (EST)
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 1FC9F6B0078
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:20 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 15/31] mm: numa: Add fault driven placement and migration
-Date: Tue, 13 Nov 2012 11:12:44 +0000
-Message-Id: <1352805180-1607-16-git-send-email-mgorman@suse.de>
+Subject: [PATCH 14/31] mm: mempolicy: Add MPOL_MF_LAZY
+Date: Tue, 13 Nov 2012 11:12:43 +0000
+Message-Id: <1352805180-1607-15-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,473 +13,320 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-NOTE: This patch is based on "sched, numa, mm: Add fault driven
-	placement and migration policy" but as it throws away all the policy
-	to just leave a basic foundation I had to drop the signed-offs-by.
+NOTE: Once again there is a lot of patch stealing and the end result
+	is sufficiently different that I had to drop the signed-offs.
+	Will re-add if the original authors are ok with that.
 
-This patch creates a bare-bones method for setting PTEs pte_numa in the
-context of the scheduler that when faulted later will be faulted onto the
-node the CPU is running on.  In itself this does nothing useful but any
-placement policy will fundamentally depend on receiving hints on placement
-from fault context and doing something intelligent about it.
+This patch adds another mbind() flag to request "lazy migration".  The
+flag, MPOL_MF_LAZY, modifies MPOL_MF_MOVE* such that the selected
+pages are marked PROT_NONE. The pages will be migrated in the fault
+path on "first touch", if the policy dictates at that time.
+
+"Lazy Migration" will allow testing of migrate-on-fault via mbind().
+Also allows applications to specify that only subsequently touched
+pages be migrated to obey new policy, instead of all pages in range.
+This can be useful for multi-threaded applications working on a
+large shared data area that is initialized by an initial thread
+resulting in all pages on one [or a few, if overflowed] nodes.
+After PROT_NONE, the pages in regions assigned to the worker threads
+will be automatically migrated local to the threads on 1st touch.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- arch/sh/mm/Kconfig       |    1 +
- include/linux/mm_types.h |   11 ++++
- include/linux/sched.h    |   20 ++++++++
- init/Kconfig             |   14 ++++++
- kernel/sched/core.c      |   13 +++++
- kernel/sched/fair.c      |  125 ++++++++++++++++++++++++++++++++++++++++++++++
- kernel/sched/features.h  |    7 +++
- kernel/sched/sched.h     |    6 +++
- kernel/sysctl.c          |   24 ++++++++-
- mm/huge_memory.c         |    5 +-
- mm/memory.c              |   15 +++++-
- 11 files changed, 237 insertions(+), 4 deletions(-)
+ include/linux/mm.h             |    3 +
+ include/uapi/linux/mempolicy.h |   13 ++-
+ mm/mempolicy.c                 |  177 ++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 175 insertions(+), 18 deletions(-)
 
-diff --git a/arch/sh/mm/Kconfig b/arch/sh/mm/Kconfig
-index cb8f992..ddbcfe7 100644
---- a/arch/sh/mm/Kconfig
-+++ b/arch/sh/mm/Kconfig
-@@ -111,6 +111,7 @@ config VSYSCALL
- config NUMA
- 	bool "Non Uniform Memory Access (NUMA) Support"
- 	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
-+	select NUMA_VARIABLE_LOCALITY
- 	default n
- 	help
- 	  Some SH systems have many various memories scattered around
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 31f8a3a..d82accb 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -398,6 +398,17 @@ struct mm_struct {
- #ifdef CONFIG_CPUMASK_OFFSTACK
- 	struct cpumask cpumask_allocation;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index fa06804..eed70f8 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1548,6 +1548,9 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
+ }
  #endif
-+#ifdef CONFIG_BALANCE_NUMA
-+	/*
-+	 * numa_next_scan is the next time when the PTEs will me marked
-+	 * pte_numa to gather statistics and migrate pages to new nodes
-+	 * if necessary
-+	 */
-+	unsigned long numa_next_scan;
-+
-+	/* numa_scan_seq prevents two threads setting pte_numa */
-+	int numa_scan_seq;
-+#endif
- 	struct uprobes_state uprobes_state;
- };
  
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 0dd42a0..ac71181 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1479,6 +1479,14 @@ struct task_struct {
- 	short il_next;
- 	short pref_node_fork;
- #endif
-+#ifdef CONFIG_BALANCE_NUMA
-+	int numa_scan_seq;
-+	int numa_migrate_seq;
-+	unsigned int numa_scan_period;
-+	u64 node_stamp;			/* migration stamp  */
-+	struct callback_head numa_work;
-+#endif /* CONFIG_BALANCE_NUMA */
++void change_prot_numa(struct vm_area_struct *vma,
++			unsigned long start, unsigned long end);
 +
- 	struct rcu_head rcu;
+ struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+ 			unsigned long pfn, unsigned long size, pgprot_t);
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 472de8a..6a1baae 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -49,9 +49,16 @@ enum mpol_rebind_step {
  
- 	/*
-@@ -1553,6 +1561,14 @@ struct task_struct {
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
- #define tsk_cpus_allowed(tsk) (&(tsk)->cpus_allowed)
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+extern void task_numa_fault(int node, int pages);
-+#else
-+static inline void task_numa_fault(int node, int pages)
-+{
-+}
-+#endif
+ /* Flags for mbind */
+ #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
+-#define MPOL_MF_MOVE	(1<<1)	/* Move pages owned by this process to conform to mapping */
+-#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to mapping */
+-#define MPOL_MF_INTERNAL (1<<3)	/* Internal flags start here */
++#define MPOL_MF_MOVE	 (1<<1)	/* Move pages owned by this process to conform
++				   to policy */
++#define MPOL_MF_MOVE_ALL (1<<2)	/* Move every page to conform to policy */
++#define MPOL_MF_LAZY	 (1<<3)	/* Modifies '_MOVE:  lazy migrate on fault */
++#define MPOL_MF_INTERNAL (1<<4)	/* Internal flags start here */
 +
++#define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
++			 MPOL_MF_MOVE     | 	\
++			 MPOL_MF_MOVE_ALL |	\
++			 MPOL_MF_LAZY)
+ 
  /*
-  * Priority of a process goes from 0..MAX_PRIO-1, valid RT
-  * priority is 0..MAX_RT_PRIO-1, and SCHED_NORMAL/SCHED_BATCH
-@@ -1990,6 +2006,10 @@ enum sched_tunable_scaling {
- };
- extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
+  * Internal flags that share the struct mempolicy flags word with
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index df1466d..11052ea 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -90,6 +90,7 @@
+ #include <linux/syscalls.h>
+ #include <linux/ctype.h>
+ #include <linux/mm_inline.h>
++#include <linux/mmu_notifier.h>
  
-+extern unsigned int sysctl_balance_numa_scan_period_min;
-+extern unsigned int sysctl_balance_numa_scan_period_max;
-+extern unsigned int sysctl_balance_numa_settle_count;
-+
- #ifdef CONFIG_SCHED_DEBUG
- extern unsigned int sysctl_sched_migration_cost;
- extern unsigned int sysctl_sched_nr_migrate;
-diff --git a/init/Kconfig b/init/Kconfig
-index 6fdd6e3..aaba45d 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -696,6 +696,20 @@ config LOG_BUF_SHIFT
- config HAVE_UNSTABLE_SCHED_CLOCK
- 	bool
- 
-+#
-+# For architectures that (ab)use NUMA to represent different memory regions
-+# all cpu-local but of different latencies, such as SuperH.
-+#
-+config NUMA_VARIABLE_LOCALITY
-+	bool
-+
-+config BALANCE_NUMA
-+	bool "Memory placement aware NUMA scheduler"
-+	default n
-+	depends on SMP && NUMA && MIGRATION && !NUMA_VARIABLE_LOCALITY
-+	help
-+	  This option adds support for automatic NUMA aware memory/task placement.
-+
- menuconfig CGROUPS
- 	boolean "Control Group support"
- 	depends on EVENTFD
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 2d8927f..81fa185 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1533,6 +1533,19 @@ static void __sched_fork(struct task_struct *p)
- #ifdef CONFIG_PREEMPT_NOTIFIERS
- 	INIT_HLIST_HEAD(&p->preempt_notifiers);
- #endif
-+
-+#ifdef CONFIG_BALANCE_NUMA
-+	if (p->mm && atomic_read(&p->mm->mm_users) == 1) {
-+		p->mm->numa_next_scan = jiffies;
-+		p->mm->numa_scan_seq = 0;
-+	}
-+
-+	p->node_stamp = 0ULL;
-+	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
-+	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
-+	p->numa_scan_period = sysctl_balance_numa_scan_period_min;
-+	p->numa_work.next = &p->numa_work;
-+#endif /* CONFIG_BALANCE_NUMA */
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
+@@ -566,6 +567,137 @@ static inline int check_pgd_range(struct vm_area_struct *vma,
  }
  
  /*
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 6b800a1..e8bdaef 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -26,6 +26,8 @@
- #include <linux/slab.h>
- #include <linux/profile.h>
- #include <linux/interrupt.h>
-+#include <linux/mempolicy.h>
-+#include <linux/task_work.h>
- 
- #include <trace/events/sched.h>
- 
-@@ -776,6 +778,126 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
-  * Scheduling class queueing methods:
-  */
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+/*
-+ * numa task sample period in ms: 5s
++ * Here we search for not shared page mappings (mapcount == 1) and we
++ * set up the pmd/pte_numa on those mappings so the very next access
++ * will fire a NUMA hinting page fault.
 + */
-+unsigned int sysctl_balance_numa_scan_period_min = 5000;
-+unsigned int sysctl_balance_numa_scan_period_max = 5000*16;
-+
-+static void task_numa_placement(struct task_struct *p)
++static int
++change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
++			unsigned long address)
 +{
-+	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pte_t *pte, *_pte;
++	struct page *page;
++	unsigned long _address, end;
++	spinlock_t *ptl;
++	int ret = 0;
 +
-+	if (p->numa_scan_seq == seq)
-+		return;
-+	p->numa_scan_seq = seq;
++	VM_BUG_ON(address & ~PAGE_MASK);
 +
-+	/* FIXME: Scheduling placement policy hints go here */
-+}
++	pgd = pgd_offset(mm, address);
++	if (!pgd_present(*pgd))
++		goto out;
 +
-+/*
-+ * Got a PROT_NONE fault for a page on @node.
-+ */
-+void task_numa_fault(int node, int pages)
-+{
-+	struct task_struct *p = current;
++	pud = pud_offset(pgd, address);
++	if (!pud_present(*pud))
++		goto out;
 +
-+	/* FIXME: Allocate task-specific structure for placement policy here */
++	pmd = pmd_offset(pud, address);
++	if (pmd_none(*pmd))
++		goto out;
 +
-+	task_numa_placement(p);
-+}
++	if (pmd_trans_huge_lock(pmd, vma) == 1) {
++		int page_nid;
++		ret = HPAGE_PMD_NR;
 +
-+/*
-+ * The expensive part of numa migration is done from task_work context.
-+ * Triggered from task_tick_numa().
-+ */
-+void task_numa_work(struct callback_head *work)
-+{
-+	unsigned long migrate, next_scan, now = jiffies;
-+	struct task_struct *p = current;
-+	struct mm_struct *mm = p->mm;
++		VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 +
-+	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
-+
-+	work->next = work; /* protect against double add */
-+	/*
-+	 * Who cares about NUMA placement when they're dying.
-+	 *
-+	 * NOTE: make sure not to dereference p->mm before this check,
-+	 * exit_task_work() happens _after_ exit_mm() so we could be called
-+	 * without p->mm even though we still had it when we enqueued this
-+	 * work.
-+	 */
-+	if (p->flags & PF_EXITING)
-+		return;
-+
-+	/*
-+	 * Enforce maximal scan/migration frequency..
-+	 */
-+	migrate = mm->numa_next_scan;
-+	if (time_before(now, migrate))
-+		return;
-+
-+	if (WARN_ON_ONCE(p->numa_scan_period) == 0)
-+		p->numa_scan_period = sysctl_balance_numa_scan_period_min;
-+
-+	next_scan = now + 2*msecs_to_jiffies(p->numa_scan_period);
-+	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
-+		return;
-+
-+	ACCESS_ONCE(mm->numa_scan_seq)++;
-+	{
-+		struct vm_area_struct *vma;
-+
-+		down_read(&mm->mmap_sem);
-+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+			if (!vma_migratable(vma))
-+				continue;
-+			change_prot_numa(vma, vma->vm_start, vma->vm_end);
++		if (pmd_numa(*pmd)) {
++			spin_unlock(&mm->page_table_lock);
++			goto out;
 +		}
-+		up_read(&mm->mmap_sem);
-+	}
-+}
 +
-+/*
-+ * Drive the periodic memory faults..
-+ */
-+void task_tick_numa(struct rq *rq, struct task_struct *curr)
-+{
-+	struct callback_head *work = &curr->numa_work;
-+	u64 period, now;
++		page = pmd_page(*pmd);
 +
-+	/*
-+	 * We don't care about NUMA placement if we don't have memory.
-+	 */
-+	if (!curr->mm || (curr->flags & PF_EXITING) || work->next != work)
-+		return;
-+
-+	/*
-+	 * Using runtime rather than walltime has the dual advantage that
-+	 * we (mostly) drive the selection from busy threads and that the
-+	 * task needs to have done some actual work before we bother with
-+	 * NUMA placement.
-+	 */
-+	now = curr->se.sum_exec_runtime;
-+	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
-+
-+	if (now - curr->node_stamp > period) {
-+		curr->node_stamp = now;
-+
-+		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
-+			init_task_work(work, task_numa_work); /* TODO: move this into sched_fork() */
-+			task_work_add(curr, work, true);
-+		}
-+	}
-+}
-+#else
-+static void task_tick_numa(struct rq *rq, struct task_struct *curr)
-+{
-+}
-+#endif /* CONFIG_BALANCE_NUMA */
-+
- static void
- account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
- {
-@@ -4954,6 +5076,9 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
- 		cfs_rq = cfs_rq_of(se);
- 		entity_tick(cfs_rq, se, queued);
- 	}
-+
-+	if (sched_feat_numa(NUMA))
-+		task_tick_numa(rq, curr);
- }
- 
- /*
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index eebefca..7cfd289 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -61,3 +61,10 @@ SCHED_FEAT(TTWU_QUEUE, true)
- SCHED_FEAT(FORCE_SD_OVERLAP, false)
- SCHED_FEAT(RT_RUNTIME_SHARE, true)
- SCHED_FEAT(LB_MIN, false)
-+
-+/*
-+ * Apply the automatic NUMA scheduling policy
-+ */
-+#ifdef CONFIG_BALANCE_NUMA
-+SCHED_FEAT(NUMA,	true)
-+#endif
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 7a7db09..9a43241 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -648,6 +648,12 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
- #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
- #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+#define sched_feat_numa(x) sched_feat(x)
-+#else
-+#define sched_feat_numa(x) (0)
-+#endif
-+
- static inline u64 global_rt_period(void)
- {
- 	return (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 26f65ea..1359f51 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -256,9 +256,11 @@ static int min_sched_granularity_ns = 100000;		/* 100 usecs */
- static int max_sched_granularity_ns = NSEC_PER_SEC;	/* 1 second */
- static int min_wakeup_granularity_ns;			/* 0 usecs */
- static int max_wakeup_granularity_ns = NSEC_PER_SEC;	/* 1 second */
-+#ifdef CONFIG_SMP
- static int min_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
- static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END-1;
--#endif
-+#endif /* CONFIG_SMP */
-+#endif /* CONFIG_SCHED_DEBUG */
- 
- #ifdef CONFIG_COMPACTION
- static int min_extfrag_threshold;
-@@ -301,6 +303,7 @@ static struct ctl_table kern_table[] = {
- 		.extra1		= &min_wakeup_granularity_ns,
- 		.extra2		= &max_wakeup_granularity_ns,
- 	},
-+#ifdef CONFIG_SMP
- 	{
- 		.procname	= "sched_tunable_scaling",
- 		.data		= &sysctl_sched_tunable_scaling,
-@@ -347,7 +350,24 @@ static struct ctl_table kern_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &one,
- 	},
--#endif
-+#endif /* CONFIG_SMP */
-+#ifdef CONFIG_BALANCE_NUMA
-+	{
-+		.procname	= "balance_numa_scan_period_min_ms",
-+		.data		= &sysctl_balance_numa_scan_period_min,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
-+		.procname	= "balance_numa_scan_period_max_ms",
-+		.data		= &sysctl_balance_numa_scan_period_max,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+#endif /* CONFIG_BALANCE_NUMA */
-+#endif /* CONFIG_SCHED_DEBUG */
- 	{
- 		.procname	= "sched_rt_period_us",
- 		.data		= &sysctl_sched_rt_period,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1453c30..ccff412 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1045,6 +1045,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 */
- 	split_huge_page(page);
- 	put_page(page);
-+
- 	return 0;
- 
- clear_pmdnuma:
-@@ -1059,8 +1060,10 @@ clear_pmdnuma:
- 
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
--	if (page)
-+	if (page) {
- 		put_page(page);
-+		task_numa_fault(numa_node_id(), HPAGE_PMD_NR);
-+	}
- 	return 0;
- }
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index b41f89c..cd348fd 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3439,7 +3439,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- {
- 	struct page *page = NULL;
- 	spinlock_t *ptl;
--	int current_nid, target_nid;
-+	int current_nid = -1;
-+	int target_nid;
- 
- 	/*
- 	* The "pte" at this point cannot be used safely without
-@@ -3469,6 +3470,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		current_nid = numa_node_id();
- 		goto clear_pmdnuma;
- 	}
-+
- 	pte_unmap_unlock(ptep, ptl);
- 
- 	/* Migrate to the requested node */
-@@ -3496,6 +3498,7 @@ out_unlock:
- 	if (page)
- 		put_page(page);
- out:
-+	task_numa_fault(current_nid, 1);
- 	return 0;
- }
- 
-@@ -3531,6 +3534,7 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
- 		pte_t pteval = *pte;
- 		struct page *page;
-+		int curr_nid;
- 		if (!pte_present(pteval))
- 			continue;
- 		if (addr >= vma->vm_end) {
-@@ -3546,6 +3550,15 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		page = vm_normal_page(vma, addr, pteval);
- 		if (unlikely(!page))
- 			continue;
 +		/* only check non-shared pages */
-+		if (unlikely(page_mapcount(page) != 1))
++		if (page_mapcount(page) != 1) {
++			spin_unlock(&mm->page_table_lock);
++			goto out;
++		}
++
++		page_nid = page_to_nid(page);
++
++		if (pmd_numa(*pmd)) {
++			spin_unlock(&mm->page_table_lock);
++			goto out;
++		}
++
++		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
++		ret += HPAGE_PMD_NR;
++		/* defer TLB flush to lower the overhead */
++		spin_unlock(&mm->page_table_lock);
++		goto out;
++	}
++
++	if (pmd_trans_unstable(pmd))
++		goto out;
++	VM_BUG_ON(!pmd_present(*pmd));
++
++	end = min(vma->vm_end, (address + PMD_SIZE) & PMD_MASK);
++	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
++	for (_address = address, _pte = pte; _address < end;
++	     _pte++, _address += PAGE_SIZE) {
++		pte_t pteval = *_pte;
++		if (!pte_present(pteval))
 +			continue;
-+		pte_unmap_unlock(pte, ptl);
++		if (pte_numa(pteval))
++			continue;
++		page = vm_normal_page(vma, _address, pteval);
++		if (unlikely(!page))
++			continue;
++		/* only check non-shared pages */
++		if (page_mapcount(page) != 1)
++			continue;
 +
-+		curr_nid = page_to_nid(page);
-+		task_numa_fault(curr_nid, 1);
++		set_pte_at(mm, _address, _pte, pte_mknuma(pteval));
 +
-+		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
- 	}
- 	pte_unmap_unlock(orig_pte, ptl);
++		/* defer TLB flush to lower the overhead */
++		ret++;
++	}
++	pte_unmap_unlock(pte, ptl);
++
++	if (ret && !pmd_numa(*pmd)) {
++		spin_lock(&mm->page_table_lock);
++		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
++		spin_unlock(&mm->page_table_lock);
++		/* defer TLB flush to lower the overhead */
++	}
++
++out:
++	return ret;
++}
++
++/* Assumes mmap_sem is held */
++void
++change_prot_numa(struct vm_area_struct *vma,
++			unsigned long address, unsigned long end)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	int progress = 0;
++
++	while (address < end) {
++		VM_BUG_ON(address < vma->vm_start ||
++			  address + PAGE_SIZE > vma->vm_end);
++
++		progress += change_prot_numa_range(mm, vma, address);
++		address = (address + PMD_SIZE) & PMD_MASK;
++	}
++
++	/*
++	 * Flush the TLB for the mm to start the NUMA hinting
++	 * page faults after we finish scanning this vma part
++	 * if there were any PTE updates
++	 */
++	if (progress) {
++		mmu_notifier_invalidate_range_start(vma->vm_mm, address, end);
++		flush_tlb_range(vma, address, end);
++		mmu_notifier_invalidate_range_end(vma->vm_mm, address, end);
++	}
++}
++
++/*
+  * Check if all pages in a range are on a set of nodes.
+  * If pagelist != NULL then isolate pages from the LRU and
+  * put them on the pagelist.
+@@ -583,22 +715,32 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+ 		return ERR_PTR(-EFAULT);
+ 	prev = NULL;
+ 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
++		unsigned long endvma = vma->vm_end;
++
++		if (endvma > end)
++			endvma = end;
++		if (vma->vm_start > start)
++			start = vma->vm_start;
++
+ 		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
+ 			if (!vma->vm_next && vma->vm_end < end)
+ 				return ERR_PTR(-EFAULT);
+ 			if (prev && prev->vm_end < vma->vm_start)
+ 				return ERR_PTR(-EFAULT);
+ 		}
+-		if (!is_vm_hugetlb_page(vma) &&
+-		    ((flags & MPOL_MF_STRICT) ||
++
++		if (is_vm_hugetlb_page(vma))
++			goto next;
++
++		if (flags & MPOL_MF_LAZY) {
++			change_prot_numa(vma, start, endvma);
++			goto next;
++		}
++
++		if ((flags & MPOL_MF_STRICT) ||
+ 		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+-				vma_migratable(vma)))) {
+-			unsigned long endvma = vma->vm_end;
++		      vma_migratable(vma))) {
  
+-			if (endvma > end)
+-				endvma = end;
+-			if (vma->vm_start > start)
+-				start = vma->vm_start;
+ 			err = check_pgd_range(vma, start, endvma, nodes,
+ 						flags, private);
+ 			if (err) {
+@@ -606,6 +748,7 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+ 				break;
+ 			}
+ 		}
++next:
+ 		prev = vma;
+ 	}
+ 	return first;
+@@ -1138,8 +1281,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	int err;
+ 	LIST_HEAD(pagelist);
+ 
+-	if (flags & ~(unsigned long)(MPOL_MF_STRICT |
+-				     MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
++	if (flags & ~(unsigned long)MPOL_MF_VALID)
+ 		return -EINVAL;
+ 	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
+ 		return -EPERM;
+@@ -1162,6 +1304,9 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+ 
++	if (flags & MPOL_MF_LAZY)
++		new->flags |= MPOL_F_MOF;
++
+ 	/*
+ 	 * If we are using the default policy then operation
+ 	 * on discontinuous address spaces is okay after all
+@@ -1198,13 +1343,15 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	vma = check_range(mm, start, end, nmask,
+ 			  flags | MPOL_MF_INVERT, &pagelist);
+ 
+-	err = PTR_ERR(vma);
+-	if (!IS_ERR(vma)) {
+-		int nr_failed = 0;
+-
++	err = PTR_ERR(vma);	/* maybe ... */
++	if (!IS_ERR(vma) && mode != MPOL_NOOP)
+ 		err = mbind_range(mm, start, end, new);
+ 
++	if (!err) {
++		int nr_failed = 0;
++
+ 		if (!list_empty(&pagelist)) {
++			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+ 						(unsigned long)vma,
+ 						false, MIGRATE_SYNC,
+@@ -1213,7 +1360,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 				putback_lru_pages(&pagelist);
+ 		}
+ 
+-		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
++		if (nr_failed && (flags & MPOL_MF_STRICT))
+ 			err = -EIO;
+ 	} else
+ 		putback_lru_pages(&pagelist);
 -- 
 1.7.9.2
 
