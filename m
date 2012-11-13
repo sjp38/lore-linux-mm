@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 2AE066B008A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:25 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id k11so3578138eaa.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:24 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 9E7A36B00A0
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:32 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so65876eek.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:32 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 20/31] sched, numa, mm: Introduce sched_feat_numa()
-Date: Tue, 13 Nov 2012 18:13:43 +0100
-Message-Id: <1352826834-11774-21-git-send-email-mingo@kernel.org>
+Subject: [PATCH 23/31] sched, numa, mm, arch: Add variable locality exception
+Date: Tue, 13 Nov 2012 18:13:46 +0100
+Message-Id: <1352826834-11774-24-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,39 +17,55 @@ Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Ch
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Avoid a few #ifdef's later on.
+Some architectures (ab)use NUMA to represent different memory
+regions all cpu-local but of different latencies, such as SuperH.
 
+The naming comes from Mel Gorman.
+
+Named-by: Mel Gorman <mgorman@suse.de>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Paul Turner <pjt@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <cl@linux.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Link: http://lkml.kernel.org/n/tip-sxrRsaqz4cj1plnzyjbtWzbf@git.kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/sched.h | 6 ++++++
- 1 file changed, 6 insertions(+)
+ arch/sh/mm/Kconfig | 1 +
+ init/Kconfig       | 7 +++++++
+ 2 files changed, 8 insertions(+)
 
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 5eca173..6ac4056 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -663,6 +663,12 @@ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
- #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
- #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
+diff --git a/arch/sh/mm/Kconfig b/arch/sh/mm/Kconfig
+index cb8f992..0f7c852 100644
+--- a/arch/sh/mm/Kconfig
++++ b/arch/sh/mm/Kconfig
+@@ -111,6 +111,7 @@ config VSYSCALL
+ config NUMA
+ 	bool "Non Uniform Memory Access (NUMA) Support"
+ 	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
++	select ARCH_WANT_NUMA_VARIABLE_LOCALITY
+ 	default n
+ 	help
+ 	  Some SH systems have many various memories scattered around
+diff --git a/init/Kconfig b/init/Kconfig
+index 6fdd6e3..ae412fd 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -696,6 +696,13 @@ config LOG_BUF_SHIFT
+ config HAVE_UNSTABLE_SCHED_CLOCK
+ 	bool
  
-+#ifdef CONFIG_NUMA_BALANCING
-+#define sched_feat_numa(x) sched_feat(x)
-+#else
-+#define sched_feat_numa(x) (0)
-+#endif
++#
++# For architectures that (ab)use NUMA to represent different memory regions
++# all cpu-local but of different latencies, such as SuperH.
++#
++config ARCH_WANT_NUMA_VARIABLE_LOCALITY
++	bool
 +
- static inline u64 global_rt_period(void)
- {
- 	return (u64)sysctl_sched_rt_period * NSEC_PER_USEC;
+ menuconfig CGROUPS
+ 	boolean "Control Group support"
+ 	depends on EVENTFD
 -- 
 1.7.11.7
 
