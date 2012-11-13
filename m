@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id ECD5F6B0095
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:31 -0500 (EST)
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id DF9736B00A9
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:14:07 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 23/31] x86: mm: drop TLB flush from ptep_set_access_flags
-Date: Tue, 13 Nov 2012 11:12:52 +0000
-Message-Id: <1352805180-1607-24-git-send-email-mgorman@suse.de>
+Subject: [PATCH 24/31] mm,generic: only flush the local TLB in ptep_set_access_flags
+Date: Tue, 13 Nov 2012 11:12:53 +0000
+Message-Id: <1352805180-1607-25-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,38 +15,62 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Rik van Riel <riel@redhat.com>
 
-Intel has an architectural guarantee that the TLB entry causing
-a page fault gets invalidated automatically. This means
-we should be able to drop the local TLB invalidation.
+The function ptep_set_access_flags is only ever used to upgrade
+access permissions to a page. That means the only negative side
+effect of not flushing remote TLBs is that other CPUs may incur
+spurious page faults, if they happen to access the same address,
+and still have a PTE with the old permissions cached in their
+TLB.
 
-Because of the way other areas of the page fault code work,
-chances are good that all x86 CPUs do this.  However, if
-someone somewhere has an x86 CPU that does not invalidate
-the TLB entry causing a page fault, this one-liner should
-be easy to revert.
+Having another CPU maybe incur a spurious page fault is faster
+than always incurring the cost of a remote TLB flush, so replace
+the remote TLB flush with a purely local one.
+
+This should be safe on every architecture that correctly
+implements flush_tlb_fix_spurious_fault() to actually invalidate
+the local TLB entry that caused a page fault, as well as on
+architectures where the hardware invalidates TLB entries that
+cause page faults.
+
+In the unlikely event that you are hitting what appears to be
+an infinite loop of page faults, and 'git bisect' took you to
+this changeset, your architecture needs to implement
+flush_tlb_fix_spurious_fault to actually flush the TLB entry.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Michel Lespinasse <walken@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/mm/pgtable.c |    1 -
- 1 file changed, 1 deletion(-)
+ mm/pgtable-generic.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index be3bb46..7353de3 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -317,7 +317,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	if (changed && dirty) {
- 		*ptep = entry;
- 		pte_update_defer(vma->vm_mm, address, ptep);
--		__flush_tlb_one(address);
- 	}
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index e642627..d8397da 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -12,8 +12,8 @@
  
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+- * Only sets the access flags (dirty, accessed, and
+- * writable). Furthermore, we know it always gets set to a "more
++ * Only sets the access flags (dirty, accessed), as well as write 
++ * permission. Furthermore, we know it always gets set to a "more
+  * permissive" setting, which allows most architectures to optimize
+  * this. We return whether the PTE actually changed, which in turn
+  * instructs the caller to do things like update__mmu_cache.  This
+@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	int changed = !pte_same(*ptep, entry);
+ 	if (changed) {
+ 		set_pte_at(vma->vm_mm, address, ptep, entry);
+-		flush_tlb_page(vma, address);
++		flush_tlb_fix_spurious_fault(vma, address);
+ 	}
  	return changed;
+ }
 -- 
 1.7.9.2
 
