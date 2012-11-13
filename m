@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 4A1F16B0096
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:12 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so66300eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:11 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 632226B0092
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:16 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so65876eek.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:15 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 14/31] mm/mpol: Create special PROT_NONE infrastructure
-Date: Tue, 13 Nov 2012 18:13:37 +0100
-Message-Id: <1352826834-11774-15-git-send-email-mingo@kernel.org>
+Subject: [PATCH 16/31] numa, mm: Support NUMA hinting page faults from gup/gup_fast
+Date: Tue, 13 Nov 2012 18:13:39 +0100
+Message-Id: <1352826834-11774-17-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,324 +15,90 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Andrea Arcangeli <aarcange@redhat.com>
 
-In order to facilitate a lazy -- fault driven -- migration of pages,
-create a special transient PROT_NONE variant, we can then use the
-'spurious' protection faults to drive our migrations from.
+Introduce FOLL_NUMA to tell follow_page to check
+pte/pmd_numa. get_user_pages must use FOLL_NUMA, and it's safe to do
+so because it always invokes handle_mm_fault and retries the
+follow_page later.
 
-Pages that already had an effective PROT_NONE mapping will not
-be detected to generate these 'spuriuos' faults for the simple reason
-that we cannot distinguish them on their protection bits, see
-pte_numa().
+KVM secondary MMU page faults will trigger the NUMA hinting page
+faults through gup_fast -> get_user_pages -> follow_page ->
+handle_mm_fault.
 
-This isn't a problem since PROT_NONE (and possible PROT_WRITE with
-dirty tracking) aren't used or are rare enough for us to not care
-about their placement.
+Other follow_page callers like KSM should not use FOLL_NUMA, or they
+would fail to get the pages if they use follow_page instead of
+get_user_pages.
 
-Suggested-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Paul Turner <pjt@google.com>
+[ This patch was picked up from the AutoNUMA tree. ]
+
+Originally-by: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
-Link: http://lkml.kernel.org/n/tip-0g5k80y4df8l83lha9j75xph@git.kernel.org
-[ fixed various cross-arch and THP/!THP details ]
+Cc: Rik van Riel <riel@redhat.com>
+[ ported to this tree. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/huge_mm.h | 19 +++++++++++++
- include/linux/mm.h      | 18 ++++++++++++
- mm/huge_memory.c        | 32 +++++++++++++++++++++
- mm/memory.c             | 75 ++++++++++++++++++++++++++++++++++++++++++++-----
- mm/mprotect.c           | 24 +++++++++++-----
- 5 files changed, 154 insertions(+), 14 deletions(-)
+ include/linux/mm.h |  1 +
+ mm/memory.c        | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index b31cb7d..4f0f948 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -159,6 +159,13 @@ static inline struct page *compound_trans_head(struct page *page)
- 	}
- 	return page;
- }
-+
-+extern bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd);
-+
-+extern void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+				  unsigned long address, pmd_t *pmd,
-+				  unsigned int flags, pmd_t orig_pmd);
-+
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-@@ -195,6 +202,18 @@ static inline int pmd_trans_huge_lock(pmd_t *pmd,
- {
- 	return 0;
- }
-+
-+static inline bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd)
-+{
-+	return false;
-+}
-+
-+static inline void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+				  unsigned long address, pmd_t *pmd,
-+				  unsigned int flags, pmd_t orig_pmd)
-+{
-+}
-+
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #endif /* _LINUX_HUGE_MM_H */
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 2a32cf8..0025bf9 100644
+index 0025bf9..1821629 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1091,6 +1091,9 @@ extern unsigned long move_page_tables(struct vm_area_struct *vma,
- extern unsigned long do_mremap(unsigned long addr,
- 			       unsigned long old_len, unsigned long new_len,
- 			       unsigned long flags, unsigned long new_addr);
-+extern void change_protection(struct vm_area_struct *vma, unsigned long start,
-+			      unsigned long end, pgprot_t newprot,
-+			      int dirty_accountable);
- extern int mprotect_fixup(struct vm_area_struct *vma,
- 			  struct vm_area_struct **pprev, unsigned long start,
- 			  unsigned long end, unsigned long newflags);
-@@ -1561,6 +1564,21 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
- }
- #endif
+@@ -1600,6 +1600,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_MLOCK	0x40	/* mark page as mlocked */
+ #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
+ #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
++#define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
  
-+static inline pgprot_t vma_prot_none(struct vm_area_struct *vma)
-+{
-+	/*
-+	 * obtain PROT_NONE by removing READ|WRITE|EXEC privs
-+	 */
-+	vm_flags_t vmflags = vma->vm_flags & ~(VM_READ|VM_WRITE|VM_EXEC);
-+	return pgprot_modify(vma->vm_page_prot, vm_get_page_prot(vmflags));
-+}
-+
-+static inline void
-+change_prot_none(struct vm_area_struct *vma, unsigned long start, unsigned long end)
-+{
-+	change_protection(vma, start, end, vma_prot_none(vma), 0);
-+}
-+
- struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
- int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
- 			unsigned long pfn, unsigned long size, pgprot_t);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 176fe3d..6924edf 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -725,6 +725,38 @@ out:
- 	return handle_pte_fault(mm, vma, address, pte, pmd, flags);
- }
- 
-+bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd)
-+{
-+	/*
-+	 * See pte_numa().
-+	 */
-+	if (pmd_same(pmd, pmd_modify(pmd, vma->vm_page_prot)))
-+		return false;
-+
-+	return pmd_same(pmd, pmd_modify(pmd, vma_prot_none(vma)));
-+}
-+
-+void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			   unsigned long address, pmd_t *pmd,
-+			   unsigned int flags, pmd_t entry)
-+{
-+	unsigned long haddr = address & HPAGE_PMD_MASK;
-+
-+	spin_lock(&mm->page_table_lock);
-+	if (unlikely(!pmd_same(*pmd, entry)))
-+		goto out_unlock;
-+
-+	/* do fancy stuff */
-+
-+	/* change back to regular protection */
-+	entry = pmd_modify(entry, vma->vm_page_prot);
-+	if (pmdp_set_access_flags(vma, haddr, pmd, entry, 1))
-+		update_mmu_cache_pmd(vma, address, entry);
-+
-+out_unlock:
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
- 		  struct vm_area_struct *vma)
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
 diff --git a/mm/memory.c b/mm/memory.c
-index fb135ba..e3e8ab2 100644
+index e3e8ab2..a660fd0 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -1464,6 +1464,25 @@ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
- }
- EXPORT_SYMBOL_GPL(zap_vma_ptes);
+@@ -1536,6 +1536,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+ 		goto out;
+ 	}
++	if ((flags & FOLL_NUMA) && pmd_numa(vma, *pmd))
++		goto no_page_table;
+ 	if (pmd_trans_huge(*pmd)) {
+ 		if (flags & FOLL_SPLIT) {
+ 			split_huge_page_pmd(mm, pmd);
+@@ -1565,6 +1567,8 @@ split_fallthrough:
+ 	pte = *ptep;
+ 	if (!pte_present(pte))
+ 		goto no_page;
++	if ((flags & FOLL_NUMA) && pte_numa(vma, pte))
++		goto no_page;
+ 	if ((flags & FOLL_WRITE) && !pte_write(pte))
+ 		goto unlock;
  
-+static bool pte_numa(struct vm_area_struct *vma, pte_t pte)
-+{
-+	/*
-+	 * If we have the normal vma->vm_page_prot protections we're not a
-+	 * 'special' PROT_NONE page.
-+	 *
-+	 * This means we cannot get 'special' PROT_NONE faults from genuine
-+	 * PROT_NONE maps, nor from PROT_WRITE file maps that do dirty
-+	 * tracking.
-+	 *
-+	 * Neither case is really interesting for our current use though so we
-+	 * don't care.
-+	 */
-+	if (pte_same(pte, pte_modify(pte, vma->vm_page_prot)))
-+		return false;
-+
-+	return pte_same(pte, pte_modify(pte, vma_prot_none(vma)));
-+}
-+
- /**
-  * follow_page - look up a page descriptor from a user-virtual address
-  * @vma: vm_area_struct mapping @address
-@@ -3433,6 +3452,41 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
- }
- 
-+static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, pte_t *ptep, pmd_t *pmd,
-+			unsigned int flags, pte_t entry)
-+{
-+	spinlock_t *ptl;
-+	int ret = 0;
-+
-+	if (!pte_unmap_same(mm, pmd, ptep, entry))
-+		goto out;
+@@ -1716,6 +1720,19 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+ 	vm_flags &= (gup_flags & FOLL_FORCE) ?
+ 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 +
 +	/*
-+	 * Do fancy stuff...
++	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
++	 * would be called on PROT_NONE ranges. We must never invoke
++	 * handle_mm_fault on PROT_NONE ranges or the NUMA hinting
++	 * page faults would unprotect the PROT_NONE ranges if
++	 * _PAGE_NUMA and _PAGE_PROTNONE are sharing the same pte/pmd
++	 * bitflag. So to avoid that, don't set FOLL_NUMA if
++	 * FOLL_FORCE is set.
 +	 */
++	if (!(gup_flags & FOLL_FORCE))
++		gup_flags |= FOLL_NUMA;
 +
-+	/*
-+	 * OK, nothing to do,.. change the protection back to what it
-+	 * ought to be.
-+	 */
-+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	if (unlikely(!pte_same(*ptep, entry)))
-+		goto unlock;
-+
-+	flush_cache_page(vma, address, pte_pfn(entry));
-+
-+	ptep_modify_prot_start(mm, address, ptep);
-+	entry = pte_modify(entry, vma->vm_page_prot);
-+	ptep_modify_prot_commit(mm, address, ptep, entry);
-+
-+	update_mmu_cache(vma, address, ptep);
-+unlock:
-+	pte_unmap_unlock(ptep, ptl);
-+out:
-+	return ret;
-+}
-+
- /*
-  * These routines also need to handle stuff like marking pages dirty
-  * and/or accessed for architectures that don't do it in hardware (most
-@@ -3471,6 +3525,9 @@ int handle_pte_fault(struct mm_struct *mm,
- 					pte, pmd, flags, entry);
- 	}
+ 	i = 0;
  
-+	if (pte_numa(vma, entry))
-+		return do_numa_page(mm, vma, address, pte, pmd, flags, entry);
-+
- 	ptl = pte_lockptr(mm, pmd);
- 	spin_lock(ptl);
- 	if (unlikely(!pte_same(*pte, entry)))
-@@ -3535,13 +3592,16 @@ retry:
- 							  pmd, flags);
- 	} else {
- 		pmd_t orig_pmd = *pmd;
--		int ret;
-+		int ret = 0;
- 
- 		barrier();
--		if (pmd_trans_huge(orig_pmd)) {
--			if (flags & FAULT_FLAG_WRITE &&
--			    !pmd_write(orig_pmd) &&
--			    !pmd_trans_splitting(orig_pmd)) {
-+		if (pmd_trans_huge(orig_pmd) && !pmd_trans_splitting(orig_pmd)) {
-+			if (pmd_numa(vma, orig_pmd)) {
-+				do_huge_pmd_numa_page(mm, vma, address, pmd,
-+						      flags, orig_pmd);
-+			}
-+
-+			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
- 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
- 							  orig_pmd);
- 				/*
-@@ -3551,12 +3611,13 @@ retry:
- 				 */
- 				if (unlikely(ret & VM_FAULT_OOM))
- 					goto retry;
--				return ret;
- 			}
--			return 0;
-+
-+			return ret;
- 		}
- 	}
- 
-+
- 	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
- 	 * run pte_offset_map on the pmd, if an huge pmd could
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e97b0d6..392b124 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -112,7 +112,7 @@ static inline void change_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
- 	} while (pud++, addr = next, addr != end);
- }
- 
--static void change_protection(struct vm_area_struct *vma,
-+static void change_protection_range(struct vm_area_struct *vma,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
- {
-@@ -134,6 +134,20 @@ static void change_protection(struct vm_area_struct *vma,
- 	flush_tlb_range(vma, start, end);
- }
- 
-+void change_protection(struct vm_area_struct *vma, unsigned long start,
-+		       unsigned long end, pgprot_t newprot,
-+		       int dirty_accountable)
-+{
-+	struct mm_struct *mm = vma->vm_mm;
-+
-+	mmu_notifier_invalidate_range_start(mm, start, end);
-+	if (is_vm_hugetlb_page(vma))
-+		hugetlb_change_protection(vma, start, end, newprot);
-+	else
-+		change_protection_range(vma, start, end, newprot, dirty_accountable);
-+	mmu_notifier_invalidate_range_end(mm, start, end);
-+}
-+
- int
- mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 	unsigned long start, unsigned long end, unsigned long newflags)
-@@ -206,12 +220,8 @@ success:
- 		dirty_accountable = 1;
- 	}
- 
--	mmu_notifier_invalidate_range_start(mm, start, end);
--	if (is_vm_hugetlb_page(vma))
--		hugetlb_change_protection(vma, start, end, vma->vm_page_prot);
--	else
--		change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
--	mmu_notifier_invalidate_range_end(mm, start, end);
-+	change_protection(vma, start, end, vma->vm_page_prot, dirty_accountable);
-+
- 	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
- 	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
- 	perf_event_mmap(vma);
+ 	do {
 -- 
 1.7.11.7
 
