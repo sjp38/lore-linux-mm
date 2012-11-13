@@ -1,90 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 3675C6B0083
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:47:16 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id c4so5001077eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:47:14 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] mm: Remove unused variable in alloc_contig_range()
-In-Reply-To: <1352709906-10749-1-git-send-email-thierry.reding@avionic-design.de>
-References: <1352709906-10749-1-git-send-email-thierry.reding@avionic-design.de>
-Date: Tue, 13 Nov 2012 15:47:06 +0100
-Message-ID: <xa1tr4nxv9ud.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id DEEBE6B0087
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:49:27 -0500 (EST)
+Message-ID: <50A25DE5.1040202@redhat.com>
+Date: Tue, 13 Nov 2012 09:49:09 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Subject: Re: [PATCH 12/19] mm: migrate: Introduce migrate_misplaced_page()
+References: <1352193295-26815-1-git-send-email-mgorman@suse.de> <1352193295-26815-13-git-send-email-mgorman@suse.de> <20121113093644.GA21522@gmail.com> <20121113114344.GA26305@gmail.com>
+In-Reply-To: <20121113114344.GA26305@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thierry Reding <thierry.reding@avionic-design.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-On Mon, Nov 12 2012, Thierry Reding wrote:
-> Commit 872ca38f7afd9566bf2f88b95616f7ab71b50064 removed the last
-> reference to this variable but not the variable itself.
+On 11/13/2012 06:43 AM, Ingo Molnar wrote:
 >
-> Signed-off-by: Thierry Reding <thierry.reding@avionic-design.de>
-
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
-
-I could have sworn that someone (Marek?) sent that patch already.
-
-> ---
->  mm/page_alloc.c | 1 -
->  1 file changed, 1 deletion(-)
+> * Ingo Molnar <mingo@kernel.org> wrote:
 >
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 6b990cb..71933dd 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5822,7 +5822,6 @@ static int __alloc_contig_migrate_range(struct comp=
-act_control *cc,
->  int alloc_contig_range(unsigned long start, unsigned long end,
->  		       unsigned migratetype)
->  {
-> -	struct zone *zone =3D page_zone(pfn_to_page(start));
->  	unsigned long outer_start, outer_end;
->  	int ret =3D 0, order;
+>>
+>> * Mel Gorman <mgorman@suse.de> wrote:
+>>
+>>> From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>>>
+>>> Note: This was originally based on Peter's patch "mm/migrate: Introduce
+>>> 	migrate_misplaced_page()" but borrows extremely heavily from Andrea's
+>>> 	"autonuma: memory follows CPU algorithm and task/mm_autonuma stats
+>>> 	collection". The end result is barely recognisable so signed-offs
+>>> 	had to be dropped. If original authors are ok with it, I'll
+>>> 	re-add the signed-off-bys.
+>>>
+>>> Add migrate_misplaced_page() which deals with migrating pages from
+>>> faults.
+>>>
+>>> Based-on-work-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+>>> Based-on-work-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+>>> Based-on-work-by: Andrea Arcangeli <aarcange@redhat.com>
+>>> Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>> ---
+>>>   include/linux/migrate.h |    8 ++++
+>>>   mm/migrate.c            |  104 ++++++++++++++++++++++++++++++++++++++++++++++-
+>>>   2 files changed, 110 insertions(+), 2 deletions(-)
+>>
+>> That's a nice patch - the TASK_NUMA_FAULT approach in the
+>> original patch was not very elegant.
+>>
+>> I've started testing it to see how well your version works.
+>
+> Hm, I'm seeing some instability - see the boot crash below. If I
+> undo your patch it goes away.
+>
+> ( To help debugging this I've attached migration.patch which
+>    applies your patch on top of Peter's latest queue of patches.
+>    If I revert this patch then the crash goes away. )
+>
+> I've gone back to the well-tested page migration code from Peter
+> for the time being.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
+Is there a place we can see your code?
 
---==-=-=
-Content-Type: text/plain
+Peter's patch with MIGRATE_FAULT is very much NAKed, so
+this approach does need to be made to work...
 
+You can either make the working tree public somewhere,
+so we can help, or figure it out yourself. Your choice :)
 
---==-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQol1rAAoJECBgQBJQdR/05toP/iNhRiJJejr3V6cY2HOFsP7L
-8mQNkqyXEYqiMaXC5/YNXP+myuIIO1czk7NzbuFXuDOVLtvvTQQ4t6NsO7bpa0yl
-6QdZGm1X3kj57HhDDj4NVhlnbWAArwAwoePOupifFnEQ80W81Y7k+ly78W5lYIXW
-ZeSlrjJ6Gsz+8DkQaHs9tvaA9cAzXfuiYWmBDSOIG6gjxbOcTnZY3CqDqLLqEple
-jUT7U4lac6PAWFgxe0t7+LvblqadgaUjtqaNWATPtfzzs/QwhCNET6AMZSna/e+t
-Kw0iDbMHFQshAqEAamXaqbnKqoP/F6Lz7IQDuJP/bYIga5mUEs1yFVoBG6Z1FgH6
-bd/Zwpef/hXJQKLD1eLmQxboJC7N5+EpcrUg1P6UyzvW71qydkb965Mx85PVjvxO
-U69U01QCLVaAH0PEC2CJjhjNhe3A68Q/5i6JkQYUGcGb6AbgRM32vySBaTdH5I+T
-TdHl+XhbvsKfsor6Q8p2NrJyAELx3CNP4TpemNiJWX9TFPtlGKr9/kOdQcAqagBa
-wRDd08qfbj/TlFCnhgYKdahWEEoH/HKqrzVQdYCvbQPdF2SS8z4zljE98D2YzGWT
-CFkJwSDA3+ysgwkZwhm0x25eZMk2cz4//C12JlEzKFSjAOcCcpNyRBFECWWm7h6P
-dio4/cBM3wQxgtgpG8eS
-=+o4b
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
