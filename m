@@ -1,87 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 3DBD96B008A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:06 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 4A1476B0093
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:10 -0500 (EST)
 Received: by mail-ee0-f41.google.com with SMTP id d41so65876eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:05 -0800 (PST)
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:09 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 11/31] mm/mpol: Make MPOL_LOCAL a real policy
-Date: Tue, 13 Nov 2012 18:13:34 +0100
-Message-Id: <1352826834-11774-12-git-send-email-mingo@kernel.org>
+Subject: [PATCH 13/31] mm/mpol: Check for misplaced page
+Date: Tue, 13 Nov 2012 18:13:36 +0100
+Message-Id: <1352826834-11774-14-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Make MPOL_LOCAL a real and exposed policy such that applications that
-relied on the previous default behaviour can explicitly request it.
+This patch provides a new function to test whether a page resides
+on a node that is appropriate for the mempolicy for the vma and
+address where the page is supposed to be mapped.  This involves
+looking up the node where the page belongs.  So, the function
+returns that node so that it may be used to allocated the page
+without consulting the policy again.
 
-Requested-by: Christoph Lameter <cl@linux.com>
+A subsequent patch will call this function from the fault path.
+Because of this, I don't want to go ahead and allocate the page, e.g.,
+via alloc_page_vma() only to have to free it if it has the correct
+policy.  So, I just mimic the alloc_page_vma() node computation
+logic--sort of.
+
+Note:  we could use this function to implement a MPOL_MF_STRICT
+behavior when migrating pages to match mbind() mempolicy--e.g.,
+to ensure that pages in an interleaved range are reinterleaved
+rather than left where they are when they reside on any page in
+the interleave nodemask.
+
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
 Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+[ Added MPOL_F_LAZY to trigger migrate-on-fault;
+  simplified code now that we don't have to bother
+  with special crap for interleaved ]
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Link: http://lkml.kernel.org/n/tip-z3mgep4tgrc08o07vl1ahb2m@git.kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/uapi/linux/mempolicy.h | 1 +
- mm/mempolicy.c                 | 9 ++++++---
- 2 files changed, 7 insertions(+), 3 deletions(-)
+ include/linux/mempolicy.h      |  8 +++++
+ include/uapi/linux/mempolicy.h |  1 +
+ mm/mempolicy.c                 | 76 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+)
 
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index e5ccb9d..c511e25 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -198,6 +198,8 @@ static inline int vma_migratable(struct vm_area_struct *vma)
+ 	return 1;
+ }
+ 
++extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
++
+ #else
+ 
+ struct mempolicy {};
+@@ -323,5 +325,11 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+ 	return 0;
+ }
+ 
++static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
++				 unsigned long address)
++{
++	return -1; /* no node preference */
++}
++
+ #endif /* CONFIG_NUMA */
+ #endif
 diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index 23e62e0..3e835c9 100644
+index d23dca8..472de8a 100644
 --- a/include/uapi/linux/mempolicy.h
 +++ b/include/uapi/linux/mempolicy.h
-@@ -20,6 +20,7 @@ enum {
- 	MPOL_PREFERRED,
- 	MPOL_BIND,
- 	MPOL_INTERLEAVE,
-+	MPOL_LOCAL,
- 	MPOL_MAX,	/* always last member of enum */
- };
+@@ -61,6 +61,7 @@ enum mpol_rebind_step {
+ #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+ #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
++#define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
  
+ 
+ #endif /* _UAPI_LINUX_MEMPOLICY_H */
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d04a8a5..72f50ba 100644
+index c7c7c86..1b2890c 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -269,6 +269,10 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 			     (flags & MPOL_F_RELATIVE_NODES)))
- 				return ERR_PTR(-EINVAL);
- 		}
-+	} else if (mode == MPOL_LOCAL) {
-+		if (!nodes_empty(*nodes))
-+			return ERR_PTR(-EINVAL);
-+		mode = MPOL_PREFERRED;
- 	} else if (nodes_empty(*nodes))
- 		return ERR_PTR(-EINVAL);
- 	policy = kmem_cache_alloc(policy_cache, GFP_KERNEL);
-@@ -2397,7 +2401,6 @@ void numa_default_policy(void)
-  * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
-  * Used only for mpol_parse_str() and mpol_to_str()
-  */
--#define MPOL_LOCAL MPOL_MAX
- static const char * const policy_modes[] =
+@@ -2179,6 +2179,82 @@ static void sp_free(struct sp_node *n)
+ 	kmem_cache_free(sn_cache, n);
+ }
+ 
++/**
++ * mpol_misplaced - check whether current page node is valid in policy
++ *
++ * @page   - page to be checked
++ * @vma    - vm area where page mapped
++ * @addr   - virtual address where page mapped
++ *
++ * Lookup current policy node id for vma,addr and "compare to" page's
++ * node id.
++ *
++ * Returns:
++ *	-1	- not misplaced, page is in the right node
++ *	node	- node id where the page should be
++ *
++ * Policy determination "mimics" alloc_page_vma().
++ * Called from fault path where we know the vma and faulting address.
++ */
++int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
++{
++	struct mempolicy *pol;
++	struct zone *zone;
++	int curnid = page_to_nid(page);
++	unsigned long pgoff;
++	int polnid = -1;
++	int ret = -1;
++
++	BUG_ON(!vma);
++
++	pol = get_vma_policy(current, vma, addr);
++	if (!(pol->flags & MPOL_F_MOF))
++		goto out;
++
++	switch (pol->mode) {
++	case MPOL_INTERLEAVE:
++		BUG_ON(addr >= vma->vm_end);
++		BUG_ON(addr < vma->vm_start);
++
++		pgoff = vma->vm_pgoff;
++		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
++		polnid = offset_il_node(pol, vma, pgoff);
++		break;
++
++	case MPOL_PREFERRED:
++		if (pol->flags & MPOL_F_LOCAL)
++			polnid = numa_node_id();
++		else
++			polnid = pol->v.preferred_node;
++		break;
++
++	case MPOL_BIND:
++		/*
++		 * allows binding to multiple nodes.
++		 * use current page if in policy nodemask,
++		 * else select nearest allowed node, if any.
++		 * If no allowed nodes, use current [!misplaced].
++		 */
++		if (node_isset(curnid, pol->v.nodes))
++			goto out;
++		(void)first_zones_zonelist(
++				node_zonelist(numa_node_id(), GFP_HIGHUSER),
++				gfp_zone(GFP_HIGHUSER),
++				&pol->v.nodes, &zone);
++		polnid = zone->node;
++		break;
++
++	default:
++		BUG();
++	}
++	if (curnid != polnid)
++		ret = polnid;
++out:
++	mpol_cond_put(pol);
++
++	return ret;
++}
++
+ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
  {
- 	[MPOL_DEFAULT]    = "default",
-@@ -2450,12 +2453,12 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
- 	if (flags)
- 		*flags++ = '\0';	/* terminate mode string */
- 
--	for (mode = 0; mode <= MPOL_LOCAL; mode++) {
-+	for (mode = 0; mode < MPOL_MAX; mode++) {
- 		if (!strcmp(str, policy_modes[mode])) {
- 			break;
- 		}
- 	}
--	if (mode > MPOL_LOCAL)
-+	if (mode >= MPOL_MAX)
- 		goto out;
- 
- 	switch (mode) {
+ 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
 -- 
 1.7.11.7
 
