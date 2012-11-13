@@ -1,89 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 75E986B005D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 00:26:08 -0500 (EST)
-Received: from mail81-am1 (localhost [127.0.0.1])	by mail81-am1-R.bigfish.com
- (Postfix) with ESMTP id 86CC83201C9	for
- <linux-mm@kvack.org.FOPE.CONNECTOR.OVERRIDE>; Tue, 13 Nov 2012 05:25:04 +0000
- (UTC)
-From: KY Srinivasan <kys@microsoft.com>
-Subject: RE: [PATCH 1/1] mm: Export a function to read vm_committed_as
-Date: Tue, 13 Nov 2012 05:24:57 +0000
-Message-ID: <426367E2313C2449837CD2DE46E7EAF930E3E0B5@BL2PRD0310MB375.namprd03.prod.outlook.com>
-References: <1352600728-17766-1-git-send-email-kys@microsoft.com>
- <alpine.DEB.2.00.1211101830250.18494@chino.kir.corp.google.com>
- <426367E2313C2449837CD2DE46E7EAF930E35B45@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <alpine.DEB.2.00.1211121349130.23347@chino.kir.corp.google.com>
- <426367E2313C2449837CD2DE46E7EAF930E39FBC@SN2PRD0310MB382.namprd03.prod.outlook.com>
- <c04bb062-bbce-4980-b2b3-fbbb18e64b66@default>
- <alpine.DEB.2.00.1211121547450.3841@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211121547450.3841@chino.kir.corp.google.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 097516B002B
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 01:48:39 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MDE005OZYWO2DR0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 13 Nov 2012 15:48:38 +0900 (KST)
+Received: from localhost.localdomain ([106.116.147.30])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MDE00EQHYWPNX40@mmp2.samsung.com> for linux-mm@kvack.org;
+ Tue, 13 Nov 2012 15:48:38 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH v2] mm: cma: WARN if freed memory is still in use
+Date: Tue, 13 Nov 2012 07:47:51 +0100
+Message-id: <1352789271-18461-1-git-send-email-m.szyprowski@samsung.com>
+In-reply-to: <xa1t8va6zsad.fsf@mina86.com>
+References: <xa1t8va6zsad.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: Konrad Wilk <konrad.wilk@oracle.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "devel@linuxdriverproject.org" <devel@linuxdriverproject.org>, "olaf@aepfle.de" <olaf@aepfle.de>, "apw@canonical.com" <apw@canonical.com>, "andi@firstfloor.org" <andi@firstfloor.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kamezawa.hiroyuki@gmail.com" <kamezawa.hiroyuki@gmail.com>, "mhocko@suse.cz" <mhocko@suse.cz>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "yinghan@google.com" <yinghan@google.com>
+To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
+Memory returned to free_contig_range() must have no other references. Let
+kernel to complain loudly if page reference count is not equal to 1.
 
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
+CC: Michal Nazarewicz <mina86@mina86.com>
+---
+ mm/page_alloc.c |    9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-> -----Original Message-----
-> From: David Rientjes [mailto:rientjes@google.com]
-> Sent: Monday, November 12, 2012 6:49 PM
-> To: Dan Magenheimer
-> Cc: KY Srinivasan; Konrad Wilk; gregkh@linuxfoundation.org; linux-
-> kernel@vger.kernel.org; devel@linuxdriverproject.org; olaf@aepfle.de;
-> apw@canonical.com; andi@firstfloor.org; akpm@linux-foundation.org; linux-
-> mm@kvack.org; kamezawa.hiroyuki@gmail.com; mhocko@suse.cz;
-> hannes@cmpxchg.org; yinghan@google.com
-> Subject: RE: [PATCH 1/1] mm: Export a function to read vm_committed_as
->=20
-> On Mon, 12 Nov 2012, Dan Magenheimer wrote:
->=20
-> > > > Why?  Is xen using it for a different inference?
-> > >
-> > > I think it is good to separate these patches. Dan (copied here) wrote=
- the code
-> for the
-> > > Xen self balloon driver. If it is ok with him I can submit the patch =
-for Xen as
-> well.
-> >
-> > Hi KY --
-> >
-> > If I understand correctly, this would be only a cosmetic (function rena=
-ming)
-> change
-> > to the Xen selfballooning code.  If so, then I will be happy to Ack whe=
-n I
-> > see the patch.  However, Konrad (konrad.wilk@oracle.com) is the maintai=
-ner
-> > for all Xen code so you should ask him... and (from previous painful ex=
-perience)
-> > it can be difficult to sync even very simple interdependent changes goi=
-ng
-> through
-> > different maintainers without breaking linux-next.  So I can't offer an=
-y
-> > help with that process, only commiseration. :-(
-> >
->=20
-> I think this should be done in the same patch as the function getting
-> introduced with a cc to Konrad and routed through -mm; even better,
-> perhaps he'll have some useful comments for how this is used for xen that
-> can be included for context.
->=20
-Ok; I will send out a single patch. I am hoping this can be applied soon as=
- Hyper-V balloon
-driver is queued behind this.
-
-Regards,
-
-K. Y
-
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 022e4ed..290c2eb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5888,8 +5888,13 @@ done:
+ 
+ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ {
+-	for (; nr_pages--; ++pfn)
+-		__free_page(pfn_to_page(pfn));
++	struct page *page = pfn_to_page(pfn);
++	int count = 0;
++	for (; nr_pages--; page++) {
++		count += page_count(page) != 1;
++		__free_page(page);
++	}
++	WARN(count != 0, "%d pages are still in use!\n", count);
+ }
+ #endif
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
