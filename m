@@ -1,61 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id 4280B6B0072
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 16:39:41 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id t2so6040687qcq.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 13:39:40 -0800 (PST)
-Message-ID: <50A2BE19.7000604@gmail.com>
-Date: Tue, 13 Nov 2012 16:39:37 -0500
-From: Xi Wang <xi.wang@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH v2] mm: fix null dev in dma_pool_create()
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-In-Reply-To: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 8556A6B0074
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 17:03:54 -0500 (EST)
+Date: Tue, 13 Nov 2012 14:03:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 50181] New: Memory usage doubles after more then 20 hours
+ of uptime.
+Message-Id: <20121113140352.4d2db9e8.akpm@linux-foundation.org>
+In-Reply-To: <bug-50181-27@https.bugzilla.kernel.org/>
+References: <bug-50181-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: sukijaki@gmail.com
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-A few drivers invoke dma_pool_create() with a null dev.  Note that dev
-is dereferenced in dev_to_node(dev), causing a null pointer dereference.
 
-A long term solution is to disallow null dev.  Once the drivers are
-fixed, we can simplify the core code here.  For now we add WARN_ON(!dev)
-to notify the driver maintainers and avoid the null pointer dereference.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Xi Wang <xi.wang@gmail.com>
----
- mm/dmapool.c |    5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+On Tue,  6 Nov 2012 15:11:48 +0000 (UTC)
+bugzilla-daemon@bugzilla.kernel.org wrote:
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index c5ab33b..bf7f8f0 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -135,6 +135,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- {
- 	struct dma_pool *retval;
- 	size_t allocation;
-+	int node;
- 
- 	if (align == 0) {
- 		align = 1;
-@@ -159,7 +160,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- 		return NULL;
- 	}
- 
--	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
-+	node = WARN_ON(!dev) ? -1 : dev_to_node(dev);
-+
-+	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, node);
- 	if (!retval)
- 		return retval;
- 
--- 
-1.7.10.4
+> https://bugzilla.kernel.org/show_bug.cgi?id=50181
+> 
+>            Summary: Memory usage doubles after more then 20 hours of
+>                     uptime.
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 3.7-rc3 and 3.7-rc4
+>           Platform: All
+>         OS/Version: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>         AssignedTo: akpm@linux-foundation.org
+>         ReportedBy: sukijaki@gmail.com
+>         Regression: Yes
+> 
+> 
+> Created an attachment (id=85721)
+>  --> (https://bugzilla.kernel.org/attachment.cgi?id=85721)
+> kernel config file
+> 
+> After 20 hours of uptime, memory usage starts going up. Normal usage for my
+> system was around 2.5GB max with all my apps and services up and running. But
+> with 3.7-rc3 and now -rc4 kernel, after more then 20 hours of uptime, it starts
+> to going up. With kernel before 3.7-rc3, my machine could be up for 10 days and
+> not go beyond 2.6GB memory usage.
+> 
+> If I start some app that uses a lot of memory, when there is already 4 or even
+> 6GB used already, insted of freeing the memory, it starts to swap it, and
+> everything slows down with a lot of iowait. 
+> 
+> Here is "free -m" output after 24 hours of uptime:
+> 
+> free -m
+>              total       used       free     shared    buffers     cached
+> Mem:          7989       7563        426          0        146       2772
+> -/+ buffers/cache:       4643       3345
+> Swap:         1953        688       1264
+> 
+> 
+> I know that it is ok for memory to be used this much for buffers and cache, but
+> it is not normal not to relase it when it is needed.
+> 
+> In attachment is my kernel config file.
+> 
+
+Sounds like a memory leak.
+
+Please get the machine into this state and then send us
+
+- the contents of /proc/meminfo
+
+- the contents of /proc/slabinfo
+
+- the contents of /proc/vmstat
+
+- as root:
+
+	dmesg -c
+	echo m > /proc/sysrq-trigger
+	dmesg
+
+thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
