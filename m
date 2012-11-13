@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 818C36B00B4
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:14:11 -0500 (EST)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id B0BFB6B00B5
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:14:12 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 28/31] sched: numa: Implement home-node awareness
-Date: Tue, 13 Nov 2012 11:12:57 +0000
-Message-Id: <1352805180-1607-29-git-send-email-mgorman@suse.de>
+Subject: [PATCH 29/31] sched: numa: CPU follows memory
+Date: Tue, 13 Nov 2012 11:12:58 +0000
+Message-Id: <1352805180-1607-30-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,702 +13,541 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-NOTE: Entirely on "sched, numa, mm: Implement home-node awareness" but
-	only a subset of it. There was stuff in there that was disabled
-	by default and generally did slightly more than what I felt was
-	necessary at this stage. In particular the random queue selection
-	logic is gone because it looks broken but it does mean that the
-	last CPU in a node may see increased scheduling pressure which
-	is almost certainly the wrong thing to do. Needs re-examination
-	Signed-offs removed as a result but will re-add if authors are ok.
+NOTE: This is heavily based on "autonuma: CPU follows memory algorithm"
+	and "autonuma: mm_autonuma and task_autonuma data structures"
+	with bits taken but worked within the scheduler hooks and home
+	node mechanism as defined by schednuma.
 
-Implement home node preference in the scheduler's load-balancer.
-
-- task_numa_hot(); make it harder to migrate tasks away from their
-  home-node, controlled using the NUMA_HOMENODE_PREFERRED feature flag.
-
-- load_balance(); during the regular pull load-balance pass, try
-  pulling tasks that are on the wrong node first with a preference of
-  moving them nearer to their home-node through task_numa_hot(), controlled
-  through the NUMA_PULL feature flag.
-
-- load_balance(); when the balancer finds no imbalance, introduce
-  some such that it still prefers to move tasks towards their home-node,
-  using active load-balance if needed, controlled through the NUMA_PULL_BIAS
-  feature flag.
-
-  In particular, only introduce this BIAS if the system is otherwise properly
-  (weight) balanced and we either have an offnode or !numa task to trade
-  for it.
-
-In order to easily find off-node tasks, split the per-cpu task list
-into two parts.
+This patch adds per-mm and per-task data structures to track the number
+of faults in total and on a per-nid basis. On each NUMA fault it
+checks if the system would benefit if the current task was migrated
+to another node. If the task should be migrated, its home node is
+updated and the task is requeued.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/sched.h   |    3 +
- kernel/sched/core.c     |   14 ++-
- kernel/sched/debug.c    |    3 +
- kernel/sched/fair.c     |  298 +++++++++++++++++++++++++++++++++++++++++++----
- kernel/sched/features.h |   18 +++
- kernel/sched/sched.h    |   16 +++
- 6 files changed, 324 insertions(+), 28 deletions(-)
+ include/linux/mm_types.h |   26 +++++
+ include/linux/sched.h    |   19 +++-
+ kernel/fork.c            |   18 +++
+ kernel/sched/core.c      |    3 +
+ kernel/sched/fair.c      |  275 ++++++++++++++++++++++++++++++++++++++++++++--
+ kernel/sched/sched.h     |   14 +++
+ 6 files changed, 344 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 2677f22..7ebf32e 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -823,6 +823,7 @@ enum cpu_idle_type {
- #define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
- #define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
- #define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-+#define SD_NUMA			0x4000	/* cross-node balancing */
- 
- extern int __weak arch_sd_sibiling_asym_packing(void);
- 
-@@ -1481,6 +1482,7 @@ struct task_struct {
- #endif
- #ifdef CONFIG_BALANCE_NUMA
- 	int home_node;
-+	unsigned long numa_contrib;
- 	int numa_scan_seq;
- 	int numa_migrate_seq;
- 	unsigned int numa_scan_period;
-@@ -2104,6 +2106,7 @@ extern int sched_setscheduler(struct task_struct *, int,
- 			      const struct sched_param *);
- extern int sched_setscheduler_nocheck(struct task_struct *, int,
- 				      const struct sched_param *);
-+extern void sched_setnode(struct task_struct *p, int node);
- extern struct task_struct *idle_task(int cpu);
- /**
-  * is_idle_task - is the specified task an idle task?
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 55dcf53..3d9fc26 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -5978,9 +5978,9 @@ static struct sched_domain_topology_level *sched_domain_topology = default_topol
-  * Requeues a task ensuring its on the right load-balance list so
-  * that it might get migrated to its new home.
-  *
-- * Note that we cannot actively migrate ourselves since our callers
-- * can be from atomic context. We rely on the regular load-balance
-- * mechanisms to move us around -- its all preference anyway.
-+ * Since home-node is pure preference there's no hard migrate to force
-+ * us anywhere, this also allows us to call this from atomic context if
-+ * required.
-  */
- void sched_setnode(struct task_struct *p, int node)
- {
-@@ -6053,6 +6053,7 @@ sd_numa_init(struct sched_domain_topology_level *tl, int cpu)
- 					| 0*SD_SHARE_PKG_RESOURCES
- 					| 1*SD_SERIALIZE
- 					| 0*SD_PREFER_SIBLING
-+					| 1*SD_NUMA
- 					| sd_local_flags(level)
- 					,
- 		.last_balance		= jiffies,
-@@ -6914,7 +6915,12 @@ void __init sched_init(void)
- 		rq->avg_idle = 2*sysctl_sched_migration_cost;
- 
- 		INIT_LIST_HEAD(&rq->cfs_tasks);
--
-+#ifdef CONFIG_BALANCE_NUMA
-+		INIT_LIST_HEAD(&rq->offnode_tasks);
-+		rq->onnode_running = 0;
-+		rq->offnode_running = 0;
-+		rq->offnode_weight = 0;
-+#endif
- 		rq_attach_root(rq, &def_root_domain);
- #ifdef CONFIG_NO_HZ
- 		rq->nohz_flags = 0;
-diff --git a/kernel/sched/debug.c b/kernel/sched/debug.c
-index 6f79596..2474a02 100644
---- a/kernel/sched/debug.c
-+++ b/kernel/sched/debug.c
-@@ -132,6 +132,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
- 	SEQ_printf(m, "%15Ld %15Ld %15Ld.%06ld %15Ld.%06ld %15Ld.%06ld",
- 		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
- #endif
-+#ifdef CONFIG_BALANCE_NUMA
-+	SEQ_printf(m, " %d/%d", p->home_node, cpu_to_node(task_cpu(p)));
-+#endif
- #ifdef CONFIG_CGROUP_SCHED
- 	SEQ_printf(m, " %s", task_group_path(task_group(p)));
- #endif
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 9c242e8..a816bbe 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -775,6 +775,51 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
- }
- 
- /**************************************************
-+ * Scheduling class numa methods.
-+ */
-+
-+#ifdef CONFIG_SMP
-+static unsigned long task_h_load(struct task_struct *p);
-+#endif
-+
-+#ifdef CONFIG_BALANCE_NUMA
-+static struct list_head *account_numa_enqueue(struct rq *rq, struct task_struct *p)
-+{
-+	struct list_head *tasks = &rq->cfs_tasks;
-+
-+	if (tsk_home_node(p) != cpu_to_node(task_cpu(p))) {
-+		p->numa_contrib = task_h_load(p);
-+		rq->offnode_weight += p->numa_contrib;
-+		rq->offnode_running++;
-+		tasks = &rq->offnode_tasks;
-+	} else
-+		rq->onnode_running++;
-+
-+	return tasks;
-+}
-+
-+static void account_numa_dequeue(struct rq *rq, struct task_struct *p)
-+{
-+	if (tsk_home_node(p) != cpu_to_node(task_cpu(p))) {
-+		rq->offnode_weight -= p->numa_contrib;
-+		rq->offnode_running--;
-+	} else
-+		rq->onnode_running--;
-+}
-+#else
-+#ifdef CONFIG_SMP
-+static struct list_head *account_numa_enqueue(struct rq *rq, struct task_struct *p)
-+{
-+	return NULL;
-+}
-+#endif
-+
-+static void account_numa_dequeue(struct rq *rq, struct task_struct *p)
-+{
-+}
-+#endif /* CONFIG_BALANCE_NUMA */
-+
-+/**************************************************
-  * Scheduling class queueing methods:
-  */
- 
-@@ -950,9 +995,17 @@ account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
- 	if (!parent_entity(se))
- 		update_load_add(&rq_of(cfs_rq)->load, se->load.weight);
- #ifdef CONFIG_SMP
--	if (entity_is_task(se))
--		list_add(&se->group_node, &rq_of(cfs_rq)->cfs_tasks);
--#endif
-+	if (entity_is_task(se)) {
-+		struct rq *rq = rq_of(cfs_rq);
-+		struct task_struct *p = task_of(se);
-+		struct list_head *tasks = &rq->cfs_tasks;
-+
-+		if (tsk_home_node(p) != -1)
-+			tasks = account_numa_enqueue(rq, p);
-+
-+		list_add(&se->group_node, tasks);
-+	}
-+#endif /* CONFIG_SMP */
- 	cfs_rq->nr_running++;
- }
- 
-@@ -962,8 +1015,14 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
- 	update_load_sub(&cfs_rq->load, se->load.weight);
- 	if (!parent_entity(se))
- 		update_load_sub(&rq_of(cfs_rq)->load, se->load.weight);
--	if (entity_is_task(se))
-+	if (entity_is_task(se)) {
-+		struct task_struct *p = task_of(se);
-+
- 		list_del_init(&se->group_node);
-+
-+		if (tsk_home_node(p) != -1)
-+			account_numa_dequeue(rq_of(cfs_rq), p);
-+	}
- 	cfs_rq->nr_running--;
- }
- 
-@@ -3227,6 +3286,8 @@ struct lb_env {
- 
- 	unsigned int		flags;
- 
-+	struct list_head	*tasks;
-+
- 	unsigned int		loop;
- 	unsigned int		loop_break;
- 	unsigned int		loop_max;
-@@ -3248,10 +3309,32 @@ static void move_task(struct task_struct *p, struct lb_env *env)
- }
- 
- /*
-+ * Returns true if task should stay on the current node. The intent is that
-+ * a task that is running on a node identified as the "home node" should
-+ * stay there if possible
-+ */
-+static bool task_numa_hot(struct task_struct *p, struct lb_env *env)
-+{
-+	int from_dist, to_dist;
-+	int node = tsk_home_node(p);
-+
-+	if (!sched_feat_numa(NUMA_HOMENODE_PREFERRED) || node == -1)
-+		return false; /* no node preference */
-+
-+	from_dist = node_distance(cpu_to_node(env->src_cpu), node);
-+	to_dist = node_distance(cpu_to_node(env->dst_cpu), node);
-+
-+	if (to_dist < from_dist)
-+		return false; /* getting closer is ok */
-+
-+	return true; /* stick to where we are */
-+}
-+
-+/*
-  * Is this task likely cache-hot:
-  */
- static int
--task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
-+task_hot(struct task_struct *p, struct lb_env *env)
- {
- 	s64 delta;
- 
-@@ -3274,7 +3357,7 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
- 	if (sysctl_sched_migration_cost == 0)
- 		return 0;
- 
--	delta = now - p->se.exec_start;
-+	delta = env->src_rq->clock_task - p->se.exec_start;
- 
- 	return delta < (s64)sysctl_sched_migration_cost;
- }
-@@ -3331,7 +3414,9 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- 	 * 2) too many balance attempts have failed.
- 	 */
- 
--	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
-+	tsk_cache_hot = task_hot(p, env);
-+	if (env->idle == CPU_NOT_IDLE)
-+		tsk_cache_hot |= task_numa_hot(p, env);
- 	if (!tsk_cache_hot ||
- 		env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
- #ifdef CONFIG_SCHEDSTATS
-@@ -3353,15 +3438,15 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
- /*
-  * move_one_task tries to move exactly one task from busiest to this_rq, as
-  * part of active balancing operations within "domain".
-- * Returns 1 if successful and 0 otherwise.
-+ * Returns true if successful and false otherwise.
-  *
-  * Called with both runqueues locked.
-  */
--static int move_one_task(struct lb_env *env)
-+static bool __move_one_task(struct lb_env *env)
- {
- 	struct task_struct *p, *n;
- 
--	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
-+	list_for_each_entry_safe(p, n, env->tasks, se.group_node) {
- 		if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu))
- 			continue;
- 
-@@ -3375,12 +3460,25 @@ static int move_one_task(struct lb_env *env)
- 		 * stats here rather than inside move_task().
- 		 */
- 		schedstat_inc(env->sd, lb_gained[env->idle]);
--		return 1;
-+		return true;
- 	}
--	return 0;
-+	return false;
- }
- 
--static unsigned long task_h_load(struct task_struct *p);
-+static bool move_one_task(struct lb_env *env)
-+{
-+	if (sched_feat_numa(NUMA_HOMENODE_PULL)) {
-+		env->tasks = offnode_tasks(env->src_rq);
-+		if (__move_one_task(env))
-+			return true;
-+	}
-+
-+	env->tasks = &env->src_rq->cfs_tasks;
-+	if (__move_one_task(env))
-+		return true;
-+
-+	return false;
-+}
- 
- static const unsigned int sched_nr_migrate_break = 32;
- 
-@@ -3393,7 +3491,6 @@ static const unsigned int sched_nr_migrate_break = 32;
-  */
- static int move_tasks(struct lb_env *env)
- {
--	struct list_head *tasks = &env->src_rq->cfs_tasks;
- 	struct task_struct *p;
- 	unsigned long load;
- 	int pulled = 0;
-@@ -3401,8 +3498,9 @@ static int move_tasks(struct lb_env *env)
- 	if (env->imbalance <= 0)
- 		return 0;
- 
--	while (!list_empty(tasks)) {
--		p = list_first_entry(tasks, struct task_struct, se.group_node);
-+again:
-+	while (!list_empty(env->tasks)) {
-+		p = list_first_entry(env->tasks, struct task_struct, se.group_node);
- 
- 		env->loop++;
- 		/* We've more or less seen every task there is, call it quits */
-@@ -3413,7 +3511,7 @@ static int move_tasks(struct lb_env *env)
- 		if (env->loop > env->loop_break) {
- 			env->loop_break += sched_nr_migrate_break;
- 			env->flags |= LBF_NEED_BREAK;
--			break;
-+			goto out;
- 		}
- 
- 		if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
-@@ -3441,7 +3539,7 @@ static int move_tasks(struct lb_env *env)
- 		 * the critical section.
- 		 */
- 		if (env->idle == CPU_NEWLY_IDLE)
--			break;
-+			goto out;
- #endif
- 
- 		/*
-@@ -3449,13 +3547,20 @@ static int move_tasks(struct lb_env *env)
- 		 * weighted load.
- 		 */
- 		if (env->imbalance <= 0)
--			break;
-+			goto out;
- 
- 		continue;
- next:
--		list_move_tail(&p->se.group_node, tasks);
-+		list_move_tail(&p->se.group_node, env->tasks);
- 	}
- 
-+	if (env->tasks == offnode_tasks(env->src_rq)) {
-+		env->tasks = &env->src_rq->cfs_tasks;
-+		env->loop = 0;
-+		goto again;
-+	}
-+
-+out:
- 	/*
- 	 * Right now, this is one of only two places move_task() is called,
- 	 * so we can safely collect move_task() stats here rather than
-@@ -3574,12 +3679,13 @@ static inline void update_shares(int cpu)
- static inline void update_h_load(long cpu)
- {
- }
--
-+#ifdef CONFIG_SMP
- static unsigned long task_h_load(struct task_struct *p)
- {
- 	return p->se.load.weight;
- }
- #endif
-+#endif
- 
- /********** Helpers for find_busiest_group ************************/
- /*
-@@ -3610,6 +3716,14 @@ struct sd_lb_stats {
- 	unsigned int  busiest_group_weight;
- 
- 	int group_imb; /* Is there imbalance in this sd */
-+#ifdef CONFIG_BALANCE_NUMA
-+	struct sched_group *numa_group; /* group which has offnode_tasks */
-+	unsigned long numa_group_weight;
-+	unsigned long numa_group_running;
-+
-+	unsigned long this_offnode_running;
-+	unsigned long this_onnode_running;
-+#endif
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index b40f4ef..66172d6 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -308,6 +308,29 @@ struct mm_rss_stat {
+ 	atomic_long_t count[NR_MM_COUNTERS];
  };
  
- /*
-@@ -3625,6 +3739,11 @@ struct sg_lb_stats {
- 	unsigned long group_weight;
- 	int group_imb; /* Is there an imbalance in the group ? */
- 	int group_has_capacity; /* Is there extra capacity in the group? */
 +#ifdef CONFIG_BALANCE_NUMA
-+	unsigned long numa_offnode_weight;
-+	unsigned long numa_offnode_running;
-+	unsigned long numa_onnode_running;
-+#endif
- };
- 
- /**
-@@ -3653,6 +3772,121 @@ static inline int get_sd_load_idx(struct sched_domain *sd,
- 	return load_idx;
- }
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+static inline void update_sg_numa_stats(struct sg_lb_stats *sgs, struct rq *rq)
-+{
-+	sgs->numa_offnode_weight += rq->offnode_weight;
-+	sgs->numa_offnode_running += rq->offnode_running;
-+	sgs->numa_onnode_running += rq->onnode_running;
-+}
-+
 +/*
-+ * Since the offnode lists are indiscriminate (they contain tasks for all other
-+ * nodes) it is impossible to say if there's any task on there that wants to
-+ * move towards the pulling cpu. Therefore select a random offnode list to pull
-+ * from such that eventually we'll try them all.
-+ *
-+ * Select a random group that has offnode tasks as sds->numa_group
++ * Per-mm structure that contains the NUMA memory placement statistics
++ * generated by pte_numa faults.
 + */
-+static inline void update_sd_numa_stats(struct sched_domain *sd,
-+		struct sched_group *group, struct sd_lb_stats *sds,
-+		int local_group, struct sg_lb_stats *sgs)
-+{
-+	if (!(sd->flags & SD_NUMA))
-+		return;
-+
-+	if (local_group) {
-+		sds->this_offnode_running = sgs->numa_offnode_running;
-+		sds->this_onnode_running  = sgs->numa_onnode_running;
-+		return;
-+	}
-+
-+	if (!sgs->numa_offnode_running)
-+		return;
-+
-+	if (!sds->numa_group) {
-+		sds->numa_group = group;
-+		sds->numa_group_weight = sgs->numa_offnode_weight;
-+		sds->numa_group_running = sgs->numa_offnode_running;
-+	}
-+}
-+
-+/*
-+ * Pick a random queue from the group that has offnode tasks.
-+ */
-+static struct rq *find_busiest_numa_queue(struct lb_env *env,
-+					  struct sched_group *group)
-+{
-+	struct rq *busiest = NULL, *rq;
-+	int cpu;
-+
-+	for_each_cpu_and(cpu, sched_group_cpus(group), env->cpus) {
-+		rq = cpu_rq(cpu);
-+		if (!rq->offnode_running)
-+			continue;
-+		if (!busiest)
-+			busiest = rq;
-+	}
-+
-+	return busiest;
-+}
-+
-+/*
-+ * Called in case of no other imbalance. Returns true if there is a queue
-+ * running offnode tasks which pretends we are imbalanced anyway to nudge these
-+ * tasks towards their home node.
-+ */
-+static inline int check_numa_busiest_group(struct lb_env *env, struct sd_lb_stats *sds)
-+{
-+	if (!sched_feat(NUMA_HOMENODE_PULL_BIAS))
-+		return false;
-+
-+	if (!sds->numa_group)
-+		return false;
++struct mm_balancenuma {
++	/*
++	 * Number of pages that will trigger NUMA faults for this mm. Total
++	 * decays each time whether the home node should change to keep
++	 * track only of recent events
++	 */
++	unsigned long mm_numa_fault_tot;
 +
 +	/*
-+	 * Only pull an offnode task home if we've got offnode or !numa tasks to trade for it.
++	 * Number of pages that will trigger NUMA faults for each [nid].
++	 * Also decays.
 +	 */
-+	if (!sds->this_offnode_running &&
-+	    !(sds->this_nr_running - sds->this_onnode_running - sds->this_offnode_running))
-+		return false;
++	unsigned long mm_numa_fault[0];
 +
-+	env->imbalance = sds->numa_group_weight / sds->numa_group_running;
-+	sds->busiest = sds->numa_group;
-+	env->find_busiest_queue = find_busiest_numa_queue;
-+	return true;
++	/* do not add more variables here, the above array size is dynamic */
++};
++#endif /* CONFIG_BALANCE_NUMA */
++
+ struct mm_struct {
+ 	struct vm_area_struct * mmap;		/* list of VMAs */
+ 	struct rb_root mm_rb;
+@@ -411,6 +434,9 @@ struct mm_struct {
+ 
+ 	/* numa_scan_seq prevents two threads setting pte_numa */
+ 	int numa_scan_seq;
++
++	/* this is used by the scheduler and the page allocator */
++	struct mm_balancenuma *mm_balancenuma;
+ #endif
+ 	struct uprobes_state uprobes_state;
+ };
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 7ebf32e..336ec68 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1188,6 +1188,23 @@ enum perf_event_task_context {
+ 	perf_nr_task_contexts,
+ };
+ 
++#ifdef CONFIG_BALANCE_NUMA
++/*
++ * Per-task structure that contains the NUMA memory placement statistics
++ * generated by pte_numa faults. This structure is dynamically allocated
++ * when the first pte_numa fault is handled.
++ */
++struct task_balancenuma {
++	/* Total number of eligible pages that triggered NUMA faults */
++	unsigned long task_numa_fault_tot;
++
++	/* Number of pages that triggered NUMA faults for each [nid] */
++	unsigned long task_numa_fault[0];
++
++	/* do not add more variables here, the above array size is dynamic */
++};
++#endif /* CONFIG_BALANCE_NUMA */
++
+ struct task_struct {
+ 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
+ 	void *stack;
+@@ -1488,6 +1505,7 @@ struct task_struct {
+ 	unsigned int numa_scan_period;
+ 	u64 node_stamp;			/* migration stamp  */
+ 	struct callback_head numa_work;
++	struct task_balancenuma *task_balancenuma;
+ #endif /* CONFIG_BALANCE_NUMA */
+ 
+ 	struct rcu_head rcu;
+@@ -2022,7 +2040,6 @@ extern unsigned int sysctl_balance_numa_scan_delay;
+ extern unsigned int sysctl_balance_numa_scan_period_min;
+ extern unsigned int sysctl_balance_numa_scan_period_max;
+ extern unsigned int sysctl_balance_numa_scan_size;
+-extern unsigned int sysctl_balance_numa_settle_count;
+ 
+ #ifdef CONFIG_SCHED_DEBUG
+ extern unsigned int sysctl_sched_migration_cost;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 8b20ab7..c8752f6 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -525,6 +525,20 @@ static void mm_init_aio(struct mm_struct *mm)
+ #endif
+ }
+ 
++#ifdef CONFIG_BALANCE_NUMA
++static inline void free_mm_balancenuma(struct mm_struct *mm)
++{
++	if (mm->mm_balancenuma)
++		kfree(mm->mm_balancenuma);
++
++	mm->mm_balancenuma = NULL;
++}
++#else
++static inline void free_mm_balancenuma(struct mm_struct *mm)
++{
++}
++#endif
++
+ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ {
+ 	atomic_set(&mm->mm_users, 1);
+@@ -539,6 +553,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ 	spin_lock_init(&mm->page_table_lock);
+ 	mm->free_area_cache = TASK_UNMAPPED_BASE;
+ 	mm->cached_hole_size = ~0UL;
++	mm->mm_balancenuma = NULL;
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+ 
+@@ -548,6 +563,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ 		return mm;
+ 	}
+ 
++	free_mm_balancenuma(mm);
+ 	free_mm(mm);
+ 	return NULL;
+ }
+@@ -597,6 +613,7 @@ void __mmdrop(struct mm_struct *mm)
+ 	destroy_context(mm);
+ 	mmu_notifier_mm_destroy(mm);
+ 	check_mm(mm);
++	free_mm_balancenuma(mm);
+ 	free_mm(mm);
+ }
+ EXPORT_SYMBOL_GPL(__mmdrop);
+@@ -854,6 +871,7 @@ fail_nocontext:
+ 	 * If init_new_context() failed, we cannot use mmput() to free the mm
+ 	 * because it calls destroy_context()
+ 	 */
++	free_mm_balancenuma(mm);
+ 	mm_free_pgd(mm);
+ 	free_mm(mm);
+ 	return NULL;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 3d9fc26..9472d5d 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1543,6 +1543,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->node_stamp = 0ULL;
+ 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+ 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
++	p->task_balancenuma = NULL;
+ 	p->numa_scan_period = sysctl_balance_numa_scan_delay;
+ 	p->numa_work.next = &p->numa_work;
+ #endif /* CONFIG_BALANCE_NUMA */
+@@ -1787,6 +1788,8 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
+ 	if (mm)
+ 		mmdrop(mm);
+ 	if (unlikely(prev_state == TASK_DEAD)) {
++		free_task_balancenuma(prev);
++
+ 		/*
+ 		 * Remove function-return probe instances associated with this
+ 		 * task and put them back on the free list.
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index a816bbe..abcf7f5 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -836,15 +836,234 @@ unsigned int sysctl_balance_numa_scan_size = 256;
+ /* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
+ unsigned int sysctl_balance_numa_scan_delay = 1000;
+ 
++#define BALANCENUMA_SCALE 1000
++static inline unsigned long balancenuma_weight(unsigned long nid_faults,
++					       unsigned long total_faults)
++{
++	if (nid_faults > total_faults)
++		nid_faults = total_faults;
++
++	return nid_faults * BALANCENUMA_SCALE / total_faults;
 +}
 +
-+static inline bool need_active_numa_balance(struct lb_env *env)
++static inline unsigned long balancenuma_task_weight(struct task_struct *p,
++							int nid)
 +{
-+	return env->find_busiest_queue == find_busiest_numa_queue &&
-+			env->src_rq->offnode_running == 1 &&
-+			env->src_rq->nr_running == 1;
++	struct task_balancenuma *task_balancenuma = p->task_balancenuma;
++	unsigned long nid_faults, total_faults;
++
++	nid_faults = task_balancenuma->task_numa_fault[nid];
++	total_faults = task_balancenuma->task_numa_fault_tot;
++	return balancenuma_weight(nid_faults, total_faults);
 +}
 +
-+#else /* CONFIG_BALANCE_NUMA */
-+
-+static inline void update_sg_numa_stats(struct sg_lb_stats *sgs, struct rq *rq)
++static inline unsigned long balancenuma_mm_weight(struct task_struct *p,
++							int nid)
 +{
++	struct mm_balancenuma *mm_balancenuma = p->mm->mm_balancenuma;
++	unsigned long nid_faults, total_faults;
++
++	nid_faults = mm_balancenuma->mm_numa_fault[nid];
++	total_faults = mm_balancenuma->mm_numa_fault_tot;
++
++	/* It's possible for total_faults to decay to 0 in parallel so check */
++	return total_faults ? balancenuma_weight(nid_faults, total_faults) : 0;
 +}
 +
-+static inline void update_sd_numa_stats(struct sched_domain *sd,
-+		struct sched_group *group, struct sd_lb_stats *sds,
-+		int local_group, struct sg_lb_stats *sgs)
++/*
++ * Examines all other nodes examining remote tasks to see if there would
++ * be fewer remote numa faults if tasks swapped home nodes
++ */
++static void task_numa_find_placement(struct task_struct *p)
 +{
++	struct cpumask *allowed = tsk_cpus_allowed(p);
++	int this_cpu = smp_processor_id();
++	int this_nid = numa_node_id();
++	long p_task_weight, p_mm_weight;
++	long weight_diff_max = 0;
++	struct task_struct *selected_task = NULL;
++	int selected_nid = -1;
++	int nid;
++
++	p_task_weight = balancenuma_task_weight(p, this_nid);
++	p_mm_weight = balancenuma_mm_weight(p, this_nid);
++
++	/* Examine a task on every other node */
++	for_each_online_node(nid) {
++		int cpu;
++		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
++			struct rq *rq;
++			struct mm_struct *other_mm;
++			struct task_struct *other_task;
++			long this_weight, other_weight, p_weight;
++			long other_diff, this_diff;
++
++			if (!cpu_online(cpu) || idle_cpu(cpu))
++				continue;
++
++			/* Racy check if a task is running on the other rq */
++			rq = cpu_rq(cpu);
++			other_mm = rq->curr->mm;
++			if (!other_mm || !other_mm->mm_balancenuma)
++				continue;
++
++			/* Effectively pin the other task to get fault stats */
++			raw_spin_lock_irq(&rq->lock);
++			other_task = rq->curr;
++			other_mm = other_task->mm;
++
++			/* Ensure the other task has usable stats */
++			if (!other_task->task_balancenuma ||
++			    !other_task->task_balancenuma->task_numa_fault_tot ||
++			    !other_mm ||
++			    !other_mm->mm_balancenuma ||
++			    !other_mm->mm_balancenuma->mm_numa_fault_tot) {
++				raw_spin_unlock_irq(&rq->lock);
++				continue;
++			}
++
++			/* Ensure the other task can be swapped */
++			if (!cpumask_test_cpu(this_cpu,
++					      tsk_cpus_allowed(other_task))) {
++				raw_spin_unlock_irq(&rq->lock);
++				continue;
++			}
++
++			/*
++			 * Read the fault statistics. If the remote task is a
++			 * thread in the process then use the task statistics.
++			 * Otherwise use the per-mm statistics.
++			 */
++			if (other_mm == p->mm) {
++				this_weight = balancenuma_task_weight(p, nid);
++				other_weight = balancenuma_task_weight(other_task, nid);
++				p_weight = p_task_weight;
++			} else {
++				this_weight = balancenuma_mm_weight(p, nid);
++				other_weight = balancenuma_mm_weight(other_task, nid);
++				p_weight = p_mm_weight;
++			}
++
++			raw_spin_unlock_irq(&rq->lock);
++
++			/*
++			 * other_diff: How much does the current task perfer to
++			 * run on the remote node thn the task that is
++			 * currently running there?
++			 */
++			other_diff = this_weight - other_weight;
++
++			/*
++			 * this_diff: How much does the currrent task prefer to
++			 * run on the remote NUMA node compared to the current
++			 * node?
++			 */
++			this_diff = this_weight - p_weight;
++
++			/*
++			 * Would swapping the tasks reduce the overall
++			 * cross-node NUMA faults?
++			 */
++			if (other_diff > 0 && this_diff > 0) {
++				long weight_diff = other_diff + this_diff;
++
++				/* Remember the best candidate. */
++				if (weight_diff > weight_diff_max) {
++					weight_diff_max = weight_diff;
++					selected_nid = nid;
++					selected_task = other_task;
++				}
++			}
++		}
++	}
++
++	/* Swap the task on the selected target node */
++	if (selected_nid != -1) {
++		sched_setnode(p, selected_nid);
++		sched_setnode(selected_task, this_nid);
++	}
 +}
 +
-+static inline bool check_numa_busiest_group(struct lb_env *env, struct sd_lb_stats *sds)
+ static void task_numa_placement(struct task_struct *p)
+ {
++	unsigned long task_total, mm_total;
++	struct mm_balancenuma *mm_balancenuma;
++	struct task_balancenuma *task_balancenuma;
++	unsigned long mm_max_weight, task_max_weight;
++	int this_nid, nid, mm_selected_nid, task_selected_nid;
++
+ 	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+ 
+ 	if (p->numa_scan_seq == seq)
+ 		return;
+ 	p->numa_scan_seq = seq;
+ 
+-	/* FIXME: Scheduling placement policy hints go here */
++	this_nid = numa_node_id();
++	mm_balancenuma = p->mm->mm_balancenuma;
++	task_balancenuma = p->task_balancenuma;
++
++	/* If the task has no NUMA hinting page faults, use current nid */
++	mm_total = ACCESS_ONCE(mm_balancenuma->mm_numa_fault_tot);
++	if (!mm_total)
++		return;
++	task_total = task_balancenuma->task_numa_fault_tot;
++	if (!task_total)
++		return;
++
++	/*
++	 * Identify the NUMA node where this thread (task_struct), and
++	 * the process (mm_struct) as a whole, has the largest number
++	 * of NUMA faults
++	 */
++	mm_selected_nid = task_selected_nid = -1;
++	mm_max_weight = task_max_weight = 0;
++	for_each_online_node(nid) {
++		unsigned long mm_nid_fault, task_nid_fault;
++		unsigned long mm_numa_weight, task_numa_weight;
++
++		/* Read the number of task and mm faults on node */
++		mm_nid_fault = ACCESS_ONCE(mm_balancenuma->mm_numa_fault[nid]);
++		task_nid_fault = task_balancenuma->task_numa_fault[nid];
++
++		/*
++		 * The weights are the relative number of pte_numa faults that
++		 * were handled on this node in comparison to all pte_numa faults
++		 * overall
++		 */
++		mm_numa_weight = balancenuma_weight(mm_nid_fault, mm_total);
++		task_numa_weight = balancenuma_weight(task_nid_fault, task_total);
++		if (mm_numa_weight > mm_max_weight) {
++			mm_max_weight = mm_numa_weight;
++			mm_selected_nid = nid;
++		}
++		if (task_numa_weight > task_max_weight) {
++			task_max_weight = task_numa_weight;
++			task_selected_nid = nid;
++		}
++
++		/* Decay the stats by a factor of 2 */
++		p->mm->mm_balancenuma->mm_numa_fault[nid] >>= 1;
++	}
++
++	/* Recheck for a usable task_numa_fault_tot after decaying */
++	if (!task_balancenuma->task_numa_fault_tot ||
++	    !mm_balancenuma->mm_numa_fault_tot)
++		return;
++
++	/*
++	 * If this NUMA node is the selected one based on process
++	 * memory and task NUMA faults then set the home node.
++	 * There should be no need to requeue the task.
++	 */
++	if (task_selected_nid == this_nid && mm_selected_nid == this_nid) {
++		p->numa_scan_period = min(sysctl_balance_numa_scan_period_max,
++					  p->numa_scan_period * 2);
++		p->home_node = this_nid;
++		return;
++	}
++
++	p->numa_scan_period = sysctl_balance_numa_scan_period_min;
++	task_numa_find_placement(p);
+ }
+ 
+ /*
+@@ -854,7 +1073,30 @@ void task_numa_fault(int node, int pages, bool misplaced)
+ {
+ 	struct task_struct *p = current;
+ 
+-	/* FIXME: Allocate task-specific structure for placement policy here */
++	if (!p->task_balancenuma) {
++		int size = sizeof(struct task_balancenuma) +
++				(sizeof(unsigned long) * nr_node_ids);
++		p->task_balancenuma = kzalloc(size, GFP_KERNEL);
++		if (!p->task_balancenuma)
++			return;
++	}
++
++	if (!p->mm->mm_balancenuma) {
++		int size = sizeof(struct mm_balancenuma) +
++				(sizeof(unsigned long) * nr_node_ids);
++		p->mm->mm_balancenuma = kzalloc(size, GFP_KERNEL);
++		if (!p->mm->mm_balancenuma) {
++			kfree(p->task_balancenuma);
++			p->task_balancenuma = NULL;
++			return;
++		}
++	}
++
++	/* Record fault statistics */
++	p->task_balancenuma->task_numa_fault_tot++;
++	p->task_balancenuma->task_numa_fault[node]++;
++	p->mm->mm_balancenuma->mm_numa_fault_tot++;
++	p->mm->mm_balancenuma->mm_numa_fault[node]++;
+ 
+ 	/*
+ 	 * task_numa_placement can be expensive so only call it if pages were
+@@ -864,6 +1106,21 @@ void task_numa_fault(int node, int pages, bool misplaced)
+ 		task_numa_placement(p);
+ }
+ 
++static void reset_ptenuma_scan(struct task_struct *p)
 +{
-+	return false;
++	ACCESS_ONCE(p->mm->numa_scan_seq)++;
++	
++	if (p->mm && p->mm->mm_balancenuma)
++		p->mm->mm_balancenuma->mm_numa_fault_tot >>= 1;
++	if (p->task_balancenuma) {
++		int nid;
++		p->task_balancenuma->task_numa_fault_tot >>= 1;
++		for_each_online_node(nid) {
++			p->task_balancenuma->task_numa_fault[nid] >>= 1;
++		}
++	}
 +}
 +
-+static inline bool need_active_numa_balance(struct lb_env *env)
+ /*
+  * The expensive part of numa migration is done from task_work context.
+  * Triggered from task_tick_numa().
+@@ -912,7 +1169,7 @@ void task_numa_work(struct callback_head *work)
+ 	down_read(&mm->mmap_sem);
+ 	vma = find_vma(mm, offset);
+ 	if (!vma) {
+-		ACCESS_ONCE(mm->numa_scan_seq)++;
++		reset_ptenuma_scan(p);
+ 		offset = 0;
+ 		vma = mm->mmap;
+ 	}
+@@ -937,14 +1194,12 @@ void task_numa_work(struct callback_head *work)
+ 	 * It is possible to reach the end of the VMA list but the last few VMAs are
+ 	 * not guaranteed to the vma_migratable. If they are not, we would find the
+ 	 * !migratable VMA on the next scan but not reset the scanner to the start
+-	 * so check it now.
++	 * so we must check it now.
+ 	 */
+-	if (!vma) {
+-		ACCESS_ONCE(mm->numa_scan_seq)++;
+-		offset = 0;
+-		vma = mm->mmap;
+-	}
+-	mm->numa_scan_offset = offset;
++	if (vma)
++		mm->numa_scan_offset = offset;
++	else
++		reset_ptenuma_scan(p);
+ 	up_read(&mm->mmap_sem);
+ }
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 3f0e5a1..92df3d4 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -502,6 +502,20 @@ DECLARE_PER_CPU(struct rq, runqueues);
+ #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+ #define raw_rq()		(&__raw_get_cpu_var(runqueues))
+ 
++
++#ifdef CONFIG_BALANCE_NUMA
++static inline void free_task_balancenuma(struct task_struct *p)
 +{
-+	return false;
++	if (p->task_balancenuma)
++		kfree(p->task_balancenuma);
++	p->task_balancenuma = NULL;
++}
++#else
++static inline void free_task_balancenuma(struct task_struct *p)
++{
 +}
 +#endif /* CONFIG_BALANCE_NUMA */
 +
- unsigned long default_scale_freq_power(struct sched_domain *sd, int cpu)
- {
- 	return SCHED_POWER_SCALE;
-@@ -3868,6 +4102,8 @@ static inline void update_sg_lb_stats(struct lb_env *env,
- 		sgs->sum_weighted_load += weighted_cpuload(i);
- 		if (idle_cpu(i))
- 			sgs->idle_cpus++;
-+
-+		update_sg_numa_stats(sgs, rq);
- 	}
- 
- 	/*
-@@ -4021,6 +4257,8 @@ static inline void update_sd_lb_stats(struct lb_env *env,
- 			sds->group_imb = sgs.group_imb;
- 		}
- 
-+		update_sd_numa_stats(env->sd, sg, sds, local_group, &sgs);
-+
- 		sg = sg->next;
- 	} while (sg != env->sd->groups);
- }
-@@ -4251,7 +4489,7 @@ find_busiest_group(struct lb_env *env, int *balance)
- 
- 	/* There is no busy sibling group to pull tasks from */
- 	if (!sds.busiest || sds.busiest_nr_running == 0)
--		goto out_balanced;
-+		goto ret;
- 
- 	sds.avg_load = (SCHED_POWER_SCALE * sds.total_load) / sds.total_pwr;
- 
-@@ -4273,14 +4511,14 @@ find_busiest_group(struct lb_env *env, int *balance)
- 	 * don't try and pull any tasks.
- 	 */
- 	if (sds.this_load >= sds.max_load)
--		goto out_balanced;
-+		goto ret;
- 
- 	/*
- 	 * Don't pull any tasks if this group is already above the domain
- 	 * average load.
- 	 */
- 	if (sds.this_load >= sds.avg_load)
--		goto out_balanced;
-+		goto ret;
- 
- 	if (env->idle == CPU_IDLE) {
- 		/*
-@@ -4307,6 +4545,9 @@ force_balance:
- 	return sds.busiest;
- 
- out_balanced:
-+	if (check_numa_busiest_group(env, &sds))
-+		return sds.busiest;
-+
- ret:
- 	env->imbalance = 0;
- 	return NULL;
-@@ -4385,6 +4626,9 @@ static int need_active_balance(struct lb_env *env)
- 			return 1;
- 	}
- 
-+	if (need_active_numa_balance(env))
-+		return 1;
-+
- 	return unlikely(sd->nr_balance_failed > sd->cache_nice_tries+2);
- }
- 
-@@ -4437,6 +4681,8 @@ redo:
- 		schedstat_inc(sd, lb_nobusyq[idle]);
- 		goto out_balanced;
- 	}
-+	env.src_rq  = busiest;
-+	env.src_cpu = busiest->cpu;
- 
- 	BUG_ON(busiest == env.dst_rq);
- 
-@@ -4455,6 +4701,10 @@ redo:
- 		env.src_cpu   = busiest->cpu;
- 		env.src_rq    = busiest;
- 		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
-+		if (sched_feat_numa(NUMA_HOMENODE_PULL))
-+			env.tasks = offnode_tasks(busiest);
-+		else
-+			env.tasks = &busiest->cfs_tasks;
- 
- 		update_h_load(env.src_cpu);
- more_balance:
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index 7cfd289..4ae02cb 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -67,4 +67,22 @@ SCHED_FEAT(LB_MIN, false)
-  */
- #ifdef CONFIG_BALANCE_NUMA
- SCHED_FEAT(NUMA,	true)
-+
-+/* Keep tasks running on their home node if possible */
-+SCHED_FEAT(NUMA_HOMENODE_PREFERRED, true)
-+
-+/*
-+ * During the regular pull load-balance pass, try pulling tasks that are
-+ * running off their home node first with a preference to moving them
-+ * nearer their home node through task_numa_hot.
-+ */
-+SCHED_FEAT(NUMA_HOMENODE_PULL, true)
-+
-+/*
-+ * When the balancer finds no imbalance, introduce some such that it
-+ * still prefers to move tasks towards their home node, using active
-+ * load-balance if needed.
-+ */
-+SCHED_FEAT(NUMA_HOMENODE_PULL_BIAS, true)
-+
- #endif
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 9a43241..3f0e5a1 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -418,6 +418,13 @@ struct rq {
- 
- 	struct list_head cfs_tasks;
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+	unsigned long    onnode_running;
-+	unsigned long    offnode_running;
-+	unsigned long	 offnode_weight;
-+	struct list_head offnode_tasks;
-+#endif
-+
- 	u64 rt_avg;
- 	u64 age_stamp;
- 	u64 idle_stamp;
-@@ -469,6 +476,15 @@ struct rq {
- #endif
- };
- 
-+static inline struct list_head *offnode_tasks(struct rq *rq)
-+{
-+#ifdef CONFIG_BALANCE_NUMA
-+	return &rq->offnode_tasks;
-+#else
-+	return NULL;
-+#endif
-+}
-+
- static inline int cpu_of(struct rq *rq)
- {
  #ifdef CONFIG_SMP
+ 
+ #define rcu_dereference_check_sched_domain(p) \
 -- 
 1.7.9.2
 
