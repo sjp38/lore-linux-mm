@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 020796B006C
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:14:39 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id k11so3578117eaa.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:14:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id C9C1E6B0070
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:14:42 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so3578138eaa.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:14:41 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 01/31] mm/generic: Only flush the local TLB in ptep_set_access_flags()
-Date: Tue, 13 Nov 2012 18:13:24 +0100
-Message-Id: <1352826834-11774-2-git-send-email-mingo@kernel.org>
+Subject: [PATCH 02/31] x86/mm: Only do a local tlb flush in ptep_set_access_flags()
+Date: Tue, 13 Nov 2012 18:13:25 +0100
+Message-Id: <1352826834-11774-3-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,64 +17,52 @@ Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Ch
 
 From: Rik van Riel <riel@redhat.com>
 
-The function ptep_set_access_flags() is only ever used to upgrade
-access permissions to a page - i.e. they make it less restrictive.
+Because we only ever upgrade a PTE when calling ptep_set_access_flags(),
+it is safe to skip flushing entries on remote TLBs.
 
-That means the only negative side effect of not flushing remote
-TLBs in this function is that other CPUs may incur spurious page
-faults, if they happen to access the same address, and still have
-a PTE with the old permissions cached in their TLB caches.
+The worst that can happen is a spurious page fault on other CPUs, which
+would flush that TLB entry.
 
-Having another CPU maybe incur a spurious page fault is faster
-than always incurring the cost of a remote TLB flush, so replace
-the remote TLB flush with a purely local one.
-
-This should be safe on every architecture that correctly
-implements flush_tlb_fix_spurious_fault() to actually invalidate
-the local TLB entry that caused a page fault, as well as on
-architectures where the hardware invalidates TLB entries that
-cause page faults.
-
-In the unlikely event that you are hitting what appears to be
-an infinite loop of page faults, and 'git bisect' took you to
-this changeset, your architecture needs to implement
-flush_tlb_fix_spurious_fault() to actually flush the TLB entry.
+Lazily letting another CPU incur a spurious page fault occasionally
+is (much!) cheaper than aggressively flushing everybody else's TLB.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
 Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michel Lespinasse <walken@google.com>
-[ Changelog massage. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- mm/pgtable-generic.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ arch/x86/mm/pgtable.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index e642627..d8397da 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -12,8 +12,8 @@
- 
- #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
- /*
-- * Only sets the access flags (dirty, accessed, and
-- * writable). Furthermore, we know it always gets set to a "more
-+ * Only sets the access flags (dirty, accessed), as well as write 
-+ * permission. Furthermore, we know it always gets set to a "more
-  * permissive" setting, which allows most architectures to optimize
-  * this. We return whether the PTE actually changed, which in turn
-  * instructs the caller to do things like update__mmu_cache.  This
-@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	int changed = !pte_same(*ptep, entry);
- 	if (changed) {
- 		set_pte_at(vma->vm_mm, address, ptep, entry);
--		flush_tlb_page(vma, address);
-+		flush_tlb_fix_spurious_fault(vma, address);
- 	}
- 	return changed;
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 8573b83..be3bb46 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -301,6 +301,13 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 	free_page((unsigned long)pgd);
  }
+ 
++/*
++ * Used to set accessed or dirty bits in the page table entries
++ * on other architectures. On x86, the accessed and dirty bits
++ * are tracked by hardware. However, do_wp_page calls this function
++ * to also make the pte writeable at the same time the dirty bit is
++ * set. In that case we do actually need to write the PTE.
++ */
+ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 			  unsigned long address, pte_t *ptep,
+ 			  pte_t entry, int dirty)
+@@ -310,7 +317,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	if (changed && dirty) {
+ 		*ptep = entry;
+ 		pte_update_defer(vma->vm_mm, address, ptep);
+-		flush_tlb_page(vma, address);
++		__flush_tlb_one(address);
+ 	}
+ 
+ 	return changed;
 -- 
 1.7.11.7
 
