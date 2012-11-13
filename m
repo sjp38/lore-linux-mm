@@ -1,95 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 46B046B007D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:26:41 -0500 (EST)
-Date: Tue, 13 Nov 2012 14:26:34 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/19] mm: numa: Create basic numa page hinting
- infrastructure
-Message-ID: <20121113142634.GC8218@suse.de>
-References: <1352193295-26815-1-git-send-email-mgorman@suse.de>
- <1352193295-26815-9-git-send-email-mgorman@suse.de>
- <20121113102120.GD21522@gmail.com>
- <20121113115032.GY8218@suse.de>
- <20121113134910.GB17782@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121113134910.GB17782@gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id DBD186B0081
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:40:31 -0500 (EST)
+From: "K. Y. Srinivasan" <kys@microsoft.com>
+Subject: [PATCH 1/1] mm: Export a function to get vm committed memory
+Date: Tue, 13 Nov 2012 07:02:37 -0800
+Message-Id: <1352818957-9229-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, devel@linuxdriverproject.org, olaf@aepfle.de, apw@canonical.com, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyuki@gmail.com, mhocko@suse.cz, hannes@cmpxchg.org, yinghan@google.com, dan.magenheimer@oracle.com, konrad.wilk@oracle.com
+Cc: "K. Y. Srinivasan" <kys@microsoft.com>
 
-On Tue, Nov 13, 2012 at 02:49:10PM +0100, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > > But given that most architectures will be just fine reusing 
-> > > the already existing generic PROT_NONE machinery, the far 
-> > > better approach is to do what we've been doing in generic 
-> > > kernel code for the last 10 years: offer a default generic 
-> > > version, and then to offer per arch hooks on a strict 
-> > > as-needed basis, if they want or need to do something weird 
-> > > ...
-> > 
-> > If they are *not* fine with it, it's a large retrofit because 
-> > the PROT_NONE machinery has been hard-coded throughout. [...]
-> 
-> That was a valid criticism for earlier versions of the NUMA 
-> patches - but should much less be the case in the latest 
-> iterations of the patches:
-> 
+It will be useful to be able to access global memory commitment from device
+drivers. On the Hyper-V platform, the host has a policy engine to balance
+the available physical memory amongst all competing virtual machines
+hosted on a given node. This policy engine is driven by a number of metrics
+including the memory commitment reported by the guests. The balloon driver
+for Linux on Hyper-V will use this function to retrieve guest memory commitment.
+This function is also used in Xen self ballooning code.
 
-Which are where? They are possible somewhere in -tip, maybe the
-tip/numa/core but I am seeing this;
+Signed-off-by: K. Y. Srinivasan <kys@microsoft.com>
+---
+ drivers/xen/xen-selfballoon.c |    2 +-
+ include/linux/mman.h          |    2 ++
+ mm/mmap.c                     |   15 +++++++++++++++
+ mm/nommu.c                    |   16 ++++++++++++++++
+ 4 files changed, 34 insertions(+), 1 deletions(-)
 
-$ git diff e657e078d3dfa9f96976db7a2b5fd7d7c9f1f1a6..tip/numa/core | grep change_prot_none
-+change_prot_none(struct vm_area_struct *vma, unsigned long start, unsigned long end)
-+		change_prot_none(vma, offset, end);
-+			change_prot_none(vma, start, endvma);
-
-This is being called from task_numa_work() for example so it's case where
-the maintainer has to memember that prot_none actually means prot_numa in
-this case. Further, the generic implementation of pte_numa is hard-coding
-prot_none
-
-+static bool pte_numa(struct vm_area_struct *vma, pte_t pte)
-+{
-.......
-+       if (pte_same(pte, pte_modify(pte, vma->vm_page_prot)))
-+               return false;
+diff --git a/drivers/xen/xen-selfballoon.c b/drivers/xen/xen-selfballoon.c
+index 7d041cb..2552d3e 100644
+--- a/drivers/xen/xen-selfballoon.c
++++ b/drivers/xen/xen-selfballoon.c
+@@ -222,7 +222,7 @@ static void selfballoon_process(struct work_struct *work)
+ 	if (xen_selfballooning_enabled) {
+ 		cur_pages = totalram_pages;
+ 		tgt_pages = cur_pages; /* default is no change */
+-		goal_pages = percpu_counter_read_positive(&vm_committed_as) +
++		goal_pages = vm_memory_committed() +
+ 				totalreserve_pages +
+ 				MB2PAGES(selfballoon_reserved_mb);
+ #ifdef CONFIG_FRONTSWAP
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index d09dde1..9aa863d 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -11,6 +11,8 @@ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
+ extern struct percpu_counter vm_committed_as;
+ 
++unsigned long vm_memory_committed(void);
 +
-+       return pte_same(pte, pte_modify(pte, vma_prot_none(vma)));
+ static inline void vm_acct_memory(long pages)
+ {
+ 	percpu_counter_add(&vm_committed_as, pages);
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2d94235..3dd0a17 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -89,6 +89,21 @@ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+ struct percpu_counter vm_committed_as ____cacheline_aligned_in_smp;
+ 
+ /*
++ * The global memory commitment made in the system can be a metric
++ * that can be used to drive ballooning decisions when Linux is hosted
++ * as a guest. On Hyper-V, the host implements a policy engine for dynamically
++ * balancing memory across competing virtual machines that are hosted.
++ * Several metrics drive this policy engine including the guest reported
++ * memory commitment.
++ */
++
++unsigned long vm_memory_committed(void)
++{
++	return percpu_counter_read_positive(&vm_committed_as);
 +}
-
-I can take the structuring idea of moving pte_numa around but it still
-should have the _PAGE_NUMA naming. So it still looks to me as the PROT_NONE
-machine is hard-coded.
-
->  - it has generic pte_numa() / pmd_numa() instead of using
->    prot_none() directly
-> 
-
-I intend to move the pte_numa out myself.
-
->  - the key utility functions are named using the _numa pattern,
->    not *_prot_none*() anymore.
-> 
-
-Where did change_prot_none() come from then?
-
-> Let us know if you can still see such instances - it's probably 
-> simple oversight.
-> 
-
-I could be lookjing at the wrong tip branch. Please post the full series
-to the list so it can be reviewed that way instead of trying to second
-guess.
-
++EXPORT_SYMBOL_GPL(vm_memory_committed);
++
++/*
+  * Check that a process has enough memory to allocate a new virtual
+  * mapping. 0 means there is enough memory for the allocation to
+  * succeed and -ENOMEM implies there is not.
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 45131b4..f11e703 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -66,6 +66,22 @@ int heap_stack_gap = 0;
+ 
+ atomic_long_t mmap_pages_allocated;
+ 
++/*
++ * The global memory commitment made in the system can be a metric
++ * that can be used to drive ballooning decisions when Linux is hosted
++ * as a guest. On Hyper-V, the host implements a policy engine for dynamically
++ * balancing memory across competing virtual machines that are hosted.
++ * Several metrics drive this policy engine including the guest reported
++ * memory commitment.
++ */
++
++unsigned long vm_memory_committed(void)
++{
++	return percpu_counter_read_positive(&vm_committed_as);
++}
++
++EXPORT_SYMBOL_GPL(vm_memory_committed);
++
+ EXPORT_SYMBOL(mem_map);
+ EXPORT_SYMBOL(num_physpages);
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
