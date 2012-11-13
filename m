@@ -1,154 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 22F846B004D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 07:49:47 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so1420339pbc.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 04:49:46 -0800 (PST)
-Date: Tue, 13 Nov 2012 21:49:37 +0900
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 690AF6B006C
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 08:31:19 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so5512336pad.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 05:31:18 -0800 (PST)
+Date: Tue, 13 Nov 2012 22:31:09 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
- index of first flushed entry
-Message-ID: <20121113124937.GA4360@barrios>
-References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
- <1351702597-10795-5-git-send-email-js1304@gmail.com>
- <20121101050347.GD24883@bbox>
- <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
- <20121102224236.GB2070@barrios>
- <CAAmzW4MoXExAMxxJTGehBEY76nUjkSsJ66L0C+sZsnAQANA+Lw@mail.gmail.com>
+Subject: Re: zram OOM behavior
+Message-ID: <20121113133109.GA5204@barrios>
+References: <20121102063958.GC3326@bbox>
+ <20121102083057.GG8218@suse.de>
+ <20121102223630.GA2070@barrios>
+ <20121105144614.GJ8218@suse.de>
+ <20121106002550.GA3530@barrios>
+ <20121106085822.GN8218@suse.de>
+ <20121106101719.GA2005@barrios>
+ <20121109095024.GI8218@suse.de>
+ <20121112133218.GA3156@barrios>
+ <20121112140631.GV8218@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAAmzW4MoXExAMxxJTGehBEY76nUjkSsJ66L0C+sZsnAQANA+Lw@mail.gmail.com>
+In-Reply-To: <20121112140631.GV8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-On Tue, Nov 13, 2012 at 09:30:57AM +0900, JoonSoo Kim wrote:
-> 2012/11/3 Minchan Kim <minchan@kernel.org>:
-> > Hi Joonsoo,
-> >
-> > On Sat, Nov 03, 2012 at 04:07:25AM +0900, JoonSoo Kim wrote:
-> >> Hello, Minchan.
-> >>
-> >> 2012/11/1 Minchan Kim <minchan@kernel.org>:
-> >> > On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
-> >> >> In current code, after flush_all_zero_pkmaps() is invoked,
-> >> >> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
-> >> >> return index of first flushed entry. With this index,
-> >> >> we can immediately map highmem page to virtual address represented by index.
-> >> >> So change return type of flush_all_zero_pkmaps()
-> >> >> and return index of first flushed entry.
-> >> >>
-> >> >> Additionally, update last_pkmap_nr to this index.
-> >> >> It is certain that entry which is below this index is occupied by other mapping,
-> >> >> therefore updating last_pkmap_nr to this index is reasonable optimization.
-> >> >>
-> >> >> Cc: Mel Gorman <mel@csn.ul.ie>
-> >> >> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> >> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> >> >>
-> >> >> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-> >> >> index ef788b5..97ad208 100644
-> >> >> --- a/include/linux/highmem.h
-> >> >> +++ b/include/linux/highmem.h
-> >> >> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
-> >> >>
-> >> >>  #ifdef CONFIG_HIGHMEM
-> >> >>  #include <asm/highmem.h>
-> >> >> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
-> >> >>
-> >> >>  /* declarations for linux/mm/highmem.c */
-> >> >>  unsigned int nr_free_highpages(void);
-> >> >> diff --git a/mm/highmem.c b/mm/highmem.c
-> >> >> index d98b0a9..b365f7b 100644
-> >> >> --- a/mm/highmem.c
-> >> >> +++ b/mm/highmem.c
-> >> >> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
-> >> >>       return virt_to_page(addr);
-> >> >>  }
-> >> >>
-> >> >> -static void flush_all_zero_pkmaps(void)
-> >> >> +static unsigned int flush_all_zero_pkmaps(void)
-> >> >>  {
-> >> >>       int i;
-> >> >> -     int need_flush = 0;
-> >> >> +     unsigned int index = PKMAP_INVALID_INDEX;
-> >> >>
-> >> >>       flush_cache_kmaps();
-> >> >>
-> >> >> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
-> >> >>                         &pkmap_page_table[i]);
-> >> >>
-> >> >>               set_page_address(page, NULL);
-> >> >> -             need_flush = 1;
-> >> >> +             if (index == PKMAP_INVALID_INDEX)
-> >> >> +                     index = i;
-> >> >>       }
-> >> >> -     if (need_flush)
-> >> >> +     if (index != PKMAP_INVALID_INDEX)
-> >> >>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
-> >> >> +
-> >> >> +     return index;
-> >> >>  }
-> >> >>
-> >> >>  /**
-> >> >> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
-> >> >>   */
-> >> >>  void kmap_flush_unused(void)
-> >> >>  {
-> >> >> +     unsigned int index;
-> >> >> +
-> >> >>       lock_kmap();
-> >> >> -     flush_all_zero_pkmaps();
-> >> >> +     index = flush_all_zero_pkmaps();
-> >> >> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
-> >> >> +             last_pkmap_nr = index;
-> >> >
-> >> > I don't know how kmap_flush_unused is really fast path so how my nitpick
-> >> > is effective. Anyway,
-> >> > What problem happens if we do following as?
-> >> >
-> >> > lock()
-> >> > index = flush_all_zero_pkmaps();
-> >> > if (index != PKMAP_INVALID_INDEX)
-> >> >         last_pkmap_nr = index;
-> >> > unlock();
-> >> >
-> >> > Normally, last_pkmap_nr is increased with searching empty slot in
-> >> > map_new_virtual. So I expect return value of flush_all_zero_pkmaps
-> >> > in kmap_flush_unused normally become either less than last_pkmap_nr
-> >> > or last_pkmap_nr + 1.
-> >>
-> >> There is a case that return value of kmap_flush_unused() is larger
-> >> than last_pkmap_nr.
-> >
-> > I see but why it's problem? kmap_flush_unused returns larger value than
-> > last_pkmap_nr means that there is no free slot at below the value.
-> > So unconditional last_pkmap_nr update is vaild.
+On Mon, Nov 12, 2012 at 02:06:31PM +0000, Mel Gorman wrote:
+> On Mon, Nov 12, 2012 at 10:32:18PM +0900, Minchan Kim wrote:
+> > Sorry for the late reply.
+> > I'm still going on training course until this week so my response would be delayed, too.
+> > 
+> > > > > > > <SNIP>
+> > > > > > > It may be completely unnecessary to reclaim memory if the process that was
+> > > > > > > throttled and killed just exits quickly. As the fatal signal is pending
+> > > > > > > it will be able to use the pfmemalloc reserves.
+> > > > > > > 
+> > > > > > > > If he can't make forward progress with direct reclaim, he can ends up OOM path but
+> > > > > > > > out_of_memory checks signal check of current and allow to access reserved memory pool
+> > > > > > > > for quick exit and return without killing other victim selection.
+> > > > > > > 
+> > > > > > > While this is true, what advantage is there to having a killed process
+> > > > > > > potentially reclaiming memory it does not need to?
+> > > > > > 
+> > > > > > Killed process needs a memory for him to be terminated. I think it's not a good idea for him
+> > > > > > to use reserved memory pool unconditionally although he is throtlled and killed.
+> > > > > > Because reserved memory pool is very stricted resource for emergency so using reserved memory
+> > > > > > pool should be last resort after he fail to reclaim.
+> > > > > > 
+> > > > > 
+> > > > > Part of that reclaim can be the process reclaiming its own pages and
+> > > > > putting them in swap just so it can exit shortly afterwards. If it was
+> > > > > throttled in this path, it implies that swap-over-NFS is enabled where
+> > > > 
+> > > > Could we make sure it's only the case for swap-over-NFS?
+> > > 
+> > > The PFMEMALLOC reserves being consumed to the point of throttline is only
+> > > expected in the case of swap-over-network -- check the pgscan_direct_throttle
+> > > counter to be sure. So it's already the case that this throttling logic and
+> > > its signal handling is mostly a swap-over-NFS thing. It is possible that
+> > > a badly behaving driver using GFP_ATOMIC to allocate long-lived buffers
+> > > could force a situation where a process gets throttled but I'm not aware
+> > > of a case where this happens todays.
+> > 
+> > I saw some custom drviers in embedded side have used GFP_ATOMIC easily to protect
+> > avoiding deadlock.
 > 
-> I think that this is not true.
-> Look at the slightly different example.
-> 
-> Assume last_pkmap = 20 and index 1-9, 12-19 is kmapped. 10, 11 is kunmapped.
-> 
-> do kmap_flush_unused() => flush index 10,11 => last_pkmap = 10;
-> do kunmap() with index 17
-> do kmap_flush_unused() => flush index 17 => last_pkmap = 17?
-> 
-> In this case, unconditional last_pkmap_nr update skip one kunmapped index.
-> So, conditional update is needed.
+> They must be getting a lot of allocation failures in that case.
 
-Thanks for pouinting out, Joonsoo.
-You're right. I misunderstood your flush_all_zero_pkmaps change.
-As your change, flush_all_zero_pkmaps returns first *flushed* free slot index.
-What's the benefit returning flushed flushed free slot index rather than free slot index?
-I think flush_all_zero_pkmaps should return first free slot because customer of
-flush_all_zero_pkmaps doesn't care whether it's just flushed or not.
-What he want is just free or not. In such case, we can remove above check and it makes
-flusha_all_zero_pkmaps more intuitive.
+It depends on workload and I didn't received any report from them.
 
+> 
+> > Of course, it's not a good behavior but it lives with us.
+> > Even, we can't fix it because we don't have any source. :(
+> > 
+> > > 
+> > > > I think it can happen if the system has very slow thumb card.
+> > > > 
+> > > 
+> > > How? They shouldn't be stuck in throttling in this case. They should be
+> > > blocked on IO, congestion wait, dirty throttling etc.
+> > 
+> > Some block driver(ex, mmc) uses a thread model with PF_MEMALLOC so I think
+> > they can be stucked by the throttling logic.
+> > 
+> 
+> If they are using PF_MEMALLOC + GFP_ATOMIC, there is a strong chance
+> that they'll actually deadlock their system if there are a storm of
+> allocations. The drivers is fundamentally broken in a dangerous way.
+> None of that is fixed by forcing an exiting process to enter direct reclaim.
+
+Agreed.
+
+> 
+> > > 
+> > > > > such reclaim in fact might require the pfmemalloc reserves to be used to
+> > > > > allocate network buffers. It's potentially unnecessary work because the
+> > > > 
+> > > > You mean we need pfmemalloc reserve to swap out anon pages by swap-over-NFS?
+> > > 
+> > > In very low-memory situations - yes. We can be at the min watermark but
+> > > still need to allocate a page for a network buffer to swap out the anon page.
+> > > 
+> > > > Yes. In this case, you're right. I would be better to use reserve pool for
+> > > > just exiting instead of swap out over network. But how can you make sure that
+> > > > we have only anonymous page when we try to reclaim? 
+> > > > If there are some file-backed pages, we can avoid swapout at that time.
+> > > > Maybe we need some check.
+> > > > 
+> > > 
+> > > That would be a fairly invasive set of checks for a corner case. if
+> > > swap-over-nfs + critically low + about to OOM + file pages available then
+> > > only reclaim files.
+> > > 
+> > > It's getting off track as to why we're having this discussion in the first
+> > > place -- looping due to improper handling of fatal signal pending.
+> > 
+> > If some user tune /proc/sys/vm/swappiness, we could have many page cache pages
+> > when swap-over-NFS happens.
+> 
+> That's a BIG if. swappiness could be anything and it'll depend on the
+> workload anyway.
+
+Yes but we don't have to ignore such case.
+
+> 
+> > My point is that why do we should use emergency memory pool although we have
+> > reclaimalble memory?
+> > 
+> 
+> Because as I have already pointed out, the use of swap-over-nfs itself
+> creates more allocation pressure if it is used in the reclaim path. The
+> emergency memory pool is used *anyway* unless there are clean file pages
+> that can be discarded. But that's a big "if". The safer path is to try
+> and exit and if *that* fails *then* enter direct reclaim.
+
+Okay. Let's see your code again POV side effect other than OOM deadlock problem.
+
+1. pfmemalloc_watermark_ok == false but the process is received SIGKILL
+   before calling throttle_direct_reclaim.
+
+In this case, it enters direct reclaim path and would swap out anon pages.
+It's a thing you are concerning now(ie, creates more allocation pressure)
+Is it okay?
+
+2. pfmemalloc_watermark_ok == false but the process is received SIGKILL
+   while throttling.
+
+In this case, it skips direct reclaim in first path and retry to allocate page.
+If another procces free some memory or is killed, it can get a free page and
+return. Yes. it would be good rather than unnecessary swap out and OOM kill.
+Otherwise, it calls direct compaction again and then enter direct reclaim path.
+It ends up consuming emergency memory pool to swap out anonymous pages or
+OOM killed. Again, it's a thing you are concerning now.
+
+So, your patch's effect depends on timing that other process release memory.
+Is it right?
+If it is your intention, I don't oppose it any more because apprantely it
+has a benefit than I suggested. But please write description more clearly.
+Below previous description focused only OOM deadlock problem and didn't explain
+patch's side effect which I mentioned above.
+
+[
+mm: vmscan: Check for fatal signals iff the process was throttled
+
+commit 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+are low and swap is backed by network storage") introduced a check for
+fatal signals after a process gets throttled for network storage. The
+intention was that if a process was throttled and got killed that it
+should not trigger the OOM killer. As pointed out by Minchan Kim and
+David Rientjes, this check is in the wrong place and too broad. If a
+system is in am OOM situation and a process is exiting, it can loop in
+__alloc_pages_slowpath() and calling direct reclaim in a loop. As the
+fatal signal is pending it returns 1 as if it is making forward progress
+and can effectively deadlock.
+
+This patch moves the fatal_signal_pending() check after throttling to
+throttle_direct_reclaim() where it belongs.
+
+If this patch passes review it should be considered a -stable candidate
+for 3.6.
+]
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 -- 
 Kind Regards,
