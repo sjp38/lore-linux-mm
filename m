@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 0C8FD6B004D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 02:24:46 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id k11so3316550eaa.14
-        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 23:24:45 -0800 (PST)
-Date: Tue, 13 Nov 2012 08:24:41 +0100
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 938136B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 03:19:42 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id c4so4742803eek.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 00:19:41 -0800 (PST)
+Date: Tue, 13 Nov 2012 09:19:35 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/8] Announcement: Enhanced NUMA scheduling with adaptive
- affinity
-Message-ID: <20121113072441.GA21386@gmail.com>
+Subject: Re: [PATCH 5/8] sched, numa, mm: Add adaptive NUMA affinity support
+Message-ID: <20121113081935.GB21386@gmail.com>
 References: <20121112160451.189715188@chello.nl>
- <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com>
+ <20121112161215.782018877@chello.nl>
+ <0000013af7130ad7-95edbaf9-d31d-4258-8fc0-013d152246a2-000000@email.amazonses.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com>
+In-Reply-To: <0000013af7130ad7-95edbaf9-d31d-4258-8fc0-013d152246a2-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
@@ -23,68 +23,98 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux
 
 * Christoph Lameter <cl@linux.com> wrote:
 
-> On Mon, 12 Nov 2012, Peter Zijlstra wrote:
+> > Using this, we can construct two per-task node-vectors, 
+> > 'S_i' and 'P_i' reflecting the amount of shared and 
+> > privately used pages of this task respectively. Pages for 
+> > which two consecutive 'hits' are of the same cpu are assumed 
+> > private and the others are shared.
 > 
-> > The biggest conceptual addition, beyond the elimination of 
-> > the home node, is that the scheduler is now able to 
-> > recognize 'private' versus 'shared' pages, by carefully 
-> > analyzing the pattern of how CPUs touch the working set 
-> > pages. The scheduler automatically recognizes tasks that 
-> > share memory with each other (and make dominant use of that 
-> > memory) - versus tasks that allocate and use their working 
-> > set privately.
-> 
-> That is a key distinction to make and if this really works 
-> then that is major progress.
+> The classification is per task? [...]
 
-I posted updated benchmark results yesterday, and the approach 
-is indeed a performance breakthrough:
+Yes, exactly - access patterns are fundamentally and physically 
+per task, as a task can execute only on a single CPU at once. (I 
+say 'task' instead of 'thread' or 'process' because the new code 
+makes no distinction between threads and processes.)
 
-    http://lkml.org/lkml/2012/11/12/330
+The new code maps out inter-task relationships, statistically. 
 
-It also made the code more generic and more maintainable from a 
-scheduler POV.
+So we are basically able to (statistically) approximate which 
+task relates to which other task in the system, based on their 
+memory access patterns alone: using a very compact metric and 
+matching scheduler rules and a (lazy) memory placement machinery 
+on the VM side.
 
-> > This new scheduler code is then able to group tasks that are 
-> > "memory related" via their memory access patterns together: 
-> > in the NUMA context moving them on the same node if 
-> > possible, and spreading them amongst nodes if they use 
-> > private memory.
-> 
-> What happens if processes memory accesses are related but the 
-> common set of data does not fit into the memory provided by a 
-> single node?
+Say consider the following 10-task workload, where the scheduler 
+is able to figure out these relationships:
 
-The other (very common) node-overload case is that there are 
-more tasks for a shared piece of memory than fits on a single 
-node.
+  { A, B, C, D } dominantly share memory X with each other
+  { E, F, G, H } dominantly share memory Y with each other
+  { I }          uses memory privately
+  { J }          uses memory privately
 
-I have measured two such workloads, one is the Java SPEC 
-benchmark:
+and the scheduler rules then try to converge these groups of 
+tasks ideally.
 
-   v3.7-vanilla:     494828 transactions/sec
-   v3.7-NUMA:        627228 transactions/sec    [ +26.7% ]
+[ The 'role' and grouping of tasks is not static but sampled and 
+  average based - so if a worker thread changes its role, the 
+  scheduler will adapt placement to that. ]
 
-the other is the 'numa01' testcase of autonumabench:
+[ A 'private task' is basically a special case for sharing 
+  memory: if a task only shares memory with itself. Its 
+  placement and spreading is easy. ]
 
-   v3.7-vanilla:      340.3 seconds
-   v3.7-NUMA:         216.9 seconds             [ +56% ]
+> [...] But most tasks have memory areas that are private and 
+> other areas where shared accesses occur. Can that be per 
+> memory area? [...]
 
-> The correct resolution usually is in that case to interleasve 
-> the pages over both nodes in use.
+Do you mean per vma, and/or per mm?
 
-I'd not go as far as to claim that to be a general rule: the 
-correct placement depends on the system and workload specifics: 
-how much memory is on each node, how many tasks run on each 
-node, and whether the access patterns and working set of the 
-tasks is symmetric amongst each other - which is not a given at 
-all.
+How would that work? Consider the above case:
 
-Say consider a database server that executes small and large 
-queries over a large, memory-shared database, and has worker 
-tasks to clients, to serve each query. Depending on the nature 
-of the queries, interleaving can easily be the wrong thing to 
-do.
+ - 12x CPU-intense threads and a large piece of shared memory
+
+ - 2x 4 threads are using two large shared memory area to 
+   calculate (one area for each group of threads)
+
+ - the 4 remaining processes aggregate and sort the results from
+   the 8 threads, in their own dominantly 'private' working set.
+
+how does per vma or per mm describe that properly? The whole 
+workload might be just within a single large vma within a JVM. 
+Or it might be implemented using processes and anonymous shared 
+memory.
+
+If you look at this from a 'per task access pattern and 
+inter-task working set relationship' perspective then the 
+resolution and optimization is natural: the 2x 4 threads should 
+be grouped together modulo capacity constraints, while the 
+remaining 4 'private memory' threads should be spread out over 
+the remaining capacity of the system.
+
+What matters is how tasks relate to each other as they perform 
+processing, not which APIs the workload uses to create tasks and 
+memory areas.
+
+The main constraint from a placement optimization complexity POV 
+is task->CPU placement: for NUMA workloads the main challenge - 
+and 80% of the code and much of the real meat of the feature - 
+is to categorize and place tasks properly.
+
+There might be much discussion about PROT_NONE and memory 
+migration details, but that is because the VM code is 5 times 
+larger than the scheduler code and due to that there's 5 times 
+more VM hackers than scheduler hackers ;-)
+
+In reality the main complexity of this problem [the placement 
+optimization problem portion] is a dominantly CPU/task scheduler 
+feature, and IMO rather fundamentally so: it's not an 
+implementation choice but derives from the Von Neumann model of 
+computing in essence.
+
+And that is why IMO the task based access pattern metric 
+implementaton is such a good fit in practice as well - and that 
+is why other approaches struggled getting a hold of the NUMA 
+problem.
 
 Thanks,
 
