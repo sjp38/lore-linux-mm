@@ -1,60 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 097516B002B
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 01:48:39 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MDE005OZYWO2DR0@mailout1.samsung.com> for
- linux-mm@kvack.org; Tue, 13 Nov 2012 15:48:38 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MDE00EQHYWPNX40@mmp2.samsung.com> for linux-mm@kvack.org;
- Tue, 13 Nov 2012 15:48:38 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH v2] mm: cma: WARN if freed memory is still in use
-Date: Tue, 13 Nov 2012 07:47:51 +0100
-Message-id: <1352789271-18461-1-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <xa1t8va6zsad.fsf@mina86.com>
-References: <xa1t8va6zsad.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 0C8FD6B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 02:24:46 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so3316550eaa.14
+        for <linux-mm@kvack.org>; Mon, 12 Nov 2012 23:24:45 -0800 (PST)
+Date: Tue, 13 Nov 2012 08:24:41 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/8] Announcement: Enhanced NUMA scheduling with adaptive
+ affinity
+Message-ID: <20121113072441.GA21386@gmail.com>
+References: <20121112160451.189715188@chello.nl>
+ <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-Memory returned to free_contig_range() must have no other references. Let
-kernel to complain loudly if page reference count is not equal to 1.
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-CC: Michal Nazarewicz <mina86@mina86.com>
----
- mm/page_alloc.c |    9 +++++++--
- 1 file changed, 7 insertions(+), 2 deletions(-)
+* Christoph Lameter <cl@linux.com> wrote:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 022e4ed..290c2eb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5888,8 +5888,13 @@ done:
- 
- void free_contig_range(unsigned long pfn, unsigned nr_pages)
- {
--	for (; nr_pages--; ++pfn)
--		__free_page(pfn_to_page(pfn));
-+	struct page *page = pfn_to_page(pfn);
-+	int count = 0;
-+	for (; nr_pages--; page++) {
-+		count += page_count(page) != 1;
-+		__free_page(page);
-+	}
-+	WARN(count != 0, "%d pages are still in use!\n", count);
- }
- #endif
- 
--- 
-1.7.9.5
+> On Mon, 12 Nov 2012, Peter Zijlstra wrote:
+> 
+> > The biggest conceptual addition, beyond the elimination of 
+> > the home node, is that the scheduler is now able to 
+> > recognize 'private' versus 'shared' pages, by carefully 
+> > analyzing the pattern of how CPUs touch the working set 
+> > pages. The scheduler automatically recognizes tasks that 
+> > share memory with each other (and make dominant use of that 
+> > memory) - versus tasks that allocate and use their working 
+> > set privately.
+> 
+> That is a key distinction to make and if this really works 
+> then that is major progress.
+
+I posted updated benchmark results yesterday, and the approach 
+is indeed a performance breakthrough:
+
+    http://lkml.org/lkml/2012/11/12/330
+
+It also made the code more generic and more maintainable from a 
+scheduler POV.
+
+> > This new scheduler code is then able to group tasks that are 
+> > "memory related" via their memory access patterns together: 
+> > in the NUMA context moving them on the same node if 
+> > possible, and spreading them amongst nodes if they use 
+> > private memory.
+> 
+> What happens if processes memory accesses are related but the 
+> common set of data does not fit into the memory provided by a 
+> single node?
+
+The other (very common) node-overload case is that there are 
+more tasks for a shared piece of memory than fits on a single 
+node.
+
+I have measured two such workloads, one is the Java SPEC 
+benchmark:
+
+   v3.7-vanilla:     494828 transactions/sec
+   v3.7-NUMA:        627228 transactions/sec    [ +26.7% ]
+
+the other is the 'numa01' testcase of autonumabench:
+
+   v3.7-vanilla:      340.3 seconds
+   v3.7-NUMA:         216.9 seconds             [ +56% ]
+
+> The correct resolution usually is in that case to interleasve 
+> the pages over both nodes in use.
+
+I'd not go as far as to claim that to be a general rule: the 
+correct placement depends on the system and workload specifics: 
+how much memory is on each node, how many tasks run on each 
+node, and whether the access patterns and working set of the 
+tasks is symmetric amongst each other - which is not a given at 
+all.
+
+Say consider a database server that executes small and large 
+queries over a large, memory-shared database, and has worker 
+tasks to clients, to serve each query. Depending on the nature 
+of the queries, interleaving can easily be the wrong thing to 
+do.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
