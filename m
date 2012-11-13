@@ -1,81 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 700506B0083
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:03 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 3D0986B0088
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:08 -0500 (EST)
 Received: by mail-ee0-f41.google.com with SMTP id d41so66300eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:02 -0800 (PST)
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:07 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 10/31] mm/pgprot: Move the pgprot_modify() fallback definition to mm.h
-Date: Tue, 13 Nov 2012 18:13:33 +0100
-Message-Id: <1352826834-11774-11-git-send-email-mingo@kernel.org>
+Subject: [PATCH 12/31] mm/mpol: Add MPOL_MF_NOOP
+Date: Tue, 13 Nov 2012 18:13:35 +0100
+Message-Id: <1352826834-11774-13-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-pgprot_modify() is available on x86, but on other architectures it only
-gets defined in mm/mprotect.c - breaking the build if anything outside
-of mprotect.c tries to make use of this function.
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Move it to the generic pgprot area in mm.h, so that an upcoming patch
-can make use of it.
+This patch augments the MPOL_MF_LAZY feature by adding a "NOOP" policy
+to mbind().  When the NOOP policy is used with the 'MOVE and 'LAZY
+flags, mbind() will map the pages PROT_NONE so that they will be
+migrated on the next touch.
 
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Paul Turner <pjt@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+This allows an application to prepare for a new phase of operation
+where different regions of shared storage will be assigned to
+worker threads, w/o changing policy.  Note that we could just use
+"default" policy in this case.  However, this also allows an
+application to request that pages be migrated, only if necessary,
+to follow any arbitrary policy that might currently apply to a
+range of pages, without knowing the policy, or without specifying
+multiple mbind()s for ranges with different policies.
+
+[ Bug in early version of mpol_parse_str() reported by Fengguang Wu. ]
+
+Bug-Reported-by: Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Link: http://lkml.kernel.org/n/tip-nfvarGMj9gjavowroorkizb4@git.kernel.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm.h | 13 +++++++++++++
- mm/mprotect.c      |  7 -------
- 2 files changed, 13 insertions(+), 7 deletions(-)
+ include/uapi/linux/mempolicy.h |  1 +
+ mm/mempolicy.c                 | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index fa06804..2a32cf8 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -164,6 +164,19 @@ extern pgprot_t protection_map[16];
- #define FAULT_FLAG_TRIED	0x40	/* second try */
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 3e835c9..d23dca8 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -21,6 +21,7 @@ enum {
+ 	MPOL_BIND,
+ 	MPOL_INTERLEAVE,
+ 	MPOL_LOCAL,
++	MPOL_NOOP,		/* retain existing policy for range */
+ 	MPOL_MAX,	/* always last member of enum */
+ };
  
- /*
-+ * Some architectures (such as x86) may need to preserve certain pgprot
-+ * bits, without complicating generic pgprot code.
-+ *
-+ * Most architectures don't care:
-+ */
-+#ifndef pgprot_modify
-+static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
-+{
-+	return newprot;
-+}
-+#endif
-+
-+/*
-  * vm_fault is filled by the the pagefault handler and passed to the vma's
-  * ->fault function. The vma's ->fault is responsible for returning a bitmask
-  * of VM_FAULT_xxx flags that give details about how the fault was handled.
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index a409926..e97b0d6 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -28,13 +28,6 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 72f50ba..c7c7c86 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -251,10 +251,10 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
+ 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
+ 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
  
--#ifndef pgprot_modify
--static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
--{
--	return newprot;
--}
--#endif
--
- static void change_pte_range(struct mm_struct *mm, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable)
+-	if (mode == MPOL_DEFAULT) {
++	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP) {
+ 		if (nodes && !nodes_empty(*nodes))
+ 			return ERR_PTR(-EINVAL);
+-		return NULL;	/* simply delete any existing policy */
++		return NULL;
+ 	}
+ 	VM_BUG_ON(!nodes);
+ 
+@@ -1146,7 +1146,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 	if (start & ~PAGE_MASK)
+ 		return -EINVAL;
+ 
+-	if (mode == MPOL_DEFAULT)
++	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
+ 		flags &= ~MPOL_MF_STRICT;
+ 
+ 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
+@@ -2407,7 +2407,8 @@ static const char * const policy_modes[] =
+ 	[MPOL_PREFERRED]  = "prefer",
+ 	[MPOL_BIND]       = "bind",
+ 	[MPOL_INTERLEAVE] = "interleave",
+-	[MPOL_LOCAL]      = "local"
++	[MPOL_LOCAL]      = "local",
++	[MPOL_NOOP]	  = "noop",	/* should not actually be used */
+ };
+ 
+ 
+@@ -2458,7 +2459,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
+ 			break;
+ 		}
+ 	}
+-	if (mode >= MPOL_MAX)
++	if (mode >= MPOL_MAX || mode == MPOL_NOOP)
+ 		goto out;
+ 
+ 	switch (mode) {
 -- 
 1.7.11.7
 
