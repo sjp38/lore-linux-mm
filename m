@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id B038A6B0089
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:23 -0500 (EST)
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 176366B009B
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 06:13:26 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 17/31] mm: numa: Avoid double faulting after migrating misplaced page
-Date: Tue, 13 Nov 2012 11:12:46 +0000
-Message-Id: <1352805180-1607-18-git-send-email-mgorman@suse.de>
+Subject: [PATCH 19/31] mm: sched: numa: Implement slow start for working set sampling
+Date: Tue, 13 Nov 2012 11:12:48 +0000
+Message-Id: <1352805180-1607-20-git-send-email-mgorman@suse.de>
 In-Reply-To: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,169 +13,135 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The pte_same check after a misplaced page is successfully migrated will
-never succeed and force a double fault to fix it up as pointed out by Rik
-van Riel. This was the "safe" option but it's expensive.
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-This patch uses the migration allocation callback to record the location
-of the newly migrated page. If the page is the same when the PTE lock is
-reacquired it is assumed that it is safe to complete the pte_numa fault
-without incurring a double fault.
+Add a 1 second delay before starting to scan the working set of
+a task and starting to balance it amongst nodes.
 
+[ note that before the constant per task WSS sampling rate patch
+  the initial scan would happen much later still, in effect that
+  patch caused this regression. ]
+
+The theory is that short-run tasks benefit very little from NUMA
+placement: they come and go, and they better stick to the node
+they were started on. As tasks mature and rebalance to other CPUs
+and nodes, so does their NUMA placement have to change and so
+does it start to matter more and more.
+
+In practice this change fixes an observable kbuild regression:
+
+   # [ a perf stat --null --repeat 10 test of ten bzImage builds to /dev/shm ]
+
+   !NUMA:
+   45.291088843 seconds time elapsed                                          ( +-  0.40% )
+   45.154231752 seconds time elapsed                                          ( +-  0.36% )
+
+   +NUMA, no slow start:
+   46.172308123 seconds time elapsed                                          ( +-  0.30% )
+   46.343168745 seconds time elapsed                                          ( +-  0.25% )
+
+   +NUMA, 1 sec slow start:
+   45.224189155 seconds time elapsed                                          ( +-  0.25% )
+   45.160866532 seconds time elapsed                                          ( +-  0.17% )
+
+and it also fixes an observable perf bench (hackbench) regression:
+
+   # perf stat --null --repeat 10 perf bench sched messaging
+
+   -NUMA:
+
+   -NUMA:                  0.246225691 seconds time elapsed                   ( +-  1.31% )
+   +NUMA no slow start:    0.252620063 seconds time elapsed                   ( +-  1.13% )
+
+   +NUMA 1sec delay:       0.248076230 seconds time elapsed                   ( +-  1.35% )
+
+The implementation is simple and straightforward, most of the patch
+deals with adding the /proc/sys/kernel/balance_numa_scan_delay_ms tunable
+knob.
+
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+[ Wrote the changelog, ran measurements, tuned the default. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/migrate.h |    4 ++--
- mm/memory.c             |   28 +++++++++++++++++-----------
- mm/migrate.c            |   27 ++++++++++++++++++---------
- 3 files changed, 37 insertions(+), 22 deletions(-)
+ include/linux/sched.h |    1 +
+ kernel/sched/core.c   |    2 +-
+ kernel/sched/fair.c   |    5 +++++
+ kernel/sysctl.c       |    7 +++++++
+ 4 files changed, 14 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 69f60b5..e5ab5db 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -40,7 +40,7 @@ extern int migrate_vmas(struct mm_struct *mm,
- extern void migrate_page_copy(struct page *newpage, struct page *page);
- extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- 				  struct page *newpage, struct page *page);
--extern int migrate_misplaced_page(struct page *page, int node);
-+extern struct page *migrate_misplaced_page(struct page *page, int node);
- #else
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 6b8a14f..51e2944 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2006,6 +2006,7 @@ enum sched_tunable_scaling {
+ };
+ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
  
- static inline void putback_lru_pages(struct list_head *l) {}
-@@ -75,7 +75,7 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
- #define fail_migrate_page NULL
- 
- static inline
--int migrate_misplaced_page(struct page *page, int node)
-+struct page *migrate_misplaced_page(struct page *page, int node)
- {
- 	return -EAGAIN; /* can't migrate now */
++extern unsigned int sysctl_balance_numa_scan_delay;
+ extern unsigned int sysctl_balance_numa_scan_period_min;
+ extern unsigned int sysctl_balance_numa_scan_period_max;
+ extern unsigned int sysctl_balance_numa_scan_size;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 81fa185..047e3c7 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1543,7 +1543,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->node_stamp = 0ULL;
+ 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+ 	p->numa_migrate_seq = p->mm ? p->mm->numa_scan_seq - 1 : 0;
+-	p->numa_scan_period = sysctl_balance_numa_scan_period_min;
++	p->numa_scan_period = sysctl_balance_numa_scan_delay;
+ 	p->numa_work.next = &p->numa_work;
+ #endif /* CONFIG_BALANCE_NUMA */
  }
-diff --git a/mm/memory.c b/mm/memory.c
-index ab9fbcf..73fa203 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3437,7 +3437,7 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
- {
--	struct page *page = NULL;
-+	struct page *page = NULL, *newpage = NULL;
- 	spinlock_t *ptl;
- 	int current_nid = -1;
- 	int target_nid;
-@@ -3476,19 +3476,26 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	pte_unmap_unlock(ptep, ptl);
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 6df5620..a97498e 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -788,6 +788,9 @@ unsigned int sysctl_balance_numa_scan_period_max = 2000*16;
+ /* Portion of address space to scan in MB */
+ unsigned int sysctl_balance_numa_scan_size = 256;
  
- 	/* Migrate to the requested node */
--	if (migrate_misplaced_page(page, target_nid)) {
--		/*
--		 * If the page was migrated then the pte_same check below is
--		 * guaranteed to fail so just retry the entire fault.
--		 */
-+	newpage = migrate_misplaced_page(page, target_nid);
-+	if (newpage)
- 		current_nid = target_nid;
--		goto out;
--	}
- 	page = NULL;
- 
- 	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
--	if (!pte_same(*ptep, pte))
--		goto out_unlock;
++/* Scan @scan_size MB every @scan_period after an initial @scan_delay in ms */
++unsigned int sysctl_balance_numa_scan_delay = 1000;
 +
-+	/*
-+	 * If we failed to migrate, we have to check the PTE has not changed during
-+	 * the migration attempt. If it has, retry the fault. If it has migrated,
-+	 * relookup the ptep and confirm it's the same page to avoid double faulting.
-+	 */
-+	if (!newpage) {
-+		if (!pte_same(*ptep, pte))
-+			goto out_unlock;
-+	} else {
-+		pte = *ptep;
-+		if (!pte_numa(pte) || vm_normal_page(vma, addr, pte) != newpage)
-+			goto out_unlock;
-+	}
- 
- clear_pmdnuma:
- 	pte = pte_mknonnuma(pte);
-@@ -3499,7 +3506,6 @@ out_unlock:
- 	pte_unmap_unlock(ptep, ptl);
- 	if (page)
- 		put_page(page);
--out:
- 	task_numa_fault(current_nid, 1, misplaced);
- 	return 0;
- }
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 4a92808..631b2c5 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1444,19 +1444,23 @@ static bool migrate_balanced_pgdat(struct pglist_data *pgdat,
- 	return false;
- }
- 
-+struct misplaced_request
-+{
-+	int nid;		/* Node to migrate to */
-+	struct page *newpage;	/* New location of page */
-+};
-+
- static struct page *alloc_misplaced_dst_page(struct page *page,
- 					   unsigned long data,
- 					   int **result)
+ static void task_numa_placement(struct task_struct *p)
  {
--	int nid = (int) data;
--	struct page *newpage;
--
--	newpage = alloc_pages_exact_node(nid,
-+	struct misplaced_request *req = (struct misplaced_request *)data;
-+	req->newpage = alloc_pages_exact_node(req->nid,
- 					 (GFP_HIGHUSER_MOVABLE | GFP_THISNODE |
- 					  __GFP_NOMEMALLOC | __GFP_NORETRY |
- 					  __GFP_NOWARN) &
- 					 ~GFP_IOFS, 0);
--	return newpage;
-+	return req->newpage;
- }
+ 	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+@@ -924,6 +927,8 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ 	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
  
- /*
-@@ -1464,8 +1468,12 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
-  * node. Caller is expected to have an elevated reference count on
-  * the page that will be dropped by this function before returning.
-  */
--int migrate_misplaced_page(struct page *page, int node)
-+struct page *migrate_misplaced_page(struct page *page, int node)
- {
-+	struct misplaced_request req = {
-+		.nid = node,
-+		.newpage = NULL,
-+	};
- 	int isolated = 0;
- 	LIST_HEAD(migratepages);
+ 	if (now - curr->node_stamp > period) {
++		if (!curr->node_stamp)
++			curr->numa_scan_period = sysctl_balance_numa_scan_period_min;
+ 		curr->node_stamp = now;
  
-@@ -1503,16 +1511,17 @@ int migrate_misplaced_page(struct page *page, int node)
- 
- 		nr_remaining = migrate_pages(&migratepages,
- 				alloc_misplaced_dst_page,
--				node, false, MIGRATE_ASYNC,
-+				(unsigned long)&req,
-+				false, MIGRATE_ASYNC,
- 				MR_NUMA_MISPLACED);
- 		if (nr_remaining) {
- 			putback_lru_pages(&migratepages);
--			isolated = 0;
-+			req.newpage = NULL;
- 		}
- 	}
- 	BUG_ON(!list_empty(&migratepages));
- out:
--	return isolated;
-+	return req.newpage;
- }
- 
- #endif /* CONFIG_NUMA */
+ 		if (!time_before(jiffies, curr->mm->numa_next_scan)) {
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index d191203..5ee587d 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -353,6 +353,13 @@ static struct ctl_table kern_table[] = {
+ #endif /* CONFIG_SMP */
+ #ifdef CONFIG_BALANCE_NUMA
+ 	{
++		.procname	= "balance_numa_scan_delay_ms",
++		.data		= &sysctl_balance_numa_scan_delay,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++	{
+ 		.procname	= "balance_numa_scan_period_min_ms",
+ 		.data		= &sysctl_balance_numa_scan_period_min,
+ 		.maxlen		= sizeof(unsigned int),
 -- 
 1.7.9.2
 
