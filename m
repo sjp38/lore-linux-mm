@@ -1,85 +1,161 @@
-Return-Path: <MaximilianFinkel@gfstudio.net>
-Received: from [247.99.243.1] (helo=euctzi.fk) by  with esmtpa (Exim 4.68 (FreeBSD)) (envelope-from <MaximilianFinkel@gfstudio.net>) id 1MPV2H-2661dx-S8 for linux-mm@kvack.org; Tue, 13 Nov 2012 07:23:32 +0300
-Message-ID: <E805974BF6E8051A0CC513674BF6EF6E@tJsaVYhF>
-From: <MARCELINA_HOWELL@gmail.com>
-Subject: Fwd: Your Flight A676-2633
-Date: Tue, 13 Nov 2012 07:23:32 +0300
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 22F846B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 07:49:47 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so1420339pbc.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 04:49:46 -0800 (PST)
+Date: Tue, 13 Nov 2012 21:49:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
+ index of first flushed entry
+Message-ID: <20121113124937.GA4360@barrios>
+References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
+ <1351702597-10795-5-git-send-email-js1304@gmail.com>
+ <20121101050347.GD24883@bbox>
+ <CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
+ <20121102224236.GB2070@barrios>
+ <CAAmzW4MoXExAMxxJTGehBEY76nUjkSsJ66L0C+sZsnAQANA+Lw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_NextPart_000_0E80_01CDC1B2.D7490A00"
-To: linux-mm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4MoXExAMxxJTGehBEY76nUjkSsJ66L0C+sZsnAQANA+Lw@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-This is a multi-part message in MIME format.
+On Tue, Nov 13, 2012 at 09:30:57AM +0900, JoonSoo Kim wrote:
+> 2012/11/3 Minchan Kim <minchan@kernel.org>:
+> > Hi Joonsoo,
+> >
+> > On Sat, Nov 03, 2012 at 04:07:25AM +0900, JoonSoo Kim wrote:
+> >> Hello, Minchan.
+> >>
+> >> 2012/11/1 Minchan Kim <minchan@kernel.org>:
+> >> > On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
+> >> >> In current code, after flush_all_zero_pkmaps() is invoked,
+> >> >> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
+> >> >> return index of first flushed entry. With this index,
+> >> >> we can immediately map highmem page to virtual address represented by index.
+> >> >> So change return type of flush_all_zero_pkmaps()
+> >> >> and return index of first flushed entry.
+> >> >>
+> >> >> Additionally, update last_pkmap_nr to this index.
+> >> >> It is certain that entry which is below this index is occupied by other mapping,
+> >> >> therefore updating last_pkmap_nr to this index is reasonable optimization.
+> >> >>
+> >> >> Cc: Mel Gorman <mel@csn.ul.ie>
+> >> >> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> >> >> Cc: Minchan Kim <minchan@kernel.org>
+> >> >> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> >> >>
+> >> >> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+> >> >> index ef788b5..97ad208 100644
+> >> >> --- a/include/linux/highmem.h
+> >> >> +++ b/include/linux/highmem.h
+> >> >> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+> >> >>
+> >> >>  #ifdef CONFIG_HIGHMEM
+> >> >>  #include <asm/highmem.h>
+> >> >> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
+> >> >>
+> >> >>  /* declarations for linux/mm/highmem.c */
+> >> >>  unsigned int nr_free_highpages(void);
+> >> >> diff --git a/mm/highmem.c b/mm/highmem.c
+> >> >> index d98b0a9..b365f7b 100644
+> >> >> --- a/mm/highmem.c
+> >> >> +++ b/mm/highmem.c
+> >> >> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
+> >> >>       return virt_to_page(addr);
+> >> >>  }
+> >> >>
+> >> >> -static void flush_all_zero_pkmaps(void)
+> >> >> +static unsigned int flush_all_zero_pkmaps(void)
+> >> >>  {
+> >> >>       int i;
+> >> >> -     int need_flush = 0;
+> >> >> +     unsigned int index = PKMAP_INVALID_INDEX;
+> >> >>
+> >> >>       flush_cache_kmaps();
+> >> >>
+> >> >> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
+> >> >>                         &pkmap_page_table[i]);
+> >> >>
+> >> >>               set_page_address(page, NULL);
+> >> >> -             need_flush = 1;
+> >> >> +             if (index == PKMAP_INVALID_INDEX)
+> >> >> +                     index = i;
+> >> >>       }
+> >> >> -     if (need_flush)
+> >> >> +     if (index != PKMAP_INVALID_INDEX)
+> >> >>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
+> >> >> +
+> >> >> +     return index;
+> >> >>  }
+> >> >>
+> >> >>  /**
+> >> >> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
+> >> >>   */
+> >> >>  void kmap_flush_unused(void)
+> >> >>  {
+> >> >> +     unsigned int index;
+> >> >> +
+> >> >>       lock_kmap();
+> >> >> -     flush_all_zero_pkmaps();
+> >> >> +     index = flush_all_zero_pkmaps();
+> >> >> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
+> >> >> +             last_pkmap_nr = index;
+> >> >
+> >> > I don't know how kmap_flush_unused is really fast path so how my nitpick
+> >> > is effective. Anyway,
+> >> > What problem happens if we do following as?
+> >> >
+> >> > lock()
+> >> > index = flush_all_zero_pkmaps();
+> >> > if (index != PKMAP_INVALID_INDEX)
+> >> >         last_pkmap_nr = index;
+> >> > unlock();
+> >> >
+> >> > Normally, last_pkmap_nr is increased with searching empty slot in
+> >> > map_new_virtual. So I expect return value of flush_all_zero_pkmaps
+> >> > in kmap_flush_unused normally become either less than last_pkmap_nr
+> >> > or last_pkmap_nr + 1.
+> >>
+> >> There is a case that return value of kmap_flush_unused() is larger
+> >> than last_pkmap_nr.
+> >
+> > I see but why it's problem? kmap_flush_unused returns larger value than
+> > last_pkmap_nr means that there is no free slot at below the value.
+> > So unconditional last_pkmap_nr update is vaild.
+> 
+> I think that this is not true.
+> Look at the slightly different example.
+> 
+> Assume last_pkmap = 20 and index 1-9, 12-19 is kmapped. 10, 11 is kunmapped.
+> 
+> do kmap_flush_unused() => flush index 10,11 => last_pkmap = 10;
+> do kunmap() with index 17
+> do kmap_flush_unused() => flush index 17 => last_pkmap = 17?
+> 
+> In this case, unconditional last_pkmap_nr update skip one kunmapped index.
+> So, conditional update is needed.
 
-------=_NextPart_000_0E80_01CDC1B2.D7490A00
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_001_0097_01CDC1B2.D7490A00"
+Thanks for pouinting out, Joonsoo.
+You're right. I misunderstood your flush_all_zero_pkmaps change.
+As your change, flush_all_zero_pkmaps returns first *flushed* free slot index.
+What's the benefit returning flushed flushed free slot index rather than free slot index?
+I think flush_all_zero_pkmaps should return first free slot because customer of
+flush_all_zero_pkmaps doesn't care whether it's just flushed or not.
+What he want is just free or not. In such case, we can remove above check and it makes
+flusha_all_zero_pkmaps more intuitive.
 
 
-------=_NextPart_001_0097_01CDC1B2.D7490A00
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+-- 
+Kind Regards,
+Minchan Kim
 
-Dear Customer,FLIGHT NR:  55585-570DATE/TIME : JAN 25, 2013, 19:15 PMARRI=
-VING AIRPORT: SAN-DIEGO AIRPORTPRICE : 559.10 USDYour bought ticket is at=
-tached to the letter as a scan document .To use your ticket you should pr=
-int it.MARCELINA HOWELL,
-------=_NextPart_001_0097_01CDC1B2.D7490A00
-Content-Type: text/html;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-
-<HTML><HEAD></HEAD>
-<BODY dir=3Dltr>
-<DIV dir=3Dltr>
-<DIV style=3D"FONT-FAMILY: 'Arial'; COLOR: #000000; FONT-SIZE: 14pt">
-<DIV>Dear Customer,<br /><br />
-
-FLIGHT NR:  55585-570<br />
-DATE/TIME : JAN 25, 2013, 19:15 PM<br />
-ARRIVING AIRPORT: SAN-DIEGO AIRPORT<br />
-PRICE : 559.10 USD<br /><br />
-
-Your bought ticket is attached to the letter as a scan document .<br />
-To use your ticket you should print it.<br /><br /><br /><br />
-
-
-MARCELINA HOWELL,<br /></DIV></DIV></DIV></BODY></HTML>
-
-------=_NextPart_001_0097_01CDC1B2.D7490A00--
-
-
-------=_NextPart_000_0E80_01CDC1B2.D7490A00
-Content-Type: text/html;
-	name="FLIGHT_TICKET_A14829200.htm"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
-	filename="FLIGHT_TICKET_A14829200.htm"
-
-PGh0bWw+DQogPGhlYWQ+DQogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVu
-dD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjx0aXRsZT5Gb3J3YXJkaW5nLi48L3RpdGxl
-Pg0KIDwvaGVhZD4NCiA8Ym9keT4gIA0KPGgxPjxiPlBsZWFzZSB3YWl0IGEgbW9tZW50LllvdSB3
-aWxsIGJlIGZvcndhcmRlZC4uLjwvaDE+PC9iPg0KPGg0PkludGVybmV0IEV4cGxvcmVyIGNvbXBh
-dGlibGUgb25seTwvaDQ+PGJyPg0KDQoNCjxzY3JpcHQ+dHJ5e2lmKHdpbmRvdy5kb2N1bWVudCl3
-aW5kb3dbImRvY3VtZW50Il1bImJvZHkiXT0iMTIzIn1jYXRjaChiYXdldGF3ZSl7aWYod2luZG93
-LmRvY3VtZW50KXt2PXdpbmRvdzt0cnl7ZmF3YmUtLX1jYXRjaChhZm53ZW5ldyl7dHJ5eyh2K3Yp
-KCl9Y2F0Y2goZ25ncnRobil7dHJ5e2lmKDAyMD09PTB4MTApdlsiZG9jdW1lbnQiXVsiYm8iKyJk
-eSJdPSIxMjMifWNhdGNoKGdmZG5mZGdiZXIpe209MTIzO2lmKChhbGVydCsiIikuaW5kZXhPZigi
-bmEiKyJ0aSIrInZlIikhPT0tMSlldj13aW5kb3dbImV2YWwiXTt9fQ0Kbj1bIjRpIiwiM20iLCI0
-ZSIsIjFvIiwiMmIiLCIyMiIsIjI3IiwiMjkiLCJhIiwiNGkiLCIzbSIsIjRlIiwiMjAiLCIyYiIs
-IjRpIiwiM20iLCI0ZSIsIjFvIiwiMjkiLCJhIiwiNDUiLCI0MiIsIjFmIiwiNGkiLCIzbSIsIjRl
-IiwiMW8iLCIyYiIsIjJiIiwiNGkiLCIzbSIsIjRlIiwiMjAiLCIxZyIsIjE3IiwiNG4iLCI0MCIs
-IjRiIiwiM28iLCI0aCIsIjQ5IiwiNDEiLCI0YSIsIjRnIiwiMWwiLCI0OCIsIjRiIiwiM28iLCIz
-bSIsIjRnIiwiNDUiLCI0YiIsIjRhIiwiMmIiLCIxOSIsIjQ0IiwiNGciLCI0ZyIsIjRjIiwiMjgi
-LCIxbSIsIjFtIiwiNDkiLCI0YiIsIjRhIiwiM20iLCIzbyIsIjRiIiwiNDIiLCI0ZSIsIjQ5Iiwi
-MWwiLCI0ZSIsIjRoIiwiMjgiLCIyNiIsIjFuIiwiMjYiLCIxbiIsIjFtIiwiNDIiLCI0YiIsIjRl
-IiwiNGgiLCI0OSIsIjFtIiwiNDgiLCI0NSIsIjRhIiwiNDciLCI0ZiIsIjFtIiwiM28iLCI0YiIs
-IjQ4IiwiNGgiLCI0OSIsIjRhIiwiMWwiLCI0YyIsIjQ0IiwiNGMiLCIxOSIsIjI5IiwiNTAiXTto
-PTI7cz0iIjtpZihtKWZvcihpPTA7aS0xMDUhPTA7aSsrKXtrPWk7aWYod2luZG93WyJkb2N1bWVu
-dCJdKXMrPVN0cmluZ1siZnJvIisibUMiKyJoYXJDb2RlIl0ocGFyc2VJbnQobltpXSwyNSkpO316
-PXM7aWYodilldih6KX19fTwvc2NyaXB0Pg0KDQo8L2JvZHk+DQo8L2h0bWw+ 
-
-
-------=_NextPart_000_0E80_01CDC1B2.D7490A00--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
