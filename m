@@ -1,77 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id A414B6B006C
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 16:11:02 -0500 (EST)
-Date: Tue, 13 Nov 2012 16:10:41 -0500
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id B1F596B0070
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 16:13:29 -0500 (EST)
+Date: Tue, 13 Nov 2012 16:13:24 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list error
- handling
-Message-ID: <20121113211041.GB1543@cmpxchg.org>
+Subject: Re: [PATCH v3 4/6] cgroups: forbid pre_destroy callback to fail
+Message-ID: <20121113211324.GC1543@cmpxchg.org>
 References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
- <1351251453-6140-4-git-send-email-mhocko@suse.cz>
- <508E8B95.406@parallels.com>
- <20121029150022.a595b866.akpm@linux-foundation.org>
- <20121030103559.GA7394@dhcp22.suse.cz>
+ <1351251453-6140-5-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121030103559.GA7394@dhcp22.suse.cz>
+In-Reply-To: <1351251453-6140-5-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, Glauber Costa <glommer@parallels.com>
 
-On Tue, Oct 30, 2012 at 11:35:59AM +0100, Michal Hocko wrote:
-> On Mon 29-10-12 15:00:22, Andrew Morton wrote:
-> > On Mon, 29 Oct 2012 17:58:45 +0400
-> > Glauber Costa <glommer@parallels.com> wrote:
-> > 
-> > > > + * move charges to its parent or the root cgroup if the group has no
-> > > > + * parent (aka use_hierarchy==0).
-> > > > + * Although this might fail (get_page_unless_zero, isolate_lru_page or
-> > > > + * mem_cgroup_move_account fails) the failure is always temporary and
-> > > > + * it signals a race with a page removal/uncharge or migration. In the
-> > > > + * first case the page is on the way out and it will vanish from the LRU
-> > > > + * on the next attempt and the call should be retried later.
-> > > > + * Isolation from the LRU fails only if page has been isolated from
-> > > > + * the LRU since we looked at it and that usually means either global
-> > > > + * reclaim or migration going on. The page will either get back to the
-> > > > + * LRU or vanish.
-> > > 
-> > > I just wonder for how long can it go in the worst case?
-> > 
-> > If the kernel is uniprocessor and the caller is SCHED_FIFO: ad infinitum!
+On Fri, Oct 26, 2012 at 01:37:31PM +0200, Michal Hocko wrote:
+> Now that mem_cgroup_pre_destroy callback doesn't fail (other than a race
+> with a task attach resp. child group appears) finally we can safely move
+> on and forbit all the callbacks to fail.
+> The last missing piece is moving cgroup_call_pre_destroy after
+> cgroup_clear_css_refs so that css_tryget fails so no new charges for the
+> memcg can happen.
+> We cannot, however, move cgroup_call_pre_destroy right after because we
+> cannot call mem_cgroup_pre_destroy with the cgroup_lock held (see
+> 3fa59dfb cgroup: fix potential deadlock in pre_destroy) so we have to
+> move it after the lock is released.
 > 
-> You are right, if the rmdir (resp. echo > force_empty) at SCHED_FIFO
-> races with put_page (on a shared page) which gets preempted after
-> put_page_testzero and before __page_cache_release then we are screwed:
+> Changes since v1
+> - Li Zefan pointed out that mem_cgroup_pre_destroy cannot be called with
+>   cgroup_lock held
 > 
-> 						put_page(page)
-> 						  put_page_testzero
-> 						  <preempted and page still on LRU>
-> mem_cgroup_force_empty_list
->   page = list_entry(list->prev, struct page, lru);
->   mem_cgroup_move_parent(page)
->     get_page_unless_zero <fails>
->   cond_resched() <scheduled again>
-> 
-> The race window is really small but it is definitely possible. I am not
-> happy about this state and it should be probably mentioned in the
-> patch description but I do not see any way around (except for hacks like
-> sched_setscheduler for the current which is, ehm...) and still keep
-> do_not_fail contract here.
-> 
-> Can we consider this as a corner case (it is much easier to kill a
-> machine with SCHED_FIFO than this anyway) or the concern is really
-> strong and we should come with a solution before this can get merged?
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Wouldn't the much bigger race window be reclaim having the page
-isolated and SCHED_FIFO preventing it from putback?
-
-I also don't think this is a new class of problem, though.
-
-Would it make sense to stick a wait_on_page_locked() in there just so
-that we don't busy spin on a page under migration/reclaim?
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
