@@ -1,216 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 36B6F6B008A
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:20 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so65876eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 23F9B6B00A0
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 12:15:22 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so3578117eaa.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 09:15:21 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 18/31] mm/mpol: Use special PROT_NONE to migrate pages
-Date: Tue, 13 Nov 2012 18:13:41 +0100
-Message-Id: <1352826834-11774-19-git-send-email-mingo@kernel.org>
+Subject: [PATCH 19/31] x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
+Date: Tue, 13 Nov 2012 18:13:42 +0100
+Message-Id: <1352826834-11774-20-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Michel Lespinasse <walken@google.com>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Rik van Riel <riel@redhat.com>
 
-Combine our previous PROT_NONE, mpol_misplaced and
-migrate_misplaced_page() pieces into an effective migrate on fault
-scheme.
+Intel has an architectural guarantee that the TLB entry causing
+a page fault gets invalidated automatically. This means
+we should be able to drop the local TLB invalidation.
 
-Note that (on x86) we rely on PROT_NONE pages being !present and avoid
-the TLB flush from try_to_unmap(TTU_MIGRATION). This greatly improves
-the page-migration performance.
+Because of the way other areas of the page fault code work,
+chances are good that all x86 CPUs do this.  However, if
+someone somewhere has an x86 CPU that does not invalidate
+the TLB entry causing a page fault, this one-liner should
+be easy to revert - or a CPU model specific quirk could
+be added to retain this optimization on most CPUs.
 
-Suggested-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Paul Turner <pjt@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Acked-by: Linus Torvalds <torvalds@kernel.org>
+Acked-by: Peter Zijlstra <peterz@infradead.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Link: http://lkml.kernel.org/n/tip-e98gyl8kr9jzooh2s4piuils@git.kernel.org
+Cc: Michel Lespinasse <walken@google.com>
+[ Applied changelog massage and moved this last in the series,
+  to create bisection distance. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- mm/huge_memory.c | 41 +++++++++++++++++++++++++++++++++++-
- mm/memory.c      | 63 ++++++++++++++++++++++++++++++++++++++++----------------
- 2 files changed, 85 insertions(+), 19 deletions(-)
+ arch/x86/mm/pgtable.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 6924edf..c4c0a57 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -18,6 +18,7 @@
- #include <linux/freezer.h>
- #include <linux/mman.h>
- #include <linux/pagemap.h>
-+#include <linux/migrate.h>
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
- #include "internal.h"
-@@ -741,12 +742,48 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			   unsigned int flags, pmd_t entry)
- {
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
-+	struct page *page = NULL;
-+	int node;
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index be3bb46..7353de3 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -317,7 +317,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	if (changed && dirty) {
+ 		*ptep = entry;
+ 		pte_update_defer(vma->vm_mm, address, ptep);
+-		__flush_tlb_one(address);
+ 	}
  
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(*pmd, entry)))
- 		goto out_unlock;
- 
--	/* do fancy stuff */
-+	if (unlikely(pmd_trans_splitting(entry))) {
-+		spin_unlock(&mm->page_table_lock);
-+		wait_split_huge_page(vma->anon_vma, pmd);
-+		return;
-+	}
-+
-+#ifdef CONFIG_NUMA
-+	page = pmd_page(entry);
-+	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
-+
-+	get_page(page);
-+	spin_unlock(&mm->page_table_lock);
-+
-+	/*
-+	 * XXX should we serialize against split_huge_page ?
-+	 */
-+
-+	node = mpol_misplaced(page, vma, haddr);
-+	if (node == -1)
-+		goto do_fixup;
-+
-+	/*
-+	 * Due to lacking code to migrate thp pages, we'll split
-+	 * (which preserves the special PROT_NONE) and re-take the
-+	 * fault on the normal pages.
-+	 */
-+	split_huge_page(page);
-+	put_page(page);
-+	return;
-+
-+do_fixup:
-+	spin_lock(&mm->page_table_lock);
-+	if (unlikely(!pmd_same(*pmd, entry)))
-+		goto out_unlock;
-+#endif
- 
- 	/* change back to regular protection */
- 	entry = pmd_modify(entry, vma->vm_page_prot);
-@@ -755,6 +792,8 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- out_unlock:
- 	spin_unlock(&mm->page_table_lock);
-+	if (page)
-+		put_page(page);
- }
- 
- int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-diff --git a/mm/memory.c b/mm/memory.c
-index a660fd0..0d26a28 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -57,6 +57,7 @@
- #include <linux/swapops.h>
- #include <linux/elf.h>
- #include <linux/gfp.h>
-+#include <linux/migrate.h>
- 
- #include <asm/io.h>
- #include <asm/pgalloc.h>
-@@ -1467,8 +1468,10 @@ EXPORT_SYMBOL_GPL(zap_vma_ptes);
- static bool pte_numa(struct vm_area_struct *vma, pte_t pte)
- {
- 	/*
--	 * If we have the normal vma->vm_page_prot protections we're not a
--	 * 'special' PROT_NONE page.
-+	 * For NUMA page faults, we use PROT_NONE ptes in VMAs with
-+	 * "normal" vma->vm_page_prot protections.  Genuine PROT_NONE
-+	 * VMAs should never get here, because the fault handling code
-+	 * will notice that the VMA has no read or write permissions.
- 	 *
- 	 * This means we cannot get 'special' PROT_NONE faults from genuine
- 	 * PROT_NONE maps, nor from PROT_WRITE file maps that do dirty
-@@ -3473,35 +3476,59 @@ static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, pte_t *ptep, pmd_t *pmd,
- 			unsigned int flags, pte_t entry)
- {
-+	struct page *page = NULL;
-+	int node, page_nid = -1;
- 	spinlock_t *ptl;
--	int ret = 0;
--
--	if (!pte_unmap_same(mm, pmd, ptep, entry))
--		goto out;
- 
--	/*
--	 * Do fancy stuff...
--	 */
--
--	/*
--	 * OK, nothing to do,.. change the protection back to what it
--	 * ought to be.
--	 */
--	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	ptl = pte_lockptr(mm, pmd);
-+	spin_lock(ptl);
- 	if (unlikely(!pte_same(*ptep, entry)))
--		goto unlock;
-+		goto out_unlock;
- 
-+	page = vm_normal_page(vma, address, entry);
-+	if (page) {
-+		get_page(page);
-+		page_nid = page_to_nid(page);
-+		node = mpol_misplaced(page, vma, address);
-+		if (node != -1)
-+			goto migrate;
-+	}
-+
-+out_pte_upgrade_unlock:
- 	flush_cache_page(vma, address, pte_pfn(entry));
- 
- 	ptep_modify_prot_start(mm, address, ptep);
- 	entry = pte_modify(entry, vma->vm_page_prot);
- 	ptep_modify_prot_commit(mm, address, ptep, entry);
- 
-+	/* No TLB flush needed because we upgraded the PTE */
-+
- 	update_mmu_cache(vma, address, ptep);
--unlock:
-+
-+out_unlock:
- 	pte_unmap_unlock(ptep, ptl);
- out:
--	return ret;
-+	if (page)
-+		put_page(page);
-+
-+	return 0;
-+
-+migrate:
-+	pte_unmap_unlock(ptep, ptl);
-+
-+	if (!migrate_misplaced_page(page, node)) {
-+		page_nid = node;
-+		goto out;
-+	}
-+
-+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-+	if (!pte_same(*ptep, entry)) {
-+		put_page(page);
-+		page = NULL;
-+		goto out_unlock;
-+	}
-+
-+	goto out_pte_upgrade_unlock;
- }
- 
- /*
+ 	return changed;
 -- 
 1.7.11.7
 
