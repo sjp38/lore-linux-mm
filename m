@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 97DB16B007B
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:29:39 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [Patch v4 1/7] acpi,memory-hotplug: introduce a mutex lock to protect the list in acpi_memory_device
-Date: Thu, 15 Nov 2012 00:34:01 +0100
-Message-ID: <2008916.VzTIR8JBPq@vostro.rjw.lan>
-In-Reply-To: <50A1AAC5.8000506@cn.fujitsu.com>
-References: <1352372693-32411-1-git-send-email-wency@cn.fujitsu.com> <1352754038.12509.16.camel@misato.fc.hp.com> <50A1AAC5.8000506@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 7EC206B0081
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:32:45 -0500 (EST)
+Date: Wed, 14 Nov 2012 15:32:43 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 00/11] Introduce huge zero page
+Message-Id: <20121114153243.0f6d6bec.akpm@linux-foundation.org>
+In-Reply-To: <20121114232013.7ee42414@pyramind.ukuu.org.uk>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<20121114133342.cc7bcd6e.akpm@linux-foundation.org>
+	<20121114232013.7ee42414@pyramind.ukuu.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Tuesday, November 13, 2012 10:04:53 AM Wen Congyang wrote:
-> At 11/13/2012 05:00 AM, Toshi Kani Wrote:
-> > On Thu, 2012-11-08 at 19:04 +0800, Wen Congyang wrote:
-> >> The memory device can be removed by 2 ways:
-> >> 1. send eject request by SCI
-> >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> >>
-> >> This 2 events may happen at the same time, so we may touch
-> >> acpi_memory_device.res_list at the same time. This patch
-> >> introduce a lock to protect this list.
-> > 
-> > Hi Wen,
-> > 
-> > This race condition is not unique in memory hot-remove as the sysfs
-> > eject interface is created for all objects with _EJ0.  For CPU
-> > hot-remove, I addressed this race condition by making the notify handler
-> > to run the hot-remove operation on kacpi_hotplug_wq by calling
-> > acpi_os_hotplug_execute().  This serializes the hot-remove operations
-> > among the two events since the sysfs eject also runs on
-> > kacpi_hotplug_wq.  This way is much simpler and is easy to maintain,
-> > although it does not allow both operations to run simultaneously (which
-> > I do not think we need).  Can it be used for memory hot-remove as well?
+On Wed, 14 Nov 2012 23:20:13 +0000
+Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+
+> > I'm still a bit concerned over the possibility that some workloads will
+> > cause a high-frequency free/alloc/memset cycle on that huge zero page. 
+> > We'll see how it goes...
 > 
-> Good idea. I will update it.
+> That is easy enough to fix - we can delay the freeing by a random time or
+> until memory pressure is applied.
+> 
 
-Still waiting. :-)
+The current code does the latter, by freeing the page via a
+"slab"-shrinker callback.
 
-But if you want that in v3.8, please repost ASAP.
-
-Thanks,
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+But I do suspect that with the right combination of use/unuse and
+memory pressure, we could still get into the high-frequency scenario.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
