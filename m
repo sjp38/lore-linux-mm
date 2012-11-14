@@ -1,94 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 5A2256B0075
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 03:50:54 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so136854eek.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 00:50:53 -0800 (PST)
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 2/2] mm: Optimize the TLB flush of sys_mprotect() and change_protection() users
-Date: Wed, 14 Nov 2012 09:50:29 +0100
-Message-Id: <1352883029-7885-3-git-send-email-mingo@kernel.org>
-In-Reply-To: <1352883029-7885-1-git-send-email-mingo@kernel.org>
-References: <1352883029-7885-1-git-send-email-mingo@kernel.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 227086B0080
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 03:51:33 -0500 (EST)
+Date: Wed, 14 Nov 2012 09:51:29 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+Message-ID: <20121114085129.GC17111@dhcp22.suse.cz>
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+ <1352820639-13521-3-git-send-email-mhocko@suse.cz>
+ <20121113161442.GA18227@mtj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121113161442.GA18227@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+To: Tejun Heo <htejun@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>
 
-Reuse the NUMA code's 'modified page protections' count that
-change_protection() computes and skip the TLB flush if there's
-no changes to a range that sys_mprotect() modifies.
+On Tue 13-11-12 08:14:42, Tejun Heo wrote:
+> On Tue, Nov 13, 2012 at 04:30:36PM +0100, Michal Hocko wrote:
+> > @@ -1063,8 +1063,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> >  				   struct mem_cgroup *prev,
+> >  				   struct mem_cgroup_reclaim_cookie *reclaim)
+> >  {
+> > -	struct mem_cgroup *memcg = NULL;
+> > -	int id = 0;
+> > +	struct mem_cgroup *memcg = NULL,
+> > +			  *last_visited = NULL;
+> 
+> Nitpick but please don't do this.
 
-Given that mprotect() already optimizes the same-flags case
-I expected this optimization to dominantly trigger on
-CONFIG_NUMA_BALANCING=y kernels - but even with that feature
-disabled it triggers rather often.
+OK, will make it grep friendlier;
 
-There's two reasons for that:
+> > +		/*
+> > +		 * Root is not visited by cgroup iterators so it needs a special
+> > +		 * treatment.
+> > +		 */
+> > +		if (!last_visited) {
+> > +			css = &root->css;
+> > +		} else {
+> > +			struct cgroup *next_cgroup;
+> > +
+> > +			next_cgroup = cgroup_next_descendant_pre(
+> > +					last_visited->css.cgroup,
+> > +					root->css.cgroup);
+> > +			if (next_cgroup)
+> > +				css = cgroup_subsys_state(next_cgroup,
+> > +						mem_cgroup_subsys_id);
+> 
+> Hmmm... wouldn't it be better to move the reclaim logic into a
+> function and do the following?
+> 
+> 	reclaim(root);
+> 	for_each_descendent_pre()
+> 		reclaim(descendant);
 
-1)
+We cannot do for_each_descendent_pre here because we do not iterate
+through the whole hierarchy all the time. Check shrink_zone.
 
-While sys_mprotect() already optimizes the same-flag case:
+> If this is a problem, I'd be happy to add a iterator which includes
+> the top node.  
 
-        if (newflags == oldflags) {
-                *pprev = vma;
-                return 0;
-        }
+This would help with the above if-else but I do not think this is the
+worst thing in the function ;)
 
-and this test works in many cases, but it is too sharp in some
-others, where it differentiates between protection values that the
-underlying PTE format makes no distinction about, such as
-PROT_EXEC == PROT_READ on x86.
+> I'd prefer controllers not using the next functions directly.
 
-2)
+Well, we will need to use it directly because of the single group
+reclaim mentioned above.
 
-Even where the pte format over vma flag changes necessiates a
-modification of the pagetables, there might be no pagetables
-yet to modify: they might not be instantiated yet.
-
-During a regular desktop bootup this optimization hits a couple
-of hundred times. During a Java test I measured thousands of
-hits.
-
-So this optimization improves sys_mprotect() in general, not just
-CONFIG_NUMA_BALANCING=y kernels.
-
-[ We could further increase the efficiency of this optimization if
-  change_pte_range() and change_huge_pmd() was a bit smarter about
-  recognizing exact-same-value protection masks - when the hardware
-  can do that safely. This would probably further speed up mprotect(). ]
-
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- mm/mprotect.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index ce0377b..6ff2d5e 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -145,7 +145,10 @@ static unsigned long change_protection_range(struct vm_area_struct *vma,
- 		pages += change_pud_range(vma, pgd, addr, next, newprot,
- 				 dirty_accountable);
- 	} while (pgd++, addr = next, addr != end);
--	flush_tlb_range(vma, start, end);
-+
-+	/* Only flush the TLB if we actually modified any entries: */
-+	if (pages)
-+		flush_tlb_range(vma, start, end);
- 
- 	return pages;
- }
 -- 
-1.7.11.7
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
