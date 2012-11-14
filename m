@@ -1,45 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id B50656B0062
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 01:14:47 -0500 (EST)
-Date: Wed, 14 Nov 2012 01:14:37 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
-Message-ID: <20121114061437.GA23458@redhat.com>
-References: <alpine.LNX.2.00.1211011546090.19377@eggly.anvils>
- <20121101232030.GA25519@redhat.com>
- <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
- <20121102014336.GA1727@redhat.com>
- <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
- <alpine.LNX.2.00.1211051729590.963@eggly.anvils>
- <20121106135402.GA3543@redhat.com>
- <alpine.LNX.2.00.1211061521230.6954@eggly.anvils>
- <50A30ADD.9000209@gmail.com>
- <alpine.LNX.2.00.1211131935410.30540@eggly.anvils>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id A03226B004D
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 02:52:28 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so99044eek.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 23:52:27 -0800 (PST)
+Date: Wed, 14 Nov 2012 08:52:22 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/31] Latest numa/core patches, v15
+Message-ID: <20121114075222.GA3522@gmail.com>
+References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
+ <20121113175428.GF8218@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1211131935410.30540@eggly.anvils>
+In-Reply-To: <20121113175428.GF8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Nov 13, 2012 at 07:50:25PM -0800, Hugh Dickins wrote:
- 
- > Originally I was waiting to hear further from Dave; but his test
- > machine was giving trouble, and it occurred to me that, never mind
- > whether he says he has hit it again, or he has not hit it again,
- > the answer is the same: don't send that VM_BUG_ON upstream.
- 
-Sorry, I'm supposedly on vacation. 
-That said, a replacement test box has been running tests since last Friday
-without hitting that case.  Maybe it was the last death throes of
-that other machine before it gave up the ghost completely.
 
-Does sound like an awful coincidence though.
+* Mel Gorman <mgorman@suse.de> wrote:
 
-	Dave
+> On Tue, Nov 13, 2012 at 06:13:23PM +0100, Ingo Molnar wrote:
+> > Hi,
+> > 
+> > This is the latest iteration of our numa/core tree, which
+> > implements adaptive NUMA affinity balancing.
+> > 
+> > Changes in this version:
+> > 
+> >     https://lkml.org/lkml/2012/11/12/315
+> > 
+> > Performance figures:
+> > 
+> >     https://lkml.org/lkml/2012/11/12/330
+> > 
+> > Any review feedback, comments and test results are welcome!
+> > 
+> 
+> For the purposes of review and testing, this is going to be 
+> hard to pick apart and compare. It doesn't apply against 
+> 3.7-rc5 [...]
+
+Because the scheduler changes are highly non-trivial it's on top 
+of the scheduler tree:
+
+   git pull git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
+
+I just tested the patches, they all apply cleanly, with zero 
+fuzz and offsets.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
