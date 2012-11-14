@@ -1,91 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 62EEA6B006C
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:24:46 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so325501eek.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 05:24:44 -0800 (PST)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 0A2376B0070
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:29:41 -0500 (EST)
+Date: Wed, 14 Nov 2012 14:29:40 +0100
+From: Marc Duponcheel <marc@offline.be>
+Subject: Re: [3.6 regression?] THP + migration/compaction livelock (I think)
+Message-ID: <20121114132940.GA13196@offline.be>
+Reply-To: Marc Duponcheel <marc@offline.be>
+References: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com>
+ <alpine.DEB.2.00.1211131507370.17623@chino.kir.corp.google.com>
+ <CALCETrU=7+pk_rMKKuzgW1gafWfv6v7eQtVw3p8JryaTkyVQYQ@mail.gmail.com>
+ <alpine.DEB.2.00.1211131530020.17623@chino.kir.corp.google.com>
+ <20121114100154.GI8218@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <CAKMK7uG+txQf8ZX78jvNZAU_vUhkX3tryrSbK91iHfueVt=hvw@mail.gmail.com>
-References: <CAKMK7uG+txQf8ZX78jvNZAU_vUhkX3tryrSbK91iHfueVt=hvw@mail.gmail.com>
-Date: Wed, 14 Nov 2012 21:24:44 +0800
-Message-ID: <CAA_GA1frN8A=npcmBB89Wg7ii0cvqN6SfSJ-7nB7XkSeT4vSyA@mail.gmail.com>
-Subject: Re: Regression due to "mm: fix-up zone present pages"
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121114100154.GI8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Chris Wilson <chris@chris-wilson.co.uk>, "Lu, HuaX" <huax.lu@intel.com>, "Sun, Yi" <yi.sun@intel.com>, "Jin, Gordon" <gordon.jin@intel.com>, Jianguo Wu <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, intel-gfx <intel-gfx@lists.freedesktop.org>, dri-devel <dri-devel@lists.freedesktop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Luck, Tony" <tony.luck@intel.com>, Mel Gorman <mel@csn.ul.ie>, Yinghai Lu <yinghai@kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Andy Lutomirski <luto@amacapital.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marc Duponcheel <marc@offline.be>
 
-On Wed, Nov 14, 2012 at 6:09 PM, Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
-> Hi all,
->
-> Our QA noticed a regression in one of our i915/GEM testcases in 3.7:
->
-> https://bugs.freedesktop.org/show_bug.cgi?id=56859
->
-> Direct link to dmesg of the machine:
-> https://bugs.freedesktop.org/attachment.cgi?id=70052 Note that the
-> machine is 32bit, which seems to be important since Chris Wilson
-> confirmed the bug on his 32bit Sandybridge machine, whereas mine here
-> with a 64bit kernel works flawlessly.
->
-> The testcase is gem_tiled_swapping:
->
-> http://cgit.freedesktop.org/xorg/app/intel-gpu-tools/tree/tests/gem_tiled_swapping.c
->
-> Quick high-level description of the workload:
->
-> It allocates a working set larger than available memory, then fills it
-> by writing it through the gpu gart (required to get a linear view of
-> tiled buffers) and afterwards reads it to check whether anything got
-> corrupted. Since the working set is too large to fit into ram, this
-> will force all buffers through swap. We've written this testcase to
-> exercise the reswizzle swapin path since some platforms have a tiling
-> layout depending upon physical pfn (awesome feature btw), but not snb.
-> So within the kernel this workload simply grabs the backing storage
-> from shmemfs with shmem_read_mapping_page_gfp and then binds them into
-> the gpu pagetables (the GTT). This happens in the i915_gem_fault
-> fucntion. Unbinding in this workload happens either directly (if the
-> gem code can't get enough memory) or through our shrinker
-> (i915_gem_inactive_shrink). Swapout is then left to shmemfs to handle.
-> All the above stuff is in drivers/gpu/drm/i915_gem.c
->
-> Testcase fails because it detects a mismatch between what has been
-> written and what has been read back.
->
-> Our qa people bisected the regression to
->
-> commit 7f1290f2f2a4d2c3f1b7ce8e87256e052ca23125
-> Author: Jianguo Wu <wujianguo@huawei.com>
-> Date:   Mon Oct 8 16:33:06 2012 -0700
->
->     mm: fix-up zone present pages
->
-> and confirmed the revert on top of the latest drm-intel-nightly branch
-> (which is based on top of 3.7-rc2 and contains the -next stuff for
-> 3.8). They've also tested the for-QA branch which had latest Linus
-> upstream merged in, which did not fix the problem. For reference the
-> intel trees are at (but I don't think it matters really that it's not
-> plain upstream, nothing really changed in the relevant i915/gem paths
-> compared to upstream):
->
-> http://cgit.freedesktop.org/~danvet/drm-intel
->
-> I have no idea how that early boot zone init fix could even corrupt
-> swapping in such a fashion, so ideas highly welcome. QA people are
-> cc'ed, and hopefully I haven't missed anyone else on the cc list.
->
+ Hi all
 
-You can take a look at this thread:
-[PATCH] mm: fix a regression with HIGHMEM introduced by changeset 7f1290f2f2a4d
-http://lkml.org/lkml/2012/11/5/866
+ If someone can provide the patches (or learn me how to get them with
+git (I apologise to not be git savy)) then, this weekend, I can apply
+them to 3.6.6 and compare before/after to check if they fix #49361.
 
-I think it's the same problem.
+ Thanks
+
+On 2012 Nov 14, Mel Gorman wrote:
+> On Tue, Nov 13, 2012 at 03:41:02PM -0800, David Rientjes wrote:
+> > On Tue, 13 Nov 2012, Andy Lutomirski wrote:
+> > 
+> > > It just happened again.
+> > > 
+> > > $ grep -E "compact_|thp_" /proc/vmstat
+> > > compact_blocks_moved 8332448774
+> > > compact_pages_moved 21831286
+> > > compact_pagemigrate_failed 211260
+> > > compact_stall 13484
+> > > compact_fail 6717
+> > > compact_success 6755
+> > > thp_fault_alloc 150665
+> > > thp_fault_fallback 4270
+> > > thp_collapse_alloc 19771
+> > > thp_collapse_alloc_failed 2188
+> > > thp_split 19600
+> > > 
+> > 
+> > Two of the patches from the list provided at
+> > http://marc.info/?l=linux-mm&m=135179005510688 are already in your 3.6.3 
+> > kernel:
+> > 
+> > 	mm: compaction: abort compaction loop if lock is contended or run too long
+> > 	mm: compaction: acquire the zone->lock as late as possible
+> > 
+> > and all have not made it to the 3.6 stable kernel yet, so would it be 
+> > possible to try with 3.7-rc5 to see if it fixes the issue?  If so, it will 
+> > indicate that the entire series is a candidate to backport to 3.6.
+> 
+> Thanks David once again.
+> 
+> The full list of compaction-related patches I believe are necessary for
+> this particular problem are
+> 
+> e64c5237cf6ff474cb2f3f832f48f2b441dd9979 mm: compaction: abort compaction loop if lock is contended or run too long
+> 3cc668f4e30fbd97b3c0574d8cac7a83903c9bc7 mm: compaction: move fatal signal check out of compact_checklock_irqsave
+> 661c4cb9b829110cb68c18ea05a56be39f75a4d2 mm: compaction: Update try_to_compact_pages()kerneldoc comment
+> 2a1402aa044b55c2d30ab0ed9405693ef06fb07c mm: compaction: acquire the zone->lru_lock as late as possible
+> f40d1e42bb988d2a26e8e111ea4c4c7bac819b7e mm: compaction: acquire the zone->lock as late as possible
+> 753341a4b85ff337487b9959c71c529f522004f4 revert "mm: have order > 0 compaction start off where it left"
+> bb13ffeb9f6bfeb301443994dfbf29f91117dfb3 mm: compaction: cache if a pageblock was scanned and no pages were isolated
+> c89511ab2f8fe2b47585e60da8af7fd213ec877e mm: compaction: Restart compaction from near where it left off
+> 62997027ca5b3d4618198ed8b1aba40b61b1137b mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
+> 0db63d7e25f96e2c6da925c002badf6f144ddf30 mm: compaction: correct the nr_strict va isolated check for CMA
+> 
+> If we can get confirmation that these fix the problem in 3.6 kernels then
+> I can backport them to -stable. This fixing a problem where "many processes
+> stall, all in an isolation-related function". This started happening after
+> lumpy reclaim was removed because we depended on that to aggressively
+> reclaim with less compaction. Now compaction is depended upon more.
+> 
+> The full 3.7-rc5 kernel has a different problem on top of this and it's
+> important the problems do not get conflacted. It has these fixes *but*
+> GFP_NO_KSWAPD has been removed and there is a patch that scales reclaim
+> with THP failures that is causing problem. With them, kswapd can get
+> stuck in a 100% loop where it is neither reclaiming nor reaching its exit
+> conditions. The correct fix would be to identify why this happens but I
+> have not got around to it yet. To test with 3.7-rc5 then apply either
+> 
+> 1) https://lkml.org/lkml/2012/11/5/308
+> 2) https://lkml.org/lkml/2012/11/12/113
+> 
+> or
+> 
+> 1) https://lkml.org/lkml/2012/11/5/308
+> 3) https://lkml.org/lkml/2012/11/12/151
+> 
+> on top of 3.7-rc5. So it's a lot of work but there are three tests I'm
+> interested in hearing about. The results of each determine what happens
+> in -stable or mainline
+> 
+> Test 1: 3.6 + the last of commits above	(should fix processes stick in isolate)
+> Test 2: 3.7-rc5 + (1+2) above (should fix kswapd stuck at 100%)
+> Test 3: 3.7-rc5 + (1+3) above (should fix kswapd stuck at 100% but better)
+> 
+> Thanks.
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
 
 -- 
-Regards,
---Bob
+--
+ Marc Duponcheel
+ Velodroomstraat 74 - 2600 Berchem - Belgium
+ +32 (0)478 68.10.91 - marc@offline.be
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
