@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 088E76B0095
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 04:19:14 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so153936eek.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 01:19:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id BCDB26B0098
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 04:19:15 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id k11so110593eaa.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 01:19:15 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 2/3] sched, numa, mm: Count WS scanning against present PTEs, not virtual memory ranges
-Date: Wed, 14 Nov 2012 10:18:50 +0100
-Message-Id: <1352884731-20024-3-git-send-email-mingo@kernel.org>
+Subject: [PATCH 3/3] mm: Optimize the TLB flush of sys_mprotect() and change_protection() users
+Date: Wed, 14 Nov 2012 10:18:51 +0100
+Message-Id: <1352884731-20024-4-git-send-email-mingo@kernel.org>
 In-Reply-To: <1352884731-20024-1-git-send-email-mingo@kernel.org>
 References: <1352884731-20024-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,89 +15,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reuse the NUMA code's 'modified page protections' count that
+change_protection() computes and skip the TLB flush if there's
+no changes to a range that sys_mprotect() modifies.
 
-By accounting against the present PTEs, scanning speed reflects the
-actual present (mapped) memory.
+Given that mprotect() already optimizes the same-flags case
+I expected this optimization to dominantly trigger on
+CONFIG_NUMA_BALANCING=y kernels - but even with that feature
+disabled it triggers rather often.
 
-Suggested-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+There's two reasons for that:
+
+1)
+
+While sys_mprotect() already optimizes the same-flag case:
+
+        if (newflags == oldflags) {
+                *pprev = vma;
+                return 0;
+        }
+
+and this test works in many cases, but it is too sharp in some
+others, where it differentiates between protection values that the
+underlying PTE format makes no distinction about, such as
+PROT_EXEC == PROT_READ on x86.
+
+2)
+
+Even where the pte format over vma flag changes necessiates a
+modification of the pagetables, there might be no pagetables
+yet to modify: they might not be instantiated yet.
+
+During a regular desktop bootup this optimization hits a couple
+of hundred times. During a Java test I measured thousands of
+hits.
+
+So this optimization improves sys_mprotect() in general, not just
+CONFIG_NUMA_BALANCING=y kernels.
+
+[ We could further increase the efficiency of this optimization if
+  change_pte_range() and change_huge_pmd() was a bit smarter about
+  recognizing exact-same-value protection masks - when the hardware
+  can do that safely. This would probably further speed up mprotect(). ]
+
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/fair.c | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ mm/mprotect.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 2a843e7..adcad19 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -914,8 +914,8 @@ void task_numa_work(struct callback_head *work)
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
- 	struct vm_area_struct *vma;
--	unsigned long offset, end;
--	long length;
-+	unsigned long start, end;
-+	long pages;
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ce0377b..6ff2d5e 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -145,7 +145,10 @@ static unsigned long change_protection_range(struct vm_area_struct *vma,
+ 		pages += change_pud_range(vma, pgd, addr, next, newprot,
+ 				 dirty_accountable);
+ 	} while (pgd++, addr = next, addr != end);
+-	flush_tlb_range(vma, start, end);
++
++	/* Only flush the TLB if we actually modified any entries: */
++	if (pages)
++		flush_tlb_range(vma, start, end);
  
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
- 
-@@ -942,30 +942,35 @@ void task_numa_work(struct callback_head *work)
- 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
- 		return;
- 
--	offset = mm->numa_scan_offset;
--	length = sysctl_sched_numa_scan_size;
--	length <<= 20;
-+	start = mm->numa_scan_offset;
-+	pages = sysctl_sched_numa_scan_size;
-+	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages)
-+		return;
- 
- 	down_write(&mm->mmap_sem);
--	vma = find_vma(mm, offset);
-+	vma = find_vma(mm, start);
- 	if (!vma) {
- 		ACCESS_ONCE(mm->numa_scan_seq)++;
--		offset = 0;
-+		start = 0;
- 		vma = mm->mmap;
- 	}
--	for (; vma && length > 0; vma = vma->vm_next) {
-+	for (; vma; vma = vma->vm_next) {
- 		if (!vma_migratable(vma))
- 			continue;
- 
--		offset = max(offset, vma->vm_start);
--		end = min(ALIGN(offset + length, HPAGE_SIZE), vma->vm_end);
--		length -= end - offset;
--
--		change_prot_none(vma, offset, end);
--
--		offset = end;
-+		do {
-+			start = max(start, vma->vm_start);
-+			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
-+			end = min(end, vma->vm_end);
-+			pages -= change_prot_none(vma, start, end);
-+			start = end;
-+			if (pages <= 0)
-+				goto out;
-+		} while (end != vma->vm_end);
- 	}
--	mm->numa_scan_offset = offset;
-+out:
-+	mm->numa_scan_offset = start;
- 	up_write(&mm->mmap_sem);
+ 	return pages;
  }
- 
 -- 
 1.7.11.7
 
