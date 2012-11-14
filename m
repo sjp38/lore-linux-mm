@@ -1,40 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id AD0196B0095
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:41:55 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so721538pad.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 15:41:55 -0800 (PST)
-Date: Wed, 14 Nov 2012 15:41:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 11/11] thp, vmstat: implement HZP_ALLOC and HZP_ALLOC_FAILED
- events
-In-Reply-To: <1352300463-12627-12-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1211141541000.22537@chino.kir.corp.google.com>
-References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <1352300463-12627-12-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 2316A6B009E
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:51:21 -0500 (EST)
+Message-ID: <50A42E77.8030200@linux.intel.com>
+Date: Wed, 14 Nov 2012 15:51:19 -0800
+From: "H. Peter Anvin" <hpa@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v5 00/11] Introduce huge zero page
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <20121114133342.cc7bcd6e.akpm@linux-foundation.org> <20121114232013.7ee42414@pyramind.ukuu.org.uk> <20121114153243.0f6d6bec.akpm@linux-foundation.org>
+In-Reply-To: <20121114153243.0f6d6bec.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
-
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On 11/14/2012 03:32 PM, Andrew Morton wrote:
 > 
-> hzp_alloc is incremented every time a huge zero page is successfully
-> 	allocated. It includes allocations which where dropped due
-> 	race with other allocation. Note, it doesn't count every map
-> 	of the huge zero page, only its allocation.
+> The current code does the latter, by freeing the page via a
+> "slab"-shrinker callback.
 > 
-> hzp_alloc_failed is incremented if kernel fails to allocate huge zero
-> 	page and falls back to using small pages.
+> But I do suspect that with the right combination of use/unuse and
+> memory pressure, we could still get into the high-frequency scenario.
 > 
 
-Nobody is going to know what hzp_ is, sorry.  It's better to be more 
-verbose and name them what they actually are: THP_ZERO_PAGE_ALLOC and 
-THP_ZERO_PAGE_ALLOC_FAILED.  But this would assume we want to lazily 
-allocate them, which I disagree with hpa about.
+There probably isn't any mechanism that doesn't end up with poor results
+in some corner case... just like the vhzp variant.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
