@@ -1,261 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id AE1356B005D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 21:23:20 -0500 (EST)
-Received: by mail-yh0-f41.google.com with SMTP id 47so307354yhr.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 18:23:19 -0800 (PST)
-Date: Tue, 13 Nov 2012 18:23:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 74E956B005D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 21:27:52 -0500 (EST)
+Received: by mail-ye0-f169.google.com with SMTP id q11so1670224yen.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 18:27:51 -0800 (PST)
+Date: Tue, 13 Nov 2012 18:27:53 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 21/31] sched, numa, mm: Implement THP migration
-In-Reply-To: <20121113184835.GH10092@cmpxchg.org>
-Message-ID: <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
-References: <1352826834-11774-1-git-send-email-mingo@kernel.org> <1352826834-11774-22-git-send-email-mingo@kernel.org> <20121113184835.GH10092@cmpxchg.org>
+Subject: [PATCH 1/2] sched, numa, mm: Add memcg support to
+ do_huge_pmd_numa_page()
+In-Reply-To: <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1211131826090.29612@eggly.anvils>
+References: <1352826834-11774-1-git-send-email-mingo@kernel.org> <1352826834-11774-22-git-send-email-mingo@kernel.org> <20121113184835.GH10092@cmpxchg.org> <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Zhouping Liu <zliu@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Zhouping Liu <zliu@redhat.com>
 
-On Tue, 13 Nov 2012, Johannes Weiner wrote:
-> [Put Hugh back on CC]
-> 
-> What happened to Hugh's fixes to the LRU handling?  I believe it was
-> racy beyond affecting memcg, it's just that memcg code had a BUG_ON in
-> the right place to point it out.
+From: Johannes Weiner <hannes@cmpxchg.org>
 
-Right, yes, I made several fixes there, but never sent out the final
-version.  And I can't see your fix to the memcg end of THP migration
-either - though I've not done much more than scan the Subjects so far,
-I've not yet got to grips with yesterday/today's latest approach.
+Add mem_cgroup_prepare_migration() and mem_cgroup_end_migration() calls
+into do_huge_pmd_numa_page(), and fix mem_cgroup_prepare_migration() to
+account for a Transparent Huge Page correctly without bugging.
 
-I'll send out two patches, yours and mine, to what's in the current
-linux-next and the current mmotm, which I have been testing with in
-several contexts; they probably both apply easily to Ingo's new tree.
+Tested-by: Zhouping Liu <zliu@redhat.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-But I vehemently hope that this all very soon vanishes from linux-next,
-and the new stuff is worked on properly for a while, in a separate
-development branch of tip, hopefully converging with Mel's.
+ mm/huge_memory.c |   16 ++++++++++++++++
+ mm/memcontrol.c  |    7 +++++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)
 
-Hugh
-
-> 
-> On Tue, Nov 13, 2012 at 06:13:44PM +0100, Ingo Molnar wrote:
-> > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > 
-> > Add THP migration for the NUMA working set scanning fault case.
-> > 
-> > It uses the page lock to serialize. No migration pte dance is
-> > necessary because the pte is already unmapped when we decide
-> > to migrate.
-> > 
-> > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Andrea Arcangeli <aarcange@redhat.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> > Link: http://lkml.kernel.org/n/tip-yv9vbiz2s455zxq1ffzx3fye@git.kernel.org
-> > [ Significant fixes and changelog. ]
-> > Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> > ---
-> >  mm/huge_memory.c | 131 +++++++++++++++++++++++++++++++++++++++++++------------
-> >  mm/migrate.c     |   2 +-
-> >  2 files changed, 103 insertions(+), 30 deletions(-)
-> > 
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index c4c0a57..931caf4 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -742,12 +742,13 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  			   unsigned int flags, pmd_t entry)
-> >  {
-> >  	unsigned long haddr = address & HPAGE_PMD_MASK;
-> > +	struct page *new_page = NULL;
-> >  	struct page *page = NULL;
-> > -	int node;
-> > +	int node, lru;
-> >  
-> >  	spin_lock(&mm->page_table_lock);
-> >  	if (unlikely(!pmd_same(*pmd, entry)))
-> > -		goto out_unlock;
-> > +		goto unlock;
-> >  
-> >  	if (unlikely(pmd_trans_splitting(entry))) {
-> >  		spin_unlock(&mm->page_table_lock);
-> > @@ -755,45 +756,117 @@ void do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  		return;
-> >  	}
-> >  
-> > -#ifdef CONFIG_NUMA
-> >  	page = pmd_page(entry);
-> > -	VM_BUG_ON(!PageCompound(page) || !PageHead(page));
-> > +	if (page) {
-> > +		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
-> >  
-> > -	get_page(page);
-> > -	spin_unlock(&mm->page_table_lock);
-> > +		get_page(page);
-> > +		node = mpol_misplaced(page, vma, haddr);
-> > +		if (node != -1)
-> > +			goto migrate;
-> > +	}
-> >  
-> > -	/*
-> > -	 * XXX should we serialize against split_huge_page ?
-> > -	 */
-> > +fixup:
-> > +	/* change back to regular protection */
-> > +	entry = pmd_modify(entry, vma->vm_page_prot);
-> > +	set_pmd_at(mm, haddr, pmd, entry);
-> > +	update_mmu_cache_pmd(vma, address, entry);
-> >  
-> > -	node = mpol_misplaced(page, vma, haddr);
-> > -	if (node == -1)
-> > -		goto do_fixup;
-> > +unlock:
-> > +	spin_unlock(&mm->page_table_lock);
-> > +	if (page)
-> > +		put_page(page);
-> >  
-> > -	/*
-> > -	 * Due to lacking code to migrate thp pages, we'll split
-> > -	 * (which preserves the special PROT_NONE) and re-take the
-> > -	 * fault on the normal pages.
-> > -	 */
-> > -	split_huge_page(page);
-> > -	put_page(page);
-> >  	return;
-> >  
-> > -do_fixup:
-> > +migrate:
-> > +	spin_unlock(&mm->page_table_lock);
-> > +
-> > +	lock_page(page);
-> >  	spin_lock(&mm->page_table_lock);
-> > -	if (unlikely(!pmd_same(*pmd, entry)))
-> > -		goto out_unlock;
-> > -#endif
-> > +	if (unlikely(!pmd_same(*pmd, entry))) {
-> > +		spin_unlock(&mm->page_table_lock);
-> > +		unlock_page(page);
-> > +		put_page(page);
-> > +		return;
-> > +	}
-> > +	spin_unlock(&mm->page_table_lock);
-> >  
-> > -	/* change back to regular protection */
-> > -	entry = pmd_modify(entry, vma->vm_page_prot);
-> > -	if (pmdp_set_access_flags(vma, haddr, pmd, entry, 1))
-> > -		update_mmu_cache_pmd(vma, address, entry);
-> > +	new_page = alloc_pages_node(node,
-> > +	    (GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT,
-> > +	    HPAGE_PMD_ORDER);
-> >  
-> > -out_unlock:
-> > +	if (!new_page)
-> > +		goto alloc_fail;
-> > +
-> > +	lru = PageLRU(page);
-> > +
-> > +	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
-> > +		goto alloc_fail;
-> > +
-> > +	if (!trylock_page(new_page))
-> > +		BUG();
-> > +
-> > +	/* anon mapping, we can simply copy page->mapping to the new page: */
-> > +	new_page->mapping = page->mapping;
-> > +	new_page->index = page->index;
-> > +
-> > +	migrate_page_copy(new_page, page);
-> > +
-> > +	WARN_ON(PageLRU(new_page));
-> > +
-> > +	spin_lock(&mm->page_table_lock);
-> > +	if (unlikely(!pmd_same(*pmd, entry))) {
-> > +		spin_unlock(&mm->page_table_lock);
-> > +		if (lru)
-> > +			putback_lru_page(page);
-> > +
-> > +		unlock_page(new_page);
-> > +		ClearPageActive(new_page);	/* Set by migrate_page_copy() */
-> > +		new_page->mapping = NULL;
-> > +		put_page(new_page);		/* Free it */
-> > +
-> > +		unlock_page(page);
-> > +		put_page(page);			/* Drop the local reference */
-> > +
-> > +		return;
-> > +	}
-> > +
-> > +	entry = mk_pmd(new_page, vma->vm_page_prot);
-> > +	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-> > +	entry = pmd_mkhuge(entry);
-> > +
-> > +	page_add_new_anon_rmap(new_page, vma, haddr);
-> > +
-> > +	set_pmd_at(mm, haddr, pmd, entry);
-> > +	update_mmu_cache_pmd(vma, address, entry);
-> > +	page_remove_rmap(page);
-> >  	spin_unlock(&mm->page_table_lock);
-> > -	if (page)
-> > +
-> > +	put_page(page);			/* Drop the rmap reference */
-> > +
-> > +	if (lru)
-> > +		put_page(page);		/* drop the LRU isolation reference */
-> > +
-> > +	unlock_page(new_page);
-> > +	unlock_page(page);
-> > +	put_page(page);			/* Drop the local reference */
-> > +
-> > +	return;
-> > +
-> > +alloc_fail:
-> > +	if (new_page)
-> > +		put_page(new_page);
-> > +
-> > +	unlock_page(page);
-> > +
-> > +	spin_lock(&mm->page_table_lock);
-> > +	if (unlikely(!pmd_same(*pmd, entry))) {
-> >  		put_page(page);
-> > +		page = NULL;
-> > +		goto unlock;
-> > +	}
-> > +	goto fixup;
-> >  }
-> >  
-> >  int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 3299949..72d1056 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -417,7 +417,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
-> >   */
-> >  void migrate_page_copy(struct page *newpage, struct page *page)
-> >  {
-> > -	if (PageHuge(page))
-> > +	if (PageHuge(page) || PageTransHuge(page))
-> >  		copy_huge_page(newpage, page);
-> >  	else
-> >  		copy_highpage(newpage, page);
-> > -- 
-> > 1.7.11.7
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+--- mmotm/mm/huge_memory.c	2012-11-09 09:43:46.892046342 -0800
++++ linux/mm/huge_memory.c	2012-11-13 14:51:04.000321370 -0800
+@@ -750,6 +750,7 @@ void do_huge_pmd_numa_page(struct mm_str
+ 			   unsigned int flags, pmd_t entry)
+ {
+ 	unsigned long haddr = address & HPAGE_PMD_MASK;
++	struct mem_cgroup *memcg = NULL;
+ 	struct page *new_page = NULL;
+ 	struct page *page = NULL;
+ 	int node, lru;
+@@ -840,6 +841,14 @@ migrate:
+ 
+ 		return;
+ 	}
++	/*
++	 * Traditional migration needs to prepare the memcg charge
++	 * transaction early to prevent the old page from being
++	 * uncharged when installing migration entries.  Here we can
++	 * save the potential rollback and start the charge transfer
++	 * only when migration is already known to end successfully.
++	 */
++	mem_cgroup_prepare_migration(page, new_page, &memcg);
+ 
+ 	entry = mk_pmd(new_page, vma->vm_page_prot);
+ 	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+@@ -850,6 +859,12 @@ migrate:
+ 	set_pmd_at(mm, haddr, pmd, entry);
+ 	update_mmu_cache_pmd(vma, address, entry);
+ 	page_remove_rmap(page);
++	/*
++	 * Finish the charge transaction under the page table lock to
++	 * prevent split_huge_page() from dividing up the charge
++	 * before it's fully transferred to the new page.
++	 */
++	mem_cgroup_end_migration(memcg, page, new_page, true);
+ 	spin_unlock(&mm->page_table_lock);
+ 
+ 	put_page(page);			/* Drop the rmap reference */
+@@ -860,6 +875,7 @@ migrate:
+ 		put_page(page);		/* drop the LRU isolation reference */
+ 
+ 	unlock_page(new_page);
++
+ 	unlock_page(page);
+ 	put_page(page);			/* Drop the local reference */
+ 
+--- mmotm/mm/memcontrol.c	2012-11-09 09:43:46.896046342 -0800
++++ linux/mm/memcontrol.c	2012-11-13 14:51:04.004321370 -0800
+@@ -4186,15 +4186,18 @@ void mem_cgroup_prepare_migration(struct
+ 				  struct mem_cgroup **memcgp)
+ {
+ 	struct mem_cgroup *memcg = NULL;
++	unsigned int nr_pages = 1;
+ 	struct page_cgroup *pc;
+ 	enum charge_type ctype;
+ 
+ 	*memcgp = NULL;
+ 
+-	VM_BUG_ON(PageTransHuge(page));
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
++	if (PageTransHuge(page))
++		nr_pages <<= compound_order(page);
++
+ 	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+ 	if (PageCgroupUsed(pc)) {
+@@ -4256,7 +4259,7 @@ void mem_cgroup_prepare_migration(struct
+ 	 * charged to the res_counter since we plan on replacing the
+ 	 * old one and only one page is going to be left afterwards.
+ 	 */
+-	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
++	__mem_cgroup_commit_charge(memcg, newpage, nr_pages, ctype, false);
+ }
+ 
+ /* remove redundant charge if migration failed*/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
