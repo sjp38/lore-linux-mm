@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 87E5F6B006C
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 11:58:38 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so292450dad.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:58:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id ED0416B0070
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 11:58:41 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so462886pad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:58:41 -0800 (PST)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [RFC PATCH 2/3] ARM: static_vm: introduce an infrastructure for static mapped area
-Date: Thu, 15 Nov 2012 01:55:53 +0900
-Message-Id: <1352912154-16210-3-git-send-email-js1304@gmail.com>
+Subject: [RFC PATCH 3/3] ARM: mm: use static_vm for managing static mapped areas
+Date: Thu, 15 Nov 2012 01:55:54 +0900
+Message-Id: <1352912154-16210-4-git-send-email-js1304@gmail.com>
 In-Reply-To: <1352912154-16210-1-git-send-email-js1304@gmail.com>
 References: <1352912154-16210-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,197 +15,294 @@ List-ID: <linux-mm.kvack.org>
 To: Russell King <rmk+kernel@arm.linux.org.uk>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-In current implementation, we used ARM-specific flag, that is,
-VM_ARM_STATIC_MAPPING, for distinguishing ARM specific static mapped area.
-The purpose of static mapped area is to re-use static mapped area when
-entire physical address range of the ioremap request can be covered
-by this area.
+A static mapped area is ARM-specific, so it is better not to use
+generic vmalloc data structure, that is, vmlist and vmlist_lock
+for managing static mapped area. And it causes some needless overhead and
+reducing this overhead is better idea.
 
-This implementation causes needless overhead for some cases.
-We unnecessarily iterate vmlist for finding matched area even if there
-is no static mapped area. And if there are some static mapped areas,
-iterating whole vmlist is not preferable.
-In fact, it is not a critical problem, because ioremap is not frequently
-used. But reducing overhead is better idea.
-
-Another reason for doing this work is for removing architecture dependency
-on vmalloc layer. I think that vmlist and vmlist_lock is internal data
-structure for vmalloc layer. Some codes for debugging and stat inevitably
-use vmlist and vmlist_lock. But it is preferable that they are used outside
-of vmalloc.c as least as possible.
-
-Now, I introduce an ARM-specific infrastructure for static mapped area. In
-the following patch, we will use this and resolve above mentioned problem.
+Now, we have newly introduced static_vm infrastructure.
+With it, we don't need to iterate all mapped areas. Instead, we just
+iterate static mapped areas. It helps to reduce an overhead of finding
+matched area. And architecture dependency on vmalloc layer is removed,
+so it will help to maintainability for vmalloc layer.
 
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
 diff --git a/arch/arm/include/asm/mach/static_vm.h b/arch/arm/include/asm/mach/static_vm.h
-new file mode 100644
-index 0000000..1bb6604
---- /dev/null
+index 1bb6604..0d9c685 100644
+--- a/arch/arm/include/asm/mach/static_vm.h
 +++ b/arch/arm/include/asm/mach/static_vm.h
-@@ -0,0 +1,45 @@
-+/*
-+ * arch/arm/include/asm/mach/static_vm.h
-+ *
-+ * Copyright (C) 2012 LG Electronics, Joonsoo Kim <js1304@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-+ */
-+
-+#ifndef _ASM_MACH_STATIC_VM_H
-+#define _ASM_MACH_STATIC_VM_H
-+
-+#include <linux/types.h>
-+#include <linux/vmalloc.h>
-+
-+struct static_vm {
-+	struct static_vm	*next;
-+	void			*vaddr;
-+	unsigned long		size;
-+	unsigned long		flags;
-+	phys_addr_t		paddr;
-+	const void		*caller;
-+};
-+
-+extern struct static_vm *static_vmlist;
-+extern spinlock_t static_vmlist_lock;
-+
-+extern struct static_vm *find_static_vm_paddr(phys_addr_t paddr,
-+			size_t size, unsigned long flags);
-+extern struct static_vm *find_static_vm_vaddr(void *vaddr, unsigned long flags);
-+extern void init_static_vm(struct static_vm *static_vm,
-+			struct vm_struct *vm, unsigned long flags);
-+extern void insert_static_vm(struct static_vm *vm);
-+
-+#endif /* _ASM_MACH_STATIC_VM_H */
-diff --git a/arch/arm/mm/Makefile b/arch/arm/mm/Makefile
-index 4e333fa..57b329a 100644
---- a/arch/arm/mm/Makefile
-+++ b/arch/arm/mm/Makefile
-@@ -6,7 +6,7 @@ obj-y				:= dma-mapping.o extable.o fault.o init.o \
- 				   iomap.o
+@@ -32,6 +32,12 @@ struct static_vm {
+ 	const void		*caller;
+ };
  
- obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
--				   mmap.o pgd.o mmu.o
-+				   mmap.o pgd.o mmu.o static_vm.o
++#define STATIC_VM_MEM		0x00000001
++#define STATIC_VM_EMPTY		0x00000002
++
++/* mtype should be less than 28 */
++#define STATIC_VM_MTYPE(mt)	(1UL << ((mt) + 4))
++
+ extern struct static_vm *static_vmlist;
+ extern spinlock_t static_vmlist_lock;
  
- ifneq ($(CONFIG_MMU),y)
- obj-y				+= nommu.o
-diff --git a/arch/arm/mm/static_vm.c b/arch/arm/mm/static_vm.c
-new file mode 100644
-index 0000000..d7677cf
---- /dev/null
-+++ b/arch/arm/mm/static_vm.c
-@@ -0,0 +1,97 @@
-+/*
-+ * arch/arm/mm/static_vm.c
-+ *
-+ * Copyright (C) 2012 LG Electronics, Joonsoo Kim <js1304@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-+ */
-+
-+#include <linux/spinlock.h>
-+
+diff --git a/arch/arm/mm/ioremap.c b/arch/arm/mm/ioremap.c
+index 5dcc2fd..b7f3c27 100644
+--- a/arch/arm/mm/ioremap.c
++++ b/arch/arm/mm/ioremap.c
+@@ -36,6 +36,7 @@
+ #include <asm/system_info.h>
+ 
+ #include <asm/mach/map.h>
 +#include <asm/mach/static_vm.h>
+ #include <asm/mach/pci.h>
+ #include "mm.h"
+ 
+@@ -197,7 +198,8 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
+ 	const struct mem_type *type;
+ 	int err;
+ 	unsigned long addr;
+- 	struct vm_struct * area;
++	struct vm_struct *area;
++	phys_addr_t paddr = __pfn_to_phys(pfn);
+ 
+ #ifndef CONFIG_ARM_LPAE
+ 	/*
+@@ -219,24 +221,17 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
+ 	/*
+ 	 * Try to reuse one of the static mapping whenever possible.
+ 	 */
+-	read_lock(&vmlist_lock);
+-	for (area = vmlist; area; area = area->next) {
+-		if (!size || (sizeof(phys_addr_t) == 4 && pfn >= 0x100000))
+-			break;
+-		if (!(area->flags & VM_ARM_STATIC_MAPPING))
+-			continue;
+-		if ((area->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
+-			continue;
+-		if (__phys_to_pfn(area->phys_addr) > pfn ||
+-		    __pfn_to_phys(pfn) + size-1 > area->phys_addr + area->size-1)
+-			continue;
+-		/* we can drop the lock here as we know *area is static */
+-		read_unlock(&vmlist_lock);
+-		addr = (unsigned long)area->addr;
+-		addr += __pfn_to_phys(pfn) - area->phys_addr;
+-		return (void __iomem *) (offset + addr);
++	if (size && !((sizeof(phys_addr_t) == 4 && pfn >= 0x100000))) {
++		struct static_vm *static_vm;
 +
-+struct static_vm *static_vmlist;
-+DEFINE_SPINLOCK(static_vmlist_lock);
-+
-+struct static_vm *find_static_vm_paddr(phys_addr_t paddr,
-+			size_t size, unsigned long flags)
-+{
-+	struct static_vm *area;
-+
-+	spin_lock(&static_vmlist_lock);
-+	for (area = static_vmlist; area; area = area->next) {
-+		if ((area->flags & flags) != flags)
-+			continue;
-+
-+		if (area->paddr > paddr ||
-+			paddr + size - 1 > area->paddr + area->size - 1)
-+			continue;
-+
-+		spin_unlock(&static_vmlist_lock);
-+		return area;
-+	}
-+	spin_unlock(&static_vmlist_lock);
-+
-+	return NULL;
-+}
-+
-+struct static_vm *find_static_vm_vaddr(void *vaddr, unsigned long flags)
-+{
-+	struct static_vm *area;
-+
-+	spin_lock(&static_vmlist_lock);
-+	for (area = static_vmlist; area; area = area->next) {
-+		/* static_vmlist is ascending order */
-+		if (area->vaddr > vaddr)
-+			break;
-+
-+		if ((area->flags & flags) != flags)
-+			continue;
-+
-+		if (area->vaddr <= vaddr && area->vaddr + area->size > vaddr) {
-+			spin_unlock(&static_vmlist_lock);
-+			return area;
++		static_vm = find_static_vm_paddr(__pfn_to_phys(pfn), size,
++				STATIC_VM_MEM | STATIC_VM_MTYPE(mtype));
++		if (static_vm) {
++			addr = (unsigned long)static_vm->vaddr;
++			addr += paddr - static_vm->paddr;
++			return (void __iomem *) (offset + addr);
 +		}
-+	}
-+	spin_unlock(&static_vmlist_lock);
+ 	}
+-	read_unlock(&vmlist_lock);
+ 
+ 	/*
+ 	 * Don't allow RAM to be mapped - this causes problems with ARMv6+
+@@ -248,7 +243,7 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
+  	if (!area)
+  		return NULL;
+  	addr = (unsigned long)area->addr;
+-	area->phys_addr = __pfn_to_phys(pfn);
++	area->phys_addr = paddr;
+ 
+ #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
+ 	if (DOMAIN_IO == 0 &&
+@@ -346,34 +341,20 @@ __arm_ioremap_exec(unsigned long phys_addr, size_t size, bool cached)
+ void __iounmap(volatile void __iomem *io_addr)
+ {
+ 	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
+-	struct vm_struct *vm;
+-
+-	read_lock(&vmlist_lock);
+-	for (vm = vmlist; vm; vm = vm->next) {
+-		if (vm->addr > addr)
+-			break;
+-		if (!(vm->flags & VM_IOREMAP))
+-			continue;
+-		/* If this is a static mapping we must leave it alone */
+-		if ((vm->flags & VM_ARM_STATIC_MAPPING) &&
+-		    (vm->addr <= addr) && (vm->addr + vm->size > addr)) {
+-			read_unlock(&vmlist_lock);
+-			return;
+-		}
++	struct static_vm *static_vm;
 +
-+	return NULL;
-+}
++	static_vm = find_static_vm_vaddr(addr, STATIC_VM_MEM);
++	if (static_vm)
++		return;
 +
-+void init_static_vm(struct static_vm *static_vm,
-+				struct vm_struct *vm, unsigned long flags)
-+{
-+	static_vm->vaddr = vm->addr;
-+	static_vm->size = vm->size;
-+	static_vm->paddr = vm->phys_addr;
-+	static_vm->caller = vm->caller;
-+	static_vm->flags = flags;
-+}
+ #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
+-		/*
+-		 * If this is a section based mapping we need to handle it
+-		 * specially as the VM subsystem does not know how to handle
+-		 * such a beast.
+-		 */
+-		if ((vm->addr == addr) &&
+-		    (vm->flags & VM_ARM_SECTION_MAPPING)) {
++	{
++		struct vm_struct *vm;
++		vm = find_vm_area(addr);
++		if (vm && (vm->flags & VM_ARM_SECTION_MAPPING))
+ 			unmap_area_sections((unsigned long)vm->addr, vm->size);
+-			break;
+-		}
+-#endif
+ 	}
+-	read_unlock(&vmlist_lock);
++#endif
+ 
+ 	vunmap(addr);
+ }
+diff --git a/arch/arm/mm/mm.h b/arch/arm/mm/mm.h
+index a8ee92d..3ae75e5 100644
+--- a/arch/arm/mm/mm.h
++++ b/arch/arm/mm/mm.h
+@@ -52,16 +52,6 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
+ /* (super)section-mapped I/O regions used by ioremap()/iounmap() */
+ #define VM_ARM_SECTION_MAPPING	0x80000000
+ 
+-/* permanent static mappings from iotable_init() */
+-#define VM_ARM_STATIC_MAPPING	0x40000000
+-
+-/* empty mapping */
+-#define VM_ARM_EMPTY_MAPPING	0x20000000
+-
+-/* mapping type (attributes) for permanent static mappings */
+-#define VM_ARM_MTYPE(mt)		((mt) << 20)
+-#define VM_ARM_MTYPE_MASK	(0x1f << 20)
+-
+ /* consistent regions used by dma_alloc_attrs() */
+ #define VM_ARM_DMA_CONSISTENT	0x20000000
+ 
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 941dfb9..6c154c1 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -31,6 +31,7 @@
+ 
+ #include <asm/mach/arch.h>
+ #include <asm/mach/map.h>
++#include <asm/mach/static_vm.h>
+ #include <asm/mach/pci.h>
+ 
+ #include "mm.h"
+@@ -757,21 +758,28 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
+ {
+ 	struct map_desc *md;
+ 	struct vm_struct *vm;
++	struct static_vm *static_vm;
+ 
+ 	if (!nr)
+ 		return;
+ 
+ 	vm = early_alloc_aligned(sizeof(*vm) * nr, __alignof__(*vm));
++	static_vm = early_alloc_aligned(sizeof(*static_vm) * nr,
++						__alignof__(*static_vm));
+ 
+ 	for (md = io_desc; nr; md++, nr--) {
+ 		create_mapping(md);
 +
-+void insert_static_vm(struct static_vm *vm)
-+{
-+	struct static_vm *tmp, **p;
+ 		vm->addr = (void *)(md->virtual & PAGE_MASK);
+ 		vm->size = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
+ 		vm->phys_addr = __pfn_to_phys(md->pfn);
+-		vm->flags = VM_IOREMAP | VM_ARM_STATIC_MAPPING;
+-		vm->flags |= VM_ARM_MTYPE(md->type);
++		vm->flags = VM_IOREMAP;
+ 		vm->caller = iotable_init;
 +
-+	spin_lock(&static_vmlist_lock);
-+	for (p = &static_vmlist; (tmp = *p) != NULL; p = &tmp->next) {
-+		if (tmp->vaddr >= vm->vaddr) {
-+			BUG_ON(tmp->vaddr < vm->vaddr + vm->size);
-+			break;
-+		} else
-+			BUG_ON(tmp->vaddr + tmp->size > vm->vaddr);
-+	}
-+	vm->next = *p;
-+	*p = vm;
-+	spin_unlock(&static_vmlist_lock);
-+}
++		init_static_vm(static_vm, vm, STATIC_VM_MEM |
++						STATIC_VM_MTYPE(md->type));
+ 		vm_area_add_early(vm++);
++		insert_static_vm(static_vm++);
+ 	}
+ }
+ 
+@@ -779,13 +787,20 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
+ 				  void *caller)
+ {
+ 	struct vm_struct *vm;
++	struct static_vm *static_vm;
+ 
+ 	vm = early_alloc_aligned(sizeof(*vm), __alignof__(*vm));
++	static_vm = early_alloc_aligned(sizeof(*static_vm),
++					__alignof__(*static_vm));
++
+ 	vm->addr = (void *)addr;
+ 	vm->size = size;
+-	vm->flags = VM_IOREMAP | VM_ARM_EMPTY_MAPPING;
++	vm->flags = VM_IOREMAP;
+ 	vm->caller = caller;
++
++	init_static_vm(static_vm, vm, STATIC_VM_EMPTY);
+ 	vm_area_add_early(vm);
++	insert_static_vm(static_vm);
+ }
+ 
+ #ifndef CONFIG_ARM_LPAE
+@@ -810,15 +825,19 @@ static void __init pmd_empty_section_gap(unsigned long addr)
+ 
+ static void __init fill_pmd_gaps(void)
+ {
+-	struct vm_struct *vm;
++	struct static_vm *area;
+ 	unsigned long addr, next = 0;
+ 	pmd_t *pmd;
+ 
+-	/* we're still single threaded hence no lock needed here */
+-	for (vm = vmlist; vm; vm = vm->next) {
+-		if (!(vm->flags & (VM_ARM_STATIC_MAPPING | VM_ARM_EMPTY_MAPPING)))
+-			continue;
+-		addr = (unsigned long)vm->addr;
++	/*
++	 * We should not take a lock here, because pmd_empty_section_gap()
++	 * invokes vm_reserve_area_early(), and then it call insert_static_vm()
++	 * which try to take a lock.
++	 * We're still single thread, so traverse whole list without a lock
++	 * is safe for now. And inserting new entry is also safe.
++	 */
++	for (area = static_vmlist; area; area = area->next) {
++		addr = (unsigned long)area->vaddr;
+ 		if (addr < next)
+ 			continue;
+ 
+@@ -838,7 +857,7 @@ static void __init fill_pmd_gaps(void)
+ 		 * If so and the second section entry for this PMD is empty
+ 		 * then we block the corresponding virtual address.
+ 		 */
+-		addr += vm->size;
++		addr += area->size;
+ 		if ((addr & ~PMD_MASK) == SECTION_SIZE) {
+ 			pmd = pmd_off_k(addr) + 1;
+ 			if (pmd_none(*pmd))
+@@ -857,19 +876,13 @@ static void __init fill_pmd_gaps(void)
+ #if defined(CONFIG_PCI) && !defined(CONFIG_NEED_MACH_IO_H)
+ static void __init pci_reserve_io(void)
+ {
+-	struct vm_struct *vm;
+-	unsigned long addr;
++	struct static_vm *static_vm;
+ 
+-	/* we're still single threaded hence no lock needed here */
+-	for (vm = vmlist; vm; vm = vm->next) {
+-		if (!(vm->flags & VM_ARM_STATIC_MAPPING))
+-			continue;
+-		addr = (unsigned long)vm->addr;
+-		addr &= ~(SZ_2M - 1);
+-		if (addr == PCI_IO_VIRT_BASE)
+-			return;
++	static_vm = find_static_vm_vaddr((void *)PCI_IO_VIRT_BASE,
++						STATIC_VM_MEM);
++	if (static_vm)
++		return;
+ 
+-	}
+ 	vm_reserve_area_early(PCI_IO_VIRT_BASE, SZ_2M, pci_reserve_io);
+ }
+ #else
 -- 
 1.7.9.5
 
