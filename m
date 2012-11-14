@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id A3F2F6B005D
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:22:46 -0500 (EST)
-Message-ID: <50A3E169.4010402@redhat.com>
-Date: Wed, 14 Nov 2012 13:22:33 -0500
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id C014A6B006C
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:25:53 -0500 (EST)
+Message-ID: <50A3E225.5050804@redhat.com>
+Date: Wed, 14 Nov 2012 13:25:41 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 26/31] sched: numa: Make mempolicy home-node aware
-References: <1352805180-1607-1-git-send-email-mgorman@suse.de> <1352805180-1607-27-git-send-email-mgorman@suse.de>
-In-Reply-To: <1352805180-1607-27-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 27/31] sched: numa: Make find_busiest_queue() a method
+References: <1352805180-1607-1-git-send-email-mgorman@suse.de> <1352805180-1607-28-git-send-email-mgorman@suse.de>
+In-Reply-To: <1352805180-1607-28-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -19,21 +19,8 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.c
 On 11/13/2012 06:12 AM, Mel Gorman wrote:
 > From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 >
-> Add another layer of fallback policy to make the home node concept
-> useful from a memory allocation PoV.
->
-> This changes the mpol order to:
->
->   - vma->vm_ops->get_policy	[if applicable]
->   - vma->vm_policy		[if applicable]
->   - task->mempolicy
->   - tsk_home_node() preferred	[NEW]
->   - default_policy
-
-Why is the home node policy not the default policy?
-
-> Note that the tsk_home_node() policy has Migrate-on-Fault enabled to
-> facilitate efficient on-demand memory migration.
+> Its a bit awkward but it was the least painful means of modifying the
+> queue selection. Used in the next patch to conditionally use a queue.
 >
 > Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 > Cc: Paul Turner <pjt@google.com>
@@ -45,7 +32,7 @@ Why is the home node policy not the default policy?
 > Signed-off-by: Ingo Molnar <mingo@kernel.org>
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 
 -- 
