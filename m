@@ -1,171 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 471346B007D
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:47:56 -0500 (EST)
-Date: Wed, 14 Nov 2012 14:47:52 +0100
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id A80BD6B0070
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 08:59:34 -0500 (EST)
+Date: Wed, 14 Nov 2012 14:59:30 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 4/4] mm, oom: remove statically defined arch functions of
- same name
-Message-ID: <20121114134752.GD4929@dhcp22.suse.cz>
-References: <alpine.DEB.2.00.1211140111190.32125@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1211140113480.32125@chino.kir.corp.google.com>
+Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list error
+ handling
+Message-ID: <20121114135930.GE4929@dhcp22.suse.cz>
+References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
+ <1351251453-6140-4-git-send-email-mhocko@suse.cz>
+ <508E8B95.406@parallels.com>
+ <20121029150022.a595b866.akpm@linux-foundation.org>
+ <20121030103559.GA7394@dhcp22.suse.cz>
+ <20121113211041.GB1543@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211140113480.32125@chino.kir.corp.google.com>
+In-Reply-To: <20121113211041.GB1543@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Paul Mundt <lethal@linux-sh.org>, x86@kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Wed 14-11-12 01:15:28, David Rientjes wrote:
-> out_of_memory() is a globally defined function to call the oom killer.
-> x86, sh, and powerpc all use a function of the same name within file
-> scope in their respective fault.c unnecessarily.  Inline the functions
-> into the pagefault handlers to clean the code up.
-
-Yes I like it. It is really confusing to have a local function with the
-same name.
-
+On Tue 13-11-12 16:10:41, Johannes Weiner wrote:
+> On Tue, Oct 30, 2012 at 11:35:59AM +0100, Michal Hocko wrote:
+> > On Mon 29-10-12 15:00:22, Andrew Morton wrote:
+> > > On Mon, 29 Oct 2012 17:58:45 +0400
+> > > Glauber Costa <glommer@parallels.com> wrote:
+> > > 
+> > > > > + * move charges to its parent or the root cgroup if the group has no
+> > > > > + * parent (aka use_hierarchy==0).
+> > > > > + * Although this might fail (get_page_unless_zero, isolate_lru_page or
+> > > > > + * mem_cgroup_move_account fails) the failure is always temporary and
+> > > > > + * it signals a race with a page removal/uncharge or migration. In the
+> > > > > + * first case the page is on the way out and it will vanish from the LRU
+> > > > > + * on the next attempt and the call should be retried later.
+> > > > > + * Isolation from the LRU fails only if page has been isolated from
+> > > > > + * the LRU since we looked at it and that usually means either global
+> > > > > + * reclaim or migration going on. The page will either get back to the
+> > > > > + * LRU or vanish.
+> > > > 
+> > > > I just wonder for how long can it go in the worst case?
+> > > 
+> > > If the kernel is uniprocessor and the caller is SCHED_FIFO: ad infinitum!
+> > 
+> > You are right, if the rmdir (resp. echo > force_empty) at SCHED_FIFO
+> > races with put_page (on a shared page) which gets preempted after
+> > put_page_testzero and before __page_cache_release then we are screwed:
+> > 
+> > 						put_page(page)
+> > 						  put_page_testzero
+> > 						  <preempted and page still on LRU>
+> > mem_cgroup_force_empty_list
+> >   page = list_entry(list->prev, struct page, lru);
+> >   mem_cgroup_move_parent(page)
+> >     get_page_unless_zero <fails>
+> >   cond_resched() <scheduled again>
+> > 
+> > The race window is really small but it is definitely possible. I am not
+> > happy about this state and it should be probably mentioned in the
+> > patch description but I do not see any way around (except for hacks like
+> > sched_setscheduler for the current which is, ehm...) and still keep
+> > do_not_fail contract here.
+> > 
+> > Can we consider this as a corner case (it is much easier to kill a
+> > machine with SCHED_FIFO than this anyway) or the concern is really
+> > strong and we should come with a solution before this can get merged?
 > 
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Paul Mundt <lethal@linux-sh.org>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Wouldn't the much bigger race window be reclaim having the page
+> isolated and SCHED_FIFO preventing it from putback?
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+We wouldn't see the page on the LRU then, right?
 
-> ---
->  arch/powerpc/mm/fault.c |   27 ++++++++++++---------------
->  arch/sh/mm/fault.c      |   19 +++++++------------
->  arch/x86/mm/fault.c     |   23 ++++++++---------------
->  3 files changed, 27 insertions(+), 42 deletions(-)
+> I also don't think this is a new class of problem, though.
 > 
-> diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-> --- a/arch/powerpc/mm/fault.c
-> +++ b/arch/powerpc/mm/fault.c
-> @@ -113,19 +113,6 @@ static int store_updates_sp(struct pt_regs *regs)
->  #define MM_FAULT_CONTINUE	-1
->  #define MM_FAULT_ERR(sig)	(sig)
->  
-> -static int out_of_memory(struct pt_regs *regs)
-> -{
-> -	/*
-> -	 * We ran out of memory, or some other thing happened to us that made
-> -	 * us unable to handle the page fault gracefully.
-> -	 */
-> -	up_read(&current->mm->mmap_sem);
-> -	if (!user_mode(regs))
-> -		return MM_FAULT_ERR(SIGKILL);
-> -	pagefault_out_of_memory();
-> -	return MM_FAULT_RETURN;
-> -}
-> -
->  static int do_sigbus(struct pt_regs *regs, unsigned long address)
->  {
->  	siginfo_t info;
-> @@ -169,8 +156,18 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
->  		return MM_FAULT_CONTINUE;
->  
->  	/* Out of memory */
-> -	if (fault & VM_FAULT_OOM)
-> -		return out_of_memory(regs);
-> +	if (fault & VM_FAULT_OOM) {
-> +		up_read(&current->mm->mmap_sem);
-> +
-> +		/*
-> +		 * We ran out of memory, or some other thing happened to us that
-> +		 * made us unable to handle the page fault gracefully.
-> +		 */
-> +		if (!user_mode(regs))
-> +			return MM_FAULT_ERR(SIGKILL);
-> +		pagefault_out_of_memory();
-> +		return MM_FAULT_RETURN;
-> +	}
->  
->  	/* Bus error. x86 handles HWPOISON here, we'll add this if/when
->  	 * we support the feature in HW
-> diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
-> --- a/arch/sh/mm/fault.c
-> +++ b/arch/sh/mm/fault.c
-> @@ -301,17 +301,6 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
->  	__bad_area(regs, error_code, address, SEGV_ACCERR);
->  }
->  
-> -static void out_of_memory(void)
-> -{
-> -	/*
-> -	 * We ran out of memory, call the OOM killer, and return the userspace
-> -	 * (which will retry the fault, or kill us if we got oom-killed):
-> -	 */
-> -	up_read(&current->mm->mmap_sem);
-> -
-> -	pagefault_out_of_memory();
-> -}
-> -
->  static void
->  do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
->  {
-> @@ -353,8 +342,14 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
->  			no_context(regs, error_code, address);
->  			return 1;
->  		}
-> +		up_read(&current->mm->mmap_sem);
->  
-> -		out_of_memory();
-> +		/*
-> +		 * We ran out of memory, call the OOM killer, and return the
-> +		 * userspace (which will retry the fault, or kill us if we got
-> +		 * oom-killed):
-> +		 */
-> +		pagefault_out_of_memory();
->  	} else {
->  		if (fault & VM_FAULT_SIGBUS)
->  			do_sigbus(regs, error_code, address);
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -803,20 +803,6 @@ bad_area_access_error(struct pt_regs *regs, unsigned long error_code,
->  	__bad_area(regs, error_code, address, SEGV_ACCERR);
->  }
->  
-> -/* TODO: fixup for "mm-invoke-oom-killer-from-page-fault.patch" */
-> -static void
-> -out_of_memory(struct pt_regs *regs, unsigned long error_code,
-> -	      unsigned long address)
-> -{
-> -	/*
-> -	 * We ran out of memory, call the OOM killer, and return the userspace
-> -	 * (which will retry the fault, or kill us if we got oom-killed):
-> -	 */
-> -	up_read(&current->mm->mmap_sem);
-> -
-> -	pagefault_out_of_memory();
-> -}
-> -
->  static void
->  do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address,
->  	  unsigned int fault)
-> @@ -879,7 +865,14 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
->  			return 1;
->  		}
->  
-> -		out_of_memory(regs, error_code, address);
-> +		up_read(&current->mm->mmap_sem);
-> +
-> +		/*
-> +		 * We ran out of memory, call the OOM killer, and return the
-> +		 * userspace (which will retry the fault, or kill us if we got
-> +		 * oom-killed):
-> +		 */
-> +		pagefault_out_of_memory();
->  	} else {
->  		if (fault & (VM_FAULT_SIGBUS|VM_FAULT_HWPOISON|
->  			     VM_FAULT_HWPOISON_LARGE))
+> Would it make sense to stick a wait_on_page_locked() in there just so
+> that we don't busy spin on a page under migration/reclaim?
 
+Hmm, this would also mean that get_page_unless_zero would fail as well
+and so we would schedule in mem_cgroup_force_empty_list. It is true that
+there might be no other runnable task so we can busy loop so yes this
+would help. Care to cook the patch?
+
+Thanks
 -- 
 Michal Hocko
 SUSE Labs
