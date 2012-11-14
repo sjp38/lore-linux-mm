@@ -1,81 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 353196B00A1
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 17:58:50 -0500 (EST)
-Date: Wed, 14 Nov 2012 14:58:48 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
- approaches low water mark
-Message-Id: <20121114145848.8224e8b0.akpm@linux-foundation.org>
-In-Reply-To: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
-References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 6DDFB6B00A2
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:08:34 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH 0/3] acpi: Introduce prepare_remove device operation
+Date: Thu, 15 Nov 2012 00:12:55 +0100
+Message-ID: <1647704.U9gX6ykHyh@vostro.rjw.lan>
+In-Reply-To: <20121112172046.GA4931@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1352399371-8015-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <50A07477.2050002@cn.fujitsu.com> <20121112172046.GA4931@dhcp-192-168-178-175.profitbricks.localdomain>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 12 Nov 2012 09:59:42 +0100
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-
-> It has been observed that system tends to keep a lot of CMA free pages
-> even in very high memory pressure use cases. The CMA fallback for movable
-> pages is used very rarely, only when system is completely pruned from
-> MOVABLE pages, what usually means that the out-of-memory even will be
-> triggered very soon. To avoid such situation and make better use of CMA
-> pages, a heuristics is introduced which turns on CMA fallback for movable
-> pages when the real number of free pages (excluding CMA free pages)
-> approaches low water mark.
+On Monday, November 12, 2012 06:20:47 PM Vasilis Liaskovitis wrote:
+> On Mon, Nov 12, 2012 at 12:00:55PM +0800, Wen Congyang wrote:
+> > At 11/09/2012 02:29 AM, Vasilis Liaskovitis Wrote:
+> > > As discussed in
+> > > https://patchwork.kernel.org/patch/1581581/
+> > > the driver core remove function needs to always succeed. This means we need
+> > > to know that the device can be successfully removed before acpi_bus_trim / 
+> > > acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+> > > eject (echo 1 > /sys/bus/acpi/devices/PNP/eject) of memory devices fails, since
+> > > the ACPI core goes ahead and ejects the device regardless of whether the memory
+> > > is still in use or not.
+> > > 
+> > > For this reason a new acpi_device operation called prepare_remove is introduced.
+> > > This operation should be registered for acpi devices whose removal (from kernel
+> > > perspective) can fail.  Memory devices fall in this category.
+> > > 
+> > > acpi_bus_hot_remove_device is changed to handle removal in 2 steps:
+> > > - preparation for removal i.e. perform part of removal that can fail outside of
+> > >   ACPI core. Should succeed for device and all its children.
+> > > - if above step was successfull, proceed to actual ACPI removal
+> > 
+> > If we unbind the device from the driver, we still need to do preparation. But
+> > you don't do it in your patch.
 > 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-> CC: Michal Nazarewicz <mina86@mina86.com>
-> ---
->  mm/page_alloc.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index fcb9719..90b51f3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1076,6 +1076,15 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
->  {
->  	struct page *page;
->  
-> +#ifdef CONFIG_CMA
-> +	unsigned long nr_free = zone_page_state(zone, NR_FREE_PAGES);
-> +	unsigned long nr_cma_free = zone_page_state(zone, NR_FREE_CMA_PAGES);
-> +
-> +	if (migratetype == MIGRATE_MOVABLE && nr_cma_free &&
-> +	    nr_free - nr_cma_free < 2 * low_wmark_pages(zone))
-> +		migratetype = MIGRATE_CMA;
-> +#endif /* CONFIG_CMA */
-> +
->  retry_reserve:
->  	page = __rmqueue_smallest(zone, order, migratetype);
+> yes, driver_unbind breaks with the current patchset. I 'll try to fix and
+> repost. However, I think this will require a new driver-core wide prepare_remove
+> callback (not only acpi-specific). I am not sure that would be acceptable.
 
-erk, this is right on the page allocator hotpath.  Bad.
+However, you can't break driver_unbind either.
 
-At the very least, we could code it so it is not quite so dreadfully
-inefficient:
+Thanks,
+Rafael
 
-	if (migratetype == MIGRATE_MOVABLE) {
-		unsigned long nr_cma_free;
 
-		nr_cma_free = zone_page_state(zone, NR_FREE_CMA_PAGES);
-		if (nr_cma_free) {
-			unsigned long nr_free;
-
-			nr_free = zone_page_state(zone, NR_FREE_PAGES);
-
-			if (nr_free - nr_cma_free < 2 * low_wmark_pages(zone))
-				migratetype = MIGRATE_CMA;
-		}
-	}
-
-but it still looks pretty bad.
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
