@@ -1,51 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id C811B6B00BD
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 17:12:25 -0500 (EST)
-Message-ID: <50A41583.6060709@redhat.com>
-Date: Wed, 14 Nov 2012 17:04:51 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 3F3D66B00C0
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 17:18:36 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so411383dad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 14:18:35 -0800 (PST)
+Date: Wed, 14 Nov 2012 14:18:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5 02/11] thp: zap_huge_pmd(): zap huge zero pmd
+In-Reply-To: <1352300463-12627-3-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.00.1211141416550.13515@chino.kir.corp.google.com>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <1352300463-12627-3-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] change_protection(): Count the number of pages affected
-References: <1352883029-7885-1-git-send-email-mingo@kernel.org> <CA+55aFz_JnoR73O46YWhZn2A4t_CSUkGzMMprCUpvR79TVMCEQ@mail.gmail.com> <50A3E659.9060804@redhat.com> <CA+55aFy1d6pO5Ut15G7tbsQBXr1f5UyEvaQ_O5vMYFcy6wLwfg@mail.gmail.com>
-In-Reply-To: <CA+55aFy1d6pO5Ut15G7tbsQBXr1f5UyEvaQ_O5vMYFcy6wLwfg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On 11/14/2012 03:52 PM, Linus Torvalds wrote:
-> On Wed, Nov 14, 2012 at 10:43 AM, Rik van Riel <riel@redhat.com> wrote:
->>
->>>    - even *more* aggressive: if the bits become strictly more
->>> restrictive
->
-> sorry, this was meant to be "permissive", not restrictive.
+On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
 
-> My mistake - the point is that if we're changing to a strictly more
-> permissive mode, the old state of the page tables and TLB's are
-> perfectly "valid", they are just unnecessarily strict. So we'll take a
-> fault on some accesses, but that's fine - we can fix things up at
-> fault time.
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> 
+> We don't have a real page to zap in huge zero page case. Let's just
+> clear pmd and remove it from tlb.
+> 
 
-The patches I sent in a few weeks ago do that for do_wp_page,
-but I can see how we want the same for mprotect...
+s/real/mapped/
 
-> The question then becomes what the access patterns are. The fault
-> overhead may well dawrf any TLB flush costs, but it depends on whether
-> people tend to do large mprotect() and then just actually change a few
-> pages, or whether mprotect() users often then touch all of the area..
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-If we keep a counter of faults-after-mprotect, we may be able
-to figure out automatically what behaviour would be best.
-
-Of course, that gets us into premature optimization, so it is
-probably best to do the simple thing for now.
-
--- 
-All rights reversed
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
