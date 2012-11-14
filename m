@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 2EB136B005D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:58:49 -0500 (EST)
-Date: Tue, 13 Nov 2012 16:58:47 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: fix null dev in dma_pool_create()
-Message-Id: <20121113165847.4dcf968c.akpm@linux-foundation.org>
-In-Reply-To: <50A2BE19.7000604@gmail.com>
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
-	<50A2BE19.7000604@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id E108C6B006C
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 20:22:35 -0500 (EST)
+Date: Wed, 14 Nov 2012 02:22:34 +0100
+From: Marc Duponcheel <marc@offline.be>
+Subject: Re: [3.6 regression?] THP + migration/compaction livelock (I think)
+Message-ID: <20121114012234.GB8152@offline.be>
+Reply-To: Marc Duponcheel <marc@offline.be>
+References: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com>
+ <alpine.DEB.2.00.1211131507370.17623@chino.kir.corp.google.com>
+ <CALCETrU=7+pk_rMKKuzgW1gafWfv6v7eQtVw3p8JryaTkyVQYQ@mail.gmail.com>
+ <alpine.DEB.2.00.1211131530020.17623@chino.kir.corp.google.com>
+ <CALCETrXSzNEdNEZaQqB93rpP9zXcBD4KRX_bjTAnzU6JEXcApg@mail.gmail.com>
+ <alpine.DEB.2.00.1211131553170.17623@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211131553170.17623@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xi Wang <xi.wang@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marc Duponcheel <marc@offline.be>
 
-On Tue, 13 Nov 2012 16:39:37 -0500
-Xi Wang <xi.wang@gmail.com> wrote:
+ Hi all, please let me know if there is are patches you want me to try.
 
-> A few drivers invoke dma_pool_create() with a null dev.  Note that dev
-> is dereferenced in dev_to_node(dev), causing a null pointer dereference.
+ FWIW time did not stand still and I run 3.6.6 now.
+
+
+On 2012 Nov 13, #David Rientjes wrote:
+> On Tue, 13 Nov 2012, Andy Lutomirski wrote:
 > 
-> A long term solution is to disallow null dev.  Once the drivers are
-> fixed, we can simplify the core code here.  For now we add WARN_ON(!dev)
-> to notify the driver maintainers and avoid the null pointer dereference.
+> > >> $ grep -E "compact_|thp_" /proc/vmstat
+> > >> compact_blocks_moved 8332448774
+> > >> compact_pages_moved 21831286
+> > >> compact_pagemigrate_failed 211260
+> > >> compact_stall 13484
+> > >> compact_fail 6717
+> > >> compact_success 6755
+> > >> thp_fault_alloc 150665
+> > >> thp_fault_fallback 4270
+> > >> thp_collapse_alloc 19771
+> > >> thp_collapse_alloc_failed 2188
+> > >> thp_split 19600
+> > >>
+> > >
+> > > Two of the patches from the list provided at
+> > > http://marc.info/?l=linux-mm&m=135179005510688 are already in your 3.6.3
+> > > kernel:
+> > >
+> > >         mm: compaction: abort compaction loop if lock is contended or run too long
+> > >         mm: compaction: acquire the zone->lock as late as possible
+> > >
+> > > and all have not made it to the 3.6 stable kernel yet, so would it be
+> > > possible to try with 3.7-rc5 to see if it fixes the issue?  If so, it will
+> > > indicate that the entire series is a candidate to backport to 3.6.
+> > 
+> > I'll try later on.  The last time I tried to boot 3.7 on this box, it
+> > failed impressively (presumably due to a localmodconfig bug, but I
+> > haven't tracked it down yet).
+> > 
+> > I'm also not sure how reliably I can reproduce this.
+> > 
 > 
-> Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+> The challenge goes out to Marc too since he reported this issue on 3.6.2 
+> but we haven't heard back yet on the success of the backport (although 
+> it's probably easier to try 3.7-rc5 since there are some conflicts to 
+> resolve).
 
-I'm not sure that I really suggested doing this :(
-
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -135,6 +135,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  {
->  	struct dma_pool *retval;
->  	size_t allocation;
-> +	int node;
->  
->  	if (align == 0) {
->  		align = 1;
-> @@ -159,7 +160,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  		return NULL;
->  	}
->  
-> -	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
-> +	node = WARN_ON(!dev) ? -1 : dev_to_node(dev);
-> +
-> +	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, node);
->  	if (!retval)
->  		return retval;
-
-We know there are a few scruffy drivers which are passing in dev==0. 
-
-Those drivers don't oops because nobody is testing them on NUMA
-systems.
-
-With this patch, the kernel will now cause runtime warnings to be
-emitted from those drivers.  Even on non-NUMA systems.
-
-
-This is a problem!  What will happen is that this code will get
-released by Linus and will propagate to users mainly via distros and
-eventually end-user bug reports will trickle back saying "hey, I got
-this warning".  Slowly people will fix the scruffy drivers and those
-fixes will propagate out from Linus's tree into -stable and then into
-distros and then into the end-users hands.
-
-This is *terribly* inefficient!  It's a lot of work for a lot of people
-and it involves long delays.
-
-So let's not do any of that!  Let us try to get those scruffy drivers
-fixed up *before* we add this warning.
-
-As a nice side-effect of that work, we can then clean up the dmapool
-code so it doesn't need to worry about handling the dev==0 special
-case.
-
-So.  To start this off, can you please generate a list of the offending
-drivers?  Then we can hunt down the maintainers and we'll see what can be
-done.
+--
+ Marc Duponcheel
+ Velodroomstraat 74 - 2600 Berchem - Belgium
+ +32 (0)478 68.10.91 - marc@offline.be
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
