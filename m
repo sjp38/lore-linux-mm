@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 48EA86B005D
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:01:31 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id u3so289502wey.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 10:01:29 -0800 (PST)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 1DDBA6B004D
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:18:23 -0500 (EST)
+Date: Wed, 14 Nov 2012 18:18:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 16/31] mm: numa: Only call task_numa_placement for
+ misplaced pages
+Message-ID: <20121114181817.GO8218@suse.de>
+References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
+ <1352805180-1607-17-git-send-email-mgorman@suse.de>
+ <50A3DBCD.8010503@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1352883029-7885-1-git-send-email-mingo@kernel.org>
-References: <1352883029-7885-1-git-send-email-mingo@kernel.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 14 Nov 2012 10:01:08 -0800
-Message-ID: <CA+55aFz_JnoR73O46YWhZn2A4t_CSUkGzMMprCUpvR79TVMCEQ@mail.gmail.com>
-Subject: Re: [PATCH 0/2] change_protection(): Count the number of pages affected
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <50A3DBCD.8010503@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 14, 2012 at 12:50 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> What do you guys think about this mprotect() optimization?
+On Wed, Nov 14, 2012 at 12:58:37PM -0500, Rik van Riel wrote:
+> On 11/13/2012 06:12 AM, Mel Gorman wrote:
+> >task_numa_placement is potentially very expensive so limit it to being
+> >called when a page is misplaced. How necessary this is depends on
+> >the placement policy.
+> >
+> >Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> That reads like a premature optimization :)
+> 
 
-Hmm..
+Hah, touche.
 
-If this is mainly about just avoiding the TLB flushing, I do wonder if
-it might not be more interesting to try to be much more aggressive.
+Will shuffle its location in the series.
 
-As noted elsewhere, we should just notice when vm_page_prot doesn't
-change at all - even if 'flags' change, it is possible that the actual
-low-level page protection bits do not (due to the X=R issue).
-
-But even *more* aggressively, how about looking at
-
- - not flushing the TLB at all if the bits become  more permissive
-(taking the TLB micro-fault and letting the CPU just update it on its
-own)
-
- - even *more* aggressive: if the bits become strictly more
-restrictive, how about not flushing the TLB at all, *and* not even
-changing the page tables, and just teaching the page fault code to do
-it lazily at fault time?
-
-Now, the "change protections lazily" might actually be a huge
-performance problem with the page fault overhead dwarfing any TLB
-flush costs, but we don't really know, do we? It might be worth trying
-out.
-
-               Linus
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
