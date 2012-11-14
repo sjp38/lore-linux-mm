@@ -1,50 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 32AFF6B0089
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:50:25 -0500 (EST)
-Date: Wed, 14 Nov 2012 18:50:17 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 26/31] sched: numa: Make mempolicy home-node aware
-Message-ID: <20121114185017.GQ8218@suse.de>
-References: <1352805180-1607-1-git-send-email-mgorman@suse.de>
- <1352805180-1607-27-git-send-email-mgorman@suse.de>
- <50A3E169.4010402@redhat.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id ACAED6B0092
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:52:50 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so336144dad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 10:52:50 -0800 (PST)
+Date: Wed, 14 Nov 2012 10:52:45 -0800
+From: Tejun Heo <htejun@gmail.com>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+Message-ID: <20121114185245.GF21185@mtj.dyndns.org>
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+ <1352820639-13521-3-git-send-email-mhocko@suse.cz>
+ <20121113161442.GA18227@mtj.dyndns.org>
+ <20121114085129.GC17111@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50A3E169.4010402@redhat.com>
+In-Reply-To: <20121114085129.GC17111@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>
 
-On Wed, Nov 14, 2012 at 01:22:33PM -0500, Rik van Riel wrote:
-> On 11/13/2012 06:12 AM, Mel Gorman wrote:
-> >From: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >
-> >Add another layer of fallback policy to make the home node concept
-> >useful from a memory allocation PoV.
-> >
-> >This changes the mpol order to:
-> >
-> >  - vma->vm_ops->get_policy	[if applicable]
-> >  - vma->vm_policy		[if applicable]
-> >  - task->mempolicy
-> >  - tsk_home_node() preferred	[NEW]
-> >  - default_policy
-> 
-> Why is the home node policy not the default policy?
-> 
+Hello, Michal.
 
-hmm, it effectively is if there is no other policy set. The changelog is
-a bit misleading. In V3, this will be dropped entirely. It was not clear
-that doing a remote alloc for home nodes was a good idea. Instead memory
-is always allocated locally to the faulting process as normal and
-migrated later if necessary.
+On Wed, Nov 14, 2012 at 09:51:29AM +0100, Michal Hocko wrote:
+> > 	reclaim(root);
+> > 	for_each_descendent_pre()
+> > 		reclaim(descendant);
+> 
+> We cannot do for_each_descendent_pre here because we do not iterate
+> through the whole hierarchy all the time. Check shrink_zone.
+
+I'm a bit confused.  Why would that make any difference?  Shouldn't it
+be just able to test the condition and continue?
+
+Thanks.
 
 -- 
-Mel Gorman
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
