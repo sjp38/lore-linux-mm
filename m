@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A03226B004D
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 02:52:28 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so99044eek.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 23:52:27 -0800 (PST)
-Date: Wed, 14 Nov 2012 08:52:22 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/31] Latest numa/core patches, v15
-Message-ID: <20121114075222.GA3522@gmail.com>
-References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
- <20121113175428.GF8218@suse.de>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 51DE36B005D
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 03:17:48 -0500 (EST)
+Message-ID: <50A3C42F.9020901@parallels.com>
+Date: Wed, 14 Nov 2012 17:17:51 +0100
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121113175428.GF8218@suse.de>
+Subject: Re: [RFC] rework mem_cgroup iterator
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>
 
-
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> On Tue, Nov 13, 2012 at 06:13:23PM +0100, Ingo Molnar wrote:
-> > Hi,
-> > 
-> > This is the latest iteration of our numa/core tree, which
-> > implements adaptive NUMA affinity balancing.
-> > 
-> > Changes in this version:
-> > 
-> >     https://lkml.org/lkml/2012/11/12/315
-> > 
-> > Performance figures:
-> > 
-> >     https://lkml.org/lkml/2012/11/12/330
-> > 
-> > Any review feedback, comments and test results are welcome!
-> > 
+On 11/13/2012 04:30 PM, Michal Hocko wrote:
+> Hi all,
+> this patch set tries to make mem_cgroup_iter saner in the way how it
+> walks hierarchies. css->id based traversal is far from being ideal as it
+> is not deterministic because it depends on the creation ordering.
 > 
-> For the purposes of review and testing, this is going to be 
-> hard to pick apart and compare. It doesn't apply against 
-> 3.7-rc5 [...]
+> Diffstat looks promising but it is fair the say that the biggest cleanup is
+> just css_get_next removal. The memcg code has grown a bit but I think it is
+> worth the resulting outcome (the sanity ;)).
+> 
+> The first patch fixes a potential misbehaving which I haven't seen but the
+> fix is needed for the later patches anyway. We could take it alone as well
+> but I do not have any bug report to base the fix on.
+> 
+> The second patch replaces css_get_next by cgroup iterators which are
+> scheduled for 3.8 in Tejun's tree and I depend on the following two patches:
+> fe1e904c cgroup: implement generic child / descendant walk macros
+> 7e187c6c cgroup: use rculist ops for cgroup->children
+> 
+> The third patch is an attempt for simplification of the mem_cgroup_iter. It
+> basically removes all css usages to make the code easier. The next patch
+> removes the big while(!memcg) loop around the iterating logic. It could have
+> been folded into #3 but I rather have the rework separate from the code
+> moving noise.
+> 
+> The last patch just removes css_get_next as there is no user for it any
+> longer.
+> 
+> I am also thinking that leaf-to-root iteration makes more sense but this
+> patch is not included in the series yet because I have to think some
+> more about the justification.
+> 
+> So far I didn't get to testing but I am posting this early if everybody is
+> OK with this change.
+> 
+> Any thoughts?
+> 
 
-Because the scheduler changes are highly non-trivial it's on top 
-of the scheduler tree:
+Why can't we reuse the scheduler iterator and move it to kernel/cgroup.c
+? It already exists, provide sane ordering, and only relies on parent
+information - which cgroup core already have - to do the walk.
 
-   git pull git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
-
-I just tested the patches, they all apply cleanly, with zero 
-fuzz and offsets.
-
-Thanks,
-
-	Ingo
+The only minor problem is that we'll have to handle the damn
+use_hierarchy case, so we may not be able to blindly rely on
+cgroup->parent. But maybe we can, if we don't guarantee any particular
+leaf-order.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
