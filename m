@@ -1,202 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 235F16B006C
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 21:29:42 -0500 (EST)
-Received: by mail-gg0-f169.google.com with SMTP id i1so1701689ggm.14
-        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 18:29:41 -0800 (PST)
-Date: Tue, 13 Nov 2012 18:29:43 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 2/2] sched, numa, mm: Fixes and cleanups in
- do_huge_pmd_numa_page()
-In-Reply-To: <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1211131828020.29612@eggly.anvils>
-References: <1352826834-11774-1-git-send-email-mingo@kernel.org> <1352826834-11774-22-git-send-email-mingo@kernel.org> <20121113184835.GH10092@cmpxchg.org> <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id C2C446B002B
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 22:07:16 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id 10so14627304ied.14
+        for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:07:16 -0800 (PST)
+Message-ID: <50A30ADD.9000209@gmail.com>
+Date: Wed, 14 Nov 2012 11:07:09 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils> <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils> <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1211061521230.6954@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Zhouping Liu <zliu@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Refuse to migrate a THPage if its page count is raised: that covers both
-the case when it is mapped into another address space, and the case
-when it has been pinned by get_user_pages(), fast or slow.
+On 11/07/2012 07:48 AM, Hugh Dickins wrote:
+> On Tue, 6 Nov 2012, Dave Jones wrote:
+>> On Mon, Nov 05, 2012 at 05:32:41PM -0800, Hugh Dickins wrote:
+>>
+>>   > -			/* We already confirmed swap, and make no allocation */
+>>   > -			VM_BUG_ON(error);
+>>   > +			/*
+>>   > +			 * We already confirmed swap under page lock, and make
+>>   > +			 * no memory allocation here, so usually no possibility
+>>   > +			 * of error; but free_swap_and_cache() only trylocks a
+>>   > +			 * page, so it is just possible that the entry has been
+>>   > +			 * truncated or holepunched since swap was confirmed.
+>>   > +			 * shmem_undo_range() will have done some of the
+>>   > +			 * unaccounting, now delete_from_swap_cache() will do
+>>   > +			 * the rest (including mem_cgroup_uncharge_swapcache).
+>>   > +			 * Reset swap.val? No, leave it so "failed" goes back to
+>>   > +			 * "repeat": reading a hole and writing should succeed.
+>>   > +			 */
+>>   > +			if (error) {
+>>   > +				VM_BUG_ON(error != -ENOENT);
+>>   > +				delete_from_swap_cache(page);
+>>   > +			}
+>>   >  		}
+>>
+>> I ran with this overnight,
+> Thanks a lot...
+>
+>> and still hit the (new!) VM_BUG_ON
+> ... but that's even more surprising than your original report.
+>
+>> Perhaps we should print out what 'error' was too ?  I'll rebuild with that..
+> Thanks; though I thought the error was going to turn out too boring,
+> and was preparing a debug patch for you to show the expected and found
+> values too.  But then got very puzzled...
+>   
+>> ------------[ cut here ]------------
+>> WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
+>> Hardware name: 2012 Client Platform
+>> Pid: 21798, comm: trinity-child4 Not tainted 3.7.0-rc4+ #54
+> That's the very same line number as in your original report, despite
+> the long comment which the patch adds.  Are you sure that kernel was
+> built with the patch in?
+>
+> I wouldn't usually question you, but I'm going mad trying to understand
+> how the VM_BUG_ON(error != -ENOENT) fires.  At the time I wrote that
+> line, and when I was preparing the debug patch, I was thinking that an
+> error from shmem_radix_tree_replace could also be -EEXIST, for when a
+> different something rather than nothing is found [*].  But that's not
+> the case, shmem_radix_tree_replace returns either 0 or -ENOENT.
+>
+> So if error != -ENOENT, that means shmem_add_to_page_cache went the
+> radix_tree_insert route instead of the shmem_radix_tree_replace route;
+> which means that its 'expected' is NULL, so swp_to_radix_entry(swap)
+> is NULL; but swp_to_radix_entry() does an "| 2", so however corrupt
+> the radix_tree might be, I do not understand the new VM_BUG_ON firing.
+>
+> Please tell me it was the wrong kernel!
+> Hugh
+>
+> [*] But in thinking it over, I realize that if shmem_radix_tree_replace
+> had returned -EEXIST for the "wrong something" case, I would have been
+> wrong to BUG on that; because just as truncation could remove an entry,
+> something else could immediately after instantiate a new page there.
 
-Repeat this check each time we recheck pmd_same() under page_table_lock:
-it is unclear how necessary this is, perhaps once after lock_page() or
-once after isolate_lru_page() would be enough; but normal page migration
-certainly checks page count, and we often think "ah, this is safe against
-page migration because its page count is raised" - though sadly without
-thinking through what serialization supports that.
+Hi Hugh,
 
-Do not proceed with migration when PageLRU is unset: such a page may
-well be in a private list or on a pagevec, about to be added to LRU at
-any instant: checking PageLRU under zone lock, as isolate_lru_page() does,
-is essential before proceeding safely.
+As you said, swp_to_radix_entry() does an "| 2", so even if truncation 
+could remove an entry and something else could immediately after 
+instantiate a new page there, but the expected parameter will not be 
+NULL, the result is radix_tree_insert will not be called and 
+shmem_add_to_page_cache will not return -EEXIST, then why trigger BUG_ON ?
 
-Replace trylock_page and BUG by __set_page_locked: here the page has
-been allocated a few lines earlier.  And SetPageSwapBacked: it is set
-later, but there may be an error path which needs it set earlier.
+Regards,
+Jaegeuk
 
-On error path reverse the Active, Unevictable, Mlocked changes made
-by migrate_page_copy().  Update mlock_migrate_page() to account for
-THPages correctly now that it can get called on them.
-
-Cleanup: rearrange unwinding slightly, removing a few blank lines.
-
-Previous-Version-Tested-by: Zhouping Liu <zliu@redhat.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-I did not understand at all how pmd_page(entry) might be NULL, but
-assumed that check is there for good reason and did not remove it.
-
- mm/huge_memory.c |   60 +++++++++++++++++++++++----------------------
- mm/internal.h    |    5 ++-
- 2 files changed, 34 insertions(+), 31 deletions(-)
-
---- mmotm/mm/huge_memory.c	2012-11-13 14:51:04.000321370 -0800
-+++ linux/mm/huge_memory.c	2012-11-13 15:01:01.892335579 -0800
-@@ -751,9 +751,9 @@ void do_huge_pmd_numa_page(struct mm_str
- {
- 	unsigned long haddr = address & HPAGE_PMD_MASK;
- 	struct mem_cgroup *memcg = NULL;
--	struct page *new_page = NULL;
-+	struct page *new_page;
- 	struct page *page = NULL;
--	int node, lru;
-+	int node = -1;
- 
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(*pmd, entry)))
-@@ -770,7 +770,17 @@ void do_huge_pmd_numa_page(struct mm_str
- 		VM_BUG_ON(!PageCompound(page) || !PageHead(page));
- 
- 		get_page(page);
--		node = mpol_misplaced(page, vma, haddr);
-+		/*
-+		 * Do not migrate this page if it is mapped anywhere else.
-+		 * Do not migrate this page if its count has been raised.
-+		 * Our caller's down_read of mmap_sem excludes fork raising
-+		 * mapcount; but recheck page count below whenever we take
-+		 * page_table_lock - although it's unclear what pin we are
-+		 * protecting against, since get_user_pages() or GUP fast
-+		 * would have to fault it present before they could proceed.
-+		 */
-+		if (page_count(page) == 2)
-+			node = mpol_misplaced(page, vma, haddr);
- 		if (node != -1)
- 			goto migrate;
- 	}
-@@ -794,7 +804,7 @@ migrate:
- 
- 	lock_page(page);
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, entry))) {
-+	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
- 		spin_unlock(&mm->page_table_lock);
- 		unlock_page(page);
- 		put_page(page);
-@@ -803,19 +813,17 @@ migrate:
- 	spin_unlock(&mm->page_table_lock);
- 
- 	new_page = alloc_pages_node(node,
--	    (GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT,
--	    HPAGE_PMD_ORDER);
--
-+	    (GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT, HPAGE_PMD_ORDER);
- 	if (!new_page)
- 		goto alloc_fail;
- 
--	lru = PageLRU(page);
--
--	if (lru && isolate_lru_page(page)) /* does an implicit get_page() */
-+	if (isolate_lru_page(page)) {	/* Does an implicit get_page() */
-+		put_page(new_page);
- 		goto alloc_fail;
-+	}
- 
--	if (!trylock_page(new_page))
--		BUG();
-+	__set_page_locked(new_page);
-+	SetPageSwapBacked(new_page);
- 
- 	/* anon mapping, we can simply copy page->mapping to the new page: */
- 	new_page->mapping = page->mapping;
-@@ -826,19 +834,22 @@ migrate:
- 	WARN_ON(PageLRU(new_page));
- 
- 	spin_lock(&mm->page_table_lock);
--	if (unlikely(!pmd_same(*pmd, entry))) {
-+	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 3)) {
- 		spin_unlock(&mm->page_table_lock);
--		if (lru)
--			putback_lru_page(page);
-+
-+		/* Reverse changes made by migrate_page_copy() */
-+		if (TestClearPageActive(new_page))
-+			SetPageActive(page);
-+		if (TestClearPageUnevictable(new_page))
-+			SetPageUnevictable(page);
-+		mlock_migrate_page(page, new_page);
- 
- 		unlock_page(new_page);
--		ClearPageActive(new_page);	/* Set by migrate_page_copy() */
--		new_page->mapping = NULL;
- 		put_page(new_page);		/* Free it */
- 
- 		unlock_page(page);
-+		putback_lru_page(page);
- 		put_page(page);			/* Drop the local reference */
--
- 		return;
- 	}
- 	/*
-@@ -867,26 +878,17 @@ migrate:
- 	mem_cgroup_end_migration(memcg, page, new_page, true);
- 	spin_unlock(&mm->page_table_lock);
- 
--	put_page(page);			/* Drop the rmap reference */
--
- 	task_numa_fault(node, HPAGE_PMD_NR);
- 
--	if (lru)
--		put_page(page);		/* drop the LRU isolation reference */
--
- 	unlock_page(new_page);
--
- 	unlock_page(page);
-+	put_page(page);			/* Drop the rmap reference */
-+	put_page(page);			/* Drop the LRU isolation reference */
- 	put_page(page);			/* Drop the local reference */
--
- 	return;
- 
- alloc_fail:
--	if (new_page)
--		put_page(new_page);
--
- 	unlock_page(page);
--
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(*pmd, entry))) {
- 		put_page(page);
---- mmotm/mm/internal.h	2012-11-09 09:43:46.896046342 -0800
-+++ linux/mm/internal.h	2012-11-13 15:01:01.892335579 -0800
-@@ -218,11 +218,12 @@ static inline void mlock_migrate_page(st
- {
- 	if (TestClearPageMlocked(page)) {
- 		unsigned long flags;
-+		int nr_pages = hpage_nr_pages(page);
- 
- 		local_irq_save(flags);
--		__dec_zone_page_state(page, NR_MLOCK);
-+		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
- 		SetPageMlocked(newpage);
--		__inc_zone_page_state(newpage, NR_MLOCK);
-+		__mod_zone_page_state(page_zone(newpage), NR_MLOCK, nr_pages);
- 		local_irq_restore(flags);
- 	}
- }
+> So although I believe my VM_BUG_ON(error != -ENOENT) is safe, it's
+> not saying what I had intended to say with it, and would have been
+> wrong to say that anyway.  It just looks stupid to me now, rather
+> like inserting a VM_BUG_ON(false) - but that does become interesting
+> when you report that you've hit it.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
