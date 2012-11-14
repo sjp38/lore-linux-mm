@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id EFDEE6B006C
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:28:52 -0500 (EST)
-Message-ID: <50A2E55B.20801@intel.com>
-Date: Wed, 14 Nov 2012 08:27:07 +0800
-From: Alex Shi <alex.shi@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] x86/tlb: correct vmflag test for checking VM_HUGETLB
-References: <1352740656-19417-1-git-send-email-js1304@gmail.com>
-In-Reply-To: <1352740656-19417-1-git-send-email-js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 201B66B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:47:56 -0500 (EST)
+Date: Tue, 13 Nov 2012 16:47:54 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: fix null dev in dma_pool_create()
+Message-Id: <20121113164754.cd1426de.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1211131458440.17623@chino.kir.corp.google.com>
+References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
+	<50A2BE19.7000604@gmail.com>
+	<alpine.DEB.2.00.1211131458440.17623@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Xi Wang <xi.wang@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/13/2012 01:17 AM, Joonsoo Kim wrote:
-> commit 611ae8e3f5204f7480b3b405993b3352cfa16662('enable tlb flush range
-> support for x86') change flush_tlb_mm_range() considerably. After this,
-> we test whether vmflag equal to VM_HUGETLB and it may be always failed,
-> because vmflag usually has other flags simultaneously.
-> Our intention is to check whether this vma is for hughtlb, so correct it
-> according to this purpose.
-> 
-> Cc: Alex Shi <alex.shi@intel.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
-> 
+On Tue, 13 Nov 2012 15:01:34 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-Acked-by: Alex Shi <alex.shi@intel.com>
-
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 0777f04..60f926c 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -197,7 +197,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  	}
->  
->  	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
-> -					|| vmflag == VM_HUGETLB) {
-> +					|| vmflag & VM_HUGETLB) {
->  		local_flush_tlb();
->  		goto flush_all;
->  	}
+> On Tue, 13 Nov 2012, Xi Wang wrote:
 > 
+> > diff --git a/mm/dmapool.c b/mm/dmapool.c
+> > index c5ab33b..bf7f8f0 100644
+> > --- a/mm/dmapool.c
+> > +++ b/mm/dmapool.c
+> > @@ -135,6 +135,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+> >  {
+> >  	struct dma_pool *retval;
+> >  	size_t allocation;
+> > +	int node;
+> >  
+> >  	if (align == 0) {
+> >  		align = 1;
+> > @@ -159,7 +160,9 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+> >  		return NULL;
+> >  	}
+> >  
+> > -	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+> > +	node = WARN_ON(!dev) ? -1 : dev_to_node(dev);
+> > +
+> > +	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, node);
+> >  	if (!retval)
+> >  		return retval;
+> >  
+> 
+> Begs the question why we don't just do something like this generically?
+> ---
+> diff --git a/include/linux/device.h b/include/linux/device.h
+> --- a/include/linux/device.h
+> +++ b/include/linux/device.h
+> @@ -718,7 +718,7 @@ int dev_set_name(struct device *dev, const char *name, ...);
+>  #ifdef CONFIG_NUMA
+>  static inline int dev_to_node(struct device *dev)
+>  {
+> -	return dev->numa_node;
+> +	return WARN_ON(!dev) ? NUMA_NO_NODE : dev->numa_node;
+>  }
+
+WARN and friends can cause quite a lot of code to be generated, so they're
+a rather bloat-risky thing to include in a little inlined helper
+function.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
