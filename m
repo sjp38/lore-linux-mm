@@ -1,68 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 9ABAC6B002B
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:24:04 -0500 (EST)
-Date: Wed, 14 Nov 2012 16:17:42 +0200
-From: Felipe Balbi <balbi@ti.com>
-Subject: Re: [PATCH v2] mm: fix null dev in dma_pool_create()
-Message-ID: <20121114141742.GC24736@arwen.pp.htv.fi>
-Reply-To: <balbi@ti.com>
-References: <1352097996-25808-1-git-send-email-xi.wang@gmail.com>
- <50A2BE19.7000604@gmail.com>
- <20121113165847.4dcf968c.akpm@linux-foundation.org>
- <50A3313D.1000809@gmail.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id EE0356B005A
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:52:10 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so373613pad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 06:52:10 -0800 (PST)
+Message-ID: <50A3B013.4030207@gmail.com>
+Date: Wed, 14 Nov 2012 22:52:03 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="E13BgyNx05feLLmH"
-Content-Disposition: inline
-In-Reply-To: <50A3313D.1000809@gmail.com>
+Subject: Re: [PATCH] mm: fix a regression with HIGHMEM introduced by changeset
+ 7f1290f2f2a4d
+References: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com> <20121106124315.79deb2bc.akpm@linux-foundation.org>
+In-Reply-To: <20121106124315.79deb2bc.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xi Wang <xi.wang@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kukjin Kim <kgene.kim@samsung.com>, Thomas Dahlmann <dahlmann.thomas@arcor.de>, Felipe Balbi <balbi@ti.com>, Krzysztof Halasa <khc@pm.waw.pl>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-geode@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Jianguo Wu <wujianguo@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daniel Vetter <daniel.vetter@ffwll.ch>
 
---E13BgyNx05feLLmH
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On 11/07/2012 04:43 AM, Andrew Morton wrote:
+> On Tue, 6 Nov 2012 09:31:57 +0800
+> Jiang Liu <jiang.liu@huawei.com> wrote:
+> 
+>> Changeset 7f1290f2f2 tries to fix a issue when calculating
+>> zone->present_pages, but it causes a regression to 32bit systems with
+>> HIGHMEM. With that changeset, function reset_zone_present_pages()
+>> resets all zone->present_pages to zero, and fixup_zone_present_pages()
+>> is called to recalculate zone->present_pages when boot allocator frees
+>> core memory pages into buddy allocator. Because highmem pages are not
+>> freed by bootmem allocator, all highmem zones' present_pages becomes
+>> zero.
+>>
+>> Actually there's no need to recalculate present_pages for highmem zone
+>> because bootmem allocator never allocates pages from them. So fix the
+>> regression by skipping highmem in function reset_zone_present_pages()
+>> and fixup_zone_present_pages().
+>>
+>> ...
+>>
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -6108,7 +6108,8 @@ void reset_zone_present_pages(void)
+>>  	for_each_node_state(nid, N_HIGH_MEMORY) {
+>>  		for (i = 0; i < MAX_NR_ZONES; i++) {
+>>  			z = NODE_DATA(nid)->node_zones + i;
+>> -			z->present_pages = 0;
+>> +			if (!is_highmem(z))
+>> +				z->present_pages = 0;
+>>  		}
+>>  	}
+>>  }
+>> @@ -6123,10 +6124,11 @@ void fixup_zone_present_pages(int nid, unsigned long start_pfn,
+>>  
+>>  	for (i = 0; i < MAX_NR_ZONES; i++) {
+>>  		z = NODE_DATA(nid)->node_zones + i;
+>> +		if (is_highmem(z))
+>> +			continue;
+>> +
+>>  		zone_start_pfn = z->zone_start_pfn;
+>>  		zone_end_pfn = zone_start_pfn + z->spanned_pages;
+>> -
+>> -		/* if the two regions intersect */
+>>  		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
+>>  			z->present_pages += min(end_pfn, zone_end_pfn) -
+>>  					    max(start_pfn, zone_start_pfn);
+> 
+> This ...  isn't very nice.  It is embeds within
+> reset_zone_present_pages() and fixup_zone_present_pages() knowledge
+> about their caller's state.  Or, more specifically, it is emebedding
+> knowledge about the overall state of the system when these functions
+> are called.
+> 
+> I mean, a function called "reset_zone_present_pages" should reset
+> ->present_pages!
+> 
+> The fact that fixup_zone_present_page() has multiple call sites makes
+> this all even more risky.  And what are the interactions between this
+> and memory hotplug?
+> 
+> Can we find a cleaner fix?
+> 
+> Please tell us more about what's happening here.  Is it the case that
+> reset_zone_present_pages() is being called *after* highmem has been
+> populated?  If so, then fixup_zone_present_pages() should work
+> correctly for highmem?  Or is it the case that highmem hasn't yet been
+> setup?  IOW, what is the sequence of operations here?
+> 
+> Is the problem that we're *missing* a call to
+> fixup_zone_present_pages(), perhaps?  If we call
+> fixup_zone_present_pages() after highmem has been populated,
+> fixup_zone_present_pages() should correctly fill in the highmem zone's
+> ->present_pages?
+Hi Andrew,
+	Sorry for the late response:(
+	I have done more investigations according to your suggestions. Currently
+we have only called fixup_zone_present_pages() for memory freed by bootmem
+allocator and missed HIGHMEM pages. We could also call fixup_zone_present_pages()
+for HIGHMEM pages, but that will need to change arch specific code for x86, powerpc,
+sparc, microblaze, arm, mips, um and tile etc. Seems a little overhead.
+	And sadly enough, I found the quick fix is still incomplete. The original
+patch still have another issue that, reset_zone_present_pages() is only called
+for IA64, so it will cause trouble for other arches which make use of "bootmem.c".
+	Then I feel a little guilty and tried to find a cleaner solution without
+touching arch specific code. But things are more complex than my expectation and
+I'm still working on that.
+	So how about totally reverting the changeset 7f1290f2f2a4d2c3f1b7ce8e87256e052ca23125
+and I will post another version once I found a cleaner way?
+	Thanks!
+	Gerry
 
-Hi,
-
-On Wed, Nov 14, 2012 at 12:50:53AM -0500, Xi Wang wrote:
-> * drivers/usb/gadget/amd5536udc.c (2)
->=20
-> Use dev->gadget.dev or dev->pdev->dev for dma_pool_create()?  Also move
-> the init_dma_pools() call after the assignments in udc_pci_probe().
-
-Makes sense to me. Do you want to provide a patch ? Make sure to Cc
-myself and linux-usb ;-)
-
---=20
-balbi
-
---E13BgyNx05feLLmH
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQo6gGAAoJEIaOsuA1yqREJesP/20t0otDuiBsJNFqKYzBMWtZ
-I3q5ceyFe3cU4ZTdTwZ5zBnRhpbge11Os0pKAPsUJZSn3U9R6qDdE7gonCXorV0B
-UfZ5ao7EaG7CQ/m0Xfh/V0EXEMlFKHQQTSu8HBkxzvr+4SZLs566OO36ehMt7tP/
-4BZ1o18vTkCWLeCOWbS1H7qiL8KjG+jRQcWXmD9zHlXafShBOMAXTb9UHO0T/WCf
-F5KICQYxWTPs8//9m3rJ63Dkmvzd7UvycgaZx9MVCig4N3ptP7XXlyHmrCIdfbcq
-ww6OnRr10QO+kGJMAw5MVtpUPC2+OR07zkhpF3SkTyWY/qaILzo5RdO3i0eyTgqF
-722bR1x1DkcIK7zfHNgwcyw13OAyj1PK50oGoBze9c1nbS3UmhpG4gXGFY0otCri
-tLgevxfSgLyDuRWE5xOG7rWl8DHZJKOlKvt3+q26/rTHPVIm85W5xh+SmEOR3+Qn
-p3/PuCzRIHmHO6HdBM4qfcjtgeQJWLtxcly9TGROlYxTnOAKB22A49trFlY7DrwT
-rPmb4HC50+zJ8CFYBs0wvxd9Z69ufGoj/jYaYmUqrC6seHl7iB3EL7/uFBji9CKB
-PkZ3tj14xwsQ02aW1werNUgbgexT4nqH5HHiYZtIg4hFdqbKey4A+Gxbk8j1Wwph
-d1WLxFPzOaNovMA0262m
-=slHS
------END PGP SIGNATURE-----
-
---E13BgyNx05feLLmH--
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
