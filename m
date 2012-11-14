@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 4658B6B004D
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 23:09:36 -0500 (EST)
-Message-ID: <50A31971.6000706@redhat.com>
-Date: Tue, 13 Nov 2012 23:09:21 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 00/31] Foundation for automatic NUMA balancing V2
-References: <1352805180-1607-1-git-send-email-mgorman@suse.de> <20121113151416.GA20044@gmail.com> <20121113154215.GD8218@suse.de> <20121113172734.GA12098@gmail.com>
-In-Reply-To: <20121113172734.GA12098@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 9CEE66B004D
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 23:28:51 -0500 (EST)
+Date: Tue, 13 Nov 2012 20:28:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 21/31] sched, numa, mm: Implement THP migration
+Message-Id: <20121113202846.5b1c0e3c.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
+References: <1352826834-11774-1-git-send-email-mingo@kernel.org>
+	<1352826834-11774-22-git-send-email-mingo@kernel.org>
+	<20121113184835.GH10092@cmpxchg.org>
+	<alpine.LNX.2.00.1211131759390.29612@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Zhouping Liu <zliu@redhat.com>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On 11/13/2012 12:27 PM, Ingo Molnar wrote:
->
-> * Mel Gorman <mgorman@suse.de> wrote:
->
->>> I'd also like to add another, structural side note: you
->>> mixed new vm-stats bits into the whole queue, needlessly
->>> blowing up the size and the mm/ specific portions of the
->>> tree. I'd suggest to post and keep those bits separately,
->>> preferably on top of what we have already once it has
->>> settled down. I'm keeping the 'perf bench numa' bits
->>> separate as well.
->>
->> The stats part are fairly late in the queue. I noticed they
->> break build for !CONFIG_BALANCE_NUMA but it was trivially
->> resolved. [...]
->
-> Ok - the vm-stats bits are the last larger item remaining that
-> I've seen - could you please redo any of your changes on top of
-> the latest tip:numa/core tree, to make them easier for me to
-> pick up?
- >
-> Your tree is slowly becoming a rebase of tip:numa/core and that
-> will certainly cause problems.
+On Tue, 13 Nov 2012 18:23:13 -0800 (PST) Hugh Dickins <hughd@google.com> wrote:
 
-Mel's tree looks like the easiest of the two to merge
-from an mm/ point of view.
+> But I vehemently hope that this all very soon vanishes from linux-next,
+> and the new stuff is worked on properly for a while, in a separate
+> development branch of tip, hopefully converging with Mel's.
 
-> I'll backmerge any delta patches and rebase as necessary - but
-> please do them as deltas on top of tip:numa/core to make things
-> reviewable and easier to merge:
->
->     git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/core
->
-> Thanks!
->
-> 	Ingo
->
+Yes please.
 
-
--- 
-All rights reversed
+The old code in -next has been causing MM integration problems for
+months, and -next shuts down from Nov 15 to Nov 26, reopening around
+3.7-rc7.  rc7 is too late for this material - let's shoot for
+integration in -next at 3.8-rc1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
