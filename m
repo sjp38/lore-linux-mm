@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3839E6B0070
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:30:13 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so327640dad.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 10:30:12 -0800 (PST)
-Date: Wed, 14 Nov 2012 10:30:07 -0800
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: [RFC] rework mem_cgroup iterator
-Message-ID: <20121114183007.GC21185@mtj.dyndns.org>
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
- <50A2F9FC.5050303@huawei.com>
- <20121114083653.GA17111@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 6211B6B0072
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:33:48 -0500 (EST)
+Date: Wed, 14 Nov 2012 13:33:30 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v3 3/6] memcg: Simplify mem_cgroup_force_empty_list error
+ handling
+Message-ID: <20121114183330.GA32421@cmpxchg.org>
+References: <1351251453-6140-1-git-send-email-mhocko@suse.cz>
+ <1351251453-6140-4-git-send-email-mhocko@suse.cz>
+ <508E8B95.406@parallels.com>
+ <20121029150022.a595b866.akpm@linux-foundation.org>
+ <20121030103559.GA7394@dhcp22.suse.cz>
+ <20121113211041.GB1543@cmpxchg.org>
+ <20121114135930.GE4929@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121114083653.GA17111@dhcp22.suse.cz>
+In-Reply-To: <20121114135930.GE4929@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>
 
-Hello, Michal.
-
-On Wed, Nov 14, 2012 at 09:36:53AM +0100, Michal Hocko wrote:
-> > So memcg won't use css id at all, right?
+On Wed, Nov 14, 2012 at 02:59:30PM +0100, Michal Hocko wrote:
+> On Tue 13-11-12 16:10:41, Johannes Weiner wrote:
+> > Would it make sense to stick a wait_on_page_locked() in there just so
+> > that we don't busy spin on a page under migration/reclaim?
 > 
-> Unfortunately we still use it for the swap accounting but that one could
-> be replaced by something else, probably. Have to think about it.
+> Hmm, this would also mean that get_page_unless_zero would fail as well
+> and so we would schedule in mem_cgroup_force_empty_list. It is true that
+> there might be no other runnable task so we can busy loop so yes this
+> would help. Care to cook the patch?
 
-I have a patch to add cgrp->id pending.  From what I can see, memcg
-should be able to use that for swap accounting.
+Eventually get_page_unless_zero() would fail but we could still spin
+on a page while it's off the LRU and migration performs writeback on
+it e.g.  cond_resched() does not necessarily schedule just because
+there is another runnable task, I think, it's voluntary preemption
+when the task needs rescheduling anyway, not yield.
 
-> > Then we can remove the whole css_id stuff, and that's quite a bunch of
-> > code.
-
-Yeap, that's the plan.
-
-> Is memcg the only user of css_id? Quick grep shows that yes but I
-> haven't checked all the callers of the exported functions. I would be
-> happy if more code goes away.
-
-Yeap, memcg is the only user and I really wanna remove it once memcg
-moves onto saner stuff.
-
-Thanks.
-
--- 
-tejun
+Maybe not worth bothering...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
