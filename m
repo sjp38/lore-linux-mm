@@ -1,51 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 108CF6B009E
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 05:06:04 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so211655pad.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 02:06:03 -0800 (PST)
-Date: Wed, 14 Nov 2012 02:06:00 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
-In-Reply-To: <20121114061437.GA23458@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211140204430.19559@eggly.anvils>
-References: <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils> <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils>
- <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils> <50A30ADD.9000209@gmail.com> <alpine.LNX.2.00.1211131935410.30540@eggly.anvils> <20121114061437.GA23458@redhat.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 9A04B6B00A1
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 05:09:54 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hm2so3174232wib.8
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 02:09:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 14 Nov 2012 11:09:52 +0100
+Message-ID: <CAKMK7uG+txQf8ZX78jvNZAU_vUhkX3tryrSbK91iHfueVt=hvw@mail.gmail.com>
+Subject: Regression due to "mm: fix-up zone present pages"
+From: Daniel Vetter <daniel.vetter@ffwll.ch>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Wilson <chris@chris-wilson.co.uk>, "Lu, HuaX" <huax.lu@intel.com>, "Sun, Yi" <yi.sun@intel.com>, "Jin, Gordon" <gordon.jin@intel.com>, Jianguo Wu <wujianguo@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: intel-gfx <intel-gfx@lists.freedesktop.org>, dri-devel <dri-devel@lists.freedesktop.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Luck, Tony" <tony.luck@intel.com>, Mel Gorman <mel@csn.ul.ie>, Yinghai Lu <yinghai@kernel.org>, Minchan Kim <minchan.kim@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>
 
-On Wed, 14 Nov 2012, Dave Jones wrote:
-> On Tue, Nov 13, 2012 at 07:50:25PM -0800, Hugh Dickins wrote:
->  
->  > Originally I was waiting to hear further from Dave; but his test
->  > machine was giving trouble, and it occurred to me that, never mind
->  > whether he says he has hit it again, or he has not hit it again,
->  > the answer is the same: don't send that VM_BUG_ON upstream.
->  
-> Sorry, I'm supposedly on vacation. 
+Hi all,
 
-Sorry for breaking in upon that, and thank you for responding even so.
+Our QA noticed a regression in one of our i915/GEM testcases in 3.7:
 
-> That said, a replacement test box has been running tests since last Friday
-> without hitting that case.  Maybe it was the last death throes of
-> that other machine before it gave up the ghost completely.
-> 
-> Does sound like an awful coincidence though.
+https://bugs.freedesktop.org/show_bug.cgi?id=56859
 
-I'm still clinging to your 0.1% possibility that it was not the
-intended kernel running.
+Direct link to dmesg of the machine:
+https://bugs.freedesktop.org/attachment.cgi?id=70052 Note that the
+machine is 32bit, which seems to be important since Chris Wilson
+confirmed the bug on his 32bit Sandybridge machine, whereas mine here
+with a 64bit kernel works flawlessly.
 
-Anyway, I'm not going to worry about it further, until we see another
-hit - please do keep the VM_BUG_ON in your test kernel (i.e. resist
-that temptation to race in from your vacation to apply today's patch!),
-even though the right thing for 3.7 was to remove it.
+The testcase is gem_tiled_swapping:
 
-Thanks,
-Hugh
+http://cgit.freedesktop.org/xorg/app/intel-gpu-tools/tree/tests/gem_tiled_swapping.c
+
+Quick high-level description of the workload:
+
+It allocates a working set larger than available memory, then fills it
+by writing it through the gpu gart (required to get a linear view of
+tiled buffers) and afterwards reads it to check whether anything got
+corrupted. Since the working set is too large to fit into ram, this
+will force all buffers through swap. We've written this testcase to
+exercise the reswizzle swapin path since some platforms have a tiling
+layout depending upon physical pfn (awesome feature btw), but not snb.
+So within the kernel this workload simply grabs the backing storage
+from shmemfs with shmem_read_mapping_page_gfp and then binds them into
+the gpu pagetables (the GTT). This happens in the i915_gem_fault
+fucntion. Unbinding in this workload happens either directly (if the
+gem code can't get enough memory) or through our shrinker
+(i915_gem_inactive_shrink). Swapout is then left to shmemfs to handle.
+All the above stuff is in drivers/gpu/drm/i915_gem.c
+
+Testcase fails because it detects a mismatch between what has been
+written and what has been read back.
+
+Our qa people bisected the regression to
+
+commit 7f1290f2f2a4d2c3f1b7ce8e87256e052ca23125
+Author: Jianguo Wu <wujianguo@huawei.com>
+Date:   Mon Oct 8 16:33:06 2012 -0700
+
+    mm: fix-up zone present pages
+
+and confirmed the revert on top of the latest drm-intel-nightly branch
+(which is based on top of 3.7-rc2 and contains the -next stuff for
+3.8). They've also tested the for-QA branch which had latest Linus
+upstream merged in, which did not fix the problem. For reference the
+intel trees are at (but I don't think it matters really that it's not
+plain upstream, nothing really changed in the relevant i915/gem paths
+compared to upstream):
+
+http://cgit.freedesktop.org/~danvet/drm-intel
+
+I have no idea how that early boot zone init fix could even corrupt
+swapping in such a fashion, so ideas highly welcome. QA people are
+cc'ed, and hopefully I haven't missed anyone else on the cc list.
+
+Yours, Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
