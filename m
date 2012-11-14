@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id AF9056B0072
-	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:13:46 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4A8953EE0C1
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:13:45 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 282C945DEBC
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:13:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 09B3645DEB5
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:13:45 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id C67F3E08003
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:13:44 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 75DED1DB803F
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:13:44 +0900 (JST)
-Message-ID: <50A2E229.3050809@jp.fujitsu.com>
-Date: Wed, 14 Nov 2012 09:13:29 +0900
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 1DF3F6B0072
+	for <linux-mm@kvack.org>; Tue, 13 Nov 2012 19:20:23 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2C98C3EE0BC
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:20:21 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0E91E45DE5C
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:20:21 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EAE6245DE55
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:20:20 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DFA481DB8056
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:20:20 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 914651DB804B
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:20:20 +0900 (JST)
+Message-ID: <50A2E3B3.6080007@jp.fujitsu.com>
+Date: Wed, 14 Nov 2012 09:20:03 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] rework mem_cgroup iterator
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz> <1352820639-13521-3-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1352820639-13521-3-git-send-email-mhocko@suse.cz>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -32,47 +32,172 @@ To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
 
 (2012/11/14 0:30), Michal Hocko wrote:
-> Hi all,
-> this patch set tries to make mem_cgroup_iter saner in the way how it
-> walks hierarchies. css->id based traversal is far from being ideal as it
-> is not deterministic because it depends on the creation ordering.
+> mem_cgroup_iter curently relies on css->id when walking down a group
+> hierarchy tree. This is really awkward because the tree walk depends on
+> the groups creation ordering. The only guarantee is that a parent node
+> is visited before its children.
+> Example
+>   1) mkdir -p a a/d a/b/c
+>   2) mkdir -a a/b/c a/d
+> Will create the same trees but the tree walks will be different:
+>   1) a, d, b, c
+>   2) a, b, c, d
 > 
-> Diffstat looks promising but it is fair the say that the biggest cleanup is
-> just css_get_next removal. The memcg code has grown a bit but I think it is
-> worth the resulting outcome (the sanity ;)).
+> 574bd9f7 (cgroup: implement generic child / descendant walk macros) has
+> introduced generic cgroup tree walkers which provide either pre-order
+> or post-order tree walk. This patch converts css->id based iteration
+> to pre-order tree walk to keep the semantic with the original iterator
+> where parent is always visited before its subtree.
 > 
-> The first patch fixes a potential misbehaving which I haven't seen but the
-> fix is needed for the later patches anyway. We could take it alone as well
-> but I do not have any bug report to base the fix on.
+> cgroup_for_each_descendant_pre suggests using post_create and
+> pre_destroy for proper synchronization with groups addidition resp.
+> removal. This implementation doesn't use those because a new memory
+> cgroup is fully initialized in mem_cgroup_create and css_tryget makes
+> sure that the group is alive when we encounter it by iterator.
 > 
-> The second patch replaces css_get_next by cgroup iterators which are
-> scheduled for 3.8 in Tejun's tree and I depend on the following two patches:
-> fe1e904c cgroup: implement generic child / descendant walk macros
-> 7e187c6c cgroup: use rculist ops for cgroup->children
+> If the reclaim cookie is used we need to store the last visited group
+> into the iterator so we have to be careful that it doesn't disappear in
+> the mean time. Elevated reference count on the memcg guarantees that
+> the group will not vanish even though it has been already removed from
+> the tree. In such a case css_tryget will fail and the iteration is
+> retried (groups are linked with RCU safe lists so the forward progress
+> is still possible). iter_lock will make sure that only one reclaimer
+> will see the last_visited group and the reference count game around it.
 > 
-> The third patch is an attempt for simplification of the mem_cgroup_iter. It
-> basically removes all css usages to make the code easier. The next patch
-> removes the big while(!memcg) loop around the iterating logic. It could have
-> been folded into #3 but I rather have the rework separate from the code
-> moving noise.
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>   mm/memcontrol.c |   64 ++++++++++++++++++++++++++++++++++++++++++-------------
+>   1 file changed, 49 insertions(+), 15 deletions(-)
 > 
-> The last patch just removes css_get_next as there is no user for it any
-> longer.
-> 
-> I am also thinking that leaf-to-root iteration makes more sense but this
-> patch is not included in the series yet because I have to think some
-> more about the justification.
-> 
-> So far I didn't get to testing but I am posting this early if everybody is
-> OK with this change.
-> 
-> Any thoughts?
-> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 0fe5177..5da1e58 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -142,8 +142,8 @@ struct mem_cgroup_stat_cpu {
+>   };
+>   
+>   struct mem_cgroup_reclaim_iter {
+> -	/* css_id of the last scanned hierarchy member */
+> -	int position;
+> +	/* last scanned hierarchy member with elevated ref count */
+> +	struct mem_cgroup *last_visited;
+>   	/* scan generation, increased every round-trip */
+>   	unsigned int generation;
+>   	/* lock to protect the position and generation */
+> @@ -1063,8 +1063,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   				   struct mem_cgroup *prev,
+>   				   struct mem_cgroup_reclaim_cookie *reclaim)
+>   {
+> -	struct mem_cgroup *memcg = NULL;
+> -	int id = 0;
+> +	struct mem_cgroup *memcg = NULL,
+> +			  *last_visited = NULL;
+>   
+>   	if (mem_cgroup_disabled())
+>   		return NULL;
+> @@ -1073,7 +1073,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   		root = root_mem_cgroup;
+>   
+>   	if (prev && !reclaim)
+> -		id = css_id(&prev->css);
+> +		last_visited = prev;
+>   
+>   	if (prev && prev != root)
+>   		css_put(&prev->css);
+> @@ -1086,7 +1086,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   
+>   	while (!memcg) {
+>   		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+> -		struct cgroup_subsys_state *css;
+> +		struct cgroup_subsys_state *css = NULL;
+>   
+>   		if (reclaim) {
+>   			int nid = zone_to_nid(reclaim->zone);
+> @@ -1096,30 +1096,64 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   			mz = mem_cgroup_zoneinfo(root, nid, zid);
+>   			iter = &mz->reclaim_iter[reclaim->priority];
+>   			spin_lock(&iter->iter_lock);
+> +			last_visited = iter->last_visited;
+>   			if (prev && reclaim->generation != iter->generation) {
+> +				if (last_visited) {
+> +					mem_cgroup_put(last_visited);
+> +					iter->last_visited = NULL;
+> +				}
+>   				spin_unlock(&iter->iter_lock);
+>   				return NULL;
+>   			}
+> -			id = iter->position;
+>   		}
+>   
+>   		rcu_read_lock();
+> -		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+> -		if (css) {
+> -			if (css == &root->css || css_tryget(css))
+> -				memcg = mem_cgroup_from_css(css);
+> -		} else
+> -			id = 0;
+> -		rcu_read_unlock();
+> +		/*
+> +		 * Root is not visited by cgroup iterators so it needs a special
+> +		 * treatment.
+> +		 */
+> +		if (!last_visited) {
+> +			css = &root->css;
+> +		} else {
+> +			struct cgroup *next_cgroup;
+> +
+> +			next_cgroup = cgroup_next_descendant_pre(
+> +					last_visited->css.cgroup,
+> +					root->css.cgroup);
 
-I'm O.K. Maybe I have some points I'm not understanding...I'll make a reply to patches.
+Maybe I miss something but.... last_visited is holded by memcg's refcnt.
+The cgroup pointed by css.cgroup is by cgroup's refcnt which can be freed
+before memcg is freed and last_visited->css.cgroup is out of RCU cycle.
+Is this safe ?
 
 Thanks,
 -Kame
+
+> +			if (next_cgroup)
+> +				css = cgroup_subsys_state(next_cgroup,
+> +						mem_cgroup_subsys_id);
+> +		}
+> +
+> +		/*
+> +		 * Even if we find a group we have to make sure it is alive.
+> +		 * css && !memcg means that the groups should be skipped and
+> +		 * we should continue the tree walk.
+> +		 */
+> +		if (css == &root->css || (css && css_tryget(css)))
+> +			memcg = mem_cgroup_from_css(css);
+>   
+>   		if (reclaim) {
+> -			iter->position = id;
+> +			struct mem_cgroup *curr = memcg;
+> +
+> +			if (last_visited)
+> +				mem_cgroup_put(last_visited);
+> +
+> +			if (css && !memcg)
+> +				curr = mem_cgroup_from_css(css);
+> +			if (curr)
+> +				mem_cgroup_get(curr);
+> +			iter->last_visited = curr;
+> +
+>   			if (!css)
+>   				iter->generation++;
+>   			else if (!prev && memcg)
+>   				reclaim->generation = iter->generation;
+>   			spin_unlock(&iter->iter_lock);
+> +		} else if (css && !memcg) {
+> +			last_visited = mem_cgroup_from_css(css);
+>   		}
+> +		rcu_read_unlock();
+>   
+>   		if (prev && !css)
+>   			return NULL;
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
