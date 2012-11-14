@@ -1,35 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 9FE186B0078
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 12:13:38 -0500 (EST)
-Message-ID: <50A3D133.5030906@redhat.com>
-Date: Wed, 14 Nov 2012 12:13:23 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 07/31] mm: numa: split_huge_page: transfer the NUMA type
- from the pmd to the pte
-References: <1352805180-1607-1-git-send-email-mgorman@suse.de> <1352805180-1607-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1352805180-1607-8-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 8A5066B0074
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 12:31:29 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so567942pbc.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 09:31:28 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [RFC PATCH] mm: WARN_ON_ONCE if f_op->mmap() change vma's start address
+Date: Thu, 15 Nov 2012 02:28:52 +0900
+Message-Id: <1352914132-18445-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>
 
-On 11/13/2012 06:12 AM, Mel Gorman wrote:
-> From: Andrea Arcangeli <aarcange@redhat.com>
->
-> When we split a transparent hugepage, transfer the NUMA type from the
-> pmd to the pte if needed.
->
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+During reviewing the source code, I found a comment which mention that
+after f_op->mmap(), vma's start address can be changed.
+I didn't verify that it is really possible, because there are so many
+f_op->mmap() implementation. But if there are some mmap() which change
+vma's start address, it is possible error situation, because we already
+prepare prev vma, rb_link and rb_parent and these are related to original
+address.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+So add WARN_ON_ONCE for finding that this situtation really happens.
 
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2d94235..36567b7 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1333,7 +1333,11 @@ munmap_back:
+ 		 *
+ 		 * Answer: Yes, several device drivers can do it in their
+ 		 *         f_op->mmap method. -DaveM
++		 * Bug: If addr is changed, prev, rb_link, rb_parent should
++		 *      be updated for vma_link()
+ 		 */
++		WARN_ON_ONCE(addr != vma->vm_start);
++
+ 		addr = vma->vm_start;
+ 		pgoff = vma->vm_pgoff;
+ 		vm_flags = vma->vm_flags;
 -- 
-All rights reversed
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
