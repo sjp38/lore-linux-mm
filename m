@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 0B97C6B00C8
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 14:12:55 -0500 (EST)
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 9C8A46B00C5
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 14:12:54 -0500 (EST)
 From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: [PATCH 11/11] zcache: Coalesce all debug under CONFIG_ZCACHE2_DEBUG
-Date: Wed, 14 Nov 2012 14:12:19 -0500
-Message-Id: <1352920339-10183-12-git-send-email-konrad.wilk@oracle.com>
+Subject: [PATCH 10/11] zcache: Module license is defined twice.
+Date: Wed, 14 Nov 2012 14:12:18 -0500
+Message-Id: <1352920339-10183-11-git-send-email-konrad.wilk@oracle.com>
 In-Reply-To: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
 References: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,88 +13,27 @@ List-ID: <linux-mm.kvack.org>
 To: sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, akpm@linux-foundation.org, mgorman@suse.de
 Cc: fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-and also define this extra attribute in the Kconfig entry.
+The other (same license) is at the end of the file.
 
 Reviewed-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 Signed-off-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 ---
- drivers/staging/ramster/Kconfig       |    8 ++++++++
- drivers/staging/ramster/Makefile      |    2 +-
- drivers/staging/ramster/debug.h       |    2 +-
- drivers/staging/ramster/zcache-main.c |    6 +++---
- 4 files changed, 13 insertions(+), 5 deletions(-)
+ drivers/staging/ramster/zcache-main.c |    2 --
+ 1 files changed, 0 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/staging/ramster/Kconfig b/drivers/staging/ramster/Kconfig
-index 9ce2590..24c8704 100644
---- a/drivers/staging/ramster/Kconfig
-+++ b/drivers/staging/ramster/Kconfig
-@@ -15,6 +15,14 @@ config ZCACHE2
- 	  again in the future.  Until then, zcache2 is a single-node
- 	  version of ramster.
- 
-+config ZCACHE2_DEBUG
-+	bool "Enable debug statistics"
-+	depends on DEBUG_FS && ZCACHE2
-+	default n
-+	help
-+	  This is used to provide an debugfs directory with counters of
-+	  how zcache2 is doing. You probably want to set this to 'N'.
-+
- config RAMSTER
- 	tristate "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
- 	depends on CONFIGFS_FS && SYSFS && !HIGHMEM && ZCACHE2
-diff --git a/drivers/staging/ramster/Makefile b/drivers/staging/ramster/Makefile
-index 61f5050..d341a23 100644
---- a/drivers/staging/ramster/Makefile
-+++ b/drivers/staging/ramster/Makefile
-@@ -4,5 +4,5 @@ zcache-y	+=	ramster/ramster.o ramster/r2net.o
- zcache-y	+=	ramster/nodemanager.o ramster/tcp.o
- zcache-y	+=	ramster/heartbeat.o ramster/masklog.o
- endif
--zcache-y-$(CONFIG_ZCACHE_DEBUG)	+= debug.o
-+zcache-y-$(CONFIG_ZCACHE2_DEBUG)	+= debug.o
- obj-$(CONFIG_MODULES)	+= zcache.o
-diff --git a/drivers/staging/ramster/debug.h b/drivers/staging/ramster/debug.h
-index b412b90..cf375d7 100644
---- a/drivers/staging/ramster/debug.h
-+++ b/drivers/staging/ramster/debug.h
-@@ -1,4 +1,4 @@
--#ifdef CONFIG_ZCACHE_DEBUG
-+#ifdef CONFIG_ZCACHE2_DEBUG
- 
- /* we try to keep these statistics SMP-consistent */
- static ssize_t zcache_obj_count;
 diff --git a/drivers/staging/ramster/zcache-main.c b/drivers/staging/ramster/zcache-main.c
-index a1a9799..6add13d 100644
+index 457e41c..a1a9799 100644
 --- a/drivers/staging/ramster/zcache-main.c
 +++ b/drivers/staging/ramster/zcache-main.c
-@@ -308,7 +308,7 @@ static void zcache_free_page(struct page *page)
- 		max_pageframes = curr_pageframes;
- 	if (curr_pageframes < min_pageframes)
- 		min_pageframes = curr_pageframes;
--#ifdef ZCACHE_DEBUG
-+#ifdef CONFIG_ZCACHE2_DEBUG
- 	if (curr_pageframes > 2L || curr_pageframes < -2L) {
- 		/* pr_info here */
- 	}
-@@ -1603,7 +1603,7 @@ static int zcache_init(void)
- 		old_ops = zcache_cleancache_register_ops();
- 		pr_info("%s: cleancache enabled using kernel transcendent "
- 			"memory and compression buddies\n", namestr);
--#ifdef ZCACHE_DEBUG
-+#ifdef CONFIG_ZCACHE2_DEBUG
- 		pr_info("%s: cleancache: ignorenonactive = %d\n",
- 			namestr, !disable_cleancache_ignore_nonactive);
- #endif
-@@ -1618,7 +1618,7 @@ static int zcache_init(void)
- 			frontswap_tmem_exclusive_gets(true);
- 		pr_info("%s: frontswap enabled using kernel transcendent "
- 			"memory and compression buddies\n", namestr);
--#ifdef ZCACHE_DEBUG
-+#ifdef CONFIG_ZCACHE2_DEBUG
- 		pr_info("%s: frontswap: excl gets = %d active only = %d\n",
- 			namestr, frontswap_has_exclusive_gets,
- 			!disable_frontswap_ignore_nonactive);
+@@ -68,8 +68,6 @@ static char *namestr __read_mostly = "zcache";
+ #define ZCACHE_GFP_MASK \
+ 	(__GFP_FS | __GFP_NORETRY | __GFP_NOWARN | __GFP_NOMEMALLOC)
+ 
+-MODULE_LICENSE("GPL");
+-
+ /* crypto API for zcache  */
+ #ifdef CONFIG_ZCACHE2_MODULE
+ static char *zcache_comp_name = "lzo";
 -- 
 1.7.7.6
 
