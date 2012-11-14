@@ -1,36 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 6FA8C6B0070
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 03:40:17 -0500 (EST)
-Date: Wed, 14 Nov 2012 09:40:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] rework mem_cgroup iterator
-Message-ID: <20121114084014.GB17111@dhcp22.suse.cz>
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
- <50A3C42F.9020901@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50A3C42F.9020901@parallels.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 3102F6B0072
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 03:50:50 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so136854eek.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 00:50:48 -0800 (PST)
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 0/2] change_protection(): Count the number of pages affected
+Date: Wed, 14 Nov 2012 09:50:27 +0100
+Message-Id: <1352883029-7885-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
 
-On Wed 14-11-12 17:17:51, Glauber Costa wrote:
-[...]
-> Why can't we reuse the scheduler iterator and move it to kernel/cgroup.c?
+What do you guys think about this mprotect() optimization?
 
-I do not care much about the internal implementation of the core
-iterators. Those implemented by Tejun make sense to me. I just want to
-get rid of css->id based ones.
+Thanks,
 
-Memcg iterator, however, still needs its own iterator on top because we
-have to handle the parallel reclaimers.
-[...]
+	Ingo
+
+--
+Ingo Molnar (1):
+  mm: Optimize the TLB flush of sys_mprotect() and change_protection()
+    users
+
+Peter Zijlstra (1):
+  sched, numa, mm: Count WS scanning against present PTEs, not virtual
+    memory ranges
+
+ include/linux/hugetlb.h |  8 ++++++--
+ include/linux/mm.h      |  6 +++---
+ kernel/sched/fair.c     | 37 +++++++++++++++++++++----------------
+ mm/hugetlb.c            | 10 ++++++++--
+ mm/mprotect.c           | 46 ++++++++++++++++++++++++++++++++++------------
+ 5 files changed, 72 insertions(+), 35 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
