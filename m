@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 758936B002B
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 09:26:22 -0500 (EST)
-Date: Thu, 15 Nov 2012 14:26:21 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/8] Announcement: Enhanced NUMA scheduling with adaptive
- affinity
-In-Reply-To: <20121113072441.GA21386@gmail.com>
-Message-ID: <0000013b04769cf2-b57b16c0-5af0-4e7e-a736-e0aa2d4e4e78-000000@email.amazonses.com>
-References: <20121112160451.189715188@chello.nl> <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com> <20121113072441.GA21386@gmail.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 0A7746B002B
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 09:47:37 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1221335pad.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 06:47:37 -0800 (PST)
+Date: Thu, 15 Nov 2012 06:47:32 -0800
+From: Tejun Heo <htejun@gmail.com>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+Message-ID: <20121115144732.GB7306@mtj.dyndns.org>
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+ <1352820639-13521-3-git-send-email-mhocko@suse.cz>
+ <20121113161442.GA18227@mtj.dyndns.org>
+ <20121114085129.GC17111@dhcp22.suse.cz>
+ <20121114185245.GF21185@mtj.dyndns.org>
+ <20121115095103.GB11990@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121115095103.GB11990@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Glauber Costa <glommer@parallels.com>
 
-On Tue, 13 Nov 2012, Ingo Molnar wrote:
+Hello, Michal.
 
-> > the pages over both nodes in use.
->
-> I'd not go as far as to claim that to be a general rule: the
-> correct placement depends on the system and workload specifics:
-> how much memory is on each node, how many tasks run on each
-> node, and whether the access patterns and working set of the
-> tasks is symmetric amongst each other - which is not a given at
-> all.
->
-> Say consider a database server that executes small and large
-> queries over a large, memory-shared database, and has worker
-> tasks to clients, to serve each query. Depending on the nature
-> of the queries, interleaving can easily be the wrong thing to
-> do.
+On Thu, Nov 15, 2012 at 10:51:03AM +0100, Michal Hocko wrote:
+> > I'm a bit confused.  Why would that make any difference?  Shouldn't it
+> > be just able to test the condition and continue?
+> 
+> Ohh, I misunderstood your proposal. So what you are suggesting is
+> to put all the logic we have in mem_cgroup_iter inside what you call
+> reclaim here + mem_cgroup_iter_break inside the loop, right?
+> 
+> I do not see how this would help us much. mem_cgroup_iter is not the
+> nicest piece of code but it handles quite a complex requirements that we
+> have currently (css reference count, multiple reclaimers racing). So I
+> would rather keep it this way. Further simplifications are welcome of
+> course.
+> 
+> Is there any reason why you are not happy about direct using of
+> cgroup_next_descendant_pre?
 
-The interleaving of memory areas that have an equal amount of shared
-accesses from multiple nodes is essential to limit the traffic on the
-interconnect and get top performance.
+Because I'd like to consider the next functions as implementation
+detail, and having interations structred as loops tend to read better
+and less error-prone.  e.g. when you use next functions directly, it's
+way easier to circumvent locking requirements in a way which isn't
+very obvious.  So, unless it messes up the code too much (and I can't
+see why it would), I'd much prefer if memcg used for_each_*() macros.
 
-I guess through that in a non HPC environment where you are not interested
-in one specific load running at top speed varying contention on the
-interconnect and memory busses are acceptable. But this means that HPC
-loads cannot be auto tuned.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
