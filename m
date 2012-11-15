@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 382176B006C
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 16:43:01 -0500 (EST)
-From: Will Deacon <will.deacon@arm.com>
-Subject: [PATCH] mm: highmem: don't treat PKMAP_ADDR(LAST_PKMAP) as a highmem address
-Date: Thu, 15 Nov 2012 21:42:50 +0000
-Message-Id: <1353015770-23810-1-git-send-email-will.deacon@arm.com>
+Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
+	by kanga.kvack.org (Postfix) with SMTP id 01B876B0070
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 16:47:35 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so1513528pad.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:47:35 -0800 (PST)
+Date: Thu, 15 Nov 2012 13:47:33 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v5 05/11] thp: change_huge_pmd(): keep huge zero page
+ write-protected
+In-Reply-To: <20121115084635.GC9676@otc-wbsnb-06>
+Message-ID: <alpine.DEB.2.00.1211151344100.27188@chino.kir.corp.google.com>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <1352300463-12627-6-git-send-email-kirill.shutemov@linux.intel.com> <alpine.DEB.2.00.1211141512400.22537@chino.kir.corp.google.com> <20121115084635.GC9676@otc-wbsnb-06>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Will Deacon <will.deacon@arm.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-kmap_to_page returns the corresponding struct page for a virtual address
-of an arbitrary mapping. This works by checking whether the address
-falls in the pkmap region and using the pkmap page tables instead of the
-linear mapping if appropriate.
+On Thu, 15 Nov 2012, Kirill A. Shutemov wrote:
 
-Unfortunately, the bounds checking means that PKMAP_ADDR(LAST_PKMAP) is
-incorrectly treated as a highmem address and we can end up walking off
-the end of pkmap_page_table and subsequently passing junk to pte_page.
+> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > index d767a7c..05490b3 100644
+> > > --- a/mm/huge_memory.c
+> > > +++ b/mm/huge_memory.c
+> > > @@ -1259,6 +1259,8 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  		pmd_t entry;
+> > >  		entry = pmdp_get_and_clear(mm, addr, pmd);
+> > >  		entry = pmd_modify(entry, newprot);
+> > > +		if (is_huge_zero_pmd(entry))
+> > > +			entry = pmd_wrprotect(entry);
+> > >  		set_pmd_at(mm, addr, pmd, entry);
+> > >  		spin_unlock(&vma->vm_mm->page_table_lock);
+> > >  		ret = 1;
+> > 
+> > Nack, this should be handled in pmd_modify().
+> 
+> I disagree. It means we will have to enable hzp per arch. Bad idea.
+> 
 
-This patch fixes the bound check to stay within the pkmap tables.
+pmd_modify() only exists for those architectures with thp support already, 
+so you've already implicitly enabled for all the necessary architectures 
+with your patchset.
 
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Will Deacon <will.deacon@arm.com>
----
- mm/highmem.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+> What's wrong with the check?
+> 
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index d517cd1..2da13a5 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -98,7 +98,7 @@ struct page *kmap_to_page(void *vaddr)
- {
- 	unsigned long addr = (unsigned long)vaddr;
- 
--	if (addr >= PKMAP_ADDR(0) && addr <= PKMAP_ADDR(LAST_PKMAP)) {
-+	if (addr >= PKMAP_ADDR(0) && addr < PKMAP_ADDR(LAST_PKMAP)) {
- 		int i = (addr - PKMAP_ADDR(0)) >> PAGE_SHIFT;
- 		return pte_page(pkmap_page_table[i]);
- 	}
--- 
-1.7.4.1
+Anybody using pmd_modify() to set new protections in the future perhaps 
+without knowledge of huge zero page can incorrectly make the huge zero 
+page writable, which can never be allowed to happen.  It's better to make 
+sure it can never happen with the usual interface to modify protections.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
