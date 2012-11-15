@@ -1,62 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 775A16B006E
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 16:27:08 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so1584639pbc.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:27:07 -0800 (PST)
-Date: Thu, 15 Nov 2012 13:27:05 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: fix a regression with HIGHMEM introduced by changeset
- 7f1290f2f2a4d
-In-Reply-To: <20121115112454.e582a033.akpm@linux-foundation.org>
-Message-ID: <alpine.DEB.2.00.1211151326500.27188@chino.kir.corp.google.com>
-References: <1352165517-9732-1-git-send-email-jiang.liu@huawei.com> <20121106124315.79deb2bc.akpm@linux-foundation.org> <50A3B013.4030207@gmail.com> <20121115112454.e582a033.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 92E666B0070
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 16:28:01 -0500 (EST)
+Date: Thu, 15 Nov 2012 21:27:54 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
+ affinity"
+Message-ID: <20121115212754.GW8218@suse.de>
+References: <20121112160451.189715188@chello.nl>
+ <20121112184833.GA17503@gmail.com>
+ <20121115100805.GS8218@suse.de>
+ <50A53A00.5060904@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <50A53A00.5060904@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <liuj97@gmail.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Jianguo Wu <wujianguo@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Daniel Vetter <daniel.vetter@ffwll.ch>
+To: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Larry Woodman <lwoodman@redhat.com>
 
-On Thu, 15 Nov 2012, Andrew Morton wrote:
+On Thu, Nov 15, 2012 at 01:52:48PM -0500, Rik van Riel wrote:
+> On 11/15/2012 05:08 AM, Mel Gorman wrote:
+> >On Mon, Nov 12, 2012 at 07:48:33PM +0100, Ingo Molnar wrote:
+> >>Here are some preliminary performance figures, comparing the
+> >>vanilla kernel against the CONFIG_SCHED_NUMA=y kernel.
+> >>
+> >>Java SPEC benchmark, running on a 4 node, 64 GB, 32-way server
+> >>system (higher numbers are better):
+> >
+> >Ok, I used a 4-node, 64G, 48-way server system. We have different CPUs
+> >but the same number of nodes. In case it makes a difference each of my
+> >machines nodes are the same size.
+> 
+> Mel, do you have info on exactly what model system you
+> were running these tests on?
+> 
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: revert "mm: fix-up zone present pages"
-> 
-> Revert
-> 
-> commit 7f1290f2f2a4d2c3f1b7ce8e87256e052ca23125
-> Author:     Jianguo Wu <wujianguo@huawei.com>
-> AuthorDate: Mon Oct 8 16:33:06 2012 -0700
-> Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> CommitDate: Tue Oct 9 16:22:54 2012 +0900
-> 
->     mm: fix-up zone present pages
-> 
-> 
-> That patch tried to fix a issue when calculating zone->present_pages, but
-> it caused a regression on 32bit systems with HIGHMEM.  With that
-> changeset, reset_zone_present_pages() resets all zone->present_pages to
-> zero, and fixup_zone_present_pages() is called to recalculate
-> zone->present_pages when the boot allocator frees core memory pages into
-> buddy allocator.  Because highmem pages are not freed by bootmem
-> allocator, all highmem zones' present_pages becomes zero.
-> 
-> Various options for improving the situation are being discussed but for
-> now, let's return to the 3.6 code.
-> 
-> Cc: Jianguo Wu <wujianguo@huawei.com>
-> Cc: Jiang Liu <jiang.liu@huawei.com>
-> Cc: Petr Tesarik <ptesarik@suse.cz>
-> Cc: "Luck, Tony" <tony.luck@intel.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Yinghai Lu <yinghai@kernel.org>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: David Rientjes <rientjes@google.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Dell PowerEdge R810
+CPU Intel(R) Xeon(R) CPU E7- 4807 @ 1.87GHz
+RAM 64G
+Single disk
 
-Acked-by: David Rientjes <rientjes@google.com>
+4 JVMs, one per node
+SpecJBB configured to run in multi JVM configuration
+No special binding
+JVM switches -Xmx12882m
+
+All run through an unreleased version of MMTests. I'll make a release of
+mmtests either tomorrow or Monday when I get the chance.
+
+> Obviously your results are very different from the ones
+> that Ingo saw. It would be most helpful if we could find
+> a similar system in one of the Red Hat labs, so Ingo can
+> play around with it and see what's going on :)
+> 
+
+Also compare how the benchmark is actually configured and which figures
+he's reporting. I'm posting up the throughput for each warehouse and the
+peak throughput.
+
+It is possible Ingo's figures are based on other patches in the tip tree
+that have not been identified. If that's the case it's interesting in
+itself.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
