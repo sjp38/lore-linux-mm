@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id A41B66B00C0
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 05:23:00 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so705859bkc.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 02:22:59 -0800 (PST)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 629CF6B00C1
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 05:23:01 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so705843bkc.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 02:23:00 -0800 (PST)
 From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: [RFC PATCH v2 1/3] driver core: Introduce prepare_remove in bus_type
-Date: Thu, 15 Nov 2012 11:22:48 +0100
-Message-Id: <1352974970-6643-2-git-send-email-vasilis.liaskovitis@profitbricks.com>
+Subject: [RFC PATCH v2 2/3] acpi: Introduce prepare_remove operation in acpi_device_ops
+Date: Thu, 15 Nov 2012 11:22:49 +0100
+Message-Id: <1352974970-6643-3-git-send-email-vasilis.liaskovitis@profitbricks.com>
 In-Reply-To: <1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
 References: <1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,126 +15,99 @@ List-ID: <linux-mm.kvack.org>
 To: linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com
 Cc: rjw@sisk.pl, lenb@kernel.org, toshi.kani@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 
-This function will call a bus-specific prepare_remove callback. If this call
-is not successful, the device cannot be safely removed, or the driver cannot be
-safely unbound.
+This function should be registered for devices that need to execute some
+non-driver core/acpi related action in order to be safely removed. If
+the removal preparation is successful, the acpi/driver core can continue with
+removing the device.
 
-This operation is needed to safely execute OSPM-induced unbind or rebind of ACPI
-memory devices e.g.
+Make acpi_bus_remove call the device-specific prepare_remove callback before
+removing the device. If prepare_remove fails, the removal is aborted.
 
-echo "PNP0C80:00" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
-
-driver_unbind and device_reprobe will use the new callback before calling
-device_release_driver()
-
-PROBLEM: bus_remove_device and bus_remove_driver also call device_release_driver
-but these functions always succeed under the core device-driver model i.e. there
-is no possibility of failure. These functions do not call the prepare_remove
-callback currently. This creates an unwanted assymetry between device/driver
-removal and driver unbinding. Suggestions to fix welcome.
+Also introduce acpi_device_prepare_remove which will call the device-specific
+prepare_remove callback on driver unbind or device reprobe requests from the
+device-driver core.
 
 Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 ---
- drivers/base/bus.c     |   36 ++++++++++++++++++++++++++++++++++++
- include/linux/device.h |    2 ++
- 2 files changed, 38 insertions(+), 0 deletions(-)
+ drivers/acpi/scan.c     |   21 ++++++++++++++++++++-
+ include/acpi/acpi_bus.h |    2 ++
+ 2 files changed, 22 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/base/bus.c b/drivers/base/bus.c
-index 181ed26..c5dad55 100644
---- a/drivers/base/bus.c
-+++ b/drivers/base/bus.c
-@@ -34,6 +34,7 @@ static struct kset *system_kset;
- 
- static int __must_check bus_rescan_devices_helper(struct device *dev,
- 						void *data);
-+static int bus_prepare_remove_device(struct device *dev);
- 
- static struct bus_type *bus_get(struct bus_type *bus)
- {
-@@ -178,11 +179,18 @@ static ssize_t driver_unbind(struct device_driver *drv,
- 	if (dev && dev->driver == drv) {
- 		if (dev->parent)	/* Needed for USB */
- 			device_lock(dev->parent);
-+		err = bus_prepare_remove_device(dev);
-+		if (err) {
-+			if (dev->parent)
-+				device_unlock(dev->parent);
-+			goto out;
-+		}
- 		device_release_driver(dev);
- 		if (dev->parent)
- 			device_unlock(dev->parent);
- 		err = count;
- 	}
-+out:
- 	put_device(dev);
- 	bus_put(bus);
- 	return err;
-@@ -587,6 +595,26 @@ void bus_remove_device(struct device *dev)
- 	bus_put(dev->bus);
+diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
+index 95ff1e8..725b012 100644
+--- a/drivers/acpi/scan.c
++++ b/drivers/acpi/scan.c
+@@ -582,11 +582,23 @@ static int acpi_device_remove(struct device * dev)
+ 	return 0;
  }
  
-+/**
-+ * device_prepare_release_driver - call driver specific operations to prepare
-+ * for manually detaching device from driver.
-+ * @dev: device.
-+ *
-+ * Prepare for detaching device from driver.
-+ * When called for a USB interface, @dev->parent lock must be held.
-+ * This function returns 0 if preparation is successful, non-zero error value
-+ * otherwise.
-+ */
-+static int bus_prepare_remove_device(struct device *dev)
++static int acpi_device_prepare_remove(struct device *dev)
 +{
++	struct acpi_device *acpi_dev = to_acpi_device(dev);
++	struct acpi_driver *acpi_drv = acpi_dev->driver;
 +	int ret = 0;
-+	device_lock(dev);
-+	if (dev->bus)
-+		ret = dev->bus->prepare_remove(dev);
-+	device_unlock(dev);
++
++	if (acpi_drv && acpi_drv->ops.prepare_remove)
++		ret = acpi_drv->ops.prepare_remove(acpi_dev);
 +	return ret;
 +}
 +
- static int driver_add_attrs(struct bus_type *bus, struct device_driver *drv)
+ struct bus_type acpi_bus_type = {
+ 	.name		= "acpi",
+ 	.match		= acpi_bus_match,
+ 	.probe		= acpi_device_probe,
+ 	.remove		= acpi_device_remove,
++	.prepare_remove	= acpi_device_prepare_remove,
+ 	.uevent		= acpi_device_uevent,
+ };
+ 
+@@ -1349,10 +1361,16 @@ static int acpi_device_set_context(struct acpi_device *device)
+ 
+ static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
  {
- 	int error = 0;
-@@ -820,9 +848,17 @@ EXPORT_SYMBOL_GPL(bus_rescan_devices);
-  */
- int device_reprobe(struct device *dev)
- {
-+	int ret;
++	int ret = 0;
+ 	if (!dev)
+ 		return -EINVAL;
+ 
+ 	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
 +
- 	if (dev->driver) {
- 		if (dev->parent)        /* Needed for USB */
- 			device_lock(dev->parent);
-+		ret = bus_prepare_remove_device(dev);
-+		if (ret) {
-+			if (dev->parent)
-+				device_unlock(dev->parent);
-+			return ret;
-+		}
- 		device_release_driver(dev);
- 		if (dev->parent)
- 			device_unlock(dev->parent);
-diff --git a/include/linux/device.h b/include/linux/device.h
-index cc3aee5..8e7055b 100644
---- a/include/linux/device.h
-+++ b/include/linux/device.h
-@@ -104,6 +104,7 @@ struct bus_type {
++	if (dev->driver && dev->driver->ops.prepare_remove)
++		ret = dev->driver->ops.prepare_remove(dev);
++	if (ret)
++		return ret;
+ 	device_release_driver(&dev->dev);
  
- 	int (*suspend)(struct device *dev, pm_message_t state);
- 	int (*resume)(struct device *dev);
-+	int (*prepare_remove) (struct device *dev);
+ 	if (!rmdevice)
+@@ -1671,7 +1689,8 @@ int acpi_bus_trim(struct acpi_device *start, int rmdevice)
+ 				err = acpi_bus_remove(child, rmdevice);
+ 			else
+ 				err = acpi_bus_remove(child, 1);
+-
++			if (err)
++				return err;
+ 			continue;
+ 		}
  
- 	const struct dev_pm_ops *pm;
+diff --git a/include/acpi/acpi_bus.h b/include/acpi/acpi_bus.h
+index e04ce7b..1a13c82 100644
+--- a/include/acpi/acpi_bus.h
++++ b/include/acpi/acpi_bus.h
+@@ -94,6 +94,7 @@ typedef int (*acpi_op_start) (struct acpi_device * device);
+ typedef int (*acpi_op_bind) (struct acpi_device * device);
+ typedef int (*acpi_op_unbind) (struct acpi_device * device);
+ typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
++typedef int (*acpi_op_prepare_remove) (struct acpi_device *device);
  
-@@ -853,6 +854,7 @@ extern void device_release_driver(struct device *dev);
- extern int  __must_check device_attach(struct device *dev);
- extern int __must_check driver_attach(struct device_driver *drv);
- extern int __must_check device_reprobe(struct device *dev);
-+extern int device_prepare_release_driver(struct device *dev);
+ struct acpi_bus_ops {
+ 	u32 acpi_op_add:1;
+@@ -107,6 +108,7 @@ struct acpi_device_ops {
+ 	acpi_op_bind bind;
+ 	acpi_op_unbind unbind;
+ 	acpi_op_notify notify;
++	acpi_op_prepare_remove prepare_remove;
+ };
  
- /*
-  * Easy functions for dynamically creating devices on the fly
+ #define ACPI_DRIVER_ALL_NOTIFY_EVENTS	0x1	/* system AND device events */
 -- 
 1.7.9
 
