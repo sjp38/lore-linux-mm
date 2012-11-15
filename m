@@ -1,93 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 3CF806B006C
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 22:59:55 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so930971pbc.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 19:59:54 -0800 (PST)
-Date: Wed, 14 Nov 2012 19:59:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-In-Reply-To: <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net>
-Message-ID: <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com>
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com>
- <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id CBEA96B0070
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 23:13:10 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02DF83EE0BD
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:09 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA44D45DE50
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8969645DE4D
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CEB11DB8038
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 27197E08003
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
+Message-ID: <50A46BB6.6070902@jp.fujitsu.com>
+Date: Thu, 15 Nov 2012 13:12:38 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz> <1352820639-13521-3-git-send-email-mhocko@suse.cz> <50A2E3B3.6080007@jp.fujitsu.com> <20121114101052.GD17111@dhcp22.suse.cz>
+In-Reply-To: <20121114101052.GD17111@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <cbouatmailru@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
 
-On Wed, 14 Nov 2012, Anton Vorontsov wrote:
+(2012/11/14 19:10), Michal Hocko wrote:
+> On Wed 14-11-12 09:20:03, KAMEZAWA Hiroyuki wrote:
+>> (2012/11/14 0:30), Michal Hocko wrote:
+> [...]
+>>> @@ -1096,30 +1096,64 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>>>    			mz = mem_cgroup_zoneinfo(root, nid, zid);
+>>>    			iter = &mz->reclaim_iter[reclaim->priority];
+>>>    			spin_lock(&iter->iter_lock);
+>>> +			last_visited = iter->last_visited;
+>>>    			if (prev && reclaim->generation != iter->generation) {
+>>> +				if (last_visited) {
+>>> +					mem_cgroup_put(last_visited);
+>>> +					iter->last_visited = NULL;
+>>> +				}
+>>>    				spin_unlock(&iter->iter_lock);
+>>>    				return NULL;
+>>>    			}
+>>> -			id = iter->position;
+>>>    		}
+>>>
+>>>    		rcu_read_lock();
+>>> -		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+>>> -		if (css) {
+>>> -			if (css == &root->css || css_tryget(css))
+>>> -				memcg = mem_cgroup_from_css(css);
+>>> -		} else
+>>> -			id = 0;
+>>> -		rcu_read_unlock();
+>>> +		/*
+>>> +		 * Root is not visited by cgroup iterators so it needs a special
+>>> +		 * treatment.
+>>> +		 */
+>>> +		if (!last_visited) {
+>>> +			css = &root->css;
+>>> +		} else {
+>>> +			struct cgroup *next_cgroup;
+>>> +
+>>> +			next_cgroup = cgroup_next_descendant_pre(
+>>> +					last_visited->css.cgroup,
+>>> +					root->css.cgroup);
+>>
+>> Maybe I miss something but.... last_visited is holded by memcg's refcnt.
+>> The cgroup pointed by css.cgroup is by cgroup's refcnt which can be freed
+>> before memcg is freed and last_visited->css.cgroup is out of RCU cycle.
+>> Is this safe ?
+>
+> Good spotted. You are right. What I need to do is to check that the
+> last_visited is alive and restart from the root if not. Something like
+> the bellow (incremental patch on top of this one) should help, right?
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 30efd7e..c0a91a3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1105,6 +1105,16 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   				spin_unlock(&iter->iter_lock);
+>   				return NULL;
+>   			}
+> +			/*
+> +			 * memcg is still valid because we hold a reference but
+> +			 * its cgroup might have vanished in the meantime so
+> +			 * we have to double check it is alive and restart the
+> +			 * tree walk otherwise.
+> +			 */
+> +			if (last_visited && !css_tryget(&last_visited->css)) {
+> +				mem_cgroup_put(last_visited);
+> +				last_visited = NULL;
+> +			}
+>   		}
+>
+>   		rcu_read_lock();
+> @@ -1136,8 +1146,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>   		if (reclaim) {
+>   			struct mem_cgroup *curr = memcg;
+>
+> -			if (last_visited)
+> +			if (last_visited) {
+> +				css_put(&last_visited->css);
+>   				mem_cgroup_put(last_visited);
+> +			}
+>
+>   			if (css && !memcg)
+>   				curr = mem_cgroup_from_css(css);
+>
 
-> > I agree that eventfd is the way to go, but I'll also add that this feature 
-> > seems to be implemented at a far too coarse of level.  Memory, and hence 
-> > memory pressure, is constrained by several factors other than just the 
-> > amount of physical RAM which vmpressure_fd is addressing.  What about 
-> > memory pressure caused by cpusets or mempolicies?  (Memcg has its own 
-> > reclaim logic
-> 
-> Yes, sure, and my plan for per-cgroups vmpressure was to just add the same
-> hooks into cgroups reclaim logic (as far as I understand, we can use the
-> same scanned/reclaimed ratio + reclaimer priority to determine the
-> pressure).
-> 
+I think this will work.
 
-I don't understand, how would this work with cpusets, for example, with 
-vmpressure_fd as defined?  The cpuset policy is embedded in the page 
-allocator and skips over zones that are not allowed when trying to find a 
-page of the specified order.  Imagine a cpuset bound to a single node that 
-is under severe memory pressure.  The reclaim logic will get triggered and 
-cause a notification on your fd when the rest of the system's nodes may 
-have tons of memory available.  So now an application that actually is 
-using this interface and is trying to be a good kernel citizen decides to 
-free caches back to the kernel, start ratelimiting, etc, when it actually 
-doesn't have any memory allocated on the nearly-oom cpuset so its memory 
-freeing doesn't actually achieve anything.
+Thanks,
+-Kame
 
-Rather, I think it's much better to be notified when an individual process 
-invokes various levels of reclaim up to and including the oom killer so 
-that we know the context that memory freeing needs to happen (or, 
-optionally, the set of processes that could be sacrificed so that this 
-higher priority process may allocate memory).
-
-> > and its own memory thresholds implemented on top of eventfd 
-> > that people already use.)  These both cause high levels of reclaim within 
-> > the page allocator whereas there may be an abundance of free memory 
-> > available on the system.
-> 
-> Yes, surely global-level vmpressure should be separate for the per-cgroup
-> memory pressure.
-> 
-
-I disagree, I think if you have a per-thread memory pressure notification 
-if and when it starts down the page allocator slowpath, through the 
-various states of reclaim (perhaps on a scale of 0-100 as described), and 
-including the oom killer that you can target eventual memory freeing that 
-actually is useful.
-
-> But we still want the "global vmpressure" thing, so that we could use it
-> without cgroups too. How to do it -- syscall or sysfs+eventfd doesn't
-> matter much (in the sense that I can do eventfd thing if you folks like it
-> :).
-> 
-
-Most processes aren't going to care if they are running into memory 
-pressure and have no implementation to free memory back to the kernel or 
-start ratelimiting themselves.  They will just continue happily along 
-until they get the memory they want or they get oom killed.  The ones that 
-do, however, or a job scheduler or monitor that is watching over the 
-memory usage of a set of tasks, will be able to do something when 
-notified.
-
-In the hopes of a single API that can do all this and not a 
-reimplementation for various types of memory limitations (it seems like 
-what you're suggesting is at least three different APIs: system-wide via 
-vmpressure_fd, memcg via memcg thresholds, and cpusets through an eventual 
-cpuset threshold), I'm hoping that we can have a single interface that can 
-be polled on to determine when individual processes are encountering 
-memory pressure.  And if I'm not running in your oom cpuset, I don't care 
-about your memory pressure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
