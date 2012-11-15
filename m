@@ -1,93 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 697526B0083
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 02:28:49 -0500 (EST)
-Date: Thu, 15 Nov 2012 09:29:55 +0200
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v5 00/11] Introduce huge zero page
-Message-ID: <20121115072955.GA9387@otc-wbsnb-06>
-References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20121114133342.cc7bcd6e.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 7C4716B0085
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 02:37:31 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so967826pad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 23:37:30 -0800 (PST)
+Date: Wed, 14 Nov 2012 23:34:20 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+Message-ID: <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net>
+References: <20121107105348.GA25549@lizard>
+ <20121107112136.GA31715@shutemov.name>
+ <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com>
+ <20121107114321.GA32265@shutemov.name>
+ <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com>
+ <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net>
+ <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="2oS5YaxWCcQjTEyO"
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20121114133342.cc7bcd6e.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: David Rientjes <rientjes@google.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
+Hi David,
 
---2oS5YaxWCcQjTEyO
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Thanks again for your inspirational comments!
 
-On Wed, Nov 14, 2012 at 01:33:42PM -0800, Andrew Morton wrote:
-> On Wed,  7 Nov 2012 17:00:52 +0200
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
->=20
-> > Andrew, here's updated huge zero page patchset.
->=20
-> There is still a distinct lack of reviewed-by's and acked-by's on this
-> patchset.
->=20
-> On 13 Sep, Andrea did indicate that he "reviewed the whole patchset and
-> it looks fine to me".  But that information failed to make it into the
-> changelogs, which is bad.
+On Wed, Nov 14, 2012 at 07:59:52PM -0800, David Rientjes wrote:
+> > > I agree that eventfd is the way to go, but I'll also add that this feature 
+> > > seems to be implemented at a far too coarse of level.  Memory, and hence 
+> > > memory pressure, is constrained by several factors other than just the 
+> > > amount of physical RAM which vmpressure_fd is addressing.  What about 
+> > > memory pressure caused by cpusets or mempolicies?  (Memcg has its own 
+> > > reclaim logic
+> > 
+> > Yes, sure, and my plan for per-cgroups vmpressure was to just add the same
+> > hooks into cgroups reclaim logic (as far as I understand, we can use the
+> > same scanned/reclaimed ratio + reclaimer priority to determine the
+> > pressure).
 
-As I said before, I had to drop Andrea's reviewed-by on rebase to
-v3.7-rc1. I had to solve few not-that-trivial conflicts and I was not sure
-if the reviewed-by is still applicable.
+[Answers reordered]
 
-> I grabbed the patchset.  I might hold it over until 3.9 depending on
-> additional review/test feedback and upon whether Andrea can be
-> persuaded to take another look at it all.
->=20
-> I'm still a bit concerned over the possibility that some workloads will
-> cause a high-frequency free/alloc/memset cycle on that huge zero page.=20
-> We'll see how it goes...
->=20
-> For this reason and for general ease-of-testing: can and should we add
-> a knob which will enable users to disable the feature at runtime?  That
-> way if it causes problems or if we suspect it's causing problems, we
-> can easily verify the theory and offer users a temporary fix.
->=20
-> Such a knob could be a boot-time option, but a post-boot /proc thing
-> would be much nicer.
+> Rather, I think it's much better to be notified when an individual process 
+> invokes various levels of reclaim up to and including the oom killer so 
+> that we know the context that memory freeing needs to happen (or, 
+> optionally, the set of processes that could be sacrificed so that this 
+> higher priority process may allocate memory).
 
-Okay, I'll add sysfs knob.
+I think I understand what you're saying, and surely it makes sense, but I
+don't know how you see this implemented on the API level.
 
-BTW, we already have build time knob: just revert last two patches in the
-series. It will bring lazy allocation instead of refcounting.
+Getting struct {pid, pressure} pairs that cause the pressure at the
+moment? And the monitor only gets <pids> that are in the same cpuset? How
+about memcg limits?..
 
---=20
- Kirill A. Shutemov
+[...]
+> > But we still want the "global vmpressure" thing, so that we could use it
+> > without cgroups too. How to do it -- syscall or sysfs+eventfd doesn't
+> > matter much (in the sense that I can do eventfd thing if you folks like it
+> > :).
+> > 
+> 
+> Most processes aren't going to care if they are running into memory 
+> pressure and have no implementation to free memory back to the kernel or 
+> start ratelimiting themselves.  They will just continue happily along 
+> until they get the memory they want or they get oom killed.  The ones that 
+> do, however, or a job scheduler or monitor that is watching over the 
+> memory usage of a set of tasks, will be able to do something when 
+> notified.
 
---2oS5YaxWCcQjTEyO
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
+Yup, this is exactly how we want to use this. In Android we have "Activity
+Manager" thing, which acts exactly how you describe: it's a tasks monitor.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+> In the hopes of a single API that can do all this and not a 
+> reimplementation for various types of memory limitations (it seems like 
+> what you're suggesting is at least three different APIs: system-wide via 
+> vmpressure_fd, memcg via memcg thresholds, and cpusets through an eventual 
+> cpuset threshold), I'm hoping that we can have a single interface that can 
+> be polled on to determine when individual processes are encountering 
+> memory pressure.  And if I'm not running in your oom cpuset, I don't care 
+> about your memory pressure.
 
-iQIcBAEBAgAGBQJQpJnzAAoJEAd+omnVudOMtwwQAL/CCVFGb7j5GyMcGl5/3L2M
-jfRl+hyN+y3mjcl7N1naMpwNASUiWGJU9Vea/5isc25j+YLZmn8dKqn+BBuvP9gl
-VUBnoKRzkn3mLhSQT6cVkDjeg3tFkwMG5HAkeLhfJsEqYv+C+TOsu8qdO0Pep2vK
-lCx+tvyjHG3/cqIMu+zd1b9gZnLqJaQwJMYllidAJ1NvPotvLxFSdbkzc0GHsdUF
-iVLAaqYrLUUHosnNin2Qw6JUZS+zLFXX9jnxD2ggAMfLTz092fAIPCZtkyyVK40g
-WDMg+sQScqGX8o8fN/68TDbL4DRNqHbiO7H7TUwA38KM0l8vThZib42kAmJDQjVn
-wcaPnGsqVIk4ijxd+d1z/OqHLx8h4eC0etA5034egiIrqFImGC+kyaqaA5sIyfpQ
-f7gRlxRxEs2Brx+E7oUfTX8cJUVwxGA2kmQYMrc29lAJ80RaBxPUfAHyeJtJJOEZ
-Ron7Pufo571fXO/DA5PQ1xRcB1xLvkYL3Dj3sbJuUkAw+STkK0oNXmrnLvsrHKAX
-WlrvLJxfxYmUaoc1nKY5NpjiIlSv/Mi2zSHOuiAIoe6eVfV5ceLzseeaPei9UyNt
-Y5Bm3py4yJGJceNzW3kJegPZa3ywPStaRw+iUqRtFPfiBN+nfHeIjv1SOBk31DVB
-NdZGcXORE/BhqFr5qjUm
-=6V53
------END PGP SIGNATURE-----
+I'm not sure to what exactly you are opposing. :) You don't want to have
+three "kinds" pressures, or you don't what to have three different
+interfaces to each of them, or both?
 
---2oS5YaxWCcQjTEyO--
+> I don't understand, how would this work with cpusets, for example, with 
+> vmpressure_fd as defined?  The cpuset policy is embedded in the page 
+> allocator and skips over zones that are not allowed when trying to find a 
+> page of the specified order.  Imagine a cpuset bound to a single node that 
+> is under severe memory pressure.  The reclaim logic will get triggered and 
+> cause a notification on your fd when the rest of the system's nodes may 
+> have tons of memory available.
+
+Yes, I see your point: we have many ways to limit resources, so it makes
+it hard to identify the cause of the "pressure" and thus how to deal with
+it, since the pressure might be caused by different kinds of limits, and
+freeing memory from one bucket doesn't mean that the memory will be
+available to the process that is requesting the memory.
+
+So we do want to know whether a specific cpuset is under pressure, whether
+a specific memcg is under pressure, or whether the system (and kernel
+itself) lacks memory.
+
+And we want to have a single API for this? Heh. :)
+
+The other idea might be this (I'm describing it in detail so that you
+could actually comment on what exactly you don't like in this):
+
+1. Obtain the fd via eventfd();
+
+2. The fd can be passed to these files:
+
+   I) Say /sys/kernel/mm/memory_pressure
+
+      If we don't use cpusets/memcg or even have CGROUPS=n, this will be
+      system's/global memory pressure. Pass the fd to this file and start
+      polling.
+
+      If we do use cpusets or memcg, the API will still work, but we have
+      two options for its behaviour:
+
+      a) This will only report the pressure when we're reclaiming with
+         say (global_reclaim() && node_isset(zone_to_nid(zone),
+         current->mems_allowed)) == 1. (Basically, we want to see pressure
+         of kernel slabs allocations or any non-soft limits).
+
+      or
+
+      b) If 'filtering' cpusets/memcg seems too hard, we can say that
+         these notifications are the "sum" of global+memcg+cpuset. It
+         doesn't make sense to actually monitor these, though, so if the
+         monitor is aware of cgroups, just 'goto II) and/or III)'.
+
+   II) /sys/fs/cgroup/cpuset/.../cpuset.memory_pressure (yeah, we have
+       it already)
+
+      Pass the fd to this file to monitor per-cpuset pressure. So, if you
+      get the pressure from here, it makes sense to free resources from
+      this cpuset.
+
+   III) /sys/fs/cgroup/memory/.../memory.pressure
+
+      Pass the fd to this file to monitor per-memcg pressure. If you get
+      the pressure from here, it only makes sense to free resources from
+      this memcg.
+
+3. The pressure level values (and their meaning) and the format of the
+   files are the same, and this what defines the "API".
+
+   So, if "memory monitor/supervisor app" is aware of cpusets, it manages
+   memory at this level. If both cpuset and memcg is used, then it has to
+   monitor both files, and act accordingly. And if we don't use
+   cpusets/memcg (or even have cgroups=n), we can just watch the global
+   reclaimer's pressure.
+
+Do I understand correctly that you don't like this? Just to make sure. :)
+
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
