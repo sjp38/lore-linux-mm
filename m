@@ -1,58 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id E47AD6B0095
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:30:05 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 843533EE0C3
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:30:04 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 62ACF45DE58
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:30:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 447C145DE5F
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:30:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 334261DB8043
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:30:04 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DD1471DB803C
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:30:03 +0900 (JST)
-Message-ID: <50A4B609.5020902@jp.fujitsu.com>
-Date: Thu, 15 Nov 2012 18:29:45 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id B6A296B009A
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:31:02 -0500 (EST)
+Date: Thu, 15 Nov 2012 11:32:09 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v5 08/11] thp: setup huge zero page on non-write page
+ fault
+Message-ID: <20121115093209.GF9676@otc-wbsnb-06>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1352300463-12627-9-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.00.1211141531110.22537@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/7] memcg: replace __always_inline with plain inline
-References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-5-git-send-email-glommer@parallels.com>
-In-Reply-To: <1352948093-2315-5-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="R6sEYoIZpp9JErk7"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211141531110.22537@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-(2012/11/15 11:54), Glauber Costa wrote:
-> Following the pattern found in the allocators, where we do our best to
-> the fast paths function-call free, all the externally visible functions
-> for kmemcg were marked __always_inline.
-> 
-> It is fair to say, however, that this should be up to the compiler.  We
-> will still keep as much of the flag testing as we can in memcontrol.h to
-> give the compiler the option to inline it, but won't force it.
-> 
-> I tested this with 4.7.2, it will inline all three functions anyway when
-> compiling with -O2, and will refrain from it when compiling with -Os.
-> This seems like a good behavior.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Andrew Morton <akpm@linux-foundation.org>
 
-I'm O.K. with this.
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+--R6sEYoIZpp9JErk7
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
+On Wed, Nov 14, 2012 at 03:33:16PM -0800, David Rientjes wrote:
+> On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
+>=20
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index f36bc7d..41f05f1 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -726,6 +726,16 @@ int do_huge_pmd_anonymous_page(struct mm_struct *m=
+m, struct vm_area_struct *vma,
+> >  			return VM_FAULT_OOM;
+> >  		if (unlikely(khugepaged_enter(vma)))
+> >  			return VM_FAULT_OOM;
+> > +		if (!(flags & FAULT_FLAG_WRITE)) {
+> > +			pgtable_t pgtable;
+> > +			pgtable =3D pte_alloc_one(mm, haddr);
+> > +			if (unlikely(!pgtable))
+> > +				goto out;
+>=20
+> No use in retrying, just return VM_FAULT_OOM.
+
+Hm. It's consistent with non-hzp path: if pte_alloc_one() in
+__do_huge_pmd_anonymous_page() fails __do_huge_pmd_anonymous_page()
+returns VM_FAULT_OOM which leads to "goto out".
+
+Should it be fixed too?
+
+>=20
+> > +			spin_lock(&mm->page_table_lock);
+> > +			set_huge_zero_page(pgtable, mm, vma, haddr, pmd);
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			return 0;
+> > +		}
+> >  		page =3D alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+> >  					  vma, haddr, numa_node_id(), 0);
+> >  		if (unlikely(!page)) {
+
+--=20
+ Kirill A. Shutemov
+
+--R6sEYoIZpp9JErk7
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQpLaZAAoJEAd+omnVudOMd2UP/2a0TlYQG+m0yNRbGoFpV9EB
+n6VTm/l8RbmQM9EXsYG8V0gaUxQvFPwuyEY4xxvd7CBlPz4CBcQA8s8hSuIlLyxX
+zbeDzUficvPQPWWCKb0l5K/ASa8+4WRdMCr7mot1fq3Az5cdDbluOTtdQqF3pr2W
+xhK6T26DPKxUSBjExdPS1i30V3UQfurJFDmKs7FB6hg8Svrd8G9DXyNTZA5XJZSW
+JDh2YGP3A8L/XU89LcwsxIL8q7xebvCY+onGVxZipPkzLfkLFfYX9x+Gz+Iobi8t
+5qnWdDwY4i+Yg9Z4MnaR+8ZE9J/VO2mHmE41TJg8wDmQ6t+x0fVhNeJwBJh2R26S
+1HP6XiE15drc8VY//0Nj0Cpyh93YRo4wif/mxdlWQaY9HYJaIYTsc23mr0MXXrgO
+HnQJKNedowhW5df1n6usPbUd79YFuN6IrtCDEZY50J1+9XhCpiPfH+FBLTTo7W+J
+emuFuOw7Mp3asO43SoNyq94pvQ9aJMBdeKRI1GCmf/MitcwxaGyaGq/YyHwic4CS
+2mNWO4T7SaVYOde9SlATkEBNGyppH0jtzsgzcICUwdP+5w937VcNqqW2TD1LSC3d
+E/ba0czRfmY2AGlXviV3qnMm6yWyF1ejQkMsSfHNxF0huOkxilLRIMrDhc2QyspT
+7OhzpBozUYmAAIjk7YlX
+=dJsM
+-----END PGP SIGNATURE-----
+
+--R6sEYoIZpp9JErk7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
