@@ -1,42 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 471986B002B
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 08:48:13 -0500 (EST)
-Message-ID: <50A4F289.1090807@parallels.com>
-Date: Thu, 15 Nov 2012 17:47:53 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 5/7] memcg: get rid of once-per-second cache shrinking
- for dead memcgs
-References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-6-git-send-email-glommer@parallels.com> <50A4B8C8.6020202@jp.fujitsu.com>
-In-Reply-To: <50A4B8C8.6020202@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 013D16B005A
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 09:05:55 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so836135bkc.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 06:05:54 -0800 (PST)
+Message-ID: <1352988349.6409.4.camel@c2d-desktop.mypicture.info>
+Subject: Re: [Bug 50181] New: Memory usage doubles after more then 20 hours
+ of uptime.
+From: Milos Jakovljevic <sukijaki@gmail.com>
+Date: Thu, 15 Nov 2012 15:05:49 +0100
+In-Reply-To: <20121113140352.4d2db9e8.akpm@linux-foundation.org>
+References: <bug-50181-27@https.bugzilla.kernel.org/>
+	 <20121113140352.4d2db9e8.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On 11/15/2012 01:41 PM, Kamezawa Hiroyuki wrote:
-> (2012/11/15 11:54), Glauber Costa wrote:
->> The idea is to synchronously do it, leaving it up to the shrinking
->> facilities in vmscan.c and/or others. Not actively retrying shrinking
->> may leave the caches alive for more time, but it will remove the ugly
->> wakeups. One would argue that if the caches have free objects but are
->> not being shrunk, it is because we don't need that memory yet.
->>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> CC: Michal Hocko <mhocko@suse.cz>
->> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->> CC: Johannes Weiner <hannes@cmpxchg.org>
->> CC: Andrew Morton <akpm@linux-foundation.org>
+On Tue, 2012-11-13 at 14:03 -0800, Andrew Morton wrote: 
+> (switched to email.  Please respond via emailed reply-to-all, not via the
+> bugzilla web interface).
 > 
-> I agree this patch but can we have a way to see the number of unaccounted
-> zombie cache usage for debugging ?
+> On Tue,  6 Nov 2012 15:11:48 +0000 (UTC)
+> bugzilla-daemon@bugzilla.kernel.org wrote:
 > 
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> > https://bugzilla.kernel.org/show_bug.cgi?id=50181
+> > 
+> >            Summary: Memory usage doubles after more then 20 hours of
+> >                     uptime.
+> >            Product: Memory Management
+> >            Version: 2.5
+> >     Kernel Version: 3.7-rc3 and 3.7-rc4
+> >           Platform: All
+> >         OS/Version: Linux
+> >               Tree: Mainline
+> >             Status: NEW
+> >           Severity: normal
+> >           Priority: P1
+> >          Component: Other
+> >         AssignedTo: akpm@linux-foundation.org
+> >         ReportedBy: sukijaki@gmail.com
+> >         Regression: Yes
+> > 
+> > 
+> > Created an attachment (id=85721)
+> >  --> (https://bugzilla.kernel.org/attachment.cgi?id=85721)
+> > kernel config file
+> > 
+> > After 20 hours of uptime, memory usage starts going up. Normal usage for my
+> > system was around 2.5GB max with all my apps and services up and running. But
+> > with 3.7-rc3 and now -rc4 kernel, after more then 20 hours of uptime, it starts
+> > to going up. With kernel before 3.7-rc3, my machine could be up for 10 days and
+> > not go beyond 2.6GB memory usage.
+> > 
+> > If I start some app that uses a lot of memory, when there is already 4 or even
+> > 6GB used already, insted of freeing the memory, it starts to swap it, and
+> > everything slows down with a lot of iowait. 
+> > 
+> > Here is "free -m" output after 24 hours of uptime:
+> > 
+> > free -m
+> >              total       used       free     shared    buffers     cached
+> > Mem:          7989       7563        426          0        146       2772
+> > -/+ buffers/cache:       4643       3345
+> > Swap:         1953        688       1264
+> > 
+> > 
+> > I know that it is ok for memory to be used this much for buffers and cache, but
+> > it is not normal not to relase it when it is needed.
+> > 
+> > In attachment is my kernel config file.
+> > 
 > 
-Any particular interface in mind ?
+> Sounds like a memory leak.
+> 
+> Please get the machine into this state and then send us
+> 
+> - the contents of /proc/meminfo
+> 
+> - the contents of /proc/slabinfo
+> 
+> - the contents of /proc/vmstat
+> 
+> - as root:
+> 
+> 	dmesg -c
+> 	echo m > /proc/sysrq-trigger
+> 	dmesg
+> 
+> thanks.
+
+Here is the requested content:
+
+free -m: http://pastebin.com/vb878a9Y
+cat /proc/meminfo : http://pastebin.com/zUDFcYEW
+cat /proc/slabinfo : http://pastebin.com/kswsJ7Hk
+cat /proc/vmstat : http://pastebin.com/wUebJqJe
+
+dmesg -c : http://pastebin.com/f7cTu8Wv
+
+echo m > /proc/sysrq-trigger && dmesg : http://pastebin.com/p68DcHUy
+
+And here are also files with that content:
+http://ubuntuone.com/5GUVahBTiZRP0QjQdP3gkQ
+
+
 
 
 --
