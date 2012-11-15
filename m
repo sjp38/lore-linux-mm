@@ -1,130 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id E09F56B00AD
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:57:40 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 870BB3EE0C8
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E07C45DE3E
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 469C545DE59
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 394131DB804B
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
-Received: from g01jpexchkw07.g01.fujitsu.local (g01jpexchkw07.g01.fujitsu.local [10.0.194.46])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E59541DB803F
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:38 +0900 (JST)
-Message-ID: <50A4BC72.4060305@jp.fujitsu.com>
-Date: Thu, 15 Nov 2012 18:57:06 +0900
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id BA27C6B00B3
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:59:46 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 214383EE0BC
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:59:45 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0BA8345DEB5
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:59:45 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E850245DEB2
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:59:44 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DA11E1DB803B
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:59:44 +0900 (JST)
+Received: from g01jpexchkw04.g01.fujitsu.local (g01jpexchkw04.g01.fujitsu.local [10.0.194.43])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 970A81DB8038
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:59:44 +0900 (JST)
+Message-ID: <50A4BCF9.7080401@jp.fujitsu.com>
+Date: Thu, 15 Nov 2012 18:59:21 +0900
 From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [Patch v5 7/7] acpi_memhotplug.c: auto bind the memory device
- which is hotplugged before the driver is loaded
-References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-8-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1352962777-24407-8-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [PART4 Patch 0/2] memory-hotplug: allow online/offline memory
+ to result movable node
+References: <1351671334-10243-1-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1351671334-10243-1-git-send-email-wency@cn.fujitsu.com>
 Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J.
- Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-2012/11/15 15:59, Wen Congyang wrote:
-> If the memory device is hotplugged before the driver is loaded, the user
-> cannot see this device under the directory /sys/bus/acpi/devices/, and the
-> user cannot bind it by hand after the driver is loaded.  This patch
-> introduces a new feature to bind such device when the driver is being
-> loaded.
+2012/10/31 17:15, Wen Congyang wrote:
+> From: Lai Jiangshan <laijs@cn.fujitsu.com>
 > 
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> CC: Rafael J. Wysocki <rjw@sisk.pl>
-> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
+> This patch is part4 of the following patchset:
+>      https://lkml.org/lkml/2012/10/29/319
+> 
+> Part1 is here:
+>      https://lkml.org/lkml/2012/10/31/30
+> 
+> Part2 is here:
+>      http://marc.info/?l=linux-kernel&m=135166705909544&w=2
+> 
+> Part3 is here:
+>      http://marc.info/?l=linux-kernel&m=135167050510527&w=2
+> 
+> You must apply part1-3 before applying this patchset.
+> 
+> we need a node which only contains movable memory. This feature is very
+> important for node hotplug. If a node has normal/highmem, the memory
+> may be used by the kernel and can't be offlined. If the node only contains
+> movable memory, we can offline the memory and the node.
+> 
+> 
+> Lai Jiangshan (2):
+>    numa: add CONFIG_MOVABLE_NODE for movable-dedicated node
+>    memory_hotplug: allow online/offline memory to result movable node
+> 
+>   drivers/base/node.c      |  6 ++++++
+>   include/linux/nodemask.h |  4 ++++
+>   mm/Kconfig               |  8 ++++++++
+>   mm/memory_hotplug.c      | 16 ++++++++++++++++
+>   mm/page_alloc.c          |  3 +++
+>   5 files changed, 37 insertions(+)
+> 
 
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Tested-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
 Thanks,
 Yasuaki Ishimatsu
-
->   drivers/acpi/acpi_memhotplug.c | 37 ++++++++++++++++++++++++++++++++++++-
->   1 file changed, 36 insertions(+), 1 deletion(-)
-> 
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index e0f7425..9f1d107 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -52,6 +52,9 @@ MODULE_LICENSE("GPL");
->   #define MEMORY_POWER_ON_STATE	1
->   #define MEMORY_POWER_OFF_STATE	2
->   
-> +static bool auto_probe;
-> +module_param(auto_probe, bool, S_IRUGO | S_IWUSR);
-> +
->   static int acpi_memory_device_add(struct acpi_device *device);
->   static int acpi_memory_device_remove(struct acpi_device *device, int type);
->   
-> @@ -494,12 +497,44 @@ acpi_memory_register_notify_handler(acpi_handle handle,
->   				    u32 level, void *ctxt, void **retv)
->   {
->   	acpi_status status;
-> -
-> +	struct acpi_memory_device *mem_device = NULL;
-> +	unsigned long long current_status;
->   
->   	status = is_memory_device(handle);
->   	if (ACPI_FAILURE(status))
->   		return AE_OK;	/* continue */
->   
-> +	if (auto_probe) {
-> +		/* Get device present/absent information from the _STA */
-> +		status = acpi_evaluate_integer(handle, "_STA", NULL,
-> +					       &current_status);
-> +		if (ACPI_FAILURE(status))
-> +			goto install;
-> +
-> +		/*
-> +		 * Check for device status. Device should be
-> +		 * present/enabled/functioning.
-> +		 */
-> +		if (!(current_status &
-> +		      (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED |
-> +		       ACPI_STA_DEVICE_FUNCTIONING)))
-> +			goto install;
-> +
-> +		if (acpi_memory_get_device(handle, &mem_device))
-> +			goto install;
-> +
-> +		/* We have bound this device while we register the driver */
-> +		if (mem_device->state == MEMORY_POWER_ON_STATE)
-> +			goto install;
-> +
-> +		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-> +				  "\nauto probe memory device\n"));
-> +
-> +		if (acpi_memory_enable_device(mem_device))
-> +			pr_err(PREFIX "Cannot enable memory device\n");
-> +	}
-> +
-> +install:
->   	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
->   					     acpi_memory_device_notify, NULL);
->   	/* continue */
-> 
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
