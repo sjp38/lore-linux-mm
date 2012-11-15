@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id D97386B00B2
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:51:31 -0500 (EST)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id CF9D86B00A9
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:51:32 -0500 (EST)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch v2 07/14] mempolicy: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 15 Nov 2012 16:57:30 +0800
-Message-Id: <1352969857-26623-8-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART3 Patch v2 05/14] oom: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 15 Nov 2012 16:57:28 +0800
+Message-Id: <1352969857-26623-6-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 References: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,63 +22,25 @@ The code here need to handle with the nodes which have memory, we should
 use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- mm/mempolicy.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+ mm/oom_kill.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index d04a8a5..d4a084c 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -212,9 +212,9 @@ static int mpol_set_nodemask(struct mempolicy *pol,
- 	/* if mode is MPOL_DEFAULT, pol is NULL. This is right. */
- 	if (pol == NULL)
- 		return 0;
--	/* Check N_HIGH_MEMORY */
-+	/* Check N_MEMORY */
- 	nodes_and(nsc->mask1,
--		  cpuset_current_mems_allowed, node_states[N_HIGH_MEMORY]);
-+		  cpuset_current_mems_allowed, node_states[N_MEMORY]);
- 
- 	VM_BUG_ON(!nodes);
- 	if (pol->mode == MPOL_PREFERRED && nodes_empty(*nodes))
-@@ -1388,7 +1388,7 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
- 		goto out_put;
- 	}
- 
--	if (!nodes_subset(*new, node_states[N_HIGH_MEMORY])) {
-+	if (!nodes_subset(*new, node_states[N_MEMORY])) {
- 		err = -EINVAL;
- 		goto out_put;
- 	}
-@@ -2361,7 +2361,7 @@ void __init numa_policy_init(void)
- 	 * fall back to the largest node if they're all smaller.
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 79e0f3e..aa2d89c 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -257,7 +257,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
+ 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
+ 	 * is enforced in get_page_from_freelist().
  	 */
- 	nodes_clear(interleave_nodes);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long total_pages = node_present_pages(nid);
- 
- 		/* Preserve the largest node */
-@@ -2442,7 +2442,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
- 		*nodelist++ = '\0';
- 		if (nodelist_parse(nodelist, nodes))
- 			goto out;
--		if (!nodes_subset(nodes, node_states[N_HIGH_MEMORY]))
-+		if (!nodes_subset(nodes, node_states[N_MEMORY]))
- 			goto out;
- 	} else
- 		nodes_clear(nodes);
-@@ -2476,7 +2476,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
- 		 * Default to online nodes with memory if no nodelist
- 		 */
- 		if (!nodelist)
--			nodes = node_states[N_HIGH_MEMORY];
-+			nodes = node_states[N_MEMORY];
- 		break;
- 	case MPOL_LOCAL:
- 		/*
+-	if (nodemask && !nodes_subset(node_states[N_HIGH_MEMORY], *nodemask)) {
++	if (nodemask && !nodes_subset(node_states[N_MEMORY], *nodemask)) {
+ 		*totalpages = total_swap_pages;
+ 		for_each_node_mask(nid, *nodemask)
+ 			*totalpages += node_spanned_pages(nid);
 -- 
 1.8.0
 
