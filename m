@@ -1,140 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1B9E26B0089
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 02:39:59 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so604102dad.14
-        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 23:39:58 -0800 (PST)
-Message-ID: <50A49C46.9040406@gmail.com>
-Date: Thu, 15 Nov 2012 15:39:50 +0800
-From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id B965B6B008A
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:00:36 -0500 (EST)
+Date: Thu, 15 Nov 2012 10:01:33 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v5 03/11] thp: copy_huge_pmd(): copy huge zero page
+Message-ID: <20121115080133.GA9676@otc-wbsnb-06>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1352300463-12627-4-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.00.1211141433150.13515@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils> <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils> <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils> <50A30ADD.9000209@gmail.com> <alpine.LNX.2.00.1211131935410.30540@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1211131935410.30540@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="y0ulUmNC+osPPQO6"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211141433150.13515@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On 11/14/2012 11:50 AM, Hugh Dickins wrote:
-> On Wed, 14 Nov 2012, Jaegeuk Hanse wrote:
->> On 11/07/2012 07:48 AM, Hugh Dickins wrote:
->>> On Tue, 6 Nov 2012, Dave Jones wrote:
->>>> On Mon, Nov 05, 2012 at 05:32:41PM -0800, Hugh Dickins wrote:
->>>>
->>>>    > -			/* We already confirmed swap, and make no
->>>> allocation */
->>>>    > -			VM_BUG_ON(error);
->>>>    > +			/*
->>>>    > +			 * We already confirmed swap under page lock,
->>>> and make
->>>>    > +			 * no memory allocation here, so usually no
->>>> possibility
->>>>    > +			 * of error; but free_swap_and_cache() only
->>>> trylocks a
->>>>    > +			 * page, so it is just possible that the
->>>> entry has been
->>>>    > +			 * truncated or holepunched since swap was
->>>> confirmed.
->>>>    > +			 * shmem_undo_range() will have done some of
->>>> the
->>>>    > +			 * unaccounting, now delete_from_swap_cache()
->>>> will do
->>>>    > +			 * the rest (including
->>>> mem_cgroup_uncharge_swapcache).
->>>>    > +			 * Reset swap.val? No, leave it so "failed"
->>>> goes back to
->>>>    > +			 * "repeat": reading a hole and writing
->>>> should succeed.
->>>>    > +			 */
->>>>    > +			if (error) {
->>>>    > +				VM_BUG_ON(error != -ENOENT);
->>>>    > +				delete_from_swap_cache(page);
->>>>    > +			}
->>>>    >  		}
->>>>
->>>> I ran with this overnight,
->>> Thanks a lot...
->>>
->>>> and still hit the (new!) VM_BUG_ON
->>> ... but that's even more surprising than your original report.
->>>
->>>> Perhaps we should print out what 'error' was too ?  I'll rebuild with
->>>> that..
->>> Thanks; though I thought the error was going to turn out too boring,
->>> and was preparing a debug patch for you to show the expected and found
->>> values too.  But then got very puzzled...
->>>    
->>>> ------------[ cut here ]------------
->>>> WARNING: at mm/shmem.c:1151 shmem_getpage_gfp+0xa5c/0xa70()
->>>> Hardware name: 2012 Client Platform
->>>> Pid: 21798, comm: trinity-child4 Not tainted 3.7.0-rc4+ #54
->>> That's the very same line number as in your original report, despite
->>> the long comment which the patch adds.  Are you sure that kernel was
->>> built with the patch in?
->>>
->>> I wouldn't usually question you, but I'm going mad trying to understand
->>> how the VM_BUG_ON(error != -ENOENT) fires.  At the time I wrote that
->>> line, and when I was preparing the debug patch, I was thinking that an
->>> error from shmem_radix_tree_replace could also be -EEXIST, for when a
->>> different something rather than nothing is found [*].  But that's not
->>> the case, shmem_radix_tree_replace returns either 0 or -ENOENT.
->>>
->>> So if error != -ENOENT, that means shmem_add_to_page_cache went the
->>> radix_tree_insert route instead of the shmem_radix_tree_replace route;
->>> which means that its 'expected' is NULL, so swp_to_radix_entry(swap)
->>> is NULL; but swp_to_radix_entry() does an "| 2", so however corrupt
->>> the radix_tree might be, I do not understand the new VM_BUG_ON firing.
->>>
->>> Please tell me it was the wrong kernel!
->>> Hugh
->>>
->>> [*] But in thinking it over, I realize that if shmem_radix_tree_replace
->>> had returned -EEXIST for the "wrong something" case, I would have been
->>> wrong to BUG on that; because just as truncation could remove an entry,
->>> something else could immediately after instantiate a new page there.
->> Hi Hugh,
->>
->> As you said, swp_to_radix_entry() does an "| 2", so even if truncation could
->> remove an entry and something else could immediately after instantiate a new
->> page there, but the expected parameter will not be NULL, the result is
->> radix_tree_insert will not be called and shmem_add_to_page_cache will not
->> return -EEXIST, then why trigger BUG_ON ?
-> Why insert the VM_BUG_ON?  Because at the time I thought that it
-> asserted something useful; but I was mistaken, as explained above.
->
-> How can the VM_BUG_ON trigger (without stack corruption, or something
-> of that kind)?  I have no idea.
->
-> We are in agreement: I now think that VM_BUG_ON is misleading and silly,
-> and sent Andrew a further patch to remove it a just couple of hours ago.
->
-> Originally I was waiting to hear further from Dave; but his test
-> machine was giving trouble, and it occurred to me that, never mind
-> whether he says he has hit it again, or he has not hit it again,
-> the answer is the same: don't send that VM_BUG_ON upstream.
->
-> Hugh
 
-Thanks Hugh.
+--y0ulUmNC+osPPQO6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Another question. Why the function shmem_fallocate which you add to 
-kernel need call shmem_getpage?
+On Wed, Nov 14, 2012 at 02:33:44PM -0800, David Rientjes wrote:
+> On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
+>=20
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index ff834ea..0d903bf 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -701,6 +701,18 @@ static inline struct page *alloc_hugepage(int defr=
+ag)
+> >  }
+> >  #endif
+> > =20
+> > +static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+> > +		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd)
+> > +{
+> > +	pmd_t entry;
+> > +	entry =3D pfn_pmd(huge_zero_pfn, vma->vm_page_prot);
+> > +	entry =3D pmd_wrprotect(entry);
+> > +	entry =3D pmd_mkhuge(entry);
+> > +	set_pmd_at(mm, haddr, pmd, entry);
+> > +	pgtable_trans_huge_deposit(mm, pgtable);
+> > +	mm->nr_ptes++;
+> > +}
+> > +
+> >  int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_st=
+ruct *vma,
+> >  			       unsigned long address, pmd_t *pmd,
+> >  			       unsigned int flags)
+> > @@ -778,6 +790,11 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct=
+ mm_struct *src_mm,
+> >  		pte_free(dst_mm, pgtable);
+> >  		goto out_unlock;
+> >  	}
+> > +	if (is_huge_zero_pmd(pmd)) {
+> > +		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd);
+> > +		ret =3D 0;
+> > +		goto out_unlock;
+> > +	}
+>=20
+> You said in the introduction message in this series that you still allow=
+=20
+> splitting of the pmd, so why no check for pmd_trans_splitting() before=20
+> this?
 
-Regards,
-Jaegeuk
+pmd_trans_splitting() returns true only for pmd which points to a page
+under spliiting. It never happens with huge zero page.
+We only split a pmd to a page table without touching the page.
+mm->page_table_lock is enough to protect against that.
 
->
->> Regards,
->> Jaegeuk
->>
->>> So although I believe my VM_BUG_ON(error != -ENOENT) is safe, it's
->>> not saying what I had intended to say with it, and would have been
->>> wrong to say that anyway.  It just looks stupid to me now, rather
->>> like inserting a VM_BUG_ON(false) - but that does become interesting
->>> when you report that you've hit it.
+--=20
+ Kirill A. Shutemov
+
+--y0ulUmNC+osPPQO6
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQpKFdAAoJEAd+omnVudOMk+AP/i32Hz/B8KB3OEY/IaFA6XO+
+PYwAa4zBhW6AD18dbZQjOVim/fCdgsYj5UKCFNyJOflKNk3J9LBQOlA7DV6WB50p
+5nsrHle17wyX/09JkMOMnTFtQHGbhCxzpwFDyws28pRv0w2uTmGG2mr4tsNkaGcP
+XciUwt5OeEESfZ2zTA66wknCL8JaaO/8I/10clo+nL9wAOiuF9fW1M0lF4yjwlh8
+HRQ3F8bENHd1OBPar8wkqwts6C0razvBRc+eFJFKV5Fd4RRwBglRVUSTjzUbfBbB
+Uor+TvFVuHstDXr72il1bDvX8m7yvxCYOmbLeksU9GEtnngWx23kxpQaewH55c/o
+aVVDjpRxYyOOCQzteCx3PytWHKRYpy3zbyq0hVgbjWwdeb7oRc9gZ1hRpgv+nuQg
+IkpXD6e3Oqe5rK5IgmZKoOTmdIFsFo2KFYWkoQnooX6MH6+MH4dHT8yI51BvCd3V
+fob+LiK4g1UioyF6ijW/EuOoGlqKQLKvJRGR5yqqUs4aB0T8mKnRMH+5Wjct0xDf
+p5opfs065GlZw0ltkzzioeY9q84TvZ60RpfjqAjC5OhlDN5pozoz+l1IPA4M4dUF
+g4VojEXF0+cPO686ZmOM1bgJxlOA7+VLHSLk20w9noa8yzsAxu7Hy/uvIzA2u9Oj
+qp2t2/ENmLdaTGQpPv/h
+=j3lU
+-----END PGP SIGNATURE-----
+
+--y0ulUmNC+osPPQO6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
