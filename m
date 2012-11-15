@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 251DA6B00B0
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:51:31 -0500 (EST)
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id 5D9E96B00AC
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:51:30 -0500 (EST)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch v2 04/14] memcontrol: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 15 Nov 2012 16:57:27 +0800
-Message-Id: <1352969857-26623-5-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART3 Patch v2 02/14] cpuset: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 15 Nov 2012 16:57:25 +0800
+Message-Id: <1352969857-26623-3-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 References: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,104 +22,159 @@ The code here need to handle with the nodes which have memory, we should
 use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Acked-by: Hillf Danton <dhillf@gmail.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- mm/memcontrol.c  | 18 +++++++++---------
- mm/page_cgroup.c |  2 +-
- 2 files changed, 10 insertions(+), 10 deletions(-)
+ Documentation/cgroups/cpusets.txt |  2 +-
+ include/linux/cpuset.h            |  2 +-
+ kernel/cpuset.c                   | 32 ++++++++++++++++----------------
+ 3 files changed, 18 insertions(+), 18 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7acf43b..1b69665 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -800,7 +800,7 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
- 	int nid;
- 	u64 total = 0;
+diff --git a/Documentation/cgroups/cpusets.txt b/Documentation/cgroups/cpusets.txt
+index cefd3d8..12e01d4 100644
+--- a/Documentation/cgroups/cpusets.txt
++++ b/Documentation/cgroups/cpusets.txt
+@@ -218,7 +218,7 @@ and name space for cpusets, with a minimum of additional kernel code.
+ The cpus and mems files in the root (top_cpuset) cpuset are
+ read-only.  The cpus file automatically tracks the value of
+ cpu_online_mask using a CPU hotplug notifier, and the mems file
+-automatically tracks the value of node_states[N_HIGH_MEMORY]--i.e.,
++automatically tracks the value of node_states[N_MEMORY]--i.e.,
+ nodes with memory--using the cpuset_track_online_nodes() hook.
  
--	for_each_node_state(nid, N_HIGH_MEMORY)
-+	for_each_node_state(nid, N_MEMORY)
- 		total += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
- 	return total;
+ 
+diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h
+index 838320f..8c8a60d 100644
+--- a/include/linux/cpuset.h
++++ b/include/linux/cpuset.h
+@@ -144,7 +144,7 @@ static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
+ 	return node_possible_map;
  }
-@@ -1611,9 +1611,9 @@ static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
- 		return;
  
- 	/* make a nodemask where this memcg uses memory from */
--	memcg->scan_nodes = node_states[N_HIGH_MEMORY];
-+	memcg->scan_nodes = node_states[N_MEMORY];
+-#define cpuset_current_mems_allowed (node_states[N_HIGH_MEMORY])
++#define cpuset_current_mems_allowed (node_states[N_MEMORY])
+ static inline void cpuset_init_current_mems_allowed(void) {}
  
--	for_each_node_mask(nid, node_states[N_HIGH_MEMORY]) {
-+	for_each_node_mask(nid, node_states[N_MEMORY]) {
+ static inline int cpuset_nodemask_valid_mems_allowed(nodemask_t *nodemask)
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index f33c715..2b133db 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -302,10 +302,10 @@ static void guarantee_online_cpus(const struct cpuset *cs,
+  * are online, with memory.  If none are online with memory, walk
+  * up the cpuset hierarchy until we find one that does have some
+  * online mems.  If we get all the way to the top and still haven't
+- * found any online mems, return node_states[N_HIGH_MEMORY].
++ * found any online mems, return node_states[N_MEMORY].
+  *
+  * One way or another, we guarantee to return some non-empty subset
+- * of node_states[N_HIGH_MEMORY].
++ * of node_states[N_MEMORY].
+  *
+  * Call with callback_mutex held.
+  */
+@@ -313,14 +313,14 @@ static void guarantee_online_cpus(const struct cpuset *cs,
+ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
+ {
+ 	while (cs && !nodes_intersects(cs->mems_allowed,
+-					node_states[N_HIGH_MEMORY]))
++					node_states[N_MEMORY]))
+ 		cs = cs->parent;
+ 	if (cs)
+ 		nodes_and(*pmask, cs->mems_allowed,
+-					node_states[N_HIGH_MEMORY]);
++					node_states[N_MEMORY]);
+ 	else
+-		*pmask = node_states[N_HIGH_MEMORY];
+-	BUG_ON(!nodes_intersects(*pmask, node_states[N_HIGH_MEMORY]));
++		*pmask = node_states[N_MEMORY];
++	BUG_ON(!nodes_intersects(*pmask, node_states[N_MEMORY]));
+ }
  
- 		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
- 			node_clear(nid, memcg->scan_nodes);
-@@ -1684,7 +1684,7 @@ static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+ /*
+@@ -1100,7 +1100,7 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 		return -ENOMEM;
+ 
  	/*
- 	 * Check rest of nodes.
+-	 * top_cpuset.mems_allowed tracks node_stats[N_HIGH_MEMORY];
++	 * top_cpuset.mems_allowed tracks node_stats[N_MEMORY];
+ 	 * it's read-only
  	 */
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		if (node_isset(nid, memcg->scan_nodes))
- 			continue;
- 		if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
-@@ -3759,7 +3759,7 @@ move_account:
- 		drain_all_stock_sync(memcg);
- 		ret = 0;
- 		mem_cgroup_start_move(memcg);
--		for_each_node_state(node, N_HIGH_MEMORY) {
-+		for_each_node_state(node, N_MEMORY) {
- 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
- 				enum lru_list lru;
- 				for_each_lru(lru) {
-@@ -4087,7 +4087,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 	if (cs == &top_cpuset) {
+@@ -1122,7 +1122,7 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 			goto done;
  
- 	total_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL);
- 	seq_printf(m, "total=%lu", total_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
- 	}
-@@ -4095,7 +4095,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 		if (!nodes_subset(trialcs->mems_allowed,
+-				node_states[N_HIGH_MEMORY])) {
++				node_states[N_MEMORY])) {
+ 			retval =  -EINVAL;
+ 			goto done;
+ 		}
+@@ -2034,7 +2034,7 @@ static struct cpuset *cpuset_next(struct list_head *queue)
+  * before dropping down to the next.  It always processes a node before
+  * any of its children.
+  *
+- * In the case of memory hot-unplug, it will remove nodes from N_HIGH_MEMORY
++ * In the case of memory hot-unplug, it will remove nodes from N_MEMORY
+  * if all present pages from a node are offlined.
+  */
+ static void
+@@ -2073,7 +2073,7 @@ scan_cpusets_upon_hotplug(struct cpuset *root, enum hotplug_event event)
  
- 	file_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_FILE);
- 	seq_printf(m, "file=%lu", file_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_FILE);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4104,7 +4104,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 			/* Continue past cpusets with all mems online */
+ 			if (nodes_subset(cp->mems_allowed,
+-					node_states[N_HIGH_MEMORY]))
++					node_states[N_MEMORY]))
+ 				continue;
  
- 	anon_nr = mem_cgroup_nr_lru_pages(memcg, LRU_ALL_ANON);
- 	seq_printf(m, "anon=%lu", anon_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				LRU_ALL_ANON);
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-@@ -4113,7 +4113,7 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
+ 			oldmems = cp->mems_allowed;
+@@ -2081,7 +2081,7 @@ scan_cpusets_upon_hotplug(struct cpuset *root, enum hotplug_event event)
+ 			/* Remove offline mems from this cpuset. */
+ 			mutex_lock(&callback_mutex);
+ 			nodes_and(cp->mems_allowed, cp->mems_allowed,
+-						node_states[N_HIGH_MEMORY]);
++						node_states[N_MEMORY]);
+ 			mutex_unlock(&callback_mutex);
  
- 	unevictable_nr = mem_cgroup_nr_lru_pages(memcg, BIT(LRU_UNEVICTABLE));
- 	seq_printf(m, "unevictable=%lu", unevictable_nr);
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		node_nr = mem_cgroup_node_nr_lru_pages(memcg, nid,
- 				BIT(LRU_UNEVICTABLE));
- 		seq_printf(m, " N%d=%lu", nid, node_nr);
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 5ddad0c..c1054ad 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -271,7 +271,7 @@ void __init page_cgroup_init(void)
- 	if (mem_cgroup_disabled())
- 		return;
+ 			/* Move tasks from the empty cpuset to a parent */
+@@ -2134,8 +2134,8 @@ void cpuset_update_active_cpus(bool cpu_online)
  
--	for_each_node_state(nid, N_HIGH_MEMORY) {
-+	for_each_node_state(nid, N_MEMORY) {
- 		unsigned long start_pfn, end_pfn;
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ /*
+- * Keep top_cpuset.mems_allowed tracking node_states[N_HIGH_MEMORY].
+- * Call this routine anytime after node_states[N_HIGH_MEMORY] changes.
++ * Keep top_cpuset.mems_allowed tracking node_states[N_MEMORY].
++ * Call this routine anytime after node_states[N_MEMORY] changes.
+  * See cpuset_update_active_cpus() for CPU hotplug handling.
+  */
+ static int cpuset_track_online_nodes(struct notifier_block *self,
+@@ -2148,7 +2148,7 @@ static int cpuset_track_online_nodes(struct notifier_block *self,
+ 	case MEM_ONLINE:
+ 		oldmems = top_cpuset.mems_allowed;
+ 		mutex_lock(&callback_mutex);
+-		top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
++		top_cpuset.mems_allowed = node_states[N_MEMORY];
+ 		mutex_unlock(&callback_mutex);
+ 		update_tasks_nodemask(&top_cpuset, &oldmems, NULL);
+ 		break;
+@@ -2177,7 +2177,7 @@ static int cpuset_track_online_nodes(struct notifier_block *self,
+ void __init cpuset_init_smp(void)
+ {
+ 	cpumask_copy(top_cpuset.cpus_allowed, cpu_active_mask);
+-	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
++	top_cpuset.mems_allowed = node_states[N_MEMORY];
  
- 		start_pfn = node_start_pfn(nid);
+ 	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
+ 
+@@ -2245,7 +2245,7 @@ void cpuset_init_current_mems_allowed(void)
+  *
+  * Description: Returns the nodemask_t mems_allowed of the cpuset
+  * attached to the specified @tsk.  Guaranteed to return some non-empty
+- * subset of node_states[N_HIGH_MEMORY], even if this means going outside the
++ * subset of node_states[N_MEMORY], even if this means going outside the
+  * tasks cpuset.
+  **/
+ 
 -- 
 1.8.0
 
