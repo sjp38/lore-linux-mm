@@ -1,57 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id E6AF56B0072
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 16:52:47 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so1598386pbc.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:52:47 -0800 (PST)
-Date: Thu, 15 Nov 2012 13:52:44 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v5 08/11] thp: setup huge zero page on non-write page
- fault
-In-Reply-To: <20121115093209.GF9676@otc-wbsnb-06>
-Message-ID: <alpine.DEB.2.00.1211151348080.27188@chino.kir.corp.google.com>
-References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <1352300463-12627-9-git-send-email-kirill.shutemov@linux.intel.com> <alpine.DEB.2.00.1211141531110.22537@chino.kir.corp.google.com> <20121115093209.GF9676@otc-wbsnb-06>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 0946D6B0062
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 17:06:00 -0500 (EST)
+Message-ID: <50A566FA.2090306@redhat.com>
+Date: Thu, 15 Nov 2012 17:04:42 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive affinity"
+References: <20121112160451.189715188@chello.nl> <20121112184833.GA17503@gmail.com> <20121115100805.GS8218@suse.de> <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+In-Reply-To: <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Thu, 15 Nov 2012, Kirill A. Shutemov wrote:
+On 11/15/2012 03:32 PM, Linus Torvalds wrote:
+> Ugh.
+>
+> According to these numbers, the latest sched-numa actually regresses
+> against mainline on Specjbb.
+>
+> No way is this even close to ready for merging in the 3.8 timeframe.
+>
+> I would ask the invilved people to please come up with a set of
+> initial patches that people agree on, so that we can at least start
+> merging some of the infrastructure, and see how far we can get on at
+> least getting *started*. As I mentioned to Andrew and Mel separately,
+> nobody seems to disagree with the TLB optimization patches. What else?
+> Is Mel's set of early patches still considered a reasonable starting
+> point for everybody?
 
-> > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > > index f36bc7d..41f05f1 100644
-> > > --- a/mm/huge_memory.c
-> > > +++ b/mm/huge_memory.c
-> > > @@ -726,6 +726,16 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> > >  			return VM_FAULT_OOM;
-> > >  		if (unlikely(khugepaged_enter(vma)))
-> > >  			return VM_FAULT_OOM;
-> > > +		if (!(flags & FAULT_FLAG_WRITE)) {
-> > > +			pgtable_t pgtable;
-> > > +			pgtable = pte_alloc_one(mm, haddr);
-> > > +			if (unlikely(!pgtable))
-> > > +				goto out;
-> > 
-> > No use in retrying, just return VM_FAULT_OOM.
-> 
-> Hm. It's consistent with non-hzp path: if pte_alloc_one() in
-> __do_huge_pmd_anonymous_page() fails __do_huge_pmd_anonymous_page()
-> returns VM_FAULT_OOM which leads to "goto out".
-> 
+Mel's infrastructure patches, 1-14 and 17 out
+of his latest series, could be a great starting
+point.
 
-If the pte_alloc_one(), which wraps __pte_alloc(), you're adding fails, 
-it's pointless to "goto out" to try __pte_alloc() which we know won't 
-succeed.
+Ingo is trying to get the mm/ code in his tree
+to be mostly the same to Mel's code anyway, so
+that is the infrastructure everybody wants.
 
-> Should it be fixed too?
-> 
+At that point, we can focus our discussions on
+just the policy side, which could help us zoom in
+on the issues.
 
-It's done for maintainablility because although 
-__do_huge_pmd_anonymous_page() will only return VM_FAULT_OOM today when 
-pte_alloc_one() fails, if it were to ever fail in a different way then the 
-caller is already has a graceful failure.
+It would also make it possible for us to do apple
+to apple comparisons between the various policy
+decisions, allowing us to reach a decision based
+on data, not just gut feel.
+
+As long as each tree has its own basic infrastructure,
+we cannot do apples to apples comparisons; this has
+frustrated the discussion for months.
+
+Having all that basic infrastructure upstream should
+short-circuit that part of the discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
