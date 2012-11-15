@@ -1,34 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 2316A6B009E
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 18:51:21 -0500 (EST)
-Message-ID: <50A42E77.8030200@linux.intel.com>
-Date: Wed, 14 Nov 2012 15:51:19 -0800
-From: "H. Peter Anvin" <hpa@linux.intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 00/11] Introduce huge zero page
-References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com> <20121114133342.cc7bcd6e.akpm@linux-foundation.org> <20121114232013.7ee42414@pyramind.ukuu.org.uk> <20121114153243.0f6d6bec.akpm@linux-foundation.org>
-In-Reply-To: <20121114153243.0f6d6bec.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 00ABE6B004D
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 19:07:00 -0500 (EST)
+Received: by mail-ee0-f73.google.com with SMTP id d49so68915eek.2
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 16:06:59 -0800 (PST)
+From: Greg Thelen <gthelen@google.com>
+Subject: [PATCH] res_counter: delete res_counter_write()
+Date: Wed, 14 Nov 2012 16:06:57 -0800
+Message-Id: <1352938017-32568-1-git-send-email-gthelen@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>, Frederic Weisbecker <fweisbec@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Greg Thelen <gthelen@google.com>
 
-On 11/14/2012 03:32 PM, Andrew Morton wrote:
-> 
-> The current code does the latter, by freeing the page via a
-> "slab"-shrinker callback.
-> 
-> But I do suspect that with the right combination of use/unuse and
-> memory pressure, we could still get into the high-frequency scenario.
-> 
+Since 628f423553 "memcg: limit change shrink usage" both
+res_counter_write() and write_strategy_fn have been unused.  This
+patch deletes them both.
 
-There probably isn't any mechanism that doesn't end up with poor results
-in some corner case... just like the vhzp variant.
+Signed-off-by: Greg Thelen <gthelen@google.com>
+---
+ include/linux/res_counter.h |    5 -----
+ kernel/res_counter.c        |   22 ----------------------
+ 2 files changed, 0 insertions(+), 27 deletions(-)
 
-	-hpa
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+index 4b173b6..5ae8456 100644
+--- a/include/linux/res_counter.h
++++ b/include/linux/res_counter.h
+@@ -74,14 +74,9 @@ ssize_t res_counter_read(struct res_counter *counter, int member,
+ 		const char __user *buf, size_t nbytes, loff_t *pos,
+ 		int (*read_strategy)(unsigned long long val, char *s));
+ 
+-typedef int (*write_strategy_fn)(const char *buf, unsigned long long *val);
+-
+ int res_counter_memparse_write_strategy(const char *buf,
+ 					unsigned long long *res);
+ 
+-int res_counter_write(struct res_counter *counter, int member,
+-		      const char *buffer, write_strategy_fn write_strategy);
+-
+ /*
+  * the field descriptors. one for each member of res_counter
+  */
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+index 7b3d6dc..ff55247 100644
+--- a/kernel/res_counter.c
++++ b/kernel/res_counter.c
+@@ -198,25 +198,3 @@ int res_counter_memparse_write_strategy(const char *buf,
+ 	*res = PAGE_ALIGN(*res);
+ 	return 0;
+ }
+-
+-int res_counter_write(struct res_counter *counter, int member,
+-		      const char *buf, write_strategy_fn write_strategy)
+-{
+-	char *end;
+-	unsigned long flags;
+-	unsigned long long tmp, *val;
+-
+-	if (write_strategy) {
+-		if (write_strategy(buf, &tmp))
+-			return -EINVAL;
+-	} else {
+-		tmp = simple_strtoull(buf, &end, 10);
+-		if (*end != '\0')
+-			return -EINVAL;
+-	}
+-	spin_lock_irqsave(&counter->lock, flags);
+-	val = res_counter_member(counter, member);
+-	*val = tmp;
+-	spin_unlock_irqrestore(&counter->lock, flags);
+-	return 0;
+-}
+-- 
+1.7.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
