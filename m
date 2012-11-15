@@ -1,49 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 991D26B009C
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:31:16 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 3828B3EE0BC
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:31:15 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 14CE745DE60
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:31:15 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id EE8C645DE58
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:31:14 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id DF9D8E08004
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:31:14 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 85D371DB804F
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:31:14 +0900 (JST)
-Message-ID: <50A4B64B.8050905@jp.fujitsu.com>
-Date: Thu, 15 Nov 2012 18:30:51 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id B8C916B009E
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:40:51 -0500 (EST)
+Date: Thu, 15 Nov 2012 10:40:46 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [3.6.6] panic on reboot / khungtaskd blocked? (WARNING: at
+ arch/x86/kernel/smp.c:123 native_smp_send_reschedule)
+Message-ID: <20121115094046.GD1394@quack.suse.cz>
+References: <56378024.A3Kec8xZj0@pawels>
+ <2413953.H7iie8v1th@pawels>
+ <50A302C9.2060800@linux.vnet.ibm.com>
+ <1984533.1jAeFKDqSR@localhost>
+ <50A44854.6040905@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] move include of workqueue.h to top of slab.h file
-References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-3-git-send-email-glommer@parallels.com>
-In-Reply-To: <1352948093-2315-3-git-send-email-glommer@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <50A44854.6040905@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
+To: Michael Wang <wangyun@linux.vnet.ibm.com>
+Cc: =?utf-8?B?UGF3ZcWC?= Sikora <pawel.sikora@agmk.net>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, torvalds@linux-foundation.org, arekm@pld-linux.org, baggins@pld-linux.org, Alexander Viro <viro@zeniv.linux.org.uk>, Fengguang Wu <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, jack@suse.cz, linux-mm@kvack.org
 
-(2012/11/15 11:54), Glauber Costa wrote:
-> Suggested by akpm. I originally decided to put it closer to the use of
-> the work struct, but let's move it to top.
+On Thu 15-11-12 09:41:40, Michael Wang wrote:
+> On 11/15/2012 05:10 AM, PaweA? Sikora wrote:
+> > On Wednesday 14 of November 2012 10:32:41 Michael Wang wrote:
+> >> On 11/13/2012 05:40 PM, PaweA? Sikora wrote:
+> >>> On Monday 12 of November 2012 13:33:39 PaweA? Sikora wrote:
+> >>>> On Monday 12 of November 2012 11:22:47 PaweA? Sikora wrote:
+> >>>>> On Monday 12 of November 2012 15:40:31 Michael Wang wrote:
+> >>>>>> On 11/12/2012 03:16 PM, PaweA? Sikora wrote:
+> >>>>>>> On Monday 12 of November 2012 11:04:12 Michael Wang wrote:
+> >>>>>>>> On 11/09/2012 09:48 PM, PaweA? Sikora wrote:
+> >>>>>>>>> Hi,
+> >>>>>>>>>
+> >>>>>>>>> during playing with new ups i've caught an nice oops on reboot:
+> >>>>>>>>>
+> >>>>>>>>> http://imgbin.org/index.php?page=image&id=10253
+> >>>>>>>>>
+> >>>>>>>>> probably the upstream is also affected.
+> >>>>>>>>
+> >>>>>>>> Hi, PaweA?
+> >>>>>>>>
+> >>>>>>>> Are you using a clean 3.6.6 without any modify?
+> >>>>>>>
+> >>>>>>> yes, pure 3.6.6 form git tree with modular config.
+> >>>>>>>
+> >>>>>>>> Looks like some threads has set itself to be UNINTERRUPTIBLE with out
+> >>>>>>>> any design on switch itself back later(or the time is too long), are you
+> >>>>>>>> accidentally using some bad designed module?
+> >>>>>>>
+> >>>>>>> hmm, hard to say. mostly all modules are loaded automatically by kernel.
+> >>>>>>
+> >>>>>> Could you please provide the whole dmesg in text? your picture lost the
+> >>>>>> print info of the hung task.
+> >>>>>
+> >>>>> i've grabbed the console via rs232 but there's no more info (see attached txt).
+> >>>>
+> >>>> hmm, i have one observation.
+> >>>>
+> >>>> during rc.shutdown there're messages on console like this: Cannot stat file /proc/$pid/fd/1: Connection timed out
+> >>>> afaics this file descriptor points to vnc log file on a remote machine, e.g.:
+> >>>>
+> >>>> # ps aux|grep xfwm4
+> >>>> eda       1748  0.0  0.0 320220 11224 ?        S    13:08   0:00 xfwm4 
+> >>>>
+> >>>> # readlink -m /proc/1748/fd/1
+> >>>> /remote/dragon/ahome/eda/.vnc/odra:11.log
+> >>>>
+> >>>> # mount|grep ahome
+> >>>> dragon:/home/users/ on /remote/dragon/ahome type nfs (rw,relatime,vers=3,rsize=262144,wsize=262144,namlen=255,soft,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.0.2.121,mountvers=3,mountport=45251,mountproto=udp,local_lock=none,addr=10.0.2.121)
+> >>>>
+> >>>>
+> >>>> so, probably during `killall5 -TERM/-KILL` on shutdown stage something sometimes go wrong
+> >>>> and these processes (xfce4/vncserver) survive the signal and hang on the nfs i/o.
+> >>>>
+> >>>
+> >>> ok, now i have full sysrq+w backtraces from shutdown process. i hope i'll help you.
+> >>
+> >> This can only tell us what's the task in UNINTERRUPTABLE state, but with
+> >> out time info, we can't find out which one is the hung task...
 > 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> CC: Michal Hocko <mhocko@suse.cz>
-> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> CC: Johannes Weiner <hannes@cmpxchg.org>
-> CC: Andrew Morton <akpm@linux-foundation.org>
+> So it's blocked on __lock_page() for too long?
+> Add more experts in mm aspect to cc.
+  It's really NFS related. E.g. in trace
+https://lkml.org/lkml/2012/11/14/657 we are waiting on PageWriteback bit
+in fact - i.e. we have submitted data to the NFS server and are waiting for
+its response that the data was written.
 
-Reviewed-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
