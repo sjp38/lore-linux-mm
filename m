@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id CF9D86B00A9
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id F164E6B00AB
 	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 03:51:32 -0500 (EST)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [PART3 Patch v2 05/14] oom: use N_MEMORY instead N_HIGH_MEMORY
-Date: Thu, 15 Nov 2012 16:57:28 +0800
-Message-Id: <1352969857-26623-6-git-send-email-wency@cn.fujitsu.com>
+Subject: [PART3 Patch v2 06/14] mm,migrate: use N_MEMORY instead N_HIGH_MEMORY
+Date: Thu, 15 Nov 2012 16:57:29 +0800
+Message-Id: <1352969857-26623-7-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 References: <1352969857-26623-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,25 +22,25 @@ The code here need to handle with the nodes which have memory, we should
 use N_MEMORY instead.
 
 Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Acked-by: Hillf Danton <dhillf@gmail.com>
+Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 ---
- mm/oom_kill.c | 2 +-
+ mm/migrate.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 79e0f3e..aa2d89c 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -257,7 +257,7 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
- 	 * the page allocator means a mempolicy is in effect.  Cpuset policy
- 	 * is enforced in get_page_from_freelist().
- 	 */
--	if (nodemask && !nodes_subset(node_states[N_HIGH_MEMORY], *nodemask)) {
-+	if (nodemask && !nodes_subset(node_states[N_MEMORY], *nodemask)) {
- 		*totalpages = total_swap_pages;
- 		for_each_node_mask(nid, *nodemask)
- 			*totalpages += node_spanned_pages(nid);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..d595e58 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1201,7 +1201,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 			if (node < 0 || node >= MAX_NUMNODES)
+ 				goto out_pm;
+ 
+-			if (!node_state(node, N_HIGH_MEMORY))
++			if (!node_state(node, N_MEMORY))
+ 				goto out_pm;
+ 
+ 			err = -EACCES;
 -- 
 1.8.0
 
