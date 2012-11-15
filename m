@@ -1,126 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id CBEA96B0070
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 23:13:10 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 02DF83EE0BD
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:09 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id AA44D45DE50
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 8969645DE4D
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7CEB11DB8038
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 27197E08003
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 13:13:08 +0900 (JST)
-Message-ID: <50A46BB6.6070902@jp.fujitsu.com>
-Date: Thu, 15 Nov 2012 13:12:38 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id D4C186B004D
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 01:49:50 -0500 (EST)
+Message-ID: <50A48CCD.4090604@cn.fujitsu.com>
+Date: Thu, 15 Nov 2012 14:33:49 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz> <1352820639-13521-3-git-send-email-mhocko@suse.cz> <50A2E3B3.6080007@jp.fujitsu.com> <20121114101052.GD17111@dhcp22.suse.cz>
-In-Reply-To: <20121114101052.GD17111@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PART3 Patch 00/14] introduce N_MEMORY
+References: <1351670652-9932-1-git-send-email-wency@cn.fujitsu.com>	<alpine.DEB.2.00.1210311112010.8809@chino.kir.corp.google.com>	<509212FC.8070802@cn.fujitsu.com>	<alpine.DEB.2.00.1211011431130.19373@chino.kir.corp.google.com>	<50937943.2040302@cn.fujitsu.com> <20121114115227.8763c3cd.akpm@linux-foundation.org>
+In-Reply-To: <20121114115227.8763c3cd.akpm@linux-foundation.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-(2012/11/14 19:10), Michal Hocko wrote:
-> On Wed 14-11-12 09:20:03, KAMEZAWA Hiroyuki wrote:
->> (2012/11/14 0:30), Michal Hocko wrote:
-> [...]
->>> @@ -1096,30 +1096,64 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->>>    			mz = mem_cgroup_zoneinfo(root, nid, zid);
->>>    			iter = &mz->reclaim_iter[reclaim->priority];
->>>    			spin_lock(&iter->iter_lock);
->>> +			last_visited = iter->last_visited;
->>>    			if (prev && reclaim->generation != iter->generation) {
->>> +				if (last_visited) {
->>> +					mem_cgroup_put(last_visited);
->>> +					iter->last_visited = NULL;
->>> +				}
->>>    				spin_unlock(&iter->iter_lock);
->>>    				return NULL;
->>>    			}
->>> -			id = iter->position;
->>>    		}
+At 11/15/2012 03:52 AM, Andrew Morton Wrote:
+> On Fri, 02 Nov 2012 15:41:55 +0800
+> Wen Congyang <wency@cn.fujitsu.com> wrote:
+> 
+>> At 11/02/2012 05:36 AM, David Rientjes Wrote:
+>>> On Thu, 1 Nov 2012, Wen Congyang wrote:
 >>>
->>>    		rcu_read_lock();
->>> -		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
->>> -		if (css) {
->>> -			if (css == &root->css || css_tryget(css))
->>> -				memcg = mem_cgroup_from_css(css);
->>> -		} else
->>> -			id = 0;
->>> -		rcu_read_unlock();
->>> +		/*
->>> +		 * Root is not visited by cgroup iterators so it needs a special
->>> +		 * treatment.
->>> +		 */
->>> +		if (!last_visited) {
->>> +			css = &root->css;
->>> +		} else {
->>> +			struct cgroup *next_cgroup;
->>> +
->>> +			next_cgroup = cgroup_next_descendant_pre(
->>> +					last_visited->css.cgroup,
->>> +					root->css.cgroup);
+>>>>> This doesn't describe why we need the new node state, unfortunately.  It 
+>>>>
+>>>> 1. Somethimes, we use the node which contains the memory that can be used by
+>>>>    kernel.
+>>>> 2. Sometimes, we use the node which contains the memory.
+>>>>
+>>>> In case1, we use N_HIGH_MEMORY, and we use N_MEMORY in case2.
+>>>>
+>>>
+>>> Yeah, that's clear, but the question is still _why_ we want two different 
+>>> nodemasks.  I know that this part of the patchset simply introduces the 
+>>> new nodemask because the name "N_MEMORY" is more clear than 
+>>> "N_HIGH_MEMORY", but there's no real incentive for making that change by 
+>>> introducing a new nodemask where a simple rename would suffice.
+>>>
+>>> I can only assume that you want to later use one of them for a different 
+>>> purpose: those that do not include nodes that consist of only 
+>>> ZONE_MOVABLE.  But that change for MPOL_BIND is nacked since it 
+>>> significantly changes the semantics of set_mempolicy() and you can't break 
+>>> userspace (see my response to that from yesterday).  Until that problem is 
+>>> addressed, then there's no reason for the additional nodemask so nack on 
+>>> this series as well.
+> 
+> I cannot locate "my response to that from yesterday".  Specificity, please!
+> 
 >>
->> Maybe I miss something but.... last_visited is holded by memcg's refcnt.
->> The cgroup pointed by css.cgroup is by cgroup's refcnt which can be freed
->> before memcg is freed and last_visited->css.cgroup is out of RCU cycle.
->> Is this safe ?
->
-> Good spotted. You are right. What I need to do is to check that the
-> last_visited is alive and restart from the root if not. Something like
-> the bellow (incremental patch on top of this one) should help, right?
->
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 30efd7e..c0a91a3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1105,6 +1105,16 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->   				spin_unlock(&iter->iter_lock);
->   				return NULL;
->   			}
-> +			/*
-> +			 * memcg is still valid because we hold a reference but
-> +			 * its cgroup might have vanished in the meantime so
-> +			 * we have to double check it is alive and restart the
-> +			 * tree walk otherwise.
-> +			 */
-> +			if (last_visited && !css_tryget(&last_visited->css)) {
-> +				mem_cgroup_put(last_visited);
-> +				last_visited = NULL;
-> +			}
->   		}
->
->   		rcu_read_lock();
-> @@ -1136,8 +1146,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->   		if (reclaim) {
->   			struct mem_cgroup *curr = memcg;
->
-> -			if (last_visited)
-> +			if (last_visited) {
-> +				css_put(&last_visited->css);
->   				mem_cgroup_put(last_visited);
-> +			}
->
->   			if (css && !memcg)
->   				curr = mem_cgroup_from_css(css);
->
+>> I still think that we need two nodemasks: one store the node which has memory
+>> that the kernel can use, and one store the node which has memory.
+>>
+>> For example:
+>>
+>> ==========================
+>> static void *__meminit alloc_page_cgroup(size_t size, int nid)
+>> {
+>> 	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
+>> 	void *addr = NULL;
+>>
+>> 	addr = alloc_pages_exact_nid(nid, size, flags);
+>> 	if (addr) {
+>> 		kmemleak_alloc(addr, size, 1, flags);
+>> 		return addr;
+>> 	}
+>>
+>> 	if (node_state(nid, N_HIGH_MEMORY))
+>> 		addr = vzalloc_node(size, nid);
+>> 	else
+>> 		addr = vzalloc(size);
+>>
+>> 	return addr;
+>> }
+>> ==========================
+>> If the node only has ZONE_MOVABLE memory, we should use vzalloc().
+>> So we should have a mask that stores the node which has memory that
+>> the kernel can use.
+>>
+>> ==========================
+>> static int mpol_set_nodemask(struct mempolicy *pol,
+>> 		     const nodemask_t *nodes, struct nodemask_scratch *nsc)
+>> {
+>> 	int ret;
+>>
+>> 	/* if mode is MPOL_DEFAULT, pol is NULL. This is right. */
+>> 	if (pol == NULL)
+>> 		return 0;
+>> 	/* Check N_HIGH_MEMORY */
+>> 	nodes_and(nsc->mask1,
+>> 		  cpuset_current_mems_allowed, node_states[N_HIGH_MEMORY]);
+>> ...
+>> 		if (pol->flags & MPOL_F_RELATIVE_NODES)
+>> 			mpol_relative_nodemask(&nsc->mask2, nodes,&nsc->mask1);
+>> 		else
+>> 			nodes_and(nsc->mask2, *nodes, nsc->mask1);
+>> ...
+>> }
+>> ==========================
+>> If the user specifies 2 nodes: one has ZONE_MOVABLE memory, and the other one doesn't.
+>> nsc->mask2 should contain these 2 nodes. So we should hava a mask that store the node
+>> which has memory.
+>>
+>> There maybe something wrong in the change for MPOL_BIND. But this patchset is needed.
+> 
+> Well, let's discuss the userspace-visible non-back-compatible mpol
+> change.  What is it, why did it happen, what is its impact, is it
+> acceptable?
 
-I think this will work.
+With the all patchsets, we can make a node which only has ZONE_MOVABLE memory.
+When we test this feature, we found a problem: we can't bind a task to
+such node, because there is no normal memory on this node.
 
-Thanks,
--Kame
+According to the comment in policy_nodemask():
+===============
+static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+{
+	/* Lower zones don't get a nodemask applied for MPOL_BIND */
+	if (unlikely(policy->mode == MPOL_BIND) &&
+			gfp_zone(gfp) >= policy_zone &&
+			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
+		return &policy->v.nodes;
 
+	return NULL;
+}
+===============
+
+The mempolicy may only affect the memory for userspace. So I think we should
+allow the user to bind a task to a movable node.
+
+So we modify the function is_valid_nodemask() in part6 to allow the user to
+do this.
+
+We modify the function policy_nodemask() in part6, because:
+we may allocate memory in task context(For example: fork a process, and allocate
+memory to manage the new task), and the memory is used by the kernel(we can't
+access it in userspace). In this case, gfp_zone() is ZONE_NORMAL, and
+gfp_zone() >= policy_zone is true. Now we will return policy->v.nodes, and will
+try allocate the memory in movable node. We can't allocate memory now.
+So we modify the function policy_nodemask() to fix this problem.
+
+Does this change mpol?
+
+Thanks
+Wen Congyang
+
+> 
+> I grabbed "PART1" and "PART2", but that's as far as I got with the six
+> memory hotplug patch series.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
