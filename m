@@ -1,60 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 0946D6B0062
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 17:06:00 -0500 (EST)
-Message-ID: <50A566FA.2090306@redhat.com>
-Date: Thu, 15 Nov 2012 17:04:42 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive affinity"
-References: <20121112160451.189715188@chello.nl> <20121112184833.GA17503@gmail.com> <20121115100805.GS8218@suse.de> <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
-In-Reply-To: <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 9C71D6B0074
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 17:13:00 -0500 (EST)
+Date: Thu, 15 Nov 2012 14:12:58 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 50181] New: Memory usage doubles after more then 20 hours
+ of uptime.
+Message-Id: <20121115141258.8e5cc669.akpm@linux-foundation.org>
+In-Reply-To: <1352988349.6409.4.camel@c2d-desktop.mypicture.info>
+References: <bug-50181-27@https.bugzilla.kernel.org/>
+	<20121113140352.4d2db9e8.akpm@linux-foundation.org>
+	<1352988349.6409.4.camel@c2d-desktop.mypicture.info>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Milos Jakovljevic <sukijaki@gmail.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On 11/15/2012 03:32 PM, Linus Torvalds wrote:
-> Ugh.
->
-> According to these numbers, the latest sched-numa actually regresses
-> against mainline on Specjbb.
->
-> No way is this even close to ready for merging in the 3.8 timeframe.
->
-> I would ask the invilved people to please come up with a set of
-> initial patches that people agree on, so that we can at least start
-> merging some of the infrastructure, and see how far we can get on at
-> least getting *started*. As I mentioned to Andrew and Mel separately,
-> nobody seems to disagree with the TLB optimization patches. What else?
-> Is Mel's set of early patches still considered a reasonable starting
-> point for everybody?
+On Thu, 15 Nov 2012 15:05:49 +0100
+Milos Jakovljevic <sukijaki@gmail.com> wrote:
 
-Mel's infrastructure patches, 1-14 and 17 out
-of his latest series, could be a great starting
-point.
+> Here is the requested content:
+> 
+> free -m: http://pastebin.com/vb878a9Y
+> cat /proc/meminfo : http://pastebin.com/zUDFcYEW
+> cat /proc/slabinfo : http://pastebin.com/kswsJ7Hk
+> cat /proc/vmstat : http://pastebin.com/wUebJqJe
+> 
+> dmesg -c : http://pastebin.com/f7cTu8Wv
+> 
+> echo m > /proc/sysrq-trigger && dmesg : http://pastebin.com/p68DcHUy
+> 
+> And here are also files with that content:
+> http://ubuntuone.com/5GUVahBTiZRP0QjQdP3gkQ
+> 
 
-Ingo is trying to get the mm/ code in his tree
-to be mostly the same to Mel's code anyway, so
-that is the infrastructure everybody wants.
+You've lost 2-3GB of ZONE_NORMAL and I see no sign there to indicate
+where it went.
 
-At that point, we can focus our discussions on
-just the policy side, which could help us zoom in
-on the issues.
+/proc/slabinfo indicates that it isn't a slab leak, and kmemleak won't
+tell us about alloc_pages() leaks.  I'm stumped.  Dave, any progress at
+your end?
 
-It would also make it possible for us to do apple
-to apple comparisons between the various policy
-decisions, allowing us to reach a decision based
-on data, not just gut feel.
-
-As long as each tree has its own basic infrastructure,
-we cannot do apples to apples comparisons; this has
-frustrated the discussion for months.
-
-Having all that basic infrastructure upstream should
-short-circuit that part of the discussion.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
