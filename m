@@ -1,80 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 8A5566B0072
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id A27986B0074
 	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 01:53:43 -0500 (EST)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [Patch v5 0/7] acpi,memory-hotplug: implement framework for hot removing memory
-Date: Thu, 15 Nov 2012 14:59:30 +0800
-Message-Id: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com>
+Subject: [Patch v5 4/7] acpi_memhotplug.c: free memory device if acpi_memory_enable_device() failed
+Date: Thu, 15 Nov 2012 14:59:34 +0800
+Message-Id: <1352962777-24407-5-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com>
+References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Wen Congyang <wency@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Wen Congyang <wency@cn.fujitsu.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
 
-The memory device can be removed by 2 ways:
-1. send eject request by SCI
-2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+If acpi_memory_enable_device() fails, acpi_memory_enable_device() will
+return a non-zero value, which means we fail to bind the memory device to
+this driver.  So we should free memory device before
+acpi_memory_device_add() returns.
 
-In the 1st case, acpi_memory_disable_device() will be called.
-In the 2nd case, acpi_memory_device_remove() will be called.
-acpi_memory_device_remove() will also be called when we unbind the
-memory device from the driver acpi_memhotplug or a driver initialization
-fails.
+CC: David Rientjes <rientjes@google.com>
+CC: Jiang Liu <liuj97@gmail.com>
+CC: Len Brown <len.brown@intel.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
+CC: Christoph Lameter <cl@linux.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Rafael J. Wysocki <rjw@sisk.pl>
+CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+---
+ drivers/acpi/acpi_memhotplug.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-acpi_memory_disable_device() has already implemented a code which
-offlines memory and releases acpi_memory_info struct . But
-acpi_memory_device_remove() has not implemented it yet.
-
-So the patch prepares the framework for hot removing memory and
-adds the framework into acpi_memory_device_remove().
-
-We may hotremove the memory device by this 2 ways at the same time.
-So we remove the function acpi_memory_disable_device(), and use
-acpi_bus_hot_remove_device() which is used by 2nd case to implement it.
-We lock device in acpi_bus_hot_remove_device(), so there is no
-need to add lock in acpi_memhotplug.
-
-The last version of this patchset is here:
-https://lkml.org/lkml/2012/11/8/121
-
-Note:
-1. The following commit in pm tree can be dropped now(The other two patches
-   are already dropped):
-   54c4c7db6cb94d7d1217df6d7fca6847c61744ab
-2. This patchset requires the following patch(It is in pm tree now)
-   https://lkml.org/lkml/2012/11/1/225
-
-Changes from v4 to v5:
-1. patch2: new patch. use acpi_bus_hot_remove_device() to implement memory
-   device hotremove.
-
-Changes from v3 to v4:
-1. patch1: unlock list_lock when removing memory fails.
-2. patch2: just rebase them
-3. patch3-7: these patches are in -mm tree, and they conflict with this
-   patchset, so Adrew Morton drop them from -mm tree. I rebase and merge
-   them into this patchset.
-
-Wen Congyang (6):
-  acpi,memory-hotplug: deal with eject request in hotplug queue
-  acpi_memhotplug.c: fix memory leak when memory device is unbound from
-    the module acpi_memhotplug
-  acpi_memhotplug.c: free memory device if acpi_memory_enable_device()
-    failed
-  acpi_memhotplug.c: don't allow to eject the memory device if it is
-    being used
-  acpi_memhotplug.c: bind the memory device when the driver is being
-    loaded
-  acpi_memhotplug.c: auto bind the memory device which is hotplugged
-    before the driver is loaded
-
-Yasuaki Ishimatsu (1):
-  acpi,memory-hotplug : add memory offline code to
-    acpi_memory_device_remove()
-
- drivers/acpi/acpi_memhotplug.c | 206 ++++++++++++++++++++++-------------------
- 1 file changed, 109 insertions(+), 97 deletions(-)
-
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index c5e7b6d..e52ad5d 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -421,9 +421,11 @@ static int acpi_memory_device_add(struct acpi_device *device)
+ 	if (!acpi_memory_check_device(mem_device)) {
+ 		/* call add_memory func */
+ 		result = acpi_memory_enable_device(mem_device);
+-		if (result)
++		if (result) {
+ 			printk(KERN_ERR PREFIX
+ 				"Error in acpi_memory_enable_device\n");
++			acpi_memory_device_free(mem_device);
++		}
+ 	}
+ 	return result;
+ }
 -- 
 1.8.0
 
