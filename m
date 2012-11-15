@@ -1,112 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id DDDEC6B00AA
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:52:37 -0500 (EST)
-Date: Thu, 15 Nov 2012 10:52:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
-Message-ID: <20121115095235.GC11990@dhcp22.suse.cz>
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
- <1352820639-13521-3-git-send-email-mhocko@suse.cz>
- <50A2E3B3.6080007@jp.fujitsu.com>
- <20121114101052.GD17111@dhcp22.suse.cz>
- <50A46BB6.6070902@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id E09F56B00AD
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 04:57:40 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 870BB3EE0C8
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6E07C45DE3E
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 469C545DE59
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 394131DB804B
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:39 +0900 (JST)
+Received: from g01jpexchkw07.g01.fujitsu.local (g01jpexchkw07.g01.fujitsu.local [10.0.194.46])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E59541DB803F
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:57:38 +0900 (JST)
+Message-ID: <50A4BC72.4060305@jp.fujitsu.com>
+Date: Thu, 15 Nov 2012 18:57:06 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50A46BB6.6070902@jp.fujitsu.com>
+Subject: Re: [Patch v5 7/7] acpi_memhotplug.c: auto bind the memory device
+ which is hotplugged before the driver is loaded
+References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-8-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1352962777-24407-8-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J.
+ Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
 
-On Thu 15-11-12 13:12:38, KAMEZAWA Hiroyuki wrote:
-> (2012/11/14 19:10), Michal Hocko wrote:
-> >On Wed 14-11-12 09:20:03, KAMEZAWA Hiroyuki wrote:
-> >>(2012/11/14 0:30), Michal Hocko wrote:
-> >[...]
-> >>>@@ -1096,30 +1096,64 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >>>   			mz = mem_cgroup_zoneinfo(root, nid, zid);
-> >>>   			iter = &mz->reclaim_iter[reclaim->priority];
-> >>>   			spin_lock(&iter->iter_lock);
-> >>>+			last_visited = iter->last_visited;
-> >>>   			if (prev && reclaim->generation != iter->generation) {
-> >>>+				if (last_visited) {
-> >>>+					mem_cgroup_put(last_visited);
-> >>>+					iter->last_visited = NULL;
-> >>>+				}
-> >>>   				spin_unlock(&iter->iter_lock);
-> >>>   				return NULL;
-> >>>   			}
-> >>>-			id = iter->position;
-> >>>   		}
-> >>>
-> >>>   		rcu_read_lock();
-> >>>-		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
-> >>>-		if (css) {
-> >>>-			if (css == &root->css || css_tryget(css))
-> >>>-				memcg = mem_cgroup_from_css(css);
-> >>>-		} else
-> >>>-			id = 0;
-> >>>-		rcu_read_unlock();
-> >>>+		/*
-> >>>+		 * Root is not visited by cgroup iterators so it needs a special
-> >>>+		 * treatment.
-> >>>+		 */
-> >>>+		if (!last_visited) {
-> >>>+			css = &root->css;
-> >>>+		} else {
-> >>>+			struct cgroup *next_cgroup;
-> >>>+
-> >>>+			next_cgroup = cgroup_next_descendant_pre(
-> >>>+					last_visited->css.cgroup,
-> >>>+					root->css.cgroup);
-> >>
-> >>Maybe I miss something but.... last_visited is holded by memcg's refcnt.
-> >>The cgroup pointed by css.cgroup is by cgroup's refcnt which can be freed
-> >>before memcg is freed and last_visited->css.cgroup is out of RCU cycle.
-> >>Is this safe ?
-> >
-> >Good spotted. You are right. What I need to do is to check that the
-> >last_visited is alive and restart from the root if not. Something like
-> >the bellow (incremental patch on top of this one) should help, right?
-> >
-> >diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> >index 30efd7e..c0a91a3 100644
-> >--- a/mm/memcontrol.c
-> >+++ b/mm/memcontrol.c
-> >@@ -1105,6 +1105,16 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >  				spin_unlock(&iter->iter_lock);
-> >  				return NULL;
-> >  			}
-> >+			/*
-> >+			 * memcg is still valid because we hold a reference but
-> >+			 * its cgroup might have vanished in the meantime so
-> >+			 * we have to double check it is alive and restart the
-> >+			 * tree walk otherwise.
-> >+			 */
-> >+			if (last_visited && !css_tryget(&last_visited->css)) {
-> >+				mem_cgroup_put(last_visited);
-> >+				last_visited = NULL;
-> >+			}
-> >  		}
-> >
-> >  		rcu_read_lock();
-> >@@ -1136,8 +1146,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >  		if (reclaim) {
-> >  			struct mem_cgroup *curr = memcg;
-> >
-> >-			if (last_visited)
-> >+			if (last_visited) {
-> >+				css_put(&last_visited->css);
-> >  				mem_cgroup_put(last_visited);
-> >+			}
-> >
-> >  			if (css && !memcg)
-> >  				curr = mem_cgroup_from_css(css);
-> >
+2012/11/15 15:59, Wen Congyang wrote:
+> If the memory device is hotplugged before the driver is loaded, the user
+> cannot see this device under the directory /sys/bus/acpi/devices/, and the
+> user cannot bind it by hand after the driver is loaded.  This patch
+> introduces a new feature to bind such device when the driver is being
+> loaded.
 > 
-> I think this will work.
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> CC: Rafael J. Wysocki <rjw@sisk.pl>
+> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
 
-Thanks for double checking. The updated patch:
----
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   drivers/acpi/acpi_memhotplug.c | 37 ++++++++++++++++++++++++++++++++++++-
+>   1 file changed, 36 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index e0f7425..9f1d107 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -52,6 +52,9 @@ MODULE_LICENSE("GPL");
+>   #define MEMORY_POWER_ON_STATE	1
+>   #define MEMORY_POWER_OFF_STATE	2
+>   
+> +static bool auto_probe;
+> +module_param(auto_probe, bool, S_IRUGO | S_IWUSR);
+> +
+>   static int acpi_memory_device_add(struct acpi_device *device);
+>   static int acpi_memory_device_remove(struct acpi_device *device, int type);
+>   
+> @@ -494,12 +497,44 @@ acpi_memory_register_notify_handler(acpi_handle handle,
+>   				    u32 level, void *ctxt, void **retv)
+>   {
+>   	acpi_status status;
+> -
+> +	struct acpi_memory_device *mem_device = NULL;
+> +	unsigned long long current_status;
+>   
+>   	status = is_memory_device(handle);
+>   	if (ACPI_FAILURE(status))
+>   		return AE_OK;	/* continue */
+>   
+> +	if (auto_probe) {
+> +		/* Get device present/absent information from the _STA */
+> +		status = acpi_evaluate_integer(handle, "_STA", NULL,
+> +					       &current_status);
+> +		if (ACPI_FAILURE(status))
+> +			goto install;
+> +
+> +		/*
+> +		 * Check for device status. Device should be
+> +		 * present/enabled/functioning.
+> +		 */
+> +		if (!(current_status &
+> +		      (ACPI_STA_DEVICE_PRESENT | ACPI_STA_DEVICE_ENABLED |
+> +		       ACPI_STA_DEVICE_FUNCTIONING)))
+> +			goto install;
+> +
+> +		if (acpi_memory_get_device(handle, &mem_device))
+> +			goto install;
+> +
+> +		/* We have bound this device while we register the driver */
+> +		if (mem_device->state == MEMORY_POWER_ON_STATE)
+> +			goto install;
+> +
+> +		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+> +				  "\nauto probe memory device\n"));
+> +
+> +		if (acpi_memory_enable_device(mem_device))
+> +			pr_err(PREFIX "Cannot enable memory device\n");
+> +	}
+> +
+> +install:
+>   	status = acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+>   					     acpi_memory_device_notify, NULL);
+>   	/* continue */
+> 
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
