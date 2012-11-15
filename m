@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 92D016B005A
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 21:13:17 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 904663EE0BC
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 11:13:15 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 776B745DEB2
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 11:13:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 4BAE345DEB6
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 11:13:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3EF841DB8041
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 11:13:15 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id E8B0D1DB8040
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 11:13:14 +0900 (JST)
-Message-ID: <50A44FA0.5010305@jp.fujitsu.com>
-Date: Thu, 15 Nov 2012 11:12:48 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 0452D6B002B
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 22:21:16 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so515413dad.14
+        for <linux-mm@kvack.org>; Wed, 14 Nov 2012 19:21:16 -0800 (PST)
+Date: Wed, 14 Nov 2012 19:21:14 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+In-Reply-To: <20121107114321.GA32265@shutemov.name>
+Message-ID: <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com>
+References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name>
 MIME-Version: 1.0
-Subject: Re: [RFC] rework mem_cgroup iterator
-References: <1352820639-13521-1-git-send-email-mhocko@suse.cz> <50A2F9FC.5050303@huawei.com>
-In-Reply-To: <50A2F9FC.5050303@huawei.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Pekka Enberg <penberg@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-(2012/11/14 10:55), Li Zefan wrote:
-> On 2012/11/13 23:30, Michal Hocko wrote:
->> Hi all,
->> this patch set tries to make mem_cgroup_iter saner in the way how it
->> walks hierarchies. css->id based traversal is far from being ideal as it
->> is not deterministic because it depends on the creation ordering.
->>
->> Diffstat looks promising but it is fair the say that the biggest cleanup is
->> just css_get_next removal. The memcg code has grown a bit but I think it is
->> worth the resulting outcome (the sanity ;)).
->>
+On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
+
+> > > Sorry, I didn't follow previous discussion on this, but could you
+> > > explain what's wrong with memory notifications from memcg?
+> > > As I can see you can get pretty similar functionality using memory
+> > > thresholds on the root cgroup. What's the point?
+> > 
+> > Why should you be required to use cgroups to get VM pressure events to
+> > userspace?
 > 
-> So memcg won't use css id at all, right? Then we can remove the whole css_id
-> stuff, and that's quite a bunch of code.
+> Valid point. But in fact you have it on most systems anyway.
 > 
-It's used by swap information recording for saving spaces.
+> I personally don't like to have a syscall per small feature.
+> Isn't it better to have a file-based interface which can be used with
+> normal file syscalls: open()/read()/poll()?
+> 
 
-Thanks,
--Kame
+I agree that eventfd is the way to go, but I'll also add that this feature 
+seems to be implemented at a far too coarse of level.  Memory, and hence 
+memory pressure, is constrained by several factors other than just the 
+amount of physical RAM which vmpressure_fd is addressing.  What about 
+memory pressure caused by cpusets or mempolicies?  (Memcg has its own 
+reclaim logic and its own memory thresholds implemented on top of eventfd 
+that people already use.)  These both cause high levels of reclaim within 
+the page allocator whereas there may be an abundance of free memory 
+available on the system.
 
+I don't think we want several implementations of memory pressure 
+notifications, so a more generic and flexible interface is going to be 
+needed and I think it can't be done in an extendable way through this 
+vmpressure_fd syscall.  Unfortunately, I think that means polling on a 
+per-thread notifier.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
