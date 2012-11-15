@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id E7AD96B0074
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:39:11 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so969306dad.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 15:39:11 -0800 (PST)
-Date: Thu, 15 Nov 2012 15:39:08 -0800 (PST)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id D71156B0078
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:40:16 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so969647dad.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 15:40:16 -0800 (PST)
+Date: Thu, 15 Nov 2012 15:40:14 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Patch v5 5/7] acpi_memhotplug.c: don't allow to eject the memory
- device if it is being used
-In-Reply-To: <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1211151538390.27188@chino.kir.corp.google.com>
-References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [Patch v5 6/7] acpi_memhotplug.c: bind the memory device when
+ the driver is being loaded
+In-Reply-To: <1352962777-24407-7-git-send-email-wency@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1211151540020.27188@chino.kir.corp.google.com>
+References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-7-git-send-email-wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,8 +20,11 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
 On Thu, 15 Nov 2012, Wen Congyang wrote:
 
-> We eject the memory device even if it is in use.  It is very dangerous,
-> and it will cause the kernel to be panicked.
+> We had introduced acpi_hotmem_initialized to avoid strange add_memory fail
+> message.  But the memory device may not be used by the kernel, and the
+> device should be bound when the driver is being loaded.  Remove
+> acpi_hotmem_initialized to allow that the device can be bound when the
+> driver is being loaded.
 > 
 > CC: David Rientjes <rientjes@google.com>
 > CC: Jiang Liu <liuj97@gmail.com>
@@ -38,9 +41,6 @@ On Thu, 15 Nov 2012, Wen Congyang wrote:
 > Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
-
-Thanks for adding the comment about why num_enabled is incremented for 
--EEXIST.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
