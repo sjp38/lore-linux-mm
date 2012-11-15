@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 661096B0072
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:36:59 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id i14so968623dad.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 15:36:58 -0800 (PST)
-Date: Thu, 15 Nov 2012 15:36:53 -0800 (PST)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id E7AD96B0074
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 18:39:11 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id i14so969306dad.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 15:39:11 -0800 (PST)
+Date: Thu, 15 Nov 2012 15:39:08 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [Patch v5 4/7] acpi_memhotplug.c: free memory device if
- acpi_memory_enable_device() failed
-In-Reply-To: <1352962777-24407-5-git-send-email-wency@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1211151536410.27188@chino.kir.corp.google.com>
-References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-5-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [Patch v5 5/7] acpi_memhotplug.c: don't allow to eject the memory
+ device if it is being used
+In-Reply-To: <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.00.1211151538390.27188@chino.kir.corp.google.com>
+References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -20,10 +20,8 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org
 
 On Thu, 15 Nov 2012, Wen Congyang wrote:
 
-> If acpi_memory_enable_device() fails, acpi_memory_enable_device() will
-> return a non-zero value, which means we fail to bind the memory device to
-> this driver.  So we should free memory device before
-> acpi_memory_device_add() returns.
+> We eject the memory device even if it is in use.  It is very dangerous,
+> and it will cause the kernel to be panicked.
 > 
 > CC: David Rientjes <rientjes@google.com>
 > CC: Jiang Liu <liuj97@gmail.com>
@@ -40,6 +38,9 @@ On Thu, 15 Nov 2012, Wen Congyang wrote:
 > Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 
 Acked-by: David Rientjes <rientjes@google.com>
+
+Thanks for adding the comment about why num_enabled is incremented for 
+-EEXIST.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
