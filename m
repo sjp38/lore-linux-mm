@@ -1,66 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id E51756B0081
-	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:43:51 -0500 (EST)
-Message-ID: <50A3E659.9060804@redhat.com>
-Date: Wed, 14 Nov 2012 13:43:37 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 4A8A36B0083
+	for <linux-mm@kvack.org>; Wed, 14 Nov 2012 13:45:08 -0500 (EST)
+Message-ID: <50A45729.4000203@parallels.com>
+Date: Thu, 15 Nov 2012 06:44:57 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] change_protection(): Count the number of pages affected
-References: <1352883029-7885-1-git-send-email-mingo@kernel.org> <CA+55aFz_JnoR73O46YWhZn2A4t_CSUkGzMMprCUpvR79TVMCEQ@mail.gmail.com>
-In-Reply-To: <CA+55aFz_JnoR73O46YWhZn2A4t_CSUkGzMMprCUpvR79TVMCEQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [RFC] rework mem_cgroup iterator
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz> <50A3C42F.9020901@parallels.com> <20121114184110.GD21185@mtj.dyndns.org>
+In-Reply-To: <20121114184110.GD21185@mtj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+To: Tejun Heo <htejun@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>
 
-On 11/14/2012 01:01 PM, Linus Torvalds wrote:
+On 11/14/2012 10:41 PM, Tejun Heo wrote:
+> Hello, Glauber.
+> 
+> On Wed, Nov 14, 2012 at 05:17:51PM +0100, Glauber Costa wrote:
+>> Why can't we reuse the scheduler iterator and move it to kernel/cgroup.c
+>> ? It already exists, provide sane ordering, and only relies on parent
+>> information - which cgroup core already have - to do the walk.
+> 
+> Hmmm... we can but I personally much prefer for_each_*() iterators
+> over callback based ones.  It's just much easier to share states
+> across an iteration and follow the logic.  walk_tg_tree_from() does
+> have the benefit of being able to combine pre and post visits in the
+> same walk, which doesn't seem to have any user at the moment.
+> 
+> Thanks.
+> 
 
-> But even *more* aggressively, how about looking at
->
->   - not flushing the TLB at all if the bits become  more permissive
-> (taking the TLB micro-fault and letting the CPU just update it on its
-> own)
-
-This seems like a good idea.
-
-Additionally, we may be able to get away with not modifying
-the PTEs if the bits become more permissive. We can just let
-handle_pte_fault update the bits to match the VMA permissions.
-
-That way we may be able to save a fair amount of scanning and
-pte manipulation for eg. JVMs that manipulate the same range
-of memory repeatedly in the garbage collector.
-
-I do not know whether that would be worthwhile, but it sounds
-like something that may be worth a try...
-
->   - even *more* aggressive: if the bits become strictly more
-> restrictive, how about not flushing the TLB at all, *and* not even
-> changing the page tables, and just teaching the page fault code to do
-> it lazily at fault time?
-
-How can we do that in a safe way?
-
-Unless we change the page tables, and flush the TLBs before
-returning to userspace, the mprotect may not take effect for
-an arbitrarily large period of time.
-
-If we do not change the page tables, we should also not incur
-any page faults, so the fault code would never run to "do it
-lazily".
-
-Am I misreading what you propose?
-
-> Now, the "change protections lazily" might actually be a huge
-> performance problem with the page fault overhead dwarfing any TLB
-> flush costs, but we don't really know, do we? It might be worth trying
-> out.
-
--- 
-All rights reversed
+Is there any particular reason why we can't do the other way around
+then, and use a for_each_*() for sched walks? Without even consider what
+I personally prefer, what I really don't like is to have two different
+cgroup walkers when it seems like we could very well have just one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
