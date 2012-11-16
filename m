@@ -1,12 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 3A9526B0072
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:10:43 -0500 (EST)
-Date: Fri, 16 Nov 2012 18:10:35 -0200
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 487C86B0072
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:13:02 -0500 (EST)
+Date: Fri, 16 Nov 2012 18:12:55 -0200
 From: Rafael Aquini <aquini@redhat.com>
 Subject: Re: [patch] mm: introduce a common interface for balloon pages
  mobility fix
-Message-ID: <20121116201035.GA18145@t510.redhat.com>
+Message-ID: <20121116201254.GA32685@t510.redhat.com>
 References: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
  <alpine.DEB.2.00.1211161147580.2788@chino.kir.corp.google.com>
 MIME-Version: 1.0
@@ -42,7 +42,7 @@ On Fri, Nov 16, 2012 at 11:50:12AM -0800, David Rientjes wrote:
 > it.
 >     
 
-This is already addressed at v12 revision which is on mmtom queue already.
+This is addressed by the submitted v12 review, which is on mmtom queue already.
 
 
 > Signed-off-by: David Rientjes <rientjes@google.com>
