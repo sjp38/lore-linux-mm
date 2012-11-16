@@ -1,34 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 638DE6B005A
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 09:03:01 -0500 (EST)
-Date: Fri, 16 Nov 2012 22:02:15 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [glommer-memcg:die-cpuacct 6/6] fair.c:(.text+0x5b96d): undefined reference to `task_group_charge'
-Message-ID: <50a64767.TuSNeB5WQm2WTglP%fengguang.wu@intel.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 8A6596B005A
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 09:09:23 -0500 (EST)
+Message-ID: <50A648FF.2040707@redhat.com>
+Date: Fri, 16 Nov 2012 09:09:03 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 06/43] mm: numa: Make pte_numa() and pmd_numa() a generic
+ implementation
+References: <1353064973-26082-1-git-send-email-mgorman@suse.de> <1353064973-26082-7-git-send-email-mgorman@suse.de>
+In-Reply-To: <1353064973-26082-7-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/glommer/memcg.git die-cpuacct
-head:   feb0b5dd821a5c66f5e75bdcb071ce6c135a1b3c
-commit: feb0b5dd821a5c66f5e75bdcb071ce6c135a1b3c [6/6] cpuacct: don't actually do anything.
-config: make ARCH=x86_64 allmodconfig
+On 11/16/2012 06:22 AM, Mel Gorman wrote:
+> It was pointed out by Ingo Molnar that the per-architecture definition of
+> the NUMA PTE helper functions means that each supporting architecture
+> will have to cut and paste it which is unfortunate. He suggested instead
+> that the helpers should be weak functions that can be overridden by the
+> architecture.
+>
+> This patch moves the helpers to mm/pgtable-generic.c and makes them weak
+> functions. Architectures wishing to use this will still be required to
+> define _PAGE_NUMA and potentially update their p[te|md]_present and
+> pmd_bad helpers if they choose to make PAGE_NUMA similar to PROT_NONE.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-All error/warnings:
+Is uninlining these simple tests really the right thing to do,
+or would they be better off as inlines in asm-generic/pgtable.h ?
 
-kernel/built-in.o: In function `update_curr':
-fair.c:(.text+0x5b96d): undefined reference to `task_group_charge'
-kernel/built-in.o: In function `update_curr_rt':
-rt.c:(.text+0x6210f): undefined reference to `task_group_charge'
-
----
-0-DAY kernel build testing backend         Open Source Technology Center
-Fengguang Wu, Yuanhan Liu                              Intel Corporation
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
