@@ -1,23 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id F14526B002B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:50:29 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so1190068bkc.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:50:28 -0800 (PST)
-Message-ID: <50A5F03F.30106@suse.cz>
-Date: Fri, 16 Nov 2012 08:50:23 +0100
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 28E986B002B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:51:51 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so1190402bkc.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:51:49 -0800 (PST)
+Message-ID: <50A5F092.2000303@suse.cz>
+Date: Fri, 16 Nov 2012 08:51:46 +0100
 From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
 Subject: Re: + mm-revert-mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures.patch
  added to -mm tree
 References: <20121113224710.346805C0050@hpza9.eem.corp.google.com>            <20633.1353006410@turing-police.cc.vt.edu> <42264.1353033363@turing-police.cc.vt.edu>
 In-Reply-To: <42264.1353033363@turing-police.cc.vt.edu>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Valdis.Kletnieks@vt.edu
-Cc: akpm@linux-foundation.org, gorman@suse.de, jirislaby@gmail.com, riel@redhat.com, zkabelac@redhat.com, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, jirislaby@gmail.com, riel@redhat.com, zkabelac@redhat.com, linux-mm@kvack.org
+
+Fixed Mel's address.
 
 On 11/16/2012 03:36 AM, Valdis.Kletnieks@vt.edu wrote:
 > On Thu, 15 Nov 2012 14:06:50 -0500, Valdis.Kletnieks@vt.edu said:
