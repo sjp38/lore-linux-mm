@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 2E1426B006E
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:50:15 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so2352196pbc.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:50:14 -0800 (PST)
-Date: Fri, 16 Nov 2012 11:50:12 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm: introduce a common interface for balloon pages mobility
- fix
-In-Reply-To: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
-Message-ID: <alpine.DEB.2.00.1211161147580.2788@chino.kir.corp.google.com>
-References: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 709866B0072
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:50:48 -0500 (EST)
+Date: Fri, 16 Nov 2012 20:50:18 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
+ affinity"
+Message-ID: <20121116195018.GA8908@redhat.com>
+References: <20121112160451.189715188@chello.nl>
+ <20121112184833.GA17503@gmail.com>
+ <20121115100805.GS8218@suse.de>
+ <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+ <50A566FA.2090306@redhat.com>
+ <20121116141428.GZ8218@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121116141428.GZ8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, 16 Nov 2012, kbuild test robot wrote:
+Hi,
 
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-> head:   12dfb061e5fd15be23451418da01281625c0eeae
-> commit: 86929cfa5f751de3d8be5a846535282730865d8a [365/437] mm: introduce a common interface for balloon pages mobility
-> config: make ARCH=sh allyesconfig
+On Fri, Nov 16, 2012 at 02:14:28PM +0000, Mel Gorman wrote:
+> With some shuffling the question on what to consider for merging
+> becomes
 > 
-> All warnings:
+>
+> 1. TLB optimisation patches 1-3?	 	Patches  1-3
+
+I assume you mean simply reshuffling 33-35 as 1-3.
+
+> 2. Stats for migration?				Patches  4-6
+> 3. Common NUMA infrastructure?			Patches  7-21
+> 4. Basic fault-driven policy, stats, ratelimits	Patches 22-35
 > 
-> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
-> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
-> --
-> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
+> Patches 36-43 are complete cabbage and should not be considered at this
+> stage. It should be possible to build the placement policies and the
+> scheduling decisions from schednuma, autonuma, some combination of the
+> above or something completely different on top of patches 1-35.
 > 
+> Peter, Ingo, Andrea?
 
-mm: introduce a common interface for balloon pages mobility fix
+The patches 1-35 looks a great foundation so I think they'd be an
+ideal candidate for a first upstream inclusion.
 
-CONFIG_BALLOON_COMPACTION shouldn't be selecting options that may not be 
-supported, so make it depend on memory compaction rather than selecting 
-it.  CONFIG_COMPACTION is enabled by default for all configs that support 
-it.
-    
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/Kconfig |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -191,8 +191,7 @@ config SPLIT_PTLOCK_CPUS
- # support for memory balloon compaction
- config BALLOON_COMPACTION
- 	bool "Allow for balloon memory compaction/migration"
--	select COMPACTION
--	depends on VIRTIO_BALLOON
-+	depends on VIRTIO_BALLOON && COMPACTION
- 	help
- 	  Memory fragmentation introduced by ballooning might reduce
- 	  significantly the number of 2MB contiguous memory blocks that can be
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
