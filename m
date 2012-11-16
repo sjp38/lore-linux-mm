@@ -1,159 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id E68E56B007D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:40:27 -0500 (EST)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Sat, 17 Nov 2012 04:37:04 +1000
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAGIeK5m63111290
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 05:40:20 +1100
-Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAGIeJLJ026917
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 05:40:20 +1100
-Message-ID: <50A68849.2030401@linux.vnet.ibm.com>
-Date: Sat, 17 Nov 2012 00:09:05 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 7D8876B0081
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:45:05 -0500 (EST)
+Date: Fri, 16 Nov 2012 18:44:59 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 06/43] mm: numa: Make pte_numa() and pmd_numa() a generic
+ implementation
+Message-ID: <20121116184459.GG8218@suse.de>
+References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
+ <1353064973-26082-7-git-send-email-mgorman@suse.de>
+ <50A648FF.2040707@redhat.com>
+ <20121116144109.GA8218@suse.de>
+ <CA+55aFzH_-6FuwTF1GVDzLK+7c0MGLsLdPFjzzwU78GVUEMbBw@mail.gmail.com>
+ <20121116160852.GA4302@gmail.com>
+ <20121116165606.GE8218@suse.de>
+ <20121116173755.GB4697@gmail.com>
 MIME-Version: 1.0
-Subject: [RFC PATCH UPDATED 4/8] mm: Add helpers to retrieve node region and
- zone region for a given page
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195310.6941.91123.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20121106195310.6941.91123.stgit@srivatsabhat.in.ibm.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121116173755.GB4697@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl
-Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, gargankita@gmail.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andi@firstfloor.org, SrinivasPandruvada <srinivas.pandruvada@linux.intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This version of the patch includes a bug-fix for page_node_region_id()
-which used to break the NUMA case.
+On Fri, Nov 16, 2012 at 06:37:55PM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > > AFAICS, this portion of numa/core:
+> > > 
+> > > c740b1cccdcb x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
+> > 
+> > We share this.
+> > 
+> > > 02743c9c03f1 mm/mpol: Use special PROT_NONE to migrate pages
+> > 
+> > hard-codes prot_none
+> 
+> I prefer any arch support extensions to be done in the patch 
+> that adds that specific arch support.
+> 
+> That way we can consider the pros and cons of abstraction. Also 
+> see further below.
+> 
 
---------------------------------------------------------------------->
+Using _PAGE_NUMA mapped onto _PROT_NONE does not prevent the same
+abstraction.
 
-From: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: mm: Add helpers to retrieve node region and zone region for a given page
+> > > cd203e33c39d mm/mpol: Add MPOL_MF_NOOP
+> > 
+> > I have a patch that backs this out on the grounds that I don't 
+> > think we have adequately discussed if it was the correct 
+> > userspace interface. I know Peter put a lot of time into it so 
+> > it's probably correct but without man pages or spending time 
+> > writing an example program that used it, I played safe.
+> 
+> I'm fine with not exposing it to user-space.
+> 
 
-Given a page, we would like to have an efficient mechanism to find out
-the node memory region and the zone memory region to which it belongs.
+Ok.
 
-Since the node is assumed to be divided into equal-sized node memory
-regions, the node memory region index can be obtained by simply right-shifting
-the page's pfn by 'mem_region_shift'.
+> > > Mel, could you please work on this basis, or point out the 
+> > > bits you don't agree with so I can fix it?
+> > 
+> > My main hangup is the prot_none choice and I know it's 
+> > something we have butted heads on without progress. [...]
+> 
+> It's the basic KISS concept - I think you are over-designing 
+> this. An architecture opts in to the new, generic code via 
+> doing:
+> 
+>   select ARCH_SUPPORTS_NUMA_BALANCING
+> 
+> ... if it cannot enable that then it will extend the core code 
+> in *very* visible ways.
+> 
 
-But finding the corresponding zone memory region's index in the zone is
-not that straight-forward. To have a O(1) algorithm to find it out, define a
-zone_region_idx[] array to store the zone memory region indices for every
-node memory region.
+It won't kill them to decide if they really want to use _PAGE_NUMA or
+not. The fact that the generic helpers end up being a few instructions
+is nice although you probably could do the same with some juggling.
 
-To illustrate, consider the following example:
+> > [...] I feel it is a lot cleaner to have the _PAGE_NUMA bit 
+> > (even if it's PROT_NONE underneath) and the helpers avoid 
+> > function calls where possible. It also made the PMD handling 
+> > sortof straight-forward and allowed the batching taking of the 
+> > PTL and migration if the pages in the PMD were all on the same 
+> > node. I liked this.
+> > 
+> > Yours is closer to what the architecture does and can use 
+> > change_protect() with very few changes but on balance I did 
+> > not find this a compelling alternative.
+> 
+> IMO here you are on the wrong side of history as well.
+> 
+> For example reusing change_protection() *already* uncovered 
+> useful optimizations to the generic code:
+> 
+>    http://comments.gmane.org/gmane.linux.kernel.mm/89707
+> 
+> (regardless of how this particular change_protection() 
+>  optimization will look like.)
+> 
+> that optimization would not have happened with your open-coded 
+> change_protection() variant plain and simple.
+> 
 
-	|<---------------------Node---------------------->|
-	 _________________________________________________
-	|      Node mem reg 0 	|      Node mem reg 1     |
-	|_______________________|_________________________|
+As I said before, very little actually stops me using change_protection if
+_PAGE_NUMA == _PAGE_NONE. The only reason I didn't convert yet is because
+I wanted to see what the full set of requirements were. Right now they
+are simple;
 
-	 _________________________________________________
-	|   ZONE_DMA    |	ZONE_NORMAL		  |
-	|_______________|_________________________________|
+1. Something to avoid unnecessary TLB flushes if there are no updates
+2. Return if all the pages underneath are on the same node or not so
+   that pmd_numa can be set if desired
+3. Collect stats on PTE updates
 
+1 should already be there. 2 would be trivial. 3 should also be fairly
+trivial with some jiggery pokery.
 
-In the above figure,
+A conversion is not a fundamental problem. If an arch cannot use _PAGE_NONE
+they will need to implement their own version of change_prot_numa() but
+that in itself should be sufficient discouragment.
 
-Node mem region 0:
-------------------
-This region corresponds to the first zone mem region in ZONE_DMA and also
-the first zone mem region in ZONE_NORMAL. Hence its index array would look
-like this:
-    node_regions[0].zone_region_idx[ZONE_DMA]     == 0
-    node_regions[0].zone_region_idx[ZONE_NORMAL]  == 0
+If an arch cannot use _PAGE_NONE in your case, it's a retrofit to find
+all the places that use prot_none and see if they really mean prot_none
+or if they meant prot_numa.
 
+> So, to put it bluntly, you are not only doing a stupid thing, 
+> you are doing an actively harmful thing here...
+> 
 
-Node mem region 1:
-------------------
-This region corresponds to the second zone mem region in ZONE_NORMAL. Hence
-its index array would look like this:
-    node_regions[1].zone_region_idx[ZONE_NORMAL]  == 1
+Great, calling me stupid is going to help.
 
+Is your major problem the change_page_numa() part? If so, I can fix
+that and adjust change_protection in the way I need.
 
-Using this index array, we can quickly obtain the zone memory region to
-which a given page belongs.
+> If you fix that then most of the differences between your tree 
+> and numa/core disappears. You'll end up very close to:
+> 
 
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
+MIGRATE_FAULT is still there.
 
- include/linux/mm.h     |   24 ++++++++++++++++++++++++
- include/linux/mmzone.h |    7 +++++++
- mm/page_alloc.c        |    2 ++
- 3 files changed, 33 insertions(+)
+The lack of batch handling of a PMD fault may also be a problem. Right
+now you only handle transparent hugepages and then depend on being able to
+natively migrate them to avoid a big hit. In my case it is possible to mark
+a PMD and deal with it as a single fault even if it's not a transparent
+hugepage. This batches the taking of the PTL and migration of pages. This
+will trap less although the guy that does trap takes a heavier hit. Maybe
+this will work out best, maybe not, but it's possible.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 19c4fb0..32457c7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -702,6 +702,30 @@ static inline struct zone *page_zone(const struct page *page)
- 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
- }
- 
-+static inline int page_node_region_id(const struct page *page,
-+				      const pg_data_t *pgdat)
-+{
-+	return (page_to_pfn(page) - pgdat->node_start_pfn) >> MEM_REGION_SHIFT;
-+}
-+
-+/**
-+ * Return the index of the region to which the page belongs, within its zone.
-+ *
-+ * Given a page, find the absolute (node) region as well as the zone to which
-+ * it belongs. Then find the region within the zone that corresponds to that
-+ * absolute (node) region, and return its index.
-+ */
-+static inline int page_zone_region_id(const struct page *page)
-+{
-+	pg_data_t *pgdat = NODE_DATA(page_to_nid(page));
-+	enum zone_type z_num = page_zonenum(page);
-+	unsigned long node_region_idx;
-+
-+	node_region_idx = page_node_region_id(page, pgdat);
-+
-+	return pgdat->node_regions[node_region_idx].zone_region_idx[z_num];
-+}
-+
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
- static inline void set_page_section(struct page *page, unsigned long section)
- {
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9f923aa..3982354 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -336,6 +336,13 @@ struct node_mem_region {
- 	unsigned long spanned_pages;
- 	int idx;
- 	int node;
-+
-+	/*
-+	 * A physical (node) region could be split across multiple zones.
-+	 * Store the indices of the corresponding regions of each such
-+	 * zone for this physical (node) region.
-+	 */
-+	int zone_region_idx[MAX_NR_ZONES];
- 	struct pglist_data *pgdat;
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c00f72d..7fd89cd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4621,6 +4621,8 @@ void init_zone_memory_regions(struct pglist_data *pgdat)
- 						         end_pfn);
- 			z->zone_mem_region[idx].present_pages =
- 						end_pfn - start_pfn - absent;
-+
-+			region->zone_region_idx[zone_idx(z)] = idx;
- 			idx++;
- 		}
- 
+An optimisation of this would be that if all pages in a PMD are on the same
+node then only set the PMD. On the next fault if the fault is properly
+placed it's one PMD update and the fault is complete. If it's misplaced
+then one page needs to migrate and the pte_numa needs to be set on all the
+pages below. On a fully converged workload this will be faster as we'll take
+one PMD fault instead of 512 PTE faults reducing overall system CPU usage.
+
+There are also the stats that track PTE updates, faults and migrations
+which allow a user to make an estimation for how expensive automatic
+balancing is from /proc/vmstat. This will help debugging user problems,
+possibly without profiling.
+
+>   - rebasing numa/core pretty much as-is
+>   + add your migrate_displaced() function
+>   - remove the user-facing lazy migration facilities.
+>   + inline pte_numa()/pmd_numa() if you think it's beneficial
+> 
+
++ regular pmd batch handling
++ stats on PTE updates and faults to estimate costs from /proc/vmstat
+
+> If that works for you I'll test and backmerge all such deltas 
+> quickly and we can move on.
+> 
+
+Or if you're willing to backmerge then why not rebase the policy bits on
+top of the basic migration policy picking some point between here
+depending on what you'd like to do?
+
+ mm: numa: Rate limit setting of pte_numa if node is saturated
+ sched: numa: Slowly increase the scanning period as NUMA faults are handled
+ mm: numa: Introduce last_nid to the page frame
+ mm: numa: Use a two-stage filter to restrict pages being migrated for unlikely task<->node relationships
+ sched: numa: Introduce tsk_home_node()
+ sched: numa: Make find_busiest_queue() a method
+ sched: numa: Implement home-node awareness
+ sched: numa: Introduce per-mm and per-task structures
+
+So that way, not only can we see the logical progression of how your
+stuff works but also compare it to a basic policy that is not
+particularly smart to make sure we are actually going to the right
+direction.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
