@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 9375E8D0001
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:11 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so432634eaa.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:26:11 -0800 (PST)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id A29558D0005
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:13 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so2125091eek.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:26:13 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 16/19] numa, mm: Support NUMA hinting page faults from gup/gup_fast
-Date: Fri, 16 Nov 2012 17:25:18 +0100
-Message-Id: <1353083121-4560-17-git-send-email-mingo@kernel.org>
+Subject: [PATCH 17/19] mm/migrate: Introduce migrate_misplaced_page()
+Date: Fri, 16 Nov 2012 17:25:19 +0100
+Message-Id: <1353083121-4560-18-git-send-email-mingo@kernel.org>
 In-Reply-To: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 References: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,90 +15,211 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Introduce FOLL_NUMA to tell follow_page to check
-pte/pmd_numa. get_user_pages must use FOLL_NUMA, and it's safe to do
-so because it always invokes handle_mm_fault and retries the
-follow_page later.
+Add migrate_misplaced_page() which deals with migrating pages from
+faults.
 
-KVM secondary MMU page faults will trigger the NUMA hinting page
-faults through gup_fast -> get_user_pages -> follow_page ->
-handle_mm_fault.
+This includes adding a new MIGRATE_FAULT migration mode to
+deal with the extra page reference required due to having to look up
+the page.
 
-Other follow_page callers like KSM should not use FOLL_NUMA, or they
-would fail to get the pages if they use follow_page instead of
-get_user_pages.
-
-[ This patch was picked up from the AutoNUMA tree. ]
-
-Originally-by: Andrea Arcangeli <aarcange@redhat.com>
+Based-on-work-by: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Paul Turner <pjt@google.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-[ ported to this tree. ]
+Link: http://lkml.kernel.org/n/tip-es03i8ne7xee0981brw40fl5@git.kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+)
+ include/linux/migrate.h      |  7 ++++
+ include/linux/migrate_mode.h |  3 ++
+ mm/migrate.c                 | 85 +++++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 87 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0025bf9..1821629 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1600,6 +1600,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
- #define FOLL_MLOCK	0x40	/* mark page as mlocked */
- #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
- #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
-+#define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index ce7e667..9a5afea 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -30,6 +30,7 @@ extern int migrate_vmas(struct mm_struct *mm,
+ extern void migrate_page_copy(struct page *newpage, struct page *page);
+ extern int migrate_huge_page_move_mapping(struct address_space *mapping,
+ 				  struct page *newpage, struct page *page);
++extern int migrate_misplaced_page(struct page *page, int node);
+ #else
  
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/memory.c b/mm/memory.c
-index e3e8ab2..a660fd0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1536,6 +1536,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
- 		goto out;
+ static inline void putback_lru_pages(struct list_head *l) {}
+@@ -63,5 +64,11 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
+ #define migrate_page NULL
+ #define fail_migrate_page NULL
+ 
++static inline
++int migrate_misplaced_page(struct page *page, int node)
++{
++	return -EAGAIN; /* can't migrate now */
++}
+ #endif /* CONFIG_MIGRATION */
++
+ #endif /* _LINUX_MIGRATE_H */
+diff --git a/include/linux/migrate_mode.h b/include/linux/migrate_mode.h
+index ebf3d89..40b37dc 100644
+--- a/include/linux/migrate_mode.h
++++ b/include/linux/migrate_mode.h
+@@ -6,11 +6,14 @@
+  *	on most operations but not ->writepage as the potential stall time
+  *	is too significant
+  * MIGRATE_SYNC will block when migrating pages
++ * MIGRATE_FAULT called from the fault path to migrate-on-fault for mempolicy
++ *	this path has an extra reference count
+  */
+ enum migrate_mode {
+ 	MIGRATE_ASYNC,
+ 	MIGRATE_SYNC_LIGHT,
+ 	MIGRATE_SYNC,
++	MIGRATE_FAULT,
+ };
+ 
+ #endif		/* MIGRATE_MODE_H_INCLUDED */
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..3299949 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -225,7 +225,7 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
+ 	struct buffer_head *bh = head;
+ 
+ 	/* Simple case, sync compaction */
+-	if (mode != MIGRATE_ASYNC) {
++	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT) {
+ 		do {
+ 			get_bh(bh);
+ 			lock_buffer(bh);
+@@ -279,12 +279,22 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 		struct page *newpage, struct page *page,
+ 		struct buffer_head *head, enum migrate_mode mode)
+ {
+-	int expected_count;
++	int expected_count = 0;
+ 	void **pslot;
+ 
++	if (mode == MIGRATE_FAULT) {
++		/*
++		 * MIGRATE_FAULT has an extra reference on the page and
++		 * otherwise acts like ASYNC, no point in delaying the
++		 * fault, we'll try again next time.
++		 */
++		expected_count++;
++	}
++
+ 	if (!mapping) {
+ 		/* Anonymous page without mapping */
+-		if (page_count(page) != 1)
++		expected_count += 1;
++		if (page_count(page) != expected_count)
+ 			return -EAGAIN;
+ 		return 0;
  	}
-+	if ((flags & FOLL_NUMA) && pmd_numa(vma, *pmd))
-+		goto no_page_table;
- 	if (pmd_trans_huge(*pmd)) {
- 		if (flags & FOLL_SPLIT) {
- 			split_huge_page_pmd(mm, pmd);
-@@ -1565,6 +1567,8 @@ split_fallthrough:
- 	pte = *ptep;
- 	if (!pte_present(pte))
- 		goto no_page;
-+	if ((flags & FOLL_NUMA) && pte_numa(vma, pte))
-+		goto no_page;
- 	if ((flags & FOLL_WRITE) && !pte_write(pte))
- 		goto unlock;
+@@ -294,7 +304,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
+  					page_index(page));
  
-@@ -1716,6 +1720,19 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
- 	vm_flags &= (gup_flags & FOLL_FORCE) ?
- 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
+-	expected_count = 2 + page_has_private(page);
++	expected_count += 2 + page_has_private(page);
+ 	if (page_count(page) != expected_count ||
+ 		radix_tree_deref_slot_protected(pslot, &mapping->tree_lock) != page) {
+ 		spin_unlock_irq(&mapping->tree_lock);
+@@ -313,7 +323,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
+ 	 * the mapping back due to an elevated page count, we would have to
+ 	 * block waiting on other references to be dropped.
+ 	 */
+-	if (mode == MIGRATE_ASYNC && head &&
++	if ((mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT) && head &&
+ 			!buffer_migrate_lock_buffers(head, mode)) {
+ 		page_unfreeze_refs(page, expected_count);
+ 		spin_unlock_irq(&mapping->tree_lock);
+@@ -521,7 +531,7 @@ int buffer_migrate_page(struct address_space *mapping,
+ 	 * with an IRQ-safe spinlock held. In the sync case, the buffers
+ 	 * need to be locked now
+ 	 */
+-	if (mode != MIGRATE_ASYNC)
++	if (mode != MIGRATE_ASYNC && mode != MIGRATE_FAULT)
+ 		BUG_ON(!buffer_migrate_lock_buffers(head, mode));
+ 
+ 	ClearPagePrivate(page);
+@@ -687,7 +697,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+ 	struct anon_vma *anon_vma = NULL;
+ 
+ 	if (!trylock_page(page)) {
+-		if (!force || mode == MIGRATE_ASYNC)
++		if (!force || mode == MIGRATE_ASYNC || mode == MIGRATE_FAULT)
+ 			goto out;
+ 
+ 		/*
+@@ -1403,4 +1413,63 @@ int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
+  	}
+  	return err;
+ }
+-#endif
++
++/*
++ * Attempt to migrate a misplaced page to the specified destination
++ * node.
++ */
++int migrate_misplaced_page(struct page *page, int node)
++{
++	struct address_space *mapping = page_mapping(page);
++	int page_lru = page_is_file_cache(page);
++	struct page *newpage;
++	int ret = -EAGAIN;
++	gfp_t gfp = GFP_HIGHUSER_MOVABLE;
 +
 +	/*
-+	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
-+	 * would be called on PROT_NONE ranges. We must never invoke
-+	 * handle_mm_fault on PROT_NONE ranges or the NUMA hinting
-+	 * page faults would unprotect the PROT_NONE ranges if
-+	 * _PAGE_NUMA and _PAGE_PROTNONE are sharing the same pte/pmd
-+	 * bitflag. So to avoid that, don't set FOLL_NUMA if
-+	 * FOLL_FORCE is set.
++	 * Don't migrate pages that are mapped in multiple processes.
 +	 */
-+	if (!(gup_flags & FOLL_FORCE))
-+		gup_flags |= FOLL_NUMA;
++	if (page_mapcount(page) != 1)
++		goto out;
 +
- 	i = 0;
- 
- 	do {
++	/*
++	 * Never wait for allocations just to migrate on fault, but don't dip
++	 * into reserves. And, only accept pages from the specified node. No
++	 * sense migrating to a different "misplaced" page!
++	 */
++	if (mapping)
++		gfp = mapping_gfp_mask(mapping);
++	gfp &= ~__GFP_WAIT;
++	gfp |= __GFP_NOMEMALLOC | GFP_THISNODE;
++
++	newpage = alloc_pages_node(node, gfp, 0);
++	if (!newpage) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	if (isolate_lru_page(page)) {
++		ret = -EBUSY;
++		goto put_new;
++	}
++
++	inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
++	ret = __unmap_and_move(page, newpage, 0, 0, MIGRATE_FAULT);
++	/*
++	 * A page that has been migrated has all references removed and will be
++	 * freed. A page that has not been migrated will have kepts its
++	 * references and be restored.
++	 */
++	dec_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
++	putback_lru_page(page);
++put_new:
++	/*
++	 * Move the new page to the LRU. If migration was not successful
++	 * then this will free the page.
++	 */
++	putback_lru_page(newpage);
++out:
++	return ret;
++}
++
++#endif /* CONFIG_NUMA */
 -- 
 1.7.11.7
 
