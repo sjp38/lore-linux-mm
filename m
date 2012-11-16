@@ -1,87 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id A53696B0074
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 04:54:20 -0500 (EST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] x86: convert update_mmu_cache() and update_mmu_cache_pmd() to functions
-Date: Fri, 16 Nov 2012 11:55:16 +0200
-Message-Id: <1353059717-9850-2-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1353059717-9850-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1353059717-9850-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id EBC016B0070
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 05:10:13 -0500 (EST)
+Date: Fri, 16 Nov 2012 11:10:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Correct description of SwapFree in
+ Documentation/filesystems/proc.txt
+Message-ID: <20121116101008.GA2011@dhcp22.suse.cz>
+References: <50A5E4D6.60301@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50A5E4D6.60301@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "David S. Miller" <davem@davemloft.net>, Joe Perches <joe@perches.com>, linux-kernel@vger.kernel.org
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Jim Paris <jim@jtan.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Fri 16-11-12 08:01:42, Michael Kerrisk wrote:
+> After migrating most of the information in 
+> Documentation/filesystems/proc.txt to the proc(5) man page,
+> Jim Paris pointed out to me that the description of SwapFree
+> in the man page seemed wrong. I think Jim is right,
+> but am given pause by fact that that text has been in 
+> Documentation/filesystems/proc.txt since at least 2.6.0.
+> Anyway, I believe that the patch below fixes things.
 
-Converting macros to functions unhide type problems before changes will
-be integrated and trigger problems on other architectures.
+Yes, this goes back to 2003 when the /proc/meminfo doc has been added.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/include/asm/pgtable.h    | 12 ++++++++++++
- arch/x86/include/asm/pgtable_32.h |  7 -------
- arch/x86/include/asm/pgtable_64.h |  3 ---
- 3 files changed, 12 insertions(+), 10 deletions(-)
+> 
+> Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index a984cf9..ec08b47 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -775,6 +775,18 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
-        memcpy(dst, src, count * sizeof(pgd_t));
- }
- 
-+/*
-+ * The x86 doesn't have any external MMU info: the kernel page
-+ * tables contain all the necessary information.
-+ */
-+static inline void update_mmu_cache(struct vm_area_struct *vma,
-+		unsigned long addr, pte_t *ptep)
-+{
-+}
-+static inline void update_mmu_cache_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmd)
-+{
-+}
- 
- #include <asm-generic/pgtable.h>
- #endif	/* __ASSEMBLY__ */
-diff --git a/arch/x86/include/asm/pgtable_32.h b/arch/x86/include/asm/pgtable_32.h
-index 8faa215..9ee3221 100644
---- a/arch/x86/include/asm/pgtable_32.h
-+++ b/arch/x86/include/asm/pgtable_32.h
-@@ -66,13 +66,6 @@ do {						\
- 	__flush_tlb_one((vaddr));		\
- } while (0)
- 
--/*
-- * The i386 doesn't have any external MMU info: the kernel page
-- * tables contain all the necessary information.
-- */
--#define update_mmu_cache(vma, address, ptep) do { } while (0)
--#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
--
- #endif /* !__ASSEMBLY__ */
- 
- /*
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 47356f9..615b0c7 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -142,9 +142,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
- #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
- #define pte_unmap(pte) ((void)(pte))/* NOP */
- 
--#define update_mmu_cache(vma, address, ptep) do { } while (0)
--#define update_mmu_cache_pmd(vma, address, pmd) do { } while (0)
--
- /* Encode and de-code a swap entry */
- #if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
- #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+
+> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+> index a1793d6..cf4260f 100644
+> --- a/Documentation/filesystems/proc.txt
+> +++ b/Documentation/filesystems/proc.txt
+> @@ -778,8 +778,7 @@ AnonHugePages:   49152 kB
+>                other things, it is where everything from the Slab is
+>                allocated.  Bad things happen when you're out of lowmem.
+>     SwapTotal: total amount of swap space available
+> -    SwapFree: Memory which has been evicted from RAM, and is temporarily
+> -              on the disk
+> +    SwapFree: Amount of swap space that is currently unused.
+>         Dirty: Memory which is waiting to get written back to the disk
+>     Writeback: Memory which is actively being written back to the disk
+>     AnonPages: Non-file backed pages mapped into userspace page tables
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.7.11.7
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
