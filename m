@@ -1,59 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 8E96D6B0078
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:05:20 -0500 (EST)
-Date: Fri, 16 Nov 2012 20:05:15 +0000
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 24DDE6B0078
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:06:22 -0500 (EST)
+Date: Fri, 16 Nov 2012 20:06:17 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
- affinity"
-Message-ID: <20121116200514.GJ8218@suse.de>
-References: <20121112160451.189715188@chello.nl>
- <20121112184833.GA17503@gmail.com>
- <20121115100805.GS8218@suse.de>
- <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
- <50A566FA.2090306@redhat.com>
- <20121116141428.GZ8218@suse.de>
- <20121116195018.GA8908@redhat.com>
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+Message-ID: <20121116200616.GK8218@suse.de>
+References: <20121015110937.GE29125@suse.de>
+ <5093A3F4.8090108@redhat.com>
+ <5093A631.5020209@suse.cz>
+ <509422C3.1000803@suse.cz>
+ <509C84ED.8090605@linux.vnet.ibm.com>
+ <509CB9D1.6060704@redhat.com>
+ <20121109090635.GG8218@suse.de>
+ <509F6C2A.9060502@redhat.com>
+ <20121112113731.GS8218@suse.de>
+ <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121116195018.GA8908@redhat.com>
+In-Reply-To: <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Josh Boyer <jwboyer@gmail.com>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
 
-On Fri, Nov 16, 2012 at 08:50:18PM +0100, Andrea Arcangeli wrote:
-> Hi,
-> 
-> On Fri, Nov 16, 2012 at 02:14:28PM +0000, Mel Gorman wrote:
-> > With some shuffling the question on what to consider for merging
-> > becomes
-> > 
+On Fri, Nov 16, 2012 at 02:14:47PM -0500, Josh Boyer wrote:
+> On Mon, Nov 12, 2012 at 6:37 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > With "mm: vmscan: scale number of pages reclaimed by reclaim/compaction
+> > based on failures" reverted, Zdenek Kabelac reported the following
 > >
-> > 1. TLB optimisation patches 1-3?	 	Patches  1-3
+> >         Hmm,  so it's just took longer to hit the problem and observe
+> >         kswapd0 spinning on my CPU again - it's not as endless like before -
+> >         but still it easily eats minutes - it helps to  turn off  Firefox
+> >         or TB  (memory hungry apps) so kswapd0 stops soon - and restart
+> >         those apps again.  (And I still have like >1GB of cached memory)
+> >
+> >         kswapd0         R  running task        0    30      2 0x00000000
+> >          ffff8801331efae8 0000000000000082 0000000000000018 0000000000000246
+> >          ffff880135b9a340 ffff8801331effd8 ffff8801331effd8 ffff8801331effd8
+> >          ffff880055dfa340 ffff880135b9a340 00000000331efad8 ffff8801331ee000
+> >         Call Trace:
+> >          [<ffffffff81555bf2>] preempt_schedule+0x42/0x60
+> >          [<ffffffff81557a95>] _raw_spin_unlock+0x55/0x60
+> >          [<ffffffff81192971>] put_super+0x31/0x40
+> >          [<ffffffff81192a42>] drop_super+0x22/0x30
+> >          [<ffffffff81193b89>] prune_super+0x149/0x1b0
+> >          [<ffffffff81141e2a>] shrink_slab+0xba/0x510
+> >
+> > The sysrq+m indicates the system has no swap so it'll never reclaim
+> > anonymous pages as part of reclaim/compaction. That is one part of the
+> > problem but not the root cause as file-backed pages could also be reclaimed.
+> >
+> > The likely underlying problem is that kswapd is woken up or kept awake
+> > for each THP allocation request in the page allocator slow path.
+> >
+> > If compaction fails for the requesting process then compaction will be
+> > deferred for a time and direct reclaim is avoided. However, if there
+> > are a storm of THP requests that are simply rejected, it will still
+> > be the the case that kswapd is awake for a prolonged period of time
+> > as pgdat->kswapd_max_order is updated each time. This is noticed by
+> > the main kswapd() loop and it will not call kswapd_try_to_sleep().
+> > Instead it will loopp, shrinking a small number of pages and calling
+> > shrink_slab() on each iteration.
+> >
+> > The temptation is to supply a patch that checks if kswapd was woken for
+> > THP and if so ignore pgdat->kswapd_max_order but it'll be a hack and not
+> > backed up by proper testing. As 3.7 is very close to release and this is
+> > not a bug we should release with, a safer path is to revert "mm: remove
+> > __GFP_NO_KSWAPD" for now and revisit it with the view to ironing out the
+> > balance_pgdat() logic in general.
+> >
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > 
-> I assume you mean simply reshuffling 33-35 as 1-3.
+> Does anyone know if this is queued to go into 3.7 somewhere?  I looked
+> a bit and can't find it in a tree.  We have a few reports of Fedora
+> rawhide users hitting this.
 > 
 
-Yes.
-
-> > 2. Stats for migration?				Patches  4-6
-> > 3. Common NUMA infrastructure?			Patches  7-21
-> > 4. Basic fault-driven policy, stats, ratelimits	Patches 22-35
-> > 
-> > Patches 36-43 are complete cabbage and should not be considered at this
-> > stage. It should be possible to build the placement policies and the
-> > scheduling decisions from schednuma, autonuma, some combination of the
-> > above or something completely different on top of patches 1-35.
-> > 
-> > Peter, Ingo, Andrea?
-> 
-> The patches 1-35 looks a great foundation so I think they'd be an
-> ideal candidate for a first upstream inclusion.
-> 
-
-Thanks.
+No, because I was waiting to hear if a) it worked and preferably if the
+alternative "less safe" option worked. This close to release it might be
+better to just go with the safe option.
 
 -- 
 Mel Gorman
