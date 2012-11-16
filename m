@@ -1,189 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 5405F6B0062
-	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 20:48:37 -0500 (EST)
-Message-ID: <50A59CE3.9020907@cn.fujitsu.com>
-Date: Fri, 16 Nov 2012 09:54:43 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id A30046B0062
+	for <linux-mm@kvack.org>; Thu, 15 Nov 2012 21:50:56 -0500 (EST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <wangyun@linux.vnet.ibm.com>;
+	Fri, 16 Nov 2012 12:46:47 +1000
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAG2eM0j65863888
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:40:23 +1100
+Received: from d23av02.au.ibm.com (loopback [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAG2okAi009490
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:50:46 +1100
+Message-ID: <50A5AA03.2000707@linux.vnet.ibm.com>
+Date: Fri, 16 Nov 2012 10:50:43 +0800
+From: Michael Wang <wangyun@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Patch v5 2/7] acpi,memory-hotplug: deal with eject request in
- hotplug queue
-References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com> <1352962777-24407-3-git-send-email-wency@cn.fujitsu.com> <alpine.DEB.2.00.1211151531310.27188@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211151531310.27188@chino.kir.corp.google.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [3.6.6] panic on reboot / khungtaskd blocked? (WARNING: at arch/x86/kernel/smp.c:123
+ native_smp_send_reschedule)
+References: <56378024.A3Kec8xZj0@pawels> <2413953.H7iie8v1th@pawels> <50A302C9.2060800@linux.vnet.ibm.com> <1984533.1jAeFKDqSR@localhost> <50A44854.6040905@linux.vnet.ibm.com> <20121115094046.GD1394@quack.suse.cz>
+In-Reply-To: <20121115094046.GD1394@quack.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
+To: Jan Kara <jack@suse.cz>
+Cc: =?UTF-8?B?UGF3ZcWCIFNpa29yYQ==?= <pawel.sikora@agmk.net>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, torvalds@linux-foundation.org, arekm@pld-linux.org, baggins@pld-linux.org, Alexander Viro <viro@zeniv.linux.org.uk>, Fengguang Wu <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-At 11/16/2012 07:32 AM, David Rientjes Wrote:
-> On Thu, 15 Nov 2012, Wen Congyang wrote:
-> 
->> The memory device can be removed by 2 ways:
->> 1. send eject request by SCI
->> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+On 11/15/2012 05:40 PM, Jan Kara wrote:
+> On Thu 15-11-12 09:41:40, Michael Wang wrote:
+>> On 11/15/2012 05:10 AM, PaweA? Sikora wrote:
+>>> On Wednesday 14 of November 2012 10:32:41 Michael Wang wrote:
+>>>> On 11/13/2012 05:40 PM, PaweA? Sikora wrote:
+>>>>> On Monday 12 of November 2012 13:33:39 PaweA? Sikora wrote:
+>>>>>> On Monday 12 of November 2012 11:22:47 PaweA? Sikora wrote:
+>>>>>>> On Monday 12 of November 2012 15:40:31 Michael Wang wrote:
+>>>>>>>> On 11/12/2012 03:16 PM, PaweA? Sikora wrote:
+>>>>>>>>> On Monday 12 of November 2012 11:04:12 Michael Wang wrote:
+>>>>>>>>>> On 11/09/2012 09:48 PM, PaweA? Sikora wrote:
+>>>>>>>>>>> Hi,
+>>>>>>>>>>>
+>>>>>>>>>>> during playing with new ups i've caught an nice oops on reboot:
+>>>>>>>>>>>
+>>>>>>>>>>> http://imgbin.org/index.php?page=image&id=10253
+>>>>>>>>>>>
+>>>>>>>>>>> probably the upstream is also affected.
+>>>>>>>>>>
+>>>>>>>>>> Hi, PaweA?
+>>>>>>>>>>
+>>>>>>>>>> Are you using a clean 3.6.6 without any modify?
+>>>>>>>>>
+>>>>>>>>> yes, pure 3.6.6 form git tree with modular config.
+>>>>>>>>>
+>>>>>>>>>> Looks like some threads has set itself to be UNINTERRUPTIBLE with out
+>>>>>>>>>> any design on switch itself back later(or the time is too long), are you
+>>>>>>>>>> accidentally using some bad designed module?
+>>>>>>>>>
+>>>>>>>>> hmm, hard to say. mostly all modules are loaded automatically by kernel.
+>>>>>>>>
+>>>>>>>> Could you please provide the whole dmesg in text? your picture lost the
+>>>>>>>> print info of the hung task.
+>>>>>>>
+>>>>>>> i've grabbed the console via rs232 but there's no more info (see attached txt).
+>>>>>>
+>>>>>> hmm, i have one observation.
+>>>>>>
+>>>>>> during rc.shutdown there're messages on console like this: Cannot stat file /proc/$pid/fd/1: Connection timed out
+>>>>>> afaics this file descriptor points to vnc log file on a remote machine, e.g.:
+>>>>>>
+>>>>>> # ps aux|grep xfwm4
+>>>>>> eda       1748  0.0  0.0 320220 11224 ?        S    13:08   0:00 xfwm4 
+>>>>>>
+>>>>>> # readlink -m /proc/1748/fd/1
+>>>>>> /remote/dragon/ahome/eda/.vnc/odra:11.log
+>>>>>>
+>>>>>> # mount|grep ahome
+>>>>>> dragon:/home/users/ on /remote/dragon/ahome type nfs (rw,relatime,vers=3,rsize=262144,wsize=262144,namlen=255,soft,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.0.2.121,mountvers=3,mountport=45251,mountproto=udp,local_lock=none,addr=10.0.2.121)
+>>>>>>
+>>>>>>
+>>>>>> so, probably during `killall5 -TERM/-KILL` on shutdown stage something sometimes go wrong
+>>>>>> and these processes (xfce4/vncserver) survive the signal and hang on the nfs i/o.
+>>>>>>
+>>>>>
+>>>>> ok, now i have full sysrq+w backtraces from shutdown process. i hope i'll help you.
+>>>>
+>>>> This can only tell us what's the task in UNINTERRUPTABLE state, but with
+>>>> out time info, we can't find out which one is the hung task...
 >>
->> We handle the 1st case in the module acpi_memhotplug, and handle
->> the 2nd case in ACPI eject notification. This 2 events may happen
->> at the same time, so we may touch acpi_memory_device.res_list at
->> the same time. This patch reimplements memory-hotremove support
->> through an ACPI eject notification. Now the memory device is
->> offlined and hotremoved only in the function acpi_memory_device_remove()
->> which is protected by device_lock().
->>
-> 
-> You mean it's protected by device_lock() before calling the remove() 
-> function for eject?
+>> So it's blocked on __lock_page() for too long?
+>> Add more experts in mm aspect to cc.
+>   It's really NFS related. E.g. in trace
+> https://lkml.org/lkml/2012/11/14/657 we are waiting on PageWriteback bit
+> in fact - i.e. we have submitted data to the NFS server and are waiting for
+> its response that the data was written.
 
-Yes. We call device_release_driver() to unbind the device from the driver
-(the memory will be offlined/removed when it is unbound from the driver).
+Do you mean, NFS lock some page, then wait on a respond which not come in?
 
-we call device_lock() in device_release_driver(), so we only unbind it
-from the driver once.
-
-Thanks
-Wen Congyang
+Regards,
+Michael Wang
 
 > 
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> CC: Paul Mackerras <paulus@samba.org>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> CC: Rafael J. Wysocki <rjw@sisk.pl>
->> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  drivers/acpi/acpi_memhotplug.c | 87 +++++-------------------------------------
->>  1 file changed, 9 insertions(+), 78 deletions(-)
->>
->> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
->> index 2918be1..6e12042 100644
->> --- a/drivers/acpi/acpi_memhotplug.c
->> +++ b/drivers/acpi/acpi_memhotplug.c
->> @@ -272,40 +272,6 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->>  	return 0;
->>  }
->>  
->> -static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
->> -{
->> -	acpi_status status;
->> -	struct acpi_object_list arg_list;
->> -	union acpi_object arg;
->> -	unsigned long long current_status;
->> -
->> -
->> -	/* Issue the _EJ0 command */
->> -	arg_list.count = 1;
->> -	arg_list.pointer = &arg;
->> -	arg.type = ACPI_TYPE_INTEGER;
->> -	arg.integer.value = 1;
->> -	status = acpi_evaluate_object(mem_device->device->handle,
->> -				      "_EJ0", &arg_list, NULL);
->> -	/* Return on _EJ0 failure */
->> -	if (ACPI_FAILURE(status)) {
->> -		ACPI_EXCEPTION((AE_INFO, status, "_EJ0 failed"));
->> -		return -ENODEV;
->> -	}
->> -
->> -	/* Evalute _STA to check if the device is disabled */
->> -	status = acpi_evaluate_integer(mem_device->device->handle, "_STA",
->> -				       NULL, &current_status);
->> -	if (ACPI_FAILURE(status))
->> -		return -ENODEV;
->> -
->> -	/* Check for device status.  Device should be disabled */
->> -	if (current_status & ACPI_STA_DEVICE_ENABLED)
->> -		return -EINVAL;
->> -
->> -	return 0;
->> -}
->> -
->>  static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
->>  {
->>  	int result;
->> @@ -325,34 +291,11 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
->>  	return 0;
->>  }
->>  
->> -static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->> -{
->> -	int result;
->> -
->> -	/*
->> -	 * Ask the VM to offline this memory range.
->> -	 * Note: Assume that this function returns zero on success
->> -	 */
->> -	result = acpi_memory_remove_memory(mem_device);
->> -	if (result)
->> -		return result;
->> -
->> -	/* Power-off and eject the device */
->> -	result = acpi_memory_powerdown_device(mem_device);
->> -	if (result) {
->> -		/* Set the status of the device to invalid */
->> -		mem_device->state = MEMORY_INVALID_STATE;
->> -		return result;
->> -	}
->> -
->> -	mem_device->state = MEMORY_POWER_OFF_STATE;
->> -	return result;
->> -}
->> -
->>  static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
->>  {
->>  	struct acpi_memory_device *mem_device;
->>  	struct acpi_device *device;
->> +	struct acpi_eject_event *ej_event = NULL;
->>  	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
->>  
->>  	switch (event) {
->> @@ -394,31 +337,19 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
->>  			break;
->>  		}
->>  
->> -		/*
->> -		 * Currently disabling memory device from kernel mode
->> -		 * TBD: Can also be disabled from user mode scripts
->> -		 * TBD: Can also be disabled by Callback registration
->> -		 *      with generic sysfs driver
->> -		 */
->> -		if (acpi_memory_disable_device(mem_device)) {
->> -			printk(KERN_ERR PREFIX "Disable memory device\n");
->> -			/*
->> -			 * If _EJ0 was called but failed, _OST is not
->> -			 * necessary.
->> -			 */
->> -			if (mem_device->state == MEMORY_INVALID_STATE)
->> -				return;
->> -
->> +		ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
->> +		if (!ej_event) {
->> +			pr_err(PREFIX "No memory, dropping EJECT\n");
->>  			break;
->>  		}
->>  
->> -		/*
->> -		 * TBD: Invoke acpi_bus_remove to cleanup data structures
->> -		 */
->> +		ej_event->handle = handle;
->> +		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
->> +		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
->> +					(void *)ej_event);
->>  
->> -		/* _EJ0 succeeded; _OST is not necessary */
->> +		/* eject is performed asynchronously */
->>  		return;
->> -
->>  	default:
->>  		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
->>  				  "Unsupported event [0x%x]\n", event));
+> 								Honza
 > 
 
 --
