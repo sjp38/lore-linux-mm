@@ -1,72 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id A06196B004D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 00:08:52 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id ACD293EE0B5
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:08:50 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9517345DEBF
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:08:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 767C645DEBB
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:08:50 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 6927A1DB8041
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:08:50 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A2341DB803F
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:08:50 +0900 (JST)
-Message-ID: <50A5CA16.7070603@jp.fujitsu.com>
-Date: Fri, 16 Nov 2012 14:07:34 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 398B86B004D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 01:39:39 -0500 (EST)
+Received: by mail-ia0-f169.google.com with SMTP id r4so1840175iaj.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 22:39:38 -0800 (PST)
+Message-ID: <50A5DFA4.2030700@gmail.com>
+Date: Fri, 16 Nov 2012 14:39:32 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/7] memcg: get rid of once-per-second cache shrinking
- for dead memcgs
-References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-6-git-send-email-glommer@parallels.com> <50A4B8C8.6020202@jp.fujitsu.com> <50A4F289.1090807@parallels.com>
-In-Reply-To: <50A4F289.1090807@parallels.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Subject: Re: [PATCH 20/21] mm: drop vmtruncate
+References: <5094E4A3.8020409@gmail.com>
+In-Reply-To: <5094E4A3.8020409@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
+To: Marco Stornelli <marco.stornelli@gmail.com>
+Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-(2012/11/15 22:47), Glauber Costa wrote:
-> On 11/15/2012 01:41 PM, Kamezawa Hiroyuki wrote:
->> (2012/11/15 11:54), Glauber Costa wrote:
->>> The idea is to synchronously do it, leaving it up to the shrinking
->>> facilities in vmscan.c and/or others. Not actively retrying shrinking
->>> may leave the caches alive for more time, but it will remove the ugly
->>> wakeups. One would argue that if the caches have free objects but are
->>> not being shrunk, it is because we don't need that memory yet.
->>>
->>> Signed-off-by: Glauber Costa <glommer@parallels.com>
->>> CC: Michal Hocko <mhocko@suse.cz>
->>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> CC: Johannes Weiner <hannes@cmpxchg.org>
->>> CC: Andrew Morton <akpm@linux-foundation.org>
->>
->> I agree this patch but can we have a way to see the number of unaccounted
->> zombie cache usage for debugging ?
->>
->> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>
-> Any particular interface in mind ?
-> 
+On 11/03/2012 05:32 PM, Marco Stornelli wrote:
+> Removed vmtruncate
 
-Hmm, it's debug interface and having cgroup file may be bad.....
-If it can be seen in bytes or some, /proc/vmstat ?
+Hi Marco,
 
-out_of_track_slabs  xxxxxxx. hm ?
+Could you explain me why vmtruncate need remove? What's the problem and 
+how to substitute it?
 
-Thanks,
--Kame
+Regards,
+Jaegeuk
 
-
-
-
-
+>
+> Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
+> ---
+>   include/linux/mm.h |    1 -
+>   mm/truncate.c      |   23 -----------------------
+>   2 files changed, 0 insertions(+), 24 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index fa06804..95f70bb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -977,7 +977,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
+>   
+>   extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
+>   extern void truncate_setsize(struct inode *inode, loff_t newsize);
+> -extern int vmtruncate(struct inode *inode, loff_t offset);
+>   void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
+>   int truncate_inode_page(struct address_space *mapping, struct page *page);
+>   int generic_error_remove_page(struct address_space *mapping, struct page *page);
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index d51ce92..c75b736 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -577,29 +577,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+>   EXPORT_SYMBOL(truncate_setsize);
+>   
+>   /**
+> - * vmtruncate - unmap mappings "freed" by truncate() syscall
+> - * @inode: inode of the file used
+> - * @newsize: file offset to start truncating
+> - *
+> - * This function is deprecated and truncate_setsize or truncate_pagecache
+> - * should be used instead, together with filesystem specific block truncation.
+> - */
+> -int vmtruncate(struct inode *inode, loff_t newsize)
+> -{
+> -	int error;
+> -
+> -	error = inode_newsize_ok(inode, newsize);
+> -	if (error)
+> -		return error;
+> -
+> -	truncate_setsize(inode, newsize);
+> -	if (inode->i_op->truncate)
+> -		inode->i_op->truncate(inode);
+> -	return 0;
+> -}
+> -EXPORT_SYMBOL(vmtruncate);
+> -
+> -/**
+>    * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
+>    * @inode: inode
+>    * @lstart: offset of beginning of hole
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
