@@ -1,109 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id CE5B86B0099
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:01 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so2125091eek.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:26:01 -0800 (PST)
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 12/19] mm/mpol: Add MPOL_MF_NOOP
-Date: Fri, 16 Nov 2012 17:25:14 +0100
-Message-Id: <1353083121-4560-13-git-send-email-mingo@kernel.org>
-In-Reply-To: <1353083121-4560-1-git-send-email-mingo@kernel.org>
-References: <1353083121-4560-1-git-send-email-mingo@kernel.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 527B16B0096
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:02 -0500 (EST)
+Date: Fri, 16 Nov 2012 16:25:56 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
+ affinity"
+Message-ID: <20121116162556.GD8218@suse.de>
+References: <20121112160451.189715188@chello.nl>
+ <20121112184833.GA17503@gmail.com>
+ <20121115100805.GS8218@suse.de>
+ <20121116155626.GA4271@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121116155626.GA4271@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+On Fri, Nov 16, 2012 at 04:56:26PM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > It is important to know how this was configured. I was running 
+> > one JVM per node and the JVMs were sized that they should fit 
+> > in the node. [...]
+> 
+> That is not what I tested: as I described it in the mail I 
+> tested 32 warehouses: i.e. spanning the whole system.
+> 
 
-This patch augments the MPOL_MF_LAZY feature by adding a "NOOP" policy
-to mbind().  When the NOOP policy is used with the 'MOVE and 'LAZY
-flags, mbind() will map the pages PROT_NONE so that they will be
-migrated on the next touch.
+Good (sortof) because that's my preferred explanation as to why we are
+seeing different results. Different machines and different kernels would
+be a lot more problematic.
 
-This allows an application to prepare for a new phase of operation
-where different regions of shared storage will be assigned to
-worker threads, w/o changing policy.  Note that we could just use
-"default" policy in this case.  However, this also allows an
-application to request that pages be migrated, only if necessary,
-to follow any arbitrary policy that might currently apply to a
-range of pages, without knowing the policy, or without specifying
-multiple mbind()s for ranges with different policies.
+> You tested 4 parallel JVMs running one per node, right?
+> 
 
-[ Bug in early version of mpol_parse_str() reported by Fengguang Wu. ]
+4 parallel JVMs sized so they they could fit one-per-node. However, I did
+*not* bind them to nodes because that would be completely pointless for
+this type of test.
 
-Bug-Reported-by: Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- include/uapi/linux/mempolicy.h |  1 +
- mm/mempolicy.c                 | 11 ++++++-----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+I've queued up another set of tests and added a single-JVM configuration
+to the mix. The kernels will have debugging, lockstat enabled and will
+be running two passes with the second pass running profiling so the
+results will not be directly comparable. However, I'll keep a close eye
+on the Single vs Multi JVM results.
 
-diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index 3e835c9..d23dca8 100644
---- a/include/uapi/linux/mempolicy.h
-+++ b/include/uapi/linux/mempolicy.h
-@@ -21,6 +21,7 @@ enum {
- 	MPOL_BIND,
- 	MPOL_INTERLEAVE,
- 	MPOL_LOCAL,
-+	MPOL_NOOP,		/* retain existing policy for range */
- 	MPOL_MAX,	/* always last member of enum */
- };
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 72f50ba..c7c7c86 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -251,10 +251,10 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
- 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
- 
--	if (mode == MPOL_DEFAULT) {
-+	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP) {
- 		if (nodes && !nodes_empty(*nodes))
- 			return ERR_PTR(-EINVAL);
--		return NULL;	/* simply delete any existing policy */
-+		return NULL;
- 	}
- 	VM_BUG_ON(!nodes);
- 
-@@ -1146,7 +1146,7 @@ static long do_mbind(unsigned long start, unsigned long len,
- 	if (start & ~PAGE_MASK)
- 		return -EINVAL;
- 
--	if (mode == MPOL_DEFAULT)
-+	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
- 		flags &= ~MPOL_MF_STRICT;
- 
- 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
-@@ -2407,7 +2407,8 @@ static const char * const policy_modes[] =
- 	[MPOL_PREFERRED]  = "prefer",
- 	[MPOL_BIND]       = "bind",
- 	[MPOL_INTERLEAVE] = "interleave",
--	[MPOL_LOCAL]      = "local"
-+	[MPOL_LOCAL]      = "local",
-+	[MPOL_NOOP]	  = "noop",	/* should not actually be used */
- };
- 
- 
-@@ -2458,7 +2459,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
- 			break;
- 		}
- 	}
--	if (mode >= MPOL_MAX)
-+	if (mode >= MPOL_MAX || mode == MPOL_NOOP)
- 		goto out;
- 
- 	switch (mode) {
+Thanks.
+
 -- 
-1.7.11.7
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
