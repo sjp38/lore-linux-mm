@@ -1,67 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 2049C6B006C
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 04:34:30 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so1983104pbc.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 01:34:29 -0800 (PST)
-Message-ID: <50A6089B.7010708@gmail.com>
-Date: Fri, 16 Nov 2012 17:34:19 +0800
-From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id BD3F26B0070
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 04:51:01 -0500 (EST)
+Date: Fri, 16 Nov 2012 11:52:06 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [next:akpm 205/376] mm/huge_memory.c:716:2: error: implicit
+ declaration of function 'pfn_pmd'
+Message-ID: <20121116095206.GA4043@otc-wbsnb-06>
+References: <50a4c285.wqKVmKLchrLESqoS%fengguang.wu@intel.com>
+ <20121115142728.190c5b3e.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
-References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils> <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils> <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils> <50A30ADD.9000209@gmail.com> <alpine.LNX.2.00.1211131935410.30540@eggly.anvils> <50A49C46.9040406@gmail.com> <alpine.LNX.2.00.1211151126440.9273@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1211151126440.9273@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="ibTvN161/egqYuK8"
+Content-Disposition: inline
+In-Reply-To: <20121115142728.190c5b3e.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Ralf Baechle <ralf@linux-mips.org>
+Cc: linux-mm@kvack.org, linux-mips@linux-mips.org, linux-arch@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>
 
-On 11/16/2012 03:56 AM, Hugh Dickins wrote:
-> Offtopic...
->
-> On Thu, 15 Nov 2012, Jaegeuk Hanse wrote:
->> Another question. Why the function shmem_fallocate which you add to kernel
->> need call shmem_getpage?
-> Because shmem_getpage(_gfp) is where shmem's
-> page lookup and allocation complexities are handled.
->
-> I assume the question behind your question is: why does shmem actually
-> allocate pages for its fallocate, instead of just reserving the space?
->
-> I did play with just reserving the space, with more special entries in
-> the radix_tree to note the reservations made.  It should be doable for
-> the vm_enough_memory and sbinfo->used_blocks reservations.
->
-> What absolutely deterred me from taking that path was the mem_cgroup
-> case: shmem and swap and memcg are not easy to get working right together,
-> and nobody would thank me for complicating memcg just for shmem_fallocate.
->
-> By allocating pages, the pre-existing memcg code just works; if we used
-> reservations instead, we would have to track their memcg charges in some
-> additional new way.  I see no justification for that complication.
 
-Hi Hugh
+--ibTvN161/egqYuK8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Some questions about your shmem/tmpfs: misc and fallocate patchset.
+On Thu, Nov 15, 2012 at 02:27:28PM -0800, Andrew Morton wrote:
+> On Thu, 15 Nov 2012 18:23:01 +0800
+> kbuild test robot <fengguang.wu@intel.com> wrote:
+>=20
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.g=
+it akpm
+> > head:   d3faae60d84f586ff8937b77c8476bca1b5f8ec6
+> > commit: 165a1669c89b5fa2f6c54bf609b408a592f024b3 [205/376] thp: copy_hu=
+ge_pmd(): copy huge zero page
+> > config: make ARCH=3Dmips allmodconfig
+> >=20
+> > All error/warnings:
+> >=20
+> > mm/huge_memory.c: In function 'set_huge_zero_page':
+> > mm/huge_memory.c:716:2: error: implicit declaration of function 'pfn_pm=
+d' [-Werror=3Dimplicit-function-declaration]
+> > mm/huge_memory.c:716:8: error: incompatible types when assigning to typ=
+e 'pmd_t' from type 'int'
+> > mm/huge_memory.c: In function 'do_huge_pmd_numa_page':
+> > mm/huge_memory.c:825:2: error: incompatible type for argument 3 of 'upd=
+ate_mmu_cache_pmd'
+> > In file included from include/linux/mm.h:44:0,
+> >                  from mm/huge_memory.c:8:
+> > arch/mips/include/asm/pgtable.h:385:20: note: expected 'struct pmd_t *'=
+ but argument is of type 'pmd_t'
+> > mm/huge_memory.c:895:2: error: incompatible type for argument 3 of 'upd=
+ate_mmu_cache_pmd'
+> > In file included from include/linux/mm.h:44:0,
+> >                  from mm/huge_memory.c:8:
+> > arch/mips/include/asm/pgtable.h:385:20: note: expected 'struct pmd_t *'=
+ but argument is of type 'pmd_t'
+> > cc1: some warnings being treated as errors
+> >=20
+> > vim +716 +/pfn_pmd mm/huge_memory.c
+> >=20
+> > 0bbbc0b3 Andrea Arcangeli   2011-01-13  710  #endif
+> > 71e3aac0 Andrea Arcangeli   2011-01-13  711 =20
+> > 165a1669 Kirill A. Shutemov 2012-11-15  712  static void set_huge_zero_=
+page(pgtable_t pgtable, struct mm_struct *mm,
+> > 165a1669 Kirill A. Shutemov 2012-11-15  713  		struct vm_area_struct *v=
+ma, unsigned long haddr, pmd_t *pmd)
+> > 165a1669 Kirill A. Shutemov 2012-11-15  714  {
+> > 165a1669 Kirill A. Shutemov 2012-11-15  715  	pmd_t entry;
+> > 165a1669 Kirill A. Shutemov 2012-11-15 @716  	entry =3D pfn_pmd(huge_ze=
+ro_pfn, vma->vm_page_prot);
+> > 165a1669 Kirill A. Shutemov 2012-11-15  717  	entry =3D pmd_wrprotect(e=
+ntry);
+> > 165a1669 Kirill A. Shutemov 2012-11-15  718  	entry =3D pmd_mkhuge(entr=
+y);
+> > 165a1669 Kirill A. Shutemov 2012-11-15  719  	set_pmd_at(mm, haddr, pmd=
+, entry);
+>=20
+> hm.  mips doesn't implement pfn_pmd() - quite a few architectures
+> don't.
 
-- Since shmem_setattr can truncate tmpfs files, why need add another 
-similar codes in function shmem_fallocate? What's the trick?
-- in tmpfs: support fallocate preallocation patch changelog:
-   "Christoph Hellwig: What for exactly?  Please explain why 
-preallocating on tmpfs would make any sense.
-   Kay Sievers: To be able to safely use mmap(), regarding SIGBUS, on 
-files on the /dev/shm filesystem.  The glibc fallback loop for -ENOSYS 
-[or -EOPNOTSUPP] on fallocate is just ugly."
-   Could shmem/tmpfs fallocate prevent one process truncate the file 
-which the second process mmap() and get SIGBUS when the second process 
-access mmap but out of current size of file?
+I think it would be easier to fix it on arch side. Ralf?
 
-Regards,
-Jaegeuk
+> Not sure about the update_mmu_cache_pmd() thing.
 
-> Hugh
+I'll send a patchset to fix it. (it's not related to huge zero page)
+
+--=20
+ Kirill A. Shutemov
+
+--ibTvN161/egqYuK8
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQpgzGAAoJEAd+omnVudOMSgsP/i2Q3JaEN32QnJ7E4qbGC/05
+oJrGvfVxXkRRT//bLYG7zADB9ZhOcFHgyy82GLRH4GV4LNIHPs5VTIv/q85nbTYe
+SvWN8TazqmTmDwJQu43isU//Vi5SYN+p79dD9bM/K/Ol5O1kiDimcz2pKDkf4C85
+5Te5SyloKOVWWkpHmc8zARmG2PBlAtVa0laR4pIrSB4qQLrdhvtYhKMoqZQsB3z9
+Q5Wf2Q9zKJCEQpmBjC1Wosq6WEKJUs3ZfbONCFIEb6geDHUTr2g2/dm7QyQk8ucp
+W3/iYDPHlciTcnWik6pi2w0ZYaABGhpDVmlGs7lYk5uqeTIk+my18IdJ1G2IaxGn
+MAhdGzg55gRSjwQ+kmN3Icerz9eYm80HCZMhoGDJX5hhxqgH+TWf+DIyhVSpZY5h
+X0s0e9JOqhu6qA9wpungm1D6GdiFK1vtHx6ptjUgetqi+mbiT+hnobaaeCADSWOG
+cemHeF0BN7pwg+R47Rhfz27jeaBscwxCIhnFFGVIXIz0ctgcLzYk0UHXazu9ogrM
+sMec8s96WvxanwuvO+C3wQIzzhP77WznDrU7To/BaohD0WEQzdFGDldntUIzygKI
+E9LDnMiUO6iQZAB4dUX0vFWn2F0GgqLxqNdLHVwKgln6xY6d4mk1Qap7A2fDFcbQ
+RLb6+hl7ypvWeQZGzD9t
+=2YxA
+-----END PGP SIGNATURE-----
+
+--ibTvN161/egqYuK8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
