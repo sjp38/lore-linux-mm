@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 97F266B002B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:45:27 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1746803eek.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:45:26 -0800 (PST)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id F14526B002B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:50:29 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so1190068bkc.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:50:28 -0800 (PST)
+Message-ID: <50A5F03F.30106@suse.cz>
+Date: Fri, 16 Nov 2012 08:50:23 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <50A5DFA4.2030700@gmail.com>
-References: <5094E4A3.8020409@gmail.com>
-	<50A5DFA4.2030700@gmail.com>
-Date: Fri, 16 Nov 2012 08:45:25 +0100
-Message-ID: <CANGUGtAF0CRzYOkjqCXvxukw99Y9G02Ht=DZ8viRHqThGHLSSQ@mail.gmail.com>
-Subject: Re: [PATCH 20/21] mm: drop vmtruncate
-From: Marco Stornelli <marco.stornelli@gmail.com>
+Subject: Re: + mm-revert-mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures.patch
+ added to -mm tree
+References: <20121113224710.346805C0050@hpza9.eem.corp.google.com>            <20633.1353006410@turing-police.cc.vt.edu> <42264.1353033363@turing-police.cc.vt.edu>
+In-Reply-To: <42264.1353033363@turing-police.cc.vt.edu>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Valdis.Kletnieks@vt.edu
+Cc: akpm@linux-foundation.org, gorman@suse.de, jirislaby@gmail.com, riel@redhat.com, zkabelac@redhat.com, linux-mm@kvack.org
 
-2012/11/16 Jaegeuk Hanse <jaegeuk.hanse@gmail.com>:
-> On 11/03/2012 05:32 PM, Marco Stornelli wrote:
+On 11/16/2012 03:36 AM, Valdis.Kletnieks@vt.edu wrote:
+> On Thu, 15 Nov 2012 14:06:50 -0500, Valdis.Kletnieks@vt.edu said:
+> 
+>> On Tue, 13 Nov 2012 14:45:06 -0800, you said:
+>>> 
+>>> The patch titled Subject: mm: vmscan: scale number of pages
+>>> reclaimed by reclaim/compaction only in direct reclaim has been
+>>> removed from the -mm tree.  Its filename was 
+>>> mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-only-in-direct-reclaim.patch
+>>>
+>>>
+>>> 
+This patch was dropped because it was withdrawn
+>> 
+>> On Tue, 13 Nov 2012 14:47:09 -0800, akpm@linux-foundation.org
+>> said:
+>>> 
+>>> The patch titled Subject: mm: revert "mm: vmscan: scale number
+>>> of pages reclaimed by reclaim/compaction based on failures" has
+>>> been added to the -mm tree.  Its filename is 
+>>> mm-revert-mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures.patch
 >>
->> Removed vmtruncate
->
->
-> Hi Marco,
->
-> Could you explain me why vmtruncate need remove? What's the problem and how
-> to substitute it?
->
-> Regards,
-> Jaegeuk
->
+>>
+>>> 
+Confirming that next-20121114 with the first patch reverted and
+>> the second patch applied is behaving on my laptop, with no
+>> kswapd storms being spotted in over 24 hours now.
+> 
+> OK.  Now I'm well and truly mystified.  That makes *twice* now that
+> I've said "Patch makes the kswapd spinning go away", only to have
+> kswapd start burning CPU a bit later.
 
-vmtruncate is a deprecated function so it'd be better to remove it.
-The truncate sequence is changed for several reasons. The
-documentation is clear: "This function is deprecated and
-truncate_setsize or truncate_pagecache should be used instead,
-together with filesystem specific block truncation." In addition, we
-can remove the truncate callback from the inode struct saving 4/8
-bytes.
+For me and Zdenek, we think we need a couple of suspend/resume cycles.
+Anyway, there was a severe slab memleak in -next kernels in the TTY
+layer I fixed yesterday and should be in -next today. Could that be
+causing this?
 
-Marco
+thanks,
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
