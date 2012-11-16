@@ -1,79 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 57E076B006E
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:26:49 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id s11so2453800qaa.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:26:48 -0800 (PST)
-Date: Fri, 16 Nov 2012 13:26:43 -0500
-From: Konrad Rzeszutek Wilk <konrad@kernel.org>
-Subject: Re: [PATCH v2] enable all tmem backends to be built and loaded as
- modules.
-Message-ID: <20121116182641.GA26424@phenom.dumpdata.com>
-References: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 56BBF6B0072
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:34:04 -0500 (EST)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Sat, 17 Nov 2012 00:04:01 +0530
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAGIXnaB4522312
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 00:03:49 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAH03T78016670
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 11:03:30 +1100
+Message-ID: <50A686C5.7080103@linux.vnet.ibm.com>
+Date: Sat, 17 Nov 2012 00:02:37 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
+Subject: Re: [RFC PATCH 0/8][Sorted-buddy] mm: Linux VM Infrastructure to
+ support Memory Power Management
+References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121108180257.GC8218@suse.de> <20121109051247.GA499@dirshya.in.ibm.com> <20121109090052.GF8218@suse.de> <509D185D.8070307@linux.vnet.ibm.com> <509D200F.2000908@linux.vnet.ibm.com> <509D2B9B.4090305@linux.vnet.ibm.com> <509D3088.2060507@linux.vnet.ibm.com> <509D32C2.2090104@linux.vnet.ibm.com> <509D34DA.5090303@linux.vnet.ibm.com>
+In-Reply-To: <509D34DA.5090303@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, Vaidyanathan Srinivasan <svaidy@linux.vnet.ibm.com>, akpm@linux-foundation.org, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, andi@firstfloor.org, SrinivasPandruvada <srinivas.pandruvada@linux.intel.com>
 
-Um, that is what I get from doing this while traveling.
+On 11/09/2012 10:22 PM, Srivatsa S. Bhat wrote:
+> On 11/09/2012 10:13 PM, Srivatsa S. Bhat wrote:
+>> On 11/09/2012 10:04 PM, Srivatsa S. Bhat wrote:
+>>> On 11/09/2012 09:43 PM, Dave Hansen wrote:
+>>>> On 11/09/2012 07:23 AM, Srivatsa S. Bhat wrote:
+>>>>> FWIW, kernbench is actually (and surprisingly) showing a slight performance
+>>>>> *improvement* with this patchset, over vanilla 3.7-rc3, as I mentioned in
+>>>>> my other email to Dave.
+>>>>>
+>>>>> https://lkml.org/lkml/2012/11/7/428
+>>>>>
+>>>>> I don't think I can dismiss it as an experimental error, because I am seeing
+>>>>> those results consistently.. I'm trying to find out what's behind that.
+>>>>
+>>>> The only numbers in that link are in the date. :)  Let's see the
+>>>> numbers, please.
+>>>>
+>>>
+>>> Sure :) The reason I didn't post the numbers very eagerly was that I didn't
+>>> want it to look ridiculous if it later turned out to be really an error in the
+>>> experiment ;) But since I have seen it happening consistently I think I can
+>>> post the numbers here with some non-zero confidence.
+>>>
+>>>> If you really have performance improvement to the memory allocator (or
+>>>> something else) here, then surely it can be pared out of your patches
+>>>> and merged quickly by itself.  Those kinds of optimizations are hard to
+>>>> come by!
+>>>>
+>>>
+>>> :-)
+>>>
+>>> Anyway, here it goes:
+>>>
+>>> Test setup:
+>>> ----------
+>>> x86 2-socket quad-core machine. (CONFIG_NUMA=n because I figured that my
+>>> patchset might not handle NUMA properly). Mem region size = 512 MB.
+>>>
+>>
+>> For CONFIG_NUMA=y on the same machine, the difference between the 2 kernels
+>> was much lesser, but nevertheless, this patchset performed better. I wouldn't
+>> vouch that my patchset handles NUMA correctly, but here are the numbers from
+>> that run anyway (at least to show that I really found the results to be
+>> repeatable):
+>>
 
-This is the writeup:
+I fixed up the NUMA case (I'll post the updated patch for that soon) and
+ran a fresh set of kernbench runs. The difference between mainline and this
+patchset is quite tiny; so we can't really say that this patchset shows a
+performance improvement over mainline. However, I can safely conclude that
+this patchset doesn't show any performance _degradation_ w.r.t mainline
+in kernbench.
 
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: [PATCH] zcache2 cleanups (s/int/bool/ + debugfs move).
-In-Reply-To: 
-Changelog since rfc: https://lkml.org/lkml/2012/11/5/549
- - Added Reviewed-by from Dan.
+Results from one of the recent kernbench runs:
+---------------------------------------------
 
-This patchset depends on the recently posted V2 of making the
-frontswap/cleancache backends be module capable:
- http://mid.gmane.org/1352919432-9699-1-git-send-email-konrad.wilk@oracle.com
-
-I think that once the V2 is OK I will combine this patchset along
-with the V2 and send the whole thing to GregKH? Or perhaps just
-if Greg is Ok I will do via my tree.
-
-This is a copy of what I wrote in the RFC posting:
-
-Looking at the zcache2 code there were a couple of things that I thought
-would make sense to move out of the code. For one thing it makes it easier
-to read, and for anoter - it can be cleanly compiled out. It also allows
-to have a clean seperation of counters that we _need_ vs the optional ones.
-Which means that in the future we could get rid of the optional ones.
-
-It fixes some outstanding compile warnings, cleans
-up some of the code, and rips out the debug counters out of zcache-main.c
-and sticks them in a debug.c file.
-
-I was hoping it would end up with less code, but sadly it ended up with
-a bit more due to the empty non-debug functions - but the code is easier
-to read.
+Kernbench log for Vanilla 3.7-rc3
+=================================
+Kernel: 3.7.0-rc3
+Average Optimal load -j 32 Run (std deviation):
+Elapsed Time 330.39 (0.746257)
+User Time 4283.63 (3.39617)
+System Time 604.783 (2.72629)
+Percent CPU 1479 (3.60555)
+Context Switches 845634 (6031.22)
+Sleeps 833655 (6652.17)
 
 
- drivers/staging/ramster/Kconfig       |    8 +
- drivers/staging/ramster/Makefile      |    1 +
- drivers/staging/ramster/debug.c       |   66 +++++++
- drivers/staging/ramster/debug.h       |  229 ++++++++++++++++++++++
- drivers/staging/ramster/zcache-main.c |  336 +++++++--------------------------
- 5 files changed, 370 insertions(+), 270 deletions(-)
+Kernbench log for Sorted-buddy
+==============================
+Kernel: 3.7.0-rc3-sorted-buddy
+Average Optimal load -j 32 Run (std deviation):
+Elapsed Time 329.967 (2.76789)
+User Time 4230.02 (2.15324)
+System Time 599.793 (1.09988)
+Percent CPU 1463.33 (11.3725)
+Context Switches 840530 (1646.75)
+Sleeps 833732 (2227.68)
 
-
-Konrad Rzeszutek Wilk (11):
-      zcache: Provide accessory functions for counter increase
-      zcache: Provide accessory functions for counter decrease.
-      zcache: The last of the atomic reads has now an accessory function.
-      zcache: Fix compile warnings due to usage of debugfs_create_size_t
-      zcache: Make the debug code use pr_debug
-      zcache: Move debugfs code out of zcache-main.c file.
-      zcache: Use an array to initialize/use debugfs attributes.
-      zcache: Move the last of the debugfs counters out
-      zcache: Allow to compile if ZCACHE_DEBUG and !DEBUG_FS
-      zcache: Module license is defined twice.
-      zcache: Coalesce all debug under CONFIG_ZCACHE2_DEBUG
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
