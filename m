@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 176056B009B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 06:23:34 -0500 (EST)
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id B37746B0099
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 06:23:35 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 25/43] mm: numa: Migrate pages handled during a pmd_numa hinting fault
-Date: Fri, 16 Nov 2012 11:22:35 +0000
-Message-Id: <1353064973-26082-26-git-send-email-mgorman@suse.de>
+Subject: [PATCH 26/43] mm: numa: Only mark a PMD pmd_numa if the pages are all on the same node
+Date: Fri, 16 Nov 2012 11:22:36 +0000
+Message-Id: <1353064973-26082-27-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353064973-26082-1-git-send-email-mgorman@suse.de>
 References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,144 +13,70 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-To say that the PMD handling code was incorrectly transferred from autonuma
-is an understatement. The intention was to handle a PMDs worth of pages
-in the same fault and effectively batch the taking of the PTL and page
-migration. The copied version instead has the impact of clearing a number
-of pte_numa PTE entries and whether any page migration takes place depends
-on racing. This just happens to work in some cases.
-
-This patch handles pte_numa faults in batch when a pmd_numa fault is
-handled. The pages are migrated if they are currently misplaced.
-Essentially this is making an assumption that NUMA locality is
-on a PMD boundary but that could be addressed by only setting
-pmd_numa if all the pages within that PMD are on the same node
-if necessary.
+When a pmd_numa fault is handled, all PTEs are treated as if the current
+CPU had referenced them and handles it as one fault. This effectively
+batches the ptl but loses precision. This patch will only set the PMD
+pmd_numa if the examined pages are all on the same node. If the workload
+is converged on a PMD boundary then the batch handling is equivalent.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/memory.c |   54 +++++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 35 insertions(+), 19 deletions(-)
+ mm/mempolicy.c |   21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 8795a0a..a498e8d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3451,6 +3451,18 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
- }
- 
-+int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
-+				unsigned long addr, int current_nid)
-+{
-+	get_page(page);
-+
-+	count_vm_numa_event(NUMA_HINT_FAULTS);
-+	if (current_nid == numa_node_id())
-+		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
-+
-+	return mpol_misplaced(page, vma, addr);
-+}
-+
- int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
- {
-@@ -3473,15 +3485,11 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (unlikely(!pte_same(*ptep, pte)))
- 		goto out_unlock;
- 
--	count_vm_numa_event(NUMA_HINT_FAULTS);
- 	page = vm_normal_page(vma, addr, pte);
- 	BUG_ON(!page);
- 
--	get_page(page);
- 	current_nid = page_to_nid(page);
--	if (current_nid == numa_node_id())
--		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
--	target_nid = mpol_misplaced(page, vma, addr);
-+	target_nid = numa_migrate_prep(page, vma, addr, current_nid);
- 	if (target_nid == -1) {
- 		/*
- 		 * Account for the fault against the current node if it not
-@@ -3491,9 +3499,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		goto clear_pmdnuma;
- 	}
- 
--	pte_unmap_unlock(ptep, ptl);
--
- 	/* Migrate to the requested node */
-+	pte_unmap_unlock(ptep, ptl);
- 	newpage = migrate_misplaced_page(page, target_nid);
- 	if (newpage)
- 		current_nid = target_nid;
-@@ -3524,7 +3531,8 @@ out_unlock:
- 	pte_unmap_unlock(ptep, ptl);
- 	if (page)
- 		put_page(page);
--	task_numa_fault(current_nid, 1);
-+	if (current_nid != -1)
-+		task_numa_fault(current_nid, 1);
- 	return 0;
- }
- 
-@@ -3539,8 +3547,6 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index bcaa4fe..ca201e9 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -604,6 +604,8 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
  	spinlock_t *ptl;
- 	bool numa = false;
- 	int local_nid = numa_node_id();
--	unsigned long nr_faults = 0;
--	unsigned long nr_faults_local = 0;
+ 	int ret = 0;
+ 	int nr_pte_updates = 0;
++	bool all_same_node = true;
++	int last_nid = -1;
  
- 	spin_lock(&mm->page_table_lock);
- 	pmd = *pmdp;
-@@ -3563,7 +3569,8 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	for (addr = _addr + offset; addr < _addr + PMD_SIZE; pte++, addr += PAGE_SIZE) {
- 		pte_t pteval = *pte;
- 		struct page *page;
--		int curr_nid;
-+		int curr_nid = local_nid;
-+		int target_nid;
+ 	VM_BUG_ON(address & ~PAGE_MASK);
+ 
+@@ -662,6 +664,7 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	for (_address = address, _pte = pte; _address < end;
+ 	     _pte++, _address += PAGE_SIZE) {
+ 		pte_t pteval = *_pte;
++		int this_nid;
  		if (!pte_present(pteval))
  			continue;
- 		if (addr >= vma->vm_end) {
-@@ -3582,21 +3589,30 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		/* only check non-shared pages */
- 		if (unlikely(page_mapcount(page) != 1))
+ 		if (pte_numa(pteval))
+@@ -669,6 +672,18 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		page = vm_normal_page(vma, _address, pteval);
+ 		if (unlikely(!page))
  			continue;
--		pte_unmap_unlock(pte, ptl);
- 
--		curr_nid = page_to_nid(page);
--		task_numa_fault(curr_nid, 1);
++
 +		/*
-+		 * Note that the NUMA fault is later accounted to either
-+		 * the node that is currently running or where the page is
-+		 * migrated to.
++		 * Check if all pages within the PMD are on the same node. This
++		 * is an approximation as existing pte_numa pages are not
++		 * examined.
 +		 */
-+		curr_nid = local_nid;
-+		target_nid = numa_migrate_prep(page, vma, addr,
-+					       page_to_nid(page));
-+		if (target_nid == -1) {
-+			put_page(page);
-+			continue;
-+		}
- 
--		nr_faults++;
--		if (curr_nid == local_nid)
--			nr_faults_local++;
-+		/* Migrate to the requested node */
-+		pte_unmap_unlock(pte, ptl);
-+		if (migrate_misplaced_page(page, target_nid))
-+			curr_nid = target_nid;
-+		task_numa_fault(curr_nid, 1);
- 
- 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
++		this_nid = page_to_nid(page);
++		if (last_nid == -1)
++			last_nid = this_nid;
++		if (last_nid != this_nid)
++			all_same_node = false;
++
+ 		/* only check non-shared pages */
+ 		if (page_mapcount(page) != 1)
+ 			continue;
+@@ -681,7 +696,11 @@ change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
  	}
- 	pte_unmap_unlock(orig_pte, ptl);
+ 	pte_unmap_unlock(pte, ptl);
  
--	count_vm_numa_events(NUMA_HINT_FAULTS, nr_faults);
--	count_vm_numa_events(NUMA_HINT_FAULTS_LOCAL, nr_faults_local);
- 	return 0;
- }
- 
+-	if (ret && !pmd_numa(*pmd)) {
++	/*
++	 * If all the pages within the PMD are on the same node then mark
++	 * the PMD so it is handled in one fault when next referenced.
++	 */
++	if (all_same_node && !pmd_numa(*pmd)) {
+ 		spin_lock(&mm->page_table_lock);
+ 		set_pmd_at(mm, address, pmd, pmd_mknuma(*pmd));
+ 		spin_unlock(&mm->page_table_lock);
 -- 
 1.7.9.2
 
