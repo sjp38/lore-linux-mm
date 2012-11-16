@@ -1,43 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 0F9AC6B005D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:28:40 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so2339548pbc.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:28:39 -0800 (PST)
-Date: Fri, 16 Nov 2012 11:28:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 2E1426B006E
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 14:50:15 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so2352196pbc.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:50:14 -0800 (PST)
+Date: Fri, 16 Nov 2012 11:50:12 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/2] thp: fix update_mmu_cache_pmd() calls
-In-Reply-To: <1353059717-9850-1-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1211161126450.2788@chino.kir.corp.google.com>
-References: <1353059717-9850-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [patch] mm: introduce a common interface for balloon pages mobility
+ fix
+In-Reply-To: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
+Message-ID: <alpine.DEB.2.00.1211161147580.2788@chino.kir.corp.google.com>
+References: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@elte.hu>, Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
 
-On Fri, 16 Nov 2012, Kirill A. Shutemov wrote:
+On Fri, 16 Nov 2012, kbuild test robot wrote:
 
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> head:   12dfb061e5fd15be23451418da01281625c0eeae
+> commit: 86929cfa5f751de3d8be5a846535282730865d8a [365/437] mm: introduce a common interface for balloon pages mobility
+> config: make ARCH=sh allyesconfig
 > 
-> update_mmu_cache_pmd() takes pointer to pmd_t as third, not pmd_t.
+> All warnings:
 > 
-> mm/huge_memory.c: In function 'do_huge_pmd_numa_page':
-> mm/huge_memory.c:825:2: error: incompatible type for argument 3 of 'update_mmu_cache_pmd'
-> In file included from include/linux/mm.h:44:0,
->                  from mm/huge_memory.c:8:
-> arch/mips/include/asm/pgtable.h:385:20: note: expected 'struct pmd_t *' but argument is of type 'pmd_t'
-> mm/huge_memory.c:895:2: error: incompatible type for argument 3 of 'update_mmu_cache_pmd'
-> In file included from include/linux/mm.h:44:0,
->                  from mm/huge_memory.c:8:
-> arch/mips/include/asm/pgtable.h:385:20: note: expected 'struct pmd_t *' but argument is of type 'pmd_t'
+> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
+> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
+> --
+> warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
 > 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-[routing to Ingo for numa/core, which this is based on]
+mm: introduce a common interface for balloon pages mobility fix
 
-Acked-by: David Rientjes <rientjes@google.com>
+CONFIG_BALLOON_COMPACTION shouldn't be selecting options that may not be 
+supported, so make it depend on memory compaction rather than selecting 
+it.  CONFIG_COMPACTION is enabled by default for all configs that support 
+it.
+    
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/Kconfig |    3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/Kconfig b/mm/Kconfig
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -191,8 +191,7 @@ config SPLIT_PTLOCK_CPUS
+ # support for memory balloon compaction
+ config BALLOON_COMPACTION
+ 	bool "Allow for balloon memory compaction/migration"
+-	select COMPACTION
+-	depends on VIRTIO_BALLOON
++	depends on VIRTIO_BALLOON && COMPACTION
+ 	help
+ 	  Memory fragmentation introduced by ballooning might reduce
+ 	  significantly the number of 2MB contiguous memory blocks that can be
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
