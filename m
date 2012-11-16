@@ -1,87 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 3C6426B005D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:16:58 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so428572eaa.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:16:56 -0800 (PST)
-Date: Fri, 16 Nov 2012 17:16:52 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
- affinity"
-Message-ID: <20121116161652.GB4302@gmail.com>
-References: <20121112160451.189715188@chello.nl>
- <20121112184833.GA17503@gmail.com>
- <20121115100805.GS8218@suse.de>
- <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id D22DF6B005D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:19:18 -0500 (EST)
+Date: Fri, 16 Nov 2012 16:19:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 06/43] mm: numa: Make pte_numa() and pmd_numa() a generic
+ implementation
+Message-ID: <20121116161913.GC8218@suse.de>
+References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
+ <1353064973-26082-7-git-send-email-mgorman@suse.de>
+ <50A648FF.2040707@redhat.com>
+ <20121116144109.GA8218@suse.de>
+ <CA+55aFzH_-6FuwTF1GVDzLK+7c0MGLsLdPFjzzwU78GVUEMbBw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+In-Reply-To: <CA+55aFzH_-6FuwTF1GVDzLK+7c0MGLsLdPFjzzwU78GVUEMbBw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
+Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-* Linus Torvalds <torvalds@linux-foundation.org> wrote:
-
-> [...]
+On Fri, Nov 16, 2012 at 07:32:01AM -0800, Linus Torvalds wrote:
+> On Fri, Nov 16, 2012 at 6:41 AM, Mel Gorman <mgorman@suse.de> wrote:
+> >
+> > I would have preferred asm-generic/pgtable.h myself and use
+> > __HAVE_ARCH_whatever tricks
 > 
-> I would ask the involved people to please come up with a set 
-> of initial patches that people agree on, so that we can at 
-> least start merging some of the infrastructure, and see how 
-> far we can get on at least getting *started*.
+> PLEASE NO!
+> 
+> Dammit, why is this disease still so prevalent, and why do people
+> continue to do this crap?
+> 
 
-That would definitely be a step forward.
+By personal experience because they read the header, see the other examples
+and say "fair enough". I'm tempted to...
 
-> [...] As I mentioned to Andrew and Mel separately, nobody 
-> seems to disagree with the TLB optimization patches. What 
-> else? Is Mel's set of early patches still considered a 
-> reasonable starting point for everybody?
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index da3e761..572d3f1 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -7,6 +7,12 @@
+ #include <linux/mm_types.h>
+ #include <linux/bug.h>
+ 
++/*
++ * NOTE: Do NOT copy the __HAVE_ARCH convention when adding new generic
++ * helpers. You will have to wear a D hat and be called names
++ * https://lkml.org/lkml/2012/11/16/340
++ */
++
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ extern int ptep_set_access_flags(struct vm_area_struct *vma,
+ 				 unsigned long address, pte_t *ptep,
 
-My suggestion for a 'foundation' would be all the non-policy 
-bits in numa/core:
 
-c740b1cccdcb x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
-02743c9c03f1 mm/mpol: Use special PROT_NONE to migrate pages
-b33467764d8a mm/migrate: Introduce migrate_misplaced_page()
-db4aa58db59a numa, mm: Support NUMA hinting page faults from gup/gup_fast
-ca2ea0747a5b mm/mpol: Add MPOL_MF_LAZY
-f05ea0948708 mm/mpol: Create special PROT_NONE infrastructure
-37081a3de2bf mm/mpol: Check for misplaced page
-cd203e33c39d mm/mpol: Add MPOL_MF_NOOP
-88f4670789e3 mm/mpol: Make MPOL_LOCAL a real policy
-83babc0d2944 mm/pgprot: Move the pgprot_modify() fallback definition to mm.h
-536165ead34b sched, numa, mm, MIPS/thp: Add pmd_pgprot() implementation
-6fe64360a759 mm: Only flush the TLB when clearing an accessible pte
-e9df40bfeb25 x86/mm: Introduce pte_accessible()
-3f2b613771ec mm/thp: Preserve pgprot across huge page split
-a5a608d83e0e sched, numa, mm, s390/thp: Implement pmd_pgprot() for s390
-995334a2ee83 sched, numa, mm: Describe the NUMA scheduling problem formally
-7ee9d9209c57 sched, numa, mm: Make find_busiest_queue() a method
-4fd98847ba5c x86/mm: Only do a local tlb flush in ptep_set_access_flags()
-d24fc0571afb mm/generic: Only flush the local TLB in ptep_set_access_flags()
+> __HAVE_ARCH_xyzzy is a f*cking retarded thing to do, and that's
+> actually an insult to retarded people.
+> 
+> Use either:
+> 
+>  - Kconfig entries for bigger features where that makes sense, and
+> using the Kconfig files allows you to use the Kconfig logic for things
+> (ie there are dependencies etc, so you can avoid having to have
+> complicated conditionals in the #ifdef's, and instead introduce them
+> as rules in Kconfig files).
+> 
+>  - the SAME F*CKING NAME for the #ifdef, not some totally different
+> namespace with __HAVE_ARCH_xyzzy crap.
+> 
+> So if your architecture wants to override one (or more) of the
+> pte_*numa() functions, just make it do so. And do it with
+> 
+>   static inline pmd_t pmd_mknuma(pmd_t pmd)
+>   {
+>           pmd = pmd_set_flags(pmd, _PAGE_NUMA);
+>           return pmd_clear_flags(pmd, _PAGE_PRESENT);
+>   }
+>   #define pmd_mknuma pmd_mknuma
+> 
+> and then you can have the generic code have code like
+> 
+>    #ifndef pmd_mknuma
+>    .. generic version goes here ..
+>    #endif
+> 
+> and the advantage is two-fold:
+> 
+>  - none of the "let's make up another name to test for this"
+> 
+>  - "git grep" actually _works_, and the end results make sense, and
+> you can clearly see the logic of where things are declared, and which
+> one is used.
+> 
 
-Which I've pushed out into the separate numa/base tree:
+Understood, makes sense and is a straight-forward conversion. Now that I
+read this, this explanation feels familiar. Clearly it did not sink in
+with me when you shouted at the last person that tried.
 
-   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/base
+> The __ARCH_HAVE_xyzzy (and some places call it __HAVE_ARCH_xyzzy)
+> thing is a disease.
+> 
 
-These are just the minimal set of patches needed to get to be 
-able to concentrate on the real details.
+And now I have been healed! I've had worse starts to a weekend.
 
-AFAICS Mel started going in this design direction as well in his 
-latest patches, so there should be no real technical objections 
-to this other than any details I might have missed: and I'll 
-rebase this tree if the mm/ folks have any other suggestions for 
-improvement, as that seems the be the preferred mm workflow.
+> That said, the __weak thing works too (and greps fine, as long as you
+> use the proper K&R C format, not the idiotic "let's put the name of
+> the function on a different line than the type of the function"
+> format), it just doesn't allow inlining.
+> 
+> In this case, I suspect the inlined function is generally a single
+> instruction, is it not? In which case I really do think that inlining
+> makes sense.
+> 
 
-Andrea, Mel?
+I would expect a single instruction for the checks (pte_numa, pmd_numa).
+It's probably two for the setters (pte_mknuma, pmd_mknuma, pte_mknonnuma,
+pmd_mknonnuma) unless paravirt gets involved. paravirt might add a
+function call in there but should be nothing crazy.
 
-Getting this out of the way would be a big help.
-
-Thanks,
-
-	Ingo
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
