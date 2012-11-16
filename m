@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 013546B0085
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:25:49 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so2125055eek.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:25:49 -0800 (PST)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id EEF406B0089
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:25:51 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so2125091eek.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:25:51 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 07/19] x86/mm: Introduce pte_accessible()
-Date: Fri, 16 Nov 2012 17:25:09 +0100
-Message-Id: <1353083121-4560-8-git-send-email-mingo@kernel.org>
+Subject: [PATCH 08/19] mm: Only flush the TLB when clearing an accessible pte
+Date: Fri, 16 Nov 2012 17:25:10 +0100
+Message-Id: <1353083121-4560-9-git-send-email-mingo@kernel.org>
 In-Reply-To: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 References: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,60 +17,33 @@ Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Ch
 
 From: Rik van Riel <riel@redhat.com>
 
-We need pte_present to return true for _PAGE_PROTNONE pages, to indicate that
-the pte is associated with a page.
-
-However, for TLB flushing purposes, we would like to know whether the pte
-points to an actually accessible page.  This allows us to skip remote TLB
-flushes for pages that are not actually accessible.
-
-Fill in this method for x86 and provide a safe (but slower) method
-on other architectures.
+If ptep_clear_flush() is called to clear a page table entry that is
+accessible anyway by the CPU, eg. a _PAGE_PROTNONE page table entry,
+there is no need to flush the TLB on remote CPUs.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Fixed-by: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Link: http://lkml.kernel.org/n/tip-66p11te4uj23gevgh4j987ip@git.kernel.org
-[ Added Linus's review fixes. ]
+Link: http://lkml.kernel.org/n/tip-vm3rkzevahelwhejx5uwm8ex@git.kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/include/asm/pgtable.h | 6 ++++++
- include/asm-generic/pgtable.h  | 4 ++++
- 2 files changed, 10 insertions(+)
+ mm/pgtable-generic.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index f85dccd..a984cf9 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -408,6 +408,12 @@ static inline int pte_present(pte_t a)
- 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
- }
- 
-+#define pte_accessible pte_accessible
-+static inline int pte_accessible(pte_t a)
-+{
-+	return pte_flags(a) & _PAGE_PRESENT;
-+}
-+
- static inline int pte_hidden(pte_t pte)
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index d8397da..0c8323f 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -88,7 +88,8 @@ pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long address,
  {
- 	return pte_flags(pte) & _PAGE_HIDDEN;
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index b36ce40..48fc1dc 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -219,6 +219,10 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
- #define move_pte(pte, prot, old_addr, new_addr)	(pte)
- #endif
- 
-+#ifndef pte_accessible
-+# define pte_accessible(pte)		((void)(pte),1)
-+#endif
-+
- #ifndef flush_tlb_fix_spurious_fault
- #define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+ 	pte_t pte;
+ 	pte = ptep_get_and_clear((vma)->vm_mm, address, ptep);
+-	flush_tlb_page(vma, address);
++	if (pte_accessible(pte))
++		flush_tlb_page(vma, address);
+ 	return pte;
+ }
  #endif
 -- 
 1.7.11.7
