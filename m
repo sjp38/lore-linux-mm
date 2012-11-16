@@ -1,72 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 2514A6B0071
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 05:16:54 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 359313EE0BB
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:16:52 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1B57745DE55
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:16:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 0032045DE4E
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:16:52 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E623B1DB8042
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:16:51 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9ABA01DB803B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:16:51 +0900 (JST)
-Message-ID: <50A6127D.10203@jp.fujitsu.com>
-Date: Fri, 16 Nov 2012 19:16:29 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Correct description of SwapFree in Documentation/filesystems/proc.txt
-References: <50A5E4D6.60301@gmail.com>
-In-Reply-To: <50A5E4D6.60301@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id F3AC86B0068
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 06:22:59 -0500 (EST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/43] mm: compaction: Move migration fail/success stats to migrate.c
+Date: Fri, 16 Nov 2012 11:22:11 +0000
+Message-Id: <1353064973-26082-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1353064973-26082-1-git-send-email-mgorman@suse.de>
+References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Jim Paris <jim@jtan.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-(2012/11/16 16:01), Michael Kerrisk wrote:
-> After migrating most of the information in
-> Documentation/filesystems/proc.txt to the proc(5) man page,
-> Jim Paris pointed out to me that the description of SwapFree
-> in the man page seemed wrong. I think Jim is right,
-> but am given pause by fact that that text has been in
-> Documentation/filesystems/proc.txt since at least 2.6.0.
-> Anyway, I believe that the patch below fixes things.
->
-> Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
->
+The compact_pages_moved and compact_pagemigrate_failed events are
+convenient for determining if compaction is active and to what
+degree migration is succeeding but it's at the wrong level. Other
+users of migration may also want to know if migration is working
+properly and this will be particularly true for any automated
+NUMA migration. This patch moves the counters down to migration
+with the new events called pgmigrate_success and pgmigrate_fail.
+The compact_blocks_moved counter is removed because while it was
+useful for debugging initially, it's worthless now as no meaningful
+conclusions can be drawn from its value.
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/vm_event_item.h |    4 +++-
+ mm/compaction.c               |    4 ----
+ mm/migrate.c                  |    6 ++++++
+ mm/vmstat.c                   |    7 ++++---
+ 4 files changed, 13 insertions(+), 8 deletions(-)
 
->
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index a1793d6..cf4260f 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -778,8 +778,7 @@ AnonHugePages:   49152 kB
->                 other things, it is where everything from the Slab is
->                 allocated.  Bad things happen when you're out of lowmem.
->      SwapTotal: total amount of swap space available
-> -    SwapFree: Memory which has been evicted from RAM, and is temporarily
-> -              on the disk
-> +    SwapFree: Amount of swap space that is currently unused.
->          Dirty: Memory which is waiting to get written back to the disk
->      Writeback: Memory which is actively being written back to the disk
->      AnonPages: Non-file backed pages mapped into userspace page tables
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
-
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 3d31145..8aa7cb9 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -38,8 +38,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		KSWAPD_SKIP_CONGESTION_WAIT,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++#ifdef CONFIG_MIGRATION
++		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
++#endif
+ #ifdef CONFIG_COMPACTION
+-		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
+ 		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
+ #endif
+ #ifdef CONFIG_HUGETLB_PAGE
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9eef558..00ad883 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -994,10 +994,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		update_nr_listpages(cc);
+ 		nr_remaining = cc->nr_migratepages;
+ 
+-		count_vm_event(COMPACTBLOCKS);
+-		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
+-		if (nr_remaining)
+-			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
+ 		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
+ 						nr_remaining);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 77ed2d7..04687f6 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -962,6 +962,7 @@ int migrate_pages(struct list_head *from,
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
++	int nr_succeeded = 0;
+ 	int pass = 0;
+ 	struct page *page;
+ 	struct page *page2;
+@@ -988,6 +989,7 @@ int migrate_pages(struct list_head *from,
+ 				retry++;
+ 				break;
+ 			case 0:
++				nr_succeeded++;
+ 				break;
+ 			default:
+ 				/* Permanent failure */
+@@ -998,6 +1000,10 @@ int migrate_pages(struct list_head *from,
+ 	}
+ 	rc = 0;
+ out:
++	if (nr_succeeded)
++		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
++	if (nr_failed)
++		count_vm_events(PGMIGRATE_FAIL, nr_failed);
+ 	if (!swapwrite)
+ 		current->flags &= ~PF_SWAPWRITE;
+ 
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index c737057..89a7fd6 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -774,10 +774,11 @@ const char * const vmstat_text[] = {
+ 
+ 	"pgrotated",
+ 
++#ifdef CONFIG_MIGRATION
++	"pgmigrate_success",
++	"pgmigrate_fail",
++#endif
+ #ifdef CONFIG_COMPACTION
+-	"compact_blocks_moved",
+-	"compact_pages_moved",
+-	"compact_pagemigrate_failed",
+ 	"compact_stall",
+ 	"compact_fail",
+ 	"compact_success",
+-- 
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
