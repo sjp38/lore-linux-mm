@@ -1,35 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 459546B005D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:22:30 -0500 (EST)
-Message-ID: <50A66834.7010809@redhat.com>
-Date: Fri, 16 Nov 2012 11:22:12 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 16/43] mm: mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY
- from userspace for now
-References: <1353064973-26082-1-git-send-email-mgorman@suse.de> <1353064973-26082-17-git-send-email-mgorman@suse.de>
-In-Reply-To: <1353064973-26082-17-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 932546B006E
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:25:34 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so432634eaa.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:25:32 -0800 (PST)
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 00/19] latest numa/base patches
+Date: Fri, 16 Nov 2012 17:25:02 +0100
+Message-Id: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
 
-On 11/16/2012 06:22 AM, Mel Gorman wrote:
-> The use of MPOL_NOOP and MPOL_MF_LAZY to allow an application to
-> explicitly request lazy migration is a good idea but the actual
-> API has not been well reviewed and once released we have to support it.
-> For now this patch prevents an application using the services. This
-> will need to be revisited.
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+This is the split-out series of mm/ patches that got no objections
+from the latest (v15) posting of numa/core. If everyone is still
+fine with these then these will be merge candidates for v3.8.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+I left out the more contentious policy bits that people are still
+arguing about.
+
+The numa/base tree can also be found here:
+
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/base
+
+Thanks,
+
+    Ingo
+
+------------------->
+
+Andrea Arcangeli (1):
+  numa, mm: Support NUMA hinting page faults from gup/gup_fast
+
+Gerald Schaefer (1):
+  sched, numa, mm, s390/thp: Implement pmd_pgprot() for s390
+
+Ingo Molnar (1):
+  mm/pgprot: Move the pgprot_modify() fallback definition to mm.h
+
+Lee Schermerhorn (3):
+  mm/mpol: Add MPOL_MF_NOOP
+  mm/mpol: Check for misplaced page
+  mm/mpol: Add MPOL_MF_LAZY
+
+Peter Zijlstra (7):
+  sched, numa, mm: Make find_busiest_queue() a method
+  sched, numa, mm: Describe the NUMA scheduling problem formally
+  mm/thp: Preserve pgprot across huge page split
+  mm/mpol: Make MPOL_LOCAL a real policy
+  mm/mpol: Create special PROT_NONE infrastructure
+  mm/migrate: Introduce migrate_misplaced_page()
+  mm/mpol: Use special PROT_NONE to migrate pages
+
+Ralf Baechle (1):
+  sched, numa, mm, MIPS/thp: Add pmd_pgprot() implementation
+
+Rik van Riel (5):
+  mm/generic: Only flush the local TLB in ptep_set_access_flags()
+  x86/mm: Only do a local tlb flush in ptep_set_access_flags()
+  x86/mm: Introduce pte_accessible()
+  mm: Only flush the TLB when clearing an accessible pte
+  x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
+
+ Documentation/scheduler/numa-problem.txt | 230 +++++++++++++++++++++++++++++++
+ arch/mips/include/asm/pgtable.h          |   2 +
+ arch/s390/include/asm/pgtable.h          |  13 ++
+ arch/x86/include/asm/pgtable.h           |   7 +
+ arch/x86/mm/pgtable.c                    |   8 +-
+ include/asm-generic/pgtable.h            |   4 +
+ include/linux/huge_mm.h                  |  19 +++
+ include/linux/mempolicy.h                |   8 ++
+ include/linux/migrate.h                  |   7 +
+ include/linux/migrate_mode.h             |   3 +
+ include/linux/mm.h                       |  32 +++++
+ include/uapi/linux/mempolicy.h           |  16 ++-
+ kernel/sched/fair.c                      |  20 +--
+ mm/huge_memory.c                         | 174 +++++++++++++++--------
+ mm/memory.c                              | 119 +++++++++++++++-
+ mm/mempolicy.c                           | 143 +++++++++++++++----
+ mm/migrate.c                             |  85 ++++++++++--
+ mm/mprotect.c                            |  31 +++--
+ mm/pgtable-generic.c                     |   9 +-
+ 19 files changed, 807 insertions(+), 123 deletions(-)
+ create mode 100644 Documentation/scheduler/numa-problem.txt
 
 -- 
-All rights reversed
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
