@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 932546B006E
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:25:34 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so432634eaa.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:25:32 -0800 (PST)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 022F96B0071
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:25:36 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so2125055eek.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:25:35 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 00/19] latest numa/base patches
-Date: Fri, 16 Nov 2012 17:25:02 +0100
-Message-Id: <1353083121-4560-1-git-send-email-mingo@kernel.org>
+Subject: [PATCH 01/19] mm/generic: Only flush the local TLB in ptep_set_access_flags()
+Date: Fri, 16 Nov 2012 17:25:03 +0100
+Message-Id: <1353083121-4560-2-git-send-email-mingo@kernel.org>
+In-Reply-To: <1353083121-4560-1-git-send-email-mingo@kernel.org>
+References: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>
 
-This is the split-out series of mm/ patches that got no objections
-from the latest (v15) posting of numa/core. If everyone is still
-fine with these then these will be merge candidates for v3.8.
+From: Rik van Riel <riel@redhat.com>
 
-I left out the more contentious policy bits that people are still
-arguing about.
+The function ptep_set_access_flags() is only ever used to upgrade
+access permissions to a page - i.e. they make it less restrictive.
 
-The numa/base tree can also be found here:
+That means the only negative side effect of not flushing remote
+TLBs in this function is that other CPUs may incur spurious page
+faults, if they happen to access the same address, and still have
+a PTE with the old permissions cached in their TLB caches.
 
-   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git numa/base
+Having another CPU maybe incur a spurious page fault is faster
+than always incurring the cost of a remote TLB flush, so replace
+the remote TLB flush with a purely local one.
 
-Thanks,
+This should be safe on every architecture that correctly
+implements flush_tlb_fix_spurious_fault() to actually invalidate
+the local TLB entry that caused a page fault, as well as on
+architectures where the hardware invalidates TLB entries that
+cause page faults.
 
-    Ingo
+In the unlikely event that you are hitting what appears to be
+an infinite loop of page faults, and 'git bisect' took you to
+this changeset, your architecture needs to implement
+flush_tlb_fix_spurious_fault() to actually flush the TLB entry.
 
-------------------->
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michel Lespinasse <walken@google.com>
+[ Changelog massage. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ mm/pgtable-generic.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Andrea Arcangeli (1):
-  numa, mm: Support NUMA hinting page faults from gup/gup_fast
-
-Gerald Schaefer (1):
-  sched, numa, mm, s390/thp: Implement pmd_pgprot() for s390
-
-Ingo Molnar (1):
-  mm/pgprot: Move the pgprot_modify() fallback definition to mm.h
-
-Lee Schermerhorn (3):
-  mm/mpol: Add MPOL_MF_NOOP
-  mm/mpol: Check for misplaced page
-  mm/mpol: Add MPOL_MF_LAZY
-
-Peter Zijlstra (7):
-  sched, numa, mm: Make find_busiest_queue() a method
-  sched, numa, mm: Describe the NUMA scheduling problem formally
-  mm/thp: Preserve pgprot across huge page split
-  mm/mpol: Make MPOL_LOCAL a real policy
-  mm/mpol: Create special PROT_NONE infrastructure
-  mm/migrate: Introduce migrate_misplaced_page()
-  mm/mpol: Use special PROT_NONE to migrate pages
-
-Ralf Baechle (1):
-  sched, numa, mm, MIPS/thp: Add pmd_pgprot() implementation
-
-Rik van Riel (5):
-  mm/generic: Only flush the local TLB in ptep_set_access_flags()
-  x86/mm: Only do a local tlb flush in ptep_set_access_flags()
-  x86/mm: Introduce pte_accessible()
-  mm: Only flush the TLB when clearing an accessible pte
-  x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
-
- Documentation/scheduler/numa-problem.txt | 230 +++++++++++++++++++++++++++++++
- arch/mips/include/asm/pgtable.h          |   2 +
- arch/s390/include/asm/pgtable.h          |  13 ++
- arch/x86/include/asm/pgtable.h           |   7 +
- arch/x86/mm/pgtable.c                    |   8 +-
- include/asm-generic/pgtable.h            |   4 +
- include/linux/huge_mm.h                  |  19 +++
- include/linux/mempolicy.h                |   8 ++
- include/linux/migrate.h                  |   7 +
- include/linux/migrate_mode.h             |   3 +
- include/linux/mm.h                       |  32 +++++
- include/uapi/linux/mempolicy.h           |  16 ++-
- kernel/sched/fair.c                      |  20 +--
- mm/huge_memory.c                         | 174 +++++++++++++++--------
- mm/memory.c                              | 119 +++++++++++++++-
- mm/mempolicy.c                           | 143 +++++++++++++++----
- mm/migrate.c                             |  85 ++++++++++--
- mm/mprotect.c                            |  31 +++--
- mm/pgtable-generic.c                     |   9 +-
- 19 files changed, 807 insertions(+), 123 deletions(-)
- create mode 100644 Documentation/scheduler/numa-problem.txt
-
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index e642627..d8397da 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -12,8 +12,8 @@
+ 
+ #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+ /*
+- * Only sets the access flags (dirty, accessed, and
+- * writable). Furthermore, we know it always gets set to a "more
++ * Only sets the access flags (dirty, accessed), as well as write 
++ * permission. Furthermore, we know it always gets set to a "more
+  * permissive" setting, which allows most architectures to optimize
+  * this. We return whether the PTE actually changed, which in turn
+  * instructs the caller to do things like update__mmu_cache.  This
+@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	int changed = !pte_same(*ptep, entry);
+ 	if (changed) {
+ 		set_pte_at(vma->vm_mm, address, ptep, entry);
+-		flush_tlb_page(vma, address);
++		flush_tlb_fix_spurious_fault(vma, address);
+ 	}
+ 	return changed;
+ }
 -- 
 1.7.11.7
 
