@@ -1,87 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 398B86B004D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 01:39:39 -0500 (EST)
-Received: by mail-ia0-f169.google.com with SMTP id r4so1840175iaj.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 22:39:38 -0800 (PST)
-Message-ID: <50A5DFA4.2030700@gmail.com>
-Date: Fri, 16 Nov 2012 14:39:32 +0800
-From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 81A976B004D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:01:54 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so1179094bkc.14
+        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:01:52 -0800 (PST)
+Message-ID: <50A5E4D6.60301@gmail.com>
+Date: Fri, 16 Nov 2012 08:01:42 +0100
+From: Michael Kerrisk <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 20/21] mm: drop vmtruncate
-References: <5094E4A3.8020409@gmail.com>
-In-Reply-To: <5094E4A3.8020409@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: [PATCH] Correct description of SwapFree in Documentation/filesystems/proc.txt
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marco Stornelli <marco.stornelli@gmail.com>
-Cc: Linux FS Devel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Jim Paris <jim@jtan.com>, "Michael Kerrisk (gmail)" <mtk.manpages@gmail.com>
 
-On 11/03/2012 05:32 PM, Marco Stornelli wrote:
-> Removed vmtruncate
+After migrating most of the information in 
+Documentation/filesystems/proc.txt to the proc(5) man page,
+Jim Paris pointed out to me that the description of SwapFree
+in the man page seemed wrong. I think Jim is right,
+but am given pause by fact that that text has been in 
+Documentation/filesystems/proc.txt since at least 2.6.0.
+Anyway, I believe that the patch below fixes things.
 
-Hi Marco,
+Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
 
-Could you explain me why vmtruncate need remove? What's the problem and 
-how to substitute it?
 
-Regards,
-Jaegeuk
-
->
-> Signed-off-by: Marco Stornelli <marco.stornelli@gmail.com>
-> ---
->   include/linux/mm.h |    1 -
->   mm/truncate.c      |   23 -----------------------
->   2 files changed, 0 insertions(+), 24 deletions(-)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index fa06804..95f70bb 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -977,7 +977,6 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
->   
->   extern void truncate_pagecache(struct inode *inode, loff_t old, loff_t new);
->   extern void truncate_setsize(struct inode *inode, loff_t newsize);
-> -extern int vmtruncate(struct inode *inode, loff_t offset);
->   void truncate_pagecache_range(struct inode *inode, loff_t offset, loff_t end);
->   int truncate_inode_page(struct address_space *mapping, struct page *page);
->   int generic_error_remove_page(struct address_space *mapping, struct page *page);
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index d51ce92..c75b736 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -577,29 +577,6 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
->   EXPORT_SYMBOL(truncate_setsize);
->   
->   /**
-> - * vmtruncate - unmap mappings "freed" by truncate() syscall
-> - * @inode: inode of the file used
-> - * @newsize: file offset to start truncating
-> - *
-> - * This function is deprecated and truncate_setsize or truncate_pagecache
-> - * should be used instead, together with filesystem specific block truncation.
-> - */
-> -int vmtruncate(struct inode *inode, loff_t newsize)
-> -{
-> -	int error;
-> -
-> -	error = inode_newsize_ok(inode, newsize);
-> -	if (error)
-> -		return error;
-> -
-> -	truncate_setsize(inode, newsize);
-> -	if (inode->i_op->truncate)
-> -		inode->i_op->truncate(inode);
-> -	return 0;
-> -}
-> -EXPORT_SYMBOL(vmtruncate);
-> -
-> -/**
->    * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
->    * @inode: inode
->    * @lstart: offset of beginning of hole
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index a1793d6..cf4260f 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -778,8 +778,7 @@ AnonHugePages:   49152 kB
+               other things, it is where everything from the Slab is
+               allocated.  Bad things happen when you're out of lowmem.
+    SwapTotal: total amount of swap space available
+-    SwapFree: Memory which has been evicted from RAM, and is temporarily
+-              on the disk
++    SwapFree: Amount of swap space that is currently unused.
+        Dirty: Memory which is waiting to get written back to the disk
+    Writeback: Memory which is actively being written back to the disk
+    AnonPages: Non-file backed pages mapped into userspace page tables
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
