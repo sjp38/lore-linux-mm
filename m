@@ -1,59 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 527B16B0096
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:02 -0500 (EST)
-Date: Fri, 16 Nov 2012 16:25:56 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
- affinity"
-Message-ID: <20121116162556.GD8218@suse.de>
-References: <20121112160451.189715188@chello.nl>
- <20121112184833.GA17503@gmail.com>
- <20121115100805.GS8218@suse.de>
- <20121116155626.GA4271@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121116155626.GA4271@gmail.com>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 4FA5E6B009E
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 11:26:05 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so432634eaa.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 08:26:04 -0800 (PST)
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH 13/19] mm/mpol: Check for misplaced page
+Date: Fri, 16 Nov 2012 17:25:15 +0100
+Message-Id: <1353083121-4560-14-git-send-email-mingo@kernel.org>
+In-Reply-To: <1353083121-4560-1-git-send-email-mingo@kernel.org>
+References: <1353083121-4560-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Hugh Dickins <hughd@google.com>, Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-On Fri, Nov 16, 2012 at 04:56:26PM +0100, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > It is important to know how this was configured. I was running 
-> > one JVM per node and the JVMs were sized that they should fit 
-> > in the node. [...]
-> 
-> That is not what I tested: as I described it in the mail I 
-> tested 32 warehouses: i.e. spanning the whole system.
-> 
+From: Lee Schermerhorn <lee.schermerhorn@hp.com>
 
-Good (sortof) because that's my preferred explanation as to why we are
-seeing different results. Different machines and different kernels would
-be a lot more problematic.
+This patch provides a new function to test whether a page resides
+on a node that is appropriate for the mempolicy for the vma and
+address where the page is supposed to be mapped.  This involves
+looking up the node where the page belongs.  So, the function
+returns that node so that it may be used to allocated the page
+without consulting the policy again.
 
-> You tested 4 parallel JVMs running one per node, right?
-> 
+A subsequent patch will call this function from the fault path.
+Because of this, I don't want to go ahead and allocate the page, e.g.,
+via alloc_page_vma() only to have to free it if it has the correct
+policy.  So, I just mimic the alloc_page_vma() node computation
+logic--sort of.
 
-4 parallel JVMs sized so they they could fit one-per-node. However, I did
-*not* bind them to nodes because that would be completely pointless for
-this type of test.
+Note:  we could use this function to implement a MPOL_MF_STRICT
+behavior when migrating pages to match mbind() mempolicy--e.g.,
+to ensure that pages in an interleaved range are reinterleaved
+rather than left where they are when they reside on any page in
+the interleave nodemask.
 
-I've queued up another set of tests and added a single-JVM configuration
-to the mix. The kernels will have debugging, lockstat enabled and will
-be running two passes with the second pass running profiling so the
-results will not be directly comparable. However, I'll keep a close eye
-on the Single vs Multi JVM results.
+Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+[ Added MPOL_F_LAZY to trigger migrate-on-fault;
+  simplified code now that we don't have to bother
+  with special crap for interleaved ]
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Link: http://lkml.kernel.org/n/tip-z3mgep4tgrc08o07vl1ahb2m@git.kernel.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ include/linux/mempolicy.h      |  8 +++++
+ include/uapi/linux/mempolicy.h |  1 +
+ mm/mempolicy.c                 | 76 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+)
 
-Thanks.
-
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index e5ccb9d..c511e25 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -198,6 +198,8 @@ static inline int vma_migratable(struct vm_area_struct *vma)
+ 	return 1;
+ }
+ 
++extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
++
+ #else
+ 
+ struct mempolicy {};
+@@ -323,5 +325,11 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+ 	return 0;
+ }
+ 
++static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
++				 unsigned long address)
++{
++	return -1; /* no node preference */
++}
++
+ #endif /* CONFIG_NUMA */
+ #endif
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index d23dca8..472de8a 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -61,6 +61,7 @@ enum mpol_rebind_step {
+ #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+ #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
++#define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
+ 
+ 
+ #endif /* _UAPI_LINUX_MEMPOLICY_H */
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index c7c7c86..1b2890c 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2179,6 +2179,82 @@ static void sp_free(struct sp_node *n)
+ 	kmem_cache_free(sn_cache, n);
+ }
+ 
++/**
++ * mpol_misplaced - check whether current page node is valid in policy
++ *
++ * @page   - page to be checked
++ * @vma    - vm area where page mapped
++ * @addr   - virtual address where page mapped
++ *
++ * Lookup current policy node id for vma,addr and "compare to" page's
++ * node id.
++ *
++ * Returns:
++ *	-1	- not misplaced, page is in the right node
++ *	node	- node id where the page should be
++ *
++ * Policy determination "mimics" alloc_page_vma().
++ * Called from fault path where we know the vma and faulting address.
++ */
++int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
++{
++	struct mempolicy *pol;
++	struct zone *zone;
++	int curnid = page_to_nid(page);
++	unsigned long pgoff;
++	int polnid = -1;
++	int ret = -1;
++
++	BUG_ON(!vma);
++
++	pol = get_vma_policy(current, vma, addr);
++	if (!(pol->flags & MPOL_F_MOF))
++		goto out;
++
++	switch (pol->mode) {
++	case MPOL_INTERLEAVE:
++		BUG_ON(addr >= vma->vm_end);
++		BUG_ON(addr < vma->vm_start);
++
++		pgoff = vma->vm_pgoff;
++		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
++		polnid = offset_il_node(pol, vma, pgoff);
++		break;
++
++	case MPOL_PREFERRED:
++		if (pol->flags & MPOL_F_LOCAL)
++			polnid = numa_node_id();
++		else
++			polnid = pol->v.preferred_node;
++		break;
++
++	case MPOL_BIND:
++		/*
++		 * allows binding to multiple nodes.
++		 * use current page if in policy nodemask,
++		 * else select nearest allowed node, if any.
++		 * If no allowed nodes, use current [!misplaced].
++		 */
++		if (node_isset(curnid, pol->v.nodes))
++			goto out;
++		(void)first_zones_zonelist(
++				node_zonelist(numa_node_id(), GFP_HIGHUSER),
++				gfp_zone(GFP_HIGHUSER),
++				&pol->v.nodes, &zone);
++		polnid = zone->node;
++		break;
++
++	default:
++		BUG();
++	}
++	if (curnid != polnid)
++		ret = polnid;
++out:
++	mpol_cond_put(pol);
++
++	return ret;
++}
++
+ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
+ {
+ 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
 -- 
-Mel Gorman
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
