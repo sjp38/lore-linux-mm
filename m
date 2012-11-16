@@ -1,132 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 6FE736B005A
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 04:33:56 -0500 (EST)
-Message-ID: <50A60873.3000607@parallels.com>
-Date: Fri, 16 Nov 2012 13:33:39 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 2049C6B006C
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 04:34:30 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so1983104pbc.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 01:34:29 -0800 (PST)
+Message-ID: <50A6089B.7010708@gmail.com>
+Date: Fri, 16 Nov 2012 17:34:19 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com> <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com> <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils> <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils> <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils> <50A30ADD.9000209@gmail.com> <alpine.LNX.2.00.1211131935410.30540@eggly.anvils> <50A49C46.9040406@gmail.com> <alpine.LNX.2.00.1211151126440.9273@eggly.anvils>
+In-Reply-To: <alpine.LNX.2.00.1211151126440.9273@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/16/2012 01:25 AM, David Rientjes wrote:
-> On Thu, 15 Nov 2012, Anton Vorontsov wrote:
-> 
->> Hehe, you're saying that we have to have cgroups=y. :) But some folks were
->> deliberately asking us to make the cgroups optional.
->>
-> 
-> Enabling just CONFIG_CGROUPS (which is enabled by default) and no other 
-> current cgroups increases the size of the kernel text by less than 0.3% 
-> with x86_64 defconfig:
-> 
->    text	   data	    bss	    dec	    hex	filename
-> 10330039	1038912	1118208	12487159	 be89f7	vmlinux.disabled
-> 10360993	1041624	1122304	12524921	 bf1d79	vmlinux.enabled
-> 
-> I understand that users with minimally-enabled configs for an optimized 
-> memory footprint will have a higher percentage because their kernel is 
-> already smaller (~1.8% increase for allnoconfig), but I think the cost of 
-> enabling the cgroups code to be able to mount a vmpressure cgroup (which 
-> I'd rename to be "mempressure" to be consistent with "memcg" but it's only 
-> an opinion) is relatively small and allows for a much more maintainable 
-> and extendable feature to be included: it already provides the 
-> cgroup.event_control interface that supports eventfd that makes 
-> implementation much easier.  It also makes writing a library on top of the 
-> cgroup to be much easier because of the standardization.
-> 
-> I'm more concerned about what to do with the memcg memory thresholds and 
-> whether they can be replaced with this new cgroup.  If so, then we'll have 
-> to figure out how to map those triggers to use the new cgroup's interface 
-> in a way that doesn't break current users that open and pass the fd of 
-> memory.usage_in_bytes to cgroup.event_control for memcg.
-> 
->> OK, here is what I can try to do:
->>
->> - Implement memory pressure cgroup as you described, by doing so we'd make
->>   the thing play well with cpusets and memcg;
->>
->> - This will be eventfd()-based;
->>
-> 
-> Should be based on cgroup.event_control, see how memcg interfaces its 
-> memory thresholds with this in Documentation/cgroups/memory.txt.
-> 
->> - Once done, we will have a solution for pretty much every major use-case
->>   (i.e. servers, desktops and Android, they all have cgroups enabled);
->>
-> 
-> Excellent!  I'd be interested in hearing anybody else's opinions, 
-> especially those from the memcg world, so we make sure that everybody is 
-> happy with the API that you've described.
-> 
-Just CC'd them all.
+On 11/16/2012 03:56 AM, Hugh Dickins wrote:
+> Offtopic...
+>
+> On Thu, 15 Nov 2012, Jaegeuk Hanse wrote:
+>> Another question. Why the function shmem_fallocate which you add to kernel
+>> need call shmem_getpage?
+> Because shmem_getpage(_gfp) is where shmem's
+> page lookup and allocation complexities are handled.
+>
+> I assume the question behind your question is: why does shmem actually
+> allocate pages for its fallocate, instead of just reserving the space?
+>
+> I did play with just reserving the space, with more special entries in
+> the radix_tree to note the reservations made.  It should be doable for
+> the vm_enough_memory and sbinfo->used_blocks reservations.
+>
+> What absolutely deterred me from taking that path was the mem_cgroup
+> case: shmem and swap and memcg are not easy to get working right together,
+> and nobody would thank me for complicating memcg just for shmem_fallocate.
+>
+> By allocating pages, the pre-existing memcg code just works; if we used
+> reservations instead, we would have to track their memcg charges in some
+> additional new way.  I see no justification for that complication.
 
-My personal take:
+Hi Hugh
 
-Most people hate memcg due to the cost it imposes. I've already
-demonstrated that with some effort, it doesn't necessarily have to be
-so. (http://lwn.net/Articles/517634/)
+Some questions about your shmem/tmpfs: misc and fallocate patchset.
 
-The one thing I missed on that work, was precisely notifications. If you
-can come up with a good notifications scheme that *lives* in memcg, but
-does not *depend* in the memcg infrastructure, I personally think it
-could be a big win.
+- Since shmem_setattr can truncate tmpfs files, why need add another 
+similar codes in function shmem_fallocate? What's the trick?
+- in tmpfs: support fallocate preallocation patch changelog:
+   "Christoph Hellwig: What for exactly?  Please explain why 
+preallocating on tmpfs would make any sense.
+   Kay Sievers: To be able to safely use mmap(), regarding SIGBUS, on 
+files on the /dev/shm filesystem.  The glibc fallback loop for -ENOSYS 
+[or -EOPNOTSUPP] on fallocate is just ugly."
+   Could shmem/tmpfs fallocate prevent one process truncate the file 
+which the second process mmap() and get SIGBUS when the second process 
+access mmap but out of current size of file?
 
-Doing this in memcg has the advantage that the "per-group" vs "global"
-is automatically solved, since the root memcg is just another name for
-"global".
+Regards,
+Jaegeuk
 
-I honestly like your low/high/oom scheme better than memcg's
-"threshold-in-bytes". I would also point out that those thresholds are
-*far* from exact, due to the stock charging mechanism, and can be wrong
-by as much as O(#cpus). So far, nobody complained. So in theory it
-should be possible to convert memcg to low/high/oom, while still
-accepting writes in bytes, that would be thrown in the closest bucket.
-
-Another thing from one of your e-mails, that may shift you in the memcg
-direction:
-
-"2. The last time I checked, cgroups memory controller did not (and I
-guess still does not) not account kernel-owned slabs. I asked several
-times why so, but nobody answered."
-
-It should, now, in the latest -mm, although it won't do per-group
-reclaim (yet).
-
-I am also failing to see how cpusets would be involved in here. I
-understand that you may have free memory in terms of size, but still be
-further restricted by cpuset. But I also think that having multiple
-entry points for this buy us nothing at all. So the choices I see are:
-
-1) If cpuset + memcg are comounted, take this into account when deciding
-low / high / oom. This is yet another advantage over the "threshold in
-bytes" interface, in which you can transparently take
-other issues into account while keeping the interface.
-
-2) If they are not, just ignore this effect.
-
-The fallback in 2) sounds harsh, but I honestly think this is the price
-to pay for the insanity of mounting those things in different
-hierarchies, and we do have a plan to have all those things eventually
-together anyway. If you have two cgroups dealing with memory, and set
-them up in orthogonal ways, I really can't see how we can bring sanity
-to that. So just admitting and unleashing the insanity may be better, if
-it brings up our urge to fix it. It worked for Batman, why wouldn't it
-work for us?
-
-
-
-
-
-
+> Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
