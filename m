@@ -1,72 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 95BBC6B0068
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:46:25 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so496960eaa.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:46:21 -0800 (PST)
-Message-ID: <1353091574.23064.14.camel@c2d-desktop.mypicture.info>
-Subject: Re: [Bug 50181] New: Memory usage doubles after more then 20 hours
- of uptime.
-From: Milos Jakovljevic <sukijaki@gmail.com>
-Date: Fri, 16 Nov 2012 19:46:14 +0100
-In-Reply-To: <50A68718.3070002@linux.vnet.ibm.com>
-References: <bug-50181-27@https.bugzilla.kernel.org/>
-	 <20121113140352.4d2db9e8.akpm@linux-foundation.org>
-	 <1352988349.6409.4.camel@c2d-desktop.mypicture.info>
-	 <20121115141258.8e5cc669.akpm@linux-foundation.org>
-	 <1353021103.6409.31.camel@c2d-desktop.mypicture.info>
-	 <50A68718.3070002@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 7AF1E6B0085
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:55:24 -0500 (EST)
+Date: Fri, 16 Nov 2012 18:55:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 06/43] mm: numa: Make pte_numa() and pmd_numa() a generic
+ implementation
+Message-ID: <20121116185517.GH8218@suse.de>
+References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
+ <1353064973-26082-7-git-send-email-mgorman@suse.de>
+ <50A648FF.2040707@redhat.com>
+ <20121116144109.GA8218@suse.de>
+ <CA+55aFzH_-6FuwTF1GVDzLK+7c0MGLsLdPFjzzwU78GVUEMbBw@mail.gmail.com>
+ <20121116160852.GA4302@gmail.com>
+ <20121116165606.GE8218@suse.de>
+ <20121116171243.GA4697@gmail.com>
+ <20121116174853.GF8218@suse.de>
+ <20121116180404.GA4728@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121116180404.GA4728@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 2012-11-16 at 10:34 -0800, Dave Hansen wrote: 
-> On 11/15/2012 03:11 PM, Milos Jakovljevic wrote:
-> > Or maybe, it is just some problem with nvidia blob and 3.7 kernel
-> > loosing VM_RELEASE  (in a blob's mmap.c it was replaced with
-> > VM_DONTEXPAND | VM_DONTDUMP ).  - or maybe I'm just saying nonsense
-> > here.
+On Fri, Nov 16, 2012 at 07:04:04PM +0100, Ingo Molnar wrote:
 > 
-> I'm using Intel graphics, so it's not nvidia related for me, at least.
+> * Mel Gorman <mgorman@suse.de> wrote:
 > 
-> I've been recording a bunch of gunk from /proc once a minute for the
-> past 16 hours or so.  I've grepped some of it in to a log file (but I've
-> got a *LOT* more than this):
+> > That said, your approach just ends up being heavier. [...]
 > 
-> 	http://sr71.net/~dave/linux/leak-20121113/log.1353087988.txt.gz
+> Well, it's more fundamental than just whether to inline or not 
+> (which I think should be a separate optimization and I won't 
+> object to two-instruction variants the slightest) - but you 
+> ended up open-coding change_protection() 
+> via:
 > 
-> From meminfo, it shows MemFree/Buffers/Cached/AnonPages/Slab/PageTables,
-> and their sum.  That should capture _most_ of the memory use on the
-> system, and if we see that sum going down, it's probably a sign of the
-> leak, especially when we see a trend over a long period.  The file is in
-> roughly this format, if anyone cares:
+>    change_prot_numa_range() et al
 > 
-> 	<nr/date>  <meminfo fields> sums:  <sum fields> <delta>
+> which is a far bigger problem...
 > 
-> The system in question is my laptop.  What I can tell is that it doesn't
-> leak much when I'm not using it.  But, it's leaking pretty steadily
-> since I started using the system today (~6am in the logs).  It
-> _averages_ leaking about 400kB/minute when idle and almost 9MB/minute
-> when in active use.
-> 
-> I've tried to provoke the leak doing specific things like large
-> downloads, kernel compiles, watching video, alloc'ing a bunch of
-> transparent huge pages, then exiting...  No smoking gun so far.
-> 
-> Anybody have ideas what to try next or want to poke holes in my
-> statistics? :)
+> Do you have valid technical arguments in favor of that 
+> duplication?
 > 
 
-For me, it mostly happens over night, when there is only tvtime and
-deluge active (and rest of the programs are open but I don't use them -
-firefox, evolution and pidgin). 
-Only ones it happened while I was on the PC doing something. It was
-fresh after reboot, and I was  restarting  Firefox, 10 or more times (I
-was experimenting with addons).
+No, I don't and I have not claimed that it *has* to exist. In fact I've
+said multiple times than I can convert to change_protection as long as
+_PAGE_NUMA == _PAGE_NONE. This initial step was to build the list
+of requirements without worrying about breaking existing users of
+change_protection. Now that I know what the requirements are, I can convert.
+
+> If you just embrace the PROT_NONE reuse approach of numa/core 
+> then 90% of the differences in your tree will disappear and 
+> you'll have a code base very close to where numa/core was 3 
+> weeks ago already, modulo a handful of renames.
+> 
+
+Pointed out the missing parts in another mail already -- MIGRATE_FAULT,
+pmd handling in batch, stats and a logical progression from a simple to
+a complex policy.
+
+> It's not like PROT_NONE will go away anytime soon.
+> 
+> PROT_NONE is available on every architecture, and we use the 
+> exact semantics of it in the scheduler, we just happen to drive 
+> it from a special worklet instead of a syscall, and happen to 
+> have a callback to the faults when they happen...
+> 
+> Please stay open to that approach.
+> 
+
+I will.
+
+If anything, me switching to prot_none would be a hell of a lot easier
+than you trying to pick up the bits you're missing. I'll take a look
+Monday and see what falls out.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
