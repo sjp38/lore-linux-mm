@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 81A976B004D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:01:54 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so1179094bkc.14
-        for <linux-mm@kvack.org>; Thu, 15 Nov 2012 23:01:52 -0800 (PST)
-Message-ID: <50A5E4D6.60301@gmail.com>
-Date: Fri, 16 Nov 2012 08:01:42 +0100
-From: Michael Kerrisk <mtk.manpages@gmail.com>
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 60CE26B004D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 02:12:17 -0500 (EST)
+Message-ID: <50A5E73F.8030201@parallels.com>
+Date: Fri, 16 Nov 2012 11:11:59 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: [PATCH] Correct description of SwapFree in Documentation/filesystems/proc.txt
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 5/7] memcg: get rid of once-per-second cache shrinking
+ for dead memcgs
+References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-6-git-send-email-glommer@parallels.com> <50A4B8C8.6020202@jp.fujitsu.com> <50A4F289.1090807@parallels.com> <50A5CA16.7070603@jp.fujitsu.com>
+In-Reply-To: <50A5CA16.7070603@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Jim Paris <jim@jtan.com>, "Michael Kerrisk (gmail)" <mtk.manpages@gmail.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
 
-After migrating most of the information in 
-Documentation/filesystems/proc.txt to the proc(5) man page,
-Jim Paris pointed out to me that the description of SwapFree
-in the man page seemed wrong. I think Jim is right,
-but am given pause by fact that that text has been in 
-Documentation/filesystems/proc.txt since at least 2.6.0.
-Anyway, I believe that the patch below fixes things.
+On 11/16/2012 09:07 AM, Kamezawa Hiroyuki wrote:
+> (2012/11/15 22:47), Glauber Costa wrote:
+>> On 11/15/2012 01:41 PM, Kamezawa Hiroyuki wrote:
+>>> (2012/11/15 11:54), Glauber Costa wrote:
+>>>> The idea is to synchronously do it, leaving it up to the shrinking
+>>>> facilities in vmscan.c and/or others. Not actively retrying shrinking
+>>>> may leave the caches alive for more time, but it will remove the ugly
+>>>> wakeups. One would argue that if the caches have free objects but are
+>>>> not being shrunk, it is because we don't need that memory yet.
+>>>>
+>>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>>>> CC: Michal Hocko <mhocko@suse.cz>
+>>>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>>>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>>
+>>> I agree this patch but can we have a way to see the number of unaccounted
+>>> zombie cache usage for debugging ?
+>>>
+>>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>>
+>> Any particular interface in mind ?
+>>
+> 
+> Hmm, it's debug interface and having cgroup file may be bad.....
+> If it can be seen in bytes or some, /proc/vmstat ?
+> 
+> out_of_track_slabs  xxxxxxx. hm ?
+> 
 
-Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
+I particularly think that, being this a debug interface, it is also
+useful to have an indication of which caches are still in place. This is
+because the cache itself, is the best indication we have about the
+specific workload that may be keeping it in memory.
 
+I first thought debugfs could help us probing useful information out of
+it, but given all the abuse people inflicted in debugfs... maybe we
+could have a file in the root memcg with that information for all
+removed memcgs? If we do that, we can go further and list the memcgs
+that are pending due to memsw as well. memory.dangling_memcgs ?
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index a1793d6..cf4260f 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -778,8 +778,7 @@ AnonHugePages:   49152 kB
-               other things, it is where everything from the Slab is
-               allocated.  Bad things happen when you're out of lowmem.
-    SwapTotal: total amount of swap space available
--    SwapFree: Memory which has been evicted from RAM, and is temporarily
--              on the disk
-+    SwapFree: Amount of swap space that is currently unused.
-        Dirty: Memory which is waiting to get written back to the disk
-    Writeback: Memory which is actively being written back to the disk
-    AnonPages: Non-file backed pages mapped into userspace page tables
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
