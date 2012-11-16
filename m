@@ -1,85 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 69EEF6B0078
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:04:36 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so2277836pad.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 12:04:35 -0800 (PST)
-Date: Fri, 16 Nov 2012 12:04:32 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-In-Reply-To: <50A60873.3000607@parallels.com>
-Message-ID: <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com>
- <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
- <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com> <50A60873.3000607@parallels.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8E96D6B0078
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:05:20 -0500 (EST)
+Date: Fri, 16 Nov 2012 20:05:15 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Benchmark results: "Enhanced NUMA scheduling with adaptive
+ affinity"
+Message-ID: <20121116200514.GJ8218@suse.de>
+References: <20121112160451.189715188@chello.nl>
+ <20121112184833.GA17503@gmail.com>
+ <20121115100805.GS8218@suse.de>
+ <CA+55aFyEJwRvQezg3oKg71Nk9+1QU7qwvo0BH4ykReKxNhFJRg@mail.gmail.com>
+ <50A566FA.2090306@redhat.com>
+ <20121116141428.GZ8218@suse.de>
+ <20121116195018.GA8908@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121116195018.GA8908@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, 16 Nov 2012, Glauber Costa wrote:
-
-> My personal take:
+On Fri, Nov 16, 2012 at 08:50:18PM +0100, Andrea Arcangeli wrote:
+> Hi,
 > 
-> Most people hate memcg due to the cost it imposes. I've already
-> demonstrated that with some effort, it doesn't necessarily have to be
-> so. (http://lwn.net/Articles/517634/)
+> On Fri, Nov 16, 2012 at 02:14:28PM +0000, Mel Gorman wrote:
+> > With some shuffling the question on what to consider for merging
+> > becomes
+> > 
+> >
+> > 1. TLB optimisation patches 1-3?	 	Patches  1-3
 > 
-> The one thing I missed on that work, was precisely notifications. If you
-> can come up with a good notifications scheme that *lives* in memcg, but
-> does not *depend* in the memcg infrastructure, I personally think it
-> could be a big win.
-> 
-
-This doesn't allow users of cpusets without memcg to have an API for 
-memory pressure, that's why I thought it should be a new cgroup that can 
-be mounted alongside any existing cgroup, any cgroup in the future, or 
-just by itself.
-
-> Doing this in memcg has the advantage that the "per-group" vs "global"
-> is automatically solved, since the root memcg is just another name for
-> "global".
+> I assume you mean simply reshuffling 33-35 as 1-3.
 > 
 
-That's true of any cgroup.
+Yes.
 
-> I honestly like your low/high/oom scheme better than memcg's
-> "threshold-in-bytes". I would also point out that those thresholds are
-> *far* from exact, due to the stock charging mechanism, and can be wrong
-> by as much as O(#cpus). So far, nobody complained. So in theory it
-> should be possible to convert memcg to low/high/oom, while still
-> accepting writes in bytes, that would be thrown in the closest bucket.
+> > 2. Stats for migration?				Patches  4-6
+> > 3. Common NUMA infrastructure?			Patches  7-21
+> > 4. Basic fault-driven policy, stats, ratelimits	Patches 22-35
+> > 
+> > Patches 36-43 are complete cabbage and should not be considered at this
+> > stage. It should be possible to build the placement policies and the
+> > scheduling decisions from schednuma, autonuma, some combination of the
+> > above or something completely different on top of patches 1-35.
+> > 
+> > Peter, Ingo, Andrea?
+> 
+> The patches 1-35 looks a great foundation so I think they'd be an
+> ideal candidate for a first upstream inclusion.
 > 
 
-I'm wondering if we should have more than three different levels.
+Thanks.
 
-> Another thing from one of your e-mails, that may shift you in the memcg
-> direction:
-> 
-> "2. The last time I checked, cgroups memory controller did not (and I
-> guess still does not) not account kernel-owned slabs. I asked several
-> times why so, but nobody answered."
-> 
-> It should, now, in the latest -mm, although it won't do per-group
-> reclaim (yet).
-> 
-
-Not sure where that was written, but I certainly didn't write it and it's 
-not really relevant in this discussion: memory pressure notifications 
-would be triggered by reclaim when trying to allocate memory; why we need 
-to reclaim or how we got into that state is tangential.  It certainly may 
-be because a lot of slab was allocated, but that's not the only case.
-
-> I am also failing to see how cpusets would be involved in here. I
-> understand that you may have free memory in terms of size, but still be
-> further restricted by cpuset. But I also think that having multiple
-> entry points for this buy us nothing at all. So the choices I see are:
-> 
-
-Umm, why do users of cpusets not want to be able to trigger memory 
-pressure notifications?
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
