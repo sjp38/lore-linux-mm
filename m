@@ -1,69 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 32A296B005D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:23:13 -0500 (EST)
-Message-ID: <50A68485.7030502@redhat.com>
-Date: Fri, 16 Nov 2012 13:23:01 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 57E076B006E
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:26:49 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id s11so2453800qaa.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:26:48 -0800 (PST)
+Date: Fri, 16 Nov 2012 13:26:43 -0500
+From: Konrad Rzeszutek Wilk <konrad@kernel.org>
+Subject: Re: [PATCH v2] enable all tmem backends to be built and loaded as
+ modules.
+Message-ID: <20121116182641.GA26424@phenom.dumpdata.com>
+References: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/8] sched, numa, mm: Add adaptive NUMA affinity support
-References: <20121112160451.189715188@chello.nl> <20121112161215.782018877@chello.nl> <50A68096.1050208@redhat.com> <20121116181433.GA4763@gmail.com>
-In-Reply-To: <20121116181433.GA4763@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1352920339-10183-1-git-send-email-konrad.wilk@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, akpm@linux-foundation.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
 
-On 11/16/2012 01:14 PM, Ingo Molnar wrote:
->
-> * Rik van Riel <riel@redhat.com> wrote:
->
->> On 11/12/2012 11:04 AM, Peter Zijlstra wrote:
->>
->>> We change the load-balancer to prefer moving tasks in order of:
->>>
->>>    1) !numa tasks and numa tasks in the direction of more faults
->>>    2) allow !ideal tasks getting worse in the direction of faults
->>>    3) allow private tasks to get worse
->>>    4) allow shared tasks to get worse
->>>
->>> This order ensures we prefer increasing memory locality but when
->>> we do have to make hard decisions we prefer spreading private
->>> over shared, because spreading shared tasks significantly
->>> increases the interconnect bandwidth since not all memory can
->>> follow.
->>
->> Combined with the fact that we only turn a certain amount of
->> memory into NUMA ptes each second, could this result in a
->> program being classified as a private task one second, and a
->> shared task a few seconds later?
->
-> It's a statistical method, like most of scheduling.
->
-> It's as prone to oscillation as tasks are already prone to being
-> moved spuriously by the load balancer today, due to the per CPU
-> load average being statistical and them being slightly above or
-> below a critical load average value.
->
-> Higher freq oscillation should not happen normally though, we
-> dampen these metrics and have per CPU hysteresis.
->
-> ( We can also add explicit hysteresis if anyone demonstrates
->    real oscillation with a real workload - wanted to keep it
->    simple first and change it only as-needed. )
+Um, that is what I get from doing this while traveling.
 
-This heuristic is by no means simple, and there still is no
-explanation for the serious performance degradations that
-were seen on a 4 node system running specjbb in 4 node-sized
-JVMs.
+This is the writeup:
 
-I asked a number of questions on this patch yesterday, and
-am hoping to get explanations at some point :)
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: [PATCH] zcache2 cleanups (s/int/bool/ + debugfs move).
+In-Reply-To: 
+Changelog since rfc: https://lkml.org/lkml/2012/11/5/549
+ - Added Reviewed-by from Dan.
 
--- 
-All rights reversed
+This patchset depends on the recently posted V2 of making the
+frontswap/cleancache backends be module capable:
+ http://mid.gmane.org/1352919432-9699-1-git-send-email-konrad.wilk@oracle.com
+
+I think that once the V2 is OK I will combine this patchset along
+with the V2 and send the whole thing to GregKH? Or perhaps just
+if Greg is Ok I will do via my tree.
+
+This is a copy of what I wrote in the RFC posting:
+
+Looking at the zcache2 code there were a couple of things that I thought
+would make sense to move out of the code. For one thing it makes it easier
+to read, and for anoter - it can be cleanly compiled out. It also allows
+to have a clean seperation of counters that we _need_ vs the optional ones.
+Which means that in the future we could get rid of the optional ones.
+
+It fixes some outstanding compile warnings, cleans
+up some of the code, and rips out the debug counters out of zcache-main.c
+and sticks them in a debug.c file.
+
+I was hoping it would end up with less code, but sadly it ended up with
+a bit more due to the empty non-debug functions - but the code is easier
+to read.
+
+
+ drivers/staging/ramster/Kconfig       |    8 +
+ drivers/staging/ramster/Makefile      |    1 +
+ drivers/staging/ramster/debug.c       |   66 +++++++
+ drivers/staging/ramster/debug.h       |  229 ++++++++++++++++++++++
+ drivers/staging/ramster/zcache-main.c |  336 +++++++--------------------------
+ 5 files changed, 370 insertions(+), 270 deletions(-)
+
+
+Konrad Rzeszutek Wilk (11):
+      zcache: Provide accessory functions for counter increase
+      zcache: Provide accessory functions for counter decrease.
+      zcache: The last of the atomic reads has now an accessory function.
+      zcache: Fix compile warnings due to usage of debugfs_create_size_t
+      zcache: Make the debug code use pr_debug
+      zcache: Move debugfs code out of zcache-main.c file.
+      zcache: Use an array to initialize/use debugfs attributes.
+      zcache: Move the last of the debugfs counters out
+      zcache: Allow to compile if ZCACHE_DEBUG and !DEBUG_FS
+      zcache: Module license is defined twice.
+      zcache: Coalesce all debug under CONFIG_ZCACHE2_DEBUG
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
