@@ -1,46 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id AA7C56B002B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:57:32 -0500 (EST)
-Date: Fri, 16 Nov 2012 20:57:31 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 0/8] Announcement: Enhanced NUMA scheduling with adaptive
- affinity
-In-Reply-To: <20121116155943.GB4271@gmail.com>
-Message-ID: <0000013b0b031a8f-e57805ad-a81f-4aa7-9906-ceb99f41210b-000000@email.amazonses.com>
-References: <20121112160451.189715188@chello.nl> <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com> <20121113072441.GA21386@gmail.com> <0000013b04769cf2-b57b16c0-5af0-4e7e-a736-e0aa2d4e4e78-000000@email.amazonses.com>
- <20121116155943.GB4271@gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id D6FFF6B005A
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 16:12:55 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v2 0/3] acpi: Introduce prepare_remove device operation
+Date: Fri, 16 Nov 2012 22:17:17 +0100
+Message-ID: <11897248.2VNutIHaJi@vostro.rjw.lan>
+In-Reply-To: <1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+References: <1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, toshi.kani@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Fri, 16 Nov 2012, Ingo Molnar wrote:
+On Thursday, November 15, 2012 11:22:47 AM Vasilis Liaskovitis wrote:
+> As discussed in https://patchwork.kernel.org/patch/1581581/
+> the driver core remove function needs to always succeed. This means we need
+> to know that the device can be successfully removed before acpi_bus_trim / 
+> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+> eject or driver unbind of memory devices fails e.g with:
+> 
+> echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+> 
+> since the ACPI core goes ahead and ejects the device regardless of whether the
+> the memory is still in use or not.
+> 
+> For this reason a new acpi_device operation called prepare_remove is introduced.
+> This operation should be registered for acpi devices whose removal (from kernel
+> perspective) can fail.  Memory devices fall in this category.
+> A similar operation is introduced in bus_type to safely handle driver unbind
+> from the device driver core.
+> 
+> acpi_bus_hot_remove_device and driver_unbind are changed to handle removal in 2
+> steps:
+> - preparation for removal i.e. perform part of removal that can fail. Should
+>   succeed for device and all its children.
+> - if above step was successfull, proceed to actual device removal
+> 
+> With this patchset, only acpi memory devices use the new prepare_remove
+> device operation. The actual memory removal (VM-related offline and other memory
+> cleanups) is moved to prepare_remove. The old remove operation just cleans up
+> the acpi structures. Directly ejecting PNP0C80 memory devices works safely. I
+> haven't tested yet with an ACPI container which contains memory devices.
+> 
+> v1->v2:
+> - new patch to introduce bus_type prepare_remove callback. Needed to prepare
+> removal on driver unbinding from device-driver core.
+> - v1 patches 1 and 2 simplified and merged in one. acpi_bus_trim does not require
+> argument changes.
+> 
+> Comments welcome.
+> 
+> Vasilis Liaskovitis (3):
+>   driver core: Introduce prepare_remove in bus_type
+>   acpi: Introduce prepare_remove operation in acpi_device_ops
+>   acpi_memhotplug: Add prepare_remove operation
+> 
+>  drivers/acpi/acpi_memhotplug.c |   22 ++++++++++++++++++++--
+>  drivers/acpi/scan.c            |   21 ++++++++++++++++++++-
+>  drivers/base/bus.c             |   36 ++++++++++++++++++++++++++++++++++++
+>  include/acpi/acpi_bus.h        |    2 ++
+>  include/linux/device.h         |    2 ++
+>  5 files changed, 80 insertions(+), 3 deletions(-)
 
-> > The interleaving of memory areas that have an equal amount of
-> > shared accesses from multiple nodes is essential to limit the
-> > traffic on the interconnect and get top performance.
->
-> That is true only if the load is symmetric.
+CCs of all driver core patches have to go to Greg Kroah-Hartman.
 
-Which is usually true of an HPC workload.
+Thanks,
+Rafael
 
-> > I guess through that in a non HPC environment where you are
-> > not interested in one specific load running at top speed
-> > varying contention on the interconnect and memory busses are
-> > acceptable. But this means that HPC loads cannot be auto
-> > tuned.
->
-> I'm not against improving these workloads (at all) - I just
-> pointed out that interleaving isn't necessarily the best
-> placement strategy for 'large' workloads.
 
-Depends on what you mean by "large" workloads. If it is a typically large
-HPC workload with data structures distributed over nodes then the
-placement of those data structure spread over all nodes is the best
-placement startegy.
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
