@@ -1,68 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 487C86B0072
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:13:02 -0500 (EST)
-Date: Fri, 16 Nov 2012 18:12:55 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [patch] mm: introduce a common interface for balloon pages
- mobility fix
-Message-ID: <20121116201254.GA32685@t510.redhat.com>
-References: <50a6581a.V3MmP/x4DXU9jUhJ%fengguang.wu@intel.com>
- <alpine.DEB.2.00.1211161147580.2788@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id AA7C56B002B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 15:57:32 -0500 (EST)
+Date: Fri, 16 Nov 2012 20:57:31 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 0/8] Announcement: Enhanced NUMA scheduling with adaptive
+ affinity
+In-Reply-To: <20121116155943.GB4271@gmail.com>
+Message-ID: <0000013b0b031a8f-e57805ad-a81f-4aa7-9906-ceb99f41210b-000000@email.amazonses.com>
+References: <20121112160451.189715188@chello.nl> <0000013af701ca15-3acab23b-a16d-4e38-9dc0-efef05cbc5f2-000000@email.amazonses.com> <20121113072441.GA21386@gmail.com> <0000013b04769cf2-b57b16c0-5af0-4e7e-a736-e0aa2d4e4e78-000000@email.amazonses.com>
+ <20121116155943.GB4271@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211161147580.2788@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
 
-On Fri, Nov 16, 2012 at 11:50:12AM -0800, David Rientjes wrote:
-> On Fri, 16 Nov 2012, kbuild test robot wrote:
-> 
-> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-> > head:   12dfb061e5fd15be23451418da01281625c0eeae
-> > commit: 86929cfa5f751de3d8be5a846535282730865d8a [365/437] mm: introduce a common interface for balloon pages mobility
-> > config: make ARCH=sh allyesconfig
-> > 
-> > All warnings:
-> > 
-> > warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
-> > warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
-> > --
-> > warning: (BALLOON_COMPACTION && TRANSPARENT_HUGEPAGE) selects COMPACTION which has unmet direct dependencies (MMU)
-> > 
-> 
-> mm: introduce a common interface for balloon pages mobility fix
-> 
-> CONFIG_BALLOON_COMPACTION shouldn't be selecting options that may not be 
-> supported, so make it depend on memory compaction rather than selecting 
-> it.  CONFIG_COMPACTION is enabled by default for all configs that support 
-> it.
->     
+On Fri, 16 Nov 2012, Ingo Molnar wrote:
 
-This is addressed by the submitted v12 review, which is on mmtom queue already.
+> > The interleaving of memory areas that have an equal amount of
+> > shared accesses from multiple nodes is essential to limit the
+> > traffic on the interconnect and get top performance.
+>
+> That is true only if the load is symmetric.
 
+Which is usually true of an HPC workload.
 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/Kconfig |    3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -191,8 +191,7 @@ config SPLIT_PTLOCK_CPUS
->  # support for memory balloon compaction
->  config BALLOON_COMPACTION
->  	bool "Allow for balloon memory compaction/migration"
-> -	select COMPACTION
-> -	depends on VIRTIO_BALLOON
-> +	depends on VIRTIO_BALLOON && COMPACTION
->  	help
->  	  Memory fragmentation introduced by ballooning might reduce
->  	  significantly the number of 2MB contiguous memory blocks that can be
+> > I guess through that in a non HPC environment where you are
+> > not interested in one specific load running at top speed
+> > varying contention on the interconnect and memory busses are
+> > acceptable. But this means that HPC loads cannot be auto
+> > tuned.
+>
+> I'm not against improving these workloads (at all) - I just
+> pointed out that interleaving isn't necessarily the best
+> placement strategy for 'large' workloads.
+
+Depends on what you mean by "large" workloads. If it is a typically large
+HPC workload with data structures distributed over nodes then the
+placement of those data structure spread over all nodes is the best
+placement startegy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
