@@ -1,85 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id B3BAF6B0074
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:32:22 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id lz20so3536531obb.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 07:32:21 -0800 (PST)
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 0021F6B0078
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:50:57 -0500 (EST)
+Message-ID: <50A660D1.7020001@parallels.com>
+Date: Fri, 16 Nov 2012 19:50:41 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20121116144109.GA8218@suse.de>
-References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
- <1353064973-26082-7-git-send-email-mgorman@suse.de> <50A648FF.2040707@redhat.com>
- <20121116144109.GA8218@suse.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 16 Nov 2012 07:32:01 -0800
-Message-ID: <CA+55aFzH_-6FuwTF1GVDzLK+7c0MGLsLdPFjzzwU78GVUEMbBw@mail.gmail.com>
-Subject: Re: [PATCH 06/43] mm: numa: Make pte_numa() and pmd_numa() a generic implementation
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 5/7] memcg: get rid of once-per-second cache shrinking
+ for dead memcgs
+References: <1352948093-2315-1-git-send-email-glommer@parallels.com> <1352948093-2315-6-git-send-email-glommer@parallels.com> <50A4B8C8.6020202@jp.fujitsu.com> <50A4F289.1090807@parallels.com> <50A5CA16.7070603@jp.fujitsu.com> <50A5E73F.8030201@parallels.com> <50A5E997.6060002@jp.fujitsu.com> <20121116145508.GC2006@dhcp22.suse.cz>
+In-Reply-To: <20121116145508.GC2006@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>
 
-On Fri, Nov 16, 2012 at 6:41 AM, Mel Gorman <mgorman@suse.de> wrote:
->
-> I would have preferred asm-generic/pgtable.h myself and use
-> __HAVE_ARCH_whatever tricks
+On 11/16/2012 06:55 PM, Michal Hocko wrote:
+> On Fri 16-11-12 16:21:59, KAMEZAWA Hiroyuki wrote:
+>> (2012/11/16 16:11), Glauber Costa wrote:
+>>> On 11/16/2012 09:07 AM, Kamezawa Hiroyuki wrote:
+>>>> (2012/11/15 22:47), Glauber Costa wrote:
+>>>>> On 11/15/2012 01:41 PM, Kamezawa Hiroyuki wrote:
+>>>>>> (2012/11/15 11:54), Glauber Costa wrote:
+>>>>>>> The idea is to synchronously do it, leaving it up to the shrinking
+>>>>>>> facilities in vmscan.c and/or others. Not actively retrying shrinking
+>>>>>>> may leave the caches alive for more time, but it will remove the ugly
+>>>>>>> wakeups. One would argue that if the caches have free objects but are
+>>>>>>> not being shrunk, it is because we don't need that memory yet.
+>>>>>>>
+>>>>>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
+>>>>>>> CC: Michal Hocko <mhocko@suse.cz>
+>>>>>>> CC: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>>>>>> CC: Johannes Weiner <hannes@cmpxchg.org>
+>>>>>>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>>>>>
+>>>>>> I agree this patch but can we have a way to see the number of unaccounted
+>>>>>> zombie cache usage for debugging ?
+>>>>>>
+>>>>>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>>>>>
+>>>>> Any particular interface in mind ?
+>>>>>
+>>>>
+>>>> Hmm, it's debug interface and having cgroup file may be bad.....
+>>>> If it can be seen in bytes or some, /proc/vmstat ?
+>>>>
+>>>> out_of_track_slabs  xxxxxxx. hm ?
+>>>>
+>>>
+>>> I particularly think that, being this a debug interface, it is also
+>>> useful to have an indication of which caches are still in place. This is
+>>> because the cache itself, is the best indication we have about the
+>>> specific workload that may be keeping it in memory.
+>>>
+>>> I first thought debugfs could help us probing useful information out of
+>>> it, but given all the abuse people inflicted in debugfs... maybe we
+>>> could have a file in the root memcg with that information for all
+>>> removed memcgs? If we do that, we can go further and list the memcgs
+>>> that are pending due to memsw as well. memory.dangling_memcgs ?
+>>>
+>>
+>> Hm, I'm ok with it... others ?
+> 
+> What about memory.kmem.dangling_caches?
+> 
+If that is what it does, sure.
 
-PLEASE NO!
-
-Dammit, why is this disease still so prevalent, and why do people
-continue to do this crap?
-
-__HAVE_ARCH_xyzzy is a f*cking retarded thing to do, and that's
-actually an insult to retarded people.
-
-Use either:
-
- - Kconfig entries for bigger features where that makes sense, and
-using the Kconfig files allows you to use the Kconfig logic for things
-(ie there are dependencies etc, so you can avoid having to have
-complicated conditionals in the #ifdef's, and instead introduce them
-as rules in Kconfig files).
-
- - the SAME F*CKING NAME for the #ifdef, not some totally different
-namespace with __HAVE_ARCH_xyzzy crap.
-
-So if your architecture wants to override one (or more) of the
-pte_*numa() functions, just make it do so. And do it with
-
-  static inline pmd_t pmd_mknuma(pmd_t pmd)
-  {
-          pmd = pmd_set_flags(pmd, _PAGE_NUMA);
-          return pmd_clear_flags(pmd, _PAGE_PRESENT);
-  }
-  #define pmd_mknuma pmd_mknuma
-
-and then you can have the generic code have code like
-
-   #ifndef pmd_mknuma
-   .. generic version goes here ..
-   #endif
-
-and the advantage is two-fold:
-
- - none of the "let's make up another name to test for this"
-
- - "git grep" actually _works_, and the end results make sense, and
-you can clearly see the logic of where things are declared, and which
-one is used.
-
-The __ARCH_HAVE_xyzzy (and some places call it __HAVE_ARCH_xyzzy)
-thing is a disease.
-
-That said, the __weak thing works too (and greps fine, as long as you
-use the proper K&R C format, not the idiotic "let's put the name of
-the function on a different line than the type of the function"
-format), it just doesn't allow inlining.
-
-In this case, I suspect the inlined function is generally a single
-instruction, is it not? In which case I really do think that inlining
-makes sense.
-
-                      Linus
+But as I said, kmem is not the only thing that can keep caches in
+memory. If we're going for this, maybe we should be more comprehensive
+and show it all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
