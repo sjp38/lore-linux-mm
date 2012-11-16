@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 738B16B0083
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 06:23:14 -0500 (EST)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 7F4216B0087
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 06:23:17 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/43] mm: mempolicy: Check for misplaced page
-Date: Fri, 16 Nov 2012 11:22:22 +0000
-Message-Id: <1353064973-26082-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 14/43] mm: mempolicy: Use _PAGE_NUMA to migrate pages
+Date: Fri, 16 Nov 2012 11:22:24 +0000
+Message-Id: <1353064973-26082-15-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353064973-26082-1-git-send-email-mgorman@suse.de>
 References: <1353064973-26082-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,167 +13,197 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Lee Schermerhorn <lee.schermerhorn@hp.com>
+Note: Based on "mm/mpol: Use special PROT_NONE to migrate pages" but
+	sufficiently different that the signed-off-bys were dropped
 
-This patch provides a new function to test whether a page resides
-on a node that is appropriate for the mempolicy for the vma and
-address where the page is supposed to be mapped.  This involves
-looking up the node where the page belongs.  So, the function
-returns that node so that it may be used to allocated the page
-without consulting the policy again.
+Combine our previous _PAGE_NUMA, mpol_misplaced and migrate_misplaced_page()
+pieces into an effective migrate on fault scheme.
 
-A subsequent patch will call this function from the fault path.
-Because of this, I don't want to go ahead and allocate the page, e.g.,
-via alloc_page_vma() only to have to free it if it has the correct
-policy.  So, I just mimic the alloc_page_vma() node computation
-logic--sort of.
+Note that (on x86) we rely on PROT_NONE pages being !present and avoid
+the TLB flush from try_to_unmap(TTU_MIGRATION). This greatly improves the
+page-migration performance.
 
-Note:  we could use this function to implement a MPOL_MF_STRICT
-behavior when migrating pages to match mbind() mempolicy--e.g.,
-to ensure that pages in an interleaved range are reinterleaved
-rather than left where they are when they reside on any page in
-the interleave nodemask.
-
-Signed-off-by: Lee Schermerhorn <lee.schermerhorn@hp.com>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-[ Added MPOL_F_LAZY to trigger migrate-on-fault;
-  simplified code now that we don't have to bother
-  with special crap for interleaved ]
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Based-on-work-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mempolicy.h      |    8 +++++
- include/uapi/linux/mempolicy.h |    1 +
- mm/mempolicy.c                 |   76 ++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 85 insertions(+)
+ include/linux/huge_mm.h |    8 ++++----
+ mm/huge_memory.c        |   32 +++++++++++++++++++++++++++++---
+ mm/memory.c             |   44 ++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 73 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index e5ccb9d..c511e25 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -198,6 +198,8 @@ static inline int vma_migratable(struct vm_area_struct *vma)
- 	return 1;
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index a13ebb1..406f81c 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -160,8 +160,8 @@ static inline struct page *compound_trans_head(struct page *page)
+ 	return page;
  }
  
-+extern int mpol_misplaced(struct page *, struct vm_area_struct *, unsigned long);
-+
- #else
+-extern int do_huge_pmd_numa_page(struct mm_struct *mm, unsigned long addr,
+-				  pmd_t pmd, pmd_t *pmdp);
++extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
  
- struct mempolicy {};
-@@ -323,5 +325,11 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
+ #else /* CONFIG_TRANSPARENT_HUGEPAGE */
+ #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
+@@ -200,8 +200,8 @@ static inline int pmd_trans_huge_lock(pmd_t *pmd,
  	return 0;
  }
  
-+static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
-+				 unsigned long address)
-+{
-+	return -1; /* no node preference */
-+}
-+
- #endif /* CONFIG_NUMA */
- #endif
-diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index d23dca8..472de8a 100644
---- a/include/uapi/linux/mempolicy.h
-+++ b/include/uapi/linux/mempolicy.h
-@@ -61,6 +61,7 @@ enum mpol_rebind_step {
- #define MPOL_F_SHARED  (1 << 0)	/* identify shared policies */
- #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
- #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
-+#define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
- 
- 
- #endif /* _UAPI_LINUX_MEMPOLICY_H */
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index c21e914..df1466d 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2181,6 +2181,82 @@ static void sp_free(struct sp_node *n)
- 	kmem_cache_free(sn_cache, n);
+-static inline int do_huge_pmd_numa_page(struct mm_struct *mm, unsigned long addr,
+-					pmd_t pmd, pmd_t *pmdp);
++static inline int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++					unsigned long addr, pmd_t pmd, pmd_t *pmdp);
+ {
  }
  
-+/**
-+ * mpol_misplaced - check whether current page node is valid in policy
-+ *
-+ * @page   - page to be checked
-+ * @vma    - vm area where page mapped
-+ * @addr   - virtual address where page mapped
-+ *
-+ * Lookup current policy node id for vma,addr and "compare to" page's
-+ * node id.
-+ *
-+ * Returns:
-+ *	-1	- not misplaced, page is in the right node
-+ *	node	- node id where the page should be
-+ *
-+ * Policy determination "mimics" alloc_page_vma().
-+ * Called from fault path where we know the vma and faulting address.
-+ */
-+int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long addr)
-+{
-+	struct mempolicy *pol;
-+	struct zone *zone;
-+	int curnid = page_to_nid(page);
-+	unsigned long pgoff;
-+	int polnid = -1;
-+	int ret = -1;
-+
-+	BUG_ON(!vma);
-+
-+	pol = get_vma_policy(current, vma, addr);
-+	if (!(pol->flags & MPOL_F_MOF))
-+		goto out;
-+
-+	switch (pol->mode) {
-+	case MPOL_INTERLEAVE:
-+		BUG_ON(addr >= vma->vm_end);
-+		BUG_ON(addr < vma->vm_start);
-+
-+		pgoff = vma->vm_pgoff;
-+		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
-+		polnid = offset_il_node(pol, vma, pgoff);
-+		break;
-+
-+	case MPOL_PREFERRED:
-+		if (pol->flags & MPOL_F_LOCAL)
-+			polnid = numa_node_id();
-+		else
-+			polnid = pol->v.preferred_node;
-+		break;
-+
-+	case MPOL_BIND:
-+		/*
-+		 * allows binding to multiple nodes.
-+		 * use current page if in policy nodemask,
-+		 * else select nearest allowed node, if any.
-+		 * If no allowed nodes, use current [!misplaced].
-+		 */
-+		if (node_isset(curnid, pol->v.nodes))
-+			goto out;
-+		(void)first_zones_zonelist(
-+				node_zonelist(numa_node_id(), GFP_HIGHUSER),
-+				gfp_zone(GFP_HIGHUSER),
-+				&pol->v.nodes, &zone);
-+		polnid = zone->node;
-+		break;
-+
-+	default:
-+		BUG();
-+	}
-+	if (curnid != polnid)
-+		ret = polnid;
-+out:
-+	mpol_cond_put(pol);
-+
-+	return ret;
-+}
-+
- static void sp_delete(struct shared_policy *sp, struct sp_node *n)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 92a64d2..1453c30 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -18,6 +18,7 @@
+ #include <linux/freezer.h>
+ #include <linux/mman.h>
+ #include <linux/pagemap.h>
++#include <linux/migrate.h>
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+ #include "internal.h"
+@@ -1018,16 +1019,39 @@ out:
+ }
+ 
+ /* NUMA hinting page fault entry point for trans huge pmds */
+-int do_huge_pmd_numa_page(struct mm_struct *mm, unsigned long addr,
+-				pmd_t pmd, pmd_t *pmdp)
++int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
++				unsigned long addr, pmd_t pmd, pmd_t *pmdp)
  {
- 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
+-	struct page *page;
++	struct page *page = NULL;
++	unsigned long haddr = addr & HPAGE_PMD_MASK;
++	int target_nid;
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	if (unlikely(!pmd_same(pmd, *pmdp)))
+ 		goto out_unlock;
+ 
+ 	page = pmd_page(pmd);
++	get_page(page);
++	spin_unlock(&mm->page_table_lock);
++
++	target_nid = mpol_misplaced(page, vma, haddr);
++	if (target_nid == -1)
++		goto clear_pmdnuma;
++
++	/*
++	 * Due to lacking code to migrate thp pages, we'll split
++	 * (which preserves the special PROT_NONE) and re-take the
++	 * fault on the normal pages.
++	 */
++	split_huge_page(page);
++	put_page(page);
++	return 0;
++
++clear_pmdnuma:
++	spin_lock(&mm->page_table_lock);
++	if (unlikely(!pmd_same(pmd, *pmdp)))
++		goto out_unlock;
++
+ 	pmd = pmd_mknonnuma(pmd);
+ 	set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmdp, pmd);
+ 	VM_BUG_ON(pmd_numa(*pmdp));
+@@ -1035,6 +1059,8 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, unsigned long addr,
+ 
+ out_unlock:
+ 	spin_unlock(&mm->page_table_lock);
++	if (page)
++		put_page(page);
+ 	return 0;
+ }
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 4291fa3..d5dda73 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -57,6 +57,7 @@
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
+ #include <linux/gfp.h>
++#include <linux/migrate.h>
+ 
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -3453,8 +3454,9 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
+ {
+-	struct page *page;
++	struct page *page = NULL;
+ 	spinlock_t *ptl;
++	int current_nid, target_nid;
+ 
+ 	/*
+ 	* The "pte" at this point cannot be used safely without
+@@ -3469,14 +3471,48 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	spin_lock(ptl);
+ 	if (unlikely(!pte_same(*ptep, pte)))
+ 		goto out_unlock;
+-	pte = pte_mknonnuma(pte);
+-	set_pte_at(mm, addr, ptep, pte);
++
+ 	page = vm_normal_page(vma, addr, pte);
+ 	BUG_ON(!page);
++
++	get_page(page);
++	current_nid = page_to_nid(page);
++	target_nid = mpol_misplaced(page, vma, addr);
++	if (target_nid == -1) {
++		/*
++		 * Account for the fault against the current node if it not
++		 * being replaced regardless of where the page is located.
++		 */
++		current_nid = numa_node_id();
++		goto clear_pmdnuma;
++	}
++	pte_unmap_unlock(ptep, ptl);
++
++	/* Migrate to the requested node */
++	if (migrate_misplaced_page(page, target_nid)) {
++		/*
++		 * If the page was migrated then the pte_same check below is
++		 * guaranteed to fail so just retry the entire fault.
++		 */
++		current_nid = target_nid;
++		goto out;
++	}
++	page = NULL;
++
++	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	if (!pte_same(*ptep, pte))
++		goto out_unlock;
++
++clear_pmdnuma:
++	pte = pte_mknonnuma(pte);
++	set_pte_at(mm, addr, ptep, pte);
+ 	update_mmu_cache(vma, addr, ptep);
+ 
+ out_unlock:
+ 	pte_unmap_unlock(ptep, ptl);
++	if (page)
++		put_page(page);
++out:
+ 	return 0;
+ }
+ 
+@@ -3643,7 +3679,7 @@ retry:
+ 		barrier();
+ 		if (pmd_trans_huge(orig_pmd)) {
+ 			if (pmd_numa(*pmd))
+-				return do_huge_pmd_numa_page(mm, address,
++				return do_huge_pmd_numa_page(mm, vma, address,
+ 							     orig_pmd, pmd);
+ 
+ 			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
 -- 
 1.7.9.2
 
