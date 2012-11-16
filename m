@@ -1,139 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 165346B002B
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:16:21 -0500 (EST)
-Date: Fri, 16 Nov 2012 15:16:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/8] mm: frontswap: lazy initialization to allow tmem
- backends to build/run as modules
-Message-Id: <20121116151619.aa60acff.akpm@linux-foundation.org>
-In-Reply-To: <1352919432-9699-3-git-send-email-konrad.wilk@oracle.com>
-References: <1352919432-9699-1-git-send-email-konrad.wilk@oracle.com>
-	<1352919432-9699-3-git-send-email-konrad.wilk@oracle.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 158CA6B002B
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:22:58 -0500 (EST)
+Message-ID: <1353107684.12509.65.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v2 0/3] acpi: Introduce prepare_remove device
+ operation
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 16 Nov 2012 16:14:44 -0700
+In-Reply-To: <20121116230143.GA15338@kroah.com>
+References: 
+	<1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	 <1446291.TgLDtXqY7q@vostro.rjw.lan>
+	 <1353105943.12509.60.camel@misato.fc.hp.com>
+	 <20121116230143.GA15338@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 14 Nov 2012 13:57:06 -0500
-Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
-
-> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+On Fri, 2012-11-16 at 15:01 -0800, Greg Kroah-Hartman wrote:
+> On Fri, Nov 16, 2012 at 03:45:43PM -0700, Toshi Kani wrote:
+> > On Fri, 2012-11-16 at 22:43 +0100, Rafael J. Wysocki wrote:
+> > > On Thursday, November 15, 2012 11:22:47 AM Vasilis Liaskovitis wrote:
+> > > > As discussed in https://patchwork.kernel.org/patch/1581581/
+> > > > the driver core remove function needs to always succeed. This means we need
+> > > > to know that the device can be successfully removed before acpi_bus_trim / 
+> > > > acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+> > > > eject or driver unbind of memory devices fails e.g with:
+> > > > 
+> > > > echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> > > > echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+> > > > 
+> > > > since the ACPI core goes ahead and ejects the device regardless of whether the
+> > > > the memory is still in use or not.
+> > > 
+> > > So the question is, does the ACPI core have to do that and if so, then why?
+> > 
+> > The problem is that acpi_memory_devcie_remove() can fail.  However,
+> > device_release_driver() is a void function, so it cannot report its
+> > error.  Here are function flows for SCI, sysfs eject and unbind.
 > 
-> With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
-> built/loaded as modules rather than built-in and enabled by a boot parameter,
-> this patch provides "lazy initialization", allowing backends to register to
-> frontswap even after swapon was run. Before a backend registers all calls
-> to init are recorded and the creation of tmem_pools delayed until a backend
-> registers or until a frontswap put is attempted.
-> 
->
-> ...
->
-> --- a/mm/frontswap.c
-> +++ b/mm/frontswap.c
-> @@ -80,6 +80,18 @@ static inline void inc_frontswap_succ_stores(void) { }
->  static inline void inc_frontswap_failed_stores(void) { }
->  static inline void inc_frontswap_invalidates(void) { }
->  #endif
-> +
-> +/*
-> + * When no backend is registered all calls to init are registered and
+> Then don't ever let acpi_memory_device_remove() fail.  If the user wants
+> it gone, it needs to go away.  Just like any other device in the system
+> that can go away at any point in time, you can't "fail" that.
 
-What is "init"?  Spell it out fully, please.
+That would be ideal, but we cannot delete a memory device that contains
+kernel memory.  I am curious, how do you deal with a USB device that is
+being mounted in this case?
 
-> + * remembered but fail to create tmem_pools. When a backend registers with
-> + * frontswap the previous calls to init are executed to create tmem_pools
-> + * and set the respective poolids.
+Thanks,
+-Toshi
 
-Again, seems really hacky.  Why can't we just change callers so they
-call things in the correct order?
-
-> + * While no backend is registered all "puts", "gets" and "flushes" are
-> + * ignored or fail.
-> + */
-> +static DECLARE_BITMAP(need_init, MAX_SWAPFILES);
-> +static bool backend_registered __read_mostly;
-> +
->  /*
->   * Register operations for frontswap, returning previous thus allowing
->   * detection of multiple backends and possible nesting.
-> @@ -87,9 +99,19 @@ static inline void inc_frontswap_invalidates(void) { }
->  struct frontswap_ops frontswap_register_ops(struct frontswap_ops *ops)
->  {
->  	struct frontswap_ops old = frontswap_ops;
-> +	int i;
->  
->  	frontswap_ops = *ops;
->  	frontswap_enabled = true;
-> +
-> +	for (i = 0; i < MAX_SWAPFILES; i++) {
-> +		if (test_and_clear_bit(i, need_init))
-
-ooh, that wasn't racy ;)
-
-> +			(*frontswap_ops.init)(i);
-> +	}
-> +	/* We MUST have backend_registered called _after_ the frontswap_init's
-> + 	 * have been called. Otherwise __frontswap_store might fail. */
-
-Comment makes no sense - backend_registered is not a function.
-
-Also, let's lay the comments out conventionally please:
-
-	/*
-	 * We MUST have backend_registered called _after_ the frontswap_init's
-	 * have been called. Otherwise __frontswap_store might fail.
-	 */
-
-
-> +	barrier();
-> +	backend_registered = true;
->  	return old;
->  }
->  EXPORT_SYMBOL(frontswap_register_ops);
->
-> ...
->
-> @@ -226,12 +266,15 @@ void __frontswap_invalidate_area(unsigned type)
->  {
->  	struct swap_info_struct *sis = swap_info[type];
->  
-> -	BUG_ON(sis == NULL);
-> -	if (sis->frontswap_map == NULL)
-> -		return;
-> -	frontswap_ops.invalidate_area(type);
-> -	atomic_set(&sis->frontswap_pages, 0);
-> -	memset(sis->frontswap_map, 0, sis->max / sizeof(long));
-> +	if (backend_registered) {
-> +		BUG_ON(sis == NULL);
-> +		if (sis->frontswap_map == NULL)
-> +			return;
-> +		(*frontswap_ops.invalidate_area)(type);
-> +		atomic_set(&sis->frontswap_pages, 0);
-> +		memset(sis->frontswap_map, 0, sis->max / sizeof(long));
-> +	}
-> +	clear_bit(type, need_init);
->  }
->  EXPORT_SYMBOL(__frontswap_invalidate_area);
->  
-> @@ -364,6 +407,9 @@ static int __init init_frontswap(void)
->  	debugfs_create_u64("invalidates", S_IRUGO,
->  				root, &frontswap_invalidates);
->  #endif
-> +	bitmap_zero(need_init, MAX_SWAPFILES);
-
-unneeded?
-
-> +	frontswap_enabled = 1;
->  	return 0;
->  }
->
-> ...
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
