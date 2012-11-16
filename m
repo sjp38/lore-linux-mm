@@ -1,65 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 5583A6B004D
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:14:39 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so2202129eek.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 10:14:37 -0800 (PST)
-Date: Fri, 16 Nov 2012 19:14:33 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 5/8] sched, numa, mm: Add adaptive NUMA affinity support
-Message-ID: <20121116181433.GA4763@gmail.com>
-References: <20121112160451.189715188@chello.nl>
- <20121112161215.782018877@chello.nl>
- <50A68096.1050208@redhat.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 08A5B6B005D
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 13:18:57 -0500 (EST)
+Date: Fri, 16 Nov 2012 20:20:05 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v5 08/11] thp: setup huge zero page on non-write page
+ fault
+Message-ID: <20121116182005.GA18394@otc-wbsnb-06>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1352300463-12627-9-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.00.1211141531110.22537@chino.kir.corp.google.com>
+ <20121115093209.GF9676@otc-wbsnb-06>
+ <alpine.DEB.2.00.1211151348080.27188@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="CE+1k2dSO48ffgeK"
 Content-Disposition: inline
-In-Reply-To: <50A68096.1050208@redhat.com>
+In-Reply-To: <alpine.DEB.2.00.1211151348080.27188@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
 
-* Rik van Riel <riel@redhat.com> wrote:
+--CE+1k2dSO48ffgeK
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On 11/12/2012 11:04 AM, Peter Zijlstra wrote:
-> 
-> >We change the load-balancer to prefer moving tasks in order of:
-> >
-> >   1) !numa tasks and numa tasks in the direction of more faults
-> >   2) allow !ideal tasks getting worse in the direction of faults
-> >   3) allow private tasks to get worse
-> >   4) allow shared tasks to get worse
-> >
-> >This order ensures we prefer increasing memory locality but when
-> >we do have to make hard decisions we prefer spreading private
-> >over shared, because spreading shared tasks significantly
-> >increases the interconnect bandwidth since not all memory can
-> >follow.
-> 
-> Combined with the fact that we only turn a certain amount of 
-> memory into NUMA ptes each second, could this result in a 
-> program being classified as a private task one second, and a 
-> shared task a few seconds later?
+On Thu, Nov 15, 2012 at 01:52:44PM -0800, David Rientjes wrote:
+> On Thu, 15 Nov 2012, Kirill A. Shutemov wrote:
+>=20
+> > > > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > > > index f36bc7d..41f05f1 100644
+> > > > --- a/mm/huge_memory.c
+> > > > +++ b/mm/huge_memory.c
+> > > > @@ -726,6 +726,16 @@ int do_huge_pmd_anonymous_page(struct mm_struc=
+t *mm, struct vm_area_struct *vma,
+> > > >  			return VM_FAULT_OOM;
+> > > >  		if (unlikely(khugepaged_enter(vma)))
+> > > >  			return VM_FAULT_OOM;
+> > > > +		if (!(flags & FAULT_FLAG_WRITE)) {
+> > > > +			pgtable_t pgtable;
+> > > > +			pgtable =3D pte_alloc_one(mm, haddr);
+> > > > +			if (unlikely(!pgtable))
+> > > > +				goto out;
+> > >=20
+> > > No use in retrying, just return VM_FAULT_OOM.
+> >=20
+> > Hm. It's consistent with non-hzp path: if pte_alloc_one() in
+> > __do_huge_pmd_anonymous_page() fails __do_huge_pmd_anonymous_page()
+> > returns VM_FAULT_OOM which leads to "goto out".
+> >=20
+>=20
+> If the pte_alloc_one(), which wraps __pte_alloc(), you're adding fails,=
+=20
+> it's pointless to "goto out" to try __pte_alloc() which we know won't=20
+> succeed.
+>=20
+> > Should it be fixed too?
+> >=20
+>=20
+> It's done for maintainablility because although=20
+> __do_huge_pmd_anonymous_page() will only return VM_FAULT_OOM today when=
+=20
+> pte_alloc_one() fails, if it were to ever fail in a different way then th=
+e=20
+> caller is already has a graceful failure.
 
-It's a statistical method, like most of scheduling.
+Okay, here's fixlet. Andrew, please squash it to the patch 08/11.
 
-It's as prone to oscillation as tasks are already prone to being 
-moved spuriously by the load balancer today, due to the per CPU 
-load average being statistical and them being slightly above or 
-below a critical load average value.
- 
-Higher freq oscillation should not happen normally though, we 
-dampen these metrics and have per CPU hysteresis.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1f6c6de..d7ab890 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -793,7 +793,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, st=
+ruct vm_area_struct *vma,
+ 			unsigned long zero_pfn;
+ 			pgtable =3D pte_alloc_one(mm, haddr);
+ 			if (unlikely(!pgtable))
+-				goto out;
++				return VM_FAULT_OOM;
+ 			zero_pfn =3D get_huge_zero_page();
+ 			if (unlikely(!zero_pfn)) {
+ 				pte_free(mm, pgtable);
+--=20
+ Kirill A. Shutemov
 
-( We can also add explicit hysteresis if anyone demonstrates 
-  real oscillation with a real workload - wanted to keep it 
-  simple first and change it only as-needed. )
+--CE+1k2dSO48ffgeK
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-Thanks,
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-	Ingo
+iQIcBAEBAgAGBQJQpoPUAAoJEAd+omnVudOMp20P/jJlbYddl3L4FqpYDHVX+U84
++axJiIXc568OT6duGpVuKvJvyRDjw6XdtBkmgRHoBnqNaNgMm3iTJHX1oH1RPPbd
+/QfpvwjdrBSEgV/6mJ4E+D61lCuqmJHvd7A6JcalwgJO/QNbFArJlsFd31ZXq77h
+6qtJEE5eh7Irrq41msvMn/Qafky4LVQazjdwpzreBIzQgDdYHg4LYmhVgtzqbDt0
+USN3pi9p6OM0sdn6+rLhZTcKJdnFdidT1Pb/panDt4ZLorhLNQNveGuTX9VTl/K7
+3lrwtPDWmii6rP2H5ml8uMtspcd0YKRInf8JY1YEpFH2uJHEtVqflYKz0ZZpNyoR
+1bMmn7wIAPpwg3NdVxzgjrn0iV7Nsr6nHl5Q0tTHnimct89aNDrjCxMlaJM0+4aW
+o5TFYycTV/ZIe8/V+5W06alDWZenIfViZRY7+3G+tCGuChRvpf5koVuEOIKhP/1m
+yOo5Eu+estAvsZuvQ9BWjczLW5A3CvzQxR3qJC0eYpY/XHh4sFHEAMlEA45rqH4q
+r9LSrv9TAorthFYOPyg+iMBDz/cRHTC31C4X0HzU3qyCfw4reM1+D3zPDDidiajX
+YdktXUlSBUk1JXIDj6eYnT0rHRBTtlkC0KBgdr2MhpvkkEME7qT9UFiTsbw6LFfh
+7xb8xdqWSn2iJXe2jnhX
+=1R5G
+-----END PGP SIGNATURE-----
+
+--CE+1k2dSO48ffgeK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
