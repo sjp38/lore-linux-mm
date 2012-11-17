@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 14A056B0070
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:59:26 -0500 (EST)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 16 Nov 2012 18:59:24 -0500
-Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 36D69C9003C
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:59:22 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAGNxMFg279892
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:59:22 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAGNxLgS024010
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 18:59:21 -0500
-Message-ID: <50A6D357.3070103@linux.vnet.ibm.com>
-Date: Fri, 16 Nov 2012 15:59:19 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id A1BF86B0072
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:01:59 -0500 (EST)
+Date: Fri, 16 Nov 2012 16:02:50 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v2 0/3] acpi: Introduce prepare_remove device
+ operation
+Message-ID: <20121117000250.GA4425@kroah.com>
+References: <1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+ <1446291.TgLDtXqY7q@vostro.rjw.lan>
+ <1353105943.12509.60.camel@misato.fc.hp.com>
+ <20121116230143.GA15338@kroah.com>
+ <1353107684.12509.65.camel@misato.fc.hp.com>
+ <20121116233355.GA21144@kroah.com>
+ <1353108906.10624.5.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [Bug 50181] New: Memory usage doubles after more then 20 hours
- of uptime.
-References: <bug-50181-27@https.bugzilla.kernel.org/> <20121113140352.4d2db9e8.akpm@linux-foundation.org> <1352988349.6409.4.camel@c2d-desktop.mypicture.info> <20121115141258.8e5cc669.akpm@linux-foundation.org> <1353021103.6409.31.camel@c2d-desktop.mypicture.info> <50A68718.3070002@linux.vnet.ibm.com> <20121116111559.63ec1622.akpm@linux-foundation.org>
-In-Reply-To: <20121116111559.63ec1622.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1353108906.10624.5.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Milos Jakovljevic <sukijaki@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/16/2012 11:15 AM, Andrew Morton wrote:
-> On Fri, 16 Nov 2012 10:34:00 -0800
-> Dave Hansen <dave@linux.vnet.ibm.com> wrote:
->> Anybody have ideas what to try next or want to poke holes in my
->> statistics? :)
+On Fri, Nov 16, 2012 at 04:35:06PM -0700, Toshi Kani wrote:
+> On Fri, 2012-11-16 at 15:33 -0800, Greg Kroah-Hartman wrote:
+> > On Fri, Nov 16, 2012 at 04:14:44PM -0700, Toshi Kani wrote:
+> > > On Fri, 2012-11-16 at 15:01 -0800, Greg Kroah-Hartman wrote:
+> > > > On Fri, Nov 16, 2012 at 03:45:43PM -0700, Toshi Kani wrote:
+> > > > > On Fri, 2012-11-16 at 22:43 +0100, Rafael J. Wysocki wrote:
+> > > > > > On Thursday, November 15, 2012 11:22:47 AM Vasilis Liaskovitis wrote:
+> > > > > > > As discussed in https://patchwork.kernel.org/patch/1581581/
+> > > > > > > the driver core remove function needs to always succeed. This means we need
+> > > > > > > to know that the device can be successfully removed before acpi_bus_trim / 
+> > > > > > > acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+> > > > > > > eject or driver unbind of memory devices fails e.g with:
+> > > > > > > 
+> > > > > > > echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> > > > > > > echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+> > > > > > > 
+> > > > > > > since the ACPI core goes ahead and ejects the device regardless of whether the
+> > > > > > > the memory is still in use or not.
+> > > > > > 
+> > > > > > So the question is, does the ACPI core have to do that and if so, then why?
+> > > > > 
+> > > > > The problem is that acpi_memory_devcie_remove() can fail.  However,
+> > > > > device_release_driver() is a void function, so it cannot report its
+> > > > > error.  Here are function flows for SCI, sysfs eject and unbind.
+> > > > 
+> > > > Then don't ever let acpi_memory_device_remove() fail.  If the user wants
+> > > > it gone, it needs to go away.  Just like any other device in the system
+> > > > that can go away at any point in time, you can't "fail" that.
+> > > 
+> > > That would be ideal, but we cannot delete a memory device that contains
+> > > kernel memory.  I am curious, how do you deal with a USB device that is
+> > > being mounted in this case?
+> > 
+> > As the device is physically gone now, we deal with it and clean up
+> > properly.
+> > 
+> > And that's the point here, what happens if the memory really is gone?
+> > You will still have to handle it now being removed, you can't "fail" a
+> > physical removal of a device.
+> > 
+> > If you remove a memory device that has kernel memory on it, well, you
+> > better be able to somehow remap it before the kernel needs it :)
 > 
-> Maybe resurrect the below patch?  It's probably six years old.  It
-> should allow us to find out who allocated those pages.
+> :)
 > 
-> Then perhaps we should merge the sucker this time.
+> Well, we are not trying to support surprise removal here.  All three
+> use-cases (SCI, eject, and unbind) are for graceful removal.  Therefore
+> they should fail if the removal operation cannot complete in graceful
+> way.
 
-I at least got the sucker recompiling.  Not my finest work, but here goes:
+Then handle that in the ACPI bus code, it isn't anything that the driver
+core should care about, right?
 
-http://sr71.net/~dave/linux/leak-20121113/pageowner_for_3.7-rc5.patch
+And odds are, eventually you will have to handle surprise removal, it's
+only a matter of time :)
 
-It's not pretty, and probably needs to (at least) get moved over to
-debugfs before getting merged, but it does appear to give some
-reasonable output.  Figured I'd post it in case anyone else wants to
-give it a spin.
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
