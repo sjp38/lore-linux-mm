@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 9D4C96B0068
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 16:54:55 -0500 (EST)
-Date: Sat, 17 Nov 2012 19:54:35 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH v12 4/7] mm: introduce compaction and migration for
- ballooned pages
-Message-ID: <20121117215434.GA23879@x61.redhat.com>
-References: <cover.1352656285.git.aquini@redhat.com>
- <6602296b38c073a5c6faa13ddbc74ceb1eceb2dd.1352656285.git.aquini@redhat.com>
- <50A7D0FA.2080709@gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id E31726B006E
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 17:09:40 -0500 (EST)
+Received: from web10g.yandex.ru (web10g.yandex.ru [95.108.252.110])
+	by forward20.mail.yandex.net (Yandex) with ESMTP id B8CA510423DE
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 02:09:34 +0400 (MSK)
+From: <vik@chelnydom.ru>
+Subject: [PATCH] mm: include/linux/mm.h page_mapping() bug of swapcache case
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50A7D0FA.2080709@gmail.com>
+Message-Id: <636271353190174@web10g.yandex.ru>
+Date: Sun, 18 Nov 2012 02:09:34 +0400
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <levinsasha928@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, "Michael S. Tsirkin" <mst@redhat.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Rusty Russell <rusty@rustcorp.com.au>
+To: linux-mm@kvack.org
 
-On Sat, Nov 17, 2012 at 01:01:30PM -0500, Sasha Levin wrote:
-> 
-> I'm getting the following while fuzzing using trinity inside a KVM tools guest,
-> on latest -next:
-> 
-> [ 1642.783728] BUG: unable to handle kernel NULL pointer dereference at 0000000000000194
-> [ 1642.785083] IP: [<ffffffff8122b354>] isolate_migratepages_range+0x344/0x7b0
-> 
-> My guess is that we see those because of a race during the check in
-> isolate_migratepages_range().
-> 
-> 
-> Thanks,
-> Sasha
+I run linux swap less and xwindows become not respond sometime. The bug is share swapper_space over all mappings of memory.
+Also the dmesg show several lines which is hidden before. Test of 3.0.51 fail near the end of kernel compilation. I run 3.0.50
+successly a hours.
 
-Sasha, could you share your .config and steps you did used with trinity? So I
-can attempt to reproduce this issue you reported.
-
-Thanks, 
-Rafael
+*** linux-3.0.50.a/include/linux/mm.h	2012-10-31 20:51:59.000000000 +0400
+--- linux-3.0.50.b/include/linux/mm.h	2012-11-17 19:44:56.864762720 +0400
+***************
+*** 787,793 ****
+  	struct address_space *mapping = page->mapping;
+  
+  	VM_BUG_ON(PageSlab(page));
+! 	if (unlikely(PageSwapCache(page)))
+  		mapping = &swapper_space;
+  	else if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+  		mapping = NULL;
+--- 787,793 ----
+  	struct address_space *mapping = page->mapping;
+  
+  	VM_BUG_ON(PageSlab(page));
+! 	if (likely(PageSwapCache(page)))
+  		mapping = &swapper_space;
+  	else if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+  		mapping = NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
