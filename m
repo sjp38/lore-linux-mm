@@ -1,102 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 96BC26B0081
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:33:18 -0500 (EST)
-Message-ID: <1353111905.10939.12.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 16 Nov 2012 17:25:05 -0700
-In-Reply-To: <20121117002232.GA22543@kroah.com>
-References: 
-	<1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <1446291.TgLDtXqY7q@vostro.rjw.lan>
-	 <1353105943.12509.60.camel@misato.fc.hp.com>
-	 <20121116230143.GA15338@kroah.com>
-	 <1353107684.12509.65.camel@misato.fc.hp.com>
-	 <20121116233355.GA21144@kroah.com>
-	 <1353108906.10624.5.camel@misato.fc.hp.com>
-	 <20121117000250.GA4425@kroah.com>
-	 <1353110933.10939.6.camel@misato.fc.hp.com>
-	 <20121117002232.GA22543@kroah.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 8E2CC6B005A
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 20:24:44 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so2498749pbc.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 17:24:43 -0800 (PST)
+Date: Fri, 16 Nov 2012 17:21:15 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+Message-ID: <20121117012114.GA22910@lizard.sbx05663.mountca.wayport.net>
+References: <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net>
+ <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com>
+ <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net>
+ <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
+ <20121115085224.GA4635@lizard>
+ <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
+ <50A60873.3000607@parallels.com>
+ <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
+ <50A6AC48.6080102@parallels.com>
+ <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Glauber Costa <glommer@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, 2012-11-16 at 16:22 -0800, Greg Kroah-Hartman wrote:
-> On Fri, Nov 16, 2012 at 05:08:53PM -0700, Toshi Kani wrote:
-> > > > > > > > > So the question is, does the ACPI core have to do that and if so, then why?
-> > > > > > > > 
-> > > > > > > > The problem is that acpi_memory_devcie_remove() can fail.  However,
-> > > > > > > > device_release_driver() is a void function, so it cannot report its
-> > > > > > > > error.  Here are function flows for SCI, sysfs eject and unbind.
-> > > > > > > 
-> > > > > > > Then don't ever let acpi_memory_device_remove() fail.  If the user wants
-> > > > > > > it gone, it needs to go away.  Just like any other device in the system
-> > > > > > > that can go away at any point in time, you can't "fail" that.
-> > > > > > 
-> > > > > > That would be ideal, but we cannot delete a memory device that contains
-> > > > > > kernel memory.  I am curious, how do you deal with a USB device that is
-> > > > > > being mounted in this case?
-> > > > > 
-> > > > > As the device is physically gone now, we deal with it and clean up
-> > > > > properly.
-> > > > > 
-> > > > > And that's the point here, what happens if the memory really is gone?
-> > > > > You will still have to handle it now being removed, you can't "fail" a
-> > > > > physical removal of a device.
-> > > > > 
-> > > > > If you remove a memory device that has kernel memory on it, well, you
-> > > > > better be able to somehow remap it before the kernel needs it :)
-> > > > 
-> > > > :)
-> > > > 
-> > > > Well, we are not trying to support surprise removal here.  All three
-> > > > use-cases (SCI, eject, and unbind) are for graceful removal.  Therefore
-> > > > they should fail if the removal operation cannot complete in graceful
-> > > > way.
+On Fri, Nov 16, 2012 at 01:57:09PM -0800, David Rientjes wrote:
+> > > I'm wondering if we should have more than three different levels.
 > > > 
-> > > Then handle that in the ACPI bus code, it isn't anything that the driver
-> > > core should care about, right?
 > > 
-> > Unfortunately not.  Please take a look at the function flow for the
-> > unbind case in my first email.  This request directly goes to
-> > driver_unbind(), which is a driver core function.
+> > In the case I outlined below, for backwards compatibility. What I
+> > actually mean is that memcg *currently* allows arbitrary notifications.
+> > One way to merge those, while moving to a saner 3-point notification, is
+> > to still allow the old writes and fit them in the closest bucket.
 > 
-> Yes, and as the user asked for the driver to be unbound from the device,
-> it can not fail.
-> 
-> And that is WAY different from removing the memory from the system
-> itself.  Don't think that this is the "normal" way that memory should be
-> removed, that is what stuff like "eject" was created for the PCI slots.
-> 
-> Don't confuse the two things here, unbinding a driver from a device
-> should not remove the memory from the system, it doesn't do that for any
-> other type of 'unbind' call for any other bus.  The device is still
-> present, just that specific driver isn't controlling it anymore.
-> 
-> In other words, you should NEVER have a normal userspace flow that is
-> trying to do unbind.  unbind is only for radical things like
-> disconnecting a driver from a device if a userspace driver wants to
-> control it, or a hacked up way to implement revoke() for a device.
-> 
-> Again, no driver core changes are needed here.
+> Yeah, but I'm wondering why three is the right answer.
 
-Okay, we might be able to make the eject case to fail if an ACPI driver
-is not bound to a device.  This way, the unbind case may be harmless to
-proceed.  Let us think about this further on this (but we may come up
-again :). 
+You were not Cc'ed, so let me repeat why I ended up w/ the levels (not
+necessary three levels), instead of relying on the 0..100 scale:
+
+ The main change is that I decided to go with discrete levels of the
+ pressure.
+
+ When I started writing the man page, I had to describe the 'reclaimer
+ inefficiency index', and while doing this I realized that I'm describing
+ how the kernel is doing the memory management, which we try to avoid in
+ the vmevent. And applications don't really care about these details:
+ reclaimers, its inefficiency indexes, scanning window sizes, priority
+ levels, etc. -- it's all "not interesting", and purely kernel's stuff. So
+ I guess Mel Gorman was right, we need some sort of levels.
+
+ What applications (well, activity managers) are really interested in is
+ this:
+
+ 1. Do we we sacrifice resources for new memory allocations (e.g. files
+    cache)?
+ 2. Does the new memory allocations' cost becomes too high, and the system
+    hurts because of this?
+ 3. Are we about to OOM soon?
+
+ And here are the answers:
+
+ 1. VMEVENT_PRESSURE_LOW
+ 2. VMEVENT_PRESSURE_MED
+ 3. VMEVENT_PRESSURE_OOM
+
+ There is no "high" pressure, since I really don't see any definition of
+ it, but it's possible to introduce new levels without breaking ABI.
+
+Later I came up with the fourth level:
+
+ Maybe it makes sense to implement something like PRESSURE_MILD/BALANCE
+ with an additional nr_pages threshold, which basically hits the kernel
+ about how many easily reclaimable pages userland has (that would be a
+ part of our definition for the mild/balance pressure level).
+
+I.e. the fourth level can serve as a two-way communication w/ the kernel.
+But again, this would be just an extension, I don't want to introduce this
+now.
+
+> > > Umm, why do users of cpusets not want to be able to trigger memory 
+> > > pressure notifications?
+> > > 
+> > Because cpusets only deal with memory placement, not memory usage.
+> 
+> The set of nodes that a thread is allowed to allocate from may face memory 
+> pressure up to and including oom while the rest of the system may have a 
+> ton of free memory.  Your solution is to compile and mount memcg if you 
+> want notifications of memory pressure on those nodes.  Others in this 
+> thread have already said they don't want to rely on memcg for any of this 
+> and, as Anton showed, this can be tied directly into the VM without any 
+> help from memcg as it sits today.  So why implement a simple and clean 
+
+You meant 'why not'?
+
+> mempressure cgroup that can be used alone or co-existing with either memcg 
+> or cpusets?
+> 
+> > And it is not that moving a task to cpuset disallows you to do any of
+> > this: you could, as long as the same set of tasks are mounted in a
+> > corresponding memcg.
+> > 
+> 
+> Same thing with a separate mempressure cgroup.  The point is that there 
+> will be users of this cgroup that do not want the overhead imposed by 
+> memcg (which is why it's disabled in defconfig) and there's no direct 
+> dependency that causes it to be a part of memcg.
+
+There's also an API "inconvenince issue" with memcg's usage_in_bytes
+stuff: applications have a hard time resetting the threshold to 'emulate'
+the pressure notifications, and they also have to count bytes (like 'total
+- used = free') to set the threshold. While a separate 'pressure'
+notifications shows exactly what apps actually want to know: the pressure.
 
 Thanks,
--Toshi 
-
-
-
-
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
