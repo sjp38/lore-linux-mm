@@ -1,76 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 3F42D6B0074
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:17:08 -0500 (EST)
-Message-ID: <1353110933.10939.6.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 16 Nov 2012 17:08:53 -0700
-In-Reply-To: <20121117000250.GA4425@kroah.com>
-References: 
-	<1352974970-6643-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <1446291.TgLDtXqY7q@vostro.rjw.lan>
-	 <1353105943.12509.60.camel@misato.fc.hp.com>
-	 <20121116230143.GA15338@kroah.com>
-	 <1353107684.12509.65.camel@misato.fc.hp.com>
-	 <20121116233355.GA21144@kroah.com>
-	 <1353108906.10624.5.camel@misato.fc.hp.com>
-	 <20121117000250.GA4425@kroah.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 2E3FA6B0078
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 19:18:29 -0500 (EST)
+Date: Sat, 17 Nov 2012 01:18:26 +0100
+From: Marc Duponcheel <marc@offline.be>
+Subject: Re: [3.6 regression?] THP + migration/compaction livelock (I think)
+Message-ID: <20121117001826.GC9816@offline.be>
+Reply-To: Marc Duponcheel <marc@offline.be>
+References: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com>
+ <alpine.DEB.2.00.1211131507370.17623@chino.kir.corp.google.com>
+ <CALCETrU=7+pk_rMKKuzgW1gafWfv6v7eQtVw3p8JryaTkyVQYQ@mail.gmail.com>
+ <alpine.DEB.2.00.1211131530020.17623@chino.kir.corp.google.com>
+ <20121114100154.GI8218@suse.de>
+ <20121114132940.GA13196@offline.be>
+ <alpine.DEB.2.00.1211141342460.13515@chino.kir.corp.google.com>
+ <20121115011449.GA20858@offline.be>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="cWoXeonUoKmBZSoM"
+Content-Disposition: inline
+In-Reply-To: <20121115011449.GA20858@offline.be>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marc Duponcheel <marc@offline.be>
 
-> > > > > > > So the question is, does the ACPI core have to do that and if so, then why?
-> > > > > > 
-> > > > > > The problem is that acpi_memory_devcie_remove() can fail.  However,
-> > > > > > device_release_driver() is a void function, so it cannot report its
-> > > > > > error.  Here are function flows for SCI, sysfs eject and unbind.
-> > > > > 
-> > > > > Then don't ever let acpi_memory_device_remove() fail.  If the user wants
-> > > > > it gone, it needs to go away.  Just like any other device in the system
-> > > > > that can go away at any point in time, you can't "fail" that.
-> > > > 
-> > > > That would be ideal, but we cannot delete a memory device that contains
-> > > > kernel memory.  I am curious, how do you deal with a USB device that is
-> > > > being mounted in this case?
-> > > 
-> > > As the device is physically gone now, we deal with it and clean up
-> > > properly.
-> > > 
-> > > And that's the point here, what happens if the memory really is gone?
-> > > You will still have to handle it now being removed, you can't "fail" a
-> > > physical removal of a device.
-> > > 
-> > > If you remove a memory device that has kernel memory on it, well, you
-> > > better be able to somehow remap it before the kernel needs it :)
-> > 
-> > :)
-> > 
-> > Well, we are not trying to support surprise removal here.  All three
-> > use-cases (SCI, eject, and unbind) are for graceful removal.  Therefore
-> > they should fail if the removal operation cannot complete in graceful
-> > way.
+
+--cWoXeonUoKmBZSoM
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+ Hi David, others
+
+Results seem OK
+
+ recap: I have 2 6core 64bit opterons and I make -j13
+
+I do
+
+# echo always >/sys/kernel/mm/transparent_hugepage/enabled
+# while [ 1 ]
+  do
+   sleep 10
+   date
+   echo = vmstat
+   egrep "(thp|compact)" /proc/vmstat
+   echo = khugepaged stack
+   cat /proc/501/stack
+ done > /tmp/49361.xxxx
+# emerge icedtea
+(where 501 = pidof khugepaged)
+
+for xxxx = base = 3.6.6
+and xxxx = test = 3.6.6 + diff you provided
+
+I attach 
+ /tmp/49361.base.gz
+and
+ /tmp/49361.test.gz
+
+Note:
+
+ with xxx=base, I could see
+  PID USER      PR  NI  VIRT  RES  SHR S  %CPU %MEM     TIME+ COMMAND
+ 8617 root      20   0 3620m  41m  10m S 988.3  0.5   6:19.06 javac
+    1 root      20   0  4208  588  556 S   0.0  0.0   0:03.25 init
+ already during configure and I needed to kill -9 javac
+
+ with xxx=test, I could see
+  PID USER      PR  NI  VIRT  RES  SHR S  %CPU %MEM     TIME+ COMMAND
+9275 root      20   0 2067m 474m  10m S 304.2  5.9   0:32.81 javac
+ 710 root       0 -20     0    0    0 S   0.3  0.0   0:01.07 kworker/0:1H
+ later when processing >700 java files
+
+Also note that with xxx=test compact_blocks_moved stays 0
+
+hope this helps
+
+ Thanks
+
+have a nice day
+
+On 2012 Nov 15, Marc Duponcheel wrote:
+>  Hi David
 > 
-> Then handle that in the ACPI bus code, it isn't anything that the driver
-> core should care about, right?
+> Thanks for the changeset
+> 
+> I will test 3.6.6 without&with this weekend.
+> 
+>  Have a nice day
 
-Unfortunately not.  Please take a look at the function flow for the
-unbind case in my first email.  This request directly goes to
-driver_unbind(), which is a driver core function.
+--
+ Marc Duponcheel
+ Velodroomstraat 74 - 2600 Berchem - Belgium
+ +32 (0)478 68.10.91 - marc@offline.be
 
-> And odds are, eventually you will have to handle surprise removal, it's
-> only a matter of time :)
+--cWoXeonUoKmBZSoM
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="49361.base.gz"
+Content-Transfer-Encoding: base64
 
-Hardware guys will have hard time to support it before software guys can
-do something here...  Staff like cache coherency is a devil.
+H4sICF7OplACAzQ5MzYxLmJhc2UA7dnLTttAFAbgfZ7C+y469wsq3VTddkN3VWWNx2MSxYld
+2wnw9j2TC9QxEXFUECgnsED2P8eXmU8xxzeuS35U64TqhJArLq6YSr59/5kwQtnkOlkv2s51
+E18taue7NCsrP2/TRbUOeaI5kVor/ri3drdhv1MZTrmVvX2L2W3jupAWblZChHJilFbsMQOH
+KsuEW/U0LEYTDrGn0Mr70LaJNZNuWkNgVXYpjKt8Qv7ZUsCmzPn5bqOvytLVbegl+xv3p7Xd
+19blrIO/r5P5dHUb4unnCZygn09+fSl2H0OJCrlyX38nefizCquQdq6dx0rNJ3LP3WdyX5De
+AEoLXRAY8FQWkgSClOt+lAid0RitmypectrNFqFadfv8oLD39rCwyO2zpWVGdSztVl3VhDhl
+6Z2bw9Sslr6bVcvdMcT5Jy+dZjxGu2kTXMxZDkHXjwll8kLEWGiWoUy34XQayjrEWyiGFwqV
+lSW9yuRIYXK88OAO7j8wBCbt4DO5OWTCRzExmokjTCT88heZ9ATsmZhDJjAH5zKhY5nQMUwo
+lVrFad6W2N6B9cLBRGSbKfa49D/M0he49Md8Q4xdylRnvWW2O3ZbhlDDIJ/FUfL/LGpGMuYP
+FzXl3KOc15AjUQ7KQTmj5cgrMkqOFdQekaOUZuwlOZorMpRjB3IoykE571wORTkoB+WcIef0
+TpgRUlvD9RE5WnGmX5ID10MHcuzgac3YoRw7kCOekyOQDtJ5Gzqnd8estFoqZZEO0kE6QOf0
+7holmmvKGL1wOyazOdzcrnlIuyrN45wAnyZtH5Z+0weGGRm8WjFZwTavbQ7SnEFaYjf6w3g5
+vadGKZDQlhH08tpezjoEInunyNSI9hsYoUoQoRAZIkNkY5Cd3qkDHlIaKSQiQ2SIbAyy05t6
+VDIrmbb47xUiQ2SjkJ3e/oNnRS40MxyRITJENgbZiEahllowCCIyRIbIxiAb0V00mnIhpUBk
+iAyRnY5Mj+kuGivgR77F46I9H5l8j8ikK1S2EQCFmxAH3rlZFCDj62I7eO1Lcn64PE3gSOA1
+CFAkgAQumwBDAkjgsglwJIAELpuAQAJI4LIJSCSABC6ZgMGOEBK4MAJ/AbNhavSISQAA
 
-Thanks,
--Toshi
+--cWoXeonUoKmBZSoM
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="49361.test.gz"
+Content-Transfer-Encoding: base64
+
+H4sICEXTplACAzQ5MzYxLnRlc3QA7dg7b9swEADg3b9Ce4ceH3oZTZeia5d0KwqCkihbMG2q
+EuUm/76kmzSR4wBFIZSMcZps8niiSH4QdLfSJl/MMSF5ArBO0zWF5NPnrwkFQlc3yXE/WmlX
+tdn3srai0qbejWJvjqpJ4E9zLzfqcuu+2wzSKtHKTs86XVqtn/33Ac+7p7pW4+ha7LZ3nZO2
+wg0w9ayldU2VrHcPjbXRWvajmkXOG58m4vvGXnfW/b5Jdttpo/yEm8TNrN6tvn1oH66CQKaa
+TH78njTqx6QmJawcdz7T8A7umHwPdy3MBhDSVgW4AU9pXSS4QMLyeSjwvCI+tB+Mf2Jhu70y
+k32MP0tMAdLyPDFvyoup04rkPrWcrBmU3x7xU+7cZkyH2nbm8HAP/u+TT2VOmQ+120FJH1cy
+FyjnYTwrScV9mBoOSovfwWKrdK/8EvKXD+oyZyXMMsMrieH1xC9W8PFyQ9ymnV2r23ML7Gos
+sMUsNE3R+C1vB6XE1liftDk9n9Dd6M9t6o9Adbafyinyyz4oraSbwWmZXDApW79JLap4Myr4
+1aggBFkgi4VYpNfDokQWyGIRFtkaroYFzZEFsliIBbmeTwv8tkAWS7GgyGIxFryoysYNs8O9
+sEY0frvcUR/EeH+oT4fYDcJy1NvBwRAH4kAcl3FwEjeOlKIO1BFKRxq5DgIMeSCPMDzyNUTO
+g/EMeSCPUDxI9G8PSNEH+gjlg8bug6MP9BHOB4veBy/QB/oI5YNH7yPn6AN9hPIRffWqwOou
++gjlo4i+fEWBYf0KfQTzEXv9ijKO7w/0EcxH7PUrWhb4/kAfwXzEXr9iDPLlfRD0gT7+ykfs
+9StOKPpAH8F8xF6/4kVJ0Af6COOjjL5+lRZ5gT7Qx3/y8Qv1soDrlEcAAA==
+
+--cWoXeonUoKmBZSoM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
