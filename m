@@ -1,122 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 8E2CC6B005A
-	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 20:24:44 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so2498749pbc.14
-        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 17:24:43 -0800 (PST)
-Date: Fri, 16 Nov 2012 17:21:15 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-Message-ID: <20121117012114.GA22910@lizard.sbx05663.mountca.wayport.net>
-References: <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net>
- <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com>
- <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net>
- <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
- <20121115085224.GA4635@lizard>
- <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
- <50A60873.3000607@parallels.com>
- <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
- <50A6AC48.6080102@parallels.com>
- <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 518FA6B005A
+	for <linux-mm@kvack.org>; Fri, 16 Nov 2012 23:48:48 -0500 (EST)
+Received: by mail-gh0-f169.google.com with SMTP id r1so709637ghr.14
+        for <linux-mm@kvack.org>; Fri, 16 Nov 2012 20:48:47 -0800 (PST)
+Date: Fri, 16 Nov 2012 20:48:46 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
+In-Reply-To: <50A6089B.7010708@gmail.com>
+Message-ID: <alpine.LNX.2.00.1211162018010.1164@eggly.anvils>
+References: <20121025023738.GA27001@redhat.com> <alpine.LNX.2.00.1210242121410.1697@eggly.anvils> <20121101191052.GA5884@redhat.com> <alpine.LNX.2.00.1211011546090.19377@eggly.anvils> <20121101232030.GA25519@redhat.com> <alpine.LNX.2.00.1211011627120.19567@eggly.anvils>
+ <20121102014336.GA1727@redhat.com> <alpine.LNX.2.00.1211021606580.11106@eggly.anvils> <alpine.LNX.2.00.1211051729590.963@eggly.anvils> <20121106135402.GA3543@redhat.com> <alpine.LNX.2.00.1211061521230.6954@eggly.anvils> <50A30ADD.9000209@gmail.com>
+ <alpine.LNX.2.00.1211131935410.30540@eggly.anvils> <50A49C46.9040406@gmail.com> <alpine.LNX.2.00.1211151126440.9273@eggly.anvils> <50A6089B.7010708@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 16, 2012 at 01:57:09PM -0800, David Rientjes wrote:
-> > > I'm wondering if we should have more than three different levels.
-> > > 
-> > 
-> > In the case I outlined below, for backwards compatibility. What I
-> > actually mean is that memcg *currently* allows arbitrary notifications.
-> > One way to merge those, while moving to a saner 3-point notification, is
-> > to still allow the old writes and fit them in the closest bucket.
+Further offtopic..
+
+On Fri, 16 Nov 2012, Jaegeuk Hanse wrote:
+> Some questions about your shmem/tmpfs: misc and fallocate patchset.
 > 
-> Yeah, but I'm wondering why three is the right answer.
+> - Since shmem_setattr can truncate tmpfs files, why need add another similar
+> codes in function shmem_fallocate? What's the trick?
 
-You were not Cc'ed, so let me repeat why I ended up w/ the levels (not
-necessary three levels), instead of relying on the 0..100 scale:
+I don't know if I understand you.  In general, hole-punching is different
+from truncation.  Supporting the hole-punch mode of the fallocate system
+call is different from supporting truncation.  They're closely related,
+and share code, but meet different specifications.
 
- The main change is that I decided to go with discrete levels of the
- pressure.
+> - in tmpfs: support fallocate preallocation patch changelog:
+>   "Christoph Hellwig: What for exactly?  Please explain why preallocating on
+> tmpfs would make any sense.
+>   Kay Sievers: To be able to safely use mmap(), regarding SIGBUS, on files on
+> the /dev/shm filesystem.  The glibc fallback loop for -ENOSYS [or
+> -EOPNOTSUPP] on fallocate is just ugly."
+>   Could shmem/tmpfs fallocate prevent one process truncate the file which the
+> second process mmap() and get SIGBUS when the second process access mmap but
+> out of current size of file?
 
- When I started writing the man page, I had to describe the 'reclaimer
- inefficiency index', and while doing this I realized that I'm describing
- how the kernel is doing the memory management, which we try to avoid in
- the vmevent. And applications don't really care about these details:
- reclaimers, its inefficiency indexes, scanning window sizes, priority
- levels, etc. -- it's all "not interesting", and purely kernel's stuff. So
- I guess Mel Gorman was right, we need some sort of levels.
+Again, I don't know if I understand you.  fallocate does not prevent
+truncation or races or SIGBUS.  I believe that Kay meant that without
+using fallocate to allocate the memory in advance, systemd found it hard
+to protect itself from the possibility of getting a SIGBUS, if access to
+a shmem mapping happened to run out of memory/space in the middle.
 
- What applications (well, activity managers) are really interested in is
- this:
+I never grasped why writing the file in advance was not good enough:
+fallocate happened to be what they hoped to use, and it was hard to
+deny it, given that tmpfs already supported hole-punching, and was
+about to convert to the fallocate interface for that.
 
- 1. Do we we sacrifice resources for new memory allocations (e.g. files
-    cache)?
- 2. Does the new memory allocations' cost becomes too high, and the system
-    hurts because of this?
- 3. Are we about to OOM soon?
-
- And here are the answers:
-
- 1. VMEVENT_PRESSURE_LOW
- 2. VMEVENT_PRESSURE_MED
- 3. VMEVENT_PRESSURE_OOM
-
- There is no "high" pressure, since I really don't see any definition of
- it, but it's possible to introduce new levels without breaking ABI.
-
-Later I came up with the fourth level:
-
- Maybe it makes sense to implement something like PRESSURE_MILD/BALANCE
- with an additional nr_pages threshold, which basically hits the kernel
- about how many easily reclaimable pages userland has (that would be a
- part of our definition for the mild/balance pressure level).
-
-I.e. the fourth level can serve as a two-way communication w/ the kernel.
-But again, this would be just an extension, I don't want to introduce this
-now.
-
-> > > Umm, why do users of cpusets not want to be able to trigger memory 
-> > > pressure notifications?
-> > > 
-> > Because cpusets only deal with memory placement, not memory usage.
-> 
-> The set of nodes that a thread is allowed to allocate from may face memory 
-> pressure up to and including oom while the rest of the system may have a 
-> ton of free memory.  Your solution is to compile and mount memcg if you 
-> want notifications of memory pressure on those nodes.  Others in this 
-> thread have already said they don't want to rely on memcg for any of this 
-> and, as Anton showed, this can be tied directly into the VM without any 
-> help from memcg as it sits today.  So why implement a simple and clean 
-
-You meant 'why not'?
-
-> mempressure cgroup that can be used alone or co-existing with either memcg 
-> or cpusets?
-> 
-> > And it is not that moving a task to cpuset disallows you to do any of
-> > this: you could, as long as the same set of tasks are mounted in a
-> > corresponding memcg.
-> > 
-> 
-> Same thing with a separate mempressure cgroup.  The point is that there 
-> will be users of this cgroup that do not want the overhead imposed by 
-> memcg (which is why it's disabled in defconfig) and there's no direct 
-> dependency that causes it to be a part of memcg.
-
-There's also an API "inconvenince issue" with memcg's usage_in_bytes
-stuff: applications have a hard time resetting the threshold to 'emulate'
-the pressure notifications, and they also have to count bytes (like 'total
-- used = free') to set the threshold. While a separate 'pressure'
-notifications shows exactly what apps actually want to know: the pressure.
-
-Thanks,
-Anton.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
