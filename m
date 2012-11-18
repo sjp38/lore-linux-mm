@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 1061F6B0068
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 10:30:02 -0500 (EST)
-Received: by mail-vc0-f178.google.com with SMTP id gb30so4181483vcb.9
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 07:30:01 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAGDaZ_qF03zB2XTF2nXtsPh1Zf90zVn-ZaoZSNAQg7BGyYEaww@mail.gmail.com>
-References: <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com>
-	<CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com>
-	<m2pq45qu0s.fsf@firstfloor.org>
-	<508A8D31.9000106@redhat.com>
-	<20121026132601.GC9886@gmail.com>
-	<20121026144502.6e94643e@dull>
-	<20121026221254.7d32c8bf@pyramind.ukuu.org.uk>
-	<508BE459.2080406@redhat.com>
-	<20121029165705.GA4693@x1.osrc.amd.com>
-	<CA+55aFzbwaHxWPkJ-t-TEh9hUwmA+D-unHGuJ7FPx7ULmrwKMg@mail.gmail.com>
-	<20121117145015.GF16441@x1.osrc.amd.com>
-	<CA+55aFxunZ94QkhxUKB0iJ0p1mFuWGzr0mR8icM=XJZadcSuRw@mail.gmail.com>
-	<50A7AC33.5060308@redhat.com>
-	<CAGDaZ_qF03zB2XTF2nXtsPh1Zf90zVn-ZaoZSNAQg7BGyYEaww@mail.gmail.com>
-Date: Sun, 18 Nov 2012 07:29:30 -0800
-Message-ID: <CANN689GJN0Gnm-h43oBW4Da_ALoZZAbcN-fNWE4VN8xB4UcZ_g@mail.gmail.com>
-Subject: Re: [PATCH 2/3] x86,mm: drop TLB flush from ptep_set_access_flags
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 71D0C6B004D
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 11:09:15 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3069609pad.14
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 08:09:14 -0800 (PST)
+From: Jiang Liu <liuj97@gmail.com>
+Subject: [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
+Date: Mon, 19 Nov 2012 00:07:25 +0800
+Message-Id: <1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <20121115112454.e582a033.akpm@linux-foundation.org>
+References: <20121115112454.e582a033.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shentino <shentino@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Florian Fainelli <florian@openwrt.org>, Borislav Petkov <borislav.petkov@amd.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Nov 17, 2012 at 1:53 PM, Shentino <shentino@gmail.com> wrote:
-> I'm actually curious if the architecture docs/software developer
-> manuals for IA-32 mandate any TLB invalidations on a #PF
->
-> Is there any official vendor documentation on the subject?
+The commit 7f1290f2f2a4 ("mm: fix-up zone present pages") tries to
+resolve an issue caused by inaccurate zone->present_pages, but that
+fix is incomplete and causes regresions with HIGHMEM. And it has been
+reverted by commit 
+5576646 revert "mm: fix-up zone present pages"
 
-Yes. Quoting a prior email:
+This is a following-up patchset for the issue above. It introduces a
+new field named "managed_pages" to struct zone, which counts pages
+managed by the buddy system from the zone. And zone->present_pages
+is used to count pages existing in the zone, which is
+	spanned_pages - absent_pages.
 
-Actually, it is architected on x86. This was first described in the
-intel appnote 317080 "TLBs, Paging-Structure Caches, and Their
-Invalidation", last paragraph of section 5.1. Nowadays, the same
-contents are buried somewhere in Volume 3 of the architecture manual
-(in my copy: 4.10.4.1 Operations that Invalidate TLBs and
-Paging-Structure Caches)
+But that way, zone->present_pages will be kept in consistence with
+pgdat->node_present_pages, which is sum of zone->present_pages.
 
-> And perhaps equally valid, should we trust it if it exists?
+This patchset has only been tested on x86_64 with nobootmem.c. So need
+help to test this patchset on machines:
+1) use bootmem.c
+2) have highmem
 
-I know that Intel has been very careful in documenting the architected
-TLB behaviors and did it with the understanding that people should be
-able to depend on what's being written up there.
+This patchset applies to "f4a75d2e Linux 3.7-rc6" from
+git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+Any comments and helps are welcomed!
+
+Jiang Liu (5):
+  mm: introduce new field "managed_pages" to struct zone
+  mm: replace zone->present_pages with zone->managed_pages if
+    appreciated
+  mm: set zone->present_pages to number of existing pages in the zone
+  mm: provide more accurate estimation of pages occupied by memmap
+  mm: increase totalram_pages when free pages allocated by bootmem
+    allocator
+
+ include/linux/mmzone.h |    1 +
+ mm/bootmem.c           |   14 ++++++++
+ mm/memory_hotplug.c    |    6 ++++
+ mm/mempolicy.c         |    2 +-
+ mm/nobootmem.c         |   15 ++++++++
+ mm/page_alloc.c        |   89 +++++++++++++++++++++++++++++++-----------------
+ mm/vmscan.c            |   16 ++++-----
+ mm/vmstat.c            |    8 +++--
+ 8 files changed, 108 insertions(+), 43 deletions(-)
 
 -- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
