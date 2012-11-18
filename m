@@ -1,100 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 6847E6B005D
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 17:53:22 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3175936pad.14
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 14:53:21 -0800 (PST)
-Date: Sun, 18 Nov 2012 14:53:19 -0800 (PST)
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id D8AFF6B006E
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 17:55:39 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa10so3176550pad.14
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 14:55:39 -0800 (PST)
+Date: Sun, 18 Nov 2012 14:55:36 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-In-Reply-To: <20121117012114.GA22910@lizard.sbx05663.mountca.wayport.net>
-Message-ID: <alpine.DEB.2.00.1211181446090.5080@chino.kir.corp.google.com>
-References: <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
- <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com> <50A60873.3000607@parallels.com> <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com> <50A6AC48.6080102@parallels.com>
- <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com> <20121117012114.GA22910@lizard.sbx05663.mountca.wayport.net>
+Subject: Re: [3.6 regression?] THP + migration/compaction livelock (I
+ think)
+In-Reply-To: <20121117001826.GC9816@offline.be>
+Message-ID: <alpine.DEB.2.00.1211181453550.5080@chino.kir.corp.google.com>
+References: <CALCETrVgbx-8Ex1Q6YgEYv-Oxjoa1oprpsQE-Ww6iuwf7jFeGg@mail.gmail.com> <alpine.DEB.2.00.1211131507370.17623@chino.kir.corp.google.com> <CALCETrU=7+pk_rMKKuzgW1gafWfv6v7eQtVw3p8JryaTkyVQYQ@mail.gmail.com> <alpine.DEB.2.00.1211131530020.17623@chino.kir.corp.google.com>
+ <20121114100154.GI8218@suse.de> <20121114132940.GA13196@offline.be> <alpine.DEB.2.00.1211141342460.13515@chino.kir.corp.google.com> <20121115011449.GA20858@offline.be> <20121117001826.GC9816@offline.be>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Glauber Costa <glommer@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Marc Duponcheel <marc@offline.be>
+Cc: Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 16 Nov 2012, Anton Vorontsov wrote:
+On Sat, 17 Nov 2012, Marc Duponcheel wrote:
 
->  The main change is that I decided to go with discrete levels of the
->  pressure.
+> # echo always >/sys/kernel/mm/transparent_hugepage/enabled
+> # while [ 1 ]
+>   do
+>    sleep 10
+>    date
+>    echo = vmstat
+>    egrep "(thp|compact)" /proc/vmstat
+>    echo = khugepaged stack
+>    cat /proc/501/stack
+>  done > /tmp/49361.xxxx
+> # emerge icedtea
+> (where 501 = pidof khugepaged)
 > 
->  When I started writing the man page, I had to describe the 'reclaimer
->  inefficiency index', and while doing this I realized that I'm describing
->  how the kernel is doing the memory management, which we try to avoid in
->  the vmevent. And applications don't really care about these details:
->  reclaimers, its inefficiency indexes, scanning window sizes, priority
->  levels, etc. -- it's all "not interesting", and purely kernel's stuff. So
->  I guess Mel Gorman was right, we need some sort of levels.
+> for xxxx = base = 3.6.6
+> and xxxx = test = 3.6.6 + diff you provided
 > 
->  What applications (well, activity managers) are really interested in is
->  this:
+> I attach 
+>  /tmp/49361.base.gz
+> and
+>  /tmp/49361.test.gz
 > 
->  1. Do we we sacrifice resources for new memory allocations (e.g. files
->     cache)?
->  2. Does the new memory allocations' cost becomes too high, and the system
->     hurts because of this?
->  3. Are we about to OOM soon?
+> Note:
 > 
->  And here are the answers:
+>  with xxx=base, I could see
+>   PID USER      PR  NI  VIRT  RES  SHR S  %CPU %MEM     TIME+ COMMAND
+>  8617 root      20   0 3620m  41m  10m S 988.3  0.5   6:19.06 javac
+>     1 root      20   0  4208  588  556 S   0.0  0.0   0:03.25 init
+>  already during configure and I needed to kill -9 javac
 > 
->  1. VMEVENT_PRESSURE_LOW
->  2. VMEVENT_PRESSURE_MED
->  3. VMEVENT_PRESSURE_OOM
+>  with xxx=test, I could see
+>   PID USER      PR  NI  VIRT  RES  SHR S  %CPU %MEM     TIME+ COMMAND
+> 9275 root      20   0 2067m 474m  10m S 304.2  5.9   0:32.81 javac
+>  710 root       0 -20     0    0    0 S   0.3  0.0   0:01.07 kworker/0:1H
+>  later when processing >700 java files
 > 
->  There is no "high" pressure, since I really don't see any definition of
->  it, but it's possible to introduce new levels without breaking ABI.
-> 
-> Later I came up with the fourth level:
-> 
->  Maybe it makes sense to implement something like PRESSURE_MILD/BALANCE
->  with an additional nr_pages threshold, which basically hits the kernel
->  about how many easily reclaimable pages userland has (that would be a
->  part of our definition for the mild/balance pressure level).
-> 
-> I.e. the fourth level can serve as a two-way communication w/ the kernel.
-> But again, this would be just an extension, I don't want to introduce this
-> now.
+> Also note that with xxx=test compact_blocks_moved stays 0
 > 
 
-That certainly makes sense, it would be too much of a usage and 
-maintenance burden to assume that the implementation of the VM is to 
-remain the same.
-
-> > The set of nodes that a thread is allowed to allocate from may face memory 
-> > pressure up to and including oom while the rest of the system may have a 
-> > ton of free memory.  Your solution is to compile and mount memcg if you 
-> > want notifications of memory pressure on those nodes.  Others in this 
-> > thread have already said they don't want to rely on memcg for any of this 
-> > and, as Anton showed, this can be tied directly into the VM without any 
-> > help from memcg as it sits today.  So why implement a simple and clean 
-> 
-> You meant 'why not'?
-> 
-
-Yes, sorry.
-
-> > mempressure cgroup that can be used alone or co-existing with either memcg 
-> > or cpusets?
-> > 
-> > Same thing with a separate mempressure cgroup.  The point is that there 
-> > will be users of this cgroup that do not want the overhead imposed by 
-> > memcg (which is why it's disabled in defconfig) and there's no direct 
-> > dependency that causes it to be a part of memcg.
-> 
-> There's also an API "inconvenince issue" with memcg's usage_in_bytes
-> stuff: applications have a hard time resetting the threshold to 'emulate'
-> the pressure notifications, and they also have to count bytes (like 'total
-> - used = free') to set the threshold. While a separate 'pressure'
-> notifications shows exactly what apps actually want to know: the pressure.
-> 
-
-Agreed.
+Sounds good!  Andy, have you had the opportunity to try to reproduce your 
+issue with the backports that Mel listed?  I think he'll be considering 
+asking for some of these to be backported for a future stable release so 
+any input you can provide would certainly be helpful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
