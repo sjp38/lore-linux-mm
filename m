@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id E62286B004D
-	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 19:58:08 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so108729dak.14
-        for <linux-mm@kvack.org>; Sat, 17 Nov 2012 16:58:08 -0800 (PST)
-Message-ID: <50A83289.6020108@gmail.com>
-Date: Sun, 18 Nov 2012 08:57:45 +0800
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 927E46B004D
+	for <linux-mm@kvack.org>; Sat, 17 Nov 2012 20:48:22 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so2940568pbc.14
+        for <linux-mm@kvack.org>; Sat, 17 Nov 2012 17:48:21 -0800 (PST)
+Message-ID: <50A83E5E.9060300@gmail.com>
+Date: Sun, 18 Nov 2012 09:48:14 +0800
 From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] tmpfs: fix shmem_getpage_gfp VM_BUG_ON
@@ -21,7 +21,27 @@ Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Jo
 On 11/17/2012 12:48 PM, Hugh Dickins wrote:
 > Further offtopic..
 
-Thanks for your explanation, Hugh. :-)
+Hi Hugh,
+
+- I see you add this in vfs.txt:
+   +  fallocate: called by the VFS to preallocate blocks or punch a hole.
+   I want to know if it's necessary to add it to man page since users 
+still don't know fallocate can punch a hole from man fallocate.
+- in function shmem_fallocate:
++               else if (shmem_falloc.nr_unswapped > 
+shmem_falloc.nr_falloced)
++                       error = -ENOMEM;
+If this changelog "shmem_fallocate() compare counts and give up once the 
+reactivated pages have started to coming back to writepage 
+(approximately: some zones would in fact recycle faster than others)." 
+describe why need this change? If the answer is yes, I have two questions.
+1) how can guarantee it really don't need preallocation if just one or a 
+few pages always reactivated, in this scene, nr_unswapped maybe grow 
+bigger enough than shmem_falloc.nr_falloced
+2) why return -ENOMEM, it's not really OOM, is it a trick or ...?
+
+Regards,
+Jaegeuk
 
 >
 > On Fri, 16 Nov 2012, Jaegeuk Hanse wrote:
@@ -33,12 +53,7 @@ Thanks for your explanation, Hugh. :-)
 > from truncation.  Supporting the hole-punch mode of the fallocate system
 > call is different from supporting truncation.  They're closely related,
 > and share code, but meet different specifications.
-
-What's the different between shmem/tmpfs hole-punching and 
-truncate_setsize/truncate_pagecache?
-Do you mean one is punch hole in the file and the other one is shrink or 
-extent the size of a file?
-
+>
 >> - in tmpfs: support fallocate preallocation patch changelog:
 >>    "Christoph Hellwig: What for exactly?  Please explain why preallocating on
 >> tmpfs would make any sense.
@@ -53,17 +68,12 @@ extent the size of a file?
 > using fallocate to allocate the memory in advance, systemd found it hard
 > to protect itself from the possibility of getting a SIGBUS, if access to
 > a shmem mapping happened to run out of memory/space in the middle.
-
-IIUC, it will return VM_xxx_OOM instead of SIGBUS if run out of memory. 
-Then how can get SIGBUS in this scene?
-
-Regards,
-Jaegeuk
-
+>
 > I never grasped why writing the file in advance was not good enough:
 > fallocate happened to be what they hoped to use, and it was hard to
 > deny it, given that tmpfs already supported hole-punching, and was
 > about to convert to the fallocate interface for that.
+>
 > Hugh
 
 --
