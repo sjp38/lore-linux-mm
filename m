@@ -1,62 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 32EAA6B0075
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 00:32:12 -0500 (EST)
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: [PATCH 44/58] mm: Only define is_pageblock_removable_nolock when needed
-Date: Sun, 18 Nov 2012 21:28:23 -0800
-Message-Id: <1353302917-13995-45-git-send-email-josh@joshtriplett.org>
-In-Reply-To: <1353302917-13995-1-git-send-email-josh@joshtriplett.org>
-References: <1353302917-13995-1-git-send-email-josh@joshtriplett.org>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id BEEB56B0080
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 01:07:46 -0500 (EST)
+Received: by mail-ia0-f169.google.com with SMTP id r4so3928292iaj.14
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 22:07:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1353129067.19744.1@driftwood>
+References: <50A5E4D6.60301@gmail.com> <1353129067.19744.1@driftwood>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Mon, 19 Nov 2012 07:07:25 +0100
+Message-ID: <CAKgNAkjCKpf-Nk6anL4tvETTyuuAZun=5SP6ssnsavDgJF563w@mail.gmail.com>
+Subject: Re: [PATCH] Correct description of SwapFree in Documentation/filesystems/proc.txt
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Josh Triplett <josh@joshtriplett.org>
+To: Rob Landley <rob@landley.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, linux-doc@vger.kernel.org, Jim Paris <jim@jtan.com>
 
-mm/page_alloc.c defines is_pageblock_removable_nolock unconditionally,
-but include/linux/memory_hotplug.h only prototypes it when
-CONFIG_MEMORY_HOTPLUG=3Dy and CONFIG_MEMORY_HOTREMOVE=3Dy.  Add the
-corresponding conditions around the definition, too.
+Rob,
 
-This also eliminates warnings from GCC (-Wmissing-prototypes) and Sparse
-(-Wdecl).
+On Sat, Nov 17, 2012 at 6:11 AM, Rob Landley <rob@landley.net> wrote:
+> On 11/16/2012 01:01:42 AM, Michael Kerrisk wrote:
+>>
+>> After migrating most of the information in
+>> Documentation/filesystems/proc.txt to the proc(5) man page,
+>> Jim Paris pointed out to me that the description of SwapFree
+>> in the man page seemed wrong. I think Jim is right,
+>> but am given pause by fact that that text has been in
+>> Documentation/filesystems/proc.txt since at least 2.6.0.
+>> Anyway, I believe that the patch below fixes things.
+>>
+>> Signed-off-by: Michael Kerrisk <mtk.manpages@gmail.com>
+>
+>
+> Acked-by: Rob Landley <rob@landley.net>
+>
+> Want me to forward it on? (Lots of documentation stuff gets grabbed by
+> whoever maintains what it's documenting, this looks like it might fall
+> through the cracks...)
 
-mm/page_alloc.c:5634:6: warning: no previous prototype for =E2=80=98is_pa=
-geblock_removable_nolock=E2=80=99 [-Wmissing-prototypes]
+That would be great.
 
-Signed-off-by: Josh Triplett <josh@joshtriplett.org>
----
- mm/page_alloc.c |    2 ++
- 1 file changed, 2 insertions(+)
+Thanks,
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d857953..706bd5f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5631,6 +5631,7 @@ bool has_unmovable_pages(struct zone *zone, struct =
-page *page, int count)
- 	return false;
- }
-=20
-+#if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_MEMORY_HOTREMOVE)
- bool is_pageblock_removable_nolock(struct page *page)
- {
- 	struct zone *zone;
-@@ -5654,6 +5655,7 @@ bool is_pageblock_removable_nolock(struct page *pag=
-e)
-=20
- 	return !has_unmovable_pages(zone, page, 0);
- }
-+#endif /* defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_MEMORY_HOTREM=
-OVE) */
-=20
- #ifdef CONFIG_CMA
-=20
---=20
-1.7.10.4
+Michael
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface"; http://man7.org/tlpi/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
