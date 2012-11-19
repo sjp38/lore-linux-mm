@@ -1,108 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 5073D6B006C
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 13:44:39 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id c26so235267qad.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 10:44:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 93B3D6B005D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 14:13:45 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1652205eaa.14
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 11:13:43 -0800 (PST)
+Date: Mon, 19 Nov 2012 20:13:39 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121119191339.GA11701@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <1353350518-32623-1-git-send-email-sonnyrao@chromium.org>
-References: <20121119134001.GA2799@cmpxchg.org> <1353350518-32623-1-git-send-email-sonnyrao@chromium.org>
-From: Sonny Rao <sonnyrao@chromium.org>
-Date: Mon, 19 Nov 2012 10:44:17 -0800
-Message-ID: <CAPz6YkXazpiJgKHnQx=dpr4XOCo8J_PBeffDG7mfPk7rPy2a-g@mail.gmail.com>
-Subject: Re: [PATCHv5] mm: Fix calculation of dirtyable memory
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121119162909.GL8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: damien.wyart@gmail.com
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Mandeep Singh Baines <msb@chromium.org>, Johannes Weiner <jweiner@redhat.com>, Olof Johansson <olofj@chromium.org>, Will Drewry <wad@chromium.org>, Kees Cook <keescook@chromium.org>, Aaron Durbin <adurbin@chromium.org>, stable@vger.kernel.org, Sonny Rao <sonnyrao@chromium.org>, Puneet Kumar <puneetster@chromium.org>, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Mon, Nov 19, 2012 at 10:41 AM, Sonny Rao <sonnyrao@chromium.org> wrote:
-> The system uses global_dirtyable_memory() to calculate
-> number of dirtyable pages/pages that can be allocated
-> to the page cache.  A bug causes an underflow thus making
-> the page count look like a big unsigned number.  This in turn
-> confuses the dirty writeback throttling to aggressively write
-> back pages as they become dirty (usually 1 page at a time).
-> This generally only affects systems with highmem because the
-> underflowed count gets subtracted from the global count of
-> dirtyable memory.
->
-> The problem was introduced with v3.2-4896-gab8fabd
->
-> Fix is to ensure we don't get an underflowed total of either highmem
-> or global dirtyable memory.
->
-> Signed-off-by: Sonny Rao <sonnyrao@chromium.org>
-> Signed-off-by: Puneet Kumar <puneetster@chromium.org>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> CC: stable@vger.kernel.org
-> ---
->  v2: added apkm's suggestion to make the highmem calculation better
->  v3: added Fengguang Wu's suggestions fix zone_dirtyable_memory() and
->      (offlist mail) to use max() in global_dirtyable_memory()
->  v4: Added suggestions to description clarifying the role of highmem
->       and the commit which originally caused the problem
->  v5: Fix bug where max() was used instead of min()
->  mm/page-writeback.c |   25 ++++++++++++++++++++-----
->  1 files changed, 20 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 830893b..f9efbe8 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -201,6 +201,18 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
->                      zone_reclaimable_pages(z) - z->dirty_balance_reserve;
->         }
->         /*
-> +        * Unreclaimable memory (kernel memory or anonymous memory
-> +        * without swap) can bring down the dirtyable pages below
-> +        * the zone's dirty balance reserve and the above calculation
-> +        * will underflow.  However we still want to add in nodes
-> +        * which are below threshold (negative values) to get a more
-> +        * accurate calculation but make sure that the total never
-> +        * underflows.
-> +        */
-> +       if ((long)x < 0)
-> +               x = 0;
-> +
-> +       /*
->          * Make sure that the number of highmem pages is never larger
->          * than the number of the total dirtyable memory. This can only
->          * occur in very strange VM situations but we want to make sure
-> @@ -222,8 +234,8 @@ static unsigned long global_dirtyable_memory(void)
->  {
->         unsigned long x;
->
-> -       x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages() -
-> -           dirty_balance_reserve;
-> +       x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
-> +       x -= min(x, dirty_balance_reserve);
->
->         if (!vm_highmem_is_dirtyable)
->                 x -= highmem_dirtyable_memory(x);
-> @@ -290,9 +302,12 @@ static unsigned long zone_dirtyable_memory(struct zone *zone)
->          * highmem zone can hold its share of dirty pages, so we don't
->          * care about vm_highmem_is_dirtyable here.
->          */
-> -       return zone_page_state(zone, NR_FREE_PAGES) +
-> -              zone_reclaimable_pages(zone) -
-> -              zone->dirty_balance_reserve;
-> +       unsigned long nr_pages = zone_page_state(zone, NR_FREE_PAGES) +
-> +               zone_reclaimable_pages(zone);
-> +
-> +       /* don't allow this to underflow */
-> +       nr_pages -= min(nr_pages, zone->dirty_balance_reserve);
-> +       return nr_pages;
->  }
->
->  /**
-> --
-> 1.7.7.3
->
 
-Damien, thanks for testing and finding that bug.  If you could, please
-give this version a try, thanks.
+* Mel Gorman <mgorman@suse.de> wrote:
+
+> On Mon, Nov 19, 2012 at 03:14:17AM +0100, Ingo Molnar wrote:
+> > I'm pleased to announce the latest version of the numa/core tree.
+> > 
+> > Here are some quick, preliminary performance numbers on a 4-node,
+> > 32-way, 64 GB RAM system:
+> > 
+> >   CONFIG_NUMA_BALANCING=y
+> >   -----------------------------------------------------------------------
+> >   [ seconds         ]    v3.7  AutoNUMA   |  numa/core-v16    [ vs. v3.7]
+> >   [ lower is better ]   -----  --------   |  -------------    -----------
+> >                                           |
+> >   numa01                340.3    192.3    |      139.4          +144.1%
+> >   numa01_THREAD_ALLOC   425.1    135.1    |      121.1          +251.0%
+> >   numa02                 56.1     25.3    |       17.5          +220.5%
+> >                                           |
+> >   [ SPECjbb transactions/sec ]            |
+> >   [ higher is better         ]            |
+> >                                           |
+> >   SPECjbb single-1x32    524k     507k    |       638k           +21.7%
+> >   -----------------------------------------------------------------------
+> > 
+> 
+> I was not able to run a full sets of tests today as I was 
+> distracted so all I have is a multi JVM comparison. I'll keep 
+> it shorter than average
+> 
+>                           3.7.0                 3.7.0
+>                  rc5-stats-v4r2   rc5-schednuma-v16r1
+
+Thanks for the testing - I'll wait for your full results to see 
+whether the other regressions you reported before are 
+fixed/improved.
+
+Exactly what tree/commit does "rc5-schednuma-v16r1" mean?
+
+I am starting to have doubts about your testing methods. There 
+does seem to be some big disconnect between your testing and 
+mine - and I think we should clear that up by specifying exactly 
+*what* you have tested. Did you rebase my tree in any fashion?
+
+You can find what I tested in tip:master and I'd encourage you 
+to test that too.
+
+Other people within Red Hat have tested these same workloads as 
+well, on similarly sided (and even larger) systems as yours, and 
+they have already reported to me (much) improved numbers, 
+including improvements in the multi-JVM SPECjbb load that you 
+are concentrating on ...
+
+> >  - I restructured the whole tree to make it cleaner, to 
+> >    simplify its mm/ impact and in general to make it more 
+> >    mergable. It now includes either agreed-upon patches, or 
+> >    bare essentials that are needed to make the 
+> >    CONFIG_NUMA_BALANCING=y feature work. It is fully bisect 
+> >    tested - it builds and works at every point.
+> 
+> It is a misrepresentation to say that all these patches have 
+> been agreed upon.
+
+That has not been claimed, please read the sentence above.
+
+> You are still using MIGRATE_FAULT which has not been agreed 
+> upon at all.
+
+See my followup patch yesterday.
+
+> While you have renamed change_prot_none to change_prot_numa, 
+> it still effectively hard-codes PROT_NONE. Even if an 
+> architecture redefines pte_numa to use a bit other than 
+> _PAGE_PROTNONE it'll still not work because 
+> change_protection() will not recognise it.
+
+This is not how it works.
+
+The new generic PROT_NONE scheme is that an architecture that 
+wants to reuse the generic PROT_NONE code can define:
+
+  select ARCH_SUPPORTS_NUMA_BALANCING
+
+and can set:
+
+  select ARCH_WANTS_NUMA_GENERIC_PGPROT
+
+and it will get the generic code very easily. This is what x86 
+uses now. No architecture changes needed beyond these two lines 
+of Kconfig enablement.
+
+If an architecture wants to provide its own open-coded, optimizd 
+variant, it can do so by not defining 
+ARCH_SUPPORTS_NUMA_BALANCING, and by offering the following 
+methods:
+
+      bool pte_numa(struct vm_area_struct *vma, pte_t pte);
+      pte_t pte_mknuma(struct vm_area_struct *vma, pte_t pte);
+      bool pmd_numa(struct vm_area_struct *vma, pmd_t pmd);
+      pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
+      unsigned long change_prot_numa(struct vm_area_struct *vma, unsigned long start, unsigned long
+
+I have not tested the arch-defined portion but barring trivial 
+problems it should work. We can extend the list of methods if 
+you think more is needed, and we can offer library functions for 
+architectures that want to share some but not all generic code - 
+I'm personally happy with x86 using change_protection().
+
+I think this got bikeshed painted enough already.
+
+> I still maintain that THP native migration was introduced too 
+> early now it's worse because you've collapsed it with another 
+> patch. The risk is that you might be depending on THP 
+> migration to reduce overhead for the autonumabench test cases. 
+> I've said already that I believe that the correct thing to do 
+> here is to handle regular PMDs in batch where possible and add 
+> THP native migration as an optimisation on top. This avoids us 
+> accidentally depending on THP to reduce system CPU usage.
+
+Have you disabled THP in your testing of numa/core???
+
+I think we need to stop the discussion now and clear up exactly 
+*what* you have tested. Commit ID and an exact description of 
+testing methodology please ...
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
