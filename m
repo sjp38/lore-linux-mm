@@ -1,73 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 05AA76B0070
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 21:15:28 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so1265406eaa.14
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 18:15:28 -0800 (PST)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id DF3196B0071
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 21:15:30 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so3182484eek.14
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 18:15:30 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 02/27] x86/mm: Only do a local tlb flush in ptep_set_access_flags()
-Date: Mon, 19 Nov 2012 03:14:19 +0100
-Message-Id: <1353291284-2998-3-git-send-email-mingo@kernel.org>
+Subject: [PATCH 03/27] x86/mm: Introduce pte_accessible()
+Date: Mon, 19 Nov 2012 03:14:20 +0100
+Message-Id: <1353291284-2998-4-git-send-email-mingo@kernel.org>
 In-Reply-To: <1353291284-2998-1-git-send-email-mingo@kernel.org>
 References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
 From: Rik van Riel <riel@redhat.com>
 
-Because we only ever upgrade a PTE when calling ptep_set_access_flags(),
-it is safe to skip flushing entries on remote TLBs.
+We need pte_present to return true for _PAGE_PROTNONE pages, to indicate that
+the pte is associated with a page.
 
-The worst that can happen is a spurious page fault on other CPUs, which
-would flush that TLB entry.
+However, for TLB flushing purposes, we would like to know whether the pte
+points to an actually accessible page.  This allows us to skip remote TLB
+flushes for pages that are not actually accessible.
 
-Lazily letting another CPU incur a spurious page fault occasionally
-is (much!) cheaper than aggressively flushing everybody else's TLB.
+Fill in this method for x86 and provide a safe (but slower) method
+on other architectures.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
-Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Fixed-by: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michel Lespinasse <walken@google.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Hugh Dickins <hughd@google.com>
+Link: http://lkml.kernel.org/n/tip-66p11te4uj23gevgh4j987ip@git.kernel.org
+[ Added Linus's review fixes. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- arch/x86/mm/pgtable.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/pgtable.h | 6 ++++++
+ include/asm-generic/pgtable.h  | 4 ++++
+ 2 files changed, 10 insertions(+)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 8573b83..be3bb46 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -301,6 +301,13 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- 	free_page((unsigned long)pgd);
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index a1f780d..5fe03aa 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -407,6 +407,12 @@ static inline int pte_present(pte_t a)
+ 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
  }
  
-+/*
-+ * Used to set accessed or dirty bits in the page table entries
-+ * on other architectures. On x86, the accessed and dirty bits
-+ * are tracked by hardware. However, do_wp_page calls this function
-+ * to also make the pte writeable at the same time the dirty bit is
-+ * set. In that case we do actually need to write the PTE.
-+ */
- int ptep_set_access_flags(struct vm_area_struct *vma,
- 			  unsigned long address, pte_t *ptep,
- 			  pte_t entry, int dirty)
-@@ -310,7 +317,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	if (changed && dirty) {
- 		*ptep = entry;
- 		pte_update_defer(vma->vm_mm, address, ptep);
--		flush_tlb_page(vma, address);
-+		__flush_tlb_one(address);
- 	}
++#define pte_accessible pte_accessible
++static inline int pte_accessible(pte_t a)
++{
++	return pte_flags(a) & _PAGE_PRESENT;
++}
++
+ static inline int pte_hidden(pte_t pte)
+ {
+ 	return pte_flags(pte) & _PAGE_HIDDEN;
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index b36ce40..48fc1dc 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -219,6 +219,10 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+ #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+ #endif
  
- 	return changed;
++#ifndef pte_accessible
++# define pte_accessible(pte)		((void)(pte),1)
++#endif
++
+ #ifndef flush_tlb_fix_spurious_fault
+ #define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+ #endif
 -- 
 1.7.11.7
 
