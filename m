@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 445E36B0070
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:48:28 -0500 (EST)
-Date: Mon, 19 Nov 2012 14:48:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all
- dma_alloc_coherent() calls
-Message-Id: <20121119144826.f59667b2.akpm@linux-foundation.org>
-In-Reply-To: <20121119001846.GB22106@titan.lakedaemon.net>
-References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com>
-	<20121119001846.GB22106@titan.lakedaemon.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id EF5836B0072
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 18:00:40 -0500 (EST)
+Date: Mon, 19 Nov 2012 23:00:35 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121119230034.GO8218@suse.de>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121119211804.GM8218@suse.de>
+ <20121119223604.GA13470@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121119223604.GA13470@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, Kyungmin Park <kyungmin.park@samsung.com>, Soren Moch <smoch@web.de>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Sun, 18 Nov 2012 19:18:46 -0500
-Jason Cooper <jason@lakedaemon.net> wrote:
+On Mon, Nov 19, 2012 at 11:36:04PM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > Ok.
+> > 
+> > In response to one of your later questions, I found that I had 
+> > in fact disabled THP without properly reporting it. [...]
+> 
+> Hugepages is a must for most forms of NUMA/HPC.
 
-> I've added the maintainers for mm/*.  Hopefully they can let us know if
-> this is good for v3.8...
+Requiring huge pages to avoid a regression is a mistake.
 
-As Marek has inexplicably put this patch into linux-next via his tree,
-we don't appear to be getting a say in the matter!
+> This alone 
+> questions the relevance of most of your prior numa/core testing 
+> results. I now have to strongly dispute your other conclusions 
+> as well.
+> 
 
-The patch looks good to me.  That open-coded wait loop predates the
-creation of bitkeeper tree(!) but doesn't appear to be needed.  There
-will perhaps be some behavioural changes observable for GFP_KERNEL
-callers as dma_pool_alloc() will no longer dip into page reserves but I
-see nothing special about dma_pool_alloc() which justifies doing that
-anyway.
+I'll freely admit that disabling THP for specjbb was a mistake and I should
+have caught why at the start. However, the autonumabench figures reported for
+the last release had THP enabled as had the kernel build benchmark figures.
 
-The patch makes pool->waitq and its manipulation obsolete, but it
-failed to remove all that stuff.
+> Just a look at 'perf top' output should have told you the story.
+> 
 
-The changelog failed to describe the problem which Soren reported. 
-That should be included, and as the problem sounds fairly serious we
-might decide to backport the fix into -stable kernels.
+I knew THP were not in use and said so in earlier reports. Take this for
+example -- https://lkml.org/lkml/2012/11/16/207 . For specjbb, note that
+the THP fault alloc figures are close to 0 and due to that I said "THP is
+not really a factor for this workload". What I failed to do was identify
+why THP was not in use.
 
-dma_pool_alloc()'s use of a local "struct dma_page *page" is
-distressing - MM developers very much expect a local called "page" to
-have type "struct page *".  But that's a separate issue.
+> Yet time and time again you readily reported bad 'schednuma' 
+> results for a slow 4K memory model that neither we nor other 
+> NUMA testers I talked to actually used, without stopping to look 
+> why that was so...
+> 
 
-As this patch is already in -next and is stuck there for two more
-weeks I can't (or at least won't) merge this patch, so I can't help
-with any of the above.
+Again, I apologise for the THP mistake. The fact remains that the other
+implementations did not suffer a performance slowdown due to the same
+mistake.
+
+> [ I suspect that if such terabytes-of-data workloads are forced 
+>   through such a slow 4K pages model then there's a bug or 
+>   mis-tuning in our code that explains the level of additional 
+>   slowdown you saw - we'll fix that.
+> 
+>   But you should know that behavior under the slow 4K model 
+>   tells very little about the true scheduling and placement 
+>   quality of the patches... ]
+> 
+> Please report proper THP-enabled numbers before continuing.
+> 
+
+Will do. Are THP-disabled benchmark results to be ignored?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
