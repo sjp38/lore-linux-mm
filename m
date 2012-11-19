@@ -1,231 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 1D0146B006C
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 18:19:01 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id c26so435956qad.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 15:19:00 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121022012555.GB2739@dastard>
-References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
-	<20120920084422.GA5697@localhost>
-	<20120925013658.GC23520@dastard>
-	<CAKYAXd975U_n2SSFXz0VfEs6GrVCoc2S=3kQbfw_2uOtGXbGxA@mail.gmail.com>
-	<CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
-	<20121022012555.GB2739@dastard>
-Date: Tue, 20 Nov 2012 08:18:59 +0900
-Message-ID: <CAKYAXd-BzgVvhbGE=OcSeXSMFe+5NdTt3L1A6Synds4vZ9vc2A@mail.gmail.com>
-Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi variable
-From: Namjae Jeon <linkinjeon@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id D773E6B006C
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 18:35:11 -0500 (EST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v5 0/3] zram/zsmalloc promotion
+Date: Tue, 20 Nov 2012 08:35:10 +0900
+Message-Id: <1353368113-1971-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Pekka Enberg <penberg@cs.helsinki.fi>, Luigi Semenzato <semenzato@google.com>, gaowanlong@cn.fujitsu.com, Minchan Kim <minchan@kernel.org>
 
-2012/10/22, Dave Chinner <david@fromorbit.com>:
-> On Fri, Oct 19, 2012 at 04:51:05PM +0900, Namjae Jeon wrote:
->> Hi Dave.
->>
->> Test Procedure:
->>
->> 1) Local USB disk WRITE speed on NFS server is ~25 MB/s
->>
->> 2) Run WRITE test(create 1 GB file) on NFS Client with default
->> writeback settings on NFS Server. By default
->> bdi->dirty_background_bytes = 0, that means no change in default
->> writeback behaviour
->>
->> 3) Next we change bdi->dirty_background_bytes = 25 MB (almost equal to
->> local USB disk write speed on NFS Server)
->> *** only on NFS Server - not on NFS Client ***
->
-> Ok, so the results look good, but it's not really addressing what I
-> was asking, though.  A typical desktop PC has a disk that can do
-> 100MB/s and GbE, so I was expecting a test that showed throughput
-> close to GbE maximums at least (ie. around that 100MB/s). I have 3
-> year old, low end, low power hardware (atom) that hanles twice the
-> throughput you are testing here, and most current consumer NAS
-> devices are more powerful than this. IOWs, I think the rates you are
-> testing at are probably too low even for the consumer NAS market to
-> consider relevant...
->
->> ----------------------------------------------------------------------------------
->> Multiple NFS Client test:
->> -----------------------------------------------------------------------------------
->> Sorry - We could not arrange multiple PCs to verify this.
->> So, we tried 1 NFS Server + 2 NFS Clients using 3 target boards:
->> ARM Target + 512 MB RAM + ethernet - 100 Mbits/s, create 1 GB File
->
-> But this really doesn't tells us anything - it's still only 100Mb/s,
-> which we'd expect is already getting very close to line rate even
-> with low powered client hardware.
->
-> What I'm concerned about the NFS server "sweet spot" - a $10k server
-> that exports 20TB of storage and can sustain close to a GB/s of NFS
-> traffic over a single 10GbE link with tens to hundreds of clients.
-> 100MB/s and 10 clients is about the minimum needed to be able to
-> extrapolate a litle and make an informed guess of how it will scale
-> up....
->
->> > 1. what's the comparison in performance to typical NFS
->> > server writeback parameter tuning? i.e. dirty_background_ratio=5,
->> > dirty_ratio=10, dirty_expire_centiseconds=1000,
->> > dirty_writeback_centisecs=1? i.e. does this give change give any
->> > benefit over the current common practice for configuring NFS
->> > servers?
->>
->> Agreed, that above improvement in write speed can be achieved by
->> tuning above write-back parameters.
->> But if we change these settings, it will change write-back behavior
->> system wide.
->> On the other hand, if we change proposed per bdi setting,
->> bdi->dirty_background_bytes it will change write-back behavior for the
->> block device exported on NFS server.
->
-> I already know what the difference between global vs per-bdi tuning
-> means.  What I want to know is how your results compare
-> *numerically* to just having a tweaked global setting on a vanilla
-> kernel.  i.e. is there really any performance benefit to per-bdi
-> configuration that cannot be gained by existing methods?
->
->> > 2. what happens when you have 10 clients all writing to the server
->> > at once? Or a 100? NFS servers rarely have a single writer to a
->> > single file at a time, so what impact does this change have on
->> > multiple concurrent file write performance from multiple clients
->>
->> Sorry, we could not arrange more than 2 PCs for verifying this.
->
-> Really? Well, perhaps there's some tools that might be useful for
-> you here:
->
-> http://oss.sgi.com/projects/nfs/testtools/
->
-> "Weber
->
-> Test load generator for NFS. Uses multiple threads, multiple
-> sockets and multiple IP addresses to simulate loads from many
-> machines, thus enabling testing of NFS server setups with larger
-> client counts than can be tested with physical infrastructure (or
-> Virtual Machine clients). Has been useful in automated NFS testing
-> and as a pinpoint NFS load generator tool for performance
-> development."
->
+This patchset promotes zram/zsmalloc from staging.
+Both are very clean and zram have been used by many embedded product
+for a long time. For example,major TV companys have used zram as swap
+since two years ago and recently our production team released android
+smart phone with zram which is used as swap, too. And there is trial
+to use zram as swap in ChromeOS project, too. (Although they report
+some problem recently, it was not a problem of zram). When you google
+zram, you can find various usecase in xda-developers.
 
-Hi Dave,
-We ran "weber" test on below setup:
-1) SATA HDD - Local WRITE speed ~120 MB/s, NFS WRITE speed ~90 MB/s
-2) Used 10GbE - network interface to mount NFS
+The benefit of zram is very clear. With my experience, the benefit
+in real practice was to remove jitter of video application.
+It would be effect of efficient memory usage by compression but more
+issue is whether swap is there or not in the system. As you know,
+recent mobile platform have used JAVA so there are lots of anonymous pages.
+But embedded system normally doesn't use eMMC or SDCard as swap because
+there is wear-leveling issue and latency so we can't reclaim anymous pages.
+It sometime ends up making system very slow when it requires to get
+contiguous memory and even many file-backed pages are evicted. It's
+never what embedded people want it. Zram is one of best solution for that.
 
-We ran "weber" test with  NFS clients ranging from 1 to 100,
-below is the % GAIN in NFS WRITE speed with
-bdi->dirty_background_bytes = 100 MB at NFS server
+Quote from Luigi
+"
+Since Chrome OS was mentioned: the main reason why we don't use swap
+to a disk (rotating or SSD) is because it doesn't degrade gracefully
+and leads to a bad interactive experience.  Generally we prefer to
+manage RAM at a higher level, by transparently killing and restarting
+processes.  But we noticed that zram is fast enough to be competitive
+with the latter, and it lets us make more efficient use of the
+available RAM.
+"
 
--------------------------------------------------
-| Number of NFS Clients |% GAIN in WRITE Speed  |
-|-----------------------------------------------|
-|         1             |     19.83 %           |
-|-----------------------------------------------|
-|         2             |      2.97 %           |
-|-----------------------------------------------|
-|         3             |      2.01 %           |
-|-----------------------------------------------|
-|        10             |      0.25 %           |
-|-----------------------------------------------|
-|        20             |      0.23 %           |
-|-----------------------------------------------|
-|        30             |      0.13 %           |
-|-----------------------------------------------|
-|       100             |    - 0.60 %           |
--------------------------------------------------
+It's time to go out of staging.
 
-with bdi->dirty_background_bytes setting at NFS server, we observed
-that NFS WRITE speed improvement is maximum with single NFS client.
-But WRITE speed improvement drops when Number of NFS clients increase
-from 1 to 100.
+Greg, Jens is already OK that zram is located under driver/blocks/.
+The issue remained is where we put zsmalloc. The candidate is two
+under mm/ or under lib/. Konrad and Nitin wanted to put zsmalloc
+into lib/ instead of mm/.
 
-So, bdi->dirty_background_bytes setting might be useful where we have
-only one NFS client(scenario like ours).
-But this is not useful for big NFS Servers which host hundreads of NFS clients.
+Quote from Nitin
+"
+I think mm/ directory should only contain the code which is intended
+for global use such as the slab allocator, page reclaim code etc.
+zsmalloc is used by only one (or possibly two) drivers, so lib/ seems
+to be the right place.
+"
 
-Let me know your opinion.
+Quote from Konrand
+"
+I like the idea of keeping it in /lib or /mm. Actually 'lib' sounds more
+appropriate since it is dealing with storing a bunch of pages in a nice
+layout for great density purposes.
+"
 
-Thanks.
+In fact, there is some history about that.
 
->> > 3. Following on from the multiple client test, what difference does it
->> > make to file fragmentation rates? Writing more frequently means
->> > smaller allocations and writes, and that tends to lead to higher
->> > fragmentation rates, especially when multiple files are being
->> > written concurrently. Higher fragmentation also means lower
->> > performance over time as fragmentation accelerates filesystem aging
->> > effects on performance.  IOWs, it may be faster when new, but it
->> > will be slower 3 months down the track and that's a bad tradeoff to
->> > make.
->>
->> We agree that there could be bit more framentation. But as you know,
->> we are not changing writeback settings at NFS clients.
->> So, write-back behavior on NFS client will not change - IO requests
->> will be buffered at NFS client as per existing write-back behavior.
->
-> I think you misunderstand - writeback settings on the server greatly
-> impact the way the server writes data and therefore the way files
-> are fragmented. It has nothing to do with client side tuning.
->
-> Effectively, what you are presenting is best case numbers - empty
-> filesystem, single client, streaming write, no fragmentation, no
-> allocation contention, no competing IO load that causes write
-> latency occurring.  Testing with lots of clients introduces all of
-> these things, and that will greatly impact server behaviour.
-> Aggregation in memory isolates a lot of this variation from
-> writeback and hence smooths out a lot of the variability that leads
-> to fragmentation, seeks, latency spikes and preamture filesystem
-> aging.
->
-> That is, if you set a 100MB dirty_bytes limit on a bdi it will give
-> really good buffering for a single client doing a streaming write.
-> If you've got 10 clients, then assuming fair distribution of server
-> resources, then that is 10MB per client per writeback trigger.
-> That's line ball as to whether it will cause fragmentation severe
-> enough to impact server throughput. If you've got 100 clients,then
-> that's only 1MB per client per writeback trigger, and that's
-> definitely too low to maintain decent writeback behaviour.  i.e.
-> you're now writing 100 files 1MB at a time, and that tends towards
-> random IO patterns rather than sequential IO patterns. Seek time
-> dertermines throughput, not IO bandwidth limits.
->
-> IOWs, as the client count goes up, the writeback patterns will tends
-> more towards random IO than sequential IO unless the amount of
-> buffering allowed before writeback triggers also grows. That's
-> important, because random IO is much slower than sequential IO.
-> What I'd like to have is some insight into whether this patch
-> changes that inflection point, for better or for worse. The only way
-> to find that is to run multi-client testing....
->
->> > 5. Are the improvements consistent across different filesystem
->> > types?  We've had writeback changes in the past cause improvements
->> > on one filesystem but significant regressions on others.  I'd
->> > suggest that you need to present results for ext4, XFS and btrfs so
->> > that we have a decent idea of what we can expect from the change to
->> > the generic code.
->>
->> As mentioned in the above Table 1 & 2, performance gain in WRITE speed
->> is different on different file systems i.e. different on NFS client
->> over XFS & EXT4.
->> We also tried BTRFS over NFS, but we could not see any WRITE speed
->> performance gain/degrade on BTRFS over NFS, so we are not posting
->> BTRFS results here.
->
-> You should post btrfs numbers even if they show no change. It wasn't
-> until I got this far that I even realised that you'd even tested
-> BTRFS. I don't know what to make of this, because I don't know what
-> the throughput rates compared to XFS and EXT4 are....
->
-> Cheers,
->
-> Dave.
-> --
-> Dave Chinner
-> david@fromorbit.com
->
+Why I put zsmalloc into under mm firstly was that Andrew had a concern
+about using strut page's some fields freely in zsmalloc so he wanted
+to maintain it in mm/ if I remember correctly.
+
+So I and Nitin tried to ask the opinion to akpm several times
+(at least 6 and even I sent such patch a few month ago) but didn't get
+any reply from him or any mm guys so I guess mm guys doesn't have any
+concern about that any more.
+
+In point of view that it's an another slab-like allocator,
+it might be proper under mm but it's not popular as current mm's
+allocators(/SLUB/SLOB and page allocator).
+
+Frankly speaking, I don't care whether we put it to mm/ or lib/.
+It seems contributors(ex, Nitin, Konrad, Pekka, Seth and Dan) like lib/
+and other mm guys are still silent. That's why I am biased into lib/ now.
+
+If someone yell we should keep it to mm/ by logical claim, I can change
+my mind easily. Please raise your hand.
+
+If Andrew doesn't have a concern about that any more, I would like to
+locate it into /lib.
+
+This patchset is based on next-20121115.
+
+Minchan Kim (3):
+  zsmalloc: promote to lib/
+  zram: promote zram from staging
+  zram: select ZSMALLOC when ZRAM is configured
+
+ drivers/block/Kconfig                    |    1 +
+ drivers/block/Makefile                   |    1 +
+ drivers/block/zram/Kconfig               |   26 +
+ drivers/block/zram/Makefile              |    3 +
+ drivers/block/zram/zram.txt              |   76 +++
+ drivers/block/zram/zram_drv.c            |  776 ++++++++++++++++++++++
+ drivers/block/zram/zram_drv.h            |  119 ++++
+ drivers/block/zram/zram_sysfs.c          |  225 +++++++
+ drivers/staging/Kconfig                  |    4 -
+ drivers/staging/Makefile                 |    2 -
+ drivers/staging/zcache/zcache-main.c     |    4 +-
+ drivers/staging/zram/Kconfig             |   25 -
+ drivers/staging/zram/Makefile            |    3 -
+ drivers/staging/zram/zram.txt            |   76 ---
+ drivers/staging/zram/zram_drv.c          |  776 ----------------------
+ drivers/staging/zram/zram_drv.h          |  120 ----
+ drivers/staging/zram/zram_sysfs.c        |  225 -------
+ drivers/staging/zsmalloc/Kconfig         |   10 -
+ drivers/staging/zsmalloc/Makefile        |    3 -
+ drivers/staging/zsmalloc/zsmalloc-main.c | 1064 ------------------------------
+ drivers/staging/zsmalloc/zsmalloc.h      |   43 --
+ include/linux/zsmalloc.h                 |   43 ++
+ lib/Kconfig                              |   18 +
+ lib/Makefile                             |    1 +
+ lib/zsmalloc.c                           | 1064 ++++++++++++++++++++++++++++++
+ 25 files changed, 2355 insertions(+), 2353 deletions(-)
+ create mode 100644 drivers/block/zram/Kconfig
+ create mode 100644 drivers/block/zram/Makefile
+ create mode 100644 drivers/block/zram/zram.txt
+ create mode 100644 drivers/block/zram/zram_drv.c
+ create mode 100644 drivers/block/zram/zram_drv.h
+ create mode 100644 drivers/block/zram/zram_sysfs.c
+ delete mode 100644 drivers/staging/zram/Kconfig
+ delete mode 100644 drivers/staging/zram/Makefile
+ delete mode 100644 drivers/staging/zram/zram.txt
+ delete mode 100644 drivers/staging/zram/zram_drv.c
+ delete mode 100644 drivers/staging/zram/zram_drv.h
+ delete mode 100644 drivers/staging/zram/zram_sysfs.c
+ delete mode 100644 drivers/staging/zsmalloc/Kconfig
+ delete mode 100644 drivers/staging/zsmalloc/Makefile
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc-main.c
+ delete mode 100644 drivers/staging/zsmalloc/zsmalloc.h
+ create mode 100644 include/linux/zsmalloc.h
+ create mode 100644 lib/zsmalloc.c
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
