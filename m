@@ -1,85 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 71A186B004D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:25:18 -0500 (EST)
-Date: Mon, 19 Nov 2012 14:25:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/8] mm: frontswap: lazy initialization to allow tmem
- backends to build/run as modules
-Message-Id: <20121119142516.b2936a7c.akpm@linux-foundation.org>
-In-Reply-To: <CAA_GA1crg1ngNx2MAv-fJbgKYqSKmkapZHq=8F4QcNgFja1A-w@mail.gmail.com>
-References: <1352919432-9699-1-git-send-email-konrad.wilk@oracle.com>
-	<1352919432-9699-3-git-send-email-konrad.wilk@oracle.com>
-	<20121116151619.aa60acff.akpm@linux-foundation.org>
-	<CAA_GA1crg1ngNx2MAv-fJbgKYqSKmkapZHq=8F4QcNgFja1A-w@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 1CBA66B006C
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:36:11 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1729260eaa.14
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 14:36:09 -0800 (PST)
+Date: Mon, 19 Nov 2012 23:36:04 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121119223604.GA13470@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121119211804.GM8218@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121119211804.GM8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Mon, 19 Nov 2012 08:53:46 +0800
-Bob Liu <lliubbo@gmail.com> wrote:
 
-> On Sat, Nov 17, 2012 at 7:16 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> > On Wed, 14 Nov 2012 13:57:06 -0500
-> > Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
-> >
-> >> From: Dan Magenheimer <dan.magenheimer@oracle.com>
-> >>
-> >> With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
-> >> built/loaded as modules rather than built-in and enabled by a boot parameter,
-> >> this patch provides "lazy initialization", allowing backends to register to
-> >> frontswap even after swapon was run. Before a backend registers all calls
-> >> to init are recorded and the creation of tmem_pools delayed until a backend
-> >> registers or until a frontswap put is attempted.
-> >>
-> >>
-> >> ...
-> >>
-> >> --- a/mm/frontswap.c
-> >> +++ b/mm/frontswap.c
-> >> @@ -80,6 +80,18 @@ static inline void inc_frontswap_succ_stores(void) { }
-> >>  static inline void inc_frontswap_failed_stores(void) { }
-> >>  static inline void inc_frontswap_invalidates(void) { }
-> >>  #endif
-> >> +
-> >> +/*
-> >> + * When no backend is registered all calls to init are registered and
-> >
-> > What is "init"?  Spell it out fully, please.
-> >
+* Mel Gorman <mgorman@suse.de> wrote:
+
+> Ok.
 > 
-> I think it's frontswap_init().
-> swapon will call frontswap_init() and in it we need to call init
-> function of backends with some parameters
-> like swap_type.
+> In response to one of your later questions, I found that I had 
+> in fact disabled THP without properly reporting it. [...]
 
-Well, let's improve that comment please.
+Hugepages is a must for most forms of NUMA/HPC. This alone 
+questions the relevance of most of your prior numa/core testing 
+results. I now have to strongly dispute your other conclusions 
+as well.
 
-> >> + * remembered but fail to create tmem_pools. When a backend registers with
-> >> + * frontswap the previous calls to init are executed to create tmem_pools
-> >> + * and set the respective poolids.
-> >
-> > Again, seems really hacky.  Why can't we just change callers so they
-> > call things in the correct order?
-> >
-> 
-> I don't think so, because it asynchronous.
-> 
-> The original idea was to make backends like zcache/tmem modularization.
-> So that it's more convenient and flexible to use and testing.
-> 
-> But currently callers like swapon only invoke frontswap_init() once,
-> it fail if backend not registered.
-> We have no way to notify swap to call frontswap_init() again when
-> backend registered in some random time
->  in future.
+Just a look at 'perf top' output should have told you the story.
 
-We could add such a way?
+Yet time and time again you readily reported bad 'schednuma' 
+results for a slow 4K memory model that neither we nor other 
+NUMA testers I talked to actually used, without stopping to look 
+why that was so...
+
+[ I suspect that if such terabytes-of-data workloads are forced 
+  through such a slow 4K pages model then there's a bug or 
+  mis-tuning in our code that explains the level of additional 
+  slowdown you saw - we'll fix that.
+
+  But you should know that behavior under the slow 4K model 
+  tells very little about the true scheduling and placement 
+  quality of the patches... ]
+
+Please report proper THP-enabled numbers before continuing.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
