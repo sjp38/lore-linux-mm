@@ -1,76 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 6A6216B0072
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 16:36:37 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so3846100eek.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 13:36:35 -0800 (PST)
-From: Maciej Rutecki <maciej.rutecki@gmail.com>
-Reply-To: maciej.rutecki@gmail.com
-Subject: Re: [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
-Date: Mon, 19 Nov 2012 22:36:31 +0100
-References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 940FF6B007D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 16:37:14 -0500 (EST)
+Date: Mon, 19 Nov 2012 21:37:08 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121119213708.GN8218@suse.de>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119200707.GA12381@gmail.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <201211192236.32152.maciej.rutecki@gmail.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121119200707.GA12381@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On niedziela, 18 listopada 2012 o 17:07:25 Jiang Liu wrote:
-> The commit 7f1290f2f2a4 ("mm: fix-up zone present pages") tries to
-> resolve an issue caused by inaccurate zone->present_pages, but that
-> fix is incomplete and causes regresions with HIGHMEM. And it has been
-> reverted by commit
-> 5576646 revert "mm: fix-up zone present pages"
+On Mon, Nov 19, 2012 at 09:07:07PM +0100, Ingo Molnar wrote:
 > 
-> This is a following-up patchset for the issue above. It introduces a
-> new field named "managed_pages" to struct zone, which counts pages
-> managed by the buddy system from the zone. And zone->present_pages
-> is used to count pages existing in the zone, which is
-> 	spanned_pages - absent_pages.
+> * Mel Gorman <mgorman@suse.de> wrote:
 > 
-> But that way, zone->present_pages will be kept in consistence with
-> pgdat->node_present_pages, which is sum of zone->present_pages.
+> > >   [ SPECjbb transactions/sec ]            |
+> > >   [ higher is better         ]            |
+> > >                                           |
+> > >   SPECjbb single-1x32    524k     507k    |       638k           +21.7%
+> > >   -----------------------------------------------------------------------
+> > > 
+> > 
+> > I was not able to run a full sets of tests today as I was 
+> > distracted so all I have is a multi JVM comparison. I'll keep 
+> > it shorter than average
+> > 
+> >                           3.7.0                 3.7.0
+> >                  rc5-stats-v4r2   rc5-schednuma-v16r1
+> > TPut   1     101903.00 (  0.00%)     77651.00 (-23.80%)
+> > TPut   2     213825.00 (  0.00%)    160285.00 (-25.04%)
+> > TPut   3     307905.00 (  0.00%)    237472.00 (-22.87%)
+> > TPut   4     397046.00 (  0.00%)    302814.00 (-23.73%)
+> > TPut   5     477557.00 (  0.00%)    364281.00 (-23.72%)
+> > TPut   6     542973.00 (  0.00%)    420810.00 (-22.50%)
+> > TPut   7     540466.00 (  0.00%)    448976.00 (-16.93%)
+> > TPut   8     543226.00 (  0.00%)    463568.00 (-14.66%)
+> > TPut   9     513351.00 (  0.00%)    468238.00 ( -8.79%)
+> > TPut   10    484126.00 (  0.00%)    457018.00 ( -5.60%)
 > 
-> This patchset has only been tested on x86_64 with nobootmem.c. So need
-> help to test this patchset on machines:
-> 1) use bootmem.c
-> 2) have highmem
+> These figures are IMO way too low for a 64-way system. I have a 
+> 32-way system with midrange server CPUs and get 650k+/sec 
+> easily.
 > 
-> This patchset applies to "f4a75d2e Linux 3.7-rc6" from
-> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-> 
-> Any comments and helps are welcomed!
-> 
-> Jiang Liu (5):
->   mm: introduce new field "managed_pages" to struct zone
->   mm: replace zone->present_pages with zone->managed_pages if
->     appreciated
->   mm: set zone->present_pages to number of existing pages in the zone
->   mm: provide more accurate estimation of pages occupied by memmap
->   mm: increase totalram_pages when free pages allocated by bootmem
->     allocator
-> 
->  include/linux/mmzone.h |    1 +
->  mm/bootmem.c           |   14 ++++++++
->  mm/memory_hotplug.c    |    6 ++++
->  mm/mempolicy.c         |    2 +-
->  mm/nobootmem.c         |   15 ++++++++
->  mm/page_alloc.c        |   89
-> +++++++++++++++++++++++++++++++----------------- mm/vmscan.c            | 
->  16 ++++-----
->  mm/vmstat.c            |    8 +++--
->  8 files changed, 108 insertions(+), 43 deletions(-)
-Tested in 32 bit linux with HIGHMEM. Seems be OK.
 
-Regards
+48-way as I said here https://lkml.org/lkml/2012/11/3/109. If I said
+64-way somewhere else, it was a mistake. The lack of THP would account
+for some of the difference. As I was looking for potential
+locking-related issues, I also had CONFIG_DEBUG_VMA nd
+CONFIG_DEBUG_MUTEXES set which would account for more overhead. Any
+options set are set for all tests that make up a group.
+
+> Have you tried to analyze the root cause, what does 'perf top' 
+> show during the run and how much idle time is there?
+> 
+
+No, I haven't and the machine is currently occupied. However, a second
+profile run was run as part of the test above. The figures I reported are
+based on a run without profiling. With profiling, oprofile reported
+
+Counted CPU_CLK_UNHALTED events (Clock cycles when not halted) with a unit mask of 0x00 (No unit mask) count 6000
+samples  %        image name               app name                 symbol name
+176552   42.9662  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 intel_idle
+22790     5.5462  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 find_busiest_group
+10533     2.5633  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 update_blocked_averages
+10489     2.5526  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 rb_get_reader_page
+9514      2.3154  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 native_write_msr_safe
+8511      2.0713  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 ring_buffer_consume
+7406      1.8023  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 idle_cpu
+6549      1.5938  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 update_cfs_rq_blocked_load
+6482      1.5775  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 rebalance_domains
+5212      1.2684  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 run_rebalance_domains
+5037      1.2258  perl                     perl                     /usr/bin/perl
+4167      1.0141  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 page_fault
+3885      0.9455  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 cpumask_next_and
+3704      0.9014  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 find_next_bit
+3498      0.8513  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 getnstimeofday
+3345      0.8140  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 __update_cpu_load
+3175      0.7727  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 load_balance
+3018      0.7345  vmlinux-3.7.0-rc5-schednuma-v16r1 vmlinux-3.7.0-rc5-schednuma-v16r1 menu_select
+
+> Trying to reproduce your findings I have done 4x JVM tests 
+> myself, using 4x 8-warehouse setups, with a sizing of -Xms8192m 
+> -Xmx8192m -Xss256k, and here are the results:
+> 
+>                          v3.7       v3.7                                  
+>   SPECjbb single-1x32    524k       638k         +21.7%
+>   SPECjbb  multi-4x8     633k       655k          +3.4%
+> 
+
+I'll re-run with THP enabled the next time and see what I find.
+
+> So while here we are only marginally better than the 
+> single-instance numbers (I will try to improve that in numa/core 
+> v17), they are still better than mainline - and they are 
+> definitely not slower as your numbers suggest ...
+> 
+> So we need to go back to the basics to figure this out: please 
+> outline exactly which commit ID of the numa/core tree you have 
+> booted. Also, how does 'perf top' look like on your box?
+> 
+
+I'll find out what perf top looks like ASAP.
+
 -- 
-Maciej Rutecki
-http://www.mrutecki.pl
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
