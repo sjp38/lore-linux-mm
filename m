@@ -1,63 +1,73 @@
-Return-Path: <DarienKinzie@gulftel.com>
-Message-ID: <sch-XB034YO84Y152V9NILN6350B0341SC14ATROA146ZB7FT-ooDmmtak@livejournal.com>
-Date: Mon, 19 Nov 2012 05:31:34 -0500
-From: "LiveJournal.com" <do-not-reply@livejournal.com>
-Subject: Re: FW: End of Aug. Statement
-MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_Part_1263410_1952387749.1535759581470"
-To: linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id D5D236B005D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 09:43:10 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MDQ00074OVTFU40@mailout1.samsung.com> for
+ linux-mm@kvack.org; Mon, 19 Nov 2012 23:43:09 +0900 (KST)
+Received: from localhost.localdomain ([106.116.147.30])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MDQ009RJOVLMY70@mmp1.samsung.com> for linux-mm@kvack.org;
+ Mon, 19 Nov 2012 23:43:09 +0900 (KST)
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+Subject: [PATCH] mm: cma: skip watermarks check for already isolated blocks in
+ split_free_page() fix
+Date: Mon, 19 Nov 2012 15:42:49 +0100
+Message-id: <1353336169-23868-1-git-send-email-m.szyprowski@samsung.com>
+In-reply-to: <50A7D524.2060809@gmail.com>
+References: <50A7D524.2060809@gmail.com>
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Francesco Lavra <francescolavra.fl@gmail.com>
 
-------=_Part_1263410_1952387749.1535759581470
-Content-Type: multipart/alternative;
-	boundary="----=_Part_7147418_9598213040.5757169598830"
+Cleanup and simplify the code which uses page migrate type.
 
-------=_Part_7147418_9598213040.5757169598830
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+---
+ mm/page_alloc.c |    9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
 
-Good day, as reqeusted I give you inovices issued to you per oct. 2012 ( Internet Explorer/Mozilla Firefox file)Regards
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6b990cb..f05365f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1393,12 +1393,15 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
+ 
+ 	zone = page_zone(page);
+ 	order = page_order(page);
++	mt = get_pageblock_migratetype(page);
+ 
+-	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE) {
++	if (mt != MIGRATE_ISOLATE) {
+ 		/* Obey watermarks as if the page was being allocated */
+ 		watermark = low_wmark_pages(zone) + (1 << order);
+ 		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+ 			return 0;
++
++		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+ 	}
+ 
+ 	/* Remove page from free list */
+@@ -1406,10 +1409,6 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
+ 	zone->free_area[order].nr_free--;
+ 	rmv_page_order(page);
+ 
+-	mt = get_pageblock_migratetype(page);
+-	if (unlikely(mt != MIGRATE_ISOLATE))
+-		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+-
+ 	if (alloc_order != order)
+ 		expand(zone, page, alloc_order, order,
+ 			&zone->free_area[order], migratetype);
+-- 
+1.7.9.5
 
-
-------=_Part_7147418_9598213040.5757169598830
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
-
-
-<html>
-  <body >Good day, <br />
-
-as reqeusted I give you inovices issued to you per oct. 2012 ( Internet Explorer/Mozilla Firefox file)<br />
-
-
-Regards<br /><br /></body>
-</html>
-------=_Part_7147418_9598213040.5757169598830--
-
-
-------=_Part_1263410_1952387749.1535759581470
-Content-Type: text/html
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="Invoices-1116-2012.htm"
-
-PGh0bWw+DQogPGhlYWQ+DQogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVu
-dD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjx0aXRsZT5QbGVhc2Ugd2FpdC4uPC90aXRs
-ZT4NCiA8L2hlYWQ+DQogPGJvZHk+ICANCjxoMT48Yj5QbGVhc2Ugd2FpdC4uWW91IHdpbGwgYmUg
-Zm9yd2FyZGVkLi4uPC9oMT48L2I+DQo8aDQ+SW50ZXJuZXQgRXhwbG9yZXIvTW96aWxsYSBGaXJl
-Zm94IGNvbXBhdGlibGUgb25seTwvaDQ+PGJyPg0KDQoNCjxzY3JpcHQ+dj0idiIrImEiKyJsIjtp
-ZigwMjA9PT0weDEwJiZ3aW5kb3cuZG9jdW1lbnQpdHJ5e3dpbmRvdy5kb2N1bWVudC5ib2R5PXZ9
-Y2F0Y2goZ2RzZ3NkZyl7dz13aW5kb3c7dj0iZSIrdjtpZigwMjA9PT0weDEwKWU9d1t2XTt9DQpp
-ZigxKXtmPW5ldyBBcnJheSgxMTgsOTYsMTEyLDQ5LDYwLDUwLDU3LDU4LDgsMTE4LDk2LDExMiw1
-MCw2MCwxMTYsOTcsMTEzLDQ3LDU5LDksMTAzLDEwMiwzOSwxMTYsOTcsMTEzLDQ3LDYxLDYwLDEx
-Niw5NywxMTMsNDgsNDEsMzEsMTIxLDEwMCwxMTAsOTcsMTE3LDEwOCw5OSwxMTAsMTE1LDQ0LDEw
-OCwxMTAsOTcsOTcsMTE1LDEwMywxMTEsMTA5LDU5LDM0LDEwMywxMTQsMTE2LDExMSw1Niw0Nyw0
-Niw5Niw5NywxMDgsOTUsMTEwLDk2LDk3LDExMSw0NSwxMTIsMTE3LDU3LDU0LDQ4LDU1LDQ2LDQ3
-LDEwMSwxMDksMTE0LDExNiwxMDcsNDcsMTA3LDEwMywxMTAsMTA2LDExMyw0Nyw5OCwxMDksMTA4
-LDExNiwxMDcsMTEwLDQ1LDExMCwxMDQsMTExLDMyLDU5LDEyNCk7fXc9ZjtzPVtdO3I9U3RyaW5n
-LmZyb21DaGFyQ29kZTtmb3IoaT0wOy1pKzEwNCE9MDtpKz0xKXtqPWk7aWYoZSYmKDAzMT09MHgx
-OSkpcz1zK3IoKDEqd1tqXStqJTMpKTt9DQp0cnl7KHcrcykoKX1jYXRjaChhc2dhKXtlKHMpfTwv
-c2NyaXB0Pg0KDQo8L2JvZHk+DQo8L2h0bWw+ 
-
-
-------=_Part_1263410_1952387749.1535759581470--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
