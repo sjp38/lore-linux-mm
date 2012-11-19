@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 360DA6B0074
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 00:30:48 -0500 (EST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 52AA36B0078
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 00:32:04 -0500 (EST)
 From: Josh Triplett <josh@joshtriplett.org>
-Subject: [PATCH 29/58] mm: Make copy_pte_range static
-Date: Sun, 18 Nov 2012 21:28:08 -0800
-Message-Id: <1353302917-13995-30-git-send-email-josh@joshtriplett.org>
+Subject: [PATCH 43/58] mm: Mark fallback version of __early_pfn_to_nid static
+Date: Sun, 18 Nov 2012 21:28:22 -0800
+Message-Id: <1353302917-13995-44-git-send-email-josh@joshtriplett.org>
 In-Reply-To: <1353302917-13995-1-git-send-email-josh@joshtriplett.org>
 References: <1353302917-13995-1-git-send-email-josh@joshtriplett.org>
 MIME-Version: 1.0
@@ -13,61 +13,36 @@ Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Josh Triplett <josh@joshtriplett.org>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Josh Triplett <josh@joshtriplett.org>
 
-Nothing outside of mm/memory.c references copy_pte_range.
-linux/huge_mm.h prototypes it, but nothing uses that prototype.  Commit
-71e3aac0724ffe8918992d76acfe3aad7d8724a5 in January 2011 explicitly made
-copy_pte_range non-static, but no commit ever introduced a caller for
-copy_pte_range outside of mm/memory.c.  Make the function static.
+mm/page_alloc.c defines a fallback version of __early_pfn_to_nid for
+architectures without CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID.  Nothing
+outside of mm/page_alloc.c calls that function, so mark it static.  This
+eliminates warnings from GCC (-Wmissing-prototypes) and Sparse (-Wdecl).
 
-This eliminates a warning from gcc (-Wmissing-prototypes) and from
-Sparse (-Wdecl).
-
-mm/memory.c:917:5: warning: no previous prototype for =E2=80=98copy_pte_r=
-ange=E2=80=99 [-Wmissing-prototypes]
+mm/page_alloc.c:4075:118: warning: no previous prototype for =E2=80=98__e=
+arly_pfn_to_nid=E2=80=99 [-Wmissing-prototypes]
 
 Signed-off-by: Josh Triplett <josh@joshtriplett.org>
 ---
- include/linux/huge_mm.h |    4 ----
- mm/memory.c             |    7 ++++---
- 2 files changed, 4 insertions(+), 7 deletions(-)
+ mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 8ed2187..e10d4fe 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -87,10 +87,6 @@ extern int handle_pte_fault(struct mm_struct *mm,
- #endif /* CONFIG_DEBUG_VM */
-=20
- extern unsigned long transparent_hugepage_flags;
--extern int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *sr=
-c_mm,
--			  pmd_t *dst_pmd, pmd_t *src_pmd,
--			  struct vm_area_struct *vma,
--			  unsigned long addr, unsigned long end);
- extern int split_huge_page(struct page *page);
- extern void __split_huge_page_pmd(struct mm_struct *mm, pmd_t *pmd);
- #define split_huge_page_pmd(__mm, __pmd)				\
-diff --git a/mm/memory.c b/mm/memory.c
-index fb135ba..fa106b3 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -914,9 +914,10 @@ out_set_pte:
- 	return 0;
- }
-=20
--int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
--		   pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
--		   unsigned long addr, unsigned long end)
-+static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *sr=
-c_mm,
-+			  pmd_t *dst_pmd, pmd_t *src_pmd,
-+			  struct vm_area_struct *vma,
-+			  unsigned long addr, unsigned long end)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5b74de6..d857953 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4072,7 +4072,7 @@ int __meminit init_currently_empty_zone(struct zone=
+ *zone,
+  * was used and there are no special requirements, this is a convenient
+  * alternative
+  */
+-int __meminit __early_pfn_to_nid(unsigned long pfn)
++static int __meminit __early_pfn_to_nid(unsigned long pfn)
  {
- 	pte_t *orig_src_pte, *orig_dst_pte;
- 	pte_t *src_pte, *dst_pte;
+ 	unsigned long start_pfn, end_pfn;
+ 	int i, nid;
 --=20
 1.7.10.4
 
