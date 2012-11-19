@@ -1,56 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 357FA6B004D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 15:43:29 -0500 (EST)
-Date: Mon, 19 Nov 2012 12:43:27 -0800
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id AA3826B006C
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 15:53:27 -0500 (EST)
+Date: Mon, 19 Nov 2012 12:53:25 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
- approaches low water mark
-Message-Id: <20121119124327.20e008a0.akpm@linux-foundation.org>
-In-Reply-To: <50AA526A.7080505@samsung.com>
-References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
-	<20121114145848.8224e8b0.akpm@linux-foundation.org>
-	<50AA526A.7080505@samsung.com>
+Subject: Re: [PATCH 0/5] Add movablecore_map boot option.
+Message-Id: <20121119125325.ed1abba0.akpm@linux-foundation.org>
+In-Reply-To: <1353335246-9127-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1353335246-9127-1-git-send-email-tangchen@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, yinghai@kernel.org, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Mon, 19 Nov 2012 16:38:18 +0100
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+On Mon, 19 Nov 2012 22:27:21 +0800
+Tang Chen <tangchen@cn.fujitsu.com> wrote:
 
-> Hello,
+> This patchset provide a boot option for user to specify ZONE_MOVABLE memory
+> map for each node in the system.
 > 
-> On 11/14/2012 11:58 PM, Andrew Morton wrote:
-> > On Mon, 12 Nov 2012 09:59:42 +0100
-> > Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> >
-> > > It has been observed that system tends to keep a lot of CMA free pages
-> > > even in very high memory pressure use cases. The CMA fallback for movable
-> > > pages is used very rarely, only when system is completely pruned from
-> > > MOVABLE pages, what usually means that the out-of-memory even will be
-> > > triggered very soon. To avoid such situation and make better use of CMA
-> > > pages, a heuristics is introduced which turns on CMA fallback for movable
-> > > pages when the real number of free pages (excluding CMA free pages)
-> > > approaches low water mark.
->
-> ...
->
-> > erk, this is right on the page allocator hotpath.  Bad.
+> movablecore_map=nn[KMG]@ss[KMG]
 > 
-> Yes, I know that it adds an overhead to allocation hot path, but I found 
-> no other
-> place for such change. Do You have any suggestion where such change can 
-> be applied
-> to avoid additional load on hot path?
+> This option make sure memory range from ss to ss+nn is movable memory.
+> 1) If the range is involved in a single node, then from ss to the end of
+>    the node will be ZONE_MOVABLE.
+> 2) If the range covers two or more nodes, then from ss to the end of
+>    the node will be ZONE_MOVABLE, and all the other nodes will only
+>    have ZONE_MOVABLE.
+> 3) If no range is in the node, then the node will have no ZONE_MOVABLE
+>    unless kernelcore or movablecore is specified.
+> 4) This option could be specified at most MAX_NUMNODES times.
+> 5) If kernelcore or movablecore is also specified, movablecore_map will have
+>    higher priority to be satisfied.
+> 6) This option has no conflict with memmap option.
 
-Do the work somewhere else, not on a hot path?  Somewhere on the page
-reclaim path sounds appropriate.  How messy would it be to perform some
-sort of balancing at reclaim time?
+This doesn't describe the problem which the patchset solves.  I can
+kinda see where it's coming from, but it would be nice to have it all
+spelled out, please.
 
+- What is wrong with the kernel as it stands?
+- What are the possible ways of solving this?
+- Describe the chosen way, explain why it is superior to alternatives
+
+The amount of manual system configuration in this proposal looks quite
+high.  Adding kernel boot parameters really is a last resort.  Why was
+it unavoidable here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
