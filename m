@@ -1,171 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id E4E846B005D
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 19:53:47 -0500 (EST)
-Received: by mail-wg0-f41.google.com with SMTP id ds1so948277wgb.2
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 16:53:46 -0800 (PST)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B2CDA6B006E
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 20:20:06 -0500 (EST)
+Date: Mon, 19 Nov 2012 10:27:29 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v4 0/3] zram/zsmalloc promotion
+Message-ID: <20121119012729.GA7747@bbox>
+References: <1351840367-4152-1-git-send-email-minchan@kernel.org>
+ <20121106153213.03e9cc9f.akpm@linux-foundation.org>
+ <CAEwNFnAA+PNh0OT7vdv5k5u3TXeBUDJZX75TQg_Si4yFnE6e-g@mail.gmail.com>
+ <CAEwNFnD9tVywtb6s3YGMs7vcndCVZNZ0wU=RnOeVnG9UEXnmWQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20121116151619.aa60acff.akpm@linux-foundation.org>
-References: <1352919432-9699-1-git-send-email-konrad.wilk@oracle.com>
-	<1352919432-9699-3-git-send-email-konrad.wilk@oracle.com>
-	<20121116151619.aa60acff.akpm@linux-foundation.org>
-Date: Mon, 19 Nov 2012 08:53:46 +0800
-Message-ID: <CAA_GA1crg1ngNx2MAv-fJbgKYqSKmkapZHq=8F4QcNgFja1A-w@mail.gmail.com>
-Subject: Re: [PATCH 2/8] mm: frontswap: lazy initialization to allow tmem
- backends to build/run as modules
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAEwNFnD9tVywtb6s3YGMs7vcndCVZNZ0wU=RnOeVnG9UEXnmWQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
+Cc: Greg KH <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jens Axboe <axboe@kernel.dk>, Pekka Enberg <penberg@cs.helsinki.fi>, gaowanlong@cn.fujitsu.com
 
-On Sat, Nov 17, 2012 at 7:16 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 14 Nov 2012 13:57:06 -0500
-> Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
->
->> From: Dan Magenheimer <dan.magenheimer@oracle.com>
->>
->> With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
->> built/loaded as modules rather than built-in and enabled by a boot parameter,
->> this patch provides "lazy initialization", allowing backends to register to
->> frontswap even after swapon was run. Before a backend registers all calls
->> to init are recorded and the creation of tmem_pools delayed until a backend
->> registers or until a frontswap put is attempted.
->>
->>
->> ...
->>
->> --- a/mm/frontswap.c
->> +++ b/mm/frontswap.c
->> @@ -80,6 +80,18 @@ static inline void inc_frontswap_succ_stores(void) { }
->>  static inline void inc_frontswap_failed_stores(void) { }
->>  static inline void inc_frontswap_invalidates(void) { }
->>  #endif
->> +
->> +/*
->> + * When no backend is registered all calls to init are registered and
->
-> What is "init"?  Spell it out fully, please.
->
+Andrew?
 
-I think it's frontswap_init().
-swapon will call frontswap_init() and in it we need to call init
-function of backends with some parameters
-like swap_type.
-
->> + * remembered but fail to create tmem_pools. When a backend registers with
->> + * frontswap the previous calls to init are executed to create tmem_pools
->> + * and set the respective poolids.
->
-> Again, seems really hacky.  Why can't we just change callers so they
-> call things in the correct order?
->
-
-I don't think so, because it asynchronous.
-
-The original idea was to make backends like zcache/tmem modularization.
-So that it's more convenient and flexible to use and testing.
-
-But currently callers like swapon only invoke frontswap_init() once,
-it fail if backend not registered.
-We have no way to notify swap to call frontswap_init() again when
-backend registered in some random time
- in future.
-
->> + * While no backend is registered all "puts", "gets" and "flushes" are
->> + * ignored or fail.
->> + */
->> +static DECLARE_BITMAP(need_init, MAX_SWAPFILES);
->> +static bool backend_registered __read_mostly;
->> +
->>  /*
->>   * Register operations for frontswap, returning previous thus allowing
->>   * detection of multiple backends and possible nesting.
->> @@ -87,9 +99,19 @@ static inline void inc_frontswap_invalidates(void) { }
->>  struct frontswap_ops frontswap_register_ops(struct frontswap_ops *ops)
->>  {
->>       struct frontswap_ops old = frontswap_ops;
->> +     int i;
->>
->>       frontswap_ops = *ops;
->>       frontswap_enabled = true;
->> +
->> +     for (i = 0; i < MAX_SWAPFILES; i++) {
->> +             if (test_and_clear_bit(i, need_init))
->
-> ooh, that wasn't racy ;)
->
-
-Hmm,  i agree.
-Seems some lock is needed, actually i think this code only support one
-backend at the same.
-So it's less risky.
-
->> +                     (*frontswap_ops.init)(i);
->> +     }
->> +     /* We MUST have backend_registered called _after_ the frontswap_init's
->> +      * have been called. Otherwise __frontswap_store might fail. */
->
-> Comment makes no sense - backend_registered is not a function.
->
-> Also, let's lay the comments out conventionally please:
->
->         /*
->          * We MUST have backend_registered called _after_ the frontswap_init's
->          * have been called. Otherwise __frontswap_store might fail.
->          */
->
->
->> +     barrier();
->> +     backend_registered = true;
->>       return old;
->>  }
->>  EXPORT_SYMBOL(frontswap_register_ops);
->>
->> ...
->>
->> @@ -226,12 +266,15 @@ void __frontswap_invalidate_area(unsigned type)
->>  {
->>       struct swap_info_struct *sis = swap_info[type];
->>
->> -     BUG_ON(sis == NULL);
->> -     if (sis->frontswap_map == NULL)
->> -             return;
->> -     frontswap_ops.invalidate_area(type);
->> -     atomic_set(&sis->frontswap_pages, 0);
->> -     memset(sis->frontswap_map, 0, sis->max / sizeof(long));
->> +     if (backend_registered) {
->> +             BUG_ON(sis == NULL);
->> +             if (sis->frontswap_map == NULL)
->> +                     return;
->> +             (*frontswap_ops.invalidate_area)(type);
->> +             atomic_set(&sis->frontswap_pages, 0);
->> +             memset(sis->frontswap_map, 0, sis->max / sizeof(long));
->> +     }
->> +     clear_bit(type, need_init);
->>  }
->>  EXPORT_SYMBOL(__frontswap_invalidate_area);
->>
->> @@ -364,6 +407,9 @@ static int __init init_frontswap(void)
->>       debugfs_create_u64("invalidates", S_IRUGO,
->>                               root, &frontswap_invalidates);
->>  #endif
->> +     bitmap_zero(need_init, MAX_SWAPFILES);
->
-> unneeded?
->
->> +     frontswap_enabled = 1;
->>       return 0;
->>  }
->>
->> ...
->>
+On Wed, Nov 07, 2012 at 07:38:04PM +0900, Minchan Kim wrote:
+> Hi Andrew,
+> 
+> On Wed, Nov 7, 2012 at 8:32 AM, Andrew Morton <akpm@linux-foundation.org>
+> wrote:
+> > On Fri, 2 Nov 2012 16:12:44 +0900
+> > Minchan Kim <minchan@kernel.org> wrote:
+> >
+> >> This patchset promotes zram/zsmalloc from staging.
+> >
+> > The changelogs are distressingly short of *reasons* for doing this!
+> >
+> >> Both are very clean and zram have been used by many embedded product
+> >> for a long time.
+> >
+> > Well that's interesting.
+> >
+> > Which embedded products? How are they using zram and what benefit are
+> > they observing from it, in what scenarios?
+> >
+> 
+> At least, major TV companys have used zram as swap since two years ago and
+> recently our production team released android smart phone with zram which
+> is used as swap, too.
+> And there is trial to use zram as swap in ChromeOS project, too. (Although
+> they report some problem recently, it was not a problem of zram).
+> When you google zram, you can find various usecase in xda-developers.
+> 
+> With my experience, the benefit in real practice was to remove jitter of
+> video application. It would be effect of efficient memory usage by
+> compression but more issue is whether swap is there or not in the system.
+> As you know, recent mobile platform have used JAVA so there are lots of
+> anonymous pages. But embedded system normally doesn't use eMMC or SDCard as
+> swap because there is wear-leveling issue and latency so we can't reclaim
+> anymous pages. It sometime ends up making system very slow when it requires
+> to get contiguous memory and even many file-backed pages are evicted. It's
+> never what embedded people want it. Zram is one of best solution for that.
+> 
+> It's very hard to type with mobile phone. :(
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
 
 -- 
-Thanks,
---Bob
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
