@@ -1,308 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 2FBA66B006E
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 03:00:18 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so3527435pbc.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 00:00:17 -0800 (PST)
-Date: Mon, 19 Nov 2012 16:00:06 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch 2/2 v2]swap: make swap discard async
-Message-ID: <20121119080006.GB17405@kernel.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 868E86B006C
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 03:39:20 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [ACPIHP PATCH part1 1/4] ACPIHP: introduce a framework for ACPI based system device hotplug
+Date: Mon, 19 Nov 2012 09:43:46 +0100
+Message-ID: <2078749.XIKHA2TxJn@vostro.rjw.lan>
+In-Reply-To: <5099383F.3010905@gmail.com>
+References: <1351958865-24394-1-git-send-email-jiang.liu@huawei.com> <CAErSpo6RQk+sdeOF7c+G2qp5iYgrnQcx+rD0f8eVNRPLRoLpdg@mail.gmail.com> <5099383F.3010905@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, hughd@google.com, minchan@kernel.org, riel@redhat.com
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>, Yinghai Lu <yinghai@kernel.org>, Tony Luck <tony.luck@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kenji Kaneshige <kaneshige.kenji@jp.fujitsu.com>, Huang Ying <ying.huang@intel.com>, Bob Moore <robert.moore@intel.com>, Len Brown <lenb@kernel.org>, "Srivatsa S . Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Yijing Wang <wangyijing@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Gaohuai Han <hangaohuai@huawei.com>
 
-swap can do cluster discard for SSD, which is good, but there are some problems
-here:
-1. swap do the discard just before page reclaim gets a swap entry and writes
-the disk sectors. This is useless for high end SSD, because an overwrite to a
-sector implies a discard to original nand flash too. A discard + overwrite ==
-overwrite.
-2. the purpose of doing discard is to improve SSD firmware garbage collection.
-Doing discard just before write doesn't help, because the interval between
-discard and write is too short. Doing discard async and just after a swap entry
-is freed can make the interval longer, so SSD firmware has more time to do gc.
-3. block discard is a sync API, which will delay scan_swap_map() significantly.
-4. Write and discard command can be executed parallel in PCIe SSD. Making
-swap discard async can make execution more efficiently.
+Hi,
 
-This patch makes swap discard async, and move discard to where swap entry is
-freed. Idealy we should do discard for any freed sectors, but some SSD discard
-is very slow. This patch still does discard for a whole cluster. 
+On Wednesday, November 07, 2012 12:18:07 AM Jiang Liu wrote:
+> Hi Bjorn,
+> 	Thanks for your review and please refer to inlined comments below.
+> 
+> On 11/06/2012 05:05 AM, Bjorn Helgaas wrote:
+> > On Sat, Nov 3, 2012 at 10:07 AM, Jiang Liu <liuj97@gmail.com> wrote:
+> >> Modern high-end servers may support advanced RAS features, such as
+> >> system device dynamic reconfiguration. On x86 and IA64 platforms,
+> >> system device means processor(CPU), memory device, PCI host bridge
+> >> and even computer node.
+> >>
+> >> The ACPI specifications have provided standard interfaces between
+> >> firmware and OS to support device dynamic reconfiguraiton at runtime.
+> >> This patch series introduces a new framework for system device
+> >> dynamic reconfiguration based on ACPI specification, which will
+> >> replace current existing system device hotplug logic embedded in
+> >> ACPI processor/memory/container device drivers.
+> >>
+> >> The new ACPI based hotplug framework is modelled after the PCI hotplug
+> >> architecture and target to achieve following goals:
+> >> 1) Optimize device configuration order to achieve best performance for
+> >>    hot-added system devices. For best perforamnce, system device should
+> >>    be configured in order of memory -> CPU -> IOAPIC/IOMMU -> PCI HB.
+> >> 2) Resolve dependencies among hotplug slots. You need first to remove
+> >>    the memory device before removing a physical processor if a
+> >>    hotpluggable memory device is connected to a hotpluggable physical
+> >>    processor.
+> > 
+> > Doesn't the namespace already have a way to communicate these dependencies?
 
-My test does a several round of 'mmap, write, unmap', which will trigger a lot
-of swap discard. In a fusionio card, with this patch, the test runtime is
-reduced to 18% of the time without it, so around 5.5x faster.
+> The namespace could could resolve most dependency issues, but there are still
+> several corner cases need special care.
+> 1) On a typical Intel Nehalem/Westmere platform, an IOH will be connected to
+> two physical processors through QPI. The IOH depends on the two processors.
+> And the ACPI namespace is something like:
+> /_SB
+>     |_SCK0
+>     |_SCK1
+>     |_PCI1
+> 2) For a large system composed up of multiple computer nodes, nodes may have
+> dependency on neighbors due to interconnect topology constraints.
+> 
+> So we need to resolve dependency by both evaluating _EDL and analyze ACPI
+> namespace topology.
 
-Signed-off-by: Shaohua Li <shli@fusionio.com>
----
- include/linux/swap.h |    5 -
- mm/swapfile.c        |  157 ++++++++++++++++++++++++++-------------------------
- 2 files changed, 86 insertions(+), 76 deletions(-)
+Well, this doesn't explain why we need a new framework.
 
-Index: linux/include/linux/swap.h
-===================================================================
---- linux.orig/include/linux/swap.h	2012-11-19 10:35:58.000000000 +0800
-+++ linux/include/linux/swap.h	2012-11-19 12:07:55.812631159 +0800
-@@ -194,8 +194,6 @@ struct swap_info_struct {
- 	unsigned int inuse_pages;	/* number of those currently in use */
- 	unsigned int cluster_next;	/* likely index for next allocation */
- 	unsigned int cluster_nr;	/* countdown to next cluster search */
--	unsigned int lowest_alloc;	/* while preparing discard cluster */
--	unsigned int highest_alloc;	/* while preparing discard cluster */
- 	struct swap_extent *curr_swap_extent;
- 	struct swap_extent first_swap_extent;
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
-@@ -205,6 +203,9 @@ struct swap_info_struct {
- 	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
- 	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
- #endif
-+	struct work_struct discard_work;
-+	unsigned int discard_cluster_head;
-+	unsigned int discard_cluster_tail;
- };
- 
- struct swap_list_t {
-Index: linux/mm/swapfile.c
-===================================================================
---- linux.orig/mm/swapfile.c	2012-11-19 11:52:57.463924365 +0800
-+++ linux/mm/swapfile.c	2012-11-19 12:09:54.387140163 +0800
-@@ -173,12 +173,6 @@ static void discard_swap_cluster(struct
- 	}
- }
- 
--static int wait_for_discard(void *word)
--{
--	schedule();
--	return 0;
--}
--
- #define SWAPFILE_CLUSTER	256
- #define LATENCY_LIMIT		256
- 
-@@ -200,6 +194,71 @@ static int wait_for_discard(void *word)
- 	do { info = (cluster_flag(info) << 24) | (n); } while (0)
- #define cluster_is_free(info) (cluster_flag(info) & CLUSTER_FLAG_FREE)
- 
-+static int swap_cluster_check_discard(struct swap_info_struct *si,
-+		unsigned int idx)
-+{
-+
-+	if (!(si->flags & SWP_DISCARDABLE))
-+		return 0;
-+	/*
-+	 * If scan_swap_map() can't find a free cluster, it will check
-+	 * si->swap_map directly. To make sure discarding cluster isn't taken,
-+	 * mark the swap entries bad (occupied). It will be cleared after
-+	 * discard
-+	*/
-+	memset(si->swap_map + idx * SWAPFILE_CLUSTER,
-+			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
-+
-+	if (si->discard_cluster_head == CLUSTER_NULL) {
-+		si->discard_cluster_head = idx;
-+		si->discard_cluster_tail = idx;
-+	} else {
-+		cluster_set_next(si->cluster_info[si->discard_cluster_tail],
-+			idx);
-+		si->discard_cluster_tail = idx;
-+	}
-+
-+	schedule_work(&si->discard_work);
-+	return 1;
-+}
-+
-+static void swap_discard_work(struct work_struct *work)
-+{
-+	struct swap_info_struct *si = container_of(work,
-+		struct swap_info_struct, discard_work);
-+	unsigned int *info = si->cluster_info;
-+	unsigned int idx;
-+
-+	spin_lock(&swap_lock);
-+	while (si->discard_cluster_head != CLUSTER_NULL) {
-+		idx = si->discard_cluster_head;
-+
-+		si->discard_cluster_head = cluster_next(info[idx]);
-+		if (si->discard_cluster_tail == idx) {
-+			si->discard_cluster_tail = CLUSTER_NULL;
-+			si->discard_cluster_head = CLUSTER_NULL;
-+		}
-+		spin_unlock(&swap_lock);
-+
-+		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
-+				SWAPFILE_CLUSTER);
-+
-+		spin_lock(&swap_lock);
-+		cluster_set_flag(info[idx], CLUSTER_FLAG_FREE);
-+		if (si->free_cluster_head == CLUSTER_NULL) {
-+			si->free_cluster_head = idx;
-+			si->free_cluster_tail = idx;
-+		} else {
-+			cluster_set_next(info[si->free_cluster_tail], idx);
-+			si->free_cluster_tail = idx;
-+		}
-+		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
-+				0, SWAPFILE_CLUSTER);
-+	}
-+
-+	spin_unlock(&swap_lock);
-+}
-+
- static inline void inc_cluster_info_page(struct swap_info_struct *p,
- 	unsigned int *cluster_info, unsigned long page_nr)
- {
-@@ -236,6 +295,9 @@ static inline void dec_cluster_info_page
- 		cluster_count(cluster_info[idx]) - 1);
- 
- 	if (cluster_count(cluster_info[idx]) == 0) {
-+		if (swap_cluster_check_discard(p, idx))
-+			return;
-+
- 		cluster_set_flag(cluster_info[idx], CLUSTER_FLAG_FREE);
- 		if (p->free_cluster_head == CLUSTER_NULL) {
- 			p->free_cluster_head = idx;
-@@ -289,19 +351,6 @@ static unsigned long scan_swap_map(struc
- 			si->cluster_nr = SWAPFILE_CLUSTER - 1;
- 			goto checks;
- 		}
--		if (si->flags & SWP_DISCARDABLE) {
--			/*
--			 * Start range check on racing allocations, in case
--			 * they overlap the cluster we eventually decide on
--			 * (we scan without swap_lock to allow preemption).
--			 * It's hardly conceivable that cluster_nr could be
--			 * wrapped during our scan, but don't depend on it.
--			 */
--			if (si->lowest_alloc)
--				goto checks;
--			si->lowest_alloc = si->max;
--			si->highest_alloc = 0;
--		}
- check_cluster:
- 		if (si->free_cluster_head != CLUSTER_NULL) {
- 			offset = si->free_cluster_head * SWAPFILE_CLUSTER;
-@@ -311,12 +360,20 @@ check_cluster:
- 			found_free_cluster = 1;
- 			goto checks;
- 		} else if (si->cluster_info) {
-+			if (si->discard_cluster_head != CLUSTER_NULL) {
-+				spin_unlock(&swap_lock);
-+				schedule_work(&si->discard_work);
-+				flush_work(&si->discard_work);
-+
-+				spin_lock(&swap_lock);
-+				goto check_cluster;
-+			}
-+
- 			/*
- 			 * Checking free cluster is fast enough, we can do the
- 			 * check every time
- 			 */
- 			si->cluster_nr = 0;
--			si->lowest_alloc = 0;
- 			goto checks;
- 		}
- 
-@@ -376,7 +433,6 @@ check_cluster:
- 		offset = scan_base;
- 		spin_lock(&swap_lock);
- 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
--		si->lowest_alloc = 0;
- 	}
- 
- checks:
-@@ -418,59 +474,6 @@ checks:
- 	si->cluster_next = offset + 1;
- 	si->flags -= SWP_SCANNING;
- 
--	if (si->lowest_alloc) {
--		/*
--		 * Only set when SWP_DISCARDABLE, and there's a scan
--		 * for a free cluster in progress or just completed.
--		 */
--		if (found_free_cluster) {
--			/*
--			 * To optimize wear-levelling, discard the
--			 * old data of the cluster, taking care not to
--			 * discard any of its pages that have already
--			 * been allocated by racing tasks (offset has
--			 * already stepped over any at the beginning).
--			 */
--			if (offset < si->highest_alloc &&
--			    si->lowest_alloc <= last_in_cluster)
--				last_in_cluster = si->lowest_alloc - 1;
--			si->flags |= SWP_DISCARDING;
--			spin_unlock(&swap_lock);
--
--			if (offset < last_in_cluster)
--				discard_swap_cluster(si, offset,
--					last_in_cluster - offset + 1);
--
--			spin_lock(&swap_lock);
--			si->lowest_alloc = 0;
--			si->flags &= ~SWP_DISCARDING;
--
--			smp_mb();	/* wake_up_bit advises this */
--			wake_up_bit(&si->flags, ilog2(SWP_DISCARDING));
--
--		} else if (si->flags & SWP_DISCARDING) {
--			/*
--			 * Delay using pages allocated by racing tasks
--			 * until the whole discard has been issued. We
--			 * could defer that delay until swap_writepage,
--			 * but it's easier to keep this self-contained.
--			 */
--			spin_unlock(&swap_lock);
--			wait_on_bit(&si->flags, ilog2(SWP_DISCARDING),
--				wait_for_discard, TASK_UNINTERRUPTIBLE);
--			spin_lock(&swap_lock);
--		} else {
--			/*
--			 * Note pages allocated by racing tasks while
--			 * scan for a free cluster is in progress, so
--			 * that its final discard can exclude them.
--			 */
--			if (offset < si->lowest_alloc)
--				si->lowest_alloc = offset;
--			if (offset > si->highest_alloc)
--				si->highest_alloc = offset;
--		}
--	}
- 	return offset;
- 
- scan:
-@@ -1664,6 +1667,8 @@ SYSCALL_DEFINE1(swapoff, const char __us
- 		goto out_dput;
- 	}
- 
-+	flush_work(&p->discard_work);
-+
- 	destroy_swap_extents(p);
- 	if (p->flags & SWP_CONTINUED)
- 		free_swap_count_continuations(p);
-@@ -2018,6 +2023,8 @@ static int setup_swap_map_and_extents(st
- 
- 	p->free_cluster_head = CLUSTER_NULL;
- 	p->free_cluster_tail = CLUSTER_NULL;
-+	p->discard_cluster_head = CLUSTER_NULL;
-+	p->discard_cluster_tail = CLUSTER_NULL;
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
- 		unsigned int page_nr = swap_header->info.badpages[i];
-@@ -2110,6 +2117,8 @@ SYSCALL_DEFINE2(swapon, const char __use
- 	if (IS_ERR(p))
- 		return PTR_ERR(p);
- 
-+	INIT_WORK(&p->discard_work, swap_discard_work);
-+
- 	name = getname(specialfile);
- 	if (IS_ERR(name)) {
- 		error = PTR_ERR(name);
+> >> 3) Provide interface to cancel ongoing hotplug operations. It may take
+> >>    a very long time to remove a memory device, so provide interface to
+> >>    cancel the inprogress hotplug operations.
+> >> 4) Support new advanced RAS features, such as socket/memory migration.
+> >> 5) Provide better user interfaces to access the hotplug functionalities.
+> >> 6) Provide a mechanism to detect hotplug slots by checking existence
+> >>    of ACPI _EJ0 method or by other hardware platform specific methods.
+> > 
+> > I don't know what "hotplug slot" means for ACPI.  ACPI allows hotplug
+> > of arbitrary devices in the namespace, whether they have EJ0 or not.
+
+> Here "hotplug" slot is an abstraction of receptacles where a group of
+> system devices could be attached to, or where we could control a group
+> of system devices. It's totally conceptual, may or may not has 
+> corresponding physical slots.
+
+Can that be called something different from "slot", then, to avoid confusion?
+
+> For example,
+> 1) a hotplug slot for a hotpluggable memory board has a physical slot.
+
+So let's call that a "slot" and the abstraction above a "hotplug domain" or
+something similar.  Because in fact we're talking about hotplug domains,
+aren't we?
+
+> 2) a hotplug slot for a non-hotpluggable processor with power control
+> capability has no physical slot. (That means you may power on/off a
+> physical processor but can't hotplug it at runtime). This case is useful
+> for hardware partitioning.
+
+People have been working on this particular thing for years, so I wonder
+why you think that your apprach is going to be better here?
+
+> Detecting hotplug slots by checking existence of _EJ0 is the default
+> but unreliable way. For a real high-end server with system device
+> hotplug capabilities should provide some static ACPI table to describe
+> hotplug slots/capabilities. There are some ongoing efforts for that from
+> Intel, but not in the public domain yet. So the hotplug slot enumeration
+> driver is designed to extensible:)
+> 
+> >> 7) Unify the way to enumerate ACPI based hotplug slots. All hotplug
+> >>    slots will be enumerated by the enumeration driver (acpihp_slot),
+> >>    instead of by individual ACPI device drivers.
+> > 
+> > Why do we need to enumerate these "slots" specifically?
+> > 
+> > I think this patch adds things in /sys.  It might help if you
+> > described what they are.
+
+> There's no standard way in ACPI5.0 to describe system device hotplug slots yet.
+> And we want to show user the system device hotplug capabilities even when there
+> is no device attached to a slot. In other word, user could now how much
+> devices they could connect to the system by hotplugging.
+
+Bjorn probably meant "provide documentation describing the user space interfaces
+being introduced".  Which in fact is a requirement.
+
+> >> 8) Unify the way to handle ACPI hotplug events. All ACPI hotplug events
+> >>    for system devices will be handled by a generic ACPI hotplug driver
+> >>    (acpihp_drv) instead of by individual ACPI device drivers.
+> >> 9) Provide better error handling and error recovery.
+> >> 10) Trigger hotplug events/operations by software. This feature is useful
+> >>    for hardware fault management and/or power saving.
+> >>
+> >> The new framework is composed up of three major components:
+> >> 1) A system device hotplug slot enumerator driver, which enumerates
+> >>    hotplug slots in the system and provides platform specific methods
+> >>    to control those slots.
+> >> 2) A system device hotplug driver, which is a platform independent
+> >>    driver to manage all hotplug slots created by the slot enumerator.
+> >>    The hotplug driver implements a state machine for hotplug slots and
+> >>    provides user interfaces to manage hotplug slots.
+> >> 3) Several ACPI device drivers to configure/unconfigure system devices
+> >>    at runtime.
+> >>
+> >> To get rid of inter dependengcy between the slot enumerator and hotplug
+> >> driver, common code shared by them will be built into the kernel. The
+> >> shared code provides some helper routines and a device class named
+> >> acpihp_slot_class with following default sysfs properties:
+> >>         capabilities: RAS capabilities of the hotplug slot
+> >>         state: current state of the hotplug slot state machine
+> >>         status: current health status of the hotplug slot
+> >>         object: ACPI object corresponding to the hotplug slot
+> >>
+> >> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> >> Signed-off-by: Gaohuai Han <hangaohuai@huawei.com>
+> > 
+> > ...
+> >> +static char *acpihp_dev_mem_ids[] = {
+> >> +       "PNP0C80",
+> >> +       NULL
+> >> +};
+> >> +
+> >> +static char *acpihp_dev_pcihb_ids[] = {
+> >> +       "PNP0A03",
+> >> +       NULL
+> >> +};
+> > 
+> > Why should this driver need to know about these PNP IDs?  We ought to
+> > be able to support hotplug of any device in the namespace, no matter
+> > what its ID.
+
+> We need PNP IDs for:
+> 1) Give a meaningful name for each slot.
+> lrwxrwxrwx  CPU00 -> ../../../devices/LNXSYSTM:00/acpihp/CPU00
+> lrwxrwxrwx  CPU01 -> ../../../devices/LNXSYSTM:00/acpihp/CPU01
+> lrwxrwxrwx  CPU02 -> ../../../devices/LNXSYSTM:00/acpihp/CPU02
+> lrwxrwxrwx  CPU03 -> ../../../devices/LNXSYSTM:00/acpihp/CPU03
+> lrwxrwxrwx  IOX01 -> ../../../devices/LNXSYSTM:00/acpihp/IOX01
+> lrwxrwxrwx  MEM00 -> ../../../devices/LNXSYSTM:00/acpihp/CPU00/MEM00
+> lrwxrwxrwx  MEM01 -> ../../../devices/LNXSYSTM:00/acpihp/CPU00/MEM01
+> lrwxrwxrwx  MEM02 -> ../../../devices/LNXSYSTM:00/acpihp/CPU01/MEM02
+> lrwxrwxrwx  MEM03 -> ../../../devices/LNXSYSTM:00/acpihp/CPU01/MEM03
+> lrwxrwxrwx  MEM04 -> ../../../devices/LNXSYSTM:00/acpihp/CPU02/MEM04
+> lrwxrwxrwx  MEM05 -> ../../../devices/LNXSYSTM:00/acpihp/CPU02/MEM05
+> lrwxrwxrwx  MEM06 -> ../../../devices/LNXSYSTM:00/acpihp/CPU03/MEM06
+> lrwxrwxrwx  MEM07 -> ../../../devices/LNXSYSTM:00/acpihp/CPU03/MEM07
+> 
+> 2) Classify system device into groups according to device types, so we could
+> configure/unconfigure them in optimal order for performance as:
+> memory -> CPU -> IOAPIC -> PCI host bridge
+> 
+> 3) The new hotplug framework are designed to handle system device hotplug,
+> and it won't hand IO device hotplug such as PCI etc. So it need to stop
+> scanning subtree of PCI host bridges.
+
+Well, we probably need a hotplug domains framework, which the thing you're
+proposing seems to be.  However, the question is: Why should it cover "system
+devices" only?
+
+To me, it looks like such a framework should cover all hotplug devices in the
+system, or at least all ACPI-based hotplug devices.
+
+Thanks,
+Rafael
+
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
