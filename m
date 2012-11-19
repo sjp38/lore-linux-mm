@@ -1,45 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 871286B0080
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 09:06:06 -0500 (EST)
-Date: Mon, 19 Nov 2012 22:05:28 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [glommer-memcg:die-cpuacct 6/7] kernel/sched/rt.c:948:26: error:
- 'struct rt_rq' has no member named 'tg'
-Message-ID: <20121119140528.GA31349@localhost>
-References: <50aa197c.nd3zZYWoxQMv16Vh%fengguang.wu@intel.com>
- <20121119132630.GA29003@localhost>
- <50AA39E3.50506@parallels.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id C28A76B0082
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 09:19:43 -0500 (EST)
+Message-ID: <50AA3FEF.2070100@parallels.com>
+Date: Mon, 19 Nov 2012 18:19:27 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50AA39E3.50506@parallels.com>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com> <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com> <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com> <50A60873.3000607@parallels.com> <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com> <50A6AC48.6080102@parallels.com> <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Mon, Nov 19, 2012 at 05:53:39PM +0400, Glauber Costa wrote:
-> On 11/19/2012 05:26 PM, Fengguang Wu wrote:
-> > Hi Glauber,
-> > 
-> > Shall we remove the CC to linux-mm@kvack.org and fix things silently?
-> > 
-> > Thanks,
-> > Fengguang
-> > 
-> My bad: I haven't even realized linux-mm was CC'd. This is a temporary
-> branch, totally unrelated, and I didn't create a separate git tree just
-> because I am way too lazy (and it was supposed to be something quick).
 
-No problem. It'll be fine as long as the reports are also kept private ;)
+>>> Umm, why do users of cpusets not want to be able to trigger memory 
+>>> pressure notifications?
+>>>
+>> Because cpusets only deal with memory placement, not memory usage.
+> 
+> The set of nodes that a thread is allowed to allocate from may face memory 
+> pressure up to and including oom while the rest of the system may have a 
+> ton of free memory.  Your solution is to compile and mount memcg if you 
+> want notifications of memory pressure on those nodes.  Others in this 
+> thread have already said they don't want to rely on memcg for any of this 
+> and, as Anton showed, this can be tied directly into the VM without any 
+> help from memcg as it sits today.  So why implement a simple and clean 
+> mempressure cgroup that can be used alone or co-existing with either memcg 
+> or cpusets?
+> 
 
-> I'm fine receiving notifications just for me.
+Forgot this one:
 
-OK. Will switch to private notifications in future.
+Because there is a huge ongoing work going on by Tejun aiming at
+reducing the effects of orthogonal hierarchy. There are many controllers
+today that are "close enough" to each other (cpu, cpuacct; net_prio,
+net_cls), and in practice, it brought more problems than it solved.
 
-Thanks,
-Fengguang
+So yes, *maybe* mempressure is the answer, but it need to be justified
+with care. Long term, I think a saner notification API for memcg will
+lead us to a better and brighter future.
+
+There is also yet another aspect: This scheme works well for global
+notifications. If we would always want this to be global, this would
+work neatly. But as already mentioned in this thread, at some point
+we'll want this to work for a group of processes as well. At that point,
+you'll have to count how much memory is being used, so you can determine
+whether or not pressure is going on. You will, then, have to redo all
+the work memcg already does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
