@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 63A0F6B0095
-	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 21:16:11 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id D1AF46B006C
+	for <linux-mm@kvack.org>; Sun, 18 Nov 2012 21:16:07 -0500 (EST)
 Received: by mail-ee0-f41.google.com with SMTP id d41so3182596eek.14
-        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 18:16:10 -0800 (PST)
+        for <linux-mm@kvack.org>; Sun, 18 Nov 2012 18:16:07 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 24/27] sched: Improve convergence
-Date: Mon, 19 Nov 2012 03:14:41 +0100
-Message-Id: <1353291284-2998-25-git-send-email-mingo@kernel.org>
+Subject: [PATCH 22/27] sched, numa, mm: Interleave shared tasks
+Date: Mon, 19 Nov 2012 03:14:39 +0100
+Message-Id: <1353291284-2998-23-git-send-email-mingo@kernel.org>
 In-Reply-To: <1353291284-2998-1-git-send-email-mingo@kernel.org>
 References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,10 +15,11 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
- - break out of can_do_numa_run() earlier if we can make no progress
- - don't flip between siblings that often
- - turn on bidirectional fault balancing
- - improve the flow in task_numa_work()
+Interleave tasks that are 'shared' - i.e. whose memory access patterns
+indicate that they are intensively sharing memory with other tasks.
+
+If such a task ends up converging then it switches back into the lazy
+node-local policy.
 
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
@@ -29,121 +30,143 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/fair.c     | 46 ++++++++++++++++++++++++++++++++--------------
- kernel/sched/features.h |  2 +-
- 2 files changed, 33 insertions(+), 15 deletions(-)
+ mm/mempolicy.c | 54 ++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 40 insertions(+), 14 deletions(-)
 
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 59fea2e..9c46b45 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -917,12 +917,12 @@ void task_numa_fault(int node, int last_cpu, int pages)
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 318043a..21bbb13 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -111,12 +111,30 @@ enum zone_type policy_zone = 0;
+ /*
+  * run-time system-wide default policy => local allocation
   */
- void task_numa_work(struct callback_head *work)
+-static struct mempolicy default_policy = {
+-	.refcnt = ATOMIC_INIT(1), /* never free it */
+-	.mode = MPOL_PREFERRED,
+-	.flags = MPOL_F_LOCAL,
++
++static struct mempolicy default_policy_local = {
++	.refcnt		= ATOMIC_INIT(1), /* never free it */
++	.mode		= MPOL_PREFERRED,
++	.flags		= MPOL_F_LOCAL,
++};
++
++/*
++ * .v.nodes is set by numa_policy_init():
++ */
++static struct mempolicy default_policy_shared = {
++	.refcnt			= ATOMIC_INIT(1), /* never free it */
++	.mode			= MPOL_INTERLEAVE,
++	.flags			= 0,
+ };
+ 
++static struct mempolicy *default_policy(void)
++{
++	if (task_numa_shared(current) == 1)
++		return &default_policy_shared;
++
++	return &default_policy_local;
++}
++
+ static const struct mempolicy_operations {
+ 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
+ 	/*
+@@ -789,7 +807,7 @@ out:
+ static void get_policy_nodemask(struct mempolicy *p, nodemask_t *nodes)
  {
-+	long pages_total, pages_left, pages_changed;
- 	unsigned long migrate, next_scan, now = jiffies;
-+	unsigned long start0, start, end;
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
- 	struct vm_area_struct *vma;
--	unsigned long start, end;
--	long pages;
- 
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
- 
-@@ -951,35 +951,42 @@ void task_numa_work(struct callback_head *work)
- 
- 	current->numa_scan_period += jiffies_to_msecs(2);
- 
--	start = mm->numa_scan_offset;
--	pages = sysctl_sched_numa_scan_size;
--	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
--	if (!pages)
-+	start0 = start = end = mm->numa_scan_offset;
-+	pages_total = sysctl_sched_numa_scan_size;
-+	pages_total <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages_total)
+ 	nodes_clear(*nodes);
+-	if (p == &default_policy)
++	if (p == default_policy())
  		return;
  
-+	pages_left	= pages_total;
-+
- 	down_write(&mm->mmap_sem);
- 	vma = find_vma(mm, start);
- 	if (!vma) {
- 		ACCESS_ONCE(mm->numa_scan_seq)++;
--		start = 0;
--		vma = mm->mmap;
-+		end = 0;
-+		vma = find_vma(mm, end);
- 	}
- 	for (; vma; vma = vma->vm_next) {
- 		if (!vma_migratable(vma))
- 			continue;
+ 	switch (p->mode) {
+@@ -864,7 +882,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 		return -EINVAL;
  
- 		do {
--			start = max(start, vma->vm_start);
--			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
-+			start = max(end, vma->vm_start);
-+			end = ALIGN(start + (pages_left << PAGE_SHIFT), HPAGE_SIZE);
- 			end = min(end, vma->vm_end);
--			pages -= change_prot_numa(vma, start, end);
--			start = end;
--			if (pages <= 0)
-+			pages_changed = change_prot_numa(vma, start, end);
-+
-+			WARN_ON_ONCE(pages_changed > pages_total);
-+			BUG_ON(pages_changed < 0);
-+
-+			pages_left -= pages_changed;
-+			if (pages_left <= 0)
- 				goto out;
- 		} while (end != vma->vm_end);
+ 	if (!pol)
+-		pol = &default_policy;	/* indicates default behavior */
++		pol = default_policy();	/* indicates default behavior */
+ 
+ 	if (flags & MPOL_F_NODE) {
+ 		if (flags & MPOL_F_ADDR) {
+@@ -880,7 +898,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
+ 			goto out;
+ 		}
+ 	} else {
+-		*policy = pol == &default_policy ? MPOL_DEFAULT :
++		*policy = pol == default_policy() ? MPOL_DEFAULT :
+ 						pol->mode;
+ 		/*
+ 		 * Internal mempolicy flags must be masked off before exposing
+@@ -1568,7 +1586,7 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
+ 		}
  	}
- out:
--	mm->numa_scan_offset = start;
-+	mm->numa_scan_offset = end;
-+
- 	up_write(&mm->mmap_sem);
+ 	if (!pol)
+-		pol = &default_policy;
++		pol = default_policy();
+ 	return pol;
  }
  
-@@ -3306,6 +3313,13 @@ static int select_idle_sibling(struct task_struct *p, int target)
- 	int i;
+@@ -1974,7 +1992,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 	unsigned int cpuset_mems_cookie;
  
+ 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
+-		pol = &default_policy;
++		pol = default_policy();
+ 
+ retry_cpuset:
+ 	cpuset_mems_cookie = get_mems_allowed();
+@@ -2255,7 +2273,6 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 	int best_nid = -1, page_nid;
+ 	int cpu_last_access, this_cpu;
+ 	struct mempolicy *pol;
+-	unsigned long pgoff;
+ 	struct zone *zone;
+ 
+ 	BUG_ON(!vma);
+@@ -2271,13 +2288,20 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 
+ 	switch (pol->mode) {
+ 	case MPOL_INTERLEAVE:
++	{
++		int shift;
++
+ 		BUG_ON(addr >= vma->vm_end);
+ 		BUG_ON(addr < vma->vm_start);
+ 
+-		pgoff = vma->vm_pgoff;
+-		pgoff += (addr - vma->vm_start) >> PAGE_SHIFT;
+-		best_nid = offset_il_node(pol, vma, pgoff);
++		if (transparent_hugepage_enabled(vma) || vma->vm_flags & VM_HUGETLB)
++			shift = HPAGE_SHIFT;
++		else
++			shift = PAGE_SHIFT;
++
++		best_nid = interleave_nid(pol, vma, addr, shift);
+ 		break;
++	}
+ 
+ 	case MPOL_PREFERRED:
+ 		if (pol->flags & MPOL_F_LOCAL)
+@@ -2492,6 +2516,8 @@ void __init numa_policy_init(void)
+ 				     sizeof(struct sp_node),
+ 				     0, SLAB_PANIC, NULL);
+ 
++	default_policy_shared.v.nodes = node_online_map;
++
  	/*
-+	 * For NUMA tasks constant, reliable placement is more important
-+	 * than flipping tasks between siblings:
-+	 */
-+	if (task_numa_shared(p) >= 0)
-+		return target;
-+
-+	/*
- 	 * If the task is going to be woken-up on this cpu and if it is
- 	 * already idle, then it is the right target.
+ 	 * Set interleaving policy for system init. Interleaving is only
+ 	 * enabled across suitably sized nodes (default is >= 16MB), or
+@@ -2712,7 +2738,7 @@ int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int no_context)
  	 */
-@@ -4581,6 +4595,10 @@ static bool can_do_numa_run(struct lb_env *env, struct sd_lb_stats *sds)
- 	 * If we got capacity allow stacking up on shared tasks.
- 	 */
- 	if ((sds->this_shared_running < sds->this_group_capacity) && sds->numa_shared_running) {
-+		/* There's no point in trying to move if all are here already: */
-+		if (sds->numa_shared_running == sds->this_shared_running)
-+			return false;
-+
- 		env->flags |= LBF_NUMA_SHARED;
- 		return true;
- 	}
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index a432eb8..b75a10d 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -71,6 +71,6 @@ SCHED_FEAT(LB_MIN, false)
- /* Do the working set probing faults: */
- SCHED_FEAT(NUMA,             true)
- SCHED_FEAT(NUMA_FAULTS_UP,   true)
--SCHED_FEAT(NUMA_FAULTS_DOWN, false)
-+SCHED_FEAT(NUMA_FAULTS_DOWN, true)
- SCHED_FEAT(NUMA_SETTLE,      true)
- #endif
+ 	VM_BUG_ON(maxlen < strlen("interleave") + strlen("relative") + 16);
+ 
+-	if (!pol || pol == &default_policy)
++	if (!pol || pol == default_policy())
+ 		mode = MPOL_DEFAULT;
+ 	else
+ 		mode = pol->mode;
 -- 
 1.7.11.7
 
