@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 8AD5A6B005D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 04:06:14 -0500 (EST)
-Message-ID: <50A9F7FF.9010204@cn.fujitsu.com>
-Date: Mon, 19 Nov 2012 17:12:31 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id D52776B006E
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 04:08:14 -0500 (EST)
+Message-ID: <50A9F6DC.6050408@huawei.com>
+Date: Mon, 19 Nov 2012 17:07:40 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH] mm: fix up zone's present_pages
 References: <1353314707-31834-1-git-send-email-lliubbo@gmail.com>
 In-Reply-To: <1353314707-31834-1-git-send-email-lliubbo@gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Bob Liu <lliubbo@gmail.com>
-Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, maciej.rutecki@gmail.com, chris2553@googlemail.com, rjw@sisk.pl, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, daniel.vetter@ffwll.ch, rientjes@google.com, wujianguo@huawei.com, ptesarik@suse.cz, riel@redhat.com, linux-mm@kvack.org, lai jiangshan <laijs@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, maciej.rutecki@gmail.com, chris2553@googlemail.com, rjw@sisk.pl, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, wency@cn.fujitsu.com, daniel.vetter@ffwll.ch, rientjes@google.com, wujianguo@huawei.com, ptesarik@suse.cz, riel@redhat.com, linux-mm@kvack.org
 
-At 11/19/2012 04:45 PM, Bob Liu Wrote:
+On 2012-11-19 16:45, Bob Liu wrote:
 > zone->present_pages shoule be:
 > spanned pages - absent pages - bootmem pages(including memmap pages),
 > but now it's:
@@ -61,15 +61,26 @@ At 11/19/2012 04:45 PM, Bob Liu Wrote:
 > add zone->present_pages accrodingly.
 > 
 > Note this patch assumes that bootmem won't use memory above ZONE_HIGHMEM, so
-
-Hmm, on x86_64 box, bootmem uses the memory in ZONE_MOVABLE and
-ZONE_MOVABLE > ZONE_HIGHMEM.
-
 > only zones below ZONE_HIGHMEM are reset/fixed. If not, some update is needed.
 > For ZONE_HIGHMEM, only fix it's init value to:
 > panned_pages - absent_pages in free_area_init_core().
 > 
 > Only did some simple test currently.
+Hi Bobi 1/4 ?
+	Great to know that you are working on this issue too.
+Originally I have thought about reusing the zone->present_pages.
+And later I propose to add the new field "managed_pages" because
+we could know that there are some pages not managed by the buddy
+system in the zone (present_pages - managed_pages). This may help
+the ongoing memory power management work from Srivatsa S. Bhat
+because we can't put memory ranges into low power state if there
+are unmanaged pages.
+And pgdat->node_present_pages = spanned_pages - absent_pages,
+so it would be better to keep consistence with node_present_pages
+by setting zone->present_pages = spanned_pages - absent_pages.
+	Thanks!
+	Gerry
+
 > 
 > Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 > Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
@@ -192,11 +203,6 @@ ZONE_MOVABLE > ZONE_HIGHMEM.
 > +	int i;
 > +	struct zone *z;
 > +	for (i = 0; i < ZONE_HIGHMEM; i++) {
-
-And if CONFIG_HIGHMEM is no, ZONE_NORMAL == ZONE_HIGHMEM.
-
-So, you don't reset ZONE_NORMAL here.
-
 > +		z = pgdat->node_zones + i;
 > +		z->present_pages = 0;
 > +	}
@@ -209,6 +215,7 @@ So, you don't reset ZONE_NORMAL here.
 > +	for_each_node_state(nid, N_HIGH_MEMORY)
 > +		reset_lowmem_zone_present_pages_pernode(NODE_DATA(nid));
 > +}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
