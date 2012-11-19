@@ -1,70 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id D5D236B005D
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 09:43:10 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MDQ00074OVTFU40@mailout1.samsung.com> for
- linux-mm@kvack.org; Mon, 19 Nov 2012 23:43:09 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MDQ009RJOVLMY70@mmp1.samsung.com> for linux-mm@kvack.org;
- Mon, 19 Nov 2012 23:43:09 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] mm: cma: skip watermarks check for already isolated blocks in
- split_free_page() fix
-Date: Mon, 19 Nov 2012 15:42:49 +0100
-Message-id: <1353336169-23868-1-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <50A7D524.2060809@gmail.com>
-References: <50A7D524.2060809@gmail.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 489956B005D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 10:11:36 -0500 (EST)
+Date: Mon, 19 Nov 2012 16:11:30 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 2/5] memcg: rework mem_cgroup_iter to use cgroup iterators
+Message-ID: <20121119151130.GB16803@dhcp22.suse.cz>
+References: <1352820639-13521-1-git-send-email-mhocko@suse.cz>
+ <1352820639-13521-3-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1352820639-13521-3-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Francesco Lavra <francescolavra.fl@gmail.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
 
-Cleanup and simplify the code which uses page migrate type.
+On Tue 13-11-12 16:30:36, Michal Hocko wrote:
+[...]
+> +		/*
+> +		 * Root is not visited by cgroup iterators so it needs a special
+> +		 * treatment.
+> +		 */
+> +		if (!last_visited) {
+> +			css = &root->css;
+> +		} else {
+> +			struct cgroup *next_cgroup;
+> +
+> +			next_cgroup = cgroup_next_descendant_pre(
+> +					last_visited->css.cgroup,
+> +					root->css.cgroup);
+> +			if (next_cgroup)
+> +				css = cgroup_subsys_state(next_cgroup,
+> +						mem_cgroup_subsys_id);
 
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- mm/page_alloc.c |    9 ++++-----
- 1 file changed, 4 insertions(+), 5 deletions(-)
+This is not correct because cgroup_next_descendant_pre expects pos to be
+NULL for the first iteration but the way we do iterate (visit the root
+first) means that the second iteration will have last_visited != NULL
+and if root doesn't have any children the iteration would go unleashed
+to to the endless loop. We need something like:
+	struct cgroup *prev_cgroup = (last_visited == root) ? NULL 
+					: last_visited->css.cgroup;
+	next_cgroup = cgroup_next_descendant_pre(prev_cgroup,
+				root->css.gtoup);
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6b990cb..f05365f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1393,12 +1393,15 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
- 
- 	zone = page_zone(page);
- 	order = page_order(page);
-+	mt = get_pageblock_migratetype(page);
- 
--	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE) {
-+	if (mt != MIGRATE_ISOLATE) {
- 		/* Obey watermarks as if the page was being allocated */
- 		watermark = low_wmark_pages(zone) + (1 << order);
- 		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
- 			return 0;
-+
-+		__mod_zone_freepage_state(zone, -(1UL << order), mt);
- 	}
- 
- 	/* Remove page from free list */
-@@ -1406,10 +1409,6 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
- 	zone->free_area[order].nr_free--;
- 	rmv_page_order(page);
- 
--	mt = get_pageblock_migratetype(page);
--	if (unlikely(mt != MIGRATE_ISOLATE))
--		__mod_zone_freepage_state(zone, -(1UL << order), mt);
--
- 	if (alloc_order != order)
- 		expand(zone, page, alloc_order, order,
- 			&zone->free_area[order], migratetype);
 -- 
-1.7.9.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
