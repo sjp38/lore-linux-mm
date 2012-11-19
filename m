@@ -1,46 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id BE0AF6B0081
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 16:40:39 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so3960252pad.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 13:40:39 -0800 (PST)
-Date: Mon, 19 Nov 2012 13:40:37 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 29/58] mm: Make copy_pte_range static
-In-Reply-To: <1353302917-13995-30-git-send-email-josh@joshtriplett.org>
-Message-ID: <alpine.DEB.2.00.1211191340170.12532@chino.kir.corp.google.com>
-References: <1353302917-13995-1-git-send-email-josh@joshtriplett.org> <1353302917-13995-30-git-send-email-josh@joshtriplett.org>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-846407968-1353361238=:12532"
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 71A186B004D
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:25:18 -0500 (EST)
+Date: Mon, 19 Nov 2012 14:25:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/8] mm: frontswap: lazy initialization to allow tmem
+ backends to build/run as modules
+Message-Id: <20121119142516.b2936a7c.akpm@linux-foundation.org>
+In-Reply-To: <CAA_GA1crg1ngNx2MAv-fJbgKYqSKmkapZHq=8F4QcNgFja1A-w@mail.gmail.com>
+References: <1352919432-9699-1-git-send-email-konrad.wilk@oracle.com>
+	<1352919432-9699-3-git-send-email-konrad.wilk@oracle.com>
+	<20121116151619.aa60acff.akpm@linux-foundation.org>
+	<CAA_GA1crg1ngNx2MAv-fJbgKYqSKmkapZHq=8F4QcNgFja1A-w@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, sjenning@linux.vnet.ibm.com, dan.magenheimer@oracle.com, devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, minchan@kernel.org, mgorman@suse.de, fschmaus@gmail.com, andor.daam@googlemail.com, ilendir@googlemail.com
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Mon, 19 Nov 2012 08:53:46 +0800
+Bob Liu <lliubbo@gmail.com> wrote:
 
---531381512-846407968-1353361238=:12532
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Sun, 18 Nov 2012, Josh Triplett wrote:
-
-> Nothing outside of mm/memory.c references copy_pte_range.
-> linux/huge_mm.h prototypes it, but nothing uses that prototype.  Commit
-> 71e3aac0724ffe8918992d76acfe3aad7d8724a5 in January 2011 explicitly made
-> copy_pte_range non-static, but no commit ever introduced a caller for
-> copy_pte_range outside of mm/memory.c.  Make the function static.
+> On Sat, Nov 17, 2012 at 7:16 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Wed, 14 Nov 2012 13:57:06 -0500
+> > Konrad Rzeszutek Wilk <konrad.wilk@oracle.com> wrote:
+> >
+> >> From: Dan Magenheimer <dan.magenheimer@oracle.com>
+> >>
+> >> With the goal of allowing tmem backends (zcache, ramster, Xen tmem) to be
+> >> built/loaded as modules rather than built-in and enabled by a boot parameter,
+> >> this patch provides "lazy initialization", allowing backends to register to
+> >> frontswap even after swapon was run. Before a backend registers all calls
+> >> to init are recorded and the creation of tmem_pools delayed until a backend
+> >> registers or until a frontswap put is attempted.
+> >>
+> >>
+> >> ...
+> >>
+> >> --- a/mm/frontswap.c
+> >> +++ b/mm/frontswap.c
+> >> @@ -80,6 +80,18 @@ static inline void inc_frontswap_succ_stores(void) { }
+> >>  static inline void inc_frontswap_failed_stores(void) { }
+> >>  static inline void inc_frontswap_invalidates(void) { }
+> >>  #endif
+> >> +
+> >> +/*
+> >> + * When no backend is registered all calls to init are registered and
+> >
+> > What is "init"?  Spell it out fully, please.
+> >
 > 
-> This eliminates a warning from gcc (-Wmissing-prototypes) and from
-> Sparse (-Wdecl).
-> 
-> mm/memory.c:917:5: warning: no previous prototype for a??copy_pte_rangea?? [-Wmissing-prototypes]
-> 
-> Signed-off-by: Josh Triplett <josh@joshtriplett.org>
+> I think it's frontswap_init().
+> swapon will call frontswap_init() and in it we need to call init
+> function of backends with some parameters
+> like swap_type.
 
-Acked-by: David Rientjes <rientjes@google.com>
---531381512-846407968-1353361238=:12532--
+Well, let's improve that comment please.
+
+> >> + * remembered but fail to create tmem_pools. When a backend registers with
+> >> + * frontswap the previous calls to init are executed to create tmem_pools
+> >> + * and set the respective poolids.
+> >
+> > Again, seems really hacky.  Why can't we just change callers so they
+> > call things in the correct order?
+> >
+> 
+> I don't think so, because it asynchronous.
+> 
+> The original idea was to make backends like zcache/tmem modularization.
+> So that it's more convenient and flexible to use and testing.
+> 
+> But currently callers like swapon only invoke frontswap_init() once,
+> it fail if backend not registered.
+> We have no way to notify swap to call frontswap_init() again when
+> backend registered in some random time
+>  in future.
+
+We could add such a way?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
