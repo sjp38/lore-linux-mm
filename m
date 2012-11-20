@@ -1,67 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 242D96B0072
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 15:25:57 -0500 (EST)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Tue, 20 Nov 2012 13:25:56 -0700
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B26221FF001B
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:49 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAKKPexx242406
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:40 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAKKPdtT009268
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:39 -0700
-Message-ID: <50ABE741.2020604@linux.vnet.ibm.com>
-Date: Tue, 20 Nov 2012 12:25:37 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: [3.7-rc6] capture_free_page() frees page without accounting for them??
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 55A2F6B005D
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 16:49:34 -0500 (EST)
+Date: Tue, 20 Nov 2012 13:49:32 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, memcg: avoid unnecessary function call when memcg
+ is disabled
+Message-Id: <20121120134932.055bc192.akpm@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Hi Mel,
+On Mon, 19 Nov 2012 17:44:34 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-I'm chasing an apparent memory leak introduced post-3.6.  The
-interesting thing is that it appears that the pages are in the
-allocator, but not being accounted for:
+> While profiling numa/core v16 with cgroup_disable=memory on the command 
+> line, I noticed mem_cgroup_count_vm_event() still showed up as high as 
+> 0.60% in perftop.
+> 
+> This occurs because the function is called extremely often even when memcg 
+> is disabled.
+> 
+> To fix this, inline the check for mem_cgroup_disabled() so we avoid the 
+> unnecessary function call if memcg is disabled.
+> 
+> ...
+>
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -181,7 +181,14 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+>  						gfp_t gfp_mask,
+>  						unsigned long *total_scanned);
+>  
+> -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> +static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+> +					     enum vm_event_item idx)
+> +{
+> +	if (mem_cgroup_disabled() || !mm)
+> +		return;
+> +	__mem_cgroup_count_vm_event(mm, idx);
+> +}
 
-	http://www.spinics.net/lists/linux-mm/msg46187.html
-	https://bugzilla.kernel.org/show_bug.cgi?id=50181
-
-I started auditing anything that might be messing with NR_FREE_PAGES,
-and came across commit 1fb3f8ca.  It does something curious with
-capture_free_page() (previously known as split_free_page()).
-
-int capture_free_page(struct page *page, int alloc_order,
-...
-        __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-
--       /* Split into individual pages */
--       set_page_refcounted(page);
--       split_page(page, order);
-+       if (alloc_order != order)
-+               expand(zone, page, alloc_order, order,
-+                       &zone->free_area[order], migratetype);
-
-Note that expand() puts the pages _back_ in the allocator, but it does
-not bump NR_FREE_PAGES.  We "return" alloc_order' worth of pages, but we
-accounted for removing 'order'.
-
-I _think_ the correct fix is to just:
-
--     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
-+     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << alloc_order));
-
-I'm trying to confirm the theory my making this happen a bit more often,
-but I'd appreciate a second pair of eyes on the code in case I'm reading
-it wrong.
+Does the !mm case occur frequently enough to justify inlining it, or
+should that test remain out-of-line?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
