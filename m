@@ -1,107 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 9F8E56B0072
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 02:07:31 -0500 (EST)
-Date: Tue, 20 Nov 2012 08:07:28 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, memcg: avoid unnecessary function call when memcg is
- disabled
-Message-ID: <20121120070728.GA7754@dhcp22.suse.cz>
-References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id CF50E6B0074
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 02:17:11 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1856942eaa.14
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 23:17:10 -0800 (PST)
+Date: Tue, 20 Nov 2012 08:17:04 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121120071704.GA14199@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121119211804.GM8218@suse.de>
+ <20121119223604.GA13470@gmail.com>
+ <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+In-Reply-To: <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Mon 19-11-12 17:44:34, David Rientjes wrote:
-> While profiling numa/core v16 with cgroup_disable=memory on the command 
-> line, I noticed mem_cgroup_count_vm_event() still showed up as high as 
-> 0.60% in perftop.
+
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
+
+> On Mon, Nov 19, 2012 at 12:36 PM, Ingo Molnar <mingo@kernel.org> wrote:
+> >
+> > Hugepages is a must for most forms of NUMA/HPC. This alone
+> > questions the relevance of most of your prior numa/core testing
+> > results. I now have to strongly dispute your other conclusions
+> > as well.
 > 
-> This occurs because the function is called extremely often even when memcg 
-> is disabled.
+> Ingo, stop doing this kind of crap.
 > 
-> To fix this, inline the check for mem_cgroup_disabled() so we avoid the 
-> unnecessary function call if memcg is disabled.
+> Let's make it clear: if the NUMA patches continue to regress 
+> performance for reasonable loads (and that very much includes 
+> "no THP") then they won't be merged.
 > 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> You seem to be in total denial. Every time Mel sends out 
+> results that show that your patches MAKE PERFORMANCE WORSE you 
+> blame Mel, or blame the load, and never seem to admit that 
+> performance got worse.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+No doubt numa/core should not regress with THP off or on and 
+I'll fix that.
 
-Thanks!
+As a background, here's how SPECjbb gets slower on mainline 
+(v3.7-rc6) if you boot Mel's kernel config and turn THP forcibly
+off:
 
-> ---
->  include/linux/memcontrol.h |    9 ++++++++-
->  mm/memcontrol.c            |    9 ++++-----
->  2 files changed, 12 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -181,7 +181,14 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  						gfp_t gfp_mask,
->  						unsigned long *total_scanned);
->  
-> -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-> +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-> +static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-> +					     enum vm_event_item idx)
-> +{
-> +	if (mem_cgroup_disabled() || !mm)
-> +		return;
-> +	__mem_cgroup_count_vm_event(mm, idx);
-> +}
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  void mem_cgroup_split_huge_fixup(struct page *head);
->  #endif
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -59,6 +59,8 @@
->  #include <trace/events/vmscan.h>
->  
->  struct cgroup_subsys mem_cgroup_subsys __read_mostly;
-> +EXPORT_SYMBOL(mem_cgroup_subsys);
-> +
->  #define MEM_CGROUP_RECLAIM_RETRIES	5
->  static struct mem_cgroup *root_mem_cgroup __read_mostly;
->  
-> @@ -1015,13 +1017,10 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  	     iter != NULL;				\
->  	     iter = mem_cgroup_iter(NULL, iter, NULL))
->  
-> -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
-> +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
->  {
->  	struct mem_cgroup *memcg;
->  
-> -	if (!mm)
-> -		return;
-> -
->  	rcu_read_lock();
->  	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
->  	if (unlikely(!memcg))
-> @@ -1040,7 +1039,7 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
->  out:
->  	rcu_read_unlock();
->  }
-> -EXPORT_SYMBOL(mem_cgroup_count_vm_event);
-> +EXPORT_SYMBOL(__mem_cgroup_count_vm_event);
->  
->  /**
->   * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+  (avg: 502395 ops/sec)
+  (avg: 505902 ops/sec)
+  (avg: 509271 ops/sec)
 
--- 
-Michal Hocko
-SUSE Labs
+  # echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+  (avg: 376989 ops/sec)
+  (avg: 379463 ops/sec)
+  (avg: 378131 ops/sec)
+
+A ~30% slowdown.
+
+[ How do I know? I asked for Mel's kernel config days ago and
+  actually booted Mel's very config in the past few days, 
+  spending hours on testing it on 4 separate NUMA systems, 
+  trying to find Mel's regression. In the past Mel was a 
+  reliable tester so I blindly trusted his results. Was that 
+  some weird sort of denial on my part? :-) ]
+
+Every time a regression is reported I take it seriously - and 
+there were performance regression reports against numa/core not 
+just from Mel and I'm sure there will be more in the future. For 
+example I'm taking David Rijentje's fresh performance regression 
+report seriously as well.
+
+What I have some problem with is Mel sending me his kernel 
+config as the thing he tested, and which config included:
+
+  CONFIG_TRANSPARENT_HUGEPAGE=y
+  CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+
+but he apparently went and explicitly disabled THP on top of 
+that - which was just a weird choice of 'negative test tuning' 
+to keep unreported. That made me waste quite some time booting 
+and debugging his config and made the finding of the root cause 
+of the testing difference unnecessarily hard for me.
+
+Again, that's not an excuse for the performance regression in 
+the numa/core tree in any way and I'll fix it.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
