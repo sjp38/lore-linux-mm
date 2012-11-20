@@ -1,85 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 76F276B0071
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:15 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so392250pad.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 10:23:14 -0800 (PST)
-Date: Tue, 20 Nov 2012 10:23:11 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-In-Reply-To: <50AA3FEF.2070100@parallels.com>
-Message-ID: <alpine.DEB.2.00.1211201013460.4200@chino.kir.corp.google.com>
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com>
- <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
- <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com> <50A60873.3000607@parallels.com> <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com> <50A6AC48.6080102@parallels.com>
- <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com> <50AA3FEF.2070100@parallels.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 9621F6B0073
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:21 -0500 (EST)
+Date: Tue, 20 Nov 2012 19:25:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Problem in Page Cache Replacement
+Message-ID: <20121120182500.GH1408@quack.suse.cz>
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: metin d <metdos@yahoo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, 19 Nov 2012, Glauber Costa wrote:
-
-> >> Because cpusets only deal with memory placement, not memory usage.
-> > 
-> > The set of nodes that a thread is allowed to allocate from may face memory 
-> > pressure up to and including oom while the rest of the system may have a 
-> > ton of free memory.  Your solution is to compile and mount memcg if you 
-> > want notifications of memory pressure on those nodes.  Others in this 
-> > thread have already said they don't want to rely on memcg for any of this 
-> > and, as Anton showed, this can be tied directly into the VM without any 
-> > help from memcg as it sits today.  So why implement a simple and clean 
-> > mempressure cgroup that can be used alone or co-existing with either memcg 
-> > or cpusets?
-> > 
+On Tue 20-11-12 09:42:42, metin d wrote:
+> I have two PostgreSQL databases named data-1 and data-2 that sit on the
+> same machine. Both databases keep 40 GB of data, and the total memory
+> available on the machine is 68GB.
 > 
-> Forgot this one:
+> I started data-1 and data-2, and ran several queries to go over all their
+> data. Then, I shut down data-1 and kept issuing queries against data-2.
+> For some reason, the OS still holds on to large parts of data-1's pages
+> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+> a result, my queries on data-2 keep hitting disk.
 > 
-> Because there is a huge ongoing work going on by Tejun aiming at
-> reducing the effects of orthogonal hierarchy. There are many controllers
-> today that are "close enough" to each other (cpu, cpuacct; net_prio,
-> net_cls), and in practice, it brought more problems than it solved.
+> I'm checking page cache usage with fincore. When I run a table scan query
+> against data-2, I see that data-2's pages get evicted and put back into
+> the cache in a round-robin manner. Nothing happens to data-1's pages,
+> although they haven't been touched for days.
 > 
+> Does anybody know why data-1's pages aren't evicted from the page cache?
+> I'm open to all kind of suggestions you think it might relate to problem.
+  Curious. Added linux-mm list to CC to catch more attention. If you run
+echo 1 >/proc/sys/vm/drop_caches
+  does it evict data-1 pages from memory?
 
-I'm very happy that Tejun is working on that, but I don't see how it's 
-relevant here: I'm referring to users who are not using memcg 
-specifically.  This is what others brought up earlier in the thread: they 
-do not want to be required to use memcg for this functionality.
-
-There are users of cpusets today that do not enable nor comount memcg.  I 
-argue that a mempressure cgroup allows them this functionality without the 
-memory footprint of memcg (not only in text, but requiring page_cgroup).  
-Additionally, there are probably users who do not want either cpusets or 
-memcg and want notifications from mempressure at a global level.  Users 
-who care so much about the memory pressure of their systems probably have 
-strict footprint requirements, it would be a complete shame to require a 
-semi-tractor trailer when all I want is a compact car.
-
-> So yes, *maybe* mempressure is the answer, but it need to be justified
-> with care. Long term, I think a saner notification API for memcg will
-> lead us to a better and brighter future.
+> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no
+> swap space. The kernel version is:
 > 
-
-You can easily comount mempressure with your memcg, this is not anything 
-new.
-
-> There is also yet another aspect: This scheme works well for global
-> notifications. If we would always want this to be global, this would
-> work neatly. But as already mentioned in this thread, at some point
-> we'll want this to work for a group of processes as well. At that point,
-> you'll have to count how much memory is being used, so you can determine
-> whether or not pressure is going on. You will, then, have to redo all
-> the work memcg already does.
+> $ uname -r
+> 3.2.28-45.62.amzn1.x86_64
+> Edit:
 > 
+> and it seems that I use one NUMA instance, if  you think that it can a problem.
+> 
+> $ numactl --hardware
+> available: 1 nodes (0)
+> node 0 cpus: 0 1 2 3 4 5 6 7
+> node 0 size: 70007 MB
+> node 0 free: 360 MB
+> node distances:
+> node   0
+>   0:  10
 
-Anton can correct me if I'm wrong, but I certainly don't think this is 
-where mempressure is headed: I don't think any accounting needs to be done 
-and, if it is, it's a design issue that should be addressed now rather 
-than later.  I believe notifications should occur on current's mempressure 
-cgroup depending on its level of reclaim: nobody cares if your memcg has a 
-limit of 64GB when you only have 32GB of RAM, we'll want the notification.
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
