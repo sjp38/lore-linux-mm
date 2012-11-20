@@ -1,261 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 4FAA36B0072
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 02:44:14 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id dq11so1614309wgb.26
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 23:44:12 -0800 (PST)
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id 576E76B007B
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 02:44:52 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so4046919eek.14
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 23:44:50 -0800 (PST)
+Date: Tue, 20 Nov 2012 08:44:45 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121120074445.GA14539@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com>
+ <20121120060014.GA14065@gmail.com>
+ <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <50A9F6DC.6050408@huawei.com>
-References: <1353314707-31834-1-git-send-email-lliubbo@gmail.com>
-	<50A9F6DC.6050408@huawei.com>
-Date: Tue, 20 Nov 2012 15:44:12 +0800
-Message-ID: <CAA_GA1dY_VeTkJfogS-6K-aiyiEn3kv8OcLt0k9cQRsgU8LOdA@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: fix up zone's present_pages
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: akpm@linux-foundation.org, maciej.rutecki@gmail.com, chris2553@googlemail.com, rjw@sisk.pl, mgorman@suse.de, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, wency@cn.fujitsu.com, daniel.vetter@ffwll.ch, rientjes@google.com, wujianguo@huawei.com, ptesarik@suse.cz, riel@redhat.com, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Mon, Nov 19, 2012 at 5:07 PM, Jiang Liu <jiang.liu@huawei.com> wrote:
-> On 2012-11-19 16:45, Bob Liu wrote:
->> zone->present_pages shoule be:
->> spanned pages - absent pages - bootmem pages(including memmap pages),
->> but now it's:
->> spanned pages - absent pages - memmap pages.
->> And it didn't consider whether the memmap pages is actully allocated fro=
-m the
->> zone or not which may cause problem when memory hotplug is improved rece=
-ntly.
->>
->> For example:
->> numa node 1 has ZONE_NORMAL and ZONE_MOVABLE, it's memmap and other boot=
-mem
->> allocated from ZONE_MOVABLE.
->> So ZONE_NORMAL's present_pages should be spanned pages - absent pages, b=
-ut now
->> it also minus memmap pages, which are actually allocated from ZONE_MOVAB=
-LE.
->> This is wrong and when offlining all memory of this zone:
->> (zone->present_pages -=3D offline_pages) will less than 0.
->> Since present_pages is unsigned long type, that is actually a very large
->> integer which will cause zone->watermark[WMARK_MIN] becomes a large
->> integer too(see setup_per_zone_wmarks()).
->> As a result, totalreserve_pages become a large integer also and finally =
-memory
->> allocating will fail in __vm_enough_memory().
->>
->> Related discuss:
->> http://lkml.org/lkml/2012/11/5/866
->> https://patchwork.kernel.org/patch/1346751/
->>
->> Related patches in mmotm:
->> mm: fix-up zone present pages(7f1290f2f2a4d2c) (sometimes cause egressio=
-n)
->> mm: fix a regression with HIGHMEM(fe2cebd5a259eec) (Andrew have some fee=
-dback)
->>
->> Jiang Liu have sent a series patches to fix this issue by adding a
->> managed_pages area to zone struct:
->> [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
->>
->> But i think it's too complicated.
->> Mine is based on the two related patches already in mmotm(need to revert=
- them
->> first)
->> It fix the calculation of zone->present_pages by:
->> 1. Reset the zone->present_pages to zero before
->> free_all_bootmem(),free_all_bootmem_node() and free_low_memory_core_earl=
-y().
->> I think these should already included all path in all arch.
->>
->> 2. If there is a page freed to buddy system in __free_pages_bootmem(),
->> add zone->present_pages accrodingly.
->>
->> Note this patch assumes that bootmem won't use memory above ZONE_HIGHMEM=
-, so
->> only zones below ZONE_HIGHMEM are reset/fixed. If not, some update is ne=
-eded.
->> For ZONE_HIGHMEM, only fix it's init value to:
->> panned_pages - absent_pages in free_area_init_core().
->>
->> Only did some simple test currently.
-> Hi Bob=EF=BC=8C
->         Great to know that you are working on this issue too.
-> Originally I have thought about reusing the zone->present_pages.
-> And later I propose to add the new field "managed_pages" because
-> we could know that there are some pages not managed by the buddy
-> system in the zone (present_pages - managed_pages). This may help
-> the ongoing memory power management work from Srivatsa S. Bhat
-> because we can't put memory ranges into low power state if there
-> are unmanaged pages.
-> And pgdat->node_present_pages =3D spanned_pages - absent_pages,
-> so it would be better to keep consistence with node_present_pages
-> by setting zone->present_pages =3D spanned_pages - absent_pages.
 
-Okay, and i have seen feedback from Andrew in your series.
-I will spend more time on it when i am free.
-Sorry for the noise.
+* David Rientjes <rientjes@google.com> wrote:
 
->
->>
->> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> Signed-off-by: Bob Liu <lliubbo@gmail.com>
->> ---
->>  include/linux/mm.h |    3 +++
->>  mm/bootmem.c       |    2 ++
->>  mm/nobootmem.c     |    1 +
->>  mm/page_alloc.c    |   49 +++++++++++++++++++++++++++++++++++++--------=
-----
->>  4 files changed, 43 insertions(+), 12 deletions(-)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 7b03cab..3b40eb6 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1763,5 +1763,8 @@ static inline unsigned int debug_guardpage_minorde=
-r(void) { return 0; }
->>  static inline bool page_is_guard(struct page *page) { return false; }
->>  #endif /* CONFIG_DEBUG_PAGEALLOC */
->>
->> +extern void reset_lowmem_zone_present_pages_pernode(pg_data_t *pgdat);
->> +extern void reset_lowmem_zone_present_pages(void);
->> +
->>  #endif /* __KERNEL__ */
->>  #endif /* _LINUX_MM_H */
->> diff --git a/mm/bootmem.c b/mm/bootmem.c
->> index 26d057a..661775b 100644
->> --- a/mm/bootmem.c
->> +++ b/mm/bootmem.c
->> @@ -238,6 +238,7 @@ static unsigned long __init free_all_bootmem_core(bo=
-otmem_data_t *bdata)
->>  unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
->>  {
->>       register_page_bootmem_info_node(pgdat);
->> +     reset_lowmem_zone_present_pages_pernode(pgdat);
->>       return free_all_bootmem_core(pgdat->bdata);
->>  }
->>
->> @@ -251,6 +252,7 @@ unsigned long __init free_all_bootmem(void)
->>       unsigned long total_pages =3D 0;
->>       bootmem_data_t *bdata;
->>
->> +     reset_lowmem_zone_present_pages();
->>       list_for_each_entry(bdata, &bdata_list, list)
->>               total_pages +=3D free_all_bootmem_core(bdata);
->>
->> diff --git a/mm/nobootmem.c b/mm/nobootmem.c
->> index bd82f6b..378d50a 100644
->> --- a/mm/nobootmem.c
->> +++ b/mm/nobootmem.c
->> @@ -126,6 +126,7 @@ unsigned long __init free_low_memory_core_early(int =
-nodeid)
->>       phys_addr_t start, end, size;
->>       u64 i;
->>
->> +     reset_lowmem_zone_present_pages();
->>       for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
->>               count +=3D __free_memory_core(start, end);
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 07425a7..76d37f0 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -735,6 +735,7 @@ void __meminit __free_pages_bootmem(struct page *pag=
-e, unsigned int order)
->>  {
->>       unsigned int nr_pages =3D 1 << order;
->>       unsigned int loop;
->> +     struct zone *zone;
->>
->>       prefetchw(page);
->>       for (loop =3D 0; loop < nr_pages; loop++) {
->> @@ -748,6 +749,9 @@ void __meminit __free_pages_bootmem(struct page *pag=
-e, unsigned int order)
->>
->>       set_page_refcounted(page);
->>       __free_pages(page, order);
->> +     zone =3D page_zone(page);
->> +     WARN_ON(!(is_normal(zone) || is_dma(zone) || is_dma32(zone)));
->> +     zone->present_pages +=3D nr_pages;
->>  }
->>
->>  #ifdef CONFIG_CMA
->> @@ -4547,18 +4551,20 @@ static void __paginginit free_area_init_core(str=
-uct pglist_data *pgdat,
->>                * is used by this zone for memmap. This affects the water=
-mark
->>                * and per-cpu initialisations
->>                */
->> -             memmap_pages =3D
->> -                     PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHI=
-FT;
->> -             if (realsize >=3D memmap_pages) {
->> -                     realsize -=3D memmap_pages;
->> -                     if (memmap_pages)
->> -                             printk(KERN_DEBUG
->> -                                    "  %s zone: %lu pages used for memm=
-ap\n",
->> -                                    zone_names[j], memmap_pages);
->> -             } else
->> -                     printk(KERN_WARNING
->> -                             "  %s zone: %lu pages exceeds realsize %lu=
-\n",
->> -                             zone_names[j], memmap_pages, realsize);
->> +             if (j < ZONE_HIGHMEM) {
->> +                     memmap_pages =3D
->> +                             PAGE_ALIGN(size * sizeof(struct page)) >> =
-PAGE_SHIFT;
->> +                     if (realsize >=3D memmap_pages) {
->> +                             realsize -=3D memmap_pages;
->> +                             if (memmap_pages)
->> +                                     printk(KERN_DEBUG
->> +                                                     "  %s zone: %lu pa=
-ges used for memmap\n",
->> +                                                     zone_names[j], mem=
-map_pages);
->> +                     } else
->> +                             printk(KERN_WARNING
->> +                                             "  %s zone: %lu pages exce=
-eds realsize %lu\n",
->> +                                             zone_names[j], memmap_page=
-s, realsize);
->> +             }
->>
->>               /* Account for reserved pages */
->>               if (j =3D=3D 0 && realsize > dma_reserve) {
->> @@ -6143,3 +6149,22 @@ void dump_page(struct page *page)
->>       dump_page_flags(page->flags);
->>       mem_cgroup_print_bad_page(page);
->>  }
->> +
->> +/* reset zone->present_pages to 0 for zones below ZONE_HIGHMEM */
->> +void reset_lowmem_zone_present_pages_pernode(pg_data_t *pgdat)
->> +{
->> +     int i;
->> +     struct zone *z;
->> +     for (i =3D 0; i < ZONE_HIGHMEM; i++) {
->> +             z =3D pgdat->node_zones + i;
->> +             z->present_pages =3D 0;
->> +     }
->> +}
->> +
->> +void reset_lowmem_zone_present_pages(void)
->> +{
->> +     int nid;
->> +
->> +     for_each_node_state(nid, N_HIGH_MEMORY)
->> +             reset_lowmem_zone_present_pages_pernode(NODE_DATA(nid));
->> +}
->
->
+> On Tue, 20 Nov 2012, Ingo Molnar wrote:
+> 
+> > > > numa/core at ec05a2311c35 ("Merge branch 'sched/urgent' into 
+> > > > sched/core") had an average throughput of 136918.34 
+> > > > SPECjbb2005 bops, which is a 6.3% regression.
+> > > 
+> > > perftop during the run on numa/core at 01aa90068b12 ("sched: 
+> > > Use the best-buddy 'ideal cpu' in balancing decisions"):
+> > > 
+> > >     15.99%  [kernel]  [k] page_fault                         
+> > >      4.05%  [kernel]  [k] getnstimeofday                     
+> > >      3.96%  [kernel]  [k] _raw_spin_lock                     
+> > >      3.20%  [kernel]  [k] rcu_check_callbacks                
+> > >      2.93%  [kernel]  [k] generic_smp_call_function_interrupt
+> > >      2.90%  [kernel]  [k] __do_page_fault                    
+> > >      2.82%  [kernel]  [k] ktime_get                          
+> > 
+> > Thanks for testing, that's very interesting - could you tell me 
+> > more about exactly what kind of hardware this is? I'll try to 
+> > find a similar system and reproduce the performance regression.
+> > 
+> 
+> This happened to be an Opteron (but not 83xx series), 2.4Ghz.  
 
---=20
-Regards,
---Bob
+Ok - roughly which family/model from /proc/cpuinfo?
+
+> Your benchmarks were different in the number of cores but also 
+> in the amount of memory, do you think numa/core would regress 
+> because this is 32GB and not 64GB?
+
+I'd not expect much sensitivity to RAM size.
+
+> > (A wild guess would be an older 4x Opteron system, 83xx 
+> > series or so?)
+> 
+> Just curious, how you would guess that? [...]
+
+I'm testing numa/core on many systems and the performance 
+figures seemed to roughly map to that range.
+
+> [...]  Is there something about Opteron 83xx that make 
+> numa/core regress?
+
+Not that I knew of - but apparently there is! I'll try to find a 
+system that matches yours as closely as possible and have a 
+look.
+
+> > Also, the profile looks weird to me. Here is how perf top looks 
+> > like on my system during a similarly configured, "healthy" 
+> > SPECjbb run:
+> > 
+> >  91.29%  perf-6687.map            [.] 0x00007fffed1e8f21
+> >   4.81%  libjvm.so                [.] 0x00000000007004a0
+> >   0.93%  [vdso]                   [.] 0x00007ffff7ffe60c
+> >   0.72%  [kernel]                 [k] do_raw_spin_lock
+> >   0.36%  [kernel]                 [k] generic_smp_call_function_interrupt
+> >   0.10%  [kernel]                 [k] format_decode
+> >   0.07%  [kernel]                 [k] rcu_check_callbacks
+> >   0.07%  [kernel]                 [k] apic_timer_interrupt
+> >   0.07%  [kernel]                 [k] call_function_interrupt
+> >   0.06%  libc-2.15.so             [.] __strcmp_sse42
+> >   0.06%  [kernel]                 [k] irqtime_account_irq
+> >   0.06%  perf                     [.] 0x000000000004bb7c
+> >   0.05%  [kernel]                 [k] x86_pmu_disable_all
+> >   0.04%  libc-2.15.so             [.] __memcpy_ssse3
+> >   0.04%  [kernel]                 [k] ktime_get
+> >   0.04%  [kernel]                 [k] account_group_user_time
+> >   0.03%  [kernel]                 [k] vbin_printf
+> > 
+> > and that is what SPECjbb does: it spends 97% of its time in Java 
+> > code - yet there's no Java overhead visible in your profile - 
+> > how is that possible? Could you try a newer perf on that box:
+> > 
+> 
+> It's perf top -U, the benchmark itself was unchanged so I 
+> didn't think it was interesting to gather the user symbols.  
+> If that would be helpful, let me know!
+
+Yeah, regular perf top output would be very helpful to get a 
+general sense of proportion. Thanks!
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
