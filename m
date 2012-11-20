@@ -1,263 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 663186B005D
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 10:29:40 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so2922392bkc.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 07:29:38 -0800 (PST)
-Date: Tue, 20 Nov 2012 16:29:33 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH] mm, numa: Turn 4K pte NUMA faults into effective hugepage
- ones
-Message-ID: <20121120152933.GA17996@gmail.com>
-References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
- <20121119162909.GL8218@suse.de>
- <20121119191339.GA11701@gmail.com>
- <20121119211804.GM8218@suse.de>
- <20121119223604.GA13470@gmail.com>
- <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
- <20121120071704.GA14199@gmail.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 2EFBA6B006C
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 10:38:47 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id fl17so7945489vcb.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 07:38:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121120071704.GA14199@gmail.com>
+In-Reply-To: <20121116200616.GK8218@suse.de>
+References: <20121015110937.GE29125@suse.de>
+	<5093A3F4.8090108@redhat.com>
+	<5093A631.5020209@suse.cz>
+	<509422C3.1000803@suse.cz>
+	<509C84ED.8090605@linux.vnet.ibm.com>
+	<509CB9D1.6060704@redhat.com>
+	<20121109090635.GG8218@suse.de>
+	<509F6C2A.9060502@redhat.com>
+	<20121112113731.GS8218@suse.de>
+	<CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
+	<20121116200616.GK8218@suse.de>
+Date: Tue, 20 Nov 2012 10:38:45 -0500
+Message-ID: <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com>
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+From: Josh Boyer <jwboyer@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Thorsten Leemhuis <fedora@leemhuis.info>, bruno@wolff.to
 
+On Fri, Nov 16, 2012 at 3:06 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Fri, Nov 16, 2012 at 02:14:47PM -0500, Josh Boyer wrote:
+>> On Mon, Nov 12, 2012 at 6:37 AM, Mel Gorman <mgorman@suse.de> wrote:
+>> > With "mm: vmscan: scale number of pages reclaimed by reclaim/compaction
+>> > based on failures" reverted, Zdenek Kabelac reported the following
+>> >
+>> >         Hmm,  so it's just took longer to hit the problem and observe
+>> >         kswapd0 spinning on my CPU again - it's not as endless like before -
+>> >         but still it easily eats minutes - it helps to  turn off  Firefox
+>> >         or TB  (memory hungry apps) so kswapd0 stops soon - and restart
+>> >         those apps again.  (And I still have like >1GB of cached memory)
+>> >
+>> >         kswapd0         R  running task        0    30      2 0x00000000
+>> >          ffff8801331efae8 0000000000000082 0000000000000018 0000000000000246
+>> >          ffff880135b9a340 ffff8801331effd8 ffff8801331effd8 ffff8801331effd8
+>> >          ffff880055dfa340 ffff880135b9a340 00000000331efad8 ffff8801331ee000
+>> >         Call Trace:
+>> >          [<ffffffff81555bf2>] preempt_schedule+0x42/0x60
+>> >          [<ffffffff81557a95>] _raw_spin_unlock+0x55/0x60
+>> >          [<ffffffff81192971>] put_super+0x31/0x40
+>> >          [<ffffffff81192a42>] drop_super+0x22/0x30
+>> >          [<ffffffff81193b89>] prune_super+0x149/0x1b0
+>> >          [<ffffffff81141e2a>] shrink_slab+0xba/0x510
+>> >
+>> > The sysrq+m indicates the system has no swap so it'll never reclaim
+>> > anonymous pages as part of reclaim/compaction. That is one part of the
+>> > problem but not the root cause as file-backed pages could also be reclaimed.
+>> >
+>> > The likely underlying problem is that kswapd is woken up or kept awake
+>> > for each THP allocation request in the page allocator slow path.
+>> >
+>> > If compaction fails for the requesting process then compaction will be
+>> > deferred for a time and direct reclaim is avoided. However, if there
+>> > are a storm of THP requests that are simply rejected, it will still
+>> > be the the case that kswapd is awake for a prolonged period of time
+>> > as pgdat->kswapd_max_order is updated each time. This is noticed by
+>> > the main kswapd() loop and it will not call kswapd_try_to_sleep().
+>> > Instead it will loopp, shrinking a small number of pages and calling
+>> > shrink_slab() on each iteration.
+>> >
+>> > The temptation is to supply a patch that checks if kswapd was woken for
+>> > THP and if so ignore pgdat->kswapd_max_order but it'll be a hack and not
+>> > backed up by proper testing. As 3.7 is very close to release and this is
+>> > not a bug we should release with, a safer path is to revert "mm: remove
+>> > __GFP_NO_KSWAPD" for now and revisit it with the view to ironing out the
+>> > balance_pgdat() logic in general.
+>> >
+>> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+>>
+>> Does anyone know if this is queued to go into 3.7 somewhere?  I looked
+>> a bit and can't find it in a tree.  We have a few reports of Fedora
+>> rawhide users hitting this.
+>>
+>
+> No, because I was waiting to hear if a) it worked and preferably if the
+> alternative "less safe" option worked. This close to release it might be
+> better to just go with the safe option.
 
-* Ingo Molnar <mingo@kernel.org> wrote:
+We've been tracking it in https://bugzilla.redhat.com/show_bug.cgi?id=866988
+and people say this revert patch doesn't seem to make the issue go away
+fully.  Thorsten has created another kernel with the other patch applied
+for testing.
 
-> * Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> 
-> > On Mon, Nov 19, 2012 at 12:36 PM, Ingo Molnar <mingo@kernel.org> wrote:
-> > >
-> > > Hugepages is a must for most forms of NUMA/HPC. This alone
-> > > questions the relevance of most of your prior numa/core testing
-> > > results. I now have to strongly dispute your other conclusions
-> > > as well.
-> > 
-> > Ingo, stop doing this kind of crap.
-> > 
-> > Let's make it clear: if the NUMA patches continue to regress 
-> > performance for reasonable loads (and that very much includes 
-> > "no THP") then they won't be merged.
-> [...]
-> 
-> No doubt numa/core should not regress with THP off or on and 
-> I'll fix that.
+At least I think that is the latest status from the bug.  Hopefully the
+commenters will chime in.
 
-Once it was clear how Mel's workload was configured I could 
-reproduce it immediately myself as well and the fix was easy and 
-straightforward: the attached patch should do the trick.
-
-(Lightly tested.)
-
-Updated 32-warehouse SPECjbb test benchmarks on a 4x4 64 GB 
-system:
-
-         mainline:                 395 k/sec
-         numa/core +patch:         512 k/sec     [ +29.6% ]
-
-         mainline +THP:            524 k/sec
-         numa/core +patch +THP:    654 k/sec     [ +24.8% ]
-
-So here on my box the reported 32-warehouse SPECjbb regressions 
-are fixed to the best of my knowledge, and numa/core is now a 
-nice unconditional speedup over mainline.
-
-CONFIG_NUMA_BALANCING=y brings roughly as much of a speedup to 
-mainline as CONFIG_TRANSPARENT_HUGEPAGE=y itself - and the 
-combination of the two features brings roughly a combination of 
-speedups: +65%, which looks pretty impressive.
-
-This fix had no impact on the good "+THP +NUMA" results that 
-were reproducible with -v16 already.
-
-Mel, David, could you give this patch too a whirl? It should 
-improve !THP workloads.
-
-( The 4x JVM regression is still an open bug I think - I'll
-  re-check and fix that one next, no need to re-report it,
-  I'm on it. )
-
-Thanks,
-
-	Ingo
-
-
------------------------------>
-Subject: mm, numa: Turn 4K pte NUMA faults into effective hugepage ones
-From: Ingo Molnar <mingo@kernel.org>
-Date: Tue Nov 20 15:48:26 CET 2012
-
-Reduce the 4K page fault count by looking around and processing
-nearby pages if possible.
-
-To keep the logic simple and straightforward we do a couple of 
-simplifications:
-
- - we only scan in the HPAGE_SIZE range of the faulting address
- - we only go as far as the vma allows us
-
-Also simplify the do_numa_page() flow while at it and fix the 
-previous double faulting we incurred due to not properly fixing 
-up freshly migrated ptes.
-
-Suggested-by: Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
----
- mm/memory.c |  101 +++++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 66 insertions(+), 35 deletions(-)
-
-Index: linux/mm/memory.c
-===================================================================
---- linux.orig/mm/memory.c
-+++ linux/mm/memory.c
-@@ -3455,64 +3455,94 @@ static int do_nonlinear_fault(struct mm_
- 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
- }
- 
--static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+static int __do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long address, pte_t *ptep, pmd_t *pmd,
--			unsigned int flags, pte_t entry)
-+			unsigned int flags, pte_t entry, spinlock_t *ptl)
- {
--	struct page *page = NULL;
--	int node, page_nid = -1;
--	int last_cpu = -1;
--	spinlock_t *ptl;
--
--	ptl = pte_lockptr(mm, pmd);
--	spin_lock(ptl);
--	if (unlikely(!pte_same(*ptep, entry)))
--		goto out_unlock;
-+	struct page *page;
-+	int new_node;
- 
- 	page = vm_normal_page(vma, address, entry);
- 	if (page) {
--		get_page(page);
--		page_nid = page_to_nid(page);
--		last_cpu = page_last_cpu(page);
--		node = mpol_misplaced(page, vma, address);
--		if (node != -1 && node != page_nid)
-+		int page_nid = page_to_nid(page);
-+		int last_cpu = page_last_cpu(page);
-+
-+		new_node = mpol_misplaced(page, vma, address);
-+		if (new_node != -1 && new_node != page_nid)
- 			goto migrate;
-+		task_numa_fault(page_nid, last_cpu, 1);
- 	}
- 
--out_pte_upgrade_unlock:
-+out_pte_upgrade:
- 	flush_cache_page(vma, address, pte_pfn(entry));
--
- 	ptep_modify_prot_start(mm, address, ptep);
- 	entry = pte_modify(entry, vma->vm_page_prot);
-+	if (pte_dirty(entry))
-+		entry = pte_mkwrite(entry);
- 	ptep_modify_prot_commit(mm, address, ptep, entry);
--
- 	/* No TLB flush needed because we upgraded the PTE */
--
- 	update_mmu_cache(vma, address, ptep);
--
--out_unlock:
--	pte_unmap_unlock(ptep, ptl);
--
--	if (page) {
--		task_numa_fault(page_nid, last_cpu, 1);
--		put_page(page);
--	}
- out:
- 	return 0;
- 
- migrate:
-+	get_page(page);
- 	pte_unmap_unlock(ptep, ptl);
- 
--	if (migrate_misplaced_page(page, node)) {
-+	migrate_misplaced_page(page, new_node);
-+
-+	/* Re-check after migration: */
-+
-+	ptl = pte_lockptr(mm, pmd);
-+	spin_lock(ptl);
-+	entry = ACCESS_ONCE(*ptep);
-+
-+	if (!pte_numa(vma, entry))
- 		goto out;
--	}
--	page = NULL;
- 
--	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
--	if (!pte_same(*ptep, entry))
--		goto out_unlock;
-+	page = vm_normal_page(vma, address, entry);
-+	goto out_pte_upgrade;
-+}
- 
--	goto out_pte_upgrade_unlock;
-+/*
-+ * Add a simple loop to also fetch ptes within the same pmd:
-+ */
-+static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long addr0, pte_t *ptep0, pmd_t *pmd,
-+			unsigned int flags, pte_t entry0)
-+{
-+	unsigned long addr0_pmd = addr0 & PMD_MASK;
-+	unsigned long addr_start;
-+	unsigned long addr;
-+	spinlock_t *ptl;
-+	int entries = 0;
-+	pte_t *ptep;
-+
-+	addr_start = max(addr0_pmd, vma->vm_start);
-+	ptep = pte_offset_map(pmd, addr_start);
-+
-+	ptl = pte_lockptr(mm, pmd);
-+	spin_lock(ptl);
-+
-+	for (addr = addr_start; addr < vma->vm_end; addr += PAGE_SIZE, ptep++) {
-+ 		pte_t entry;
-+
-+		entry = ACCESS_ONCE(*ptep);
-+
-+		if ((addr & PMD_MASK) != addr0_pmd)
-+			break;
-+		if (!pte_present(entry))
-+			continue;
-+		if (!pte_numa(vma, entry))
-+			continue;
-+
-+		__do_numa_page(mm, vma, addr, ptep, pmd, flags, entry, ptl);
-+		entries++;
-+	}
-+
-+	pte_unmap_unlock(ptep, ptl);
-+	
-+	return 0;
- }
- 
- /*
-@@ -3536,6 +3566,7 @@ int handle_pte_fault(struct mm_struct *m
- 	spinlock_t *ptl;
- 
- 	entry = ACCESS_ONCE(*pte);
-+
- 	if (!pte_present(entry)) {
- 		if (pte_none(entry)) {
- 			if (vma->vm_ops) {
+josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
