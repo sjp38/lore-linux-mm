@@ -1,118 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 0FAD66B004D
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 18:01:36 -0500 (EST)
-Received: by mail-lb0-f169.google.com with SMTP id gk1so6116590lbb.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 15:01:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121120094132.GA15156@gmail.com>
-References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
- <20121119162909.GL8218@suse.de> <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com>
- <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com>
- <20121120060014.GA14065@gmail.com> <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
- <20121120074445.GA14539@gmail.com> <alpine.DEB.2.00.1211200001420.16449@chino.kir.corp.google.com>
- <20121120090637.GA14873@gmail.com> <20121120094132.GA15156@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 20 Nov 2012 15:01:13 -0800
-Message-ID: <CALCETrVVQXbHvWaT9HLHgk6cbMT9EHGrsGJptVS+66OMDmnGYA@mail.gmail.com>
-Subject: Re: [patch] x86/vsyscall: Add Kconfig option to use native vsyscalls,
- switch to it
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id DC8A26B006C
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 18:29:47 -0500 (EST)
+Date: Tue, 20 Nov 2012 15:29:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v11 7/7] mm: add vm event counters for balloon pages
+ compaction
+Message-Id: <20121120152946.823cd2d9.akpm@linux-foundation.org>
+In-Reply-To: <20121109145829.GC4308@optiplex.redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
+	<8dde7996f3e36a5efbe569afe1aadfc84355e79e.1352256088.git.aquini@redhat.com>
+	<20121109122033.GR3886@csn.ul.ie>
+	<20121109145829.GC4308@optiplex.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Tue, Nov 20, 2012 at 1:41 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Ingo Molnar <mingo@kernel.org> wrote:
->
->> >      0.10%  [kernel]          [k] __do_page_fault
->> >      0.08%  [kernel]          [k] handle_mm_fault
->> >      0.08%  libjvm.so         [.] os::javaTimeMillis()
->> >      0.08%  [kernel]          [k] emulate_vsyscall
->>
->> Oh, finally a clue: you seem to have vsyscall emulation
->> overhead!
->>
->> Vsyscall emulation is fundamentally page fault driven - which
->> might explain why you are seeing page fault overhead. It might
->> also interact with other sources of faults - such as
->> numa/core's working set probing ...
->>
->> Many JVMs try to be smart with the vsyscall. As a test, does
->> the vsyscall=native boot option change the results/behavior in
->> any way?
->
-> As a blind shot into the dark, does the attached patch help?
->
-> If that's the root cause then it should measurably help mainline
-> SPECjbb performance as well. It could turn numa/core from a
-> regression into a win on your system.
->
-> Thanks,
->
->         Ingo
->
-> ----------------->
-> Subject: x86/vsyscall: Add Kconfig option to use native vsyscalls, switch to it
-> From: Ingo Molnar <mingo@kernel.org>
->
-> Apparently there's still plenty of systems out there triggering
-> the vsyscall emulation page faults - causing hard to track down
-> performance regressions on page fault intense workloads...
->
-> Some people seem to have run into that with threading-intense
-> Java workloads.
->
-> So until there's a better solution to this, add a Kconfig switch
-> to make the vsyscall mode configurable and turn native vsyscall
-> support back on by default.
->
+On Fri, 9 Nov 2012 12:58:29 -0200
+Rafael Aquini <aquini@redhat.com> wrote:
 
-I'm not sure the default should be changed.  Presumably only a
-smallish minority of users are affected, and all of their code still
-*works* -- it's just a little bit slower.
+> On Fri, Nov 09, 2012 at 12:20:33PM +0000, Mel Gorman wrote:
+> > On Wed, Nov 07, 2012 at 01:05:54AM -0200, Rafael Aquini wrote:
+> > > This patch introduces a new set of vm event counters to keep track of
+> > > ballooned pages compaction activity.
+> > > 
+> > > Signed-off-by: Rafael Aquini <aquini@redhat.com>
+> > 
+> > Other than confirming the thing actually works can any meaningful
+> > conclusions be drawn from this counters?
+> > 
+> > I know I have been inconsistent on this myself in the past but recently
+> > I've been taking the attitude that the counters can be used to fit into
+> > some other metric. I'm looking to change the compaction counters to be
+> > able to build a basic cost model for example. The same idea could be
+> > used for balloons of course but it's a less critical path than
+> > compaction for THP for example.
+> > 
+> > Assuming it builds and all the defines are correct when the feature is
+> > not configured (I didn't check) then there is nothing wrong with the
+> > patch. However, if it was dropped would it make life very hard or would
+> > you notice?
+> > 
+> 
+> Originally, I proposed this patch as droppable (and it's still droppable)
+> because its major purpose was solely to show the thing working consistently
+> 
+> OTOH, it might make the life easier to spot breakages if it remains with the
+> merged bits, and per a reviewer request I removed its 'DROP BEFORE MERGE'
+> disclaimer.
+> 
+>    https://lkml.org/lkml/2012/8/8/616
 
->
-> +config X86_VSYSCALL_COMPAT
-> +       bool "vsyscall compatibility"
-> +       default y
-> +       help
+There's a lot to be said for not merging things.
 
-This is IMO misleading.  Perhaps the option should be
-X86_VSYSCALL_EMULATION.  A description like "compatibility" makes
-turning it on sound like a no-brainer.
-
-Perhaps the vsyscall emulation code should be tweaked to warn if it's
-getting called more than, say, 1k times per second.  The kernel could
-log something like "Detected large numbers of emulated vsyscalls.
-Consider upgading, setting vsyscall=native, or adjusting
-CONFIG_X86_WHATEVER."
-
-
-> +         vsyscalls, as global executable pages, can be a security hole
-> +         escallation helper by exposing an easy shell code target with
-
-escalation?
-
-> +         a predictable address.
-> +
-> +         Many versions of glibc rely on the vsyscall page though, so it
-> +         cannot be eliminated unconditionally. If you disable this
-> +         option these systems will still work but might incur the overhead
-> +         of vsyscall emulation page faults.
-> +
-> +         The vsyscall=none, vsyscall=emulate, vsyscall=native kernel boot
-> +         option can be used to override this mode as well.
-> +
-> +         Keeping this option enabled leaves the vsyscall page enabled,
-> +         i.e. vsyscall=native. Disabling this option means vsyscall=emulate.
-> +
-> +         If unsure, say Y.
-> +
-
---Andy
+I think I'll maintain this as a mm-only patch.  That way it's
+available in linux-next and we can merge it later if a need arises.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
