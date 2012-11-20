@@ -1,93 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 460056B0070
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 17:29:30 -0500 (EST)
-Date: Tue, 20 Nov 2012 14:29:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PART4 Patch v2 2/2] memory_hotplug: allow online/offline
- memory to result movable node
-Message-Id: <20121120142928.0aaf8fc8.akpm@linux-foundation.org>
-In-Reply-To: <1353067090-19468-3-git-send-email-wency@cn.fujitsu.com>
-References: <1353067090-19468-1-git-send-email-wency@cn.fujitsu.com>
-	<1353067090-19468-3-git-send-email-wency@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 0FAD66B004D
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 18:01:36 -0500 (EST)
+Received: by mail-lb0-f169.google.com with SMTP id gk1so6116590lbb.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 15:01:34 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20121120094132.GA15156@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de> <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com>
+ <20121120060014.GA14065@gmail.com> <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
+ <20121120074445.GA14539@gmail.com> <alpine.DEB.2.00.1211200001420.16449@chino.kir.corp.google.com>
+ <20121120090637.GA14873@gmail.com> <20121120094132.GA15156@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 20 Nov 2012 15:01:13 -0800
+Message-ID: <CALCETrVVQXbHvWaT9HLHgk6cbMT9EHGrsGJptVS+66OMDmnGYA@mail.gmail.com>
+Subject: Re: [patch] x86/vsyscall: Add Kconfig option to use native vsyscalls,
+ switch to it
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rob Landley <rob@landley.net>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, 16 Nov 2012 19:58:10 +0800
-Wen Congyang <wency@cn.fujitsu.com> wrote:
-
-> From: Lai Jiangshan <laijs@cn.fujitsu.com>
-> 
-> Now, memory management can handle movable node or nodes which don't have
-> any normal memory, so we can dynamic configure and add movable node by:
-> 	online a ZONE_MOVABLE memory from a previous offline node
-> 	offline the last normal memory which result a non-normal-memory-node
-> 
-> movable-node is very important for power-saving,
-> hardware partitioning and high-available-system(hardware fault management).
-> 
-> ...
+On Tue, Nov 20, 2012 at 1:41 AM, Ingo Molnar <mingo@kernel.org> wrote:
 >
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -589,11 +589,19 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_MOVABLE_NODE
-> +/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
+> * Ingo Molnar <mingo@kernel.org> wrote:
+>
+>> >      0.10%  [kernel]          [k] __do_page_fault
+>> >      0.08%  [kernel]          [k] handle_mm_fault
+>> >      0.08%  libjvm.so         [.] os::javaTimeMillis()
+>> >      0.08%  [kernel]          [k] emulate_vsyscall
+>>
+>> Oh, finally a clue: you seem to have vsyscall emulation
+>> overhead!
+>>
+>> Vsyscall emulation is fundamentally page fault driven - which
+>> might explain why you are seeing page fault overhead. It might
+>> also interact with other sources of faults - such as
+>> numa/core's working set probing ...
+>>
+>> Many JVMs try to be smart with the vsyscall. As a test, does
+>> the vsyscall=native boot option change the results/behavior in
+>> any way?
+>
+> As a blind shot into the dark, does the attached patch help?
+>
+> If that's the root cause then it should measurably help mainline
+> SPECjbb performance as well. It could turn numa/core from a
+> regression into a win on your system.
+>
+> Thanks,
+>
+>         Ingo
+>
+> ----------------->
+> Subject: x86/vsyscall: Add Kconfig option to use native vsyscalls, switch to it
+> From: Ingo Molnar <mingo@kernel.org>
+>
+> Apparently there's still plenty of systems out there triggering
+> the vsyscall emulation page faults - causing hard to track down
+> performance regressions on page fault intense workloads...
+>
+> Some people seem to have run into that with threading-intense
+> Java workloads.
+>
+> So until there's a better solution to this, add a Kconfig switch
+> to make the vsyscall mode configurable and turn native vsyscall
+> support back on by default.
+>
 
-The comment is hard to understand.  Should it read "When
-CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-normal memory"?
+I'm not sure the default should be changed.  Presumably only a
+smallish minority of users are affected, and all of their code still
+*works* -- it's just a little bit slower.
 
-> +static bool can_online_high_movable(struct zone *zone)
-> +{
-> +	return true;
-> +}
-> +#else /* #ifdef CONFIG_MOVABLE_NODE */
->  /* ensure every online node has NORMAL memory */
->  static bool can_online_high_movable(struct zone *zone)
->  {
->  	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
->  }
-> +#endif /* #ifdef CONFIG_MOVABLE_NODE */
->  
->  /* check which state of node_states will be changed when online memory */
->  static void node_states_check_changes_online(unsigned long nr_pages,
-> @@ -1097,6 +1105,13 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->  	return offlined;
->  }
->  
-> +#ifdef CONFIG_MOVABLE_NODE
-> +/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
+>
+> +config X86_VSYSCALL_COMPAT
+> +       bool "vsyscall compatibility"
+> +       default y
+> +       help
 
-Ditto, after replacing "online" with offlining".
+This is IMO misleading.  Perhaps the option should be
+X86_VSYSCALL_EMULATION.  A description like "compatibility" makes
+turning it on sound like a no-brainer.
 
-> +static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
-> +{
-> +	return true;
-> +}
-> +#else /* #ifdef CONFIG_MOVABLE_NODE */
->  /* ensure the node has NORMAL memory if it is still online */
->  static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
->  {
-> @@ -1120,6 +1135,7 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
->  	 */
->  	return present_pages == 0;
->  }
-> +#endif /* #ifdef CONFIG_MOVABLE_NODE */
+Perhaps the vsyscall emulation code should be tweaked to warn if it's
+getting called more than, say, 1k times per second.  The kernel could
+log something like "Detected large numbers of emulated vsyscalls.
+Consider upgading, setting vsyscall=native, or adjusting
+CONFIG_X86_WHATEVER."
 
-Please, spend more time over the accuracy and completeness of the
-changelog and comments?  That will result in better and more
-maintainable code.  And it results in *much* more effective code
-reviewing.
 
+> +         vsyscalls, as global executable pages, can be a security hole
+> +         escallation helper by exposing an easy shell code target with
+
+escalation?
+
+> +         a predictable address.
+> +
+> +         Many versions of glibc rely on the vsyscall page though, so it
+> +         cannot be eliminated unconditionally. If you disable this
+> +         option these systems will still work but might incur the overhead
+> +         of vsyscall emulation page faults.
+> +
+> +         The vsyscall=none, vsyscall=emulate, vsyscall=native kernel boot
+> +         option can be used to override this mode as well.
+> +
+> +         Keeping this option enabled leaves the vsyscall page enabled,
+> +         i.e. vsyscall=native. Disabling this option means vsyscall=emulate.
+> +
+> +         If unsure, say Y.
+> +
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
