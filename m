@@ -1,53 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id B94B16B0072
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 23:23:55 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D72B23EE0BD
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:53 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 75FBD45DEBA
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5967145DEB6
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:53 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 40FFB1DB803E
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:53 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id EA4391DB803B
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:23:52 +0900 (JST)
-Message-ID: <50AB05B4.4000303@jp.fujitsu.com>
-Date: Tue, 20 Nov 2012 13:23:16 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [patch] mm, memcg: avoid unnecessary function call when memcg
- is disabled
-References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 395056B0074
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 00:52:18 -0500 (EST)
+Date: Mon, 19 Nov 2012 21:52:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC 3/3] man-pages: Add man page for vmpressure_fd(2)
+Message-Id: <20121119215211.6370ac3b.akpm@linux-foundation.org>
+In-Reply-To: <20121107110152.GC30462@lizard>
+References: <20121107105348.GA25549@lizard>
+	<20121107110152.GC30462@lizard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Mel Gorman <mgorman@suse.de>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-(2012/11/20 10:44), David Rientjes wrote:
-> While profiling numa/core v16 with cgroup_disable=memory on the command
-> line, I noticed mem_cgroup_count_vm_event() still showed up as high as
-> 0.60% in perftop.
->
-> This occurs because the function is called extremely often even when memcg
-> is disabled.
->
-> To fix this, inline the check for mem_cgroup_disabled() so we avoid the
-> unnecessary function call if memcg is disabled.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Wed, 7 Nov 2012 03:01:52 -0800 Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
 
-Acked-By: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>        Upon  these  notifications,  userland programs can cooperate with
+>        the kernel, achieving better system's memory management.
 
+Well I read through the whole thread and afaict the above is the only
+attempt to describe why this patchset exists!
 
+How about we step away from implementation details for a while and
+discuss observed problems, use-cases, requirements and such?  What are
+we actually trying to achieve here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
