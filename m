@@ -1,88 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 7F2AE6B006C
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 19:01:35 -0500 (EST)
-Date: Tue, 20 Nov 2012 09:01:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
- approaches low water mark
-Message-ID: <20121120000137.GC447@bbox>
-References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id BD6156B006C
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 19:41:43 -0500 (EST)
+Message-ID: <50AAD1AC.7090209@redhat.com>
+Date: Mon, 19 Nov 2012 19:41:16 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org> <20121119162909.GL8218@suse.de> <20121119191339.GA11701@gmail.com> <20121119211804.GM8218@suse.de> <20121119223604.GA13470@gmail.com> <20121119230034.GO8218@suse.de>
+In-Reply-To: <20121119230034.GO8218@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Hi Marek,
+On 11/19/2012 06:00 PM, Mel Gorman wrote:
+> On Mon, Nov 19, 2012 at 11:36:04PM +0100, Ingo Molnar wrote:
+>>
+>> * Mel Gorman <mgorman@suse.de> wrote:
+>>
+>>> Ok.
+>>>
+>>> In response to one of your later questions, I found that I had
+>>> in fact disabled THP without properly reporting it. [...]
+>>
+>> Hugepages is a must for most forms of NUMA/HPC.
+>
+> Requiring huge pages to avoid a regression is a mistake.
 
-On Mon, Nov 12, 2012 at 09:59:42AM +0100, Marek Szyprowski wrote:
-> It has been observed that system tends to keep a lot of CMA free pages
-> even in very high memory pressure use cases. The CMA fallback for movable
+Not all architectures support THP.  Not all workloads will end up
+using THP effectively.
 
-CMA free pages are just fallback for movable pages so if user requires many
-user pages, it ends up consuming cma free pages after out of movable pages.
-What do you mean that system tend to keep free pages even in very
-high memory pressure?
-
-> pages is used very rarely, only when system is completely pruned from
-> MOVABLE pages, what usually means that the out-of-memory even will be
-> triggered very soon. To avoid such situation and make better use of CMA
-
-Why does OOM is triggered very soon if movable pages are burned out while
-there are many cma pages?
-
-It seems I can't understand your point quitely.
-Please make your problem clear for silly me to understand clearly.
-
-Thanks.
-
-> pages, a heuristics is introduced which turns on CMA fallback for movable
-> pages when the real number of free pages (excluding CMA free pages)
-> approaches low water mark.
-> 
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Reviewed-by: Kyungmin Park <kyungmin.park@samsung.com>
-> CC: Michal Nazarewicz <mina86@mina86.com>
-> ---
->  mm/page_alloc.c |    9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index fcb9719..90b51f3 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1076,6 +1076,15 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
->  {
->  	struct page *page;
->  
-> +#ifdef CONFIG_CMA
-> +	unsigned long nr_free = zone_page_state(zone, NR_FREE_PAGES);
-> +	unsigned long nr_cma_free = zone_page_state(zone, NR_FREE_CMA_PAGES);
-> +
-> +	if (migratetype == MIGRATE_MOVABLE && nr_cma_free &&
-> +	    nr_free - nr_cma_free < 2 * low_wmark_pages(zone))
-> +		migratetype = MIGRATE_CMA;
-> +#endif /* CONFIG_CMA */
-> +
->  retry_reserve:
->  	page = __rmqueue_smallest(zone, order, migratetype);
->  
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Mel, would you have numa/core profiles from !THP runs, so we can
+find out the cause of the regression?
 
 -- 
-Kind regards,
-Minchan Kim
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
