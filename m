@@ -1,24 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 333546B008C
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 08:34:13 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id k14so7465687oag.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 05:34:12 -0800 (PST)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 1B2B06B008A
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 09:12:04 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id 10so10690824ied.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 06:12:03 -0800 (PST)
+Message-ID: <50AB8FAA.50100@gmail.com>
+Date: Tue, 20 Nov 2012 22:11:54 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20121120080427.GA11019@localhost>
-References: <CAGTBQpaDR4+V5b1AwAVyuVLu5rkU=Wc1WeUdLu5ag=WOk5oJzQ@mail.gmail.com>
-	<20121120080427.GA11019@localhost>
-Date: Tue, 20 Nov 2012 10:34:11 -0300
-Message-ID: <CAGTBQpayd-HyH8SWfUCavS7epybcQR5SAx+tr+wyB38__4b-2Q@mail.gmail.com>
 Subject: Re: fadvise interferes with readahead
-From: Claudio Freire <klaussfreire@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <CAGTBQpaDR4+V5b1AwAVyuVLu5rkU=Wc1WeUdLu5ag=WOk5oJzQ@mail.gmail.com> <20121120080427.GA11019@localhost>
+In-Reply-To: <20121120080427.GA11019@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+Cc: Claudio Freire <klaussfreire@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue, Nov 20, 2012 at 5:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+On 11/20/2012 04:04 PM, Fengguang Wu wrote:
+> Hi Claudio,
+>
+> Thanks for the detailed problem description!
+
+Hi Fengguang,
+
+Another question, thanks in advance.
+
+What's the meaning of interleaved reads? If the first process readahead 
+from start ~ start + size - async_size, another process read start + 
+size - aysnc_size + 1, then what will happen? It seems that variable 
+hit_readahead_marker is false, and related codes can't run, where I miss?
+
+Regards,
+Jaegeuk
+
+>
+> On Fri, Nov 09, 2012 at 04:30:32PM -0300, Claudio Freire wrote:
+>> Hi. First of all, I'm not subscribed to this list, so I'd suggest all
+>> replies copy me personally.
+>>
+>> I have been trying to implement some I/O pipelining in Postgres (ie:
+>> read the next data page asynchronously while working on the current
+>> page), and stumbled upon some puzzling behavior involving the
+>> interaction between fadvise and readahead.
+>>
+>> I'm running kernel 3.0.0 (debian testing), on a single-disk system
+>> which, though unsuitable for database workloads, is slow enough to let
+>> me experiment with these read-ahead issues.
+>>
+>> Typical random I/O performance is on the order of between 150 r/s to
+>> 200 r/s (ballpark 7200rpm I'd say), with thoughput around 1.5MB/s.
+>> Sequential I/O can go up to 60MB/s, though it tends to be around 50.
+>>
+>> Now onto the problem. In order to parallelize I/O with computation,
+>> I've made postgres fadvise(willneed) the pages it will read next. How
+>> far ahead is configurable, and I've tested with a number of
+>> configurations.
+>>
+>> The prefetching logic is aware of the OS and pg-specific cache, so it
+>> will only fadvise a block once. fadvise calls will stay 1 (or a
+>> configurable N) real I/O ahead of read calls, and there's no fadvising
+>> of pages that won't be read eventually, in the same order. I checked
+>> with strace.
+>>
+>> However, performance when fadvising drops considerably for a specific
+>> yet common access pattern:
+>>
+>> When a nested loop with two index scans happens, access is random
+>> locally, but eventually whole ranges of a file get read (in this
+>> random order). Think block "1 6 8 100 34 299 3 7 68 24" followed by "2
+>> 4 5 101 298 301". Though random, there are ranges there that can be
+>> merged in one read-request.
+>>
+>> The kernel seems to do the merge by applying some form of readahead,
+>> not sure if it's context, ondemand or adaptive readahead on the 3.0.0
+>> kernel. Anyway, it seems to do readahead, as iostat says:
+>>
+>> Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s
+>> avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+>> sda               0.00     4.40  224.20    2.00     4.16     0.03
+>> 37.86     1.91    8.43    8.00   56.80   4.40  99.44
+>>
+>> (notice the avgrq-sz of 37.8)
+>>
+>> With fadvise calls, the thing looks a lot different:
+>>
+>> Device:         rrqm/s   wrqm/s     r/s     w/s    rMB/s    wMB/s
+>> avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+>> sda               0.00    18.00  226.80    1.00     1.80     0.07
+>> 16.81     4.00   17.52   17.23   82.40   4.39  99.92
+> FYI, there is a readahead tracing/stats patchset that can provide far
+> more accurate numbers about what's going on with readahead, which will
+> help eliminate lots of the guess works here.
+>
+> https://lwn.net/Articles/472798/
+>
+>> Notice the avgrq-sz of 16.8. Assuming it's 512-byte sectors, that's
+>> spot-on with a postgres page (8k). So, fadvise seems to carry out the
+>> requests verbatim, while read manages to merge at least two of them.
+>>
+>> The random nature of reads makes me think the scheduler is failing to
+>> merge the requests in both cases (rrqm/s = 0), because it only looks
+>> at successive requests (I'm only guessing here though).
+> I guess it's not a merging problem, but that the kernel readahead code
+> manages to submit larger IO requests in the first place.
+>
+>> Looking into the kernel code, it seems the problem could be related to
+>> how fadvise works in conjunction with readahead. fadvise seems to call
+>> the function in readahead.c that schedules the asynchornous I/O[0]. It
+>> doesn't seem subject to readahead logic itself[1], which in on itself
+>> doesn't seem bad. But it does, I assume (not knowing the code that
+>> well), prevent readahead logic[2] to eventually see the pattern. It
+>> effectively disables readahead altogether.
+> You are right. If user space does fadvise() and the fadvised pages
+> cover all read() pages, the kernel readahead code will not run at all.
+>
+> So the title is actually a bit misleading. The kernel readahead won't
+> interfere with user space prefetching at all. ;)
+>
+>> This, I theorize, may be because after the fadvise call starts an
+>> async I/O on the page, further reads won't hit readahead code because
+>> of the page cache[3] (!PageUptodate I imagine). Whether this is
+>> desirable or not is not really obvious. In this particular case, doing
+>> fadvise calls in what would seem an optimum way, results in terribly
+>> worse performance. So I'd suggest it's not really that advisable.
 > Yes. The kernel readahead code by design will outperform simple
 > fadvise in the case of clustered random reads. Imagine the access
 > pattern 1, 3, 2, 6, 4, 9. fadvise will trigger 6 IOs literally. While
@@ -37,7 +143,6 @@ On Tue, Nov 20, 2012 at 5:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
 >> would fix this. It's mostly about the testing, in fact. So if someone
 >> can comment or try by themselves, I guess it would really benefit
 >> those relying on fadvise to fix this behavior.
->
 > One possible solution is to try the context readahead at fadvise time
 > to check the existence of history pages and do readahead accordingly.
 >
@@ -45,23 +150,33 @@ On Tue, Nov 20, 2012 at 5:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
 > readahead and user prefetching. The original scheme is, once user
 > space starts its own informed prefetching, kernel readahead will
 > automatically stand out of the way.
-
-I understand that would seem like a reasonable design, but in this
-particular case it doesn't seem to be. I propose that in most cases it
-doesn't really work well as a design decision, to make fadvise work as
-direct I/O. Precisely because fadvise is supposed to be a hint to let
-the kernel make better decisions, and not a request to make the kernel
-stop making decisions.
-
-Any interference so introduced wouldn't be any worse than the
-interference introduced by readahead over reads. I agree, if fadvise
-were to trigger readahead, it could be bad for applications that don't
-read what they say the will. But if cache hits were to simply update
-readahead state, it would only mean that read calls behave the same
-regardless of fadvise calls. I think that's worth pursuing.
-
-I ought to try to prepare a patch for this to illustrate my point. Not
-sure I'll be able to though.
+>
+> Thanks,
+> Fengguang
+>
+>> Additionally, I would welcome any suggestions for ways to mitigate
+>> this problem on current kernels, as the patch I'm working I'd like to
+>> deploy with older kernels. Even if the latest kernel had this behavior
+>> fixed, I'd still welcome some workarounds.
+>>
+>> More details on the benchmarks I've run can be found in the postgresql
+>> dev ML archive[4].
+>>
+>> [0] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=blob;f=mm/fadvise.c#l95
+>> [1] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=blob;f=mm/readahead.c#l211
+>> [2] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=blob;f=mm/readahead.c#l398
+>> [3] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=blob;f=mm/filemap.c#l1081
+>> [4] http://archives.postgresql.org/pgsql-hackers/2012-10/msg01139.php
+>> --
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
