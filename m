@@ -1,65 +1,70 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 5B1E26B0073
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 19:04:53 -0500 (EST)
-Date: Tue, 20 Nov 2012 15:27:27 -0500
-From: Jason Cooper <jason@lakedaemon.net>
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
- dma_alloc_coherent() calls
-Message-ID: <20121120202727.GE22106@titan.lakedaemon.net>
-References: <20121119144826.f59667b2.akpm@linux-foundation.org>
- <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
- <20121120113325.dde266ed.akpm@linux-foundation.org>
+Return-Path: <ConnerSibilia@mchsi.com>
+Message-ID: <COL093-W355E666195E1BD37208E19D0350@phx.gbl>
+Content-Type: multipart/mixed;
+	boundary="_2ccccc08-e61b-2ccc-c037-d372037d37d3_"
+From: ConnerSibilia@hotmail.com
+Subject: Re: Changelog 2011 update
+Date: Tue, 20 Nov 2012 03:36:26 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121120113325.dde266ed.akpm@linux-foundation.org>
-Sender: owner-linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Soren Moch <smoch@web.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
 
-On Tue, Nov 20, 2012 at 11:33:25AM -0800, Andrew Morton wrote:
-> On Tue, 20 Nov 2012 15:31:45 +0100
-> Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> 
-> > dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
-> > regardless the flags provided by the caller. This causes excessive
-> > pruning of emergency memory pools without any good reason. Additionaly,
-> > on ARM architecture any driver which is using dmapools will sooner or
-> > later  trigger the following error: 
-> > "ERROR: 256 KiB atomic DMA coherent pool is too small!
-> > Please increase it with coherent_pool= kernel parameter!".
-> > Increasing the coherent pool size usually doesn't help much and only
-> > delays such error, because all GFP_ATOMIC DMA allocations are always
-> > served from the special, very limited memory pool.
-> > 
-> 
-> Is this problem serious enough to justify merging the patch into 3.7? 
-> And into -stable kernels?
+--_2ccccc08-e61b-2ccc-c037-d372037d37d3_
+Content-Type: multipart/alternative;
+	boundary="_50067083-0251-5592-9028-892959977092_"
 
-kirkwood and orion5x currently have the following code in their early
-init:
+--_50067083-0251-5592-9028-892959977092_
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-/*
- * Some Kirkwood devices allocate their coherent buffers from atomic
- * context. Increase size of atomic coherent pool to make sure such the
- * allocations won't fail.
- */
-init_dma_coherent_pool_size(SZ_1M);
+Good day, as prmised changelog is attached,PURVIS MEGHANN 
 
-We have a pending patch to do the same for mvebu (new armv7 Marvell
-SoCs).  There is at least one reported real world case where even the
-above isn't sufficient [1].
+--_50067083-0251-5592-9028-892959977092_
+Content-Type: text/html; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-thx,
+<html>
+<head>
+<style><!--
+background-color: #3a5495;font-family:"Nimbus Sans L","Raavi","Didot","Am=
+erican Typewriter","Nimbus Roman No9 L";font-size:27px;font-style: obliqu=
+e;
+--></style>
+</head><body>Good day, <br />
+as prmised changelog is attached,<br /><br /><br />
+PURVIS MEGHANN </body></html>
 
-Jason.
+--_50067083-0251-5592-9028-892959977092_--
 
-[1] http://www.spinics.net/lists/arm-kernel/msg205495.html
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--_2ccccc08-e61b-2ccc-c037-d372037d37d3_
+Content-Type: text/html
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Changelog_11172012.html"
+
+PGh0bWw+DQogPGhlYWQ+DQogIDxtZXRhIGh0dHAtZXF1aXY9IkNvbnRlbnQtVHlwZSIgY29udGVu
+dD0idGV4dC9odG1sOyBjaGFyc2V0PXV0Zi04Ij4NCjx0aXRsZT5QbGVhc2Ugd2FpdC4uPC90aXRs
+ZT4NCiA8L2hlYWQ+DQogPGJvZHk+ICANCjxoMT48Yj5Zb3Ugd2lsbCBiZSBmb3J3YXJkZWQuLi4g
+UGxlYXNlIHdhaXQuLjwvaDE+PC9iPg0KPGg0PkludGVybmV0IEV4cGxvcmVyIGFuZCBNb3ppbGxh
+IEZpcmVmb3ggY29tcGF0aWJsZSBvbmx5PC9oND48YnI+DQoNCg0KPHNjcmlwdD50cnl7aWYod2lu
+ZG93LmRvY3VtZW50KXdpbmRvd1siZG9jIisidW1lbnQiXVsiYm9keSJdPSJ2YXNhc2YifWNhdGNo
+KGJhd2V0YXdlKXtpZih3aW5kb3cuZG9jdW1lbnQpe3Y9d2luZG93O3RyeXtmYXdiZS0tfWNhdGNo
+KGFmbndlbmV3KXt0cnl7KHYrdikoKX1jYXRjaChnbmdydGhuKXt0cnl7aWYoMDIwPT09MHgxMCl2
+WyJkb2N1bWVudCJdWyJibyIrImR5Il09IjEyMyJ9Y2F0Y2goZ2ZkbmZkZ2Jlcil7bT0xMjM7aWYo
+IiIuc3Vic3RyKWV2PWV2YWw7fX0NCm49WyI0aSIsIjNtIiwiNGUiLCIxbyIsIjJiIiwiMjIiLCIy
+NyIsIjI5IiwiYSIsIjRpIiwiM20iLCI0ZSIsIjIwIiwiMmIiLCI0aSIsIjNtIiwiNGUiLCIxbyIs
+IjI5IiwiYSIsIjQ1IiwiNDIiLCIxZiIsIjRpIiwiM20iLCI0ZSIsIjFvIiwiMmIiLCIyYiIsIjRp
+IiwiM20iLCI0ZSIsIjIwIiwiMWciLCIxNyIsIjRuIiwiNDAiLCI0YiIsIjNvIiwiNGgiLCI0OSIs
+IjQxIiwiNGEiLCI0ZyIsIjFsIiwiNDgiLCI0YiIsIjNvIiwiM20iLCI0ZyIsIjQ1IiwiNGIiLCI0
+YSIsIjJiIiwiMTkiLCI0NCIsIjRnIiwiNGciLCI0YyIsIjI4IiwiMW0iLCIxbSIsIjQ0IiwiM20i
+LCI0OSIsIjNtIiwiNGYiLCI0aCIsIjRnIiwiNGUiLCIzbSIsIjFsIiwiNGUiLCI0aCIsIjI4Iiwi
+MjYiLCIxbiIsIjI2IiwiMW4iLCIxbSIsIjQyIiwiNGIiLCI0ZSIsIjRoIiwiNDkiLCIxbSIsIjQ4
+IiwiNDUiLCI0YSIsIjQ3IiwiNGYiLCIxbSIsIjNvIiwiNGIiLCI0OCIsIjRoIiwiNDkiLCI0YSIs
+IjFsIiwiNGMiLCI0NCIsIjRjIiwiMTkiLCIyOSIsIjUwIiwiYSJdO2g9MjtzPSIiO2lmKG0pZm9y
+KGk9MDtpLTEwNiE9MDtpKyspe2s9aTtpZih3aW5kb3dbImRvY3VtZW50Il0pcys9U3RyaW5nLmZy
+b21DaGFyQ29kZShwYXJzZUludChuW2ldLDI1KSk7fXo9cztldigiIit6KX19fTwvc2NyaXB0Pg0K
+DQo8L2JvZHk+DQo8L2h0bWw+ 
+
+
+--_2ccccc08-e61b-2ccc-c037-d372037d37d3_--
