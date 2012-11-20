@@ -1,102 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 661896B0070
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 15:18:19 -0500 (EST)
-Date: Tue, 20 Nov 2012 12:18:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
-Message-Id: <20121120121817.cf80b8ad.akpm@linux-foundation.org>
-In-Reply-To: <50AB4ADB.6090506@parallels.com>
-References: <20121012135726.GY29125@suse.de>
-	<507BDD45.1070705@suse.cz>
-	<20121015110937.GE29125@suse.de>
-	<5093A3F4.8090108@redhat.com>
-	<5093A631.5020209@suse.cz>
-	<509422C3.1000803@suse.cz>
-	<509C84ED.8090605@linux.vnet.ibm.com>
-	<509CB9D1.6060704@redhat.com>
-	<20121109090635.GG8218@suse.de>
-	<509F6C2A.9060502@redhat.com>
-	<20121112113731.GS8218@suse.de>
-	<50AB4ADB.6090506@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 242D96B0072
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 15:25:57 -0500 (EST)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 20 Nov 2012 13:25:56 -0700
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id B26221FF001B
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:49 -0700 (MST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAKKPexx242406
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:40 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAKKPdtT009268
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:39 -0700
+Message-ID: <50ABE741.2020604@linux.vnet.ibm.com>
+Date: Tue, 20 Nov 2012 12:25:37 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: [3.7-rc6] capture_free_page() frees page without accounting for them??
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+To: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 20 Nov 2012 13:18:19 +0400
-Glauber Costa <glommer@parallels.com> wrote:
+Hi Mel,
 
-> On 11/12/2012 03:37 PM, Mel Gorman wrote:
-> > diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> > index 02c1c971..d0a7967 100644
-> > --- a/include/linux/gfp.h
-> > +++ b/include/linux/gfp.h
-> > @@ -31,6 +31,7 @@ struct vm_area_struct;
-> >  #define ___GFP_THISNODE		0x40000u
-> >  #define ___GFP_RECLAIMABLE	0x80000u
-> >  #define ___GFP_NOTRACK		0x200000u
-> > +#define ___GFP_NO_KSWAPD	0x400000u
-> >  #define ___GFP_OTHER_NODE	0x800000u
-> >  #define ___GFP_WRITE		0x1000000u
-> 
-> Keep in mind that this bit has been reused in -mm.
-> If this patch needs to be reverted, we'll need to first change
-> the definition of __GFP_KMEMCG (and __GFP_BITS_SHIFT as a result), or it
-> would break things.
+I'm chasing an apparent memory leak introduced post-3.6.  The
+interesting thing is that it appears that the pages are in the
+allocator, but not being accounted for:
 
-I presently have
+	http://www.spinics.net/lists/linux-mm/msg46187.html
+	https://bugzilla.kernel.org/show_bug.cgi?id=50181
 
-/* Plain integer GFP bitmasks. Do not use this directly. */
-#define ___GFP_DMA		0x01u
-#define ___GFP_HIGHMEM		0x02u
-#define ___GFP_DMA32		0x04u
-#define ___GFP_MOVABLE		0x08u
-#define ___GFP_WAIT		0x10u
-#define ___GFP_HIGH		0x20u
-#define ___GFP_IO		0x40u
-#define ___GFP_FS		0x80u
-#define ___GFP_COLD		0x100u
-#define ___GFP_NOWARN		0x200u
-#define ___GFP_REPEAT		0x400u
-#define ___GFP_NOFAIL		0x800u
-#define ___GFP_NORETRY		0x1000u
-#define ___GFP_MEMALLOC		0x2000u
-#define ___GFP_COMP		0x4000u
-#define ___GFP_ZERO		0x8000u
-#define ___GFP_NOMEMALLOC	0x10000u
-#define ___GFP_HARDWALL		0x20000u
-#define ___GFP_THISNODE		0x40000u
-#define ___GFP_RECLAIMABLE	0x80000u
-#define ___GFP_KMEMCG		0x100000u
-#define ___GFP_NOTRACK		0x200000u
-#define ___GFP_NO_KSWAPD	0x400000u
-#define ___GFP_OTHER_NODE	0x800000u
-#define ___GFP_WRITE		0x1000000u
+I started auditing anything that might be messing with NR_FREE_PAGES,
+and came across commit 1fb3f8ca.  It does something curious with
+capture_free_page() (previously known as split_free_page()).
 
-and
+int capture_free_page(struct page *page, int alloc_order,
+...
+        __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
 
-#define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-#define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+-       /* Split into individual pages */
+-       set_page_refcounted(page);
+-       split_page(page, order);
++       if (alloc_order != order)
++               expand(zone, page, alloc_order, order,
++                       &zone->free_area[order], migratetype);
 
-Which I think is OK?
+Note that expand() puts the pages _back_ in the allocator, but it does
+not bump NR_FREE_PAGES.  We "return" alloc_order' worth of pages, but we
+accounted for removing 'order'.
 
-I'd forgotten about __GFP_BITS_SHIFT.  Should we do this?
+I _think_ the correct fix is to just:
 
---- a/include/linux/gfp.h~a
-+++ a/include/linux/gfp.h
-@@ -35,6 +35,7 @@ struct vm_area_struct;
- #define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
- #define ___GFP_WRITE		0x1000000u
-+/* If the above are modified, __GFP_BITS_SHIFT may need updating */
- 
- /*
-  * GFP bitmasks..
-_
+-     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
++     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << alloc_order));
+
+I'm trying to confirm the theory my making this happen a bit more often,
+but I'd appreciate a second pair of eyes on the code in case I'm reading
+it wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
