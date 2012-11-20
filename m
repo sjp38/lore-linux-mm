@@ -1,40 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id D21216B0070
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 14:33:26 -0500 (EST)
-Date: Tue, 20 Nov 2012 11:33:25 -0800
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 32B7D6B0044
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 14:52:24 -0500 (EST)
+Date: Tue, 20 Nov 2012 11:52:22 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
+Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all
  dma_alloc_coherent() calls
-Message-Id: <20121120113325.dde266ed.akpm@linux-foundation.org>
-In-Reply-To: <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
-References: <20121119144826.f59667b2.akpm@linux-foundation.org>
-	<1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
+Message-Id: <20121120115222.9b674d86.akpm@linux-foundation.org>
+In-Reply-To: <50AB600C.5010801@samsung.com>
+References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com>
+	<20121119001846.GB22106@titan.lakedaemon.net>
+	<20121119144826.f59667b2.akpm@linux-foundation.org>
+	<50AB600C.5010801@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Soren Moch <smoch@web.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>, Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, Kyungmin Park <kyungmin.park@samsung.com>, Soren Moch <smoch@web.de>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On Tue, 20 Nov 2012 15:31:45 +0100
+On Tue, 20 Nov 2012 11:48:44 +0100
 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
-> regardless the flags provided by the caller. This causes excessive
-> pruning of emergency memory pools without any good reason. Additionaly,
-> on ARM architecture any driver which is using dmapools will sooner or
-> later  trigger the following error: 
-> "ERROR: 256 KiB atomic DMA coherent pool is too small!
-> Please increase it with coherent_pool= kernel parameter!".
-> Increasing the coherent pool size usually doesn't help much and only
-> delays such error, because all GFP_ATOMIC DMA allocations are always
-> served from the special, very limited memory pool.
+> > As this patch is already in -next and is stuck there for two more
+> > weeks I can't (or at least won't) merge this patch, so I can't help
+> > with any of the above.
 > 
+> I will fix both issues in the next version of the patch. Would like to
+> merge it to your tree or should I keep it in my dma-mapping tree?
 
-Is this problem serious enough to justify merging the patch into 3.7? 
-And into -stable kernels?
+The patch looks OK to me now (still wondering about the -stable
+question though).
+
+It would be a bit of a pain for me to carry a patch which conflicts
+with one in linux-next, and this patch doesn't appear to conflict with
+the other pending dmapool.c patches in -mm so you may as well keep it
+in the dma-mapping tree now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
