@@ -1,92 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 6FA956B0074
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 20:44:37 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa10so4087468pad.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:44:36 -0800 (PST)
-Date: Mon, 19 Nov 2012 17:44:34 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: avoid unnecessary function call when memcg is
- disabled
-Message-ID: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 9948D6B0070
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 21:13:11 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id lz20so6905601obb.14
+        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 18:13:10 -0800 (PST)
+Message-ID: <50AAE72E.3090101@gmail.com>
+Date: Tue, 20 Nov 2012 10:13:02 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
+References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
+In-Reply-To: <1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-While profiling numa/core v16 with cgroup_disable=memory on the command 
-line, I noticed mem_cgroup_count_vm_event() still showed up as high as 
-0.60% in perftop.
+On 11/19/2012 12:07 AM, Jiang Liu wrote:
+> The commit 7f1290f2f2a4 ("mm: fix-up zone present pages") tries to
+> resolve an issue caused by inaccurate zone->present_pages, but that
+> fix is incomplete and causes regresions with HIGHMEM. And it has been
+> reverted by commit
+> 5576646 revert "mm: fix-up zone present pages"
+>
+> This is a following-up patchset for the issue above. It introduces a
+> new field named "managed_pages" to struct zone, which counts pages
+> managed by the buddy system from the zone. And zone->present_pages
+> is used to count pages existing in the zone, which is
+> 	spanned_pages - absent_pages.
+>
+> But that way, zone->present_pages will be kept in consistence with
+> pgdat->node_present_pages, which is sum of zone->present_pages.
+>
+> This patchset has only been tested on x86_64 with nobootmem.c. So need
+> help to test this patchset on machines:
+> 1) use bootmem.c
 
-This occurs because the function is called extremely often even when memcg 
-is disabled.
-
-To fix this, inline the check for mem_cgroup_disabled() so we avoid the 
-unnecessary function call if memcg is disabled.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/memcontrol.h |    9 ++++++++-
- mm/memcontrol.c            |    9 ++++-----
- 2 files changed, 12 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -181,7 +181,14 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- 						gfp_t gfp_mask,
- 						unsigned long *total_scanned);
- 
--void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-+void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-+static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-+					     enum vm_event_item idx)
-+{
-+	if (mem_cgroup_disabled() || !mm)
-+		return;
-+	__mem_cgroup_count_vm_event(mm, idx);
-+}
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -59,6 +59,8 @@
- #include <trace/events/vmscan.h>
- 
- struct cgroup_subsys mem_cgroup_subsys __read_mostly;
-+EXPORT_SYMBOL(mem_cgroup_subsys);
-+
- #define MEM_CGROUP_RECLAIM_RETRIES	5
- static struct mem_cgroup *root_mem_cgroup __read_mostly;
- 
-@@ -1015,13 +1017,10 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
- 	     iter != NULL;				\
- 	     iter = mem_cgroup_iter(NULL, iter, NULL))
- 
--void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
-+void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
- 	struct mem_cgroup *memcg;
- 
--	if (!mm)
--		return;
--
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
- 	if (unlikely(!memcg))
-@@ -1040,7 +1039,7 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- out:
- 	rcu_read_unlock();
- }
--EXPORT_SYMBOL(mem_cgroup_count_vm_event);
-+EXPORT_SYMBOL(__mem_cgroup_count_vm_event);
- 
- /**
-  * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg
+If only x86_32 use bootmem.c instead of nobootmem.c? How could I confirm it?
+> 2) have highmem
+>
+> This patchset applies to "f4a75d2e Linux 3.7-rc6" from
+> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+>
+> Any comments and helps are welcomed!
+>
+> Jiang Liu (5):
+>    mm: introduce new field "managed_pages" to struct zone
+>    mm: replace zone->present_pages with zone->managed_pages if
+>      appreciated
+>    mm: set zone->present_pages to number of existing pages in the zone
+>    mm: provide more accurate estimation of pages occupied by memmap
+>    mm: increase totalram_pages when free pages allocated by bootmem
+>      allocator
+>
+>   include/linux/mmzone.h |    1 +
+>   mm/bootmem.c           |   14 ++++++++
+>   mm/memory_hotplug.c    |    6 ++++
+>   mm/mempolicy.c         |    2 +-
+>   mm/nobootmem.c         |   15 ++++++++
+>   mm/page_alloc.c        |   89 +++++++++++++++++++++++++++++++-----------------
+>   mm/vmscan.c            |   16 ++++-----
+>   mm/vmstat.c            |    8 +++--
+>   8 files changed, 108 insertions(+), 43 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
