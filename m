@@ -1,88 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 15BFA6B0092
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 05:49:00 -0500 (EST)
-Received: from eusync3.samsung.com (mailout2.w1.samsung.com [210.118.77.12])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MDS008FJ8Q1TZ60@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 20 Nov 2012 10:49:13 +0000 (GMT)
-Received: from [127.0.0.1] ([106.116.147.30])
- by eusync3.samsung.com (Oracle Communications Messaging Server 7u4-23.01
- (7.0.4.23.0) 64bit (built Aug 10 2011))
- with ESMTPA id <0MDS00J4A8P8HM70@eusync3.samsung.com> for linux-mm@kvack.org;
- Tue, 20 Nov 2012 10:48:57 +0000 (GMT)
-Message-id: <50AB600C.5010801@samsung.com>
-Date: Tue, 20 Nov 2012 11:48:44 +0100
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH] mm: dmapool: use provided gfp flags for all
- dma_alloc_coherent() calls
-References: <1352356737-14413-1-git-send-email-m.szyprowski@samsung.com>
- <20121119001846.GB22106@titan.lakedaemon.net>
- <20121119144826.f59667b2.akpm@linux-foundation.org>
-In-reply-to: <20121119144826.f59667b2.akpm@linux-foundation.org>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id DD7B66B0095
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 06:03:42 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so99860pad.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 03:03:42 -0800 (PST)
+Message-ID: <50AB6382.40004@gmail.com>
+Date: Tue, 20 Nov 2012 19:03:30 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 06/12] memory-hotplug: unregister memory section on
+ SPARSEMEM_VMEMMAP
+References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-7-git-send-email-wency@cn.fujitsu.com> <50AB21A4.8050709@gmail.com> <50AB2967.5010302@cn.fujitsu.com> <50AB2A1A.6040606@gmail.com> <50AB4F6D.3050002@cn.fujitsu.com>
+In-Reply-To: <50AB4F6D.3050002@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, Kyungmin Park <kyungmin.park@samsung.com>, Soren Moch <smoch@web.de>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-Hello,
+On 11/20/2012 05:37 PM, Wen Congyang wrote:
+> At 11/20/2012 02:58 PM, Jaegeuk Hanse Wrote:
+>> On 11/20/2012 02:55 PM, Wen Congyang wrote:
+>>> At 11/20/2012 02:22 PM, Jaegeuk Hanse Wrote:
+>>>> On 11/01/2012 05:44 PM, Wen Congyang wrote:
+>>>>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>>>
+>>>>> Currently __remove_section for SPARSEMEM_VMEMMAP does nothing. But
+>>>>> even if
+>>>>> we use SPARSEMEM_VMEMMAP, we can unregister the memory_section.
+>>>>>
+>>>>> So the patch add unregister_memory_section() into __remove_section().
+>>>> Hi Yasuaki,
+>>>>
+>>>> In order to review this patch, I should dig sparse memory codes in
+>>>> advance. But I have some confuse of codes. Why need encode/decode mem
+>>>> map instead of set mem_map to ms->section_mem_map directly?
+>>> The memmap is aligned, and the low bits are zero. We store some
+>>> information
+>>> in these bits. So we need to encode/decode memmap here.
+>> Hi Congyang,
+>>
+>> Thanks for you reponse. But I mean why return (unsigned long)(mem_map -
+>> (section_nr_to_pfn(pnum))); in function sparse_encode_mem_map, and then
+>> return ((struct page *)coded_mem_map) + section_nr_to_pfn(pnum); in
+>> funtion sparse_decode_mem_map instead of just store mem_map in
+>> ms->section_mep_map directly.
+> I don't know why. I try to find the reason, but I don't find any
+> place to use the pfn stored in the mem_map except in the decode
+> function. Maybe the designer doesn't want us to access the mem_map
+> directly.
 
-On 11/19/2012 11:48 PM, Andrew Morton wrote:
-> On Sun, 18 Nov 2012 19:18:46 -0500
-> Jason Cooper <jason@lakedaemon.net> wrote:
+It seems that mem_map is per node, but pfn is real pfn.
+you can check __page_to_pfn.
+
 >
-> > I've added the maintainers for mm/*.  Hopefully they can let us know if
-> > this is good for v3.8...
+> Thanks
+> Wen Congyang
 >
-> As Marek has inexplicably put this patch into linux-next via his tree,
-> we don't appear to be getting a say in the matter!
-
-I've just put this patch to linux-next via my dma-mapping tree to give it
-some testing asap to check if other changes to arm dma-mapping are required
-or not.
-
-> The patch looks good to me.  That open-coded wait loop predates the
-> creation of bitkeeper tree(!) but doesn't appear to be needed.  There
-> will perhaps be some behavioural changes observable for GFP_KERNEL
-> callers as dma_pool_alloc() will no longer dip into page reserves but I
-> see nothing special about dma_pool_alloc() which justifies doing that
-> anyway.
->
-> The patch makes pool->waitq and its manipulation obsolete, but it
-> failed to remove all that stuff.
-
-Right, I missed that part, I will update it asap.
-
-> The changelog failed to describe the problem which Soren reported.
-> That should be included, and as the problem sounds fairly serious we
-> might decide to backport the fix into -stable kernels.
-
-Ok, I will extend the changelog.
-
-> dma_pool_alloc()'s use of a local "struct dma_page *page" is
-> distressing - MM developers very much expect a local called "page" to
-> have type "struct page *".  But that's a separate issue.
-
-I will prepare a separate patch cleaning it. I was also a bit surprised
-by such naming scheme, but it is probably related to the fact that this
-come has not been touched much since a very ancient times.
-
-> As this patch is already in -next and is stuck there for two more
-> weeks I can't (or at least won't) merge this patch, so I can't help
-> with any of the above.
-
-I will fix both issues in the next version of the patch. Would like to
-merge it to your tree or should I keep it in my dma-mapping tree?
-
-Best regards
--- 
-Marek Szyprowski
-Samsung Poland R&D Center
-
+>> Regards,
+>> Jaegeuk
+>>
+>>> Thanks
+>>> Wen Congyang
+>>>
+>>>> Regards,
+>>>> Jaegeuk
+>>>>
+>>>>> CC: David Rientjes <rientjes@google.com>
+>>>>> CC: Jiang Liu <liuj97@gmail.com>
+>>>>> CC: Len Brown <len.brown@intel.com>
+>>>>> CC: Christoph Lameter <cl@linux.com>
+>>>>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>>>>> CC: Andrew Morton <akpm@linux-foundation.org>
+>>>>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>>>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>>>>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>>>> ---
+>>>>>     mm/memory_hotplug.c | 13 ++++++++-----
+>>>>>     1 file changed, 8 insertions(+), 5 deletions(-)
+>>>>>
+>>>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>>>> index ca07433..66a79a7 100644
+>>>>> --- a/mm/memory_hotplug.c
+>>>>> +++ b/mm/memory_hotplug.c
+>>>>> @@ -286,11 +286,14 @@ static int __meminit __add_section(int nid,
+>>>>> struct zone *zone,
+>>>>>     #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>>>>>     static int __remove_section(struct zone *zone, struct mem_section
+>>>>> *ms)
+>>>>>     {
+>>>>> -    /*
+>>>>> -     * XXX: Freeing memmap with vmemmap is not implement yet.
+>>>>> -     *      This should be removed later.
+>>>>> -     */
+>>>>> -    return -EBUSY;
+>>>>> +    int ret = -EINVAL;
+>>>>> +
+>>>>> +    if (!valid_section(ms))
+>>>>> +        return ret;
+>>>>> +
+>>>>> +    ret = unregister_memory_section(ms);
+>>>>> +
+>>>>> +    return ret;
+>>>>>     }
+>>>>>     #else
+>>>>>     static int __remove_section(struct zone *zone, struct mem_section
+>>>>> *ms)
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
