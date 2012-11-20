@@ -1,81 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 9982A6B0088
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 06:17:00 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so1145535dak.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 03:16:59 -0800 (PST)
-Message-ID: <50AB669D.3060007@gmail.com>
-Date: Tue, 20 Nov 2012 19:16:45 +0800
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id BD7966B008A
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 06:25:31 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id e20so1148719dak.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 03:25:31 -0800 (PST)
+Message-ID: <50AB6899.3060609@gmail.com>
+Date: Tue, 20 Nov 2012 19:25:13 +0800
 From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 06/12] memory-hotplug: unregister memory section on
- SPARSEMEM_VMEMMAP
-References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-7-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351763083-7905-7-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [PATCH 0/5] Add movablecore_map boot option.
+References: <1353335246-9127-1-git-send-email-tangchen@cn.fujitsu.com> <20121119125325.ed1abba0.akpm@linux-foundation.org> <50AB646E.7040009@jp.fujitsu.com>
+In-Reply-To: <50AB646E.7040009@jp.fujitsu.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, rob@landley.net, laijs@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, yinghai@kernel.org, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On 11/01/2012 05:44 PM, Wen Congyang wrote:
-> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On 11/20/2012 07:07 PM, Yasuaki Ishimatsu wrote:
+> 2012/11/20 5:53, Andrew Morton wrote:
+>> On Mon, 19 Nov 2012 22:27:21 +0800
+>> Tang Chen <tangchen@cn.fujitsu.com> wrote:
+>>
+>>> This patchset provide a boot option for user to specify ZONE_MOVABLE 
+>>> memory
+>>> map for each node in the system.
+>>>
+>>> movablecore_map=nn[KMG]@ss[KMG]
+>>>
+>>> This option make sure memory range from ss to ss+nn is movable memory.
+>>> 1) If the range is involved in a single node, then from ss to the 
+>>> end of
+>>>     the node will be ZONE_MOVABLE.
+>>> 2) If the range covers two or more nodes, then from ss to the end of
+>>>     the node will be ZONE_MOVABLE, and all the other nodes will only
+>>>     have ZONE_MOVABLE.
+>>> 3) If no range is in the node, then the node will have no ZONE_MOVABLE
+>>>     unless kernelcore or movablecore is specified.
+>>> 4) This option could be specified at most MAX_NUMNODES times.
+>>> 5) If kernelcore or movablecore is also specified, movablecore_map 
+>>> will have
+>>>     higher priority to be satisfied.
+>>> 6) This option has no conflict with memmap option.
+>>
+>> This doesn't describe the problem which the patchset solves.  I can
+>> kinda see where it's coming from, but it would be nice to have it all
+>> spelled out, please.
+>>
 >
-> Currently __remove_section for SPARSEMEM_VMEMMAP does nothing. But even if
-> we use SPARSEMEM_VMEMMAP, we can unregister the memory_section.
+>> - What is wrong with the kernel as it stands?
 >
-> So the patch add unregister_memory_section() into __remove_section().
+> If we hot remove a memroy, the memory cannot have kernel memory,
+> because Linux cannot migrate kernel memory currently. Therefore,
+> we have to guarantee that the hot removed memory has only movable
+> memoroy.
+>
+> Linux has two boot options, kernelcore= and movablecore=, for
+> creating movable memory. These boot options can specify the amount
+> of memory use as kernel or movable memory. Using them, we can
+> create ZONE_MOVABLE which has only movable memory.
+>
+> But it does not fulfill a requirement of memory hot remove, because
+> even if we specify the boot options, movable memory is distributed
+> in each node evenly. So when we want to hot remove memory which
+> memory range is 0x80000000-0c0000000, we have no way to specify
+> the memory as movable memory.
 
-Hi Yasuaki,
-
-I have a question about these sparse vmemmap memory related patches. Hot 
-add memory need allocated vmemmap pages, but this time is allocated by 
-buddy system. How can gurantee virtual address is continuous to the 
-address allocated before? If not continuous, page_to_pfn and pfn_to_page 
-can't work correctly.
-
-Regards,
-Jaegeuk
+Could you explain why can't specify the memory as movable memory in this 
+case?
 
 >
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Wen Congyang <wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> ---
->   mm/memory_hotplug.c | 13 ++++++++-----
->   1 file changed, 8 insertions(+), 5 deletions(-)
+> So we proposed a new feature which specifies memory range to use as
+> movable memory.
 >
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index ca07433..66a79a7 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -286,11 +286,14 @@ static int __meminit __add_section(int nid, struct zone *zone,
->   #ifdef CONFIG_SPARSEMEM_VMEMMAP
->   static int __remove_section(struct zone *zone, struct mem_section *ms)
->   {
-> -	/*
-> -	 * XXX: Freeing memmap with vmemmap is not implement yet.
-> -	 *      This should be removed later.
-> -	 */
-> -	return -EBUSY;
-> +	int ret = -EINVAL;
-> +
-> +	if (!valid_section(ms))
-> +		return ret;
-> +
-> +	ret = unregister_memory_section(ms);
-> +
-> +	return ret;
->   }
->   #else
->   static int __remove_section(struct zone *zone, struct mem_section *ms)
+>> - What are the possible ways of solving this?
+>
+> I thought 2 ways to specify movable memory.
+>  1. use firmware information
+>  2. use boot option
+>
+> 1. use firmware information
+>   According to ACPI spec 5.0, SRAT table has memory affinity structure
+>   and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+>   Affinity Structure". If we use the information, we might be able to
+>   specify movable memory by firmware. For example, if Hot Pluggable
+>   Filed is enabled, Linux sets the memory as movable memory.
+>
+> 2. use boot option
+>   This is our proposal. New boot option can specify memory range to use
+>   as movable memory.
+>
+>> - Describe the chosen way, explain why it is superior to alternatives
+>
+> We chose second way, because if we use first way, users cannot change
+> memory range to use as movable memory easily. We think if we create
+> movable memory, performance regression may occur by NUMA. In this case,
+
+Could you explain why regression occur in details?
+
+> user can turn off the feature easily if we prepare the boot option.
+> And if we prepare the boot optino, the user can select which memory
+> to use as movable memory easily.
+>
+> Thanks,
+> Yasuaki Ishimatsu
+>
+>>
+>> The amount of manual system configuration in this proposal looks quite
+>> high.  Adding kernel boot parameters really is a last resort. Why was
+>> it unavoidable here?
+>>
+>
+>
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
