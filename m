@@ -1,102 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 2EFBA6B006C
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 10:38:47 -0500 (EST)
-Received: by mail-vc0-f169.google.com with SMTP id fl17so7945489vcb.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 07:38:45 -0800 (PST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id AC57E6B006C
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 10:41:21 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so2075996eaa.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 07:41:20 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES approaches low water mark
+In-Reply-To: <50AB987F.30002@samsung.com>
+References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com> <20121120000137.GC447@bbox> <50AB987F.30002@samsung.com>
+Date: Tue, 20 Nov 2012 16:41:12 +0100
+Message-ID: <xa1tk3tgjn8n.fsf@mina86.com>
 MIME-Version: 1.0
-In-Reply-To: <20121116200616.GK8218@suse.de>
-References: <20121015110937.GE29125@suse.de>
-	<5093A3F4.8090108@redhat.com>
-	<5093A631.5020209@suse.cz>
-	<509422C3.1000803@suse.cz>
-	<509C84ED.8090605@linux.vnet.ibm.com>
-	<509CB9D1.6060704@redhat.com>
-	<20121109090635.GG8218@suse.de>
-	<509F6C2A.9060502@redhat.com>
-	<20121112113731.GS8218@suse.de>
-	<CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
-	<20121116200616.GK8218@suse.de>
-Date: Tue, 20 Nov 2012 10:38:45 -0500
-Message-ID: <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com>
-Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
-From: Josh Boyer <jwboyer@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Thorsten Leemhuis <fedora@leemhuis.info>, bruno@wolff.to
+To: Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On Fri, Nov 16, 2012 at 3:06 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Fri, Nov 16, 2012 at 02:14:47PM -0500, Josh Boyer wrote:
->> On Mon, Nov 12, 2012 at 6:37 AM, Mel Gorman <mgorman@suse.de> wrote:
->> > With "mm: vmscan: scale number of pages reclaimed by reclaim/compaction
->> > based on failures" reverted, Zdenek Kabelac reported the following
->> >
->> >         Hmm,  so it's just took longer to hit the problem and observe
->> >         kswapd0 spinning on my CPU again - it's not as endless like before -
->> >         but still it easily eats minutes - it helps to  turn off  Firefox
->> >         or TB  (memory hungry apps) so kswapd0 stops soon - and restart
->> >         those apps again.  (And I still have like >1GB of cached memory)
->> >
->> >         kswapd0         R  running task        0    30      2 0x00000000
->> >          ffff8801331efae8 0000000000000082 0000000000000018 0000000000000246
->> >          ffff880135b9a340 ffff8801331effd8 ffff8801331effd8 ffff8801331effd8
->> >          ffff880055dfa340 ffff880135b9a340 00000000331efad8 ffff8801331ee000
->> >         Call Trace:
->> >          [<ffffffff81555bf2>] preempt_schedule+0x42/0x60
->> >          [<ffffffff81557a95>] _raw_spin_unlock+0x55/0x60
->> >          [<ffffffff81192971>] put_super+0x31/0x40
->> >          [<ffffffff81192a42>] drop_super+0x22/0x30
->> >          [<ffffffff81193b89>] prune_super+0x149/0x1b0
->> >          [<ffffffff81141e2a>] shrink_slab+0xba/0x510
->> >
->> > The sysrq+m indicates the system has no swap so it'll never reclaim
->> > anonymous pages as part of reclaim/compaction. That is one part of the
->> > problem but not the root cause as file-backed pages could also be reclaimed.
->> >
->> > The likely underlying problem is that kswapd is woken up or kept awake
->> > for each THP allocation request in the page allocator slow path.
->> >
->> > If compaction fails for the requesting process then compaction will be
->> > deferred for a time and direct reclaim is avoided. However, if there
->> > are a storm of THP requests that are simply rejected, it will still
->> > be the the case that kswapd is awake for a prolonged period of time
->> > as pgdat->kswapd_max_order is updated each time. This is noticed by
->> > the main kswapd() loop and it will not call kswapd_try_to_sleep().
->> > Instead it will loopp, shrinking a small number of pages and calling
->> > shrink_slab() on each iteration.
->> >
->> > The temptation is to supply a patch that checks if kswapd was woken for
->> > THP and if so ignore pgdat->kswapd_max_order but it'll be a hack and not
->> > backed up by proper testing. As 3.7 is very close to release and this is
->> > not a bug we should release with, a safer path is to revert "mm: remove
->> > __GFP_NO_KSWAPD" for now and revisit it with the view to ironing out the
->> > balance_pgdat() logic in general.
->> >
->> > Signed-off-by: Mel Gorman <mgorman@suse.de>
->>
->> Does anyone know if this is queued to go into 3.7 somewhere?  I looked
->> a bit and can't find it in a tree.  We have a few reports of Fedora
->> rawhide users hitting this.
->>
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+On Tue, Nov 20 2012, Marek Szyprowski wrote:
+> Right now running out of 'plain' movable pages is the only possibility to
+> get movable pages allocated from CMA. On the other hand running out of
+> 'plain' movable pages is very deadly for the system, as movable pageblocks
+> are also the main fallbacks for reclaimable and non-movable pages.
 >
-> No, because I was waiting to hear if a) it worked and preferably if the
-> alternative "less safe" option worked. This close to release it might be
-> better to just go with the safe option.
+> Then, once we run out of movable pages and kernel needs non-mobable or
+> reclaimable page (what happens quite often), it usually triggers OOM to
+> satisfy the memory needs. Such OOM is very strange, especially on a system
+> with dozen of megabytes of CMA memory, having most of them free at the OOM
+> event. By high memory pressure I mean the high memory usage.
 
-We've been tracking it in https://bugzilla.redhat.com/show_bug.cgi?id=866988
-and people say this revert patch doesn't seem to make the issue go away
-fully.  Thorsten has created another kernel with the other patch applied
-for testing.
+Would it make sense to *always* use MIGRATE_CMA for movable allocations
+before MIGRATE_MOVABLE?  Ie. how about this patch (not tested):
 
-At least I think that is the latest status from the bug.  Hopefully the
-commenters will chime in.
-
-josh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------------------------- >8 ----------------------------------------------=
+---
+--=-=-=--
