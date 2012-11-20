@@ -1,66 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 9621F6B0073
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:25:21 -0500 (EST)
-Date: Tue, 20 Nov 2012 19:25:00 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Problem in Page Cache Replacement
-Message-ID: <20121120182500.GH1408@quack.suse.cz>
-References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 177D66B005D
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 13:50:46 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: [PATCH] mm: trace filemap add and del
+Date: Tue, 20 Nov 2012 19:50:31 +0100
+Message-Id: <1353437431-25134-1-git-send-email-robert.jarzmik@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: metin d <metdos@yahoo.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Robert Jarzmik <robert.jarzmik@free.fr>
 
-On Tue 20-11-12 09:42:42, metin d wrote:
-> I have two PostgreSQL databases named data-1 and data-2 that sit on the
-> same machine. Both databases keep 40 GB of data, and the total memory
-> available on the machine is 68GB.
-> 
-> I started data-1 and data-2, and ran several queries to go over all their
-> data. Then, I shut down data-1 and kept issuing queries against data-2.
-> For some reason, the OS still holds on to large parts of data-1's pages
-> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
-> a result, my queries on data-2 keep hitting disk.
-> 
-> I'm checking page cache usage with fincore. When I run a table scan query
-> against data-2, I see that data-2's pages get evicted and put back into
-> the cache in a round-robin manner. Nothing happens to data-1's pages,
-> although they haven't been touched for days.
-> 
-> Does anybody know why data-1's pages aren't evicted from the page cache?
-> I'm open to all kind of suggestions you think it might relate to problem.
-  Curious. Added linux-mm list to CC to catch more attention. If you run
-echo 1 >/proc/sys/vm/drop_caches
-  does it evict data-1 pages from memory?
+Use the events API to trace filemap loading and
+unloading of file pieces into the page cache.
 
-> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no
-> swap space. The kernel version is:
-> 
-> $ uname -r
-> 3.2.28-45.62.amzn1.x86_64
-> Edit:
-> 
-> and it seems that I use one NUMA instance, if  you think that it can a problem.
-> 
-> $ numactl --hardware
-> available: 1 nodes (0)
-> node 0 cpus: 0 1 2 3 4 5 6 7
-> node 0 size: 70007 MB
-> node 0 free: 360 MB
-> node distances:
-> node   0
->   0:  10
+This patch aims at tracing the eviction reload
+cycle of executable and shared libraries pages in
+a memory constrained environment.
 
-								Honza
+The typical usage is to spot a specific device and
+inode (for example /lib/libc.so) to see the eviction
+cycles, and find out if frequently used code is
+rather spread across many pages (bad) or coallesced
+(good).
+
+Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+---
+ include/trace/events/filemap.h |   79 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 +++
+ 2 files changed, 84 insertions(+)
+ create mode 100644 include/trace/events/filemap.h
+
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+new file mode 100644
+index 0000000..a8319e2
+--- /dev/null
++++ b/include/trace/events/filemap.h
+@@ -0,0 +1,79 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
++
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/device.h>
++#include <linux/kdev_t.h>
++
++TRACE_EVENT(mm_filemap_delete_from_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_no)
++		__field(unsigned long, pageofs)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_no = page->mapping->host->i_ino;
++		__entry->pageofs = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("page=%p pfn=%lu blk=%d:%d inode+ofs=%lu+%lu",
++		__entry->page,
++		page_to_pfn(__entry->page),
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_no,
++		__entry->pageofs << PAGE_SHIFT)
++);
++
++TRACE_EVENT(mm_filemap_add_to_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_no)
++		__field(unsigned long, pageofs)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_no = page->mapping->host->i_ino;
++		__entry->pageofs = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("page=%p pfn=%lu blk=%d:%d inode+ofs=%lu+%lu",
++		__entry->page,
++		page_to_pfn(__entry->page),
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_no,
++		__entry->pageofs)
++);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 3843445..9753b7c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
++
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+@@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+ 	 * invalidate any existing cleancache entries.  We can't leave
+@@ -467,6 +471,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		} else {
+ 			page->mapping = NULL;
+ 			/* Leave page->index set: truncation relies upon it */
++			trace_mm_filemap_add_to_page_cache(page);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 			mem_cgroup_uncharge_cache_page(page);
+ 			page_cache_release(page);
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
