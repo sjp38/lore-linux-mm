@@ -1,53 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 7EF766B0070
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 20:41:35 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so928504dak.14
-        for <linux-mm@kvack.org>; Mon, 19 Nov 2012 17:41:34 -0800 (PST)
-Date: Tue, 20 Nov 2012 09:41:25 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch 1/2 v2]swap: add a simple buddy allocator
-Message-ID: <20121120014125.GA2222@kernel.org>
-References: <20121119075943.GA17405@kernel.org>
- <alpine.LNX.2.00.1211190151320.20469@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1211190151320.20469@eggly.anvils>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 5D1086B0072
+	for <linux-mm@kvack.org>; Mon, 19 Nov 2012 20:44:17 -0500 (EST)
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+In-Reply-To: Your message of "Fri, 16 Nov 2012 11:51:24 -0800."
+             <20121116115124.c2981abc.akpm@linux-foundation.org>
+From: Valdis.Kletnieks@vt.edu
+References: <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com> <509CB9D1.6060704@redhat.com> <20121109090635.GG8218@suse.de> <509F6C2A.9060502@redhat.com> <20121112113731.GS8218@suse.de> <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
+            <20121116115124.c2981abc.akpm@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1353375823_1855P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Mon, 19 Nov 2012 20:43:43 -0500
+Message-ID: <45635.1353375823@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, riel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Josh Boyer <jwboyer@gmail.com>, Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
 
-On Mon, Nov 19, 2012 at 02:06:48AM -0800, Hugh Dickins wrote:
-> On Mon, 19 Nov 2012, Shaohua Li wrote:
-> > 
-> > Changes from V1 to V2:
-> > 1. free cluster is added to a list, which makes searching cluster more efficient
-> > 2. only enable the buddy allocator for SSD.
-> 
-> Oh.  My fault, not yours at all, but I wish I'd known this was coming.
-> I spent today testing and fixing (a couple of hangs in discard 2/2) V1,
-> was about to send you a patch, but looks like none of it relevant to V2.
+--==_Exmh_1353375823_1855P
+Content-Type: text/plain; charset=us-ascii
 
-Appologize for this. I was in travel last whole week, a little lagged to fully
-test the V2 patch till yesterday. Had no confidence to bother again before I
-know it really works.
- 
-> It's nice work you've done, I thoroughly approve of V1 (very minor mods),
-> but it'll take me a few more days to get around to looking at V2, sorry.
-> 
-> Though, it may be my ignorance, I entirely fail to see what this has to
-> do with a buddy allocator: you've speeded up scan_swap_map()'s search
-> for a cluster by adding an additional cluster map, then extended that
-> neatly for a much better discard implementation.  Good work yes, but
-> a buddy allocator??
+On Fri, 16 Nov 2012 11:51:24 -0800, Andrew Morton said:
+> On Fri, 16 Nov 2012 14:14:47 -0500
+> Josh Boyer <jwboyer@gmail.com> wrote:
+>
+> > > The temptation is to supply a patch that checks if kswapd was woken for
+> > > THP and if so ignore pgdat->kswapd_max_order but it'll be a hack and not
+> > > backed up by proper testing. As 3.7 is very close to release and this is
+> > > not a bug we should release with, a safer path is to revert "mm: remove
+> > > __GFP_NO_KSWAPD" for now and revisit it with the view to ironing out the
+> > > balance_pgdat() logic in general.
+> > >
+> > > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> >
+> > Does anyone know if this is queued to go into 3.7 somewhere?  I looked
+> > a bit and can't find it in a tree.  We have a few reports of Fedora
+> > rawhide users hitting this.
+>
+> Still thinking about it.  We're reverting quite a lot of material
+> lately.
+> mm-revert-mm-vmscan-scale-number-of-pages-reclaimed-by-reclaim-compaction-based-on-failures.patch
+> and revert-mm-fix-up-zone-present-pages.patch are queued for 3.7.
+>
+> I'll toss this one in there as well, but I can't say I'm feeling
+> terribly confident.  How is Valdis's machine nowadays?
 
-That is just the name I called. I thought it's a variant of buddy allocator,
-don't take it serious.
+I admit possibly having lost the plot.  With the two patches you mention stuck
+on top of next-20121114, I'm seeing less kswapd issues but am still tripping
+over them on occasion.  It seems to be related to uptime - I don't see any for
+a few hours, but they become more frequent.  I was seeing quite a few of them
+yesterday after I had a 30-hour uptime.
 
-Thanks,
-Shaohua
+I'll stick Mel's "mm: remove __GFP_NO_KSWAPD" patch on this evening and let you
+know what happens (might be a day or two before I have definitive results, as
+usualally my laptop gets rebooted twice a day).
+
+
+--==_Exmh_1353375823_1855P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBUKrgTgdmEQWDXROgAQIlPw/+O72fn1X2bl4WGFjrOWRpJj0rwxAmGh5F
+DHQDXO0ddBRnK2myFab16ISrDuU11+tP+ygRgepOYyBZ6sBL6EneIIc0Wzvpih6G
+eB0rvgKeWox2xk0LEcghxP8mgV3umAmyD4lrhZrxot4jzmiVqZu/57jmubZjzT0j
+eqxLZ+KU23WGHkiRN94kKZehElf+Jw0N9cmKZTB2I5HkIEzx7gvkHzSXD6s112bC
+9l4Jq5eToQA+lc12314gr9PWzXGkYlarftXgly23cHUk/m055mG80BOZWXj/hglF
+cOmj+EwOWg76+rb7o+L3Z0JIlV4ol0bdXQwlXtx9/ePo0q12ENgXCJLUpVcutMfd
+C8cf6RVG1b0OPKDjT60Igq9NBVHTSTB2T0EH0wdBs6knLRDljehzNpQ1TxVEOlVg
+bTq2jPN7sa+e+izKdcj27QwAHYZ7A0GxoMwvEIs6efFE2Ps3vci64ZkaJzfgts3Z
+3+oSuYciLjzoLzlQ/+xtu3+LkzRZD66WQHi792nW8JRHrGhOJPAN+REyMPrLsu18
+gp8umUDkTtqMEUIr9feGnKlSlIFLRMClAyrsTuMC6dvQgykNAHKG32IZYFHJjY9M
+HUestGffH807rrmjl8SUFk/EM31gpCCXxdQMVkZNaMdkuJ90G0hW0OzHXfON2++o
+15InbL4Up8E=
+=frhe
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1353375823_1855P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
