@@ -1,66 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id D9FB76B0070
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:39:21 -0500 (EST)
-Date: Wed, 21 Nov 2012 11:39:20 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC 3/3] man-pages: Add man page for vmpressure_fd(2)
-Message-Id: <20121121113920.0f0672b1.akpm@linux-foundation.org>
-In-Reply-To: <20121121150149.GE8218@suse.de>
-References: <20121107105348.GA25549@lizard>
-	<20121107110152.GC30462@lizard>
-	<20121119215211.6370ac3b.akpm@linux-foundation.org>
-	<20121120062400.GA9468@lizard>
-	<alpine.DEB.2.00.1211201004390.4200@chino.kir.corp.google.com>
-	<20121121150149.GE8218@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 8DA026B004D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:46:30 -0500 (EST)
+Message-ID: <50AD2F86.3090303@redhat.com>
+Date: Wed, 21 Nov 2012 14:46:14 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 36/46] mm: numa: Use a two-stage filter to restrict pages
+ being migrated for unlikely task<->node relationships
+References: <1353493312-8069-1-git-send-email-mgorman@suse.de> <1353493312-8069-37-git-send-email-mgorman@suse.de> <20121121182537.GB29893@gmail.com> <20121121191547.GM8218@suse.de>
+In-Reply-To: <20121121191547.GM8218@suse.de>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 21 Nov 2012 15:01:50 +0000
-Mel Gorman <mgorman@suse.de> wrote:
+On 11/21/2012 02:15 PM, Mel Gorman wrote:
+> On Wed, Nov 21, 2012 at 07:25:37PM +0100, Ingo Molnar wrote:
 
-> On Tue, Nov 20, 2012 at 10:12:28AM -0800, David Rientjes wrote:
-> > On Mon, 19 Nov 2012, Anton Vorontsov wrote:
-> > 
-> > > We try to make userland freeing resources when the system becomes low on
-> > > memory. Once we're short on memory, sometimes it's better to discard
-> > > (free) data, rather than let the kernel to drain file caches or even start
-> > > swapping.
-> > > 
-> > 
-> > To add another usecase: its possible to modify our version of malloc (or 
-> > any malloc) so that memory that is free()'d can be released back to the 
-> > kernel only when necessary, i.e. when keeping the extra memory around 
-> > starts to have a detremental effect on the system, memcg, or cpuset.  When 
-> > there is an abundance of memory available such that allocations need not 
-> > defragment or reclaim memory to be allocated, it can improve performance 
-> > to keep a memory arena from which to allocate from immediately without 
-> > calling the kernel.
-> > 
-> 
-> A potential third use case is a variation of the first for batch systems. If
-> it's running low priority tasks and a high priority task starts that
-> results in memory pressure then the job scheduler may decide to move the
-> low priority jobs elsewhere (or cancel them entirely).
-> 
-> A similar use case is monitoring systems running high priority workloads
-> that should never swap. It can be easily detected if the system starts
-> swapping but a pressure notification might act as an early warning system
-> that something is happening on the system that might cause the primary
-> workload to start swapping.
+>> As mentioned in my other mail, this patch of yours looks very
+>> similar to the numa/core commit attached below, mostly written
+>> by Peter:
+>>
+>>    30f93abc6cb3 sched, numa, mm: Add the scanning page fault machinery
 
-I hope Anton's writing all of this down ;)
+> Just to compare, this is the wording in "autonuma: memory follows CPU
+> algorithm and task/mm_autonuma stats collection"
+>
+> +/*
+> + * In this function we build a temporal CPU_node<->page relation by
+> + * using a two-stage autonuma_last_nid filter to remove short/unlikely
+> + * relations.
 
+Looks like the comment came from sched/numa, but the original code
+came from autonuma:
 
-The proposed API bugs me a bit.  It seems simplistic.  I need to have a
-quality think about this.  Maybe the result of that think will be to
-suggest an interface which can be extended in a back-compatible fashion
-later on, if/when the simplistic nature becomes a problem.
+https://lkml.org/lkml/2012/8/22/629
+
+If you want to do a real historical dig, we may still have a picture
+of the whiteboard where Karen and I came up with the idea of only
+migrating a page after the second touch from the same node :)
+
+That was trying to solve the "how can we make migrate on fault as
+cheap as possible?" question, and reviewing some earlier autonuma
+codebase.
+
+Not that any of this matters in the least.  AutoNUMA, sched/numa,
+and balancenuma have all evolved a lot because they were able to
+copy good ideas from each other, and discard overly complex or
+simply bad ideas (eg. the NUMA syscalls or async page migration),
+while replacing them with simpler, better ideas from the other
+code bases.
+
+Now that we (mostly) agree on what the basic infrastructure should
+look like, we can figure out which placement policies work best for
+various workloads.
+
+Then we can make a choice depending on what works best, independent
+of who wrote what.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
