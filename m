@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 9A64C6B0044
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 00:06:20 -0500 (EST)
-Message-ID: <50AC62C8.8020500@cn.fujitsu.com>
-Date: Wed, 21 Nov 2012 13:12:40 +0800
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 707346B005D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 00:22:22 -0500 (EST)
+Message-ID: <50AC668B.3050201@cn.fujitsu.com>
+Date: Wed, 21 Nov 2012 13:28:43 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v3 06/12] memory-hotplug: unregister memory section on
@@ -67,18 +67,23 @@ At 11/21/2012 01:03 PM, Jaegeuk Hanse Wrote:
 > pseries_remove_memory()
 >     pseries_remove_memblock()
 >         memblock_remove()
+
+It seems that pseries servers don't use ACPI(ACPI is only supported for
+ia64 and x86 now. arm will be supported in the furture).
+
+I am not ppc expert, and I don't know why we touch memblock when hotadding
+memory in ppc case. But IIRC, we don't need memblock after the machine has
+booted up in x86 case. So there is no need to touch it when hotadd/hotremove
+the memory in x86 case.
+
+Thanks
+Wen Congyang
+
 > 
 > Furthermore, memblock is set to record available memory ranges get from
 > e820 map(you can check it in memblock_x86_fill()) in x86 case, after
 > hot-remove memory, this range of memory can't be available, why not
 > remove them as pseries servers' codes do.
-
-Oh, it is powerpc, and I don't read this code. I will check it now.
-
-Thanks for pointing it out.
-
-Wen Congyang
-
 > 
 >>> memblock_remove()
 >>>             __memblock_remove()memory-hotplug: unregister memory
