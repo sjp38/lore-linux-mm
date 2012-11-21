@@ -1,56 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 19F1C6B009B
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 21:48:55 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so678402pad.14
-        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 18:48:54 -0800 (PST)
-Date: Tue, 20 Nov 2012 18:48:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: avoid unnecessary function call when memcg is
- disabled fix
-In-Reply-To: <50AC282A.4070309@jp.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1211201847450.2278@chino.kir.corp.google.com>
-References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com> <20121120134932.055bc192.akpm@linux-foundation.org> <50AC282A.4070309@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 736076B0070
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 21:59:21 -0500 (EST)
+Message-ID: <50AC4505.1000007@cn.fujitsu.com>
+Date: Wed, 21 Nov 2012 11:05:41 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v3 06/12] memory-hotplug: unregister memory section on
+ SPARSEMEM_VMEMMAP
+References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-7-git-send-email-wency@cn.fujitsu.com> <50AB669D.3060007@gmail.com>
+In-Reply-To: <50AB669D.3060007@gmail.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-Move the check for !mm out of line as suggested by Andrew.
+At 11/20/2012 07:16 PM, Jaegeuk Hanse Wrote:
+> On 11/01/2012 05:44 PM, Wen Congyang wrote:
+>> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>>
+>> Currently __remove_section for SPARSEMEM_VMEMMAP does nothing. But
+>> even if
+>> we use SPARSEMEM_VMEMMAP, we can unregister the memory_section.
+>>
+>> So the patch add unregister_memory_section() into __remove_section().
+> 
+> Hi Yasuaki,
+> 
+> I have a question about these sparse vmemmap memory related patches. Hot
+> add memory need allocated vmemmap pages, but this time is allocated by
+> buddy system. How can gurantee virtual address is continuous to the
+> address allocated before? If not continuous, page_to_pfn and pfn_to_page
+> can't work correctly.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/memcontrol.h |    2 +-
- mm/memcontrol.c            |    3 +++
- 2 files changed, 4 insertions(+), 1 deletion(-)
+vmemmap has its virtual address range:
+ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -185,7 +185,7 @@ void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
- static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
- 					     enum vm_event_item idx)
- {
--	if (mem_cgroup_disabled() || !mm)
-+	if (mem_cgroup_disabled())
- 		return;
- 	__mem_cgroup_count_vm_event(mm, idx);
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1021,6 +1021,9 @@ void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- {
- 	struct mem_cgroup *memcg;
- 
-+	if (!mm)
-+		return;
-+
- 	rcu_read_lock();
- 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
- 	if (unlikely(!memcg))
+We allocate memory from buddy system to store struct page, and its virtual
+address isn't in this range. So we should update the page table:
+
+kmalloc_section_memmap()
+    sparse_mem_map_populate()
+        pfn_to_page() // get the virtual address in the vmemmap range
+        vmemmap_populate() // we update page table here
+
+When we use vmemmap, page_to_pfn() always returns address in the vmemmap
+range, not the address that kmalloc() returns. So the virtual address
+is continuous.
+
+Thanks
+Wen Congyang
+> 
+> Regards,
+> Jaegeuk
+> 
+>>
+>> CC: David Rientjes <rientjes@google.com>
+>> CC: Jiang Liu <liuj97@gmail.com>
+>> CC: Len Brown <len.brown@intel.com>
+>> CC: Christoph Lameter <cl@linux.com>
+>> Cc: Minchan Kim <minchan.kim@gmail.com>
+>> CC: Andrew Morton <akpm@linux-foundation.org>
+>> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>> CC: Wen Congyang <wency@cn.fujitsu.com>
+>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>> ---
+>>   mm/memory_hotplug.c | 13 ++++++++-----
+>>   1 file changed, 8 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index ca07433..66a79a7 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -286,11 +286,14 @@ static int __meminit __add_section(int nid,
+>> struct zone *zone,
+>>   #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>>   static int __remove_section(struct zone *zone, struct mem_section *ms)
+>>   {
+>> -    /*
+>> -     * XXX: Freeing memmap with vmemmap is not implement yet.
+>> -     *      This should be removed later.
+>> -     */
+>> -    return -EBUSY;
+>> +    int ret = -EINVAL;
+>> +
+>> +    if (!valid_section(ms))
+>> +        return ret;
+>> +
+>> +    ret = unregister_memory_section(ms);
+>> +
+>> +    return ret;
+>>   }
+>>   #else
+>>   static int __remove_section(struct zone *zone, struct mem_section *ms)
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
