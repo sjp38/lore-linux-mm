@@ -1,44 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 44D9D6B002B
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:27:42 -0500 (EST)
-Message-ID: <50AC9070.2030009@parallels.com>
-Date: Wed, 21 Nov 2012 12:27:28 +0400
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 963BF6B006C
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:30:28 -0500 (EST)
+Message-ID: <50AC911A.3070501@parallels.com>
+Date: Wed, 21 Nov 2012 12:30:18 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-References: <20121107105348.GA25549@lizard> <20121107112136.GA31715@shutemov.name> <CAOJsxLHY+3ZzGuGX=4o1pLfhRqjkKaEMyhX0ejB5nVrDvOWXNA@mail.gmail.com> <20121107114321.GA32265@shutemov.name> <alpine.DEB.2.00.1211141910050.14414@chino.kir.corp.google.com> <20121115033932.GA15546@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211141946370.14414@chino.kir.corp.google.com> <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net> <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com> <20121115085224.GA4635@lizard> <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com> <50A60873.3000607@parallels.com> <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com> <50A6AC48.6080102@parallels.com> <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com> <50AA3FEF.2070100@parallels.com> <alpine.DEB.2.00.1211201013460.4200@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1211201013460.4200@chino.kir.corp.google.com>
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+References: <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com> <509CB9D1.6060704@redhat.com> <20121109090635.GG8218@suse.de> <509F6C2A.9060502@redhat.com> <20121112113731.GS8218@suse.de> <50AB4ADB.6090506@parallels.com> <20121120121817.cf80b8ad.akpm@linux-foundation.org>
+In-Reply-To: <20121120121817.cf80b8ad.akpm@linux-foundation.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
 
-On 11/20/2012 10:23 PM, David Rientjes wrote:
-> Anton can correct me if I'm wrong, but I certainly don't think this is 
-> where mempressure is headed: I don't think any accounting needs to be done 
-> and, if it is, it's a design issue that should be addressed now rather 
-> than later.  I believe notifications should occur on current's mempressure 
-> cgroup depending on its level of reclaim: nobody cares if your memcg has a 
-> limit of 64GB when you only have 32GB of RAM, we'll want the notification.
+On 11/21/2012 12:18 AM, Andrew Morton wrote:
+> On Tue, 20 Nov 2012 13:18:19 +0400
+> Glauber Costa <glommer@parallels.com> wrote:
+> 
+>> On 11/12/2012 03:37 PM, Mel Gorman wrote:
+>>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+>>> index 02c1c971..d0a7967 100644
+>>> --- a/include/linux/gfp.h
+>>> +++ b/include/linux/gfp.h
+>>> @@ -31,6 +31,7 @@ struct vm_area_struct;
+>>>  #define ___GFP_THISNODE		0x40000u
+>>>  #define ___GFP_RECLAIMABLE	0x80000u
+>>>  #define ___GFP_NOTRACK		0x200000u
+>>> +#define ___GFP_NO_KSWAPD	0x400000u
+>>>  #define ___GFP_OTHER_NODE	0x800000u
+>>>  #define ___GFP_WRITE		0x1000000u
+>>
+>> Keep in mind that this bit has been reused in -mm.
+>> If this patch needs to be reverted, we'll need to first change
+>> the definition of __GFP_KMEMCG (and __GFP_BITS_SHIFT as a result), or it
+>> would break things.
+> 
+> I presently have
+> 
+> /* Plain integer GFP bitmasks. Do not use this directly. */
+> #define ___GFP_DMA		0x01u
+> #define ___GFP_HIGHMEM		0x02u
+> #define ___GFP_DMA32		0x04u
+> #define ___GFP_MOVABLE		0x08u
+> #define ___GFP_WAIT		0x10u
+> #define ___GFP_HIGH		0x20u
+> #define ___GFP_IO		0x40u
+> #define ___GFP_FS		0x80u
+> #define ___GFP_COLD		0x100u
+> #define ___GFP_NOWARN		0x200u
+> #define ___GFP_REPEAT		0x400u
+> #define ___GFP_NOFAIL		0x800u
+> #define ___GFP_NORETRY		0x1000u
+> #define ___GFP_MEMALLOC		0x2000u
+> #define ___GFP_COMP		0x4000u
+> #define ___GFP_ZERO		0x8000u
+> #define ___GFP_NOMEMALLOC	0x10000u
+> #define ___GFP_HARDWALL		0x20000u
+> #define ___GFP_THISNODE		0x40000u
+> #define ___GFP_RECLAIMABLE	0x80000u
+> #define ___GFP_KMEMCG		0x100000u
+> #define ___GFP_NOTRACK		0x200000u
+> #define ___GFP_NO_KSWAPD	0x400000u
+> #define ___GFP_OTHER_NODE	0x800000u
+> #define ___GFP_WRITE		0x1000000u
+> 
+> and
+> 
 
-My main concern is that to trigger those notifications, one would have
-to first determine whether or not the particular group of tasks is under
-pressure. And to do that, we need to somehow know how much memory we are
-using, and how much we are reclaiming, etc. On a system-wide level, we
-have this information. On a grouplevel, this is already accounted by memcg.
+Humm, I didn't realize there were also another free space at 0x100000u.
+This seems fine.
 
-In fact, the current code already seems to rely on memcg:
+> #define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
+> #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+> 
+> Which I think is OK?
+Yes, if we haven't increased the size of the flag-space, no need to
+change it.
 
-+	vmpressure(sc->target_mem_cgroup,
-+		   sc->nr_scanned - nr_scanned, nr_reclaimed);
-
-Now, let's start simple: Assume we will have a different cgroup.
-We want per-group pressure notifications for that group. How would you
-determine that the specific group is under pressure?
-
+> 
+> I'd forgotten about __GFP_BITS_SHIFT.  Should we do this?
+> 
+> --- a/include/linux/gfp.h~a
+> +++ a/include/linux/gfp.h
+> @@ -35,6 +35,7 @@ struct vm_area_struct;
+>  #define ___GFP_NO_KSWAPD	0x400000u
+>  #define ___GFP_OTHER_NODE	0x800000u
+>  #define ___GFP_WRITE		0x1000000u
+> +/* If the above are modified, __GFP_BITS_SHIFT may need updating */
+>  
+This is a very helpful comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
