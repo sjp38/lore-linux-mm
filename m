@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 4291E6B0072
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:01 -0500 (EST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id D488A6B0075
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:02 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 01/46] x86: mm: only do a local tlb flush in ptep_set_access_flags()
-Date: Wed, 21 Nov 2012 10:21:07 +0000
-Message-Id: <1353493312-8069-2-git-send-email-mgorman@suse.de>
+Subject: [PATCH 02/46] x86: mm: drop TLB flush from ptep_set_access_flags
+Date: Wed, 21 Nov 2012 10:21:08 +0000
+Message-Id: <1353493312-8069-3-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,51 +15,35 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Rik van Riel <riel@redhat.com>
 
-The function ptep_set_access_flags() is only ever invoked to set access
-flags or add write permission on a PTE.  The write bit is only ever set
-together with the dirty bit.
+Intel has an architectural guarantee that the TLB entry causing
+a page fault gets invalidated automatically. This means
+we should be able to drop the local TLB invalidation.
 
-Because we only ever upgrade a PTE, it is safe to skip flushing entries on
-remote TLBs. The worst that can happen is a spurious page fault on other
-CPUs, which would flush that TLB entry.
-
-Lazily letting another CPU incur a spurious page fault occasionally is
-(much!) cheaper than aggressively flushing everybody else's TLB.
+Because of the way other areas of the page fault code work,
+chances are good that all x86 CPUs do this.  However, if
+someone somewhere has an x86 CPU that does not invalidate
+the TLB entry causing a page fault, this one-liner should
+be easy to revert.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>
 ---
- arch/x86/mm/pgtable.c |    9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ arch/x86/mm/pgtable.c |    1 -
+ 1 file changed, 1 deletion(-)
 
 diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 8573b83..be3bb46 100644
+index be3bb46..7353de3 100644
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -301,6 +301,13 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
- 	free_page((unsigned long)pgd);
- }
- 
-+/*
-+ * Used to set accessed or dirty bits in the page table entries
-+ * on other architectures. On x86, the accessed and dirty bits
-+ * are tracked by hardware. However, do_wp_page calls this function
-+ * to also make the pte writeable at the same time the dirty bit is
-+ * set. In that case we do actually need to write the PTE.
-+ */
- int ptep_set_access_flags(struct vm_area_struct *vma,
- 			  unsigned long address, pte_t *ptep,
- 			  pte_t entry, int dirty)
-@@ -310,7 +317,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+@@ -317,7 +317,6 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
  	if (changed && dirty) {
  		*ptep = entry;
  		pte_update_defer(vma->vm_mm, address, ptep);
--		flush_tlb_page(vma, address);
-+		__flush_tlb_one(address);
+-		__flush_tlb_one(address);
  	}
  
  	return changed;
