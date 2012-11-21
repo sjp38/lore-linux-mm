@@ -1,76 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 5F03B6B007D
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:35:17 -0500 (EST)
-Date: Wed, 21 Nov 2012 11:35:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFT PATCH v1 4/5] mm: provide more accurate estimation of
- pages occupied by memmap
-Message-Id: <20121121113515.3fa5a60c.akpm@linux-foundation.org>
-In-Reply-To: <50ACEAAD.60306@gmail.com>
-References: <20121115112454.e582a033.akpm@linux-foundation.org>
-	<1353254850-27336-1-git-send-email-jiang.liu@huawei.com>
-	<1353254850-27336-5-git-send-email-jiang.liu@huawei.com>
-	<20121119154240.91efcc53.akpm@linux-foundation.org>
-	<50AB9F4A.5050500@gmail.com>
-	<20121120111942.c9596d3f.akpm@linux-foundation.org>
-	<50ACEAAD.60306@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 8F9AA6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:37:26 -0500 (EST)
+Date: Wed, 21 Nov 2012 20:37:12 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121121193712.GJ3773@redhat.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121121103859.GU8218@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121121103859.GU8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, 21 Nov 2012 22:52:29 +0800
-Jiang Liu <liuj97@gmail.com> wrote:
+Hi,
 
-> On 11/21/2012 03:19 AM, Andrew Morton wrote:
-> > On Tue, 20 Nov 2012 23:18:34 +0800
-> > Jiang Liu <liuj97@gmail.com> wrote:
-> > 
-> >>>> +static unsigned long calc_memmap_size(unsigned long spanned_pages,
-> >>>> +				      unsigned long present_pages)
-> >>>> +{
-> >>>> +	unsigned long pages = spanned_pages;
-> >>>> +
-> >>>> +	/*
-> >>>> +	 * Provide a more accurate estimation if there are big holes within
-> >>>> +	 * the zone and SPARSEMEM is in use.
-> >>>> +	 */
-> >>>> +	if (spanned_pages > present_pages + (present_pages >> 4) &&
-> >>>> +	    IS_ENABLED(CONFIG_SPARSEMEM))
-> >>>> +		pages = present_pages;
-> >>>> +
-> >>>> +	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
-> >>>> +}
-> >>>
-> >>> Please explain the ">> 4" heuristc more completely - preferably in both
-> >>> the changelog and code comments.  Why can't we calculate this
-> >>> requirement exactly?  That might require a second pass, but that's OK for
-> >>> code like this?
-> >> Hi Andrew,
-> >> 	A normal x86 platform always have some holes within the DMA ZONE,
-> >> so the ">> 4" heuristic is to avoid applying this adjustment to the DMA
-> >> ZONE on x86 platforms. 
-> >> 	Because the memmap_size is just an estimation, I feel it's OK to
-> >> remove the ">> 4" heuristic, that shouldn't affect much.
-> > 
-> > Again: why can't we calculate this requirement exactly?  That might
-> > require a second pass, but that's OK for code like this?
+On Wed, Nov 21, 2012 at 10:38:59AM +0000, Mel Gorman wrote:
+> HACKBENCH PIPES
+>                          3.7.0                 3.7.0                 3.7.0                 3.7.0                 3.7.0
+>                rc6-stats-v4r12   rc6-schednuma-v16r2rc6-autonuma-v28fastr3       rc6-moron-v4r38    rc6-twostage-v4r38
+> Procs 1       0.0320 (  0.00%)      0.0354 (-10.53%)      0.0410 (-28.28%)      0.0310 (  3.00%)      0.0296 (  7.55%)
+> Procs 4       0.0560 (  0.00%)      0.0699 (-24.87%)      0.0641 (-14.47%)      0.0556 (  0.79%)      0.0562 ( -0.36%)
+> Procs 8       0.0850 (  0.00%)      0.1084 (-27.51%)      0.1397 (-64.30%)      0.0833 (  1.96%)      0.0953 (-12.07%)
+> Procs 12      0.1047 (  0.00%)      0.1084 ( -3.54%)      0.1789 (-70.91%)      0.0990 (  5.44%)      0.1127 ( -7.72%)
+> Procs 16      0.1276 (  0.00%)      0.1323 ( -3.67%)      0.1395 ( -9.34%)      0.1236 (  3.16%)      0.1240 (  2.83%)
+> Procs 20      0.1405 (  0.00%)      0.1578 (-12.29%)      0.2452 (-74.52%)      0.1471 ( -4.73%)      0.1454 ( -3.50%)
+> Procs 24      0.1823 (  0.00%)      0.1800 (  1.24%)      0.3030 (-66.22%)      0.1776 (  2.58%)      0.1574 ( 13.63%)
+> Procs 28      0.2019 (  0.00%)      0.2143 ( -6.13%)      0.3403 (-68.52%)      0.2000 (  0.94%)      0.1983 (  1.78%)
+> Procs 32      0.2162 (  0.00%)      0.2329 ( -7.71%)      0.6526 (-201.85%)      0.2235 ( -3.36%)      0.2158 (  0.20%)
+> Procs 36      0.2354 (  0.00%)      0.2577 ( -9.47%)      0.4468 (-89.77%)      0.2619 (-11.24%)      0.2451 ( -4.11%)
+> Procs 40      0.2600 (  0.00%)      0.2850 ( -9.62%)      0.5247 (-101.79%)      0.2724 ( -4.77%)      0.2646 ( -1.75%)
 > 
-> Hi Andrew,
-> 	If there are holes within a zone, it may cost us one or two extra pages
-> for each populated region within the zone due to alignment because memmap for 
-> each populated regions may not naturally aligned on page boundary.
+> The number of procs hackbench is running is too low here for a 48-core
+> machine. It should have been reconfigured but this is better than nothing.
+> 
+> schednuma and autonuma both show large regressions in the performance here.
+> I do not investigate why but as there are a number of scheduler changes
+> it could be anything.
 
-Right.  So with an additional pass across the zone and a bit of
-arithmetic, we can calculate the exact space requirement for memmap?
-No need for kludgy heuristics?
+Strange, last time I tested hackbench it was perfectly ok, I even had
+this test shown in some of the pdf.
 
-> Originally the ">> 4" heuristic is to trade off these extra memmap pages,
-> especially for small zones linke DMA zone.
+Lately (post my last hackbench run) I disabled the affine wakeups
+cross-node and pipes use sd_affine wakeups. That could matter for
+these heavy scheduling tests as it practically disables the _sync in
+wake_up_interruptible_sync_poll used by the pipe code, if the waker
+CPU is in a different node than the wakee prev_cpu. I discussed this
+with Mike and he liked this change IIRC but it's the first thing that
+should be checked at the light of above regression.
+
+> PAGE FAULT TEST
+> 
+> This is a microbenchmark for page faults. The number of clients are badly ordered
+> which again, I really should fix but anyway.
+> 
+>                               3.7.0                 3.7.0                 3.7.0                 3.7.0                 3.7.0
+>                     rc6-stats-v4r12   rc6-schednuma-v16r2rc6-autonuma-v28fastr3       rc6-moron-v4r38    rc6-twostage-v4r38
+> System     1       8.0710 (  0.00%)      8.1085 ( -0.46%)      8.0925 ( -0.27%)      8.0170 (  0.67%)     37.3075 (-362.24%
+> System     10      9.4975 (  0.00%)      9.5690 ( -0.75%)     12.0055 (-26.41%)      9.5915 ( -0.99%)      9.5835 ( -0.91%)
+> System     11      9.7740 (  0.00%)      9.7915 ( -0.18%)     13.4890 (-38.01%)      9.7275 (  0.48%)      9.6810 (  0.95%)
+
+No real clue on this one as I should look in what the test does. It
+might be related to THP splits though. I can't imagine anything else
+because there's nothing at all in autonuma that alters the page faults
+(except from arming NUMA hinting faults which should be lighter in
+autonuma than in the other implementation using task work).
+
+Chances are the faults are tested by touching bytes at different 4k
+offsets in the same 2m naturally aligned virtual range.
+
+Hugh THP native migration patch will clarify things on the above.
+
+> also hope that the concepts of autonuma would be reimplemented on top of
+> this foundation so we can do a meaningful comparison between different
+> placement policies.
+
+I'll try to help with this to see what could be added from autonuma on
+top to improve on top your balancenuma foundation. Your current
+foundation looks ideal for inclusion to me.
+
+I noticed you haven't run any single instance specjbb workload, that
+should be added to the battery of tests. But hey take your time, the
+amount of data you provided is already very comprehensive and you were
+so fast.
+
+The thing is: single instance and multi instance are totally different
+beasts.
+
+multi instance is all about avoiding NUMA false sharing in the first
+place (the anti false sharing algorithm becomes a noop), and it has a
+trivial perfect solution with all cross node traffic guaranteed to
+stop after converence has been reached for the whole duration of the
+workload.
+
+single instance is all about NUMA false sharing detection and it has
+no perfect solution and there's no way to fully converge and to stop
+all cross node traffic. So it's a tradeoff between doing too many
+CPU/memory spurious migrations (harmful, causes regressions) and doing
+too few (i.e. not improving at all compared to upstream but not
+regressing either).
+
+autonuma27/28/28fast will perform identical on multi instance loads
+(i.e. optimal, a few percent away from hard bindings). 
+
+I was just starting to improve the anti false sharing algorithm in
+autonuma28/28fast to improve single instance specjbb too (this is why
+you really need autonuma28 or autonuma28fast to test single instance
+specjbb and not autonuma27).
+
+About THP, normally when I was running benchmarks I was testing these
+4 configs:
+
+1) THP on PMD scan on
+2) THP on PMD scan off
+3) THP off PMD scan on
+4) THP off PMD scan off
+
+(1 and 2 are practically the same for the autonuma benchmark, because
+all memory is backed by THP rendering the PMD level hinting faults for
+4k pages very unlikely, but I was testing it anyway just in case)
+
+THP off is going to hit KVM guests the most and much less host
+workloads. But even for KVM it's good practice to test with THP off
+too, to verify the cost of the numa hinting page faults remains very
+low (the cost is much higher for guests than host because of the
+vmexists).
+
+The KVM benchmark run by IBM was also done in all 4 combinations: THP
+on/off KSM on/off and showed improvement even for the "No THP" case
+(btw, things should run much better these days than the old
+autonuma13).
+
+http://dl.dropbox.com/u/82832537/kvm-numa-comparison-0.png
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
