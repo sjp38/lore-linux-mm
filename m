@@ -1,120 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id 230F06B005D
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:30:19 -0500 (EST)
-Date: Wed, 21 Nov 2012 13:30:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: vmscan: Check for fatal signals iff the process was
- throttled
-Message-Id: <20121121133017.f98149f2.akpm@linux-foundation.org>
-In-Reply-To: <20121121210520.GP8218@suse.de>
-References: <20121105144614.GJ8218@suse.de>
-	<20121106002550.GA3530@barrios>
-	<20121106085822.GN8218@suse.de>
-	<20121106101719.GA2005@barrios>
-	<20121109095024.GI8218@suse.de>
-	<20121112133218.GA3156@barrios>
-	<20121112140631.GV8218@suse.de>
-	<20121113133109.GA5204@barrios>
-	<20121121153824.GG8218@suse.de>
-	<20121121121559.a1aa0593.akpm@linux-foundation.org>
-	<20121121210520.GP8218@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 40EC86B0070
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:35:06 -0500 (EST)
+Date: Wed, 21 Nov 2012 16:34:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Problem in Page Cache Replacement
+Message-ID: <20121121213417.GC24381@cmpxchg.org>
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+ <20121120182500.GH1408@quack.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121120182500.GH1408@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>, Minchan Kim <minchan@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: metin d <metdos@yahoo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, 21 Nov 2012 21:05:20 +0000
-Mel Gorman <mgorman@suse.de> wrote:
+Hi,
 
-> On Wed, Nov 21, 2012 at 12:15:59PM -0800, Andrew Morton wrote:
->
-> ...
->
-> > > -static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> > > +static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> > >  					nodemask_t *nodemask)
-> > >  {
-> > >  	struct zone *zone;
-> > > @@ -2224,13 +2227,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
-> > >  	 * processes to block on log_wait_commit().
-> > >  	 */
-> > >  	if (current->flags & PF_KTHREAD)
-> > > -		return;
-> > > +		goto out;
+On Tue, Nov 20, 2012 at 07:25:00PM +0100, Jan Kara wrote:
+> On Tue 20-11-12 09:42:42, metin d wrote:
+> > I have two PostgreSQL databases named data-1 and data-2 that sit on the
+> > same machine. Both databases keep 40 GB of data, and the total memory
+> > available on the machine is 68GB.
 > > 
-> > hm, well, back in the old days some kernel threads were killable via
-> > signals.  They had to opt-in to it by diddling their signal masks and a
-> > few other things.  Too lazy to check if there are still any such sites.
+> > I started data-1 and data-2, and ran several queries to go over all their
+> > data. Then, I shut down data-1 and kept issuing queries against data-2.
+> > For some reason, the OS still holds on to large parts of data-1's pages
+> > in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+> > a result, my queries on data-2 keep hitting disk.
 > > 
-> 
-> That check is against throttling rather than signal handling though. It
-> could have been just left as "return".
-
-My point is that there might still exist kernel threads which are killable
-via signals.  Those threads match your criteria here: don't throttle -
-just let them run to exit().
-
-If there are indeed missed opportunities here then they will be small
-ones.  And those threads probably only have signal_pending(), not
-fatal_signal_pending().  Don't worry about it ;)
-
+> > I'm checking page cache usage with fincore. When I run a table scan query
+> > against data-2, I see that data-2's pages get evicted and put back into
+> > the cache in a round-robin manner. Nothing happens to data-1's pages,
+> > although they haven't been touched for days.
 > > 
-> > > +	/*
-> > > +	 * If a fatal signal is pending, this process should not throttle.
-> > > +	 * It should return quickly so it can exit and free its memory
-> > > +	 */
-> > > +	if (fatal_signal_pending(current))
-> > > +		goto out;
-> > 
-> > theresabug.  It should return "true" here.
-> > 
-> 
-> The intention here is that a process would
-> 
-> 1. allocate, fail, enter direct reclaim
-> 2. no signal pending, gets throttled because of low pfmemalloc reserves
-> 3. a user kills -9 the throttled process. returns true and goes back
->    to the page allocator
-> 4. If that allocation fails again, it re-enters direct reclaim and tries
->    to throttle. This time the fatal signal is pending but we know
->    we must have already failed to make the allocation so this time false
->    is rurned by throttle_direct_reclaim and it tries direct reclaim.
+> > Does anybody know why data-1's pages aren't evicted from the page cache?
+> > I'm open to all kind of suggestions you think it might relate to problem.
 
-My spinning head fell on the floor and is now drilling its way to China.
+This might be because we do not deactive pages as long as there is
+cache on the inactive list.  I'm guessing that the inter-reference
+distance of data-2 is bigger than half of memory, so it's never
+getting activated and data-1 is never challenged.
 
-> 5. direct reclaim frees something -- probably clean file-backed pages
->    if the last allocation attempt had failed.
-> 
-> so the fatal signal check should only prevent entering direct reclaim
-> once. Maybe the comment sucks
-
-Well it did say "Returns true if a fatal signal was received during
-throttling.".  That "during" was subtle.
-
-> /*
->  * If a fatal signal is pending, this process should not throttle.
->  * It should return quickly so it can exit and free its memory. Note
->  * that returning false here allows a process to enter direct reclaim.
->  * Otherwise there is a risk that the process loops in the page
->  * allocator, checking signals and never making forward progress
->  */
-> 
-> ?
-
-It's still unclear why throttle_direct_reclaim() returns false if
-fatal_signal_pending() *before* throttling, but true *after* throttling. 
-Why not always return true and just scram?
-
->
-> ...
->
-> Same comment about the potential looping. Otherwise I think it's ok.
-
-Send me something sometime ;)
+I have a series of patches that detects a thrashing inactive list and
+handles working set changes up to the size of memory.  Would you be
+willing to test them?  They are currently based on 3.4, let me know
+what version works best for you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
