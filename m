@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 7B9B86B00B0
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 10:10:10 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so1134249pad.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 07:10:09 -0800 (PST)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages occupied by memmap
-Date: Wed, 21 Nov 2012 23:09:46 +0800
-Message-Id: <1353510586-6393-1-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <20121120111942.c9596d3f.akpm@linux-foundation.org>
-References: <20121120111942.c9596d3f.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id D4F826B00B1
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 10:38:13 -0500 (EST)
+Date: Wed, 21 Nov 2012 23:37:21 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [memcg:since-3.6 456/496] drivers/virtio/virtio_balloon.c:145:10: warning: format '%zu' expects argument of type 'size_t', but argument 4 has type 'unsigned int'
+Message-ID: <50acf531.zaJ8wmQW+6NHVbhr%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
 
-If SPARSEMEM is enabled, it won't build page structures for
-non-existing pages (holes) within a zone, so provide a more accurate
-estimation of pages occupied by memmap if there are bigger holes within
-the zone.
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+head:   223cdc1faeea55aa70fef23d54720ad3fdaf4c93
+commit: 12cf48af8968fa1d0cc4c06065d7c37c3560c171 [456/496] virtio_balloon: introduce migration primitives to balloon pages
+config: make ARCH=x86_64 allmodconfig
 
-And pages for highmem zones' memmap will be allocated from lowmem, so
-charge nr_kernel_pages for that.
+All warnings:
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+drivers/virtio/virtio_balloon.c: In function 'fill_balloon':
+drivers/virtio/virtio_balloon.c:145:10: warning: format '%zu' expects argument of type 'size_t', but argument 4 has type 'unsigned int' [-Wformat]
+
+vim +145 drivers/virtio/virtio_balloon.c
+
+6b35e407 Rusty Russell      2008-02-04  129  static void fill_balloon(struct virtio_balloon *vb, size_t num)
+6b35e407 Rusty Russell      2008-02-04  130  {
+12cf48af Rafael Aquini      2012-11-21  131  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+12cf48af Rafael Aquini      2012-11-21  132  
+6b35e407 Rusty Russell      2008-02-04  133  	/* We can only do one array worth at a time. */
+6b35e407 Rusty Russell      2008-02-04  134  	num = min(num, ARRAY_SIZE(vb->pfns));
+6b35e407 Rusty Russell      2008-02-04  135  
+12cf48af Rafael Aquini      2012-11-21  136  	mutex_lock(&vb->balloon_lock);
+3ccc9372 Michael S. Tsirkin 2012-04-12  137  	for (vb->num_pfns = 0; vb->num_pfns < num;
+3ccc9372 Michael S. Tsirkin 2012-04-12  138  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+12cf48af Rafael Aquini      2012-11-21  139  		struct page *page = balloon_page_enqueue(vb_dev_info);
+12cf48af Rafael Aquini      2012-11-21  140  
+6b35e407 Rusty Russell      2008-02-04  141  		if (!page) {
+6b35e407 Rusty Russell      2008-02-04  142  			if (printk_ratelimit())
+6b35e407 Rusty Russell      2008-02-04  143  				dev_printk(KERN_INFO, &vb->vdev->dev,
+4f2ac849 Michal Hocko       2012-11-21  144  					   "Out of puff! Can't get %zu pages\n",
+12cf48af Rafael Aquini      2012-11-21 @145  					    VIRTIO_BALLOON_PAGES_PER_PAGE);
+6b35e407 Rusty Russell      2008-02-04  146  			/* Sleep for at least 1/5 of a second before retry. */
+6b35e407 Rusty Russell      2008-02-04  147  			msleep(200);
+6b35e407 Rusty Russell      2008-02-04  148  			break;
+6b35e407 Rusty Russell      2008-02-04  149  		}
+3ccc9372 Michael S. Tsirkin 2012-04-12  150  		set_page_pfns(vb->pfns + vb->num_pfns, page);
+3ccc9372 Michael S. Tsirkin 2012-04-12  151  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+6b35e407 Rusty Russell      2008-02-04  152  		totalram_pages--;
+6b35e407 Rusty Russell      2008-02-04  153  	}
+
 ---
- mm/page_alloc.c |   26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fc10071..9bbac97 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4442,6 +4442,26 @@ void __init set_pageblock_order(void)
- 
- #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
- 
-+static unsigned long calc_memmap_size(unsigned long spanned_pages,
-+				      unsigned long present_pages)
-+{
-+	unsigned long pages = spanned_pages;
-+
-+	/*
-+	 * Provide a more accurate estimation if there are holes within
-+	 * the zone and SPARSEMEM is in use. If there are holes within the
-+	 * zone, each populated memory region may cost us one or two extra
-+	 * memmap pages due to alignment because memmap pages for each
-+	 * populated regions may not naturally algined on page boundary.
-+	 * So the (present_pages >> 4) heuristic is a tradeoff for that.
-+	 */
-+	if (spanned_pages > present_pages + (present_pages >> 4) &&
-+	    IS_ENABLED(CONFIG_SPARSEMEM))
-+		pages = present_pages;
-+
-+	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
-+}
-+
- /*
-  * Set up the zone data structures:
-  *   - mark all pages reserved
-@@ -4476,8 +4496,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 		 * is used by this zone for memmap. This affects the watermark
- 		 * and per-cpu initialisations
- 		 */
--		memmap_pages =
--			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
-+		memmap_pages = calc_memmap_size(size, realsize);
- 		if (freesize >= memmap_pages) {
- 			freesize -= memmap_pages;
- 			if (memmap_pages)
-@@ -4498,6 +4517,9 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 
- 		if (!is_highmem_idx(j))
- 			nr_kernel_pages += freesize;
-+		/* Charge for highmem memmap if there are enough kernel pages */
-+		else if (nr_kernel_pages > memmap_pages * 2)
-+			nr_kernel_pages -= memmap_pages;
- 		nr_all_pages += freesize;
- 
- 		zone->spanned_pages = size;
--- 
-1.7.9.5
+0-DAY kernel build testing backend         Open Source Technology Center
+Fengguang Wu, Yuanhan Liu                              Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
