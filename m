@@ -1,70 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id C65996B0044
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 12:33:22 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so2624955eaa.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:33:21 -0800 (PST)
-Date: Wed, 21 Nov 2012 18:33:16 +0100
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 969F16B0070
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 12:40:21 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so5188549eek.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:40:20 -0800 (PST)
+Date: Wed, 21 Nov 2012 18:40:15 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/46] Automatic NUMA Balancing V4
-Message-ID: <20121121173316.GA29311@gmail.com>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <20121121165342.GH8218@suse.de>
- <20121121170306.GA28811@gmail.com>
- <20121121172011.GI8218@suse.de>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121121174015.GA29331@gmail.com>
+References: <20121119162909.GL8218@suse.de>
+ <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com>
+ <20121120060014.GA14065@gmail.com>
+ <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
+ <20121120074445.GA14539@gmail.com>
+ <alpine.DEB.2.00.1211200001420.16449@chino.kir.corp.google.com>
+ <20121120090637.GA14873@gmail.com>
+ <CA+55aFyR9FsGYWSKkgsnZB7JhheDMjEQgbzb0gsqawSTpetPvA@mail.gmail.com>
+ <20121121171047.GA28875@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121121172011.GI8218@suse.de>
+In-Reply-To: <20121121171047.GA28875@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
 
-* Mel Gorman <mgorman@suse.de> wrote:
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-> On Wed, Nov 21, 2012 at 06:03:06PM +0100, Ingo Molnar wrote:
-> > 
-> > * Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > On Wed, Nov 21, 2012 at 10:21:06AM +0000, Mel Gorman wrote:
-> > > > 
-> > > > I am not including a benchmark report in this but will be posting one
-> > > > shortly in the "Latest numa/core release, v16" thread along with the latest
-> > > > schednuma figures I have available.
-> > > > 
-> > > 
-> > > Report is linked here https://lkml.org/lkml/2012/11/21/202
-> > > 
-> > > I ended up cancelling the remaining tests and restarted with
-> > > 
-> > > 1. schednuma + patches posted since so that works out as
-> > 
-> > Mel, I'd like to ask you to refer to our tree as numa/core or 
-> > 'numacore' in the future. Would such a courtesy to use the 
-> > current name of our tree be possible?
-> > 
+> So because I did not have an old-glibc system like David's, I 
+> did not know the actual page fault rate. If it is high enough 
+> then nonlinear effects might cause such effects.
 > 
-> Sure, no problem.
+> This is an entirely valid line of inquiry IMO.
 
-Thanks!
+Btw., when comparing against 'mainline' I routinely use a 
+vanilla kernel that has the same optimization applied. (first I 
+make sure it's not a regression to vanilla.)
 
-I ran a quick test with your 'balancenuma v4' tree and while 
-numa02 and numa01-THREAD-ALLOC performance is looking good, 
-numa01 performance does not look very good:
+I do that to factor out the linear component of the independent 
+speedup: it would not be valid to compare vanilla against 
+numa/core+optimization, but the comparison has to be:
 
-                    mainline    numa/core      balancenuma-v4
-     numa01:           340.3       139.4          276 secs
+       vanilla + optimization
+  vs.
+     numa/core + optimization
 
-97% slower than numa/core.
+I did that with last night's numbers as well.
 
-I did a quick SPECjbb 32-warehouses run as well:
+So any of this can only address a regression if a non-linear 
+factor is in play.
 
-                                numa/core      balancenuma-v4
-      SPECjbb  +THP:               655 k/sec      607 k/sec
+Since I have no direct access to a regressing system I have to 
+work with the theories that I can think of: one had a larger 
+effect, the other had a smaller effect, the third one had no 
+effect on David's system.
 
-Here it's 7.9% slower.
+How would you have done it instead?
 
 Thanks,
 
