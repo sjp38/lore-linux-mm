@@ -1,66 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 97E2B6B00B4
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:52:59 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so1122433pad.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 06:52:58 -0800 (PST)
-Message-ID: <50ACEAAD.60306@gmail.com>
-Date: Wed, 21 Nov 2012 22:52:29 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 53ADC6B00B1
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 10:01:58 -0500 (EST)
+Date: Wed, 21 Nov 2012 15:01:50 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC 3/3] man-pages: Add man page for vmpressure_fd(2)
+Message-ID: <20121121150149.GE8218@suse.de>
+References: <20121107105348.GA25549@lizard>
+ <20121107110152.GC30462@lizard>
+ <20121119215211.6370ac3b.akpm@linux-foundation.org>
+ <20121120062400.GA9468@lizard>
+ <alpine.DEB.2.00.1211201004390.4200@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFT PATCH v1 4/5] mm: provide more accurate estimation of pages
- occupied by memmap
-References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com> <1353254850-27336-5-git-send-email-jiang.liu@huawei.com> <20121119154240.91efcc53.akpm@linux-foundation.org> <50AB9F4A.5050500@gmail.com> <20121120111942.c9596d3f.akpm@linux-foundation.org>
-In-Reply-To: <20121120111942.c9596d3f.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1211201004390.4200@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org
 
-On 11/21/2012 03:19 AM, Andrew Morton wrote:
-> On Tue, 20 Nov 2012 23:18:34 +0800
-> Jiang Liu <liuj97@gmail.com> wrote:
+On Tue, Nov 20, 2012 at 10:12:28AM -0800, David Rientjes wrote:
+> On Mon, 19 Nov 2012, Anton Vorontsov wrote:
 > 
->>>> +static unsigned long calc_memmap_size(unsigned long spanned_pages,
->>>> +				      unsigned long present_pages)
->>>> +{
->>>> +	unsigned long pages = spanned_pages;
->>>> +
->>>> +	/*
->>>> +	 * Provide a more accurate estimation if there are big holes within
->>>> +	 * the zone and SPARSEMEM is in use.
->>>> +	 */
->>>> +	if (spanned_pages > present_pages + (present_pages >> 4) &&
->>>> +	    IS_ENABLED(CONFIG_SPARSEMEM))
->>>> +		pages = present_pages;
->>>> +
->>>> +	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
->>>> +}
->>>
->>> Please explain the ">> 4" heuristc more completely - preferably in both
->>> the changelog and code comments.  Why can't we calculate this
->>> requirement exactly?  That might require a second pass, but that's OK for
->>> code like this?
->> Hi Andrew,
->> 	A normal x86 platform always have some holes within the DMA ZONE,
->> so the ">> 4" heuristic is to avoid applying this adjustment to the DMA
->> ZONE on x86 platforms. 
->> 	Because the memmap_size is just an estimation, I feel it's OK to
->> remove the ">> 4" heuristic, that shouldn't affect much.
+> > We try to make userland freeing resources when the system becomes low on
+> > memory. Once we're short on memory, sometimes it's better to discard
+> > (free) data, rather than let the kernel to drain file caches or even start
+> > swapping.
+> > 
 > 
-> Again: why can't we calculate this requirement exactly?  That might
-> require a second pass, but that's OK for code like this?
+> To add another usecase: its possible to modify our version of malloc (or 
+> any malloc) so that memory that is free()'d can be released back to the 
+> kernel only when necessary, i.e. when keeping the extra memory around 
+> starts to have a detremental effect on the system, memcg, or cpuset.  When 
+> there is an abundance of memory available such that allocations need not 
+> defragment or reclaim memory to be allocated, it can improve performance 
+> to keep a memory arena from which to allocate from immediately without 
+> calling the kernel.
+> 
 
-Hi Andrew,
-	If there are holes within a zone, it may cost us one or two extra pages
-for each populated region within the zone due to alignment because memmap for 
-each populated regions may not naturally aligned on page boundary.
-	Originally the ">> 4" heuristic is to trade off these extra memmap pages,
-especially for small zones linke DMA zone.
-	Thanks!
+A potential third use case is a variation of the first for batch systems. If
+it's running low priority tasks and a high priority task starts that
+results in memory pressure then the job scheduler may decide to move the
+low priority jobs elsewhere (or cancel them entirely).
 
+A similar use case is monitoring systems running high priority workloads
+that should never swap. It can be easily detected if the system starts
+swapping but a pressure notification might act as an early warning system
+that something is happening on the system that might cause the primary
+workload to start swapping.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
