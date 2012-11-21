@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 3743C6B002B
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 04:30:48 -0500 (EST)
-Date: Wed, 21 Nov 2012 11:30:56 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
-Message-ID: <20121121093056.GA31882@shutemov.name>
-References: <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net>
- <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
- <20121115085224.GA4635@lizard>
- <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
- <50A60873.3000607@parallels.com>
- <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
- <50A6AC48.6080102@parallels.com>
- <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
- <50AA3ABF.4090803@parallels.com>
- <alpine.DEB.2.00.1211200950120.4200@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 7E4986B002B
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 04:34:37 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so4848681eek.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 01:34:36 -0800 (PST)
+Date: Wed, 21 Nov 2012 10:34:31 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH, v2] mm, numa: Turn 4K pte NUMA faults into effective
+ hugepage ones
+Message-ID: <20121121093431.GA25519@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121119211804.GM8218@suse.de>
+ <20121119223604.GA13470@gmail.com>
+ <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
+ <20121120071704.GA14199@gmail.com>
+ <20121120152933.GA17996@gmail.com>
+ <20121120160918.GA18167@gmail.com>
+ <alpine.DEB.2.00.1211201833080.2278@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1211200950120.4200@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.00.1211201833080.2278@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Glauber Costa <glommer@parallels.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Nov 20, 2012 at 10:02:45AM -0800, David Rientjes wrote:
-> On Mon, 19 Nov 2012, Glauber Costa wrote:
-> 
-> > >> In the case I outlined below, for backwards compatibility. What I
-> > >> actually mean is that memcg *currently* allows arbitrary notifications.
-> > >> One way to merge those, while moving to a saner 3-point notification, is
-> > >> to still allow the old writes and fit them in the closest bucket.
-> > >>
-> > > 
-> > > Yeah, but I'm wondering why three is the right answer.
-> > > 
-> > 
-> > This is unrelated to what I am talking about.
-> > I am talking about pre-defined values with a specific event meaning (in
-> > his patchset, 3) vs arbitrary numbers valued in bytes.
-> > 
-> 
-> Right, and I don't see how you can map the memcg thresholds onto Anton's 
-> scheme
 
-BTW, there's interface for OOM notification in memcg. See oom_control.
-I guess other pressure levels can also fit to the interface.
+* David Rientjes <rientjes@google.com> wrote:
 
--- 
- Kirill A. Shutemov
+> Ok, this is significantly better, it almost cut the regression 
+> in half on my system. [...]
+
+The other half still seems to be related to the emulation faults 
+that I fixed in the other patch:
+
+>      0.49%  [kernel]          [k] page_fault                                               
+>      0.06%  [kernel]          [k] emulate_vsyscall                                         
+
+Plus TLB flush costs:
+
+>      0.13%  [kernel]          [k] generic_smp_call_function_interrupt
+>      0.08%  [kernel]          [k] flush_tlb_func
+
+for which you should try the third patch I sent.
+
+So please try all my fixes - the easiest way to do that would be 
+to try the latest tip:master that has all related fixes 
+integrated and send me a new perf top output - most page fault 
+and TLB flush overhead should be gone from the profile.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
