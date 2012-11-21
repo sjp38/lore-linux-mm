@@ -1,97 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 963BF6B006C
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:30:28 -0500 (EST)
-Message-ID: <50AC911A.3070501@parallels.com>
-Date: Wed, 21 Nov 2012 12:30:18 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 420DA6B0071
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:34:47 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id lz20so8566939obb.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 00:34:46 -0800 (PST)
+Message-ID: <50AC9220.70202@gmail.com>
+Date: Wed, 21 Nov 2012 16:34:40 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
-References: <20121012135726.GY29125@suse.de> <507BDD45.1070705@suse.cz> <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com> <509CB9D1.6060704@redhat.com> <20121109090635.GG8218@suse.de> <509F6C2A.9060502@redhat.com> <20121112113731.GS8218@suse.de> <50AB4ADB.6090506@parallels.com> <20121120121817.cf80b8ad.akpm@linux-foundation.org>
-In-Reply-To: <20121120121817.cf80b8ad.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: Problem in Page Cache Replacement
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com> <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com>
+In-Reply-To: <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>
+To: metin d <metdos@yahoo.com>, Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 11/21/2012 12:18 AM, Andrew Morton wrote:
-> On Tue, 20 Nov 2012 13:18:19 +0400
-> Glauber Costa <glommer@parallels.com> wrote:
-> 
->> On 11/12/2012 03:37 PM, Mel Gorman wrote:
->>> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
->>> index 02c1c971..d0a7967 100644
->>> --- a/include/linux/gfp.h
->>> +++ b/include/linux/gfp.h
->>> @@ -31,6 +31,7 @@ struct vm_area_struct;
->>>  #define ___GFP_THISNODE		0x40000u
->>>  #define ___GFP_RECLAIMABLE	0x80000u
->>>  #define ___GFP_NOTRACK		0x200000u
->>> +#define ___GFP_NO_KSWAPD	0x400000u
->>>  #define ___GFP_OTHER_NODE	0x800000u
->>>  #define ___GFP_WRITE		0x1000000u
+Cc Fengguang Wu.
+
+On 11/21/2012 04:13 PM, metin d wrote:
+>>    Curious. Added linux-mm list to CC to catch more attention. If you run
+>> echo 1 >/proc/sys/vm/drop_caches does it evict data-1 pages from memory?
+> I'm guessing it'd evict the entries, but am wondering if we could run any more diagnostics before trying this.
+>
+> We regularly use a setup where we have two databases; one gets used frequently and the other one about once a month. It seems like the memory manager keeps unused pages in memory at the expense of frequently used database's performance.
+>
+> My understanding was that under memory pressure from heavily accessed pages, unused pages would eventually get evicted. Is there anything else we can try on this host to understand why this is happening?
+>
+> Thank you,
+>
+> Metin
+>
+> On Tue 20-11-12 09:42:42, metin d wrote:
+>> I have two PostgreSQL databases named data-1 and data-2 that sit on the
+>> same machine. Both databases keep 40 GB of data, and the total memory
+>> available on the machine is 68GB.
 >>
->> Keep in mind that this bit has been reused in -mm.
->> If this patch needs to be reverted, we'll need to first change
->> the definition of __GFP_KMEMCG (and __GFP_BITS_SHIFT as a result), or it
->> would break things.
-> 
-> I presently have
-> 
-> /* Plain integer GFP bitmasks. Do not use this directly. */
-> #define ___GFP_DMA		0x01u
-> #define ___GFP_HIGHMEM		0x02u
-> #define ___GFP_DMA32		0x04u
-> #define ___GFP_MOVABLE		0x08u
-> #define ___GFP_WAIT		0x10u
-> #define ___GFP_HIGH		0x20u
-> #define ___GFP_IO		0x40u
-> #define ___GFP_FS		0x80u
-> #define ___GFP_COLD		0x100u
-> #define ___GFP_NOWARN		0x200u
-> #define ___GFP_REPEAT		0x400u
-> #define ___GFP_NOFAIL		0x800u
-> #define ___GFP_NORETRY		0x1000u
-> #define ___GFP_MEMALLOC		0x2000u
-> #define ___GFP_COMP		0x4000u
-> #define ___GFP_ZERO		0x8000u
-> #define ___GFP_NOMEMALLOC	0x10000u
-> #define ___GFP_HARDWALL		0x20000u
-> #define ___GFP_THISNODE		0x40000u
-> #define ___GFP_RECLAIMABLE	0x80000u
-> #define ___GFP_KMEMCG		0x100000u
-> #define ___GFP_NOTRACK		0x200000u
-> #define ___GFP_NO_KSWAPD	0x400000u
-> #define ___GFP_OTHER_NODE	0x800000u
-> #define ___GFP_WRITE		0x1000000u
-> 
-> and
-> 
-
-Humm, I didn't realize there were also another free space at 0x100000u.
-This seems fine.
-
-> #define __GFP_BITS_SHIFT 25	/* Room for N __GFP_FOO bits */
-> #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
-> 
-> Which I think is OK?
-Yes, if we haven't increased the size of the flag-space, no need to
-change it.
-
-> 
-> I'd forgotten about __GFP_BITS_SHIFT.  Should we do this?
-> 
-> --- a/include/linux/gfp.h~a
-> +++ a/include/linux/gfp.h
-> @@ -35,6 +35,7 @@ struct vm_area_struct;
->  #define ___GFP_NO_KSWAPD	0x400000u
->  #define ___GFP_OTHER_NODE	0x800000u
->  #define ___GFP_WRITE		0x1000000u
-> +/* If the above are modified, __GFP_BITS_SHIFT may need updating */
->  
-This is a very helpful comment.
+>> I started data-1 and data-2, and ran several queries to go over all their
+>> data. Then, I shut down data-1 and kept issuing queries against data-2.
+>> For some reason, the OS still holds on to large parts of data-1's pages
+>> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+>> a result, my queries on data-2 keep hitting disk.
+>>
+>> I'm checking page cache usage with fincore. When I run a table scan query
+>> against data-2, I see that data-2's pages get evicted and put back into
+>> the cache in a round-robin manner. Nothing happens to data-1's pages,
+>> although they haven't been touched for days.
+>>
+>> Does anybody know why data-1's pages aren't evicted from the page cache?
+>> I'm open to all kind of suggestions you think it might relate to problem.
+>    Curious. Added linux-mm list to CC to catch more attention. If you run
+> echo 1 >/proc/sys/vm/drop_caches
+>    does it evict data-1 pages from memory?
+>
+>> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no
+>> swap space. The kernel version is:
+>>
+>> $ uname -r
+>> 3.2.28-45.62.amzn1.x86_64
+>> Edit:
+>>
+>> and it seems that I use one NUMA instance, if  you think that it can a problem.
+>>
+>> $ numactl --hardware
+>> available: 1 nodes (0)
+>> node 0 cpus: 0 1 2 3 4 5 6 7
+>> node 0 size: 70007 MB
+>> node 0 free: 360 MB
+>> node distances:
+>> node   0
+>>     0:  10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
