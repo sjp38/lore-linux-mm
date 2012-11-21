@@ -1,152 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 5F6F66B0044
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 19:37:17 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 3CD023EE0C0
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:37:15 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 23BF645DEBE
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:37:15 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id EDACB45DEB5
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:37:14 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D63961DB803C
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:37:14 +0900 (JST)
-Received: from g01jpexchkw01.g01.fujitsu.local (g01jpexchkw01.g01.fujitsu.local [10.0.194.40])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 92463E08002
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:37:14 +0900 (JST)
-Message-ID: <50AC221B.4090503@jp.fujitsu.com>
-Date: Wed, 21 Nov 2012 09:36:43 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id AA1C86B0072
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 19:43:30 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so608915pad.14
+        for <linux-mm@kvack.org>; Tue, 20 Nov 2012 16:43:30 -0800 (PST)
+Date: Tue, 20 Nov 2012 16:43:26 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] x86/vsyscall: Add Kconfig option to use native vsyscalls,
+ switch to it
+In-Reply-To: <20121120094132.GA15156@gmail.com>
+Message-ID: <alpine.DEB.2.00.1211201641550.6232@chino.kir.corp.google.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org> <20121119162909.GL8218@suse.de> <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com> <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com> <20121120060014.GA14065@gmail.com>
+ <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com> <20121120074445.GA14539@gmail.com> <alpine.DEB.2.00.1211200001420.16449@chino.kir.corp.google.com> <20121120090637.GA14873@gmail.com> <20121120094132.GA15156@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Add movablecore_map boot option.
-References: <1353335246-9127-1-git-send-email-tangchen@cn.fujitsu.com> <20121119125325.ed1abba0.akpm@linux-foundation.org> <50AB646E.7040009@jp.fujitsu.com> <50AB6899.3060609@gmail.com>
-In-Reply-To: <50AB6899.3060609@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, rob@landley.net, laijs@cn.fujitsu.com, jiang.liu@huawei.com, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, yinghai@kernel.org, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>
 
-Hi Jaegeuk,
+On Tue, 20 Nov 2012, Ingo Molnar wrote:
 
-2012/11/20 20:25, Jaegeuk Hanse wrote:
-> On 11/20/2012 07:07 PM, Yasuaki Ishimatsu wrote:
->> 2012/11/20 5:53, Andrew Morton wrote:
->>> On Mon, 19 Nov 2012 22:27:21 +0800
->>> Tang Chen <tangchen@cn.fujitsu.com> wrote:
->>>
->>>> This patchset provide a boot option for user to specify ZONE_MOVABLE memory
->>>> map for each node in the system.
->>>>
->>>> movablecore_map=nn[KMG]@ss[KMG]
->>>>
->>>> This option make sure memory range from ss to ss+nn is movable memory.
->>>> 1) If the range is involved in a single node, then from ss to the end of
->>>>     the node will be ZONE_MOVABLE.
->>>> 2) If the range covers two or more nodes, then from ss to the end of
->>>>     the node will be ZONE_MOVABLE, and all the other nodes will only
->>>>     have ZONE_MOVABLE.
->>>> 3) If no range is in the node, then the node will have no ZONE_MOVABLE
->>>>     unless kernelcore or movablecore is specified.
->>>> 4) This option could be specified at most MAX_NUMNODES times.
->>>> 5) If kernelcore or movablecore is also specified, movablecore_map will have
->>>>     higher priority to be satisfied.
->>>> 6) This option has no conflict with memmap option.
->>>
->>> This doesn't describe the problem which the patchset solves.  I can
->>> kinda see where it's coming from, but it would be nice to have it all
->>> spelled out, please.
->>>
->>
->>> - What is wrong with the kernel as it stands?
->>
->> If we hot remove a memroy, the memory cannot have kernel memory,
->> because Linux cannot migrate kernel memory currently. Therefore,
->> we have to guarantee that the hot removed memory has only movable
->> memoroy.
->>
->> Linux has two boot options, kernelcore= and movablecore=, for
->> creating movable memory. These boot options can specify the amount
->> of memory use as kernel or movable memory. Using them, we can
->> create ZONE_MOVABLE which has only movable memory.
->>
->> But it does not fulfill a requirement of memory hot remove, because
->> even if we specify the boot options, movable memory is distributed
->> in each node evenly. So when we want to hot remove memory which
->> memory range is 0x80000000-0c0000000, we have no way to specify
->> the memory as movable memory.
->
-> Could you explain why can't specify the memory as movable memory in this case?
+> Subject: x86/vsyscall: Add Kconfig option to use native vsyscalls, switch to it
+> From: Ingo Molnar <mingo@kernel.org>
+> 
+> Apparently there's still plenty of systems out there triggering
+> the vsyscall emulation page faults - causing hard to track down
+> performance regressions on page fault intense workloads...
+> 
+> Some people seem to have run into that with threading-intense
+> Java workloads.
+> 
+> So until there's a better solution to this, add a Kconfig switch
+> to make the vsyscall mode configurable and turn native vsyscall
+> support back on by default.
+> 
+> Distributions whose libraries and applications use the vDSO and never
+> access the vsyscall page can change the config option to off.
+> 
+> Note, I don't think we want to expose the "none" option via a Kconfig
+> switch - it breaks the ABI. So it's "native" versus "emulate", with
+> "none" being available as a kernel boot option, for the super paranoid.
+> 
+> For more background, see these upstream commits:
+> 
+>   3ae36655b97a x86-64: Rework vsyscall emulation and add vsyscall= parameter
+>   5cec93c216db x86-64: Emulate legacy vsyscalls
+> 
+> Cc: Andy Lutomirski <luto@amacapital.net>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Ingo Molnar <mingo@kernel.org>
 
-For creating movable memory, Linux prepares two boot options, kernelcore=
-and movablecore=. These boot options specify amount of memory not memory
-range use as kernel or movable memory. So when we use these boot options,
-we cannot control where the movable memory is set.
+It's slightly better, not sure if it's worth changing everybody's default 
+for the small speedup here, though.
 
->
->>
->> So we proposed a new feature which specifies memory range to use as
->> movable memory.
->>
->>> - What are the possible ways of solving this?
->>
->> I thought 2 ways to specify movable memory.
->>  1. use firmware information
->>  2. use boot option
->>
->> 1. use firmware information
->>   According to ACPI spec 5.0, SRAT table has memory affinity structure
->>   and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
->>   Affinity Structure". If we use the information, we might be able to
->>   specify movable memory by firmware. For example, if Hot Pluggable
->>   Filed is enabled, Linux sets the memory as movable memory.
->>
->> 2. use boot option
->>   This is our proposal. New boot option can specify memory range to use
->>   as movable memory.
->>
->>> - Describe the chosen way, explain why it is superior to alternatives
->>
->> We chose second way, because if we use first way, users cannot change
->> memory range to use as movable memory easily. We think if we create
->> movable memory, performance regression may occur by NUMA. In this case,
->
-> Could you explain why regression occur in details?
+THP enabled:
 
-Using the boot option, we can create movable node which has only
-movable memory. So if we create a new task, kernel memory and movable
-memory (anonymous page and page cache) of the task are allocated by
-different nodes. In this case, performance regression may occur.
+   numa/core at ec05a2311c35:		136918.34 SPECjbb2005 bops
+   numa/core at 01aa90068b12:		128315.19 SPECjbb2005 bops (-6.3%)
+   numa/core at 01aa90068b12 + patch:	128589.34 SPECjbb2005 bops (-6.1%)
 
-Thanks,
-Yasuaki Ishimatsu
+THP disabled:
 
->
->> user can turn off the feature easily if we prepare the boot option.
->> And if we prepare the boot optino, the user can select which memory
->> to use as movable memory easily.
->>
->> Thanks,
->> Yasuaki Ishimatsu
->>
->>>
->>> The amount of manual system configuration in this proposal looks quite
->>> high.  Adding kernel boot parameters really is a last resort. Why was
->>> it unavoidable here?
->>>
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+   numa/core at ec05a2311c35:		122246.90 SPECjbb2005 bops
+   numa/core at 01aa90068b12:		 99389.49 SPECjbb2005 bops (-18.7%)
+   numa/core at 01aa90068b12 + patch:	100726.34 SPECjbb2005 bops (-17.6%)
 
+perf top w/ THP enabled:
+
+    92.56%  perf-13343.map    [.] 0x00007fd513d2ba7a                        
+     1.24%  libjvm.so         [.] instanceKlass::oop_push_contents(PSPromoti
+     1.01%  libjvm.so         [.] PSPromotionManager::drain_stacks_depth(boo
+     0.77%  libjvm.so         [.] PSPromotionManager::copy_to_survivor_space
+     0.57%  libjvm.so         [.] PSPromotionManager::claim_or_forward_inter
+     0.26%  libjvm.so         [.] Copy::pd_disjoint_words(HeapWord*, HeapWord*, unsi
+     0.22%  libjvm.so         [.] CardTableExtension::scavenge_contents_parallel(Obj
+     0.20%  [kernel]          [k] read_tsc                                          
+     0.15%  [kernel]          [k] _raw_spin_lock                                    
+     0.13%  [kernel]          [k] getnstimeofday                                    
+     0.12%  [kernel]          [k] page_fault                                        
+     0.11%  [kernel]          [k] generic_smp_call_function_interrupt               
+     0.10%  [kernel]          [k] ktime_get                                         
+     0.10%  [kernel]          [k] rcu_check_callbacks                               
+     0.09%  [kernel]          [k] ktime_get_update_offsets                          
+     0.09%  libjvm.so         [.] objArrayKlass::oop_push_contents(PSPromotionManage
+     0.08%  [kernel]          [k] flush_tlb_func                                    
+     0.07%  [kernel]          [k] system_call                                       
+     0.07%  libjvm.so         [.] oopDesc::size_given_klass(Klass*)                 
+     0.06%  [kernel]          [k] handle_mm_fault                                   
+     0.06%  [kernel]          [k] task_tick_fair                                    
+     0.05%  libc-2.3.6.so     [.] __gettimeofday                                    
+     0.05%  libjvm.so         [.] os::javaTimeMillis()                              
+     0.05%  [kernel]          [k] handle_pte_fault                                  
+     0.05%  [kernel]          [k] system_call_after_swapgs                          
+     0.04%  [kernel]          [k] mpol_misplaced                                    
+     0.04%  [kernel]          [k] __do_page_fault                                   
+     0.04%  perf              [.] 0x0000000000035903                                
+     0.04%  [kernel]          [k] copy_user_generic_string                          
+     0.04%  [kernel]          [k] task_numa_fault                                   
+     0.04%  [acpi_cpufreq]    [.] 0x000000005f51a009                                
+     0.04%  [kernel]          [k] find_vma                                          
+     0.04%  [kernel]          [k] run_timer_softirq                                 
+     0.03%  [kernel]          [k] sysret_check                                      
+     0.03%  [kernel]          [k] smp_call_function_many                            
+     0.03%  [kernel]          [k] update_cfs_shares                                 
+     0.02%  [kernel]          [k] do_wp_page                                        
+     0.02%  [kernel]          [k] get_vma_policy                                    
+     0.02%  [kernel]          [k] update_curr                                       
+     0.02%  [kernel]          [k] down_read_trylock                                 
+     0.02%  [kernel]          [k] apic_timer_interrupt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
