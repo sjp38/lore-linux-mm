@@ -1,140 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 2017D6B0070
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:15:54 -0500 (EST)
-Date: Wed, 21 Nov 2012 19:15:47 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 36/46] mm: numa: Use a two-stage filter to restrict pages
- being migrated for unlikely task<->node relationships
-Message-ID: <20121121191547.GM8218@suse.de>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <1353493312-8069-37-git-send-email-mgorman@suse.de>
- <20121121182537.GB29893@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121121182537.GB29893@gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id E4A266B0072
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:17:12 -0500 (EST)
+Date: Wed, 21 Nov 2012 11:17:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
+ dma_alloc_coherent() calls
+Message-Id: <20121121111711.fe915265.akpm@linux-foundation.org>
+In-Reply-To: <50AC9CC7.8010103@samsung.com>
+References: <20121119144826.f59667b2.akpm@linux-foundation.org>
+	<1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
+	<20121120113325.dde266ed.akpm@linux-foundation.org>
+	<50AC8C14.5050204@samsung.com>
+	<20121121003643.97febbdb.akpm@linux-foundation.org>
+	<50AC9CC7.8010103@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Soren Moch <smoch@web.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>, Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
 
-On Wed, Nov 21, 2012 at 07:25:37PM +0100, Ingo Molnar wrote:
+On Wed, 21 Nov 2012 10:20:07 +0100
+Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+
+> Hello,
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
+> On 11/21/2012 9:36 AM, Andrew Morton wrote:
+> > On Wed, 21 Nov 2012 09:08:52 +0100 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+> >
+> > > Hello,
+> > >
+> > > On 11/20/2012 8:33 PM, Andrew Morton wrote:
+> > > > On Tue, 20 Nov 2012 15:31:45 +0100
+> > > > Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+> > > >
+> > > > > dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
+> > > > > regardless the flags provided by the caller. This causes excessive
+> > > > > pruning of emergency memory pools without any good reason. Additionaly,
+> > > > > on ARM architecture any driver which is using dmapools will sooner or
+> > > > > later  trigger the following error:
+> > > > > "ERROR: 256 KiB atomic DMA coherent pool is too small!
+> > > > > Please increase it with coherent_pool= kernel parameter!".
+> > > > > Increasing the coherent pool size usually doesn't help much and only
+> > > > > delays such error, because all GFP_ATOMIC DMA allocations are always
+> > > > > served from the special, very limited memory pool.
+> > > > >
+> > > >
+> > > > Is this problem serious enough to justify merging the patch into 3.7?
+> > > > And into -stable kernels?
+> > >
+> > > I wonder if it is a good idea to merge such change at the end of current
+> > > -rc period.
+> >
+> > I'm not sure what you mean by this.
+> >
+> > But what we do sometimes if we think a patch needs a bit more
+> > real-world testing before backporting is to merge it into -rc1 in the
+> > normal merge window, and tag it for -stable backporting.  That way it
+> > gets a few weeks(?) testing in mainline before getting backported.
 > 
-> > While it is desirable that all threads in a process run on its home
-> > node, this is not always possible or necessary. There may be more
-> > threads than exist within the node or the node might over-subscribed
-> > with unrelated processes.
-> > 
-> > This can cause a situation whereby a page gets migrated off its home
-> > node because the threads clearing pte_numa were running off-node. This
-> > patch uses page->last_nid to build a two-stage filter before pages get
-> > migrated to avoid problems with short or unlikely task<->node
-> > relationships.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/mempolicy.c |   30 +++++++++++++++++++++++++++++-
-> >  1 file changed, 29 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index 4c1c8d8..fd20e28 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -2317,9 +2317,37 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
-> >  	}
-> >  
-> >  	/* Migrate the page towards the node whose CPU is referencing it */
-> > -	if (pol->flags & MPOL_F_MORON)
-> > +	if (pol->flags & MPOL_F_MORON) {
-> > +		int last_nid;
-> > +
-> >  		polnid = numa_node_id();
-> >  
-> > +		/*
-> > +		 * Multi-stage node selection is used in conjunction
-> > +		 * with a periodic migration fault to build a temporal
-> > +		 * task<->page relation. By using a two-stage filter we
-> > +		 * remove short/unlikely relations.
-> > +		 *
-> > +		 * Using P(p) ~ n_p / n_t as per frequentist
-> > +		 * probability, we can equate a task's usage of a
-> > +		 * particular page (n_p) per total usage of this
-> > +		 * page (n_t) (in a given time-span) to a probability.
-> > +		 *
-> > +		 * Our periodic faults will sample this probability and
-> > +		 * getting the same result twice in a row, given these
-> > +		 * samples are fully independent, is then given by
-> > +		 * P(n)^2, provided our sample period is sufficiently
-> > +		 * short compared to the usage pattern.
-> > +		 *
-> > +		 * This quadric squishes small probabilities, making
-> > +		 * it less likely we act on an unlikely task<->page
-> > +		 * relation.
-> > +		 */
-> > +		last_nid = page_xchg_last_nid(page, polnid);
-> > +		if (last_nid != polnid)
-> > +			goto out;
-> > +	}
-> > +
-> >  	if (curnid != polnid)
-> >  		ret = polnid;
-> >  out:
+> I just wondered that if it gets merged to v3.7-rc7 there won't be much time
+> for real-world testing before final v3.7 release. This patch is in
+> linux-next for over a week and I'm not aware of any issues, but -rc releases
+> gets much more attention and testing than linux-next tree.
 > 
-> As mentioned in my other mail, this patch of yours looks very 
-> similar to the numa/core commit attached below, mostly written 
-> by Peter:
-> 
->   30f93abc6cb3 sched, numa, mm: Add the scanning page fault machinery
+> If You think it's fine to put such change to v3.7-rc7 I will send a pull
+> request and tag it for stable asap.
 > 
 
-My patch is directly based on that particular patch and is a partial
-extraction. I could not directly pull which is why the From is missing. I
-think you'll also find that it's very similar to a partial extraction
-from "autonuma: memory follows CPU algorithm and task/mm_autonuma stats
-collection". The primary differences are exactly how the logic is applied
-and when it happens.
-
-I've added a note now to that effect now. For all the patches with notes
-or any other ones, I'll be very happy to add the Signed-offs back on if
-the original authors acknowledge they are ok with the end result. If you
-recall, in the original V1 of this series I said;
-
-	This series steals very heavily from both autonuma and schednuma
-	with very little original code. In some cases I removed the
-	signed-off-bys because the result was too different. I have noted
-	in the changelog where this happened but the signed-offs can be
-	restored if the original authors agree.
-
-Just to compare, this is the wording in "autonuma: memory follows CPU
-algorithm and task/mm_autonuma stats collection"
-
-+/*
-+ * In this function we build a temporal CPU_node<->page relation by
-+ * using a two-stage autonuma_last_nid filter to remove short/unlikely
-+ * relations.
-+ *
-+ * Using P(p) ~ n_p / n_t as per frequentest probability, we can
-+ * equate a node's CPU usage of a particular page (n_p) per total
-+ * usage of this page (n_t) (in a given time-span) to a probability.
-+ *
-+ * Our periodic faults will then sample this probability and getting
-+ * the same result twice in a row, given these samples are fully
-+ * independent, is then given by P(n)^2, provided our sample period
-+ * is sufficiently short compared to the usage pattern.
-+ *
-+ * This quadric squishes small probabilities, making it less likely
-+ * we act on an unlikely CPU_node<->page relation.
-+ */
-
-If this was the basis for the sched/numa patch then I'd point out that
-I'm not the only person that failed to preserve history perfectly.
-
--- 
-Mel Gorman
-SUSE Labs
+What I'm suggesting is that it be merged for 3.8-rc1 with a -stable
+tag, then it will be backported into 3.7.x later on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
