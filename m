@@ -1,94 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 0BD036B00C8
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 07:21:59 -0500 (EST)
-Date: Wed, 21 Nov 2012 12:21:52 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 37/46] mm: numa: Add THP migration for the NUMA working
- set scanning fault case.
-Message-ID: <20121121122152.GC8218@suse.de>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <1353493312-8069-38-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 982716B004D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 08:07:14 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hm11so1504869wib.8
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:07:13 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES approaches low water mark
+In-Reply-To: <20121121010556.GD447@bbox>
+References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com> <20121120000137.GC447@bbox> <50AB987F.30002@samsung.com> <20121121010556.GD447@bbox>
+Date: Wed, 21 Nov 2012 14:07:04 +0100
+Message-ID: <xa1t7gpfgl53.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1353493312-8069-38-git-send-email-mgorman@suse.de>
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-On Wed, Nov 21, 2012 at 10:21:43AM +0000, Mel Gorman wrote:
-> Note: This is very heavily based on a patch from Peter Zijlstra with
-> 	fixes from Ingo Molnar, Hugh Dickins and Johannes Weiner.  That patch
-> 	put a lot of migration logic into mm/huge_memory.c where it does
-> 	not belong. This version puts tries to share some of the migration
-> 	logic with migrate_misplaced_page.  However, it should be noted
-> 	that now migrate.c is doing more with the pagetable manipulation
-> 	than is preferred. The end result is barely recognisable so as
-> 	before, the signed-offs had to be removed but will be re-added if
-> 	the original authors are ok with it.
-> 
-> Add THP migration for the NUMA working set scanning fault case.
-> 
-> It uses the page lock to serialize. No migration pte dance is
-> necessary because the pte is already unmapped when we decide
-> to migrate.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-I think these are the obvious missing bits for memcg.
+On Wed, Nov 21 2012, Minchan Kim wrote:
+> So your concern is that too many free pages in MIGRATE_CMA when OOM happe=
+ns
+> is odd? It's natural with considering CMA design which kernel never fallb=
+ack
+> non-movable page allocation to CMA area. I guess it's not a your concern.
+>
+> Let's think below extreme cases.
+>
+> =3D Before =3D
+>
+> * 1000M DRAM system.
+> * 400M kernel used pages.
+> * 300M movable used pages.
+> * 300M cma freed pages.
+>
+> 1. kernel want to request 400M non-movable memory, additionally.
+> 2. VM start to reclaim 300M movable pages.
+> 3. But it's not enough to meet 400M request.
+> 4. go to OOM. (It's natural)
+>
+> =3D After(with your patch) =3D
+>
+> * 1000M DRAM system.
+> * 400M kernel used pages.
+> * 300M movable *freed* pages.
+> * 300M cma used pages(by your patch, I simplified your concept)
+>
+> 1. kernel want to request 400M non-movable memory.
+> 2. 300M movable freed pages isn't enough to meet 400M request.
+> 3. Also, there is no point to reclaim CMA pages for non-movable allocatio=
+n.
+> 4. go to OOM. (It's natural)
+>
+> There is no difference between before and after in allocation POV.
+> Let's think another example.
+>
+> =3D Before =3D
+>
+> * 1000M DRAM system.
+> * 400M kernel used pages.
+> * 300M movable used pages.
+> * 300M cma freed pages.
+>
+> 1. kernel want to request 300M non-movable memory.
+> 2. VM start to reclaim 300M movable pages.
+> 3. It's enough to meet 300M request.
+> 4. happy end
+>
+> =3D After(with your patch) =3D
+>
+> * 1000M DRAM system.
+> * 400M kernel used pages.
+> * 300M movable *freed* pages.
+> * 300M cma used pages(by your patch, I simplified your concept)
+>
+> 1. kernel want to request 300M non-movable memory.
+> 2. 300M movable freed pages is enough to meet 300M request.
+> 3. happy end.
+>
+> There is no difference in allocation POV, too.
 
-diff --git a/mm/internal.h b/mm/internal.h
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -212,11 +212,12 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
- {
- 	if (TestClearPageMlocked(page)) {
- 		unsigned long flags;
-+		int nr_pages = hpage_nr_pages(page);
- 
- 		local_irq_save(flags);
--		__dec_zone_page_state(page, NR_MLOCK);
-+		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
- 		SetPageMlocked(newpage);
--		__inc_zone_page_state(newpage, NR_MLOCK);
-+		__mod_zone_page_state(page_zone(newpage), NR_MLOCK, nr_pages);
- 		local_irq_restore(flags);
- 	}
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3288,15 +3288,18 @@ void mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
- 				  struct mem_cgroup **memcgp)
- {
- 	struct mem_cgroup *memcg = NULL;
-+	unsigned int nr_pages = 1;
- 	struct page_cgroup *pc;
- 	enum charge_type ctype;
- 
- 	*memcgp = NULL;
- 
--	VM_BUG_ON(PageTransHuge(page));
- 	if (mem_cgroup_disabled())
- 		return;
- 
-+	if (PageTransHuge(page))
-+		nr_pages <<= compound_order(page);
-+
- 	pc = lookup_page_cgroup(page);
- 	lock_page_cgroup(pc);
- 	if (PageCgroupUsed(pc)) {
-@@ -3358,7 +3361,7 @@ void mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
- 	 * charged to the res_counter since we plan on replacing the
- 	 * old one and only one page is going to be left afterwards.
- 	 */
--	__mem_cgroup_commit_charge(memcg, newpage, 1, ctype, false);
-+	__mem_cgroup_commit_charge(memcg, newpage, nr_pages, ctype, false);
- }
- 
- /* remove redundant charge if migration failed*/
+The difference thou is that before 30% of memory is wasted (ie. free),
+whereas after all memory is used.  The main point of CMA is to make the
+memory useful if devices are not using it.  Having it not allocated is
+defeating that purpose.
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQrNH5AAoJECBgQBJQdR/0HxIP/2enYW5oBYHD39pEIHzQq7zd
+oYiUlYBNFFtrbqmplZ15ik+zPGvasFtkl2pvpurFcbRhfE0ZCo7D/MNkDKqMfxcH
+nEIkIjkb/XRH2t8Fx5vcjAJgsFdJLGmuXjOD4TNnXiTJjj9i19Kj9ytOPneqoBEK
+I2Evv6itOO1UISujo9/NKHlLFmIaCRDnqRp/wXYfqNytIog22BXB8OHcTRMIaD/Q
+WKSeEKOkWpftLoOfQ8SW3FCQhOILlwgC5kFk9DpEqANwR8T3OY6O/VNR0Ef0i+Zq
+VWerm0s1mne5tZvcmMkLaPjAnwIdRe9EIuFLIcP1nkTJd5Ujo1WTgkslFV+BenCI
+hMx925+HJPR3CleKAgHcrOehwM5Sl2ZZLwKn89rWFO0xPzEyPIo1iaUZYygLL9Ip
+pIGuhVq5pqxcqMIQ92qg8CHZdFPk3MXAWR+Iq4Q/6lDOQbHbUqwUV9YTs0yuC8wI
+VUOEt6OMqvNqxTY+QuAt9D93kDHAPzC3V1tG2f81Lf8pX12YMleRapWycaztTdlr
+9q8VpFIgeUgvZwLYu1uxIB5b7LRjalmmuuLPFR3vUSMOkWqzWcxdqE/ynrBBMB1Y
+nXajqOWgZZdgLiTKekJF1RhpmTIPpJN4jtbeuw2pATTPbrxjMo6rDV4Ji2V5u0S9
+JvU43xmWTd63QZxZqWKG
+=YdG9
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
