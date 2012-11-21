@@ -1,352 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 4BA4B6B006C
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:00:28 -0500 (EST)
-References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com> <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com> <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost> <50ACA209.9000101@gmail.com>
-Message-ID: <1353492026.13449.YahooMailNeo@web141102.mail.bf1.yahoo.com>
-Date: Wed, 21 Nov 2012 02:00:26 -0800 (PST)
-From: metin d <metdos@yahoo.com>
-Reply-To: metin d <metdos@yahoo.com>
-Subject: Re: Problem in Page Cache Replacement
-In-Reply-To: <50ACA209.9000101@gmail.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 6AA196B0044
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:07:44 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id s11so1674587qaa.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 02:07:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="-2140344373-170584175-1353492026=:13449"
+In-Reply-To: <50ACA634.5000007@gmail.com>
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+ <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com>
+ <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com>
+ <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost>
+ <50ACA209.9000101@gmail.com> <1353491880.11679.YahooMailNeo@web141102.mail.bf1.yahoo.com>
+ <50ACA634.5000007@gmail.com>
+From: =?UTF-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>
+Date: Wed, 21 Nov 2012 12:07:22 +0200
+Message-ID: <CAJOrxZBpefqtkXr+XTxEZ6qy-6SCwQJ11makD=Lg_M4itY5Ang@mail.gmail.com>
+Subject: Re: Problem in Page Cache Replacement
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, =?utf-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>
+To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
----2140344373-170584175-1353492026=:13449
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Wed, Nov 21, 2012 at 12:00 PM, Jaegeuk Hanse <jaegeuk.hanse@gmail.com> w=
+rote:
+>
+> On 11/21/2012 05:58 PM, metin d wrote:
+>
+> Hi Fengguang,
+>
+> I run tests and attached the results. The line below I guess shows the da=
+ta-1 page caches.
+>
+> 0x000000080000006c       6584051    25718  __RU_lA___________________P___=
+_____    referenced,uptodate,lru,active,private
+>
+>
+> I thinks this is just one state of page cache pages.
 
-=0A=0AHi Fengguang,=0A=0AI run tests and attached the results. The line bel=
-ow I guess shows the data-1 page caches.=0A=0A0x000000080000006c=C2=A0=C2=
-=A0=C2=A0 =C2=A0=C2=A0 6584051=C2=A0=C2=A0=C2=A0 25718=C2=A0 __RU_lA_______=
-____________P________=C2=A0=C2=A0=C2=A0 referenced,uptodate,lru,active,priv=
-ate=0AMetin=0A=0A=0A________________________________=0AFrom: Jaegeuk Hanse =
-<jaegeuk.hanse@gmail.com>=0ATo: Fengguang Wu <fengguang.wu@intel.com> =0ACc=
-: metin d <metdos@yahoo.com>; Jan Kara <jack@suse.cz>; "linux-kernel@vger.k=
-ernel.org" <linux-kernel@vger.kernel.org>; "linux-mm@kvack.org" <linux-mm@k=
-vack.org> =0ASent: Wednesday, November 21, 2012 11:42 AM=0ASubject: Re: Pro=
-blem in Page Cache Replacement=0A=0AOn 11/21/2012 05:02 PM, Fengguang Wu wr=
-ote:=0A> On Wed, Nov 21, 2012 at 04:34:40PM +0800, Jaegeuk Hanse wrote:=0A>=
-> Cc Fengguang Wu.=0A>>=0A>> On 11/21/2012 04:13 PM, metin d wrote:=0A>>>>=
-=C2=A0 =C2=A0 Curious. Added linux-mm list to CC to catch more attention. I=
-f you run=0A>>>> echo 1 >/proc/sys/vm/drop_caches does it evict data-1 page=
-s from memory?=0A>>> I'm guessing it'd evict the entries, but am wondering =
-if we could run any more diagnostics before trying this.=0A>>>=0A>>> We reg=
-ularly use a setup where we have two databases; one gets used frequently an=
-d the other one about once a month. It seems like the memory manager keeps =
-unused pages in memory at the expense of frequently used database's perform=
-ance.=0A>>> My understanding was that under memory pressure from heavily=0A=
->>> accessed pages, unused pages would eventually get evicted. Is there=0A>=
->> anything else we can try on this host to understand why this is=0A>>> ha=
-ppening?=0A> We may debug it this way.=0A>=0A> 1) run 'fadvise data-2 0 0 d=
-ontneed' to drop data-2 cached pages=0A>=C2=A0 =C2=A0=C2=A0=C2=A0(please do=
-uble check via /proc/vmstat whether it does the expected work)=0A>=0A> 2) r=
-un 'page-types -r' with root, to view the page status for the=0A>=C2=A0 =C2=
-=A0=C2=A0=C2=A0remaining pages of data-1=0A>=0A> The fadvise tool comes fro=
-m Andrew Morton's ext3-tools. (source code attached)=0A> Please compile the=
-m with options "-Dlinux -I. -D_GNU_SOURCE -D_FILE_OFFSET_BITS=3D64 -D_LARGE=
-FILE64_SOURCE"=0A>=0A> page-types can be found in the kernel source tree to=
-ols/vm/page-types.c=0A>=0A> Sorry that sounds a bit twisted.. I do have a p=
-atch to directly dump=0A> page cache status of a user specified file, howev=
-er it's not=0A> upstreamed yet.=0A=0AHi Fengguang,=0A=0AThanks for you deta=
-il steps, I think metin can have a try.=0A=0A=C2=A0 =C2=A0 =C2=A0 =C2=A0=C2=
-=A0=C2=A0flags=C2=A0 =C2=A0 page-count=C2=A0 =C2=A0 =C2=A0=C2=A0=C2=A0MB=C2=
-=A0 symbolic-flags long-symbolic-flags=0A0x0000000000000000=C2=A0 =C2=A0 =
-=C2=A0 =C2=A0 607699=C2=A0 =C2=A0=C2=A0=C2=A02373 =0A______________________=
-_____________=0A0x0000000100000000=C2=A0 =C2=A0 =C2=A0 =C2=A0 343227=C2=A0 =
-=C2=A0=C2=A0=C2=A01340 =0A_______________________r___________=C2=A0 =C2=A0 =
-reserved=0A=0ABut I have some questions of the print of page-type:=0A=0AIs =
-2373MB here mean total memory in used include page cache? I don't =0Athink =
-so.=0AWhich kind of pages will be marked reserved?=0AWhich line of long-sym=
-bolic-flags is for page cache?=0A=0ARegards,=0AJaegeuk=0A=0A>=0A> Thanks,=
-=0A> Fengguang=0A>=0A>>> On Tue 20-11-12 09:42:42, metin d wrote:=0A>>>> I =
-have two PostgreSQL databases named data-1 and data-2 that sit on the=0A>>>=
-> same machine. Both databases keep 40 GB of data, and the total memory=0A>=
->>> available on the machine is 68GB.=0A>>>>=0A>>>> I started data-1 and da=
-ta-2, and ran several queries to go over all their=0A>>>> data. Then, I shu=
-t down data-1 and kept issuing queries against data-2.=0A>>>> For some reas=
-on, the OS still holds on to large parts of data-1's pages=0A>>>> in its pa=
-ge cache, and reserves about 35 GB of RAM to data-2's files. As=0A>>>> a re=
-sult, my queries on data-2 keep hitting disk.=0A>>>>=0A>>>> I'm checking pa=
-ge cache usage with fincore. When I run a table scan query=0A>>>> against d=
-ata-2, I see that data-2's pages get evicted and put back into=0A>>>> the c=
-ache in a round-robin manner. Nothing happens to data-1's pages,=0A>>>> alt=
-hough they haven't been touched for days.=0A>>>>=0A>>>> Does anybody know w=
-hy data-1's pages aren't evicted from the page cache?=0A>>>> I'm open to al=
-l kind of suggestions you think it might relate to problem.=0A>>>=C2=A0 =C2=
-=A0 Curious. Added linux-mm list to CC to catch more attention. If you run=
-=0A>>> echo 1 >/proc/sys/vm/drop_caches=0A>>>=C2=A0 =C2=A0 does it evict da=
-ta-1 pages from memory?=0A>>>=0A>>>> This is an EC2 m2.4xlarge instance on =
-Amazon with 68 GB of RAM and no=0A>>>> swap space. The kernel version is:=
-=0A>>>>=0A>>>> $ uname -r=0A>>>> 3.2.28-45.62.amzn1.x86_64=0A>>>> Edit:=0A>=
->>>=0A>>>> and it seems that I use one NUMA instance, if=C2=A0 you think th=
-at it can a problem.=0A>>>>=0A>>>> $ numactl --hardware=0A>>>> available: 1=
- nodes (0)=0A>>>> node 0 cpus: 0 1 2 3 4 5 6 7=0A>>>> node 0 size: 70007 MB=
-=0A>>>> node 0 free: 360 MB=0A>>>> node distances:=0A>>>> node=C2=A0=C2=A0=
-=C2=A00=0A>>>>=C2=A0 =C2=A0=C2=A0=C2=A00:=C2=A0 10
----2140344373-170584175-1353492026=:13449
-Content-Type: text/plain; name="page-types_after.txt"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="page-types_after.txt"
+But why these page caches are in this state as opposed to other page
+caches. From the results I conclude that:
 
-ICAgICAgICAgICAgIGZsYWdzCXBhZ2UtY291bnQgICAgICAgTUIgIHN5bWJv
-bGljLWZsYWdzCQkJbG9uZy1zeW1ib2xpYy1mbGFncwoweDAwMDAwMDAwMDAw
-MDAwMDAJICAgNTUwODMxNyAgICAyMTUxNiAgX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX18JCjB4MDAwMDAwMDEwMDAwMDAwMAkgICAgMzM1
-OTkzICAgICAxMzEyICBfX19fX19fX19fX19fX19fX19fX19fX3JfX19fX19f
-X19fXwlyZXNlcnZlZAoweDAwMDAwMDIxMDAwMDAwMDAJICAgICAzNTYzNCAg
-ICAgIDEzOSAgX19fX19fX19fX19fX19fX19fX19fX19yX19fX09fX19fX18J
-cmVzZXJ2ZWQsb3duZXJfcHJpdmF0ZQoweDAwMDAwMDAwMDAwMTAwMDAJICAg
-ICA0NTA2OSAgICAgIDE3NiAgX19fX19fX19fX19fX19fX1RfX19fX19fX19f
-X19fX19fX18JY29tcG91bmRfdGFpbAoweDAwMDAwMDIwMDAwMDAwMDAJICAg
-ICAgMTUxNiAgICAgICAgNSAgX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X09fX19fX18Jb3duZXJfcHJpdmF0ZQoweDAwMDAwMDA4MDAwMDAwMDQJICAg
-ICAgICAgMSAgICAgICAgMCAgX19SX19fX19fX19fX19fX19fX19fX19fX19Q
-X19fX19fX18JcmVmZXJlbmNlZCxwcml2YXRlCjB4MDAwMDAwMDAwMDAwODAw
-MAkgICAgICAgIDEwICAgICAgICAwICBfX19fX19fX19fX19fX19IX19fX19f
-X19fX19fX19fX19fXwljb21wb3VuZF9oZWFkCjB4MDAwMDAwMDAwMDAwMDAw
-NAkgICAgICAgICAxICAgICAgICAwICBfX1JfX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fXwlyZWZlcmVuY2VkCjB4MDAwMDAwMDgwMDAwMDAyNAkg
-ICAgICAgMTY2ICAgICAgICAwICBfX1JfX2xfX19fX19fX19fX19fX19fX19f
-X1BfX19fX19fXwlyZWZlcmVuY2VkLGxydSxwcml2YXRlCjB4MDAwMDAwMDQw
-MDAwMDAyOAkgICAgICAgMjk1ICAgICAgICAxICBfX19VX2xfX19fX19fX19f
-X19fX19fX19fZF9fX19fX19fXwl1cHRvZGF0ZSxscnUsbWFwcGVkdG9kaXNr
-CjB4MDAwMTAwMDQwMDAwMDAyOAkgICAgICAgICAzICAgICAgICAwICBfX19V
-X2xfX19fX19fX19fX19fX19fX19fZF9fX19fSV9fXwl1cHRvZGF0ZSxscnUs
-bWFwcGVkdG9kaXNrLHJlYWRhaGVhZAoweDAwMDAwMDAwMDAwMDAwMjgJICAg
-ICAgICAgMSAgICAgICAgMCAgX19fVV9sX19fX19fX19fX19fX19fX19fX19f
-X19fX19fX18JdXB0b2RhdGUsbHJ1CjB4MDAwMDAwMDQwMDAwMDAyYwkgICAg
-MjYyMTQ0ICAgICAxMDI0ICBfX1JVX2xfX19fX19fX19fX19fX19fX19fZF9f
-X19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxtYXBwZWR0b2Rpc2sK
-MHgwMDAwMDAwODAwMDAwMDJjCSAgICAgICAgIDUgICAgICAgIDAgIF9fUlVf
-bF9fX19fX19fX19fX19fX19fX19fUF9fX19fX19fCXJlZmVyZW5jZWQsdXB0
-b2RhdGUsbHJ1LHByaXZhdGUKMHgwMDAwMDAwMDAwMDA0MDNjCSAgICAgICAx
-ODUgICAgICAgIDAgIF9fUlVEbF9fX19fX19fYl9fX19fX19fX19fX19fX19f
-X19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsZGlydHksbHJ1LHN3YXBiYWNrZWQK
-MHgwMDAwMDAwODAwMDAwMDYwCSAgICAgICAxNjMgICAgICAgIDAgIF9fX19f
-bEFfX19fX19fX19fX19fX19fX19fUF9fX19fX19fCWxydSxhY3RpdmUscHJp
-dmF0ZQoweDAwMDAwMDA4MDAwMDAwNjQJICAgICAzNjczOSAgICAgIDE0MyAg
-X19SX19sQV9fX19fX19fX19fX19fX19fX19QX19fX19fX18JcmVmZXJlbmNl
-ZCxscnUsYWN0aXZlLHByaXZhdGUKMHgwMDAwMDAwNDAwMDAwMDY4CSAgICA1
-Mjc4MTAgICAgIDIwNjEgIF9fX1VfbEFfX19fX19fX19fX19fX19fX19kX19f
-X19fX19fCXVwdG9kYXRlLGxydSxhY3RpdmUsbWFwcGVkdG9kaXNrCjB4MDAw
-MDAwMDgwMDAwMDA2OAkgICAgICAgNTc2ICAgICAgICAyICBfX19VX2xBX19f
-X19fX19fX19fX19fX19fX1BfX19fX19fXwl1cHRvZGF0ZSxscnUsYWN0aXZl
-LHByaXZhdGUKMHgwMDAwMDAwYzAwMDAwMDY4CSAgICAgICAxMTYgICAgICAg
-IDAgIF9fX1VfbEFfX19fX19fX19fX19fX19fX19kUF9fX19fX19fCXVwdG9k
-YXRlLGxydSxhY3RpdmUsbWFwcGVkdG9kaXNrLHByaXZhdGUKMHgwMDAwMDAw
-ODAwMDAwMDZjCSAgIDY1ODQwNTEgICAgMjU3MTggIF9fUlVfbEFfX19fX19f
-X19fX19fX19fX19fUF9fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1
-LGFjdGl2ZSxwcml2YXRlCjB4MDAwMDAwMDQwMDAwMDA2YwkgICAxMzAyMjEx
-ICAgICA1MDg2ICBfX1JVX2xBX19fX19fX19fX19fX19fX19fZF9fX19fX19f
-XwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxhY3RpdmUsbWFwcGVkdG9kaXNr
-CjB4MDAwMDAwMGMwMDAwMDA2YwkgICAgICAgNDMxICAgICAgICAxICBfX1JV
-X2xBX19fX19fX19fX19fX19fX19fZFBfX19fX19fXwlyZWZlcmVuY2VkLHVw
-dG9kYXRlLGxydSxhY3RpdmUsbWFwcGVkdG9kaXNrLHByaXZhdGUKMHgwMDAw
-MDAwMDAwMDAwMDZjCSAgICAgICAxMjggICAgICAgIDAgIF9fUlVfbEFfX19f
-X19fX19fX19fX19fX19fX19fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUs
-bHJ1LGFjdGl2ZQoweDAwMDAwMDA4MDAwMDAwNzQJICAgICAgICAgMiAgICAg
-ICAgMCAgX19SX0RsQV9fX19fX19fX19fX19fX19fX19QX19fX19fX18JcmVm
-ZXJlbmNlZCxkaXJ0eSxscnUsYWN0aXZlLHByaXZhdGUKMHgwMDAwMDAwMDAw
-MDA0MDc4CSAgICAgICAgNTYgICAgICAgIDAgIF9fX1VEbEFfX19fX19fYl9f
-X19fX19fX19fX19fX19fX19fCXVwdG9kYXRlLGRpcnR5LGxydSxhY3RpdmUs
-c3dhcGJhY2tlZAoweDAwMDAwMDAwMDAwMDQwN2MJICAgICAgIDEyMiAgICAg
-ICAgMCAgX19SVURsQV9fX19fX19iX19fX19fX19fX19fX19fX19fX18JcmVm
-ZXJlbmNlZCx1cHRvZGF0ZSxkaXJ0eSxscnUsYWN0aXZlLHN3YXBiYWNrZWQK
-MHgwMDAwMDAwODAwMDAwMDdjCSAgICAgICAgIDEgICAgICAgIDAgIF9fUlVE
-bEFfX19fX19fX19fX19fX19fX19fUF9fX19fX19fCXJlZmVyZW5jZWQsdXB0
-b2RhdGUsZGlydHksbHJ1LGFjdGl2ZSxwcml2YXRlCjB4MDAwMDAwMDAwMDAw
-ODA4MAkgICAgIDE0NDk1ICAgICAgIDU2ICBfX19fX19fU19fX19fX19IX19f
-X19fX19fX19fX19fX19fXwlzbGFiLGNvbXBvdW5kX2hlYWQKMHgwMDAwMDAw
-MDAwMDAwMDgwCSAgICAyNTA0OTggICAgICA5NzggIF9fX19fX19TX19fX19f
-X19fX19fX19fX19fX19fX19fX19fCXNsYWIKMHgwMDAwMDAwMDAwMDAwNDAw
-CSAgIDI5OTA5MDggICAgMTE2ODMgIF9fX19fX19fX19CX19fX19fX19fX19f
-X19fX19fX19fX19fCWJ1ZGR5CjB4MDAwMDAwMDAwMDAwMDgwMAkgICAgICAg
-IDE2ICAgICAgICAwICBfX19fX19fX19fX01fX19fX19fX19fX19fX19fX19f
-X19fXwltbWFwCjB4MDAwMDAwMDEwMDAwMDgwNAkgICAgICAgICAxICAgICAg
-ICAwICBfX1JfX19fX19fX01fX19fX19fX19fX3JfX19fX19fX19fXwlyZWZl
-cmVuY2VkLG1tYXAscmVzZXJ2ZWQKMHgwMDAwMDAwNjAwMDQwODJjCSAgICAg
-ICAzOTEgICAgICAgIDEgIF9fUlVfbF9fX19fTV9fX19fX3VfX19fX21kX19f
-X19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LG1tYXAsdW5ldmljdGFi
-bGUsbWxvY2tlZCxtYXBwZWR0b2Rpc2sKMHgwMDAwMDAwYTAwMDQwODJjCSAg
-ICAgICAzMjEgICAgICAgIDEgIF9fUlVfbF9fX19fTV9fX19fX3VfX19fX21f
-UF9fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LG1tYXAsdW5ldmlj
-dGFibGUsbWxvY2tlZCxwcml2YXRlCjB4MDAwMDAwMDAwMDAwNDgzOAkgICAg
-ICA4NDUwICAgICAgIDMzICBfX19VRGxfX19fX01fX2JfX19fX19fX19fX19f
-X19fX19fXwl1cHRvZGF0ZSxkaXJ0eSxscnUsbW1hcCxzd2FwYmFja2VkCjB4
-MDAwMDAwMDAwMDAwNDgzYwkgICAgICAyMDQ1ICAgICAgICA3ICBfX1JVRGxf
-X19fX01fX2JfX19fX19fX19fX19fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9k
-YXRlLGRpcnR5LGxydSxtbWFwLHN3YXBiYWNrZWQKMHgwMDAwMDAwODAwMDAw
-ODY4CSAgICAgICAgMTkgICAgICAgIDAgIF9fX1VfbEFfX19fTV9fX19fX19f
-X19fX19fUF9fX19fX19fCXVwdG9kYXRlLGxydSxhY3RpdmUsbW1hcCxwcml2
-YXRlCjB4MDAwMDAwMDQwMDAwMDg2OAkgICAgICAgICA1ICAgICAgICAwICBf
-X19VX2xBX19fX01fX19fX19fX19fX19fZF9fX19fX19fXwl1cHRvZGF0ZSxs
-cnUsYWN0aXZlLG1tYXAsbWFwcGVkdG9kaXNrCjB4MDAwMDAwMDQwMDAwMDg2
-YwkgICAgICAxODkxICAgICAgICA3ICBfX1JVX2xBX19fX01fX19fX19fX19f
-X19fZF9fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxhY3RpdmUs
-bW1hcCxtYXBwZWR0b2Rpc2sKMHgwMDAwMDAwODAwMDAwODZjCSAgICAgICAx
-MjYgICAgICAgIDAgIF9fUlVfbEFfX19fTV9fX19fX19fX19fX19fUF9fX19f
-X19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LGFjdGl2ZSxtbWFwLHByaXZh
-dGUKMHgwMDAwMDAwMDAwMDA0ODc4CSAgICAgICAgODUgICAgICAgIDAgIF9f
-X1VEbEFfX19fTV9fYl9fX19fX19fX19fX19fX19fX19fCXVwdG9kYXRlLGRp
-cnR5LGxydSxhY3RpdmUsbW1hcCxzd2FwYmFja2VkCjB4MDAwMDAwMDAwMDAw
-NDg3YwkgICAgICAyMjYzICAgICAgICA4ICBfX1JVRGxBX19fX01fX2JfX19f
-X19fX19fX19fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGRpcnR5LGxy
-dSxhY3RpdmUsbW1hcCxzd2FwYmFja2VkCjB4MDAwMDAwMDAwMDAwNTAwOAkg
-ICAgICAgIDEzICAgICAgICAwICBfX19VX19fX19fX19hX2JfX19fX19fX19f
-X19fX19fX19fXwl1cHRvZGF0ZSxhbm9ueW1vdXMsc3dhcGJhY2tlZAoweDAw
-MDAwMDAwMDAwMDU4MDgJICAgICAgICAxNiAgICAgICAgMCAgX19fVV9fX19f
-X19NYV9iX19fX19fX19fX19fX19fX19fX18JdXB0b2RhdGUsbW1hcCxhbm9u
-eW1vdXMsc3dhcGJhY2tlZAoweDAwMDAwMDAyMDAwNDU4MjgJICAgICAgICAg
-OCAgICAgICAgMCAgX19fVV9sX19fX19NYV9iX19fdV9fX19fbV9fX19fX19f
-X18JdXB0b2RhdGUsbHJ1LG1tYXAsYW5vbnltb3VzLHN3YXBiYWNrZWQsdW5l
-dmljdGFibGUsbWxvY2tlZAoweDAwMDAwMDAyMDAwNDU4MmMJICAgICAgIDY1
-MSAgICAgICAgMiAgX19SVV9sX19fX19NYV9iX19fdV9fX19fbV9fX19fX19f
-X18JcmVmZXJlbmNlZCx1cHRvZGF0ZSxscnUsbW1hcCxhbm9ueW1vdXMsc3dh
-cGJhY2tlZCx1bmV2aWN0YWJsZSxtbG9ja2VkCjB4MDAwMDAwMDAwMDAwNTg2
-OAkgICAgICA4MDU4ICAgICAgIDMxICBfX19VX2xBX19fX01hX2JfX19fX19f
-X19fX19fX19fX19fXwl1cHRvZGF0ZSxscnUsYWN0aXZlLG1tYXAsYW5vbnlt
-b3VzLHN3YXBiYWNrZWQKMHgwMDAwMDAwMDAwMDA1ODZjCSAgICAgICAgNDIg
-ICAgICAgIDAgIF9fUlVfbEFfX19fTWFfYl9fX19fX19fX19fX19fX19fX19f
-CXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LGFjdGl2ZSxtbWFwLGFub255bW91
-cyxzd2FwYmFja2VkCiAgICAgICAgICAgICB0b3RhbAkgIDE3OTIyMDQ4ICAg
-IDcwMDA4Cgo=
+data-1 pages are in state : referenced,uptodate,lru,active,private
+data-2 pages are in state : referenced,uptodate,lru,mappedtodisk
 
----2140344373-170584175-1353492026=:13449
-Content-Type: text/plain; name="page-types_before.txt"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment; filename="page-types_before.txt"
+>
+>
+>
+>
+> Metin
+>
+>
+> ----- Original Message -----
+> From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+> To: Fengguang Wu <fengguang.wu@intel.com>
+> Cc: metin d <metdos@yahoo.com>; Jan Kara <jack@suse.cz>; "linux-kernel@vg=
+er.kernel.org" <linux-kernel@vger.kernel.org>; "linux-mm@kvack.org" <linux-=
+mm@kvack.org>
+> Sent: Wednesday, November 21, 2012 11:42 AM
+> Subject: Re: Problem in Page Cache Replacement
+>
+> On 11/21/2012 05:02 PM, Fengguang Wu wrote:
+> > On Wed, Nov 21, 2012 at 04:34:40PM +0800, Jaegeuk Hanse wrote:
+> >> Cc Fengguang Wu.
+> >>
+> >> On 11/21/2012 04:13 PM, metin d wrote:
+> >>>>    Curious. Added linux-mm list to CC to catch more attention. If yo=
+u run
+> >>>> echo 1 >/proc/sys/vm/drop_caches does it evict data-1 pages from mem=
+ory?
+> >>> I'm guessing it'd evict the entries, but am wondering if we could run=
+ any more diagnostics before trying this.
+> >>>
+> >>> We regularly use a setup where we have two databases; one gets used f=
+requently and the other one about once a month. It seems like the memory ma=
+nager keeps unused pages in memory at the expense of frequently used databa=
+se's performance.
+> >>> My understanding was that under memory pressure from heavily
+> >>> accessed pages, unused pages would eventually get evicted. Is there
+> >>> anything else we can try on this host to understand why this is
+> >>> happening?
+> > We may debug it this way.
+> >
+> > 1) run 'fadvise data-2 0 0 dontneed' to drop data-2 cached pages
+> >    (please double check via /proc/vmstat whether it does the expected w=
+ork)
+> >
+> > 2) run 'page-types -r' with root, to view the page status for the
+> >    remaining pages of data-1
+> >
+> > The fadvise tool comes from Andrew Morton's ext3-tools. (source code at=
+tached)
+> > Please compile them with options "-Dlinux -I. -D_GNU_SOURCE -D_FILE_OFF=
+SET_BITS=3D64 -D_LARGEFILE64_SOURCE"
+> >
+> > page-types can be found in the kernel source tree tools/vm/page-types.c
+> >
+> > Sorry that sounds a bit twisted.. I do have a patch to directly dump
+> > page cache status of a user specified file, however it's not
+> > upstreamed yet.
+>
+> Hi Fengguang,
+>
+> Thanks for you detail steps, I think metin can have a try.
+>
+>         flags    page-count      MB  symbolic-flags long-symbolic-flags
+> 0x0000000000000000        607699    2373
+> ___________________________________
+> 0x0000000100000000        343227    1340
+> _______________________r___________    reserved
+>
+> But I have some questions of the print of page-type:
+>
+> Is 2373MB here mean total memory in used include page cache? I don't
+> think so.
+> Which kind of pages will be marked reserved?
+> Which line of long-symbolic-flags is for page cache?
+>
+> Regards,
+> Jaegeuk
+>
+> >
+> > Thanks,
+> > Fengguang
+> >
+> >>> On Tue 20-11-12 09:42:42, metin d wrote:
+> >>>> I have two PostgreSQL databases named data-1 and data-2 that sit on =
+the
+> >>>> same machine. Both databases keep 40 GB of data, and the total memor=
+y
+> >>>> available on the machine is 68GB.
+> >>>>
+> >>>> I started data-1 and data-2, and ran several queries to go over all =
+their
+> >>>> data. Then, I shut down data-1 and kept issuing queries against data=
+-2.
+> >>>> For some reason, the OS still holds on to large parts of data-1's pa=
+ges
+> >>>> in its page cache, and reserves about 35 GB of RAM to data-2's files=
+. As
+> >>>> a result, my queries on data-2 keep hitting disk.
+> >>>>
+> >>>> I'm checking page cache usage with fincore. When I run a table scan =
+query
+> >>>> against data-2, I see that data-2's pages get evicted and put back i=
+nto
+> >>>> the cache in a round-robin manner. Nothing happens to data-1's pages=
+,
+> >>>> although they haven't been touched for days.
+> >>>>
+> >>>> Does anybody know why data-1's pages aren't evicted from the page ca=
+che?
+> >>>> I'm open to all kind of suggestions you think it might relate to pro=
+blem.
+> >>>    Curious. Added linux-mm list to CC to catch more attention. If you=
+ run
+> >>> echo 1 >/proc/sys/vm/drop_caches
+> >>>    does it evict data-1 pages from memory?
+> >>>
+> >>>> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and n=
+o
+> >>>> swap space. The kernel version is:
+> >>>>
+> >>>> $ uname -r
+> >>>> 3.2.28-45.62.amzn1.x86_64
+> >>>> Edit:
+> >>>>
+> >>>> and it seems that I use one NUMA instance, if  you think that it can=
+ a problem.
+> >>>>
+> >>>> $ numactl --hardware
+> >>>> available: 1 nodes (0)
+> >>>> node 0 cpus: 0 1 2 3 4 5 6 7
+> >>>> node 0 size: 70007 MB
+> >>>> node 0 free: 360 MB
+> >>>> node distances:
+> >>>> node  0
+> >>>>    0:  10
+>
+>
 
-ICAgICAgICAgICAgIGZsYWdzCXBhZ2UtY291bnQgICAgICAgTUIgIHN5bWJv
-bGljLWZsYWdzCQkJbG9uZy1zeW1ib2xpYy1mbGFncwoweDAwMDAwMDAwMDAw
-MDAwMDAJICAgIDEyMTYyOCAgICAgIDQ3NSAgX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX19fX18JCjB4MDAwMDAwMDEwMDAwMDAwMAkgICAgMzM1
-OTkzICAgICAxMzEyICBfX19fX19fX19fX19fX19fX19fX19fX3JfX19fX19f
-X19fXwlyZXNlcnZlZAoweDAwMDAwMDIxMDAwMDAwMDAJICAgICAzNTYzNCAg
-ICAgIDEzOSAgX19fX19fX19fX19fX19fX19fX19fX19yX19fX09fX19fX18J
-cmVzZXJ2ZWQsb3duZXJfcHJpdmF0ZQoweDAwMDAwMDAwMDAwMTAwMDAJICAg
-ICA0NTQyOSAgICAgIDE3NyAgX19fX19fX19fX19fX19fX1RfX19fX19fX19f
-X19fX19fX18JY29tcG91bmRfdGFpbAoweDAwMDAwMDIwMDAwMDAwMDAJICAg
-ICAgMTM4OSAgICAgICAgNSAgX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X09fX19fX18Jb3duZXJfcHJpdmF0ZQoweDAwMDAwMDA0MDAwMDAwMDEJICAg
-ICAgICAgNiAgICAgICAgMCAgTF9fX19fX19fX19fX19fX19fX19fX19fX2Rf
-X19fX19fX18JbG9ja2VkLG1hcHBlZHRvZGlzawoweDAwMDAwMDAwMDAwMDgw
-MDAJICAgICAgICAxMCAgICAgICAgMCAgX19fX19fX19fX19fX19fSF9fX19f
-X19fX19fX19fX19fX18JY29tcG91bmRfaGVhZAoweDAwMDAwMDAwMDAwMDAw
-MDQJICAgICAgICAgMSAgICAgICAgMCAgX19SX19fX19fX19fX19fX19fX19f
-X19fX19fX19fX19fX18JcmVmZXJlbmNlZAoweDAwMDAwMDA0MDAwMDAwMjEJ
-ICAgICAgICA2NCAgICAgICAgMCAgTF9fX19sX19fX19fX19fX19fX19fX19f
-X2RfX19fX19fX18JbG9ja2VkLGxydSxtYXBwZWR0b2Rpc2sKMHgwMDAxMDAw
-NDAwMDAwMDIxCSAgICAgICAgIDEgICAgICAgIDAgIExfX19fbF9fX19fX19f
-X19fX19fX19fX19kX19fX19JX19fCWxvY2tlZCxscnUsbWFwcGVkdG9kaXNr
-LHJlYWRhaGVhZAoweDAwMDAwMDA4MDAwMDAwMjQJICAgICAgIDE3MSAgICAg
-ICAgMCAgX19SX19sX19fX19fX19fX19fX19fX19fX19QX19fX19fX18JcmVm
-ZXJlbmNlZCxscnUscHJpdmF0ZQoweDAwMDAwMDA0MDAwMDAwMjgJICAgICAg
-NDA5MyAgICAgICAxNSAgX19fVV9sX19fX19fX19fX19fX19fX19fX2RfX19f
-X19fX18JdXB0b2RhdGUsbHJ1LG1hcHBlZHRvZGlzawoweDAwMDEwMDA0MDAw
-MDAwMjgJICAgICAgICA1OSAgICAgICAgMCAgX19fVV9sX19fX19fX19fX19f
-X19fX19fX2RfX19fX0lfX18JdXB0b2RhdGUsbHJ1LG1hcHBlZHRvZGlzayxy
-ZWFkYWhlYWQKMHgwMDAwMDAwMDAwMDAwMDI4CSAgICAgICAgIDEgICAgICAg
-IDAgIF9fX1VfbF9fX19fX19fX19fX19fX19fX19fX19fX19fX19fCXVwdG9k
-YXRlLGxydQoweDAwMDAwMDA0MDAwMDAwMmMJICAgODU5ODAzMiAgICAzMzU4
-NiAgX19SVV9sX19fX19fX19fX19fX19fX19fX2RfX19fX19fX18JcmVmZXJl
-bmNlZCx1cHRvZGF0ZSxscnUsbWFwcGVkdG9kaXNrCjB4MDAwMDAwMDgwMDAw
-MDAyYwkgICAgICAgIDEwICAgICAgICAwICBfX1JVX2xfX19fX19fX19fX19f
-X19fX19fX1BfX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxwcml2
-YXRlCjB4MDAwMDAwMDAwMDAwNDAzYwkgICAgICAgMTg1ICAgICAgICAwICBf
-X1JVRGxfX19fX19fX2JfX19fX19fX19fX19fX19fX19fXwlyZWZlcmVuY2Vk
-LHVwdG9kYXRlLGRpcnR5LGxydSxzd2FwYmFja2VkCjB4MDAwMDAwMDgwMDAw
-MDA2MAkgICAgICAgMTYzICAgICAgICAwICBfX19fX2xBX19fX19fX19fX19f
-X19fX19fX1BfX19fX19fXwlscnUsYWN0aXZlLHByaXZhdGUKMHgwMDAwMDAw
-ODAwMDAwMDY0CSAgICAgMzY3NDEgICAgICAxNDMgIF9fUl9fbEFfX19fX19f
-X19fX19fX19fX19fUF9fX19fX19fCXJlZmVyZW5jZWQsbHJ1LGFjdGl2ZSxw
-cml2YXRlCjB4MDAwMDAwMDQwMDAwMDA2OAkgICAgNTI3ODM0ICAgICAyMDYx
-ICBfX19VX2xBX19fX19fX19fX19fX19fX19fZF9fX19fX19fXwl1cHRvZGF0
-ZSxscnUsYWN0aXZlLG1hcHBlZHRvZGlzawoweDAwMDAwMDA4MDAwMDAwNjgJ
-ICAgICAgIDY5NSAgICAgICAgMiAgX19fVV9sQV9fX19fX19fX19fX19fX19f
-X19QX19fX19fX18JdXB0b2RhdGUsbHJ1LGFjdGl2ZSxwcml2YXRlCjB4MDAw
-MDAwMGMwMDAwMDA2OAkgICAgICAgMTE2ICAgICAgICAwICBfX19VX2xBX19f
-X19fX19fX19fX19fX19fZFBfX19fX19fXwl1cHRvZGF0ZSxscnUsYWN0aXZl
-LG1hcHBlZHRvZGlzayxwcml2YXRlCjB4MDAwMDAwMDgwMDAwMDA2YwkgICA2
-NTg0MDY2ICAgIDI1NzE5ICBfX1JVX2xBX19fX19fX19fX19fX19fX19fX1Bf
-X19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxhY3RpdmUscHJpdmF0
-ZQoweDAwMDAwMDA0MDAwMDAwNmMJICAgMTMyNTI3MyAgICAgNTE3NiAgX19S
-VV9sQV9fX19fX19fX19fX19fX19fX2RfX19fX19fX18JcmVmZXJlbmNlZCx1
-cHRvZGF0ZSxscnUsYWN0aXZlLG1hcHBlZHRvZGlzawoweDAwMDAwMDBjMDAw
-MDAwNmMJICAgICAgIDQzMSAgICAgICAgMSAgX19SVV9sQV9fX19fX19fX19f
-X19fX19fX2RQX19fX19fX18JcmVmZXJlbmNlZCx1cHRvZGF0ZSxscnUsYWN0
-aXZlLG1hcHBlZHRvZGlzayxwcml2YXRlCjB4MDAwMDAwMDAwMDAwMDA2Ywkg
-ICAgICAgMTI4ICAgICAgICAwICBfX1JVX2xBX19fX19fX19fX19fX19fX19f
-X19fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxydSxhY3RpdmUKMHgw
-MDAwMDAwMDAwMDA0MDc4CSAgICAgICAgNTYgICAgICAgIDAgIF9fX1VEbEFf
-X19fX19fYl9fX19fX19fX19fX19fX19fX19fCXVwdG9kYXRlLGRpcnR5LGxy
-dSxhY3RpdmUsc3dhcGJhY2tlZAoweDAwMDAwMDAwMDAwMDQwN2MJICAgICAg
-IDEyMiAgICAgICAgMCAgX19SVURsQV9fX19fX19iX19fX19fX19fX19fX19f
-X19fX18JcmVmZXJlbmNlZCx1cHRvZGF0ZSxkaXJ0eSxscnUsYWN0aXZlLHN3
-YXBiYWNrZWQKMHgwMDAwMDAwODAwMDAwMDdjCSAgICAgICAgIDEgICAgICAg
-IDAgIF9fUlVEbEFfX19fX19fX19fX19fX19fX19fUF9fX19fX19fCXJlZmVy
-ZW5jZWQsdXB0b2RhdGUsZGlydHksbHJ1LGFjdGl2ZSxwcml2YXRlCjB4MDAw
-MDAwMDAwMDAwODA4MAkgICAgIDE0NTcxICAgICAgIDU2ICBfX19fX19fU19f
-X19fX19IX19fX19fX19fX19fX19fX19fXwlzbGFiLGNvbXBvdW5kX2hlYWQK
-MHgwMDAwMDAwMDAwMDAwMDgwCSAgICAyNTA1NDYgICAgICA5NzggIF9fX19f
-X19TX19fX19fX19fX19fX19fX19fX19fX19fX19fCXNsYWIKMHgwMDAwMDAw
-MDAwMDAwNDAwCSAgICAgMTQ3MDEgICAgICAgNTcgIF9fX19fX19fX19CX19f
-X19fX19fX19fX19fX19fX19fX19fCWJ1ZGR5CjB4MDAwMDAwMDAwMDAwMDgw
-MAkgICAgICAgIDE2ICAgICAgICAwICBfX19fX19fX19fX01fX19fX19fX19f
-X19fX19fX19fX19fXwltbWFwCjB4MDAwMDAwMDEwMDAwMDgwNAkgICAgICAg
-ICAxICAgICAgICAwICBfX1JfX19fX19fX01fX19fX19fX19fX3JfX19fX19f
-X19fXwlyZWZlcmVuY2VkLG1tYXAscmVzZXJ2ZWQKMHgwMDAwMDAwNjAwMDQw
-ODJjCSAgICAgICAzOTEgICAgICAgIDEgIF9fUlVfbF9fX19fTV9fX19fX3Vf
-X19fX21kX19fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LG1tYXAs
-dW5ldmljdGFibGUsbWxvY2tlZCxtYXBwZWR0b2Rpc2sKMHgwMDAwMDAwYTAw
-MDQwODJjCSAgICAgICAzMjEgICAgICAgIDEgIF9fUlVfbF9fX19fTV9fX19f
-X3VfX19fX21fUF9fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LG1t
-YXAsdW5ldmljdGFibGUsbWxvY2tlZCxwcml2YXRlCjB4MDAwMDAwMDAwMDAw
-NDgzOAkgICAgICA4Mzg1ICAgICAgIDMyICBfX19VRGxfX19fX01fX2JfX19f
-X19fX19fX19fX19fX19fXwl1cHRvZGF0ZSxkaXJ0eSxscnUsbW1hcCxzd2Fw
-YmFja2VkCjB4MDAwMDAwMDAwMDAwNDgzYwkgICAgICAyMDQ1ICAgICAgICA3
-ICBfX1JVRGxfX19fX01fX2JfX19fX19fX19fX19fX19fX19fXwlyZWZlcmVu
-Y2VkLHVwdG9kYXRlLGRpcnR5LGxydSxtbWFwLHN3YXBiYWNrZWQKMHgwMDAw
-MDAwODAwMDAwODY4CSAgICAgICAgMTkgICAgICAgIDAgIF9fX1VfbEFfX19f
-TV9fX19fX19fX19fX19fUF9fX19fX19fCXVwdG9kYXRlLGxydSxhY3RpdmUs
-bW1hcCxwcml2YXRlCjB4MDAwMDAwMDQwMDAwMDg2OAkgICAgICAgICA1ICAg
-ICAgICAwICBfX19VX2xBX19fX01fX19fX19fX19fX19fZF9fX19fX19fXwl1
-cHRvZGF0ZSxscnUsYWN0aXZlLG1tYXAsbWFwcGVkdG9kaXNrCjB4MDAwMDAw
-MDQwMDAwMDg2YwkgICAgICAxODkxICAgICAgICA3ICBfX1JVX2xBX19fX01f
-X19fX19fX19fX19fZF9fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRlLGxy
-dSxhY3RpdmUsbW1hcCxtYXBwZWR0b2Rpc2sKMHgwMDAwMDAwODAwMDAwODZj
-CSAgICAgICAxMjYgICAgICAgIDAgIF9fUlVfbEFfX19fTV9fX19fX19fX19f
-X19fUF9fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LGFjdGl2ZSxt
-bWFwLHByaXZhdGUKMHgwMDAwMDAwMDAwMDA0ODc4CSAgICAgICAgODUgICAg
-ICAgIDAgIF9fX1VEbEFfX19fTV9fYl9fX19fX19fX19fX19fX19fX19fCXVw
-dG9kYXRlLGRpcnR5LGxydSxhY3RpdmUsbW1hcCxzd2FwYmFja2VkCjB4MDAw
-MDAwMDAwMDAwNDg3YwkgICAgICAyMjYzICAgICAgICA4ICBfX1JVRGxBX19f
-X01fX2JfX19fX19fX19fX19fX19fX19fXwlyZWZlcmVuY2VkLHVwdG9kYXRl
-LGRpcnR5LGxydSxhY3RpdmUsbW1hcCxzd2FwYmFja2VkCjB4MDAwMDAwMDAw
-MDAwNTAwOAkgICAgICAgICA0ICAgICAgICAwICBfX19VX19fX19fX19hX2Jf
-X19fX19fX19fX19fX19fX19fXwl1cHRvZGF0ZSxhbm9ueW1vdXMsc3dhcGJh
-Y2tlZAoweDAwMDAwMDAwMDAwMDU4MDgJICAgICAgICAyNSAgICAgICAgMCAg
-X19fVV9fX19fX19NYV9iX19fX19fX19fX19fX19fX19fX18JdXB0b2RhdGUs
-bW1hcCxhbm9ueW1vdXMsc3dhcGJhY2tlZAoweDAwMDAwMDAyMDAwNDU4MjgJ
-ICAgICAgICAgOCAgICAgICAgMCAgX19fVV9sX19fX19NYV9iX19fdV9fX19f
-bV9fX19fX19fX18JdXB0b2RhdGUsbHJ1LG1tYXAsYW5vbnltb3VzLHN3YXBi
-YWNrZWQsdW5ldmljdGFibGUsbWxvY2tlZAoweDAwMDAwMDAyMDAwNDU4MmMJ
-ICAgICAgIDY1MSAgICAgICAgMiAgX19SVV9sX19fX19NYV9iX19fdV9fX19f
-bV9fX19fX19fX18JcmVmZXJlbmNlZCx1cHRvZGF0ZSxscnUsbW1hcCxhbm9u
-eW1vdXMsc3dhcGJhY2tlZCx1bmV2aWN0YWJsZSxtbG9ja2VkCjB4MDAwMDAw
-MDAwMDAwNTg2OAkgICAgICA3NjIzICAgICAgIDI5ICBfX19VX2xBX19fX01h
-X2JfX19fX19fX19fX19fX19fX19fXwl1cHRvZGF0ZSxscnUsYWN0aXZlLG1t
-YXAsYW5vbnltb3VzLHN3YXBiYWNrZWQKMHgwMDAwMDAwMDAwMDA1ODZjCSAg
-ICAgICAgMzkgICAgICAgIDAgIF9fUlVfbEFfX19fTWFfYl9fX19fX19fX19f
-X19fX19fX19fCXJlZmVyZW5jZWQsdXB0b2RhdGUsbHJ1LGFjdGl2ZSxtbWFw
-LGFub255bW91cyxzd2FwYmFja2VkCiAgICAgICAgICAgICB0b3RhbAkgIDE3
-OTIyMDQ4ICAgIDcwMDA4Cg==
 
----2140344373-170584175-1353492026=:13449--
+
+--
+Metin D=C3=B6=C5=9Fl=C3=BC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
