@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id F0D5D8D0001
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:48 -0500 (EST)
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id C28A68D0006
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:53 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 31/46] mm: numa: Structures for Migrate On Fault per NUMA migration rate limiting
-Date: Wed, 21 Nov 2012 10:21:37 +0000
-Message-Id: <1353493312-8069-32-git-send-email-mgorman@suse.de>
+Subject: [PATCH 34/46] sched: numa: Slowly increase the scanning period as NUMA faults are handled
+Date: Wed, 21 Nov 2012 10:21:40 +0000
+Message-Id: <1353493312-8069-35-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,59 +13,56 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+Currently the rate of scanning for an address space is controlled
+by the individual tasks. The next scan is simply determined by
+2*p->numa_scan_period.
 
-This defines the per-node data used by Migrate On Fault in order to
-rate limit the migration. The rate limiting is applied independently
-to each destination node.
+The 2*p->numa_scan_period is arbitrary and never changes. At this point
+there is still no proper policy that decides if a task or process is
+properly placed. It just scans and assumes the next NUMA fault will
+place it properly. As it is assumed that pages will get properly placed
+over time, increase the scan window each time a fault is incurred. This
+is a big assumption as noted in the comments.
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+It should be noted that changing to p->numa_scan_period will increase
+system CPU usage because now the scanning rate has effectively doubled.
+If that is a problem then the min_rate should be made 200ms instead of
+restoring the 2* logic.
+
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h |   13 +++++++++++++
- mm/page_alloc.c        |    5 +++++
- 2 files changed, 18 insertions(+)
+ kernel/sched/fair.c |   11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index a23923b..1ed16e5 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -717,6 +717,19 @@ typedef struct pglist_data {
- 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
-+#ifdef CONFIG_BALANCE_NUMA
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 357057c..3c632448 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -812,6 +812,15 @@ void task_numa_fault(int node, int pages)
+ 
+ 	/* FIXME: Allocate task-specific structure for placement policy here */
+ 
 +	/*
-+	 * Lock serializing the per destination node AutoNUMA memory
-+	 * migration rate limiting data.
++	 * Assume that as faults occur that pages are getting properly placed
++	 * and fewer NUMA hints are required. Note that this is a big
++	 * assumption, it assumes processes reach a steady steady with no
++	 * further phase changes.
 +	 */
-+	spinlock_t balancenuma_migrate_lock;
++	p->numa_scan_period = min(sysctl_balance_numa_scan_period_max,
++				p->numa_scan_period + jiffies_to_msecs(2));
 +
-+	/* Rate limiting time interval */
-+	unsigned long balancenuma_migrate_next_window;
-+
-+	/* Number of pages migrated during the rate limiting time interval */
-+	unsigned long balancenuma_migrate_nr_pages;
-+#endif
- } pg_data_t;
+ 	task_numa_placement(p);
+ }
  
- #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5953dc2..df58654 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4449,6 +4449,11 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
- 	int ret;
+@@ -858,7 +867,7 @@ void task_numa_work(struct callback_head *work)
+ 	if (p->numa_scan_period == 0)
+ 		p->numa_scan_period = sysctl_balance_numa_scan_period_min;
  
- 	pgdat_resize_init(pgdat);
-+#ifdef CONFIG_BALANCE_NUMA
-+	spin_lock_init(&pgdat->balancenuma_migrate_lock);
-+	pgdat->balancenuma_migrate_nr_pages = 0;
-+	pgdat->balancenuma_migrate_next_window = jiffies;
-+#endif
- 	init_waitqueue_head(&pgdat->kswapd_wait);
- 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
- 	pgdat_page_cgroup_init(pgdat);
+-	next_scan = now + 2*msecs_to_jiffies(p->numa_scan_period);
++	next_scan = now + msecs_to_jiffies(p->numa_scan_period);
+ 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
+ 		return;
+ 
 -- 
 1.7.9.2
 
