@@ -1,77 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id E4A266B0072
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:17:12 -0500 (EST)
-Date: Wed, 21 Nov 2012 11:17:11 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
- dma_alloc_coherent() calls
-Message-Id: <20121121111711.fe915265.akpm@linux-foundation.org>
-In-Reply-To: <50AC9CC7.8010103@samsung.com>
-References: <20121119144826.f59667b2.akpm@linux-foundation.org>
-	<1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
-	<20121120113325.dde266ed.akpm@linux-foundation.org>
-	<50AC8C14.5050204@samsung.com>
-	<20121121003643.97febbdb.akpm@linux-foundation.org>
-	<50AC9CC7.8010103@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 558786B0074
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:21:56 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 21 Nov 2012 14:21:54 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 973536E8047
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:21:52 -0500 (EST)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qALJLqfQ343842
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:21:52 -0500
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qALJLqro007464
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 12:21:52 -0700
+Subject: [PATCH] [3.7-rc] fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Wed, 21 Nov 2012 14:21:51 -0500
+Message-Id: <20121121192151.3FFE0A9A@kernel.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Soren Moch <smoch@web.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>, Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
+To: mgorman@suse.de
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Wed, 21 Nov 2012 10:20:07 +0100
-Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-> Hello,
-> 
-> On 11/21/2012 9:36 AM, Andrew Morton wrote:
-> > On Wed, 21 Nov 2012 09:08:52 +0100 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> >
-> > > Hello,
-> > >
-> > > On 11/20/2012 8:33 PM, Andrew Morton wrote:
-> > > > On Tue, 20 Nov 2012 15:31:45 +0100
-> > > > Marek Szyprowski <m.szyprowski@samsung.com> wrote:
-> > > >
-> > > > > dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
-> > > > > regardless the flags provided by the caller. This causes excessive
-> > > > > pruning of emergency memory pools without any good reason. Additionaly,
-> > > > > on ARM architecture any driver which is using dmapools will sooner or
-> > > > > later  trigger the following error:
-> > > > > "ERROR: 256 KiB atomic DMA coherent pool is too small!
-> > > > > Please increase it with coherent_pool= kernel parameter!".
-> > > > > Increasing the coherent pool size usually doesn't help much and only
-> > > > > delays such error, because all GFP_ATOMIC DMA allocations are always
-> > > > > served from the special, very limited memory pool.
-> > > > >
-> > > >
-> > > > Is this problem serious enough to justify merging the patch into 3.7?
-> > > > And into -stable kernels?
-> > >
-> > > I wonder if it is a good idea to merge such change at the end of current
-> > > -rc period.
-> >
-> > I'm not sure what you mean by this.
-> >
-> > But what we do sometimes if we think a patch needs a bit more
-> > real-world testing before backporting is to merge it into -rc1 in the
-> > normal merge window, and tag it for -stable backporting.  That way it
-> > gets a few weeks(?) testing in mainline before getting backported.
-> 
-> I just wondered that if it gets merged to v3.7-rc7 there won't be much time
-> for real-world testing before final v3.7 release. This patch is in
-> linux-next for over a week and I'm not aware of any issues, but -rc releases
-> gets much more attention and testing than linux-next tree.
-> 
-> If You think it's fine to put such change to v3.7-rc7 I will send a pull
-> request and tag it for stable asap.
-> 
+This needs to make it in before 3.7 is released.
 
-What I'm suggesting is that it be merged for 3.8-rc1 with a -stable
-tag, then it will be backported into 3.7.x later on.
+--
+
+There have been some 3.7-rc reports of vm issues, including some
+kswapd bugs and, more importantly, some memory "leaks":
+
+	http://www.spinics.net/lists/linux-mm/msg46187.html
+	https://bugzilla.kernel.org/show_bug.cgi?id=50181
+
+The post-3.6 commit 1fb3f8ca took split_free_page() and reused
+it for the compaction code.  It does something curious with
+capture_free_page() (previously known as split_free_page()):
+
+int capture_free_page(struct page *page, int alloc_order,
+...
+        __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+
+-       /* Split into individual pages */
+-       set_page_refcounted(page);
+-       split_page(page, order);
++       if (alloc_order != order)
++               expand(zone, page, alloc_order, order,
++                       &zone->free_area[order], migratetype);
+
+Note that expand() puts the pages _back_ in the allocator, but it
+does not bump NR_FREE_PAGES.  We "return" 'alloc_order' worth of
+pages, but we accounted for removing 'order' in the
+__mod_zone_page_state() call.  For the old split_page()-style use
+(order==alloc_order) the bug will not trigger.  But, when called
+from the compaction code where we occasionally get a larger page
+out of the buddy allocator than we need, we will run in to this.
+
+This patch simply changes the NR_FREE_PAGES manipulation to the
+correct 'alloc_order' instead of 'order'.
+
+I've been able to repeatedly trigger this in my testing
+environment.  The amount "leaked" very closely tracks the
+imbalance I see in buddy pages vs. NR_FREE_PAGES.  I have
+confirmed that this patch fixes the imbalance
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+---
+
+ linux-2.6.git-dave/mm/page_alloc.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/page_alloc.c~leak-fix-20121120-2 mm/page_alloc.c
+--- linux-2.6.git/mm/page_alloc.c~leak-fix-20121120-2	2012-11-21 14:14:52.053714749 -0500
++++ linux-2.6.git-dave/mm/page_alloc.c	2012-11-21 14:14:52.069714883 -0500
+@@ -1405,7 +1405,7 @@ int capture_free_page(struct page *page,
+ 
+ 	mt = get_pageblock_migratetype(page);
+ 	if (unlikely(mt != MIGRATE_ISOLATE))
+-		__mod_zone_freepage_state(zone, -(1UL << order), mt);
++		__mod_zone_freepage_state(zone, -(1UL << alloc_order), mt);
+ 
+ 	if (alloc_order != order)
+ 		expand(zone, page, alloc_order, order,
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
