@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 58C026B008A
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:12 -0500 (EST)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id A6AEF6B0095
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:22:15 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 08/46] mm: compaction: Move migration fail/success stats to migrate.c
-Date: Wed, 21 Nov 2012 10:21:14 +0000
-Message-Id: <1353493312-8069-9-git-send-email-mgorman@suse.de>
+Subject: [PATCH 10/46] mm: compaction: Add scanned and isolated counters for compaction
+Date: Wed, 21 Nov 2012 10:21:16 +0000
+Message-Id: <1353493312-8069-11-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,104 +13,102 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-The compact_pages_moved and compact_pagemigrate_failed events are
-convenient for determining if compaction is active and to what
-degree migration is succeeding but it's at the wrong level. Other
-users of migration may also want to know if migration is working
-properly and this will be particularly true for any automated
-NUMA migration. This patch moves the counters down to migration
-with the new events called pgmigrate_success and pgmigrate_fail.
-The compact_blocks_moved counter is removed because while it was
-useful for debugging initially, it's worthless now as no meaningful
-conclusions can be drawn from its value.
+Compaction already has tracepoints to count scanned and isolated pages
+but it requires that ftrace be enabled and if that information has to be
+written to disk then it can be disruptive. This patch adds vmstat counters
+for compaction called compact_migrate_scanned, compact_free_scanned and
+compact_isolated.
+
+With these counters, it is possible to define a basic cost model for
+compaction. This approximates of how much work compaction is doing and can
+be compared that with an oprofile showing TLB misses and see if the cost of
+compaction is being offset by THP for example. Minimally a compaction patch
+can be evaluated in terms of whether it increases or decreases cost. The
+basic cost model looks like this
+
+Fundamental unit u:	a word	sizeof(void *)
+
+Ca  = cost of struct page access = sizeof(struct page) / u
+
+Cmc = Cost migrate page copy = (Ca + PAGE_SIZE/u) * 2
+Cmf = Cost migrate failure   = Ca * 2
+Ci  = Cost page isolation    = (Ca + Wi)
+	where Wi is a constant that should reflect the approximate
+	cost of the locking operation.
+
+Csm = Cost migrate scanning = Ca
+Csf = Cost free    scanning = Ca
+
+Overall cost =	(Csm * compact_migrate_scanned) +
+	      	(Csf * compact_free_scanned)    +
+	      	(Ci  * compact_isolated)	+
+		(Cmc * pgmigrate_success)	+
+		(Cmf * pgmigrate_failed)
+
+Where the values are read from /proc/vmstat.
+
+This is very basic and ignores certain costs such as the allocation cost
+to do a migrate page copy but any improvement to the model would still
+use the same vmstat counters.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/vm_event_item.h |    4 +++-
- mm/compaction.c               |    4 ----
- mm/migrate.c                  |    6 ++++++
- mm/vmstat.c                   |    7 ++++---
- 4 files changed, 13 insertions(+), 8 deletions(-)
+ include/linux/vm_event_item.h |    2 ++
+ mm/compaction.c               |    8 ++++++++
+ mm/vmstat.c                   |    3 +++
+ 3 files changed, 13 insertions(+)
 
 diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 3d31145..8aa7cb9 100644
+index 8aa7cb9..a1f750b 100644
 --- a/include/linux/vm_event_item.h
 +++ b/include/linux/vm_event_item.h
-@@ -38,8 +38,10 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_MIGRATION
-+		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
-+#endif
+@@ -42,6 +42,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
+ #endif
  #ifdef CONFIG_COMPACTION
--		COMPACTBLOCKS, COMPACTPAGES, COMPACTPAGEFAILED,
++		COMPACTMIGRATE_SCANNED, COMPACTFREE_SCANNED,
++		COMPACTISOLATED,
  		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
  #endif
  #ifdef CONFIG_HUGETLB_PAGE
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 9eef558..00ad883 100644
+index 2c077a7..aee7443 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -994,10 +994,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 		update_nr_listpages(cc);
- 		nr_remaining = cc->nr_migratepages;
+@@ -356,6 +356,10 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 	if (blockpfn == end_pfn)
+ 		update_pageblock_skip(cc, valid_page, total_isolated, false);
  
--		count_vm_event(COMPACTBLOCKS);
--		count_vm_events(COMPACTPAGES, nr_migrate - nr_remaining);
--		if (nr_remaining)
--			count_vm_events(COMPACTPAGEFAILED, nr_remaining);
- 		trace_mm_compaction_migratepages(nr_migrate - nr_remaining,
- 						nr_remaining);
++	count_vm_events(COMPACTFREE_SCANNED, nr_scanned);
++	if (total_isolated)
++		count_vm_events(COMPACTISOLATED, total_isolated);
++
+ 	return total_isolated;
+ }
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 77ed2d7..04687f6 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -962,6 +962,7 @@ int migrate_pages(struct list_head *from,
- {
- 	int retry = 1;
- 	int nr_failed = 0;
-+	int nr_succeeded = 0;
- 	int pass = 0;
- 	struct page *page;
- 	struct page *page2;
-@@ -988,6 +989,7 @@ int migrate_pages(struct list_head *from,
- 				retry++;
- 				break;
- 			case 0:
-+				nr_succeeded++;
- 				break;
- 			default:
- 				/* Permanent failure */
-@@ -998,6 +1000,10 @@ int migrate_pages(struct list_head *from,
- 	}
- 	rc = 0;
- out:
-+	if (nr_succeeded)
-+		count_vm_events(PGMIGRATE_SUCCESS, nr_succeeded);
-+	if (nr_failed)
-+		count_vm_events(PGMIGRATE_FAIL, nr_failed);
- 	if (!swapwrite)
- 		current->flags &= ~PF_SWAPWRITE;
+@@ -646,6 +650,10 @@ next_pageblock:
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
++	count_vm_events(COMPACTMIGRATE_SCANNED, nr_scanned);
++	if (nr_isolated)
++		count_vm_events(COMPACTISOLATED, nr_isolated);
++
+ 	return low_pfn;
+ }
  
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c737057..89a7fd6 100644
+index 89a7fd6..3a067fa 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -774,10 +774,11 @@ const char * const vmstat_text[] = {
- 
- 	"pgrotated",
- 
-+#ifdef CONFIG_MIGRATION
-+	"pgmigrate_success",
-+	"pgmigrate_fail",
-+#endif
+@@ -779,6 +779,9 @@ const char * const vmstat_text[] = {
+ 	"pgmigrate_fail",
+ #endif
  #ifdef CONFIG_COMPACTION
--	"compact_blocks_moved",
--	"compact_pages_moved",
--	"compact_pagemigrate_failed",
++	"compact_migrate_scanned",
++	"compact_free_scanned",
++	"compact_isolated",
  	"compact_stall",
  	"compact_fail",
  	"compact_success",
