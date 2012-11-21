@@ -1,111 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 3D7186B0044
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 08:25:50 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so1061910pad.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 05:25:49 -0800 (PST)
-Date: Wed, 21 Nov 2012 22:25:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
- approaches low water mark
-Message-ID: <20121121132540.GA2084@barrios>
-References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
- <20121120000137.GC447@bbox>
- <50AB987F.30002@samsung.com>
- <20121121010556.GD447@bbox>
- <xa1t7gpfgl53.fsf@mina86.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 047316B00A8
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 08:48:43 -0500 (EST)
+From: <leonid.moiseichuk@nokia.com>
+Subject: RE: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+Date: Wed, 21 Nov 2012 13:48:14 +0000
+Message-ID: <84FF21A720B0874AA94B46D76DB982690469CC31@008-AM1MPN1-002.mgdnok.nokia.com>
+References: <20121115073420.GA19036@lizard.sbx05977.paloaca.wayport.net>
+ <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
+ <20121115085224.GA4635@lizard>
+ <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
+ <50A60873.3000607@parallels.com>
+ <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
+ <50A6AC48.6080102@parallels.com>
+ <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+ <50AA3ABF.4090803@parallels.com>
+ <alpine.DEB.2.00.1211200950120.4200@chino.kir.corp.google.com>
+ <20121121093056.GA31882@shutemov.name>
+ <84FF21A720B0874AA94B46D76DB982690469CC00@008-AM1MPN1-002.mgdnok.nokia.com>
+ <50ACC104.5060006@parallels.com>
+In-Reply-To: <50ACC104.5060006@parallels.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <xa1t7gpfgl53.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-
-On Wed, Nov 21, 2012 at 02:07:04PM +0100, Michal Nazarewicz wrote:
-> On Wed, Nov 21 2012, Minchan Kim wrote:
-> > So your concern is that too many free pages in MIGRATE_CMA when OOM happens
-> > is odd? It's natural with considering CMA design which kernel never fallback
-> > non-movable page allocation to CMA area. I guess it's not a your concern.
-> >
-> > Let's think below extreme cases.
-> >
-> > = Before =
-> >
-> > * 1000M DRAM system.
-> > * 400M kernel used pages.
-> > * 300M movable used pages.
-> > * 300M cma freed pages.
-> >
-> > 1. kernel want to request 400M non-movable memory, additionally.
-> > 2. VM start to reclaim 300M movable pages.
-> > 3. But it's not enough to meet 400M request.
-> > 4. go to OOM. (It's natural)
-> >
-> > = After(with your patch) =
-> >
-> > * 1000M DRAM system.
-> > * 400M kernel used pages.
-> > * 300M movable *freed* pages.
-> > * 300M cma used pages(by your patch, I simplified your concept)
-> >
-> > 1. kernel want to request 400M non-movable memory.
-> > 2. 300M movable freed pages isn't enough to meet 400M request.
-> > 3. Also, there is no point to reclaim CMA pages for non-movable allocation.
-> > 4. go to OOM. (It's natural)
-> >
-> > There is no difference between before and after in allocation POV.
-> > Let's think another example.
-> >
-> > = Before =
-> >
-> > * 1000M DRAM system.
-> > * 400M kernel used pages.
-> > * 300M movable used pages.
-> > * 300M cma freed pages.
-> >
-> > 1. kernel want to request 300M non-movable memory.
-> > 2. VM start to reclaim 300M movable pages.
-> > 3. It's enough to meet 300M request.
-> > 4. happy end
-> >
-> > = After(with your patch) =
-> >
-> > * 1000M DRAM system.
-> > * 400M kernel used pages.
-> > * 300M movable *freed* pages.
-> > * 300M cma used pages(by your patch, I simplified your concept)
-> >
-> > 1. kernel want to request 300M non-movable memory.
-> > 2. 300M movable freed pages is enough to meet 300M request.
-> > 3. happy end.
-> >
-> > There is no difference in allocation POV, too.
-> 
-> The difference thou is that before 30% of memory is wasted (ie. free),
-> whereas after all memory is used.  The main point of CMA is to make the
-> memory useful if devices are not using it.  Having it not allocated is
-> defeating that purpose.
-
-I think it's not a waste because if reclaimed movable pages is working set,
-they are soon reloaded to migrate_cma in this time.
-
-> 
-> -- 
-> Best regards,                                         _     _
-> .o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
-> ..o | Computer Science,  MichaA? a??mina86a?? Nazarewicz    (o o)
-> ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+To: glommer@parallels.com
+Cc: kirill@shutemov.name, rientjes@google.com, anton.vorontsov@linaro.org, penberg@kernel.org, mgorman@suse.de, kosaki.motohiro@gmail.com, minchan@kernel.org, b.zolnierkie@samsung.com, john.stultz@linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hannes@cmpxchg.org, tj@kernel.org
 
 
+-----Original Message-----
+From: ext Glauber Costa [mailto:glommer@parallels.com]=20
+Sent: 21 November, 2012 13:55
+....
+So I'll say it again: if this is always global, there is no reason any
+cgroup needs to be involved. If this turns out to be per-process, as
+Anton suggested in a recent e-mail, I don't see any reason to have
+cgroups involved as well.
+-----
 
+Per-process memory tracking has no much sense: process should consume all a=
+vailable memory but work fast. Also this approach required knowledge about =
+process deps to take into account dependencies e.g. in dbus or Xorg. If you=
+ need to know how much memory process consumed in particular moment you can=
+ use /proc/self/smaps, that is easier.
 
-
--- 
-Kind Regards,
-Minchan Kim
+Best Wishes,
+Leonid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
