@@ -1,111 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 121CB6B0078
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 13:02:08 -0500 (EST)
-Date: Wed, 21 Nov 2012 18:02:00 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/46] Automatic NUMA Balancing V4
-Message-ID: <20121121180200.GK8218@suse.de>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <20121121165342.GH8218@suse.de>
- <20121121170306.GA28811@gmail.com>
- <20121121172011.GI8218@suse.de>
- <20121121173316.GA29311@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id D353E6B007D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 13:04:39 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so5204762eek.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 10:04:38 -0800 (PST)
+Date: Wed, 21 Nov 2012 19:04:32 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/27] Latest numa/core release, v16
+Message-ID: <20121121180432.GA29590@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+ <20121119162909.GL8218@suse.de>
+ <alpine.DEB.2.00.1211191644340.24618@chino.kir.corp.google.com>
+ <alpine.DEB.2.00.1211191703270.24618@chino.kir.corp.google.com>
+ <20121120060014.GA14065@gmail.com>
+ <alpine.DEB.2.00.1211192213420.5498@chino.kir.corp.google.com>
+ <20121120074445.GA14539@gmail.com>
+ <alpine.DEB.2.00.1211200001420.16449@chino.kir.corp.google.com>
+ <20121120090637.GA14873@gmail.com>
+ <CA+55aFyR9FsGYWSKkgsnZB7JhheDMjEQgbzb0gsqawSTpetPvA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121121173316.GA29311@gmail.com>
+In-Reply-To: <CA+55aFyR9FsGYWSKkgsnZB7JhheDMjEQgbzb0gsqawSTpetPvA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Wed, Nov 21, 2012 at 06:33:16PM +0100, Ingo Molnar wrote:
-> 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Wed, Nov 21, 2012 at 06:03:06PM +0100, Ingo Molnar wrote:
-> > > 
-> > > * Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > > On Wed, Nov 21, 2012 at 10:21:06AM +0000, Mel Gorman wrote:
-> > > > > 
-> > > > > I am not including a benchmark report in this but will be posting one
-> > > > > shortly in the "Latest numa/core release, v16" thread along with the latest
-> > > > > schednuma figures I have available.
-> > > > > 
-> > > > 
-> > > > Report is linked here https://lkml.org/lkml/2012/11/21/202
-> > > > 
-> > > > I ended up cancelling the remaining tests and restarted with
-> > > > 
-> > > > 1. schednuma + patches posted since so that works out as
-> > > 
-> > > Mel, I'd like to ask you to refer to our tree as numa/core or 
-> > > 'numacore' in the future. Would such a courtesy to use the 
-> > > current name of our tree be possible?
-> > > 
-> > 
-> > Sure, no problem.
-> 
-> Thanks!
-> 
-> I ran a quick test with your 'balancenuma v4' tree and while 
-> numa02 and numa01-THREAD-ALLOC performance is looking good, 
-> numa01 performance does not look very good:
-> 
->                     mainline    numa/core      balancenuma-v4
->      numa01:           340.3       139.4          276 secs
-> 
-> 97% slower than numa/core.
-> 
 
-It would be. numa01 is an adverse workload where all threads are hammering
-the same memory.  The two-stage filter in balancenuma restricts the amount
-of migration it does so it ends up in a situation where it cannot balance
-properly. It'll do some migration if the PTE updates happen fast enough but
-that's about it.  It needs a proper policy on top to detect this situation
-and interleave the memory between nodes to at least maximise the available
-memory bandwidth. This would replace the two-stage filter which is there
-to mitigate a ping-pong effect.
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-> I did a quick SPECjbb 32-warehouses run as well:
-> 
->                                 numa/core      balancenuma-v4
->       SPECjbb  +THP:               655 k/sec      607 k/sec
-> 
+> [...] And not look at vsyscalls or anything, but look at what 
+> schednuma does wrong!
 
-Cool. Lets see what we have here. I have some questions;
+I have started 4 independent lines of inquiry to figure out 
+what's wrong on David's system, and all four are in the category 
+of 'what does our tree do to cause a regression':
 
-You say you ran with 32 warehouses. Was this a single run with just 32
-warehouses or you did a specjbb run up to 32 warehouses and use the figure
-specjbb spits out? If it ran for multiple warehouses, how did each number
-of warehouses do? I ask because sometimes we do worse for low numbers
-of warehouses and better at high numbers, particularly around where the
-workload peaks.
+  - suboptimal (== regressive) 4K fault handling by numa/core
 
-Was this a single JVM configuration?
+  - suboptimal (== regressive) placement by numa/core on David's 
+    assymetric-topology system
 
-What is the comparison with a baseline kernel?
+  - vsyscalls escallating numa/core page fault overhead
+    non-linearly
 
-You say you ran with balancenuma-v4. Was that the full series including
-the broken placement policy or did you test with just patches 1-37 as I
-asked in the patch leader?
+  - TLB flushes escallating numacore page fault overhead
+    non-linearly
 
-> Here it's 7.9% slower.
-> 
+I have sent patches for 3 of them, one is still work in 
+progress, because it's non-trivial.
 
-And in comparison to a vanilla kernel?
+I'm absolutely open to every possibility and obviously any 
+regression is numa/core's fault, full stop.
 
-Bear in mind that my objective was to have a foundation that did noticably
-better than mainline that a proper placement and scheduling policy could
-be built on top of.
+What would you have done differently to handle this particular 
+regression?
 
-Thanks!
+Thanks,
 
--- 
-Mel Gorman
-SUSE Labs
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
