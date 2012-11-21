@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 8DA026B004D
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:46:30 -0500 (EST)
-Message-ID: <50AD2F86.3090303@redhat.com>
-Date: Wed, 21 Nov 2012 14:46:14 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 36/46] mm: numa: Use a two-stage filter to restrict pages
- being migrated for unlikely task<->node relationships
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de> <1353493312-8069-37-git-send-email-mgorman@suse.de> <20121121182537.GB29893@gmail.com> <20121121191547.GM8218@suse.de>
-In-Reply-To: <20121121191547.GM8218@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 9BAEF6B004D
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 14:55:17 -0500 (EST)
+Date: Wed, 21 Nov 2012 11:55:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [memcg:since-3.6 456/496]
+ drivers/virtio/virtio_balloon.c:145:10: warning: format '%zu' expects
+ argument of type 'size_t', but argument 4 has type 'unsigned int'
+Message-Id: <20121121115516.99b81f9a.akpm@linux-foundation.org>
+In-Reply-To: <20121121154734.GE8761@dhcp22.suse.cz>
+References: <50acf531.zaJ8wmQW+6NHVbhr%fengguang.wu@intel.com>
+	<20121121154734.GE8761@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
 
-On 11/21/2012 02:15 PM, Mel Gorman wrote:
-> On Wed, Nov 21, 2012 at 07:25:37PM +0100, Ingo Molnar wrote:
+On Wed, 21 Nov 2012 16:47:34 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
->> As mentioned in my other mail, this patch of yours looks very
->> similar to the numa/core commit attached below, mostly written
->> by Peter:
->>
->>    30f93abc6cb3 sched, numa, mm: Add the scanning page fault machinery
+> Bahh, my fault.
+> I screwed while reverting previous version of the virtio patchset.
+> Pushed to my tree. Thanks for reporting...
+> 
+> On Wed 21-11-12 23:37:21, Wu Fengguang wrote:
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> > head:   223cdc1faeea55aa70fef23d54720ad3fdaf4c93
+> > commit: 12cf48af8968fa1d0cc4c06065d7c37c3560c171 [456/496] virtio_balloon: introduce migration primitives to balloon pages
+> > config: make ARCH=x86_64 allmodconfig
+> ---
+> >From 35f423ffe01b62cbe5bf88b0acbff5b3b4a09777 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Wed, 21 Nov 2012 16:42:02 +0100
+> Subject: [PATCH] virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix
+>  mismerge fix
+> 
+> %u got back to %zu while while reverting
+> %(4f2ac8495ba0477d8c3208de96dae7d1db6c2d49) obsolete version of
+> virtio_balloon: introduce migration primitives to balloon pages
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  drivers/virtio/virtio_balloon.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> index d0cfb7e..8cde4c9 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -141,7 +141,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+>  		if (!page) {
+>  			if (printk_ratelimit())
+>  				dev_printk(KERN_INFO, &vb->vdev->dev,
+> -					   "Out of puff! Can't get %zu pages\n",
+> +					   "Out of puff! Can't get %u pages\n",
+>  					    VIRTIO_BALLOON_PAGES_PER_PAGE);
+>  			/* Sleep for at least 1/5 of a second before retry. */
+>  			msleep(200);
 
-> Just to compare, this is the wording in "autonuma: memory follows CPU
-> algorithm and task/mm_autonuma stats collection"
->
-> +/*
-> + * In this function we build a temporal CPU_node<->page relation by
-> + * using a two-stage autonuma_last_nid filter to remove short/unlikely
-> + * relations.
+Yeah, that's quite old code - printk_ratelimit is naughty and has been
+replaced by dev_info_ratelimited().
 
-Looks like the comment came from sched/numa, but the original code
-came from autonuma:
-
-https://lkml.org/lkml/2012/8/22/629
-
-If you want to do a real historical dig, we may still have a picture
-of the whiteboard where Karen and I came up with the idea of only
-migrating a page after the second touch from the same node :)
-
-That was trying to solve the "how can we make migrate on fault as
-cheap as possible?" question, and reviewing some earlier autonuma
-codebase.
-
-Not that any of this matters in the least.  AutoNUMA, sched/numa,
-and balancenuma have all evolved a lot because they were able to
-copy good ideas from each other, and discard overly complex or
-simply bad ideas (eg. the NUMA syscalls or async page migration),
-while replacing them with simpler, better ideas from the other
-code bases.
-
-Now that we (mostly) agree on what the basic infrastructure should
-look like, we can figure out which placement policies work best for
-various workloads.
-
-Then we can make a choice depending on what works best, independent
-of who wrote what.
-
--- 
-All rights reversed
+Are you using mmotm or http://ozlabs.org/~akpm/mmots/?  It might be
+better to grab mmots at least while linux-next is on pause.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
