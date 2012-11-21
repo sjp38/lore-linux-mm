@@ -1,70 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 686E16B0074
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 13:00:17 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <habanero@linux.vnet.ibm.com>;
-	Wed, 21 Nov 2012 13:00:16 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3417638C8065
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 12:59:34 -0500 (EST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qALHxLS451970262
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 12:59:22 -0500
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qALHxJDl017390
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 10:59:20 -0700
-Subject: Re: numa/core regressions fixed - more testers wanted
-From: Andrew Theurer <habanero@linux.vnet.ibm.com>
-Reply-To: habanero@linux.vnet.ibm.com
-In-Reply-To: <alpine.LNX.2.00.1211201947510.985@eggly.anvils>
-References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
-	 <20121119162909.GL8218@suse.de> <20121119191339.GA11701@gmail.com>
-	 <20121119211804.GM8218@suse.de> <20121119223604.GA13470@gmail.com>
-	 <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
-	 <20121120071704.GA14199@gmail.com> <20121120152933.GA17996@gmail.com>
-	 <20121120175647.GA23532@gmail.com>
-	 <1353462853.31820.93.camel@oc6622382223.ibm.com>
-	 <50AC4912.7040503@redhat.com>
-	 <alpine.LNX.2.00.1211201947510.985@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 21 Nov 2012 11:59:16 -0600
-Message-ID: <1353520756.31820.99.camel@oc6622382223.ibm.com>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 121CB6B0078
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 13:02:08 -0500 (EST)
+Date: Wed, 21 Nov 2012 18:02:00 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/46] Automatic NUMA Balancing V4
+Message-ID: <20121121180200.GK8218@suse.de>
+References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
+ <20121121165342.GH8218@suse.de>
+ <20121121170306.GA28811@gmail.com>
+ <20121121172011.GI8218@suse.de>
+ <20121121173316.GA29311@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121121173316.GA29311@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2012-11-20 at 20:10 -0800, Hugh Dickins wrote:
-> On Tue, 20 Nov 2012, Rik van Riel wrote:
-> > On 11/20/2012 08:54 PM, Andrew Theurer wrote:
+On Wed, Nov 21, 2012 at 06:33:16PM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > On Wed, Nov 21, 2012 at 06:03:06PM +0100, Ingo Molnar wrote:
+> > > 
+> > > * Mel Gorman <mgorman@suse.de> wrote:
+> > > 
+> > > > On Wed, Nov 21, 2012 at 10:21:06AM +0000, Mel Gorman wrote:
+> > > > > 
+> > > > > I am not including a benchmark report in this but will be posting one
+> > > > > shortly in the "Latest numa/core release, v16" thread along with the latest
+> > > > > schednuma figures I have available.
+> > > > > 
+> > > > 
+> > > > Report is linked here https://lkml.org/lkml/2012/11/21/202
+> > > > 
+> > > > I ended up cancelling the remaining tests and restarted with
+> > > > 
+> > > > 1. schednuma + patches posted since so that works out as
+> > > 
+> > > Mel, I'd like to ask you to refer to our tree as numa/core or 
+> > > 'numacore' in the future. Would such a courtesy to use the 
+> > > current name of our tree be possible?
+> > > 
 > > 
-> > > I can confirm single JVM JBB is working well for me.  I see a 30%
-> > > improvement over autoNUMA.  What I can't make sense of is some perf
-> > > stats (taken at 80 warehouses on 4 x WST-EX, 512GB memory):
-> > 
-> > AutoNUMA does not have native THP migration, that may explain some
-> > of the difference.
+> > Sure, no problem.
 > 
-> When I made some fixes to the sched/numa native THP migration,
-> I did also try porting that (with Hannes's memcg fixes) to AutoNUMA.
+> Thanks!
 > 
-> Here's the patch below: it appeared to be working just fine, but
-> you might find that it doesn't quite apply to whatever tree you're
-> using.  I started from 3.6 autonuma28fast in aa.git, but had folded
-> in some of the equally applicable TLB flush optimizations too.
+> I ran a quick test with your 'balancenuma v4' tree and while 
+> numa02 and numa01-THREAD-ALLOC performance is looking good, 
+> numa01 performance does not look very good:
 > 
-> There's also a little "Hack, remove after THP native migration"
-> retuning in mm/huge_memory.c which should probably be removed too.
+>                     mainline    numa/core      balancenuma-v4
+>      numa01:           340.3       139.4          276 secs
+> 
+> 97% slower than numa/core.
+> 
 
-Thanks, this worked for me.  The autoNUMA SPECjbb result is now much
-closer, just 4% lower than the numa/core result.  The number of anon and
-anon-huge pages are now nearly the same.
+It would be. numa01 is an adverse workload where all threads are hammering
+the same memory.  The two-stage filter in balancenuma restricts the amount
+of migration it does so it ends up in a situation where it cannot balance
+properly. It'll do some migration if the PTE updates happen fast enough but
+that's about it.  It needs a proper policy on top to detect this situation
+and interleave the memory between nodes to at least maximise the available
+memory bandwidth. This would replace the two-stage filter which is there
+to mitigate a ping-pong effect.
 
--Andrew Theurer
+> I did a quick SPECjbb 32-warehouses run as well:
+> 
+>                                 numa/core      balancenuma-v4
+>       SPECjbb  +THP:               655 k/sec      607 k/sec
+> 
+
+Cool. Lets see what we have here. I have some questions;
+
+You say you ran with 32 warehouses. Was this a single run with just 32
+warehouses or you did a specjbb run up to 32 warehouses and use the figure
+specjbb spits out? If it ran for multiple warehouses, how did each number
+of warehouses do? I ask because sometimes we do worse for low numbers
+of warehouses and better at high numbers, particularly around where the
+workload peaks.
+
+Was this a single JVM configuration?
+
+What is the comparison with a baseline kernel?
+
+You say you ran with balancenuma-v4. Was that the full series including
+the broken placement policy or did you test with just patches 1-37 as I
+asked in the patch leader?
+
+> Here it's 7.9% slower.
+> 
+
+And in comparison to a vanilla kernel?
+
+Bear in mind that my objective was to have a foundation that did noticably
+better than mainline that a proper placement and scheduling policy could
+be built on top of.
+
+Thanks!
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
