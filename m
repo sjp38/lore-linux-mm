@@ -1,46 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id A957D6B0081
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:39:40 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id lz20so8571518obb.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 00:39:39 -0800 (PST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 34A0D6B0085
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:49:16 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so5286075pbc.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 00:49:15 -0800 (PST)
+Date: Wed, 21 Nov 2012 00:46:03 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC v3 0/3] vmpressure_fd: Linux VM pressure notifications
+Message-ID: <20121121084603.GA18159@lizard>
+References: <alpine.DEB.2.00.1211142351420.4410@chino.kir.corp.google.com>
+ <20121115085224.GA4635@lizard>
+ <alpine.DEB.2.00.1211151303510.27188@chino.kir.corp.google.com>
+ <50A60873.3000607@parallels.com>
+ <alpine.DEB.2.00.1211161157390.2788@chino.kir.corp.google.com>
+ <50A6AC48.6080102@parallels.com>
+ <alpine.DEB.2.00.1211161349420.17853@chino.kir.corp.google.com>
+ <50AA3FEF.2070100@parallels.com>
+ <alpine.DEB.2.00.1211201013460.4200@chino.kir.corp.google.com>
+ <50AC9070.2030009@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20121120175647.GA23532@gmail.com>
-References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
-	<20121119162909.GL8218@suse.de>
-	<20121119191339.GA11701@gmail.com>
-	<20121119211804.GM8218@suse.de>
-	<20121119223604.GA13470@gmail.com>
-	<CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
-	<20121120071704.GA14199@gmail.com>
-	<20121120152933.GA17996@gmail.com>
-	<20121120175647.GA23532@gmail.com>
-Date: Wed, 21 Nov 2012 16:39:39 +0800
-Message-ID: <CAGjg+kHKaQLcrnEftB+2mjeCjGUBiisSOpNCe+_9-4LDho9LpA@mail.gmail.com>
-Subject: Re: numa/core regressions fixed - more testers wanted
-From: Alex Shi <lkml.alex@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <50AC9070.2030009@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, linux-man@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
->
-> Those of you who would like to test all the latest patches are
-> welcome to pick up latest bits at tip:master:
->
->    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
->
+On Wed, Nov 21, 2012 at 12:27:28PM +0400, Glauber Costa wrote:
+> On 11/20/2012 10:23 PM, David Rientjes wrote:
+> > Anton can correct me if I'm wrong, but I certainly don't think this is 
+> > where mempressure is headed: I don't think any accounting needs to be done
 
-I am wondering if it is a problem, but it still exists on HEAD: c418de93e39891
-http://article.gmane.org/gmane.linux.kernel.mm/90131/match=compiled+with+name+pl+and+start+it+on+my
+Yup, I'd rather not do any accounting, at least not in bytes.
 
-like when just start 4 pl tasks, often 3 were running on node 0, and 1
-was running on node 1.
-The old balance will average assign tasks to different node, different core.
+> > and, if it is, it's a design issue that should be addressed now rather 
+> > than later.  I believe notifications should occur on current's mempressure 
+> > cgroup depending on its level of reclaim: nobody cares if your memcg has a 
+> > limit of 64GB when you only have 32GB of RAM, we'll want the notification.
+> 
+> My main concern is that to trigger those notifications, one would have
+> to first determine whether or not the particular group of tasks is under
+> pressure.
 
-Regards
-Alex
+As far as I understand, the notifications will be triggered by a process
+that tries to allocate memory. So, effectively that would be a per-process
+pressure.
+
+So, if one process in a group is suffering, we notify that "a process in a
+group is under pressure", and the notification goes to a cgroup listener
+
+> And to do that, we need to somehow know how much memory we are
+> using, and how much we are reclaiming, etc. On a system-wide level, we
+> have this information. On a grouplevel, this is already accounted by memcg.
+> 
+> In fact, the current code already seems to rely on memcg:
+> 
+> +	vmpressure(sc->target_mem_cgroup,
+> +		   sc->nr_scanned - nr_scanned, nr_reclaimed);
+
+Well, I'm yet unsure about the details, but I guess in "mempressure"
+cgroup approach, this will be derived from the current->, i.e. a task.
+
+But note that we won't report pressure to a memcg cgroup, we will notify
+only mempressure cgroup. But a process can be in both of them
+simultaneously. In the code, the mempressure and memcg will not depend on
+each other.
+
+> Now, let's start simple: Assume we will have a different cgroup.
+> We want per-group pressure notifications for that group. How would you
+> determine that the specific group is under pressure?
+
+If a process that tries to allocate memory & causes reclaim is a part of
+the cgroup, then cgroup has a pressure.
+
+At least that's very brief understanding of the idea, details to be
+investigated... But I welcome David to comment whether I got everything
+correctly. :)
+
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
