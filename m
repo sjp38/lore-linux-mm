@@ -1,102 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 736076B0070
-	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 21:59:21 -0500 (EST)
-Message-ID: <50AC4505.1000007@cn.fujitsu.com>
-Date: Wed, 21 Nov 2012 11:05:41 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id BB6216B0075
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2012 22:23:16 -0500 (EST)
+Message-ID: <50AC4912.7040503@redhat.com>
+Date: Tue, 20 Nov 2012 22:22:58 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 06/12] memory-hotplug: unregister memory section on
- SPARSEMEM_VMEMMAP
-References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-7-git-send-email-wency@cn.fujitsu.com> <50AB669D.3060007@gmail.com>
-In-Reply-To: <50AB669D.3060007@gmail.com>
+Subject: Re: numa/core regressions fixed - more testers wanted
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>  <20121119162909.GL8218@suse.de> <20121119191339.GA11701@gmail.com>  <20121119211804.GM8218@suse.de> <20121119223604.GA13470@gmail.com>  <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>  <20121120071704.GA14199@gmail.com> <20121120152933.GA17996@gmail.com>  <20121120175647.GA23532@gmail.com> <1353462853.31820.93.camel@oc6622382223.ibm.com>
+In-Reply-To: <1353462853.31820.93.camel@oc6622382223.ibm.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
+To: habanero@linux.vnet.ibm.com
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-At 11/20/2012 07:16 PM, Jaegeuk Hanse Wrote:
-> On 11/01/2012 05:44 PM, Wen Congyang wrote:
->> From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->>
->> Currently __remove_section for SPARSEMEM_VMEMMAP does nothing. But
->> even if
->> we use SPARSEMEM_VMEMMAP, we can unregister the memory_section.
->>
->> So the patch add unregister_memory_section() into __remove_section().
-> 
-> Hi Yasuaki,
-> 
-> I have a question about these sparse vmemmap memory related patches. Hot
-> add memory need allocated vmemmap pages, but this time is allocated by
-> buddy system. How can gurantee virtual address is continuous to the
-> address allocated before? If not continuous, page_to_pfn and pfn_to_page
-> can't work correctly.
+On 11/20/2012 08:54 PM, Andrew Theurer wrote:
 
-vmemmap has its virtual address range:
-ffffea0000000000 - ffffeaffffffffff (=40 bits) virtual memory map (1TB)
+> I can confirm single JVM JBB is working well for me.  I see a 30%
+> improvement over autoNUMA.  What I can't make sense of is some perf
+> stats (taken at 80 warehouses on 4 x WST-EX, 512GB memory):
 
-We allocate memory from buddy system to store struct page, and its virtual
-address isn't in this range. So we should update the page table:
+AutoNUMA does not have native THP migration, that may explain some
+of the difference.
 
-kmalloc_section_memmap()
-    sparse_mem_map_populate()
-        pfn_to_page() // get the virtual address in the vmemmap range
-        vmemmap_populate() // we update page table here
+> tips numa/core:
+>
+>       5,429,632,865 node-loads
+>       3,806,419,082 node-load-misses(70.1%)
+>       2,486,756,884 node-stores
+>       2,042,557,277 node-store-misses(82.1%)
+>       2,878,655,372 node-prefetches
+>       2,201,441,900 node-prefetch-misses
+>
+> autoNUMA:
+>
+>       4,538,975,144 node-loads
+>       2,666,374,830 node-load-misses(58.7%)
+>       2,148,950,354 node-stores
+>       1,682,942,931 node-store-misses(78.3%)
+>       2,191,139,475 node-prefetches
+>       1,633,752,109 node-prefetch-misses
+>
+> The percentage of misses is higher for numa/core.  I would have expected
+> the performance increase be due to lower "node-misses", but perhaps I am
+> misinterpreting the perf data.
 
-When we use vmemmap, page_to_pfn() always returns address in the vmemmap
-range, not the address that kmalloc() returns. So the virtual address
-is continuous.
+Lack of native THP migration may be enough to explain the
+performance difference, despite autonuma having better node
+locality.
 
-Thanks
-Wen Congyang
-> 
-> Regards,
-> Jaegeuk
-> 
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Wen Congyang <wency@cn.fujitsu.com>
->> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> ---
->>   mm/memory_hotplug.c | 13 ++++++++-----
->>   1 file changed, 8 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index ca07433..66a79a7 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -286,11 +286,14 @@ static int __meminit __add_section(int nid,
->> struct zone *zone,
->>   #ifdef CONFIG_SPARSEMEM_VMEMMAP
->>   static int __remove_section(struct zone *zone, struct mem_section *ms)
->>   {
->> -    /*
->> -     * XXX: Freeing memmap with vmemmap is not implement yet.
->> -     *      This should be removed later.
->> -     */
->> -    return -EBUSY;
->> +    int ret = -EINVAL;
->> +
->> +    if (!valid_section(ms))
->> +        return ret;
->> +
->> +    ret = unregister_memory_section(ms);
->> +
->> +    return ret;
->>   }
->>   #else
->>   static int __remove_section(struct zone *zone, struct mem_section *ms)
-> 
-> 
+>> Next I'll work on making multi-JVM more of an improvement, and
+>> I'll also address any incoming regression reports.
+>
+> I have issues with multiple KVM VMs running either JBB or
+> dbench-in-tmpfs, and I suspect whatever I am seeing is similar to
+> whatever multi-jvm in baremetal is.  What I typically see is no real
+> convergence of a single node for resource usage for any of the VMs.  For
+> example, when running 8 VMs, 10 vCPUs each, a VM may have the following
+> resource usage:
+
+This is an issue.  I have tried understanding the new local/shared
+and shared task grouping code, but have not wrapped my mind around
+that code yet.
+
+I will have to look at that code a few more times, and ask more
+questions of Ingo and Peter (and maybe ask some of the same questions
+again - I see that some of my comments were addressed in the next
+version of the patch, but the email never got a reply).
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
