@@ -1,196 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id BF9F56B00A9
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:00:05 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so1084546pad.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 06:00:05 -0800 (PST)
-Date: Wed, 21 Nov 2012 22:59:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: another allocation livelock with zram
-Message-ID: <20121121135957.GB2084@barrios>
-References: <CAA25o9T8cBhuFnesnxHDsv3PmV8tiHKoLz0dGQeUSCvtpBBv3A@mail.gmail.com>
- <20121121012726.GA5121@bbox>
- <CAA25o9Q=qnmrZ5iyVcmKxDr+nO7J-o-z1X6QtiEdLdxZHCViBw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 5819E6B00AD
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 09:33:09 -0500 (EST)
+Date: Wed, 21 Nov 2012 14:33:03 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [3.7-rc6] capture_free_page() frees page without accounting for
+ them??
+Message-ID: <20121121143303.GD8218@suse.de>
+References: <50ABE741.2020604@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAA25o9Q=qnmrZ5iyVcmKxDr+nO7J-o-z1X6QtiEdLdxZHCViBw@mail.gmail.com>
+In-Reply-To: <50ABE741.2020604@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 20, 2012 at 05:47:33PM -0800, Luigi Semenzato wrote:
-> It's 3.4.0 plus:
+On Tue, Nov 20, 2012 at 12:25:37PM -0800, Dave Hansen wrote:
+> Hi Mel,
 > 
-> - yes, hacky min_filelist_kbytes patch is applies, sorry
-> - other Chrome OS patches, but AFAIK none of them in the MM
-> - TIF_MEMDIE fix for my previous problem applied
-> - Zsmalloc changes to remove x86 dependency backported.
+> I'm chasing an apparent memory leak introduced post-3.6. 
+
+An accounting leak could also contribute to the kswapd bugs we've been
+seeing recently.
+
+Andrew, this is quite important and might be worth wedging in before 3.7
+comes out because it'll cause serious problems if Dave is right.
+
+> The
+> interesting thing is that it appears that the pages are in the
+> allocator, but not being accounted for:
 > 
-> Thanks!
+> 	http://www.spinics.net/lists/linux-mm/msg46187.html
+> 	https://bugzilla.kernel.org/show_bug.cgi?id=50181
+> 
 
-Below hacky patch makes difference?
+Differences in the buddy allocator and reported free figures almost
+always point to either per-cpu drift or NR_FREE_PAGES accounting bugs.
+Usually the drift is not too bad and the drift is always within a
+margin related to the number of CPUs. NR_FREE_PAGES accounting bugs get
+progressively worse until the machine starts OOM killing or locks up.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 370244c..44289e9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2101,7 +2101,7 @@ static bool all_unreclaimable(struct zonelist *zonelist,
-                        continue;
-                if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-                        continue;
--               if (!zone->all_unreclaimable)
-+               if (zone->pages_scanned < zone_reclaimable_pages(zone) * 6)
-                        return false;
-        }
+> I started auditing anything that might be messing with NR_FREE_PAGES,
+> and came across commit 1fb3f8ca. 
+
+It could certainly affect NR_FREE_PAGES due to its manipulating of buddy
+pages. It will not result in happy and the system would potentially need
+to be running a long time before it's spotted.
+
+> It does something curious with
+> capture_free_page() (previously known as split_free_page()).
+> 
+> int capture_free_page(struct page *page, int alloc_order,
+> ...
+>         __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> 
+> -       /* Split into individual pages */
+> -       set_page_refcounted(page);
+> -       split_page(page, order);
+> +       if (alloc_order != order)
+> +               expand(zone, page, alloc_order, order,
+> +                       &zone->free_area[order], migratetype);
+> 
+> Note that expand() puts the pages _back_ in the allocator, but it does
+> not bump NR_FREE_PAGES.  We "return" alloc_order' worth of pages, but we
+> accounted for removing 'order'.
+> 
+> I _think_ the correct fix is to just:
+> 
+> -     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << order));
+> +     __mod_zone_page_state(zone, NR_FREE_PAGES, -(1UL << alloc_order));
+> 
+
+This looks correct to me but it will collide with other patches. You'll
+need something like the below. If it works for you, stick a changelog on
+it, feel free to put my Acked on it and get it to Andrew for ASAP
+because I really think this needs to be in before 3.7 comes out or we'll
+be swamped with a maze of kswapd-goes-mental bugs, all similar with
+different root causes.
+
+Thanks a million Dave!
+
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fd6a073..ad99f0f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1406,7 +1406,7 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
  
-
-> 
-> 
-> On Tue, Nov 20, 2012 at 5:27 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hi Luigi,
-> >
-> > Question.
-> > Is it a 3.4.0 vanilla kernel?
-> > Otherwise, some hacky patches(ex, min_filelist_kbytes) are applied?
-> >
-> > On Tue, Nov 20, 2012 at 03:46:34PM -0800, Luigi Semenzato wrote:
-> >> Greetings MM folks,
-> >>
-> >> and thanks again for fixing my previous hang-with-zram problem.  I am
-> >> now running into a similar problem and I hope I will not take
-> >> advantage of your kindness by asking for further advice.
-> >>
-> >> By running a few dozen memory-hungry processes on an ARM cpu with 2 Gb
-> >> RAM, with zram enabled, I can easily get into a situation where all
-> >> processes are either:
-> >>
-> >> 1. blocked in a futex
-> >> 2. trying unsuccessfully to allocate memory
-> >>
-> >> This happens when there should still be plenty of memory: the zram
-> >> swap device is about 1/3 full. (The output of SysRq-M is at the end.)
-> >> Yet the SI and SO fields of vmstat stay at 0, and CPU utilization is
-> >> 100% system.
-> >>
-> >> procs -----------memory---------- ---swap-- -----io---- -system-- ----cpu----
-> >>  r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa
-> >> 46  0 1076432  13636   2844 216648    0    0     0     0  621  229  0 100  0  0
-> >> 44  0 1076432  13636   2844 216648    0    0     0     0  618  204  0 100  0  0
-> >>
-> >> I added counters in various places in the page allocator to see which
-> >> paths were being taken and noticed the following facts:
-> >>
-> >> - alloc_page_slowpath is looping, apparently trying to rebalance.  It
-> >> calls alloc_pages_direct_reclaim at a rate of about 155 times/second,
-> >> and gets one page about once every 500 calls.  Did_some_progress is
-> >> always set to true.  Then should_alloc_retry returns true (because
-> >> order < PAGE_ALLOC_COSTLY_ORDER).
-> >>
-> >> - kswapd is asleep and is not woken up because alloc_page_slowpath
-> >> never goes to the "restart" label.
-> >>
-> >> My questions are:
-> >>
-> >> 1. is it obvious to any of you what is going wrong?
-> >> 1.1 is the allocation failing because nobody is waking up kswapd?  And
-> >> if so, why not?
-> >>
-> >> 2. if it's not obvious, what are the next things to look into?
-> >>
-> >> 3. is there a better way of debugging this?
-> >>
-> >> Thanks!
-> >> Luigi
-> >>
-> >> [    0.000000] Linux version 3.4.0
-> >> (semenzato@luigi.mtv.corp.google.com) (gcc version 4.6.x-google
-> >> 20120301 (prerelease) (gcc-4.6.3_cos_gg_2a32ae6) ) #26 SMP Tue Nov 20
-> >> 14:27:15 PST 2012
-> >> [    0.000000] CPU: ARMv7 Processor [410fc0f4] revision 4 (ARMv7), cr=10c5387d
-> >> [    0.000000] CPU: PIPT / VIPT nonaliasing data cache, PIPT instruction cache
-> >> [    0.000000] Machine: SAMSUNG EXYNOS5 (Flattened Device Tree),
-> >> model: Google Snow
-> >> ...
-> >> [  198.564328] SysRq : Show Memory
-> >> [  198.564347] Mem-info:
-> >> [  198.564355] Normal per-cpu:
-> >> [  198.564364] CPU    0: hi:  186, btch:  31 usd:   0
-> >> [  198.564373] CPU    1: hi:  186, btch:  31 usd:   0
-> >> [  198.564381] HighMem per-cpu:
-> >> [  198.564389] CPU    0: hi:   90, btch:  15 usd:   0
-> >> [  198.564397] CPU    1: hi:   90, btch:  15 usd:   0
-> >> [  198.564411] active_anon:196868 inactive_anon:66835 isolated_anon:47
-> >> [  198.564415]  active_file:13931 inactive_file:11043 isolated_file:0
-> >> [  198.564419]  unevictable:0 dirty:4 writeback:1 unstable:0
-> >> [  198.564423]  free:3409 slab_reclaimable:2583 slab_unreclaimable:3337
-> >> [  198.564427]  mapped:137910 shmem:29899 pagetables:3972 bounce:0
-> >> [  198.564449] Normal free:13384kB min:5380kB low:6724kB high:8068kB
-> >> active_anon:782052kB inactive_anon:261808kB active_file:25020kB
-> >> inactive_file:24900kB unevictable:0kB isolated(anon):16kB
-> >> isolated(file):0kB present:1811520kB mlocked:0kB dirty:12kB
-> >> writeback:0kB mapped:461296kB shmem:115892kB slab_reclaimable:10332kB
-> >> slab_unreclaimable:13348kB kernel_stack:3008kB pagetables:15888kB
-> >> unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:107282320
-> >> all_unreclaimable? no
-> >> [  198.564474] lowmem_reserve[]: 0 2095 2095
-> >> [  198.564499] HighMem free:252kB min:260kB low:456kB high:656kB
-> >> active_anon:5420kB inactive_anon:5532kB active_file:30704kB
-> >> inactive_file:19272kB unevictable:0kB isolated(anon):172kB
-> >> isolated(file):0kB present:268224kB mlocked:0kB dirty:4kB
-> >> writeback:4kB mapped:90344kB shmem:3704kB slab_reclaimable:0kB
-> >> slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB
-> >> bounce:0kB writeback_tmp:0kB pages_scanned:7081406 all_unreclaimable?
-> >> no
-> >> [  198.564523] lowmem_reserve[]: 0 0 0
-> >> [  198.564536] Normal: 1570*4kB 6*8kB 1*16kB 0*32kB 0*64kB 1*128kB
-> >> 1*256kB 1*512kB 0*1024kB 1*2048kB 1*4096kB = 13384kB
-> >> [  198.564574] HighMem: 59*4kB 2*8kB 0*16kB 0*32kB 0*64kB 0*128kB
-> >> 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 252kB
-> >> [  198.564610] 123112 total pagecache pages
-> >> [  198.564616] 68239 pages in swap cache
-> >> [  198.564622] Swap cache stats: add 466115, delete 397876, find 31817/56350
-> >> [  198.564630] Free swap  = 1952336kB
-> >> [  198.564635] Total swap = 3028768kB
-> >> [  198.564640] xxcount_nr_reclaimed 358488
-> >> [  198.564646] xxcount_nr_reclaims 6201
-> >> [  198.564651] xxcount_aborted_reclaim 0
-> >> [  198.564656] xxcount_more_to_do 5137
-> >> [  198.564662] xxcount_direct_reclaims 17065
-> >> [  198.564667] xxcount_failed_direct_reclaims 10708
-> >> [  198.564673] xxcount_no_progress 5696
-> >> [  198.564678] xxcount_restarts 5696
-> >> [  198.564683] xxcount_should_alloc_retry 5008
-> >> [  198.564688] xxcount_direct_compact 1
-> >> [  198.564693] xxcount_alloc_failed 115
-> >> [  198.564699] xxcount_gfp_nofail 0
-> >> [  198.564704] xxcount_costly_order 5009
-> >> [  198.564709] xxcount_repeat 0
-> >> [  198.564714] xxcount_kswapd_nap 2210
-> >> [  198.564719] xxcount_kswapd_sleep 17
-> >> [  198.564724] xxcount_kswapd_loop 2211
-> >> [  198.564729] xxcount_kswapd_try_to_sleep 2210
-> >> [  198.575349] 524288 pages of RAM
-> >> [  198.575358] 4420 free pages
-> >> [  198.575365] 7122 reserved pages
-> >> [  198.575371] 4091 slab pages
-> >> [  198.575378] 302549 pages shared
-> >> [  198.575384] 68239 pages swap cached
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >
-> > --
-> > Kind regards,
-> > Minchan Kim
-
--- 
-Kind Regards,
-Minchan Kim
+ 	mt = get_pageblock_migratetype(page);
+ 	if (unlikely(mt != MIGRATE_ISOLATE))
+-		__mod_zone_freepage_state(zone, -(1UL << order), mt);
++		__mod_zone_freepage_state(zone, -(1UL << alloc_order), mt);
+ 
+ 	if (alloc_order != order)
+ 		expand(zone, page, alloc_order, order,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
