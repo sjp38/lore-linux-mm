@@ -1,89 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id B58776B0062
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 02:58:25 -0500 (EST)
-Date: Wed, 21 Nov 2012 15:57:45 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: fadvise interferes with readahead
-Message-ID: <20121121075745.GA8136@localhost>
-References: <CAGTBQpaDR4+V5b1AwAVyuVLu5rkU=Wc1WeUdLu5ag=WOk5oJzQ@mail.gmail.com>
- <20121120080427.GA11019@localhost>
- <CAGTBQpayd-HyH8SWfUCavS7epybcQR5SAx+tr+wyB38__4b-2Q@mail.gmail.com>
- <20121120145807.GB19467@localhost>
- <50AC87E7.5040700@gmail.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id C960C6B0062
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 03:03:41 -0500 (EST)
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz>
+Message-ID: <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com>
+Date: Wed, 21 Nov 2012 00:03:40 -0800 (PST)
+From: metin d <metdos@yahoo.com>
+Reply-To: metin d <metdos@yahoo.com>
+Subject: Re: Problem in Page Cache Replacement
+In-Reply-To: <20121120182500.GH1408@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50AC87E7.5040700@gmail.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
-Cc: Claudio Freire <klaussfreire@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Nov 21, 2012 at 03:51:03PM +0800, Jaegeuk Hanse wrote:
-> On 11/20/2012 10:58 PM, Fengguang Wu wrote:
-> >On Tue, Nov 20, 2012 at 10:34:11AM -0300, Claudio Freire wrote:
-> >>On Tue, Nov 20, 2012 at 5:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
-> >>>Yes. The kernel readahead code by design will outperform simple
-> >>>fadvise in the case of clustered random reads. Imagine the access
-> >>>pattern 1, 3, 2, 6, 4, 9. fadvise will trigger 6 IOs literally. While
-> >>>kernel readahead will likely trigger 3 IOs for 1, 3, 2-9. Because on
-> >>>the page miss for 2, it will detect the existence of history page 1
-> >>>and do readahead properly. For hard disks, it's mainly the number of
-> >>>IOs that matters. So even if kernel readahead loses some opportunities
-> >>>to do async IO and possibly loads some extra pages that will never be
-> >>>used, it still manges to perform much better.
-> >>>
-> >>>>The fix would lay in fadvise, I think. It should update readahead
-> >>>>tracking structures. Alternatively, one could try to do it in
-> >>>>do_generic_file_read, updating readahead on !PageUptodate or even on
-> >>>>page cache hits. I really don't have the expertise or time to go
-> >>>>modifying, building and testing the supposedly quite simple patch that
-> >>>>would fix this. It's mostly about the testing, in fact. So if someone
-> >>>>can comment or try by themselves, I guess it would really benefit
-> >>>>those relying on fadvise to fix this behavior.
-> >>>One possible solution is to try the context readahead at fadvise time
-> >>>to check the existence of history pages and do readahead accordingly.
-> >>>
-> >>>However it will introduce *real interferences* between kernel
-> >>>readahead and user prefetching. The original scheme is, once user
-> >>>space starts its own informed prefetching, kernel readahead will
-> >>>automatically stand out of the way.
-> >>I understand that would seem like a reasonable design, but in this
-> >>particular case it doesn't seem to be. I propose that in most cases it
-> >>doesn't really work well as a design decision, to make fadvise work as
-> >>direct I/O. Precisely because fadvise is supposed to be a hint to let
-> >>the kernel make better decisions, and not a request to make the kernel
-> >>stop making decisions.
-> >>
-> >>Any interference so introduced wouldn't be any worse than the
-> >>interference introduced by readahead over reads. I agree, if fadvise
-> >>were to trigger readahead, it could be bad for applications that don't
-> >>read what they say the will.
-> >Right.
-> >
-> >>But if cache hits were to simply update
-> >>readahead state, it would only mean that read calls behave the same
-> >>regardless of fadvise calls. I think that's worth pursuing.
-> >Here you are describing an alternative solution that will somehow trap
-> >into the readahead code even when, for example, the application is
-> >accessing once and again an already cached file?  I'm afraid this will
-> >add non-trivial overheads and is less attractive than the "readahead
-> >on fadvise" solution.
-> 
-> Hi Fengguang,
-> 
-> Page cache sync readahead only triggered when cache miss, but if
-> file has already cached, how can readahead be trigged again if the
-> application is accessing once and again an already cached file.
-
-The answer is opposite to your expectation: for an already cached
-file, kernel readahead code won't be triggered at all, which is good
-for avoid pointless overheads for the common repeated memory hot
-accesses.
-
-Thanks,
-Fengguang
+=0A=0A> =A0Curious. Added linux-mm list to CC to catch more attention. If y=
+ou run=0A> echo 1 >/proc/sys/vm/drop_caches=A0does it evict data-1 pages fr=
+om memory?=0A=0A=0AI'm guessing it'd evict the entries, but am wondering if=
+ we could run any more diagnostics before trying this.=0A=0AWe regularly us=
+e a setup where we have two databases; one gets used frequently and the oth=
+er one about once a month. It seems like the memory manager keeps unused pa=
+ges in memory at the expense of frequently used database's performance.=0A=
+=0AMy understanding was that under memory pressure from heavily accessed pa=
+ges, unused pages would eventually get evicted. Is there anything else we c=
+an try on this host to understand why this is happening?=0A=0AThank you,=0A=
+=0AMetin=0A=0A=0A----- Original Message -----=0AFrom: Jan Kara <jack@suse.c=
+z>=0ATo: metin d <metdos@yahoo.com>=0ACc: "linux-kernel@vger.kernel.org" <l=
+inux-kernel@vger.kernel.org>; linux-mm@kvack.org=0ASent: Tuesday, November =
+20, 2012 8:25 PM=0ASubject: Re: Problem in Page Cache Replacement=0A=0AOn T=
+ue 20-11-12 09:42:42, metin d wrote:=0A> I have two PostgreSQL databases na=
+med data-1 and data-2 that sit on the=0A> same machine. Both databases keep=
+ 40 GB of data, and the total memory=0A> available on the machine is 68GB.=
+=0A> =0A> I started data-1 and data-2, and ran several queries to go over a=
+ll their=0A> data. Then, I shut down data-1 and kept issuing queries agains=
+t data-2.=0A> For some reason, the OS still holds on to large parts of data=
+-1's pages=0A> in its page cache, and reserves about 35 GB of RAM to data-2=
+'s files. As=0A> a result, my queries on data-2 keep hitting disk.=0A> =0A>=
+ I'm checking page cache usage with fincore. When I run a table scan query=
+=0A> against data-2, I see that data-2's pages get evicted and put back int=
+o=0A> the cache in a round-robin manner. Nothing happens to data-1's pages,=
+=0A> although they haven't been touched for days.=0A> =0A> Does anybody kno=
+w why data-1's pages aren't evicted from the page cache?=0A> I'm open to al=
+l kind of suggestions you think it might relate to problem.=0A=A0 Curious. =
+Added linux-mm list to CC to catch more attention. If you run=0Aecho 1 >/pr=
+oc/sys/vm/drop_caches=0A=A0 does it evict data-1 pages from memory?=0A=0A> =
+This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no=0A> s=
+wap space. The kernel version is:=0A> =0A> $ uname -r=0A> 3.2.28-45.62.amzn=
+1.x86_64=0A> Edit:=0A> =0A> and it seems that I use one NUMA instance, if =
+=A0you think that it can a problem.=0A> =0A> $ numactl --hardware=0A> avail=
+able: 1 nodes (0)=0A> node 0 cpus: 0 1 2 3 4 5 6 7=0A> node 0 size: 70007 M=
+B=0A> node 0 free: 360 MB=0A> node distances:=0A> node =A0 0=0A> =A0 0: =A0=
+10=0A=0A=A0=A0=A0 =A0=A0=A0 =A0=A0=A0 =A0=A0=A0 =A0=A0=A0 =A0=A0=A0 =A0=A0=
+=A0 =A0=A0=A0 Honza=0A-- =0AJan Kara <jack@suse.cz>=0ASUSE Labs, CR=0A
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
