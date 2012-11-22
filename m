@@ -1,128 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 8A2DE6B0062
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:45:38 -0500 (EST)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Wed, 21 Nov 2012 19:45:37 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 461426E807E
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:36:53 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAM0aof565142934
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:36:50 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAM0alEx000795
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 22:36:48 -0200
-Message-ID: <50AD739A.30804@linaro.org>
-Date: Wed, 21 Nov 2012 16:36:42 -0800
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 79FEC6B006C
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:46:03 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id s11so562072qaa.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:46:02 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC v2] Support volatile range for anon vma
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1351560594-18366-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com>
+References: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com>
+Date: Wed, 21 Nov 2012 16:46:02 -0800
+Message-ID: <CAA25o9Su0Wppnwug3xwAgpYNnmtJjJsrdjj3QqqU76oXkJi6iw@mail.gmail.com>
+Subject: Re: behavior of zram stats, and zram allocation limit
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
 
-On 10/29/2012 06:29 PM, Minchan Kim wrote:
-> This patch introudces new madvise behavior MADV_VOLATILE and
-> MADV_NOVOLATILE for anonymous pages. It's different with
-> John Stultz's version which considers only tmpfs while this patch
-> considers only anonymous pages so this cannot cover John's one.
-> If below idea is proved as reasonable, I hope we can unify both
-> concepts by madvise/fadvise.
+My apologies---what I am seeing is actually reasonable.  My synthetic
+load mistakenly was only touching the pages with incompressible data
+in them.  Thus it's reasonable that the compression ratio improves,
+since those pages are brought back in, and the zero pages are pushed
+out.  :-(
+
+On Wed, Nov 21, 2012 at 2:58 PM, Luigi Semenzato <semenzato@google.com> wrote:
+> Hi,
 >
-> Rationale is following as.
-> Many allocators call munmap(2) when user call free(3) if ptr is
-> in mmaped area. But munmap isn't cheap because it have to clean up
-> all pte entries and unlinking a vma so overhead would be increased
-> linearly by mmaped area's size.
+> Two questions for zram developers/users.  (Please let me know if it is
+> NOT acceptable to use this list for these questions.)
 >
-> Volatile conecept of Robert Love could be very useful for reducing
-> free(3) overhead. Allocators can do madvise(MADV_VOLATILE) instead of
-> munmap(2)(Of course, they need to manage volatile mmaped area to
-> reduce shortage of address space and sometime ends up unmaping them).
-> The madvise(MADV_VOLATILE|NOVOLATILE) is very cheap opeartion because
+> 1. When I run a synthetic load using zram from kernel 3.4.0,
+> compr_data_size from /sys/block/zram0 seems to decrease even though
+> orig_data_size stays constant (see below).  Is this a bug that was
+> fixed in a later release?  (The synthetic load is a bunch of processes
+> that allocate memory, fill half of it with data from /dev/urandom, and
+> touch the memory randomly.)  I looked at the code and it looks right.
+> :-P
 >
-> 1) it just marks the flag in VMA and
-> 2) if memory pressure happens, VM can discard pages of volatile VMA
->     instead of swapping out when volatile pages is selected as victim
->     by normal VM aging policy.
-> 3) freed mmaped area doesn't include any meaningful data so there
->     is no point to swap them out.
+> 2. Is there a way of setting the max amount of RAM that zram is
+> allowed to allocate?  Right now I can set the size of the
+> *uncompressed* swap device, but how much memory gets allocated depends
+> on the compression ratio, which could vary.
 >
-> Allocator should call madvise(MADV_NOVOLATILE) before reusing for
-> allocating that area to user. Otherwise, accessing of volatile range
-> will meet SIGBUS error.
+> Thanks!
 >
-> The downside is that we have to age anon lru list although we don't
-> have swap because I don't want to discard volatile pages by top priority
-> when memory pressure happens as volatile in this patch means "We don't
-> need to swap out because user can handle the situation which data are
-> disappear suddenly", NOT "They are useless so hurry up to reclaim them".
-> So I want to apply same aging rule of nomal pages to them.
 >
-> Anon background aging of non-swap system would be a trade-off for
-> getting good feature. Even, we had done it two years ago until merge
-> [1] and I believe free(3) performance gain will beat loss of anon lru
-> aging's overead once all of allocator start to use madvise.
-> (This patch doesn't include background aging in case of non-swap system
->   but it's trivial if we decide)
-
-Hey Minchan!
-     So I've been looking at your patch for a bit, and I'm still trying 
-to fully grok it and the rmap code. Overall this approach looks pretty 
-interesting,  and while your patch description focused on malloc/free 
-behavior, I suspect your patch would satisfy what the mozilla folks are 
-looking for, and while its not quite sufficient yet for Android, the 
-interface semantics are very close to what I've been wanting (my test 
-cases were easily mapped over).
-
-The two major issues for me are:
-1) As you noted, this approach currently doesn't work on non-swap 
-systems, as we don't try to shrink the anonymous page lrus. This is a 
-big problem, as it makes it unusable for most all Android systems. You 
-suggest we may want to change aging the anonymous lru, and I had a patch 
-earlier that tried to change some of the anonymous lru aging rules for 
-volatile pages, but its not quite right for what you have here. So I'd 
-be interested in hearing how you think the anonymous lru aging should 
-happen with swapoff.
-
-2) Being able to use this with tmpfs files. I'm currently trying to 
-better understand the rmap code, looking to see if there's a way to have 
-try_to_unmap_file() work similarly to try_to_unmap_anon(), to allow 
-allow users to madvise() on mmapped tmpfs files. This would provide a 
-very similar interface as to what I've been proposing with 
-fadvise/fallocate, but just using process virtual addresses instead of 
-(fd, offset) pairs.   The benefit with (fd,offset) pairs for Android is 
-that its easier to manage shared volatile ranges between two processes 
-that are sharing data via an mmapped tmpfs file (although this actual 
-use case may be fairly rare).  I believe we should still be able to 
-rework the ashmem internals to use madvise (which would provide legacy 
-support for existing android apps), so then its just a question of if we 
-could then eventually convince Android apps to use the madvise interface 
-directly, rather then the ashmem unpin ioctl.
-
-The other concern with the madvise on mmapped files approach is that 
-there's no easy way I can see to limit it to tmpfs files. I know some 
-have been interested in having fallocate(VOLATILE) interface for 
-non-tmpfs files, but I'm not sure I see the benefit there yet. I have 
-noted folks mixing the idea of volatile pages being purged under memory 
-pressure with the idea of volatile files, which might be purged from 
-disk under disk pressure. While I think the second idea is interesting, 
-I do think its completely separate from the volatile memory concept.
-
-Anyway, I'd be interested in your thoughts on these two issues. Thanks 
-so much for sending out this patch, its given me quite a bit to chew on, 
-and I too hope we can merge our different approaches together.
-
-thanks
--john
+> localhost ~ # ./zraminfo
+>      compr_data_size:    220570516 (210 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    230383616 (219 MB)
+>          notify_free:         1553 (0 MB)
+>            num_reads:         6093 (0 MB)
+>           num_writes:       150955 (0 MB)
+>       orig_data_size:    599126016 (571 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         4040 (0 MB)
+>    eff. compr. ratio:  2.50
+> localhost ~ #
+> localhost ~ # ./zraminfo
+>      compr_data_size:    208845619 (199 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    213528576 (203 MB)
+>          notify_free:        76808 (0 MB)
+>            num_reads:        81918 (0 MB)
+>           num_writes:       202924 (0 MB)
+>       orig_data_size:    586076160 (558 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7434 (0 MB)
+>    eff. compr. ratio:  2.80
+> localhost ~ # ./zraminfo
+>      compr_data_size:    205964814 (196 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    210976768 (201 MB)
+>          notify_free:        91823 (0 MB)
+>            num_reads:       105170 (0 MB)
+>           num_writes:       218485 (0 MB)
+>       orig_data_size:    614526976 (586 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         8666 (0 MB)
+>    eff. compr. ratio:  2.98
+> localhost ~ # ./zraminfo
+>      compr_data_size:    229739564 (219 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    235798528 (224 MB)
+>          notify_free:       108381 (0 MB)
+>            num_reads:       147372 (0 MB)
+>           num_writes:       251829 (0 MB)
+>       orig_data_size:    697163776 (664 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         9972 (0 MB)
+>    eff. compr. ratio:  3.01
+> localhost ~ # ./zraminfo
+>      compr_data_size:    229458612 (218 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    234651648 (223 MB)
+>          notify_free:       132169 (0 MB)
+>            num_reads:       203970 (0 MB)
+>           num_writes:       282732 (0 MB)
+>       orig_data_size:    751472640 (716 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:        11139 (0 MB)
+>    eff. compr. ratio:  3.27
+> localhost ~ # ./zraminfo
+>      compr_data_size:    217296398 (207 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    222715904 (212 MB)
+>          notify_free:       151071 (0 MB)
+>            num_reads:       243898 (0 MB)
+>           num_writes:       302316 (0 MB)
+>       orig_data_size:    778227712 (742 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:        10195 (0 MB)
+>    eff. compr. ratio:  3.58
+> localhost ~ # ./zraminfo
+>      compr_data_size:    221631885 (211 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    227188736 (216 MB)
+>          notify_free:       166323 (0 MB)
+>            num_reads:       278621 (0 MB)
+>           num_writes:       323811 (0 MB)
+>       orig_data_size:    821809152 (783 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:        10737 (0 MB)
+>    eff. compr. ratio:  3.70
+> localhost ~ # ./zraminfo
+>      compr_data_size:    216354938 (206 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    221990912 (211 MB)
+>          notify_free:       182529 (0 MB)
+>            num_reads:       322923 (0 MB)
+>           num_writes:       342028 (0 MB)
+>       orig_data_size:    849281024 (809 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:        10990 (0 MB)
+>    eff. compr. ratio:  3.92
+> localhost ~ # ./zraminfo
+>      compr_data_size:    163852068 (156 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    170209280 (162 MB)
+>          notify_free:       212669 (0 MB)
+>            num_reads:       358680 (0 MB)
+>           num_writes:       342896 (0 MB)
+>       orig_data_size:    777981952 (741 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7466 (0 MB)
+>    eff. compr. ratio:  4.77
+> localhost ~ # ./zraminfo
+>      compr_data_size:    164434814 (156 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    170631168 (162 MB)
+>          notify_free:       218105 (0 MB)
+>            num_reads:       368430 (0 MB)
+>           num_writes:       349043 (0 MB)
+>       orig_data_size:    785846272 (749 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7996 (0 MB)
+>    eff. compr. ratio:  4.78
+> localhost ~ # ./zraminfo
+>      compr_data_size:    129945717 (123 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    136237056 (129 MB)
+>          notify_free:       241461 (0 MB)
+>            num_reads:       404654 (0 MB)
+>           num_writes:       360153 (0 MB)
+>       orig_data_size:    763969536 (728 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7911 (0 MB)
+>    eff. compr. ratio:  5.88
+> localhost ~ # ./zraminfo
+>      compr_data_size:    134384535 (128 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    140816384 (134 MB)
+>          notify_free:       242365 (0 MB)
+>            num_reads:       406159 (0 MB)
+>           num_writes:       362829 (0 MB)
+>       orig_data_size:    773607424 (737 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7975 (0 MB)
+>    eff. compr. ratio:  5.69
+> localhost ~ # ./zraminfo
+>      compr_data_size:    133314196 (127 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    139538432 (133 MB)
+>          notify_free:       252447 (0 MB)
+>            num_reads:       411617 (0 MB)
+>           num_writes:       365459 (0 MB)
+>       orig_data_size:    754352128 (719 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7954 (0 MB)
+>    eff. compr. ratio:  5.68
+> localhost ~ # ./zraminfo
+>      compr_data_size:    124826153 (119 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    131440640 (125 MB)
+>          notify_free:       263839 (0 MB)
+>            num_reads:       427837 (0 MB)
+>           num_writes:       375085 (0 MB)
+>       orig_data_size:    762548224 (727 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7504 (0 MB)
+>    eff. compr. ratio:  6.08
+> localhost ~ # ./zraminfo
+>      compr_data_size:     94379398 (90 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:    105000960 (100 MB)
+>          notify_free:       291596 (0 MB)
+>            num_reads:       465420 (0 MB)
+>           num_writes:       386267 (0 MB)
+>       orig_data_size:    721780736 (688 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7482 (0 MB)
+>    eff. compr. ratio:  7.31
+> localhost ~ # ./zraminfo
+>      compr_data_size:     67124988 (64 MB)
+>             disksize:   3101462528 (2957 MB)
+>       mem_used_total:     73981952 (70 MB)
+>          notify_free:       336548 (0 MB)
+>            num_reads:       499935 (0 MB)
+>           num_writes:       400298 (0 MB)
+>       orig_data_size:    700309504 (667 MB)
+>                 size:      6057544 (5 MB)
+>           zero_pages:         7495 (0 MB)
+>    eff. compr. ratio: 10.41
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
