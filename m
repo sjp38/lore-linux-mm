@@ -1,58 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 780106B0062
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:23:54 -0500 (EST)
-Received: by mail-la0-f41.google.com with SMTP id m15so5265723lah.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 01:23:52 -0800 (PST)
-Message-ID: <50ADEF2B.4030106@googlemail.com>
-Date: Thu, 22 Nov 2012 09:23:55 +0000
-From: Chris Clayton <chris2553@googlemail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 17B526B005A
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:32:37 -0500 (EST)
+Date: Thu, 22 Nov 2012 09:32:30 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/46] Automatic NUMA Balancing V4
+Message-ID: <20121122093230.GR8218@suse.de>
+References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
+ <20121121165342.GH8218@suse.de>
+ <20121121170306.GA28811@gmail.com>
+ <20121121172011.GI8218@suse.de>
+ <20121121173316.GA29311@gmail.com>
+ <20121121180200.GK8218@suse.de>
+ <20121121232715.GA4638@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
-References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com> <50A946BC.7010308@googlemail.com>
-In-Reply-To: <50A946BC.7010308@googlemail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121121232715.GA4638@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Clayton <chris2553@googlemail.com>
-Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
->> This patchset has only been tested on x86_64 with nobootmem.c. So need
->> help to test this patchset on machines:
->> 1) use bootmem.c
->> 2) have highmem
->>
->> This patchset applies to "f4a75d2e Linux 3.7-rc6" from
->> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
->>
->
-> I've applied the five patches to Linus' 3.7.0-rc6 and can confirm that
-> the kernel allows my system to resume from a suspend to disc. Although
-> my laptop is 64 bit, I run a 32 bit kernel with HIGHMEM (I have 8GB RAM):
->
-> [chris:~/kernel/tmp/linux-3.7-rc6-resume]$ grep -E HIGHMEM\|X86_32 .config
-> CONFIG_X86_32=y
-> CONFIG_X86_32_SMP=y
-> CONFIG_X86_32_LAZY_GS=y
-> # CONFIG_X86_32_IRIS is not set
-> # CONFIG_NOHIGHMEM is not set
-> # CONFIG_HIGHMEM4G is not set
-> CONFIG_HIGHMEM64G=y
-> CONFIG_HIGHMEM=y
->
-> I can also say that a quick browse of the output of dmesg, shows nothing
-> out of the ordinary. I have insufficient knowledge to comment on the
-> patches, but I will run the kernel over the next few days and report
-> back later in the week.
->
+On Thu, Nov 22, 2012 at 12:27:15AM +0100, Ingo Molnar wrote:
+> 
+> * Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > > I did a quick SPECjbb 32-warehouses run as well:
+> > > 
+> > >                                 numa/core      balancenuma-v4
+> > >       SPECjbb  +THP:               655 k/sec      607 k/sec
+> > > 
+> > 
+> > Cool. Lets see what we have here. I have some questions;
+> > 
+> > You say you ran with 32 warehouses. Was this a single run with 
+> > just 32 warehouses or you did a specjbb run up to 32 
+> > warehouses and use the figure specjbb spits out? [...]
+> 
+> "32 warehouses" obviously means single instance...
+> 
 
-Well, I've been running the kernel since Sunday and have had no problems 
-with my normal work mix of browsing, browsing the internet, video 
-editing, listening to music and building software. I'm now running a 
-kernel that build with the new patches 1 and 4 from yesterday (plus the 
-original 1, 2 and 5). All seems OK so far, including a couple of resumes 
-from suspend to disk.
+Considering the amount of flak you gave me over the THP problem, it is
+not unreasonable to ask a questions in clarification.
+
+On running just 32 warehouse, please remember what I said about specjbb
+benchmarks. MMTests reports each warehouse figure because indications
+are that the low number of warehouses regressed while the higher numbers
+showed performance improvements. Further, specjbb itself uses only figures
+from around the expected peak it estimates unless it is overridden by the
+config file (I expect you left it at the default).
+
+So, you've answered my first question. You did not run for multiple
+warehouses so you do not know what the lower number of warehouses were.
+That's ok, the comparison is still valid.  Can you now answer my other
+questions please? They were;
+
+	What is the comparison with a baseline kernel?
+
+	You say you ran with balancenuma-v4. Was that the full series
+	including the broken placement policy or did you test with just
+	patches 1-37 as I asked in the patch leader?
+
+I'll also reiterate my final point. The objective of balancenuma is to be
+better than mainline and at worst, be no worse than mainline (which with
+PTE updates may be impossible but it's the bar). It puts in place a *basic*
+placement policy that could be summarised as "migrate on reference with
+a two stage filter". It is a common foundation that either the policies
+of numacore *or* autonuma could be rebased upon so they can be compared in
+terms of placement policy, shared page identification, scheduler policy and
+load balance policy. Where they share policies (e.g. scheduler accounting
+and load balance), we'd agree on those patches and move on until the two
+
+Of course, a rebase may require changes to the task_numa_fault() interface
+betwen the VM and the scheduler depending on the information the policies
+are interested. There also might be differing requirements of the PTE
+scanner but they should be marginal.
+
+balancenuma is not expected to beat a smart placement policy but when
+it does, the question becomes if the difference is due to the underlying
+mechanics such as how it updates PTEs and traps fauls or the scheduler and
+placement policies built on top. If we can eliminate the possibility that
+it's the underlying mechanics our lives will become a lot easier.
+
+Is there a fundamental reason why the scheduler modifications, placement
+policies, shared page identification etc. from numacore cannot be rebased on
+top of balancenuma? If there are no fundamental reasons, then why will you
+not rebase so that we can potentially compare autonuma's policies directly
+if it gets rebased? That will tell us if autonumas policies (placement,
+scheduler, load balancer) are really better or if it actually depended on
+its implementation of the underlying mechanics (use of a kernel thread to
+do the PTE updates for example).
+
+> Any multi-instance configuration is explicitly referred to as 
+> multi-instance. In my numbers I sometimes tabulate them as "4x8 
+> multi-JVM", that means the obvious as well: 4 instances, 8 
+> warehouses each.
+> 
+
+Understood.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
