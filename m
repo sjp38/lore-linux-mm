@@ -1,87 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id B98366B0072
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:42:23 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so6361299pbc.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 06:42:23 -0800 (PST)
-Message-ID: <50AE397A.8080000@gmail.com>
-Date: Thu, 22 Nov 2012 22:40:58 +0800
-From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id AF4166B0074
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 10:02:11 -0500 (EST)
+Date: Thu, 22 Nov 2012 15:02:04 +0000
+From: Andy Whitcroft <apw@canonical.com>
+Subject: Re: [PATCH 2/2] memcg: debugging facility to access dangling memcgs.
+Message-ID: <20121122150204.GB30773@dm>
+References: <1353580190-14721-1-git-send-email-glommer@parallels.com>
+ <1353580190-14721-3-git-send-email-glommer@parallels.com>
+ <50AE0031.1020404@parallels.com>
+ <50AE2E5E.7010006@parallels.com>
+ <1353592956.10902.5.camel@joe-AO722>
 MIME-Version: 1.0
-Subject: Re: kswapd endless loop for compaction
-References: <20121120190440.GA24381@cmpxchg.org>
-In-Reply-To: <20121120190440.GA24381@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1353592956.10902.5.camel@joe-AO722>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joe Perches <joe@perches.com>
+Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
-On 11/21/2012 03:04 AM, Johannes Weiner wrote:
-> Hi guys,
->
-> while testing a 3.7-rc5ish kernel, I noticed that kswapd can drop into
-> a busy spin state without doing reclaim.  printk-style debugging told
-> me that this happens when the distance between a zone's high watermark
-> and its low watermark is less than two huge pages (DMA zone).
->
-> 1. The first loop in balance_pgdat() over the zones finds all zones to
-> be above their high watermark and only does goto out (all_zones_ok).
->
-> 2. pgdat_balanced() at the out: label also just checks the high
-> watermark, so the node is considered balanced and the order is not
-> reduced.
->
-> 3. In the `if (order)' block after it, compaction_suitable() checks if
-> the zone's low watermark + twice the huge page size is okay, which
-> it's not necessarily in a small zone, and so COMPACT_SKIPPED makes it
-> it go back to loop_again:.
->
-> This will go on until somebody else allocates and breaches the high
-> watermark and then hopefully goes on to reclaim the zone above low
-> watermark + 2 * THP.
->
-> I'm not really sure what the correct solution is.  Should we modify
-> the zone_watermark_ok() checks in balance_pgdat() to take into account
-> the higher watermark requirements for reclaim on behalf of compaction?
-> Change the check in compaction_suitable() / not use it directly?
->
-
-Hi Johannes,
-
-
-- If all zones meet high watermark, goto out, then why go to `if 
-(order)' block?
-
-- If depend on compaction get enough contigous pages, why
+On Thu, Nov 22, 2012 at 06:02:36AM -0800, Joe Perches wrote:
+> On Thu, 2012-11-22 at 17:53 +0400, Glauber Costa wrote:
+> > On 11/22/2012 02:36 PM, Glauber Costa wrote:
+> > >> @@ -5933,6 +6071,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
+> > >> >  	 * the cgroup_lock.
+> > >> >  	 */
+> > >> >  	disarm_static_keys(memcg);
+> > >> > +
+> > >> >  	if (size < PAGE_SIZE)
+> > >> >  		kfree(memcg);
+> > >> >  	else
+> > 
+> > Joe,
+> > 
+> > since you removed the code from my former e-mail:
+> 
+> Because you quoted a whole bunch of lines that
+> included newlines 
+> 
+> > That one after "disarm_static_keys".
+> 
+> Vertical spacing has many uses within a functional
+> block.  I don't see anything wrong with that one.
+> 
+> The one I suspected you meant was:
+> 
+> > +static inline void memcg_dangling_add(struct mem_cgroup *memcg)
+> > +{
+> > +
+> > +     memcg->memcg_name = kstrdup(cgroup_name(memcg->css.cgroup), GFP_KERNEL);
+> 
+> I think a blank line after an initial { is suspect.
 
 
-if (CONPACT_BUILD && order &&
+Yeah it is a bit odd to go changing the spacing in a function when you
+arn't making any other change, but if the code is clearer with it so be
+it.  The blank line at the start of a block is a little less obviously
+ever useful.
 
-     compaction_suitable(zone, order) !=
-
-         COMPACTION_SKIPPED)
-
-     testorder = 0;
-
-
-can't guarantee low watermark + twice the huge page size is okay?
-
-
-Regards,
-
-Jaegeuk
-
->
-> Thanks,
-> Johannes
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-apw
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
