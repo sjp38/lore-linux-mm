@@ -1,226 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 79FEC6B006C
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:46:03 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id s11so562072qaa.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:46:02 -0800 (PST)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 395FC6B0070
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:48:14 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id lz20so9679061obb.14
+        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:48:13 -0800 (PST)
+Message-ID: <50AD7647.7050200@gmail.com>
+Date: Thu, 22 Nov 2012 08:48:07 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com>
-References: <CAA25o9Q4gMPeLf3uYJzMNR1EU4D3OPeje24X4PNsUVHGoqyY5g@mail.gmail.com>
-Date: Wed, 21 Nov 2012 16:46:02 -0800
-Message-ID: <CAA25o9Su0Wppnwug3xwAgpYNnmtJjJsrdjj3QqqU76oXkJi6iw@mail.gmail.com>
-Subject: Re: behavior of zram stats, and zram allocation limit
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Problem in Page Cache Replacement
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <20121121213417.GC24381@cmpxchg.org>
+In-Reply-To: <20121121213417.GC24381@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, metin d <metdos@yahoo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-My apologies---what I am seeing is actually reasonable.  My synthetic
-load mistakenly was only touching the pages with incompressible data
-in them.  Thus it's reasonable that the compression ratio improves,
-since those pages are brought back in, and the zero pages are pushed
-out.  :-(
-
-On Wed, Nov 21, 2012 at 2:58 PM, Luigi Semenzato <semenzato@google.com> wrote:
+On 11/22/2012 05:34 AM, Johannes Weiner wrote:
 > Hi,
 >
-> Two questions for zram developers/users.  (Please let me know if it is
-> NOT acceptable to use this list for these questions.)
+> On Tue, Nov 20, 2012 at 07:25:00PM +0100, Jan Kara wrote:
+>> On Tue 20-11-12 09:42:42, metin d wrote:
+>>> I have two PostgreSQL databases named data-1 and data-2 that sit on the
+>>> same machine. Both databases keep 40 GB of data, and the total memory
+>>> available on the machine is 68GB.
+>>>
+>>> I started data-1 and data-2, and ran several queries to go over all their
+>>> data. Then, I shut down data-1 and kept issuing queries against data-2.
+>>> For some reason, the OS still holds on to large parts of data-1's pages
+>>> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+>>> a result, my queries on data-2 keep hitting disk.
+>>>
+>>> I'm checking page cache usage with fincore. When I run a table scan query
+>>> against data-2, I see that data-2's pages get evicted and put back into
+>>> the cache in a round-robin manner. Nothing happens to data-1's pages,
+>>> although they haven't been touched for days.
+>>>
+>>> Does anybody know why data-1's pages aren't evicted from the page cache?
+>>> I'm open to all kind of suggestions you think it might relate to problem.
+> This might be because we do not deactive pages as long as there is
+> cache on the inactive list.  I'm guessing that the inter-reference
+> distance of data-2 is bigger than half of memory, so it's never
+> getting activated and data-1 is never challenged.
+
+Hi Johannes,
+
+What's the meaning of "inter-reference distance" and why compare it with 
+half of memoy, what's the trick?
+
+Regards,
+Jaegeuk
+
 >
-> 1. When I run a synthetic load using zram from kernel 3.4.0,
-> compr_data_size from /sys/block/zram0 seems to decrease even though
-> orig_data_size stays constant (see below).  Is this a bug that was
-> fixed in a later release?  (The synthetic load is a bunch of processes
-> that allocate memory, fill half of it with data from /dev/urandom, and
-> touch the memory randomly.)  I looked at the code and it looks right.
-> :-P
+> I have a series of patches that detects a thrashing inactive list and
+> handles working set changes up to the size of memory.  Would you be
+> willing to test them?  They are currently based on 3.4, let me know
+> what version works best for you.
 >
-> 2. Is there a way of setting the max amount of RAM that zram is
-> allowed to allocate?  Right now I can set the size of the
-> *uncompressed* swap device, but how much memory gets allocated depends
-> on the compression ratio, which could vary.
->
-> Thanks!
->
->
-> localhost ~ # ./zraminfo
->      compr_data_size:    220570516 (210 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    230383616 (219 MB)
->          notify_free:         1553 (0 MB)
->            num_reads:         6093 (0 MB)
->           num_writes:       150955 (0 MB)
->       orig_data_size:    599126016 (571 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         4040 (0 MB)
->    eff. compr. ratio:  2.50
-> localhost ~ #
-> localhost ~ # ./zraminfo
->      compr_data_size:    208845619 (199 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    213528576 (203 MB)
->          notify_free:        76808 (0 MB)
->            num_reads:        81918 (0 MB)
->           num_writes:       202924 (0 MB)
->       orig_data_size:    586076160 (558 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7434 (0 MB)
->    eff. compr. ratio:  2.80
-> localhost ~ # ./zraminfo
->      compr_data_size:    205964814 (196 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    210976768 (201 MB)
->          notify_free:        91823 (0 MB)
->            num_reads:       105170 (0 MB)
->           num_writes:       218485 (0 MB)
->       orig_data_size:    614526976 (586 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         8666 (0 MB)
->    eff. compr. ratio:  2.98
-> localhost ~ # ./zraminfo
->      compr_data_size:    229739564 (219 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    235798528 (224 MB)
->          notify_free:       108381 (0 MB)
->            num_reads:       147372 (0 MB)
->           num_writes:       251829 (0 MB)
->       orig_data_size:    697163776 (664 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         9972 (0 MB)
->    eff. compr. ratio:  3.01
-> localhost ~ # ./zraminfo
->      compr_data_size:    229458612 (218 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    234651648 (223 MB)
->          notify_free:       132169 (0 MB)
->            num_reads:       203970 (0 MB)
->           num_writes:       282732 (0 MB)
->       orig_data_size:    751472640 (716 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:        11139 (0 MB)
->    eff. compr. ratio:  3.27
-> localhost ~ # ./zraminfo
->      compr_data_size:    217296398 (207 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    222715904 (212 MB)
->          notify_free:       151071 (0 MB)
->            num_reads:       243898 (0 MB)
->           num_writes:       302316 (0 MB)
->       orig_data_size:    778227712 (742 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:        10195 (0 MB)
->    eff. compr. ratio:  3.58
-> localhost ~ # ./zraminfo
->      compr_data_size:    221631885 (211 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    227188736 (216 MB)
->          notify_free:       166323 (0 MB)
->            num_reads:       278621 (0 MB)
->           num_writes:       323811 (0 MB)
->       orig_data_size:    821809152 (783 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:        10737 (0 MB)
->    eff. compr. ratio:  3.70
-> localhost ~ # ./zraminfo
->      compr_data_size:    216354938 (206 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    221990912 (211 MB)
->          notify_free:       182529 (0 MB)
->            num_reads:       322923 (0 MB)
->           num_writes:       342028 (0 MB)
->       orig_data_size:    849281024 (809 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:        10990 (0 MB)
->    eff. compr. ratio:  3.92
-> localhost ~ # ./zraminfo
->      compr_data_size:    163852068 (156 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    170209280 (162 MB)
->          notify_free:       212669 (0 MB)
->            num_reads:       358680 (0 MB)
->           num_writes:       342896 (0 MB)
->       orig_data_size:    777981952 (741 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7466 (0 MB)
->    eff. compr. ratio:  4.77
-> localhost ~ # ./zraminfo
->      compr_data_size:    164434814 (156 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    170631168 (162 MB)
->          notify_free:       218105 (0 MB)
->            num_reads:       368430 (0 MB)
->           num_writes:       349043 (0 MB)
->       orig_data_size:    785846272 (749 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7996 (0 MB)
->    eff. compr. ratio:  4.78
-> localhost ~ # ./zraminfo
->      compr_data_size:    129945717 (123 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    136237056 (129 MB)
->          notify_free:       241461 (0 MB)
->            num_reads:       404654 (0 MB)
->           num_writes:       360153 (0 MB)
->       orig_data_size:    763969536 (728 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7911 (0 MB)
->    eff. compr. ratio:  5.88
-> localhost ~ # ./zraminfo
->      compr_data_size:    134384535 (128 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    140816384 (134 MB)
->          notify_free:       242365 (0 MB)
->            num_reads:       406159 (0 MB)
->           num_writes:       362829 (0 MB)
->       orig_data_size:    773607424 (737 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7975 (0 MB)
->    eff. compr. ratio:  5.69
-> localhost ~ # ./zraminfo
->      compr_data_size:    133314196 (127 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    139538432 (133 MB)
->          notify_free:       252447 (0 MB)
->            num_reads:       411617 (0 MB)
->           num_writes:       365459 (0 MB)
->       orig_data_size:    754352128 (719 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7954 (0 MB)
->    eff. compr. ratio:  5.68
-> localhost ~ # ./zraminfo
->      compr_data_size:    124826153 (119 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    131440640 (125 MB)
->          notify_free:       263839 (0 MB)
->            num_reads:       427837 (0 MB)
->           num_writes:       375085 (0 MB)
->       orig_data_size:    762548224 (727 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7504 (0 MB)
->    eff. compr. ratio:  6.08
-> localhost ~ # ./zraminfo
->      compr_data_size:     94379398 (90 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:    105000960 (100 MB)
->          notify_free:       291596 (0 MB)
->            num_reads:       465420 (0 MB)
->           num_writes:       386267 (0 MB)
->       orig_data_size:    721780736 (688 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7482 (0 MB)
->    eff. compr. ratio:  7.31
-> localhost ~ # ./zraminfo
->      compr_data_size:     67124988 (64 MB)
->             disksize:   3101462528 (2957 MB)
->       mem_used_total:     73981952 (70 MB)
->          notify_free:       336548 (0 MB)
->            num_reads:       499935 (0 MB)
->           num_writes:       400298 (0 MB)
->       orig_data_size:    700309504 (667 MB)
->                 size:      6057544 (5 MB)
->           zero_pages:         7495 (0 MB)
->    eff. compr. ratio: 10.41
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
