@@ -1,84 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 27EF36B0070
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:08:05 -0500 (EST)
-Date: Thu, 22 Nov 2012 10:08:02 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [memcg:since-3.6 456/496]
- drivers/virtio/virtio_balloon.c:145:10: warning: format '%zu' expects
- argument of type 'size_t', but argument 4 has type 'unsigned int'
-Message-ID: <20121122090802.GA9591@dhcp22.suse.cz>
-References: <50acf531.zaJ8wmQW+6NHVbhr%fengguang.wu@intel.com>
- <20121121154734.GE8761@dhcp22.suse.cz>
- <20121121115516.99b81f9a.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 780106B0062
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:23:54 -0500 (EST)
+Received: by mail-la0-f41.google.com with SMTP id m15so5265723lah.14
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 01:23:52 -0800 (PST)
+Message-ID: <50ADEF2B.4030106@googlemail.com>
+Date: Thu, 22 Nov 2012 09:23:55 +0000
+From: Chris Clayton <chris2553@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121121115516.99b81f9a.akpm@linux-foundation.org>
+Subject: Re: [RFT PATCH v1 0/5] fix up inaccurate zone->present_pages
+References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com> <50A946BC.7010308@googlemail.com>
+In-Reply-To: <50A946BC.7010308@googlemail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
+To: Chris Clayton <chris2553@googlemail.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 21-11-12 11:55:16, Andrew Morton wrote:
-> On Wed, 21 Nov 2012 16:47:34 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > Bahh, my fault.
-> > I screwed while reverting previous version of the virtio patchset.
-> > Pushed to my tree. Thanks for reporting...
-> > 
-> > On Wed 21-11-12 23:37:21, Wu Fengguang wrote:
-> > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-> > > head:   223cdc1faeea55aa70fef23d54720ad3fdaf4c93
-> > > commit: 12cf48af8968fa1d0cc4c06065d7c37c3560c171 [456/496] virtio_balloon: introduce migration primitives to balloon pages
-> > > config: make ARCH=x86_64 allmodconfig
-> > ---
-> > >From 35f423ffe01b62cbe5bf88b0acbff5b3b4a09777 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Wed, 21 Nov 2012 16:42:02 +0100
-> > Subject: [PATCH] virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix
-> >  mismerge fix
-> > 
-> > %u got back to %zu while while reverting
-> > %(4f2ac8495ba0477d8c3208de96dae7d1db6c2d49) obsolete version of
-> > virtio_balloon: introduce migration primitives to balloon pages
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > ---
-> >  drivers/virtio/virtio_balloon.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > index d0cfb7e..8cde4c9 100644
-> > --- a/drivers/virtio/virtio_balloon.c
-> > +++ b/drivers/virtio/virtio_balloon.c
-> > @@ -141,7 +141,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
-> >  		if (!page) {
-> >  			if (printk_ratelimit())
-> >  				dev_printk(KERN_INFO, &vb->vdev->dev,
-> > -					   "Out of puff! Can't get %zu pages\n",
-> > +					   "Out of puff! Can't get %u pages\n",
-> >  					    VIRTIO_BALLOON_PAGES_PER_PAGE);
-> >  			/* Sleep for at least 1/5 of a second before retry. */
-> >  			msleep(200);
-> 
-> Yeah, that's quite old code - printk_ratelimit is naughty and has been
-> replaced by dev_info_ratelimited().
+>> This patchset has only been tested on x86_64 with nobootmem.c. So need
+>> help to test this patchset on machines:
+>> 1) use bootmem.c
+>> 2) have highmem
+>>
+>> This patchset applies to "f4a75d2e Linux 3.7-rc6" from
+>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+>>
+>
+> I've applied the five patches to Linus' 3.7.0-rc6 and can confirm that
+> the kernel allows my system to resume from a suspend to disc. Although
+> my laptop is 64 bit, I run a 32 bit kernel with HIGHMEM (I have 8GB RAM):
+>
+> [chris:~/kernel/tmp/linux-3.7-rc6-resume]$ grep -E HIGHMEM\|X86_32 .config
+> CONFIG_X86_32=y
+> CONFIG_X86_32_SMP=y
+> CONFIG_X86_32_LAZY_GS=y
+> # CONFIG_X86_32_IRIS is not set
+> # CONFIG_NOHIGHMEM is not set
+> # CONFIG_HIGHMEM4G is not set
+> CONFIG_HIGHMEM64G=y
+> CONFIG_HIGHMEM=y
+>
+> I can also say that a quick browse of the output of dmesg, shows nothing
+> out of the ordinary. I have insufficient knowledge to comment on the
+> patches, but I will run the kernel over the next few days and report
+> back later in the week.
+>
 
-Hmm, that one came in from linux-next (looks like Rusty's tree) and
-not your tree so I haven't applied it. I can cherry pick (the last
-linux-next knows it as 41395dfb: virtio: Convert dev_printk(KERN_<LEVEL>
-to dev_<level>) of course.
-> 
-> Are you using mmotm or http://ozlabs.org/~akpm/mmots/?
-
-both. mmots every day (if there is a new one) and mmotm when it is
-announced.
-
--- 
-Michal Hocko
-SUSE Labs
+Well, I've been running the kernel since Sunday and have had no problems 
+with my normal work mix of browsing, browsing the internet, video 
+editing, listening to music and building software. I'm now running a 
+kernel that build with the new patches 1 and 4 from yesterday (plus the 
+original 1, 2 and 5). All seems OK so far, including a couple of resumes 
+from suspend to disk.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
