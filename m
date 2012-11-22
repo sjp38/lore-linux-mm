@@ -1,60 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id D0F056B0070
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:05:27 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so2757899eaa.14
-        for <linux-mm@kvack.org>; Wed, 21 Nov 2012 16:05:26 -0800 (PST)
-Date: Thu, 22 Nov 2012 01:05:21 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 36/46] mm: numa: Use a two-stage filter to restrict pages
- being migrated for unlikely task<->node relationships
-Message-ID: <20121122000521.GA7859@gmail.com>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <1353493312-8069-37-git-send-email-mgorman@suse.de>
- <20121121182537.GB29893@gmail.com>
- <20121121191547.GM8218@suse.de>
- <50AD2F86.3090303@redhat.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 4669D6B0072
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2012 19:27:15 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 5F0B23EE0C5
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:27:13 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 42C3A45DE4D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:27:13 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 2CDBF45DD78
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:27:13 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E9D01DB802C
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:27:13 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CD5F11DB8038
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 09:27:12 +0900 (JST)
+Message-ID: <50AD713F.9030909@jp.fujitsu.com>
+Date: Thu, 22 Nov 2012 09:26:39 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50AD2F86.3090303@redhat.com>
+Subject: Re: memory-cgroup bug
+References: <20121121200207.01068046@pobox.sk>
+In-Reply-To: <20121121200207.01068046@pobox.sk>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+
+(2012/11/22 4:02), azurIt wrote:
+> Hi,
+>
+> i'm using memory cgroup for limiting our users and having a really strange problem when a cgroup gets out of its memory limit. It's very strange because it happens only sometimes (about once per week on random user), out of memory is usually handled ok. This happens when problem occures:
+>   - no new processes can be started for this cgroup
+>   - current processes are freezed and taking 100% of CPU
+>   - when i try to 'strace' any of current processes, the whole strace freezes until process is killed (strace cannot be terminated by CTRL-c)
+>   - problem can be resolved by raising memory limit for cgroup or killing of few processes inside cgroup so some memory is freed
+>
+> I also garbbed the content of /proc/<pid>/stack of freezed process:
+> [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+> [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
+> [<ffffffff8110ba56>] mem_cgroup_charge_common+0x56/0xa0
+> [<ffffffff8110bae5>] mem_cgroup_newpage_charge+0x45/0x50
+> [<ffffffff810ec54e>] do_wp_page+0x14e/0x800
+> [<ffffffff810eda34>] handle_pte_fault+0x264/0x940
+> [<ffffffff810ee248>] handle_mm_fault+0x138/0x260
+> [<ffffffff810270ed>] do_page_fault+0x13d/0x460
+> [<ffffffff815b53ff>] page_fault+0x1f/0x30
+> [<ffffffffffffffff>] 0xffffffffffffffff
+>
+> I'm currently using kernel 3.2.34 but i'm having this problem since 2.6.32.
+>
+> Any ideas? Thnx.
+>
+
+Under OOM in memcg, only one process is allowed to work. Because processes tends to use up
+CPU at memory shortage. other processes are freezed.
 
 
-* Rik van Riel <riel@redhat.com> wrote:
+Then, the problem here is the one process which uses CPU. IIUC, 'freezed' threads are
+in sleep and never use CPU. It's expected oom-killer or memory-reclaim can solve the probelm.
 
-> On 11/21/2012 02:15 PM, Mel Gorman wrote:
-> >On Wed, Nov 21, 2012 at 07:25:37PM +0100, Ingo Molnar wrote:
-> 
-> >>As mentioned in my other mail, this patch of yours looks very
-> >>similar to the numa/core commit attached below, mostly written
-> >>by Peter:
-> >>
-> >>   30f93abc6cb3 sched, numa, mm: Add the scanning page fault machinery
-> 
-> >Just to compare, this is the wording in "autonuma: memory follows CPU
-> >algorithm and task/mm_autonuma stats collection"
-> >
-> >+/*
-> >+ * In this function we build a temporal CPU_node<->page relation by
-> >+ * using a two-stage autonuma_last_nid filter to remove short/unlikely
-> >+ * relations.
-> 
-> Looks like the comment came from sched/numa, but the original 
-> code came from autonuma:
-> 
-> https://lkml.org/lkml/2012/8/22/629
+What is your memcg's
 
-Yeah, indeed, good find - thanks for tracking that down - to me 
-it came from Peter. I'll add in an explicit credit to Andrea, 
-the comment alone deserves one!
+  memory.oom_control
+
+value ?
+
+and process's oom_adj values ? (/proc/<pid>/oom_adj, /proc/<pid>/oom_score_adj)
 
 Thanks,
+-Kame
 
-	Ingo
+
+
+
+
+
+> azurIt
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
