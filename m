@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 894228D0004
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 14:26:50 -0500 (EST)
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 926A98D000C
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 14:26:53 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 33/40] mm: numa: Rate limit setting of pte_numa if node is saturated
-Date: Thu, 22 Nov 2012 19:25:46 +0000
-Message-Id: <1353612353-1576-34-git-send-email-mgorman@suse.de>
+Subject: [PATCH 35/40] mm: numa: Introduce last_nid to the page frame
+Date: Thu, 22 Nov 2012 19:25:48 +0000
+Message-Id: <1353612353-1576-36-git-send-email-mgorman@suse.de>
 In-Reply-To: <1353612353-1576-1-git-send-email-mgorman@suse.de>
 References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,106 +13,94 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-If there are a large number of NUMA hinting faults and all of them
-are resulting in migrations it may indicate that memory is just
-bouncing uselessly around. NUMA balancing cost is likely exceeding
-any benefit from locality. Rate limit the PTE updates if the node
-is migration rate-limited. As noted in the comments, this distorts
-the NUMA faulting statistics.
+This patch introduces a last_nid field to the page struct. This is used
+to build a two-stage filter in the next patch that is aimed at
+mitigating a problem whereby pages migrate to the wrong node when
+referenced by a process that was running off its home node.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/migrate.h |    6 ++++++
- kernel/sched/fair.c     |    9 +++++++++
- mm/migrate.c            |   20 ++++++++++++++++++++
- 3 files changed, 35 insertions(+)
+ include/linux/mm.h       |   30 ++++++++++++++++++++++++++++++
+ include/linux/mm_types.h |    4 ++++
+ mm/page_alloc.c          |    2 ++
+ 3 files changed, 36 insertions(+)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 69f60b5..0d4ee94 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -41,6 +41,7 @@ extern void migrate_page_copy(struct page *newpage, struct page *page);
- extern int migrate_huge_page_move_mapping(struct address_space *mapping,
- 				  struct page *newpage, struct page *page);
- extern int migrate_misplaced_page(struct page *page, int node);
-+extern bool migrate_ratelimited(int node);
- #else
- 
- static inline void putback_lru_pages(struct list_head *l) {}
-@@ -79,6 +80,11 @@ int migrate_misplaced_page(struct page *page, int node)
- {
- 	return -EAGAIN; /* can't migrate now */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d04c2f0..a0834e1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -693,6 +693,36 @@ static inline int page_to_nid(const struct page *page)
  }
-+static inline
-+bool migrate_ratelimited(int node)
+ #endif
+ 
++#ifdef CONFIG_BALANCE_NUMA
++static inline int page_xchg_last_nid(struct page *page, int nid)
 +{
-+	return false;
-+}
- #endif /* CONFIG_MIGRATION */
- 
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 2e65f44..357057c 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -27,6 +27,7 @@
- #include <linux/profile.h>
- #include <linux/interrupt.h>
- #include <linux/mempolicy.h>
-+#include <linux/migrate.h>
- #include <linux/task_work.h>
- 
- #include <trace/events/sched.h>
-@@ -861,6 +862,14 @@ void task_numa_work(struct callback_head *work)
- 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
- 		return;
- 
-+	/*
-+	 * Do not set pte_numa if the current running node is rate-limited.
-+	 * This loses statistics on the fault but if we are unwilling to
-+	 * migrate to this node, it is less likely we can do useful work
-+	 */
-+	if (migrate_ratelimited(numa_node_id()))
-+		return;
-+
- 	start = mm->numa_scan_offset;
- 	pages = sysctl_balance_numa_scan_size;
- 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
-diff --git a/mm/migrate.c b/mm/migrate.c
-index cf0970f..3033669 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1464,10 +1464,30 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
-  * page migration rate limiting control.
-  * Do not migrate more than @pages_to_migrate in a @migrate_interval_millisecs
-  * window of time. Default here says do not migrate more than 1280M per second.
-+ * If a node is rate-limited then PTE NUMA updates are also rate-limited. However
-+ * as it is faults that reset the window, pte updates will happen unconditionally
-+ * if there has not been a fault since @pteupdate_interval_millisecs after the
-+ * throttle window closed.
-  */
- static unsigned int migrate_interval_millisecs __read_mostly = 100;
-+static unsigned int pteupdate_interval_millisecs __read_mostly = 1000;
- static unsigned int ratelimit_pages __read_mostly = 128 << (20 - PAGE_SHIFT);
- 
-+/* Returns true if NUMA migration is currently rate limited */
-+bool migrate_ratelimited(int node)
-+{
-+	pg_data_t *pgdat = NODE_DATA(node);
-+
-+	if (time_after(jiffies, pgdat->balancenuma_migrate_next_window +
-+				msecs_to_jiffies(pteupdate_interval_millisecs)))
-+		return false;
-+
-+	if (pgdat->balancenuma_migrate_nr_pages < ratelimit_pages)
-+		return false;
-+
-+	return true;
++	return xchg(&page->_last_nid, nid);
 +}
 +
++static inline int page_last_nid(struct page *page)
++{
++	return page->_last_nid;
++}
++static inline void reset_page_last_nid(struct page *page)
++{
++	page->_last_nid = -1;
++}
++#else
++static inline int page_xchg_last_nid(struct page *page, int nid)
++{
++	return page_to_nid(page);
++}
++
++static inline int page_last_nid(struct page *page)
++{
++	return page_to_nid(page);
++}
++
++static inline void reset_page_last_nid(struct page *page)
++{
++}
++#endif
++
+ static inline struct zone *page_zone(const struct page *page)
+ {
+ 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index b40f4ef..6b478ff 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -175,6 +175,10 @@ struct page {
+ 	 */
+ 	void *shadow;
+ #endif
++
++#ifdef CONFIG_BALANCE_NUMA
++	int _last_nid;
++#endif
+ }
  /*
-  * Attempt to migrate a misplaced page to the specified destination
-  * node. Caller is expected to have an elevated reference count on
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index df58654..fd6a073 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -608,6 +608,7 @@ static inline int free_pages_check(struct page *page)
+ 		bad_page(page);
+ 		return 1;
+ 	}
++	reset_page_last_nid(page);
+ 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+ 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	return 0;
+@@ -3826,6 +3827,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		mminit_verify_page_links(page, zone, nid, pfn);
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
++		reset_page_last_nid(page);
+ 		SetPageReserved(page);
+ 		/*
+ 		 * Mark the block movable so that blocks are reserved for
 -- 
 1.7.9.2
 
