@@ -1,43 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id B492D8D0003
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 16:45:30 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so3200583eaa.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 13:45:29 -0800 (PST)
-Date: Thu, 22 Nov 2012 22:45:27 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: memory-cgroup bug
-Message-ID: <20121122214527.GB20319@dhcp22.suse.cz>
-References: <20121121200207.01068046@pobox.sk>
- <50AD713F.9030909@jp.fujitsu.com>
- <20121122103618.79F03818@pobox.sk>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 8C9DF8D0003
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 17:06:04 -0500 (EST)
+Date: Thu, 22 Nov 2012 23:06:00 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: 3.7-rc6 soft lockup in kswapd0
+Message-ID: <20121122220600.GA20326@quack.suse.cz>
+References: <20121122175824.19604.qmail@science.horizon.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121122103618.79F03818@pobox.sk>
+In-Reply-To: <20121122175824.19604.qmail@science.horizon.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: azurIt <azurit@pobox.sk>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: George Spelvin <linux@horizon.com>
+Cc: linux-kernel@vger.kernel.org, mgorman@suse.de, linux-mm@kvack.org
 
-On Thu 22-11-12 10:36:18, azurIt wrote:
-[...]
-> I can look also to the data of 'freezed' proces if you need it but i
-> will have to wait until problem occurs again.
+On Thu 22-11-12 12:58:24, George Spelvin wrote:
+> I'm having an interesting issue with a uniprocessor Pentium 4 machine
+> locking up overnight.  3.6.5 didn't do that, but 3.7-rc6 is not doing
+> so well.
+  I've added some CCs which are hopefully relevant. Specifially I remember
+Mel fixing some -mm lockup recently although after googling for a while
+that is likely something different.
+
+> It's kind of a funny lockup.  Some things work:
 > 
-> The main problem is that when this problem happens, it's NOT resolved
-> automatically by kernel/OOM and user of cgroup, where it happend, has
-> non-working services until i kill his processes by hand. I'm sure
-> that all 'freezed' processes are taking very much CPU because also
-> server load goes really high - next time i will make a screenshot of
-> htop. I really wonder why OOM is __sometimes__ not resolving this
-> (it's usually is, only sometimes not).
+> - TCP SYN handshake
+> - Alt-SysRq
+> 
+> And others don't:
+> 
+> - Caps lock
+> - Shift-PgUp
+> - Alt-Fn
+> - Screen unblanking
+> - Actually talking to a daemon
+> 
+> This is a "headless" machine that boots to a text console and has zero
+> console activity until the lockup.
+> 
+> This has happened overnight, three nights in a row.  I had to turn screen
+> blanking off to see anything on the screen.  Running the daily cron jobs
+> manually just now didn't trigger it, so I haven't found a proximate cause.
+> 
+> The *first* error has scrolled off the screen, but what I can see
+> an infinite stream (at about 20s intervals) of:
+> 
+> BUG: soft lockup - CPU#0 stuck for 22s! [kswapd0:317]
+> Pid: 317, comm: kswapd0 Not tainted 3.7.0-RC6 #224 HP Pavilion 04 P6319A-ABA 750N/P4B266LA
+> EIP: 0060:[<c10571f7>] EFLAGS: 00000202 CPU: 0
+> EIP is at __zone_watermark_ok+0x5f/7e, 0x67/7e, 0x6e/0x7e, or 0x74/7e
+> (Didn't type registers & stack)
+> Call Trace:
+>  [<c105774f>] ? zone_watermark_ok_safe+0x34/0x3a
+>  [<c105ec7e>] ? kswapd+0x2fa/0x6f6
+>  [<c105e984>] ? try_to_free_pages+0x4b8/0x4b8
+>  [<c103106b>] ? kthread+0x67/0x6c
+>  [<c12559b7>] ? ret_from_kernel_thread+0x1b/0x28
+>  [<c1031004>] ? -_kthread_parkme+0x4c.0x4c
+> Code: (didn't type in first line)
+>                                 5f                        67                     6e                  74                             7e
+>  c9 39 d6 7f 14 eb 1c 6b c1 2c <8b> 44 05 60 d3 e0 29 c6 <d1> fb 39 de 7e 09 41 <39> f9 7c ea b0 01 <eb> 02 31 c0 5a 5b 5e 5f 5d c3 01 14 85 7c 16
+  Taking picture of the screen with a digital camera can usually save you
+some typing :)
 
-What does your kernel log says while this is happening. Are there any
-memcg OOM messages showing up?
+> The lack of scrollback limits me to 49 lines of SysRq output, and usually the most interesting
+> part disappears off the screen.  Two things I can see:
+> 
+> - SysRq-W shows no blocked tasks
+> - SysRq-M shows zero swap in use, and apparently adequate free memory
+> 	DMA: <various segments> = 9048kB
+> 	Normal: <various> = 116312kB
+> 	HighMem: <various> = 41660kB
+> 	416557 total pagecache pages
+> 	0 pages in swap cache
+> 	Swap cache stats: add 0, delete 0, find 0/0
+> 	Free swap  = 4883724kB
+> 	Total swap = 4883724kB
+> 	524260 pages RAM
+> 	296958 pages HighMem
+> 	5221 pages reserved
+> 	406417 pages shared
+> 	351419 pages non-shared
+> 
+> Does anyone have any debugging suggestions?  Waiting overnight to
+> make a good/bad decision makes bisecting pretty slow...
+
+							Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
