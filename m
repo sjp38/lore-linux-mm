@@ -1,91 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 324DD6B0071
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 11:17:32 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so2269508dak.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 08:17:31 -0800 (PST)
-Message-ID: <50AE5007.2000702@gmail.com>
-Date: Fri, 23 Nov 2012 00:17:11 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 3285F6B0073
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 11:17:57 -0500 (EST)
+Date: Thu, 22 Nov 2012 11:17:43 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Problem in Page Cache Replacement
+Message-ID: <20121122161743.GH24381@cmpxchg.org>
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+ <20121120182500.GH1408@quack.suse.cz>
+ <20121121213417.GC24381@cmpxchg.org>
+ <50AD7647.7050200@gmail.com>
+ <20121122010959.GF24381@cmpxchg.org>
+ <50AE25AB.2060808@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFT PATCH v1 4/5] mm: provide more accurate estimation of pages
- occupied by memmap
-References: <20121115112454.e582a033.akpm@linux-foundation.org> <1353254850-27336-1-git-send-email-jiang.liu@huawei.com> <1353254850-27336-5-git-send-email-jiang.liu@huawei.com> <20121119154240.91efcc53.akpm@linux-foundation.org> <50AB9F4A.5050500@gmail.com> <20121120111942.c9596d3f.akpm@linux-foundation.org> <50ACEAAD.60306@gmail.com> <20121121113515.3fa5a60c.akpm@linux-foundation.org>
-In-Reply-To: <20121121113515.3fa5a60c.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50AE25AB.2060808@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, metin d <metdos@yahoo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 11/22/2012 03:35 AM, Andrew Morton wrote:
-> On Wed, 21 Nov 2012 22:52:29 +0800
-> Jiang Liu <liuj97@gmail.com> wrote:
+On Thu, Nov 22, 2012 at 09:16:27PM +0800, Jaegeuk Hanse wrote:
+> On 11/22/2012 09:09 AM, Johannes Weiner wrote:
+> >On Thu, Nov 22, 2012 at 08:48:07AM +0800, Jaegeuk Hanse wrote:
+> >>On 11/22/2012 05:34 AM, Johannes Weiner wrote:
+> >>>Hi,
+> >>>
+> >>>On Tue, Nov 20, 2012 at 07:25:00PM +0100, Jan Kara wrote:
+> >>>>On Tue 20-11-12 09:42:42, metin d wrote:
+> >>>>>I have two PostgreSQL databases named data-1 and data-2 that sit on the
+> >>>>>same machine. Both databases keep 40 GB of data, and the total memory
+> >>>>>available on the machine is 68GB.
+> >>>>>
+> >>>>>I started data-1 and data-2, and ran several queries to go over all their
+> >>>>>data. Then, I shut down data-1 and kept issuing queries against data-2.
+> >>>>>For some reason, the OS still holds on to large parts of data-1's pages
+> >>>>>in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+> >>>>>a result, my queries on data-2 keep hitting disk.
+> >>>>>
+> >>>>>I'm checking page cache usage with fincore. When I run a table scan query
+> >>>>>against data-2, I see that data-2's pages get evicted and put back into
+> >>>>>the cache in a round-robin manner. Nothing happens to data-1's pages,
+> >>>>>although they haven't been touched for days.
+> >>>>>
+> >>>>>Does anybody know why data-1's pages aren't evicted from the page cache?
+> >>>>>I'm open to all kind of suggestions you think it might relate to problem.
+> >>>This might be because we do not deactive pages as long as there is
+> >>>cache on the inactive list.  I'm guessing that the inter-reference
+> >>>distance of data-2 is bigger than half of memory, so it's never
+> >>>getting activated and data-1 is never challenged.
+> >>Hi Johannes,
+> >>
+> >>What's the meaning of "inter-reference distance"
+> >It's the number of memory accesses between two accesses to the same
+> >page:
+> >
+> >   A B C D A B C E ...
+> >     |_______|
+> >     |       |
+> >
+> >>and why compare it with half of memoy, what's the trick?
+> >If B gets accessed twice, it gets activated.  If it gets evicted in
+> >between, the second access will be a fresh page fault and B will not
+> >be recognized as frequently used.
+> >
+> >Our cutoff for scanning the active list is cache size / 2 right now
+> >(inactive_file_is_low), leaving 50% of memory to the inactive list.
+> >If the inter-reference distance for pages on the inactive list is
+> >bigger than that, they get evicted before their second access.
 > 
->> On 11/21/2012 03:19 AM, Andrew Morton wrote:
->>> On Tue, 20 Nov 2012 23:18:34 +0800
->>> Jiang Liu <liuj97@gmail.com> wrote:
->>>
->>>>>> +static unsigned long calc_memmap_size(unsigned long spanned_pages,
->>>>>> +				      unsigned long present_pages)
->>>>>> +{
->>>>>> +	unsigned long pages = spanned_pages;
->>>>>> +
->>>>>> +	/*
->>>>>> +	 * Provide a more accurate estimation if there are big holes within
->>>>>> +	 * the zone and SPARSEMEM is in use.
->>>>>> +	 */
->>>>>> +	if (spanned_pages > present_pages + (present_pages >> 4) &&
->>>>>> +	    IS_ENABLED(CONFIG_SPARSEMEM))
->>>>>> +		pages = present_pages;
->>>>>> +
->>>>>> +	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
->>>>>> +}
->>>>>
->>>>> Please explain the ">> 4" heuristc more completely - preferably in both
->>>>> the changelog and code comments.  Why can't we calculate this
->>>>> requirement exactly?  That might require a second pass, but that's OK for
->>>>> code like this?
->>>> Hi Andrew,
->>>> 	A normal x86 platform always have some holes within the DMA ZONE,
->>>> so the ">> 4" heuristic is to avoid applying this adjustment to the DMA
->>>> ZONE on x86 platforms. 
->>>> 	Because the memmap_size is just an estimation, I feel it's OK to
->>>> remove the ">> 4" heuristic, that shouldn't affect much.
->>>
->>> Again: why can't we calculate this requirement exactly?  That might
->>> require a second pass, but that's OK for code like this?
->>
->> Hi Andrew,
->> 	If there are holes within a zone, it may cost us one or two extra pages
->> for each populated region within the zone due to alignment because memmap for 
->> each populated regions may not naturally aligned on page boundary.
+> Hi Johannes,
 > 
-> Right.  So with an additional pass across the zone and a bit of
-> arithmetic, we can calculate the exact space requirement for memmap?
-> No need for kludgy heuristics?
-Hi Andrew:
-	Happy Thanksgiving!
+> Thanks for your explanation. But could you give a short description
+> of how you resolve this inactive list thrashing issues?
 
-The way to calculate the exact space requirement for memmap seems a little
-complex, it depends on:
-CONFIG_SPARSEMEM_VMEMMAP
-CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
-arch implemenation of alloc_remap()
+I remember a time stamp of evicted file pages in the page cache radix
+tree that let me reconstruct the inter-reference distance even after a
+page has been evicted from cache when it's faulted back in.  This way
+I can tell a one-time sequence from thrashing, no matter how small the
+inactive list.
 
-Actually the original motivation is to reduce the deviation on a platform
-such as:
-node 0: 0-2G,4G-255G (a 2G hole between 2-4G)
-node 1: 256G - 511G
-node 2: 512G - 767G
-node 3: 768G - 1023G
-node 0: 1024G - 1026G (memory recovered from the hole)
-
-So I just tried to reduce the deviation instead of accurate calculation of memmap.
-
-Regards!
-Gerry
+When thrashing is detected, I start deactivating protected pages and
+put them next to the refaulted cache on the head of the inactive list
+and let them fight it out as usual.  In this reported case, the old
+data will be challenged and since it's no longer used, it will just
+drop off the inactive list eventually.  If the guess is wrong and the
+deactivated memory is used more heavily than the refaulting pages,
+they will just get activated again without incurring any disruption
+like a major fault.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
