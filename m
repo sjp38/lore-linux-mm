@@ -1,84 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 81D9C6B005A
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:36:20 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_memory=2Dcgroup_bug?=
-Date: Thu, 22 Nov 2012 10:36:18 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121121200207.01068046@pobox.sk> <50AD713F.9030909@jp.fujitsu.com>
-In-Reply-To: <50AD713F.9030909@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id CC4276B004D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:37:49 -0500 (EST)
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <20121121213417.GC24381@cmpxchg.org> <50AD7647.7050200@gmail.com> <20121122010959.GF24381@cmpxchg.org>
+Message-ID: <1353577068.19982.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+Date: Thu, 22 Nov 2012 01:37:48 -0800 (PST)
+From: metin d <metdos@yahoo.com>
+Reply-To: metin d <metdos@yahoo.com>
+Subject: Re: Problem in Page Cache Replacement
+In-Reply-To: <20121122010959.GF24381@cmpxchg.org>
 MIME-Version: 1.0
-Message-Id: <20121122103618.79F03818@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Kamezawa_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, =?utf-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>
 
-______________________________________________________________
-> Od: "Kamezawa Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-> Komu: azurIt <azurit@pobox.sk>
-> DA!tum: 22.11.2012 01:27
-> Predmet: Re: memory-cgroup bug
->
-> CC: linux-kernel@vger.kernel.org, "linux-mm" <linux-mm@kvack.org>
->(2012/11/22 4:02), azurIt wrote:
->> Hi,
->>
->> i'm using memory cgroup for limiting our users and having a really strange problem when a cgroup gets out of its memory limit. It's very strange because it happens only sometimes (about once per week on random user), out of memory is usually handled ok. This happens when problem occures:
->>   - no new processes can be started for this cgroup
->>   - current processes are freezed and taking 100% of CPU
->>   - when i try to 'strace' any of current processes, the whole strace freezes until process is killed (strace cannot be terminated by CTRL-c)
->>   - problem can be resolved by raising memory limit for cgroup or killing of few processes inside cgroup so some memory is freed
->>
->> I also garbbed the content of /proc/<pid>/stack of freezed process:
->> [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->> [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
->> [<ffffffff8110ba56>] mem_cgroup_charge_common+0x56/0xa0
->> [<ffffffff8110bae5>] mem_cgroup_newpage_charge+0x45/0x50
->> [<ffffffff810ec54e>] do_wp_page+0x14e/0x800
->> [<ffffffff810eda34>] handle_pte_fault+0x264/0x940
->> [<ffffffff810ee248>] handle_mm_fault+0x138/0x260
->> [<ffffffff810270ed>] do_page_fault+0x13d/0x460
->> [<ffffffff815b53ff>] page_fault+0x1f/0x30
->> [<ffffffffffffffff>] 0xffffffffffffffff
->>
->> I'm currently using kernel 3.2.34 but i'm having this problem since 2.6.32.
->>
->> Any ideas? Thnx.
->>
->
->Under OOM in memcg, only one process is allowed to work. Because processes tends to use up
->CPU at memory shortage. other processes are freezed.
->
->
->Then, the problem here is the one process which uses CPU. IIUC, 'freezed' threads are
->in sleep and never use CPU. It's expected oom-killer or memory-reclaim can solve the probelm.
->
->What is your memcg's memory.oom_control value ?
-
-
-
-oom_kill_disable 0
-
-
-
->and process's oom_adj values ? (/proc/<pid>/oom_adj, /proc/<pid>/oom_score_adj)
-
-
-when i look to a random user PID (Apache web server):
-oom_adj = 0
-oom_score_adj = 0
-
-I can look also to the data of 'freezed' proces if you need it but i will have to wait until problem occurs again.
-
-The main problem is that when this problem happens, it's NOT resolved automatically by kernel/OOM and user of cgroup, where it happend, has non-working services until i kill his processes by hand. I'm sure that all 'freezed' processes are taking very much CPU because also server load goes really high - next time i will make a screenshot of htop. I really wonder why OOM is __sometimes__ not resolving this (it's usually is, only sometimes not).
-
-
-Thank you!
-
-azur
+Hi Johannes,=0A=0AYes, problem was as you projected. I tried to make "activ=
+e" data-2 pages by manually reading them twice, and finally data-1 are got =
+out of page cache.=0A=0AWe have large files in PostgreSQL and Hadoop that w=
+e sequentially scan over; and try to fit our working set into total memory.=
+ So I hope your patches will take place in the soonest linux kernel version=
+.=0A=0AThanks,=0AMetin=0A=0A=0A----- Original Message -----=0AFrom: Johanne=
+s Weiner <hannes@cmpxchg.org>=0ATo: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>=
+=0ACc: Jan Kara <jack@suse.cz>; metin d <metdos@yahoo.com>; "linux-kernel@v=
+ger.kernel.org" <linux-kernel@vger.kernel.org>; linux-mm@kvack.org=0ASent: =
+Thursday, November 22, 2012 3:09 AM=0ASubject: Re: Problem in Page Cache Re=
+placement=0A=0AOn Thu, Nov 22, 2012 at 08:48:07AM +0800, Jaegeuk Hanse wrot=
+e:=0A> On 11/22/2012 05:34 AM, Johannes Weiner wrote:=0A> >Hi,=0A> >=0A> >O=
+n Tue, Nov 20, 2012 at 07:25:00PM +0100, Jan Kara wrote:=0A> >>On Tue 20-11=
+-12 09:42:42, metin d wrote:=0A> >>>I have two PostgreSQL databases named d=
+ata-1 and data-2 that sit on the=0A> >>>same machine. Both databases keep 4=
+0 GB of data, and the total memory=0A> >>>available on the machine is 68GB.=
+=0A> >>>=0A> >>>I started data-1 and data-2, and ran several queries to go =
+over all their=0A> >>>data. Then, I shut down data-1 and kept issuing queri=
+es against data-2.=0A> >>>For some reason, the OS still holds on to large p=
+arts of data-1's pages=0A> >>>in its page cache, and reserves about 35 GB o=
+f RAM to data-2's files. As=0A> >>>a result, my queries on data-2 keep hitt=
+ing disk.=0A> >>>=0A> >>>I'm checking page cache usage with fincore. When I=
+ run a table scan query=0A> >>>against data-2, I see that data-2's pages ge=
+t evicted and put back into=0A> >>>the cache in a round-robin manner. Nothi=
+ng happens to data-1's pages,=0A> >>>although they haven't been touched for=
+ days.=0A> >>>=0A> >>>Does anybody know why data-1's pages aren't evicted f=
+rom the page cache?=0A> >>>I'm open to all kind of suggestions you think it=
+ might relate to problem.=0A> >This might be because we do not deactive pag=
+es as long as there is=0A> >cache on the inactive list.=C2=A0 I'm guessing =
+that the inter-reference=0A> >distance of data-2 is bigger than half of mem=
+ory, so it's never=0A> >getting activated and data-1 is never challenged.=
+=0A> =0A> Hi Johannes,=0A> =0A> What's the meaning of "inter-reference dist=
+ance"=0A=0AIt's the number of memory accesses between two accesses to the s=
+ame=0Apage:=0A=0A=C2=A0 A B C D A B C E ...=0A=C2=A0 =C2=A0 |_______|=0A=C2=
+=A0 =C2=A0 |=C2=A0 =C2=A0 =C2=A0  |=0A=0A> and why compare it with half of =
+memoy, what's the trick?=0A=0AIf B gets accessed twice, it gets activated.=
+=C2=A0 If it gets evicted in=0Abetween, the second access will be a fresh p=
+age fault and B will not=0Abe recognized as frequently used.=0A=0AOur cutof=
+f for scanning the active list is cache size / 2 right now=0A(inactive_file=
+_is_low), leaving 50% of memory to the inactive list.=0AIf the inter-refere=
+nce distance for pages on the inactive list is=0Abigger than that, they get=
+ evicted before their second access.=0A
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
