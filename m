@@ -1,86 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id A27566B0070
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:05:21 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so3854647bkc.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 01:05:20 -0800 (PST)
-Date: Thu, 22 Nov 2012 10:05:14 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/46] Automatic NUMA Balancing V4
-Message-ID: <20121122090514.GA17769@gmail.com>
-References: <1353493312-8069-1-git-send-email-mgorman@suse.de>
- <20121121165342.GH8218@suse.de>
- <20121121170306.GA28811@gmail.com>
- <20121121172011.GI8218@suse.de>
- <20121121173316.GA29311@gmail.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 27EF36B0070
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 04:08:05 -0500 (EST)
+Date: Thu, 22 Nov 2012 10:08:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [memcg:since-3.6 456/496]
+ drivers/virtio/virtio_balloon.c:145:10: warning: format '%zu' expects
+ argument of type 'size_t', but argument 4 has type 'unsigned int'
+Message-ID: <20121122090802.GA9591@dhcp22.suse.cz>
+References: <50acf531.zaJ8wmQW+6NHVbhr%fengguang.wu@intel.com>
+ <20121121154734.GE8761@dhcp22.suse.cz>
+ <20121121115516.99b81f9a.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121121173316.GA29311@gmail.com>
+In-Reply-To: <20121121115516.99b81f9a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
 
-
-* Ingo Molnar <mingo@kernel.org> wrote:
-
+On Wed 21-11-12 11:55:16, Andrew Morton wrote:
+> On Wed, 21 Nov 2012 16:47:34 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> * Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > On Wed, Nov 21, 2012 at 06:03:06PM +0100, Ingo Molnar wrote:
-> > > 
-> > > * Mel Gorman <mgorman@suse.de> wrote:
-> > > 
-> > > > On Wed, Nov 21, 2012 at 10:21:06AM +0000, Mel Gorman wrote:
-> > > > > 
-> > > > > I am not including a benchmark report in this but will be posting one
-> > > > > shortly in the "Latest numa/core release, v16" thread along with the latest
-> > > > > schednuma figures I have available.
-> > > > > 
-> > > > 
-> > > > Report is linked here https://lkml.org/lkml/2012/11/21/202
-> > > > 
-> > > > I ended up cancelling the remaining tests and restarted with
-> > > > 
-> > > > 1. schednuma + patches posted since so that works out as
-> > > 
-> > > Mel, I'd like to ask you to refer to our tree as numa/core or 
-> > > 'numacore' in the future. Would such a courtesy to use the 
-> > > current name of our tree be possible?
-> > > 
+> > Bahh, my fault.
+> > I screwed while reverting previous version of the virtio patchset.
+> > Pushed to my tree. Thanks for reporting...
 > > 
-> > Sure, no problem.
+> > On Wed 21-11-12 23:37:21, Wu Fengguang wrote:
+> > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> > > head:   223cdc1faeea55aa70fef23d54720ad3fdaf4c93
+> > > commit: 12cf48af8968fa1d0cc4c06065d7c37c3560c171 [456/496] virtio_balloon: introduce migration primitives to balloon pages
+> > > config: make ARCH=x86_64 allmodconfig
+> > ---
+> > >From 35f423ffe01b62cbe5bf88b0acbff5b3b4a09777 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Wed, 21 Nov 2012 16:42:02 +0100
+> > Subject: [PATCH] virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix
+> >  mismerge fix
+> > 
+> > %u got back to %zu while while reverting
+> > %(4f2ac8495ba0477d8c3208de96dae7d1db6c2d49) obsolete version of
+> > virtio_balloon: introduce migration primitives to balloon pages
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > ---
+> >  drivers/virtio/virtio_balloon.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > index d0cfb7e..8cde4c9 100644
+> > --- a/drivers/virtio/virtio_balloon.c
+> > +++ b/drivers/virtio/virtio_balloon.c
+> > @@ -141,7 +141,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+> >  		if (!page) {
+> >  			if (printk_ratelimit())
+> >  				dev_printk(KERN_INFO, &vb->vdev->dev,
+> > -					   "Out of puff! Can't get %zu pages\n",
+> > +					   "Out of puff! Can't get %u pages\n",
+> >  					    VIRTIO_BALLOON_PAGES_PER_PAGE);
+> >  			/* Sleep for at least 1/5 of a second before retry. */
+> >  			msleep(200);
 > 
-> Thanks!
+> Yeah, that's quite old code - printk_ratelimit is naughty and has been
+> replaced by dev_info_ratelimited().
+
+Hmm, that one came in from linux-next (looks like Rusty's tree) and
+not your tree so I haven't applied it. I can cherry pick (the last
+linux-next knows it as 41395dfb: virtio: Convert dev_printk(KERN_<LEVEL>
+to dev_<level>) of course.
 > 
-> I ran a quick test with your 'balancenuma v4' tree and while 
-> numa02 and numa01-THREAD-ALLOC performance is looking good, 
-> numa01 performance does not look very good:
-> 
->                     mainline    numa/core      balancenuma-v4
->      numa01:           340.3       139.4          276 secs
-> 
-> 97% slower than numa/core.
+> Are you using mmotm or http://ozlabs.org/~akpm/mmots/?
 
-I mean numa/core was 97% faster. That transforms into 
-balancenuma-v4 being 50.5% slower.
+both. mmots every day (if there is a new one) and mmotm when it is
+announced.
 
-Your numbers from yesterday showed an even bigger proportion:
-
-AUTONUMA BENCH
-                                          3.7.0                 3.7.0                 3.7.0                 3.7.0                 
-3.7.0                 3.7.0
-                                rc6-stats-v4r12   rc6-schednuma-v16r2 rc6-autonuma-v28fastr3	  rc6-moron-v4r38    rc6-twostage-v4r38  rc6-thpmigrate-v4r38
-Elapsed NUMA01                1668.03 (  0.00%)      486.04 ( 70.86%) 	   794.10 ( 52.39%)	 601.19 ( 63.96%)     1575.52 (  5.55%)     1066.67 ( 36.05%)
-
-In your test numa/core was 240% times faster than mainline, 63% 
-faster than autonuma and 119% faster than 
-balancenuma-"rc6-thpmigrate-v4r38".
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
