@@ -1,347 +1,265 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id A93C46B009D
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 18:34:27 -0500 (EST)
-Date: Fri, 23 Nov 2012 08:34:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: Lockdep complain for zram
-Message-ID: <20121122233444.GE5121@bbox>
-References: <20121121083737.GB5121@bbox>
- <50AE08D4.7040602@redhat.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 34D256B005D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 20:26:10 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id lz20so10856688obb.14
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 17:26:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50AE08D4.7040602@redhat.com>
+In-Reply-To: <20121120160918.GA18167@gmail.com>
+References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
+	<20121119162909.GL8218@suse.de>
+	<20121119191339.GA11701@gmail.com>
+	<20121119211804.GM8218@suse.de>
+	<20121119223604.GA13470@gmail.com>
+	<CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
+	<20121120071704.GA14199@gmail.com>
+	<20121120152933.GA17996@gmail.com>
+	<20121120160918.GA18167@gmail.com>
+Date: Fri, 23 Nov 2012 09:26:08 +0800
+Message-ID: <CAGjg+kHtdFE9Nc9ZTRjf73zwrOV77T=uX3ojsP=FWt8wbc2WBQ@mail.gmail.com>
+Subject: Re: [PATCH, v2] mm, numa: Turn 4K pte NUMA faults into effective
+ hugepage ones
+From: Alex Shi <lkml.alex@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@cs.helsinki.fi>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shi@intel.com>
 
-On Thu, Nov 22, 2012 at 12:13:24PM +0100, Jerome Marchand wrote:
-> On 11/21/2012 09:37 AM, Minchan Kim wrote:
-> > Hi alls,
-> > 
-> > Today, I saw below complain of lockdep.
-> > As a matter of fact, I knew it long time ago but forgot that.
-> > The reason lockdep complains is that now zram uses GFP_KERNEL
-> > in reclaim path(ex, __zram_make_request) :(
-> > I can fix it via replacing GFP_KERNEL with GFP_NOIO.
-> > But more big problem is vzalloc in zram_init_device which calls GFP_KERNEL.
-> > Of course, I can change it with __vmalloc which can receive gfp_t.
-> > But still we have a problem. Althoug __vmalloc can handle gfp_t, it calls
-> > allocation of GFP_KERNEL. That's why I sent the patch.
-> > https://lkml.org/lkml/2012/4/23/77
-> > Since then, I forgot it, saw the bug today and poped the question again.
-> > 
-> > Yes. Fundamental problem is utter crap API vmalloc.
-> > If we can fix it, everyone would be happy. But life isn't simple like seeing
-> > my thread of the patch.
-> > 
-> > So next option is to move zram_init_device into setting disksize time.
-> > But it makes unnecessary metadata waste until zram is used really(That's why
-> > Nitin move zram_init_device from disksize setting time to make_request) and
-> > it makes user should set the disksize before using, which are behavior change.
-> > 
-> > I would like to clean up this issue before promoting because it might change
-> > usage behavior.
-> > 
-> > Do you have any idea?
-> 
-> This is a false positive due to the memory allocation in
-> zram_init_device() called from zram_make_request(). It appears to
-> lockdep that the allocation might trigger a request on the device that
-> would try to take init_lock again, but in fact it doesn't. The device
-> is not initialized yet, even less swapped on.
+This patch cause boot hang on our SNB EP 2 sockets machine with some
+segmentation fault.
+revert it recovers booting.
 
-That's not a only swap case.
-Let's think following usecase.
+============
+[    8.290147] Freeing unused kernel memory: 1264k freed
+[    8.306140] Freeing unused kernel memory: 1592k freed
+[    8.342668] init[250]: segfault at 20da510 ip 00000000020da510 sp
+00007fff26788040 error 15[    8.350983] usb 2-1: New USB device found,
+idVendor=8087, idProduct=0024
+[    8.350987] usb 2-1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
+[    8.351266] hub 2-1:1.0: USB hub found
+[    8.351346] hub 2-1:1.0: 8 ports detected
 
-1) Booting
-2) echo $((DISKSIZE)) > /sys/block/zram0/disksize
-3) dd if=/dev/zero of=/dev/zram0 bs=4K count=1
-4) Written 4K page(page-A) is still page cache and isn't submitted
-   to zram block device.
-5) Memory pressure happen by some memory hogger.
-6) VM start to reclaim and write page-A to zram0.
-7) zram_init_device is called at last.
-8) allocate GFP_KERNEL in zram_init_device
-9) goto reclaim path again.
-10) deadlock.
+Segmentation fault
+[    8.626633] usb 2-1.4: new full-speed USB device number 3 using ehci_hcd
+[    8.721391] usb 2-1.4: New USB device found, idVendor=046b, idProduct=ff10
+[    8.729536] usb 2-1.4: New USB device strings: Mfr=1, Product=2,
+SerialNumber=3
+[    8.738540] usb 2-1.4: Product: Virtual Keyboard and Mouse
+[    8.745134] usb 2-1.4: Manufacturer: American Megatrends Inc.
+[    8.752026] usb 2-1.4: SerialNumber: serial
+[    8.758877] input: American Megatrends Inc. Virtual Keyboard and
+Mouse as /devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.4/2-1.4:1.0/input/input1
+[    8.774428] hid-generic 0003:046B:FF10.0001: input,hidraw0: USB HID
+v1.10 Keyboard [American Megatrends Inc. Virtual Keyboard and Mouse]
+on usb-0000:00:1d.0-1.4/input0
+[    8.793393] input: American Megatrends Inc. Virtual Keyboard and
+Mouse as /devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.4/2-1.4:1.1/input/input2
+[    8.809140] hid-generic 0003:046B:FF10.0002: input,hidraw1: USB HID
+v1.10 Mouse [American Megatrends Inc. Virtual Keyboard and Mouse] on
+usb-0000:00:1d.0-1.4/input1
+[    8.899511] usb 2-1.7: new low-speed USB device number 4 using ehci_hcd
+[    9.073473] usb 2-1.7: New USB device found, idVendor=0557, idProduct=2220
+[    9.081633] usb 2-1.7: New USB device strings: Mfr=1, Product=2,
+SerialNumber=0
+[    9.090643] usb 2-1.7: Product: ATEN  CS-1758/54
+[    9.096258] usb 2-1.7: Manufacturer: ATEN
+[    9.134093] input: ATEN ATEN  CS-1758/54 as
+/devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.7/2-1.7:1.0/input/input3
+[    9.146804] hid-generic 0003:0557:2220.0003: input,hidraw2: USB HID
+v1.10 Keyboard [ATEN ATEN  CS-1758/54] on usb-0000:00:1d.0-1.7/input0
+[    9.184396] input: ATEN ATEN  CS-1758/54 as
+/devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.7/2-1.7:1.1/input/input4
+[    9.197210] hid-generic 0003:0557:2220.0004: input,hidraw3: USB HID
+v1.10 Mouse [ATEN ATEN  CS-1758/54] on usb-0000:00:1d.0-1.7/input1
 
-So I think it's not false positive.
-Even if it is, I think lock split isn't a good idea to just avoid
-lockdep warn. It makes code unnecessary complicated and it would be more
-error-prone. Let's not add another lock without performance trouble report
-by the lock.
+<hang here>
 
-As I discussed with Nitin in this thread, lazy initialization don't have
-much point and disksize setting option isn't consistent for user behavior.
-And I expect Nitin will send patch "diet of table" soonish.
-
-So just moving the initialzation part from reclaim context to process's one
-is simple and clear solution, I believe.
-
-> 
-> The following (quickly tested) patch should prevent lockdep complain.  
-> 
-> Jerome
-> 
+On Wed, Nov 21, 2012 at 12:09 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> Ok, the patch withstood a bit more testing as well. Below is a
+> v2 version of it, with a couple of cleanups (no functional
+> changes).
+>
+> Thanks,
+>
+>         Ingo
+>
+> ----------------->
+> Subject: mm, numa: Turn 4K pte NUMA faults into effective hugepage ones
+> From: Ingo Molnar <mingo@kernel.org>
+> Date: Tue Nov 20 15:48:26 CET 2012
+>
+> Reduce the 4K page fault count by looking around and processing
+> nearby pages if possible.
+>
+> To keep the logic and cache overhead simple and straightforward
+> we do a couple of simplifications:
+>
+>  - we only scan in the HPAGE_SIZE range of the faulting address
+>  - we only go as far as the vma allows us
+>
+> Also simplify the do_numa_page() flow while at it and fix the
+> previous double faulting we incurred due to not properly fixing
+> up freshly migrated ptes.
+>
+> Suggested-by: Mel Gorman <mgorman@suse.de>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Ingo Molnar <mingo@kernel.org>
 > ---
-> >From ebb3514c4ee18276da7c5ca08025991b493ac204 Mon Sep 17 00:00:00 2001
-> From: Jerome Marchand <jmarchan@redhat.com>
-> Date: Thu, 22 Nov 2012 09:07:40 +0100
-> Subject: [PATCH] staging: zram: Avoid lockdep warning
-> 
-> zram triggers a lockdep warning. The cause of it is the call to
-> zram_init_device() from zram_make_request(). The memory allocation in
-> zram_init_device() could start a memory reclaim which in turn could
-> cause swapout and (as it appears to lockdep) a call to
-> zram_make_request(). However this is a false positive: an
-> unititialized device can't be used as swap.
-> A solution is to split init_lock in two lock. One mutex that protects
-> init, reset and size setting and a rw_semaphore that protects requests
-> and reset. Thus init and request would be protected by different locks
-> and lockdep will be happy.
-> 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
-> ---
->  drivers/staging/zram/zram_drv.c   |   41 +++++++++++++++++++-----------------
->  drivers/staging/zram/zram_drv.h   |   16 ++++++++++---
->  drivers/staging/zram/zram_sysfs.c |   20 +++++++++---------
->  3 files changed, 44 insertions(+), 33 deletions(-)
-> 
-> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> index fb4a7c9..b3bc3c4 100644
-> --- a/drivers/staging/zram/zram_drv.c
-> +++ b/drivers/staging/zram/zram_drv.c
-> @@ -470,11 +470,11 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
->  {
->  	struct zram *zram = queue->queuedata;
->  
-> -	if (unlikely(!zram->init_done) && zram_init_device(zram))
-> +	if (unlikely(!is_initialized(zram)) && zram_init_device(zram))
->  		goto error;
->  
-> -	down_read(&zram->init_lock);
-> -	if (unlikely(!zram->init_done))
-> +	down_read(&zram->req_lock);
-> +	if (unlikely(!is_initialized(zram)))
->  		goto error_unlock;
->  
->  	if (!valid_io_request(zram, bio)) {
-> @@ -483,12 +483,12 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
->  	}
->  
->  	__zram_make_request(zram, bio, bio_data_dir(bio));
-> -	up_read(&zram->init_lock);
-> +	up_read(&zram->req_lock);
->  
->  	return;
->  
->  error_unlock:
-> -	up_read(&zram->init_lock);
-> +	up_read(&zram->req_lock);
->  error:
->  	bio_io_error(bio);
+>  mm/memory.c |   99 ++++++++++++++++++++++++++++++++++++++----------------------
+>  1 file changed, 64 insertions(+), 35 deletions(-)
+>
+> Index: linux/mm/memory.c
+> ===================================================================
+> --- linux.orig/mm/memory.c
+> +++ linux/mm/memory.c
+> @@ -3455,64 +3455,93 @@ static int do_nonlinear_fault(struct mm_
+>         return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
 >  }
-> @@ -497,7 +497,7 @@ void __zram_reset_device(struct zram *zram)
+>
+> -static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> +static int __do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>                         unsigned long address, pte_t *ptep, pmd_t *pmd,
+> -                       unsigned int flags, pte_t entry)
+> +                       unsigned int flags, pte_t entry, spinlock_t *ptl)
 >  {
->  	size_t index;
->  
-> -	zram->init_done = 0;
-> +	atomic_set(&zram->init_done, 0);
->  
->  	/* Free various per-device buffers */
->  	kfree(zram->compress_workmem);
-> @@ -529,9 +529,12 @@ void __zram_reset_device(struct zram *zram)
->  
->  void zram_reset_device(struct zram *zram)
->  {
-> -	down_write(&zram->init_lock);
-> -	__zram_reset_device(zram);
-> -	up_write(&zram->init_lock);
-> +	mutex_lock(&zram->init_lock);
-> +	down_write(&zram->req_lock);
-> +	if (is_initialized(zram))
-> +		__zram_reset_device(zram);
-> +	up_write(&zram->req_lock);
-> +	mutex_unlock(&zram->init_lock);
->  }
->  
->  int zram_init_device(struct zram *zram)
-> @@ -539,10 +542,10 @@ int zram_init_device(struct zram *zram)
->  	int ret;
->  	size_t num_pages;
->  
-> -	down_write(&zram->init_lock);
-> +	mutex_lock(&zram->init_lock);
->  
-> -	if (zram->init_done) {
-> -		up_write(&zram->init_lock);
-> +	if (is_initialized(zram)) {
-> +		mutex_unlock(&zram->init_lock);
->  		return 0;
->  	}
->  
-> @@ -583,8 +586,8 @@ int zram_init_device(struct zram *zram)
->  		goto fail;
->  	}
->  
-> -	zram->init_done = 1;
-> -	up_write(&zram->init_lock);
-> +	atomic_set(&zram->init_done, 1);
-> +	mutex_unlock(&zram->init_lock);
->  
->  	pr_debug("Initialization done!\n");
->  	return 0;
-> @@ -594,7 +597,7 @@ fail_no_table:
->  	zram->disksize = 0;
->  fail:
->  	__zram_reset_device(zram);
-> -	up_write(&zram->init_lock);
-> +	mutex_unlock(&zram->init_lock);
->  	pr_err("Initialization failed: err=%d\n", ret);
->  	return ret;
->  }
-> @@ -619,7 +622,8 @@ static int create_device(struct zram *zram, int device_id)
->  	int ret = 0;
->  
->  	init_rwsem(&zram->lock);
-> -	init_rwsem(&zram->init_lock);
-> +	mutex_init(&zram->init_lock);
-> +	init_rwsem(&zram->req_lock);
->  	spin_lock_init(&zram->stat64_lock);
->  
->  	zram->queue = blk_alloc_queue(GFP_KERNEL);
-> @@ -672,7 +676,7 @@ static int create_device(struct zram *zram, int device_id)
->  		goto out;
->  	}
->  
-> -	zram->init_done = 0;
-> +	atomic_set(&zram->init_done, 0);
->  
+> -       struct page *page = NULL;
+> -       int node, page_nid = -1;
+> -       int last_cpu = -1;
+> -       spinlock_t *ptl;
+> -
+> -       ptl = pte_lockptr(mm, pmd);
+> -       spin_lock(ptl);
+> -       if (unlikely(!pte_same(*ptep, entry)))
+> -               goto out_unlock;
+> +       struct page *page;
+> +       int new_node;
+>
+>         page = vm_normal_page(vma, address, entry);
+>         if (page) {
+> -               get_page(page);
+> -               page_nid = page_to_nid(page);
+> -               last_cpu = page_last_cpu(page);
+> -               node = mpol_misplaced(page, vma, address);
+> -               if (node != -1 && node != page_nid)
+> +               int page_nid = page_to_nid(page);
+> +               int last_cpu = page_last_cpu(page);
+> +
+> +               task_numa_fault(page_nid, last_cpu, 1);
+> +
+> +               new_node = mpol_misplaced(page, vma, address);
+> +               if (new_node != -1 && new_node != page_nid)
+>                         goto migrate;
+>         }
+>
+> -out_pte_upgrade_unlock:
+> +out_pte_upgrade:
+>         flush_cache_page(vma, address, pte_pfn(entry));
+> -
+>         ptep_modify_prot_start(mm, address, ptep);
+>         entry = pte_modify(entry, vma->vm_page_prot);
+> +       if (pte_dirty(entry))
+> +               entry = pte_mkwrite(entry);
+>         ptep_modify_prot_commit(mm, address, ptep, entry);
+> -
+>         /* No TLB flush needed because we upgraded the PTE */
+> -
+>         update_mmu_cache(vma, address, ptep);
+> -
+> -out_unlock:
+> -       pte_unmap_unlock(ptep, ptl);
+> -
+> -       if (page) {
+> -               task_numa_fault(page_nid, last_cpu, 1);
+> -               put_page(page);
+> -       }
 >  out:
->  	return ret;
-> @@ -755,8 +759,7 @@ static void __exit zram_exit(void)
->  		zram = &zram_devices[i];
->  
->  		destroy_device(zram);
-> -		if (zram->init_done)
-> -			zram_reset_device(zram);
-> +		zram_reset_device(zram);
->  	}
->  
->  	unregister_blkdev(zram_major, "zram");
-> diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
-> index df2eec4..f6bcead 100644
-> --- a/drivers/staging/zram/zram_drv.h
-> +++ b/drivers/staging/zram/zram_drv.h
-> @@ -96,9 +96,12 @@ struct zram {
->  				   * against concurrent read and writes */
->  	struct request_queue *queue;
->  	struct gendisk *disk;
-> -	int init_done;
-> -	/* Prevent concurrent execution of device init, reset and R/W request */
-> -	struct rw_semaphore init_lock;
-> +	atomic_t init_done;
-> +	/* Prevent concurrent execution of device init, reset and
-> +	 * disksize_store */
-> +	struct mutex init_lock;
-> +	/* Prevent concurent execution device reset and R/W requests */
-> +	struct rw_semaphore req_lock;
->  	/*
->  	 * This is the limit on amount of *uncompressed* worth of data
->  	 * we can store in a disk.
-> @@ -108,6 +111,11 @@ struct zram {
->  	struct zram_stats stats;
->  };
->  
-> +static inline int is_initialized(struct zram *zram)
-> +{
-> +	return atomic_read(&zram->init_done);
+>         return 0;
+>
+>  migrate:
+> +       get_page(page);
+>         pte_unmap_unlock(ptep, ptl);
+>
+> -       if (migrate_misplaced_page(page, node)) {
+> +       migrate_misplaced_page(page, new_node); /* Drops the page reference */
+> +
+> +       /* Re-check after migration: */
+> +
+> +       ptl = pte_lockptr(mm, pmd);
+> +       spin_lock(ptl);
+> +       entry = ACCESS_ONCE(*ptep);
+> +
+> +       if (!pte_numa(vma, entry))
+>                 goto out;
+> -       }
+> -       page = NULL;
+>
+> -       ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+> -       if (!pte_same(*ptep, entry))
+> -               goto out_unlock;
+> +       goto out_pte_upgrade;
 > +}
 > +
->  extern struct zram *zram_devices;
->  unsigned int zram_get_num_devices(void);
->  #ifdef CONFIG_SYSFS
-> @@ -115,6 +123,6 @@ extern struct attribute_group zram_disk_attr_group;
->  #endif
->  
->  extern int zram_init_device(struct zram *zram);
-> -extern void __zram_reset_device(struct zram *zram);
-> +extern void zram_reset_device(struct zram *zram);
->  
->  #endif
-> diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-> index de1eacf..b300881 100644
-> --- a/drivers/staging/zram/zram_sysfs.c
-> +++ b/drivers/staging/zram/zram_sysfs.c
-> @@ -62,16 +62,19 @@ static ssize_t disksize_store(struct device *dev,
->  	if (!disksize)
->  		return -EINVAL;
->  
-> -	down_write(&zram->init_lock);
-> -	if (zram->init_done) {
-> -		up_write(&zram->init_lock);
-> +	mutex_lock(&zram->init_lock);
-> +	down_write(&zram->req_lock);
-> +	if (is_initialized(zram)) {
-> +		up_write(&zram->req_lock);
-> +		mutex_unlock(&zram->init_lock);
->  		pr_info("Cannot change disksize for initialized device\n");
->  		return -EBUSY;
->  	}
->  
->  	zram->disksize = PAGE_ALIGN(disksize);
->  	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-> -	up_write(&zram->init_lock);
-> +	up_write(&zram->req_lock);
-> +	mutex_unlock(&zram->init_lock);
->  
->  	return len;
+> +/*
+> + * Add a simple loop to also fetch ptes within the same pmd:
+> + */
+> +static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> +                       unsigned long addr0, pte_t *ptep0, pmd_t *pmd,
+> +                       unsigned int flags, pte_t entry0)
+> +{
+> +       unsigned long addr0_pmd;
+> +       unsigned long addr_start;
+> +       unsigned long addr;
+> +       spinlock_t *ptl;
+> +       pte_t *ptep;
+> +
+> +       addr0_pmd = addr0 & PMD_MASK;
+> +       addr_start = max(addr0_pmd, vma->vm_start);
+>
+> -       goto out_pte_upgrade_unlock;
+> +       ptep = pte_offset_map(pmd, addr_start);
+> +       ptl = pte_lockptr(mm, pmd);
+> +       spin_lock(ptl);
+> +
+> +       for (addr = addr_start; addr < vma->vm_end; addr += PAGE_SIZE, ptep++) {
+> +               pte_t entry;
+> +
+> +               entry = ACCESS_ONCE(*ptep);
+> +
+> +               if ((addr & PMD_MASK) != addr0_pmd)
+> +                       break;
+> +               if (!pte_present(entry))
+> +                       continue;
+> +               if (!pte_numa(vma, entry))
+> +                       continue;
+> +
+> +               __do_numa_page(mm, vma, addr, ptep, pmd, flags, entry, ptl);
+> +       }
+> +
+> +       pte_unmap_unlock(ptep, ptl);
+> +
+> +       return 0;
 >  }
-> @@ -81,7 +84,7 @@ static ssize_t initstate_show(struct device *dev,
->  {
->  	struct zram *zram = dev_to_zram(dev);
->  
-> -	return sprintf(buf, "%u\n", zram->init_done);
-> +	return sprintf(buf, "%u\n", atomic_read(&zram->init_done));
->  }
->  
->  static ssize_t reset_store(struct device *dev,
-> @@ -110,10 +113,7 @@ static ssize_t reset_store(struct device *dev,
->  	if (bdev)
->  		fsync_bdev(bdev);
->  
-> -	down_write(&zram->init_lock);
-> -	if (zram->init_done)
-> -		__zram_reset_device(zram);
-> -	up_write(&zram->init_lock);
-> +	zram_reset_device(zram);
->  
->  	return len;
->  }
-> @@ -186,7 +186,7 @@ static ssize_t mem_used_total_show(struct device *dev,
->  	u64 val = 0;
->  	struct zram *zram = dev_to_zram(dev);
->  
-> -	if (zram->init_done)
-> +	if (is_initialized(zram))
->  		val = zs_get_total_size_bytes(zram->mem_pool);
->  
->  	return sprintf(buf, "%llu\n", val);
-> -- 
-> 1.7.7.6
-> 
+>
+>  /*
+>
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
+
+
 -- 
-Kind regards,
-Minchan Kim
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
