@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 439E66B005D
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 12:50:50 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so4656089bkc.14
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 09:50:49 -0800 (PST)
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 1BAEA6B005D
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 12:50:52 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so4656099bkc.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 09:50:51 -0800 (PST)
 From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: [RFC PATCH v3 2/3] acpi_memhotplug: Add prepare_remove operation
-Date: Fri, 23 Nov 2012 18:50:36 +0100
-Message-Id: <1353693037-21704-3-git-send-email-vasilis.liaskovitis@profitbricks.com>
+Subject: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Fri, 23 Nov 2012 18:50:37 +0100
+Message-Id: <1353693037-21704-4-git-send-email-vasilis.liaskovitis@profitbricks.com>
 In-Reply-To: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
 References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,84 +15,56 @@ List-ID: <linux-mm.kvack.org>
 To: linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com
 Cc: rjw@sisk.pl, lenb@kernel.org, toshi.kani@hp.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 
-Offlining and removal of memory is now done in the prepare_remove callback,
-not in the remove callback.
+Consider the following sequence of operations for a hotplugged memory device:
 
-The prepare_remove callback will be called when trying to remove a memory device
-with the following ways:
+1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+2. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/bind
+3. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
 
-1. send eject request by SCI
-2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+The driver is successfully re-bound to the device in step 2. However step 3 will
+not attempt to remove the memory. This is because the acpi_memory_info enabled
+bit for the newly bound driver has not been set to 1. This bit needs to be set
+in the case where the memory is already used by the kernel (add_memory returns
+-EEXIST)
 
-Note that unbinding the acpi driver from a memory device with:
-echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+Setting the enabled bit in this case (in acpi_memory_enable_device) makes the
+driver function properly after a rebind of the driver i.e. eject operation
+attempts to remove memory after a successful rebind.
 
-will no longer try to remove the memory. This is in compliance with normal
-unbind driver core semantics, see the discussion in v2 of this patchset:
-https://lkml.org/lkml/2012/11/16/649
+I am not sure if this breaks some other usage of the enabled bit (see commit
+65479472). When is it possible for the memory to be in use by the kernel but
+not managed by the acpi driver, apart from a driver unbind scenario?
 
-After a successful unbind of the driver:
-- OSPM ejects of the memory device cannot proceed, as acpi_eject_store will
-return -ENODEV on missing driver.
-- SCI ejects of the memory device also cannot proceed, as they will also get
-a "driver data is NULL" error.
-So the memory can continue to be used safely after unbind.
+Perhaps the patch is not needed, depending on expected semantics of re-binding.
+Is the newly bound driver supposed to manage the device, if it was earlier
+managed by the same driver?
+
+This patch is only specific to this scenario, and can be dropped from the patch
+series if needed.
 
 Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
 ---
- drivers/acpi/acpi_memhotplug.c |   18 ++++++++++++++++--
- 1 files changed, 16 insertions(+), 2 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index eb30e5a..d0cfbd9 100644
+index d0cfbd9..0562cb4 100644
 --- a/drivers/acpi/acpi_memhotplug.c
 +++ b/drivers/acpi/acpi_memhotplug.c
-@@ -55,6 +55,7 @@ MODULE_LICENSE("GPL");
+@@ -271,12 +271,11 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 			continue;
+ 		}
  
- static int acpi_memory_device_add(struct acpi_device *device);
- static int acpi_memory_device_remove(struct acpi_device *device, int type);
-+static int acpi_memory_device_prepare_remove(struct acpi_device *device);
- 
- static const struct acpi_device_id memory_device_ids[] = {
- 	{ACPI_MEMORY_DEVICE_HID, 0},
-@@ -69,6 +70,7 @@ static struct acpi_driver acpi_memory_device_driver = {
- 	.ops = {
- 		.add = acpi_memory_device_add,
- 		.remove = acpi_memory_device_remove,
-+		.prepare_remove = acpi_memory_device_prepare_remove,
- 		},
- };
- 
-@@ -448,6 +450,20 @@ static int acpi_memory_device_add(struct acpi_device *device)
- static int acpi_memory_device_remove(struct acpi_device *device, int type)
- {
- 	struct acpi_memory_device *mem_device = NULL;
-+
-+	if (!device || !acpi_driver_data(device))
-+		return -EINVAL;
-+
-+	mem_device = acpi_driver_data(device);
-+
-+	acpi_memory_device_free(mem_device);
-+
-+	return 0;
-+}
-+
-+static int acpi_memory_device_prepare_remove(struct acpi_device *device)
-+{
-+	struct acpi_memory_device *mem_device = NULL;
- 	int result;
- 
- 	if (!device || !acpi_driver_data(device))
-@@ -459,8 +475,6 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
- 	if (result)
- 		return result;
- 
--	acpi_memory_device_free(mem_device);
--
- 	return 0;
- }
- 
+-		if (!result)
+-			info->enabled = 1;
+ 		/*
+ 		 * Add num_enable even if add_memory() returns -EEXIST, so the
+ 		 * device is bound to this driver.
+ 		 */
++		info->enabled = 1;
+ 		num_enabled++;
+ 	}
+ 	if (!num_enabled) {
 -- 
 1.7.9
 
