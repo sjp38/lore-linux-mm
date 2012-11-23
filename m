@@ -1,72 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id D78E86B0070
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 20:58:50 -0500 (EST)
-Received: by mail-ia0-f169.google.com with SMTP id r4so7618039iaj.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 17:58:50 -0800 (PST)
-Message-ID: <50AED854.7080300@gmail.com>
-Date: Fri, 23 Nov 2012 09:58:44 +0800
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 567B46B005D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 21:10:33 -0500 (EST)
+Received: by mail-ia0-f169.google.com with SMTP id r4so7623774iaj.14
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 18:10:32 -0800 (PST)
+Message-ID: <50AEDB12.6090300@gmail.com>
+Date: Fri, 23 Nov 2012 10:10:26 +0800
 From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
 Subject: Re: Problem in Page Cache Replacement
-References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz>
-In-Reply-To: <20121120182500.GH1408@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+References: <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com> <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com> <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost> <50ACA209.9000101@gmail.com> <1353491880.11679.YahooMailNeo@web141102.mail.bf1.yahoo.com> <50ACA634.5000007@gmail.com> <CAJOrxZBpefqtkXr+XTxEZ6qy-6SCwQJ11makD=Lg_M4itY5Ang@mail.gmail.com> <20121122154107.GB11736@localhost> <20121122155318.GA12636@localhost>
+In-Reply-To: <20121122155318.GA12636@localhost>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: metin d <metdos@yahoo.com>
-Cc: Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: =?UTF-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 11/21/2012 02:25 AM, Jan Kara wrote:
-> On Tue 20-11-12 09:42:42, metin d wrote:
->> I have two PostgreSQL databases named data-1 and data-2 that sit on the
->> same machine. Both databases keep 40 GB of data, and the total memory
->> available on the machine is 68GB.
+On 11/22/2012 11:53 PM, Fengguang Wu wrote:
+> On Thu, Nov 22, 2012 at 11:41:07PM +0800, Fengguang Wu wrote:
+>> On Wed, Nov 21, 2012 at 12:07:22PM +0200, Metin DA?A?lA 1/4  wrote:
+>>> On Wed, Nov 21, 2012 at 12:00 PM, Jaegeuk Hanse <jaegeuk.hanse@gmail.com> wrote:
+>>>> On 11/21/2012 05:58 PM, metin d wrote:
+>>>>
+>>>> Hi Fengguang,
+>>>>
+>>>> I run tests and attached the results. The line below I guess shows the data-1 page caches.
+>>>>
+>>>> 0x000000080000006c       6584051    25718  __RU_lA___________________P________    referenced,uptodate,lru,active,private
+>>>>
+>>>>
+>>>> I thinks this is just one state of page cache pages.
+>>> But why these page caches are in this state as opposed to other page
+>>> caches. From the results I conclude that:
+>>>
+>>> data-1 pages are in state : referenced,uptodate,lru,active,private
+>> I wonder if it's this code that stops data-1 pages from being
+>> reclaimed:
 >>
->> I started data-1 and data-2, and ran several queries to go over all their
->> data. Then, I shut down data-1 and kept issuing queries against data-2.
->> For some reason, the OS still holds on to large parts of data-1's pages
->> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
->> a result, my queries on data-2 keep hitting disk.
+>> shrink_page_list():
 >>
->> I'm checking page cache usage with fincore. When I run a table scan query
->> against data-2, I see that data-2's pages get evicted and put back into
->> the cache in a round-robin manner. Nothing happens to data-1's pages,
->> although they haven't been touched for days.
+>>                  if (page_has_private(page)) {
+>>                          if (!try_to_release_page(page, sc->gfp_mask))
+>>                                  goto activate_locked;
+>>
+>> What's the filesystem used?
+> Ah it's more likely caused by this logic:
+>
+>          if (is_active_lru(lru)) {
+>                  if (inactive_list_is_low(mz, file))
+>                          shrink_active_list(nr_to_scan, mz, sc, priority, file);
+>
+> The active file list won't be scanned at all if it's smaller than the
+> active list. In this case, it's inactive=33586MB > active=25719MB. So
+> the data-1 pages in the active list will never be scanned and reclaimed.
 
-Hi metin d,
+Hi Fengguang,
 
-fincore is a tool or ...? How could I get it?
+It seems that most of data-1 file pages are in active lru cache and most 
+of data-2 file pages are in inactive lru cache. As Johannes mentioned, 
+if inter-reference distance is bigger than half of memory, the pages 
+will not be actived. How you intend to resolve this issue? Is Johannes's 
+inactive list threshing idea  available?
 
 Regards,
 Jaegeuk
 
->>
->> Does anybody know why data-1's pages aren't evicted from the page cache?
->> I'm open to all kind of suggestions you think it might relate to problem.
->    Curious. Added linux-mm list to CC to catch more attention. If you run
-> echo 1 >/proc/sys/vm/drop_caches
->    does it evict data-1 pages from memory?
 >
->> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no
->> swap space. The kernel version is:
->>
->> $ uname -r
->> 3.2.28-45.62.amzn1.x86_64
->> Edit:
->>
->> and it seems that I use one NUMA instance, if  you think that it can a problem.
->>
->> $ numactl --hardware
->> available: 1 nodes (0)
->> node 0 cpus: 0 1 2 3 4 5 6 7
->> node 0 size: 70007 MB
->> node 0 free: 360 MB
->> node distances:
->> node   0
->>    0:  10
-> 								Honza
+>>> data-2 pages are in state : referenced,uptodate,lru,mappedtodisk
+>> Thanks,
+>> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
