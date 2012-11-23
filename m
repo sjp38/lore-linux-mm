@@ -1,142 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 14CCA6B005D
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 09:59:07 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_memory=2Dcgroup_bug?=
-Date: Fri, 23 Nov 2012 15:59:04 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121121200207.01068046@pobox.sk>, <20121122152441.GA9609@dhcp22.suse.cz>, <20121122190526.390C7A28@pobox.sk>, <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk> <20121123100438.GF24698@dhcp22.suse.cz>
-In-Reply-To: <20121123100438.GF24698@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 42C236B0071
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 10:20:52 -0500 (EST)
+Message-ID: <50AF9450.9020803@leemhuis.info>
+Date: Fri, 23 Nov 2012 16:20:48 +0100
+From: Thorsten Leemhuis <fedora@leemhuis.info>
 MIME-Version: 1.0
-Message-Id: <20121123155904.490039C5@pobox.sk>
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+References: <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com> <509CB9D1.6060704@redhat.com> <20121109090635.GG8218@suse.de> <509F6C2A.9060502@redhat.com> <20121112113731.GS8218@suse.de> <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com> <20121116200616.GK8218@suse.de> <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com> <50ABC128.80706@leemhuis.info>
+In-Reply-To: <50ABC128.80706@leemhuis.info>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>
+To: Josh Boyer <jwboyer@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, bruno@wolff.to
 
->If you could instrument mem_cgroup_handle_oom with some printks (before
->we take the memcg_oom_lock, before we schedule and into
->mem_cgroup_out_of_memory)
+Thorsten Leemhuis wrote on 20.11.2012 18:43:
+> On 20.11.2012 16:38, Josh Boyer wrote:
+> 
+> The short story from my current point of view is:
 
+Quick update, in case anybody is interested:
 
-If you send me patch i can do it. I'm, unfortunately, not able to code it.
+>  * my main machine at home where I initially saw the issue that started
+> this thread seems to be running fine with rc6 and the "safe" patch Mel
+> posted in https://lkml.org/lkml/2012/11/12/113 Before that I ran a rc5
+> kernel with the revert that went into rc6 and the "safe" patch -- that
+> worked fine for a few days, too.
 
+On this machine I'm running a rc6 kernel + the fix for the accounting
+bug(A1) that went into mainline ~40 hours ago + the "riskier" patch Mel
+posted in https://lkml.org/lkml/2012/11/12/151
 
+Up to now everything works fine.
 
->> It, luckily, happend again so i have more info.
->> 
->>  - there wasn't any logs in kernel from OOM for that cgroup
->>  - there were 16 processes in cgroup
->>  - processes in cgroup were taking togather 100% of CPU (it
->>    was allowed to use only one core, so 100% of that core)
->>  - memory.failcnt was groving fast
->>  - oom_control:
->> oom_kill_disable 0
->> under_oom 0 (this was looping from 0 to 1)
->
->So there was an OOM going on but no messages in the log? Really strange.
->Kame already asked about oom_score_adj of the processes in the group but
->it didn't look like all the processes would have oom disabled, right?
+(A1) https://lkml.org/lkml/2012/11/21/362
 
+>  * I have a second machine where I started to use 3.7-rc kernels only
+> yesterday (the machine triggered a bug in the radeon driver that seems
+> to be fixed in rc6) which showed symptoms like the ones Zdenek Kabelac
+> mentions in this thread. I wasn't able to look closer at it, but simply
+> tried rc6 with the safe patch, which didn't help. I'm now running rc6
+> with the "riskier" patch from https://lkml.org/lkml/2012/11/12/151
+> I can't yet tell if it helps. If the problems shows up again I'll try to
+> capture more debugging data via sysrq -- there wasn't any time for that
+> when I was running rc6 with the safe patch, sorry.
 
-There were no messages telling that some processes were killed because of OOM.
+This machine is now also behaving fine with above mentioned rc6 kernel +
+the two patches. It seems the accounting bug was the root cause for the
+problems this machine showed.
 
-
->>  - limit_in_bytes was set to 157286400
->>  - content of stat (as you can see, the whole memory limit was used):
->> cache 0
->> rss 0
->
->This looks like a top-level group for your user.
-
-
-Yes, it was from /cgroup/<user-id>/
-
-
->> mapped_file 0
->> pgpgin 0
->> pgpgout 0
->> swap 0
->> pgfault 0
->> pgmajfault 0
->> inactive_anon 0
->> active_anon 0
->> inactive_file 0
->> active_file 0
->> unevictable 0
->> hierarchical_memory_limit 157286400
->> hierarchical_memsw_limit 157286400
->> total_cache 0
->> total_rss 157286400
->
->OK, so all the memory is anonymous and you have no swap so the oom is
->the only thing to do.
-
-
-What will happen if the same situation occurs globally? No swap, every bit of memory used. Will kernel be able to start OOM killer? Maybe the same thing is happening in cgroup - there's simply no space to run OOM killer. And maybe this is why it's happening rarely - usually there are still at least few KBs of memory left to start OOM killer.
-
-
->Hmm, all processes waiting for oom are stuck at the very same place:
->$ grep mem_cgroup_handle_oom -r [0-9]*
->30858/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->30859/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->30860/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->30892/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->30898/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->31588/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->32044/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->32358/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->6031/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->6534/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->7020/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
->
->We are taking memcg_oom_lock spinlock twice in that function + we can
->schedule. As none of the tasks is scheduled this would suggest that you
->are blocked at the first lock. But who got the lock then?
->This is really strange.
->Btw. is sysrq+t resp. sysrq+w showing the same traces as
->/proc/<pid>/stat?
-
-
-Unfortunately i'm connecting remotely to the servers (SSH).
-
-
->> Notice that stack is different for few processes.
->
->Yes others are in VFS resp ext3. ext3_write_begin looks a bit dangerous
->but it grabs the page before it really starts a transaction.
-
-
-Maybe these processes were throttled by cgroup-blkio at the same time and are still keeping the lock? So the problem occurs when there are low on memory and cgroup is doing IO out of it's limits. Only guessing and telling my thoughts.
-
-
->> Stack for all processes were NOT chaging and was still the same.
->
->Could you take few snapshots over time?
-
-
-Will do next time but i can't keep services freezed for a long time or customers will be angry.
-
-
->> didn't checked if cgroup was freezed but i suppose it wasn't):
->> none            /cgroups        cgroup  defaults,cpuacct,cpuset,memory,freezer,task,blkio 0 0
->
->Do you see the same issue if only memory controller was mounted (resp.
->cpuset which you seem to use as well from your description).
-
-
-Uh, we are using all mounted subsystems :( I will be able to umount only freezer and maybe blkio for some time. Will it help?
-
-
->I know you said booting into a vanilla kernel would be problematic but
->could you at least rule out te cgroup patches that you have mentioned?
->If you need to move a task to a group based by an uid you can use
->cgrules daemon (libcgroup1 package) for that as well.
-
-
-We are using cgroup-uid cos it's MUCH MUCH MUCH more efective and better. For example, i don't believe that cgroup-task will work with that daemon. What will happen if cgrules won't be able to add process into cgroup because of task limit? Process will probably continue and will run outside of any cgroup which is wrong. With cgroup-task + cgroup-uid, such processes cannot be even started (and this is what we need).
+CU
+ Thorsten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
