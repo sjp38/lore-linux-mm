@@ -1,103 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id ABDF06B0083
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:02:23 -0500 (EST)
-Date: 23 Nov 2012 05:02:22 -0500
-Message-ID: <20121123100222.21774.qmail@science.horizon.com>
-From: "George Spelvin" <linux@horizon.com>
-Subject: Re: 3.7-rc6 soft lockup in kswapd0
-In-Reply-To: <20121123085137.GA646@suse.de>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 492A16B0087
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:04:44 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id v13so11399536vbk.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 02:04:43 -0800 (PST)
+Date: Fri, 23 Nov 2012 11:04:38 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: memory-cgroup bug
+Message-ID: <20121123100438.GF24698@dhcp22.suse.cz>
+References: <20121121200207.01068046@pobox.sk>
+ <20121122152441.GA9609@dhcp22.suse.cz>
+ <20121122190526.390C7A28@pobox.sk>
+ <20121122214249.GA20319@dhcp22.suse.cz>
+ <20121122233434.3D5E35E6@pobox.sk>
+ <20121123074023.GA24698@dhcp22.suse.cz>
+ <20121123102137.10D6D653@pobox.sk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121123102137.10D6D653@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@horizon.com, mgorman@suse.de
-Cc: dave@linux.vnet.ibm.com, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
 
-tl;dr: Have installed Dave Hansen's patch as requested, rebooted.
-       Now it's a matter of waiting for lockup...
-
-Mel Gorman wrote:
-> heh, those P4s are great for keeping the room warm in winter. Legacy
-> high five?
-
-I wanted a physically separate box for some lightly used outside-facing
-network services, and it was lying around.  Since then, if it ain't broke,
-don't fix it.
-
-If you want *legacy*, a few months ago I installed recent kernels on
-an original F00F-bug Pentium (96 MB RAM,bit only 64 MB cacheable!),
-and an original MCM PPro.  They aren't actually in service, though.
-
-> Joking aside, the UP aspect of this is the most relevant.
-
-Yeah, I wondered how much testing that got these days. :-)
-
->> It's kind of a funny lockup.  Some things work:
->> 
->> - TCP SYN handshake
->> - Alt-SysRq
->> 
->> And others don't:
->> 
->> - Caps lock
->> - Shift-PgUp
->> - Alt-Fn
->> - Screen unblanking
->> - Actually talking to a daemon
->> 
-
-> So basically interrupts work but the machine has otherwise locked up. On
-> a uniprocessor, it's possible it is infinite looping in kswapd and
-> nothing else is getting the chance to run if it never hits a
-> cond_resched().
-
-Did caps lock LED handling get moved to something above interrupt context?
-I used to use that as the test of "is the machine locked hard".
-
-It might be worth seeing if that functionality can be restored.  The fact
-that I can make the console scroll down with Alt-SysRq, but can't scroll
-back up to see what just got printed, is maddening.
-
-> Ok, is there any chance you can capture more of sysrq+m, particularly the
-> bits that say how much free memory there is and many pages of each order
-> that is free? If you can't, it's ok. I ask because my kernel bug dowsing
-> rod is twitching in the direction of the recent free page accounting bug
-> Dave Hansen identified and fixed -- https://lkml.org/lkml/2012/11/21/504
-
-Will do when I get in front of the machine again.  I had rebooted with
-2.6.5, but I can remotely reboot with 2.7-rc6, then it's just a matter
-of waiting.
-
-> You might have a machine that is able to hit this particular bug faster. It's
-> not a memory leak as such, but it acts like one. The kernel would think
-> the watermarks are not met because it's using NR_FREE_PAGES instead of
-> checking the free lists.
+On Fri 23-11-12 10:21:37, azurIt wrote:
+[...]
+> It, luckily, happend again so i have more info.
 > 
-> Can you try that patch out please?
+>  - there wasn't any logs in kernel from OOM for that cgroup
+>  - there were 16 processes in cgroup
+>  - processes in cgroup were taking togather 100% of CPU (it
+>    was allowed to use only one core, so 100% of that core)
+>  - memory.failcnt was groving fast
+>  - oom_control:
+> oom_kill_disable 0
+> under_oom 0 (this was looping from 0 to 1)
 
-Okay, so I've cherry-picked ef6c5be658f6a70c1256fbd18e18ee0dc24c3386
-from mainline, and rebooted.
+So there was an OOM going on but no messages in the log? Really strange.
+Kame already asked about oom_score_adj of the processes in the group but
+it didn't look like all the processes would have oom disabled, right?
 
-I've never tried disabling console blanking remotely, though.  I did
-	# echo '^[[9;0]' > /dev/tty0
-	# echo '^[[9;0]' > /dev/tty1
-	# echo '^[[14;0]' > /dev/tty1
-	# echo '^[[14;0]' > /dev/tty0
-I hope that works...
+>  - limit_in_bytes was set to 157286400
+>  - content of stat (as you can see, the whole memory limit was used):
+> cache 0
+> rss 0
 
-> The interesting information in this case is further up. First look for
-> the line that looks kinda like this
+This looks like a top-level group for your user.
 
-Will do if it locks up again.  I did notice that all three zones had
-at least one free page of size 4096kb, FWIW.
+> mapped_file 0
+> pgpgin 0
+> pgpgout 0
+> swap 0
+> pgfault 0
+> pgmajfault 0
+> inactive_anon 0
+> active_anon 0
+> inactive_file 0
+> active_file 0
+> unevictable 0
+> hierarchical_memory_limit 157286400
+> hierarchical_memsw_limit 157286400
+> total_cache 0
+> total_rss 157286400
 
-> The free page counter and these free lists should be close together. If
-> there is a big gap then it's almost certainly the bug Dave identified.
+OK, so all the memory is anonymous and you have no swap so the oom is
+the only thing to do.
+
+> total_mapped_file 0
+> total_pgpgin 10326454
+> total_pgpgout 10288054
+> total_swap 0
+> total_pgfault 12939677
+> total_pgmajfault 4283
+> total_inactive_anon 0
+> total_active_anon 157286400
+> total_inactive_file 0
+> total_active_file 0
+> total_unevictable 0
 > 
-> There is another potential infinite loop in kswapd that Johannes has
-> identified and it could also be that. However, lets rule out Dave's bug
-> first.
+> 
+> i also grabber oom_adj, oom_score_adj and stack of all processes, here
+> it is:
+> http://www.watchdog.sk/lkml/memcg-bug.tar
 
-Thanks a lot!
+Hmm, all processes waiting for oom are stuck at the very same place:
+$ grep mem_cgroup_handle_oom -r [0-9]*
+30858/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+30859/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+30860/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+30892/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+30898/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+31588/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+32044/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+32358/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+6031/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+6534/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+7020/stack:[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+
+We are taking memcg_oom_lock spinlock twice in that function + we can
+schedule. As none of the tasks is scheduled this would suggest that you
+are blocked at the first lock. But who got the lock then?
+This is really strange.
+Btw. is sysrq+t resp. sysrq+w showing the same traces as
+/proc/<pid>/stat?
+ 
+> Notice that stack is different for few processes.
+
+Yes others are in VFS resp ext3. ext3_write_begin looks a bit dangerous
+but it grabs the page before it really starts a transaction.
+
+> Stack for all processes were NOT chaging and was still the same.
+
+Could you take few snapshots over time?
+
+> Btw, don't know if it matters but i was several cgroup subsystems
+> mounted and i'm also using them (i was not activating freezer in this
+> case, don't know if it can be active automatically by kernel or what,
+
+No
+
+> didn't checked if cgroup was freezed but i suppose it wasn't):
+> none            /cgroups        cgroup  defaults,cpuacct,cpuset,memory,freezer,task,blkio 0 0
+
+Do you see the same issue if only memory controller was mounted (resp.
+cpuset which you seem to use as well from your description).
+
+I know you said booting into a vanilla kernel would be problematic but
+could you at least rule out te cgroup patches that you have mentioned?
+If you need to move a task to a group based by an uid you can use
+cgrules daemon (libcgroup1 package) for that as well.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
