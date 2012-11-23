@@ -1,47 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id D9DBC6B0081
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 04:53:07 -0500 (EST)
-Date: Fri, 23 Nov 2012 10:53:02 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 02/40] x86: mm: drop TLB flush from ptep_set_access_flags
-Message-ID: <20121123095301.GB18765@x1.alien8.de>
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
- <1353612353-1576-3-git-send-email-mgorman@suse.de>
- <20121122205637.4e9112e2@pyramind.ukuu.org.uk>
- <20121123090909.GX8218@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20121123090909.GX8218@suse.de>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id ABDF06B0083
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:02:23 -0500 (EST)
+Date: 23 Nov 2012 05:02:22 -0500
+Message-ID: <20121123100222.21774.qmail@science.horizon.com>
+From: "George Spelvin" <linux@horizon.com>
+Subject: Re: 3.7-rc6 soft lockup in kswapd0
+In-Reply-To: <20121123085137.GA646@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux@horizon.com, mgorman@suse.de
+Cc: dave@linux.vnet.ibm.com, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Nov 23, 2012 at 09:09:09AM +0000, Mel Gorman wrote:
-> You sortof can[1]. Borislav Petkov answered that they do
-> https://lkml.org/lkml/2012/11/17/85 and quoted the manual at
-> https://lkml.org/lkml/2012/10/29/414 saying that this should be ok.
+tl;dr: Have installed Dave Hansen's patch as requested, rebooted.
+       Now it's a matter of waiting for lockup...
+
+Mel Gorman wrote:
+> heh, those P4s are great for keeping the room warm in winter. Legacy
+> high five?
+
+I wanted a physically separate box for some lightly used outside-facing
+network services, and it was lying around.  Since then, if it ain't broke,
+don't fix it.
+
+If you want *legacy*, a few months ago I installed recent kernels on
+an original F00F-bug Pentium (96 MB RAM,bit only 64 MB cacheable!),
+and an original MCM PPro.  They aren't actually in service, though.
+
+> Joking aside, the UP aspect of this is the most relevant.
+
+Yeah, I wondered how much testing that got these days. :-)
+
+>> It's kind of a funny lockup.  Some things work:
+>> 
+>> - TCP SYN handshake
+>> - Alt-SysRq
+>> 
+>> And others don't:
+>> 
+>> - Caps lock
+>> - Shift-PgUp
+>> - Alt-Fn
+>> - Screen unblanking
+>> - Actually talking to a daemon
+>> 
+
+> So basically interrupts work but the machine has otherwise locked up. On
+> a uniprocessor, it's possible it is infinite looping in kswapd and
+> nothing else is getting the chance to run if it never hits a
+> cond_resched().
+
+Did caps lock LED handling get moved to something above interrupt context?
+I used to use that as the test of "is the machine locked hard".
+
+It might be worth seeing if that functionality can be restored.  The fact
+that I can make the console scroll down with Alt-SysRq, but can't scroll
+back up to see what just got printed, is maddening.
+
+> Ok, is there any chance you can capture more of sysrq+m, particularly the
+> bits that say how much free memory there is and many pages of each order
+> that is free? If you can't, it's ok. I ask because my kernel bug dowsing
+> rod is twitching in the direction of the recent free page accounting bug
+> Dave Hansen identified and fixed -- https://lkml.org/lkml/2012/11/21/504
+
+Will do when I get in front of the machine again.  I had rebooted with
+2.6.5, but I can remotely reboot with 2.7-rc6, then it's just a matter
+of waiting.
+
+> You might have a machine that is able to hit this particular bug faster. It's
+> not a memory leak as such, but it acts like one. The kernel would think
+> the watermarks are not met because it's using NR_FREE_PAGES instead of
+> checking the free lists.
 > 
-> [1] There is no delicate way of putting it. I've no idea what the
->     current status of current and former AMD kernel developers is.
+> Can you try that patch out please?
 
-All those based in Dresden don't work for AMD anymore.
+Okay, so I've cherry-picked ef6c5be658f6a70c1256fbd18e18ee0dc24c3386
+from mainline, and rebooted.
 
-But regardless, I've already confirmed with AMD design that this is
-actually architectural and we're zapping the TLB entry on a #PF on all
-relevant CPUs.
+I've never tried disabling console blanking remotely, though.  I did
+	# echo '^[[9;0]' > /dev/tty0
+	# echo '^[[9;0]' > /dev/tty1
+	# echo '^[[14;0]' > /dev/tty1
+	# echo '^[[14;0]' > /dev/tty0
+I hope that works...
 
-I'd still like to have some sort of an assertion there just in case but,
-as Linus pointed out, that won't be easy. I'd guess it's up to you -mm
-guys to think up something sick that works under CONFIG_DEBUG_VM :).
+> The interesting information in this case is further up. First look for
+> the line that looks kinda like this
 
-HTH.
+Will do if it locks up again.  I did notice that all three zones had
+at least one free page of size 4096kb, FWIW.
 
--- 
-Regards/Gruss,
-Boris.
+> The free page counter and these free lists should be close together. If
+> there is a big gap then it's almost certainly the bug Dave identified.
+> 
+> There is another potential infinite loop in kswapd that Johannes has
+> identified and it could also be that. However, lets rule out Dave's bug
+> first.
+
+Thanks a lot!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
