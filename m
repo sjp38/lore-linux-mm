@@ -1,92 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id CF86F6B006C
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:37:20 -0500 (EST)
-Message-ID: <50AF51D1.6040702@parallels.com>
-Date: Fri, 23 Nov 2012 14:37:05 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id CC7236B006C
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:43:33 -0500 (EST)
+Date: Fri, 23 Nov 2012 10:43:27 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: numa: Add THP migration for the NUMA working set
+ scanning fault case -fixes
+Message-ID: <20121123104327.GY8218@suse.de>
+References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
+ <1353612353-1576-38-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg: debugging facility to access dangling memcgs.
-References: <1353580190-14721-1-git-send-email-glommer@parallels.com> <1353580190-14721-3-git-send-email-glommer@parallels.com> <20121123092010.GD24698@dhcp22.suse.cz> <50AF42F0.6040407@parallels.com> <20121123103307.GH24698@dhcp22.suse.cz>
-In-Reply-To: <20121123103307.GH24698@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1353612353-1576-38-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/23/2012 02:33 PM, Michal Hocko wrote:
-> On Fri 23-11-12 13:33:36, Glauber Costa wrote:
->> On 11/23/2012 01:20 PM, Michal Hocko wrote:
->>> On Thu 22-11-12 14:29:50, Glauber Costa wrote:
->>> [...]
->>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->>>> index 05b87aa..46f7cfb 100644
->>>> --- a/mm/memcontrol.c
->>>> +++ b/mm/memcontrol.c
->>> [...]
->>>> @@ -349,6 +366,33 @@ struct mem_cgroup {
->>>>  #endif
->>>>  };
->>>>  
->>>> +#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEMCG_SWAP)
->>>
->>> Can we have a common config for this something like CONFIG_MEMCG_ASYNC_DESTROY
->>> which would be selected if either of the two (or potentially others)
->>> would be selected.
->>> Also you are saying that the feature is only for debugging purposes so
->>> it shouldn't be on by default probably.
->>>
->>
->> I personally wouldn't mind. But the big value I see from it is basically
->> being able to turn it off. For all the rest, we would have to wrap it
->> under one of those config options anyway...
-> 
-> Sure you would need to habe mem_cgroup_dangling_FOO wrapped by the
-> correct one anyway but that still need to live inside a bigger ifdef and
-> naming all the FOO is awkward. Besides that one
-> CONFIG_MEMCG_ASYNC_DESTROY_DEBUG could have a Kconfig entry and so be
-> enabled separately.
-> 
+Hugh pointed out some issues that needed addressing in the THP native
+migration patch
 
-How about a more general memcg debug option like CONFIG_MEMCG_DEBUG?
-Do you foresee more facilities we could enable under this?
+o transhuge isolations should be accounted as HPAGE_PMD_NR, not 1
+o the migratepages list is doing nothing and is garbage leftover
+  from an attempt to mesh transhuge migration properly with normal
+  migration. Looking again now, I think it would trigger errors if list
+  debugging was enabled and the THP migration failed. When I had a bunch
+  of debugging options set earlier in development, list debugging was not
+  one of them. This potentially could take a long time to hit but if you
+  see bugs that look like LRU list corruption then this could be it.
 
+Additionally
 
+o Account for transhuage pages that are migrated so we know roughly
+  how many MB/sec are being migrated for a given workload.
 
-> Ohh, you are right you are using kmem_cache name for those. Sorry for
-> the confusion
->  
->>> And finally it would be really nice if you described what is the
->>> exported information good for. Can I somehow change the current state
->>> (e.g. force freeing those objects so that the memcg can finally pass out
->>> in piece)?
->>>
->> I am open, but I would personally like to have this as a view-only
->> interface,
-> 
-> And I was not proposing to make it RW. I am just missing a description
-> that would explain: "Ohh well, the file says there are some dangling
-> memcgs. Should I report a bug or sue somebody or just have a coffee and
-> wait some more?"
-> 
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/migrate.c |   18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
 
-People should pay me beer if the number of pending caches is odd, and
-pay you beer if the number is even. If the number is 0, we both get it.
-
->> just so we suspect a leak occurs, we can easily see what is
->> the dead memcg contribution to it. It shows you where the data come
->> from, and if you want to free it, you go search for subsystem-specific
->> ways to force a free should you want.
-> 
-> Yes, I can imagine its usefulness for developers but I do not see much
-> of an use for admins yet. So I am a bit hesitant for this being on by
-> default.
-> 
-Fully agreed. I am implementing this because Kame suggested. I promptly
-agreed because I remembered how many times I asked myself "Who is
-holding this?" and had to go put some printks all over...
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d7c5bdf..b84fded 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1532,7 +1532,12 @@ int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+ 		put_page(page);
+ 
+ 		page_lru = page_is_file_cache(page);
+-		inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
++		if (!PageTransHuge(page))
++			inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
++		else
++			mod_zone_page_state(page_zone(page),
++					NR_ISOLATED_ANON + page_lru,
++					HPAGE_PMD_NR);
+ 	}
+ 
+ 	return 1;
+@@ -1598,7 +1603,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	unsigned long haddr = address & HPAGE_PMD_MASK;
+ 	pg_data_t *pgdat = NODE_DATA(node);
+ 	int isolated = 0;
+-	LIST_HEAD(migratepages);
+ 	struct page *new_page = NULL;
+ 	struct mem_cgroup *memcg = NULL;
+ 	int page_lru = page_is_file_cache(page);
+@@ -1626,7 +1630,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	isolated = numamigrate_isolate_page(pgdat, page);
+ 	if (!isolated)
+ 		goto out_keep_locked;
+-	list_add(&page->lru, &migratepages);
+ 
+ 	/* Prepare a page as a migration target */
+ 	__set_page_locked(new_page);
+@@ -1655,6 +1658,8 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 
+ 		unlock_page(page);
+ 		putback_lru_page(page);
++
++		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+ 		goto out;
+ 	}
+ 
+@@ -1690,8 +1695,13 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 	put_page(page);			/* Drop the rmap reference */
+ 	put_page(page);			/* Drop the LRU isolation reference */
+ 
++	count_vm_events(PGMIGRATE_SUCCESS, HPAGE_PMD_NR);
++	count_vm_numa_events(NUMA_PAGE_MIGRATE, HPAGE_PMD_NR);
++
+ out:
+-	dec_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
++	mod_zone_page_state(page_zone(page),
++			NR_ISOLATED_ANON + page_lru,
++			-HPAGE_PMD_NR);
+ 	return isolated;
+ 
+ out_dropref:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
