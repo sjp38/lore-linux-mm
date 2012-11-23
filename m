@@ -1,45 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id DE0B56B0044
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 09:00:54 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so7006676pbc.14
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 06:00:54 -0800 (PST)
-Date: Fri, 23 Nov 2012 06:00:48 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: debugging facility to access dangling memcgs.
-Message-ID: <20121123140048.GU15971@htj.dyndns.org>
-References: <1353580190-14721-1-git-send-email-glommer@parallels.com>
- <1353580190-14721-3-git-send-email-glommer@parallels.com>
- <20121123092010.GD24698@dhcp22.suse.cz>
- <50AF42F0.6040407@parallels.com>
- <20121123103307.GH24698@dhcp22.suse.cz>
- <50AF51D1.6040702@parallels.com>
- <20121123105154.GK24698@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121123105154.GK24698@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 375676B0044
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 09:10:48 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: [PATCH v2] mm: trace filemap add and del
+Date: Fri, 23 Nov 2012 15:10:19 +0100
+Message-Id: <1353679819-6989-1-git-send-email-robert.jarzmik@free.fr>
+In-Reply-To: <1352404450-30100-1-git-send-email-robert.jarzmik@free.fr>
+References: <1352404450-30100-1-git-send-email-robert.jarzmik@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Robert Jarzmik <robert.jarzmik@free.fr>
 
-On Fri, Nov 23, 2012 at 11:51:54AM +0100, Michal Hocko wrote:
-> > Fully agreed. I am implementing this because Kame suggested. I promptly
-> > agreed because I remembered how many times I asked myself "Who is
-> > holding this?" and had to go put some printks all over...
-> 
-> So please make it configurable, off by default and be explicit about its
-> usefulness.
+Use the events API to trace filemap loading and
+unloading of file pieces into the page cache.
 
-And please make the file name explicitly indicate that it's a debug
-thing, so that someone doesn't grow a messy dependency on it for
-whatever reason.
+This patch aims at tracing the eviction reload
+cycle of executable and shared libraries pages in
+a memory constrained environment.
 
-Thanks.
+The typical usage is to spot a specific device and
+inode (for example /lib/libc.so) to see the eviction
+cycles, and find out if frequently used code is
+rather spread across many pages (bad) or coallesced
+(good).
 
+Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+---
+Since V1:
+ - included Andrew's comments
+ - included Dave's comment
+ - fixed according to Hugh's comment
+---
+ include/trace/events/filemap.h |   79 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 +++
+ 2 files changed, 84 insertions(+)
+ create mode 100644 include/trace/events/filemap.h
+
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+new file mode 100644
+index 0000000..529b80d
+--- /dev/null
++++ b/include/trace/events/filemap.h
+@@ -0,0 +1,79 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
++
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/device.h>
++#include <linux/kdev_t.h>
++
++TRACE_EVENT(mm_filemap_delete_from_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lu page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++TRACE_EVENT(mm_filemap_add_to_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lu page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 83efee7..1ee7cf6 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
++
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+@@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+ 	 * invalidate any existing cleancache entries.  We can't leave
+@@ -463,6 +467,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		if (likely(!error)) {
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
++			trace_mm_filemap_add_to_page_cache(page);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 		} else {
+ 			page->mapping = NULL;
 -- 
-tejun
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
