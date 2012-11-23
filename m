@@ -1,265 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 34D256B005D
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 20:26:10 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id lz20so10856688obb.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 17:26:09 -0800 (PST)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 9689B6B005D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 20:32:13 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id e20so2418507dak.14
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 17:32:12 -0800 (PST)
+Message-ID: <50AED214.4000701@gmail.com>
+Date: Fri, 23 Nov 2012 09:32:04 +0800
+From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20121120160918.GA18167@gmail.com>
-References: <1353291284-2998-1-git-send-email-mingo@kernel.org>
-	<20121119162909.GL8218@suse.de>
-	<20121119191339.GA11701@gmail.com>
-	<20121119211804.GM8218@suse.de>
-	<20121119223604.GA13470@gmail.com>
-	<CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
-	<20121120071704.GA14199@gmail.com>
-	<20121120152933.GA17996@gmail.com>
-	<20121120160918.GA18167@gmail.com>
-Date: Fri, 23 Nov 2012 09:26:08 +0800
-Message-ID: <CAGjg+kHtdFE9Nc9ZTRjf73zwrOV77T=uX3ojsP=FWt8wbc2WBQ@mail.gmail.com>
-Subject: Re: [PATCH, v2] mm, numa: Turn 4K pte NUMA faults into effective
- hugepage ones
-From: Alex Shi <lkml.alex@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: Problem in Page Cache Replacement
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com> <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com> <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost> <50ACA209.9000101@gmail.com> <20121122152611.GA11736@localhost>
+In-Reply-To: <20121122152611.GA11736@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shi@intel.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: metin d <metdos@yahoo.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-This patch cause boot hang on our SNB EP 2 sockets machine with some
-segmentation fault.
-revert it recovers booting.
-
-============
-[    8.290147] Freeing unused kernel memory: 1264k freed
-[    8.306140] Freeing unused kernel memory: 1592k freed
-[    8.342668] init[250]: segfault at 20da510 ip 00000000020da510 sp
-00007fff26788040 error 15[    8.350983] usb 2-1: New USB device found,
-idVendor=8087, idProduct=0024
-[    8.350987] usb 2-1: New USB device strings: Mfr=0, Product=0, SerialNumber=0
-[    8.351266] hub 2-1:1.0: USB hub found
-[    8.351346] hub 2-1:1.0: 8 ports detected
-
-Segmentation fault
-[    8.626633] usb 2-1.4: new full-speed USB device number 3 using ehci_hcd
-[    8.721391] usb 2-1.4: New USB device found, idVendor=046b, idProduct=ff10
-[    8.729536] usb 2-1.4: New USB device strings: Mfr=1, Product=2,
-SerialNumber=3
-[    8.738540] usb 2-1.4: Product: Virtual Keyboard and Mouse
-[    8.745134] usb 2-1.4: Manufacturer: American Megatrends Inc.
-[    8.752026] usb 2-1.4: SerialNumber: serial
-[    8.758877] input: American Megatrends Inc. Virtual Keyboard and
-Mouse as /devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.4/2-1.4:1.0/input/input1
-[    8.774428] hid-generic 0003:046B:FF10.0001: input,hidraw0: USB HID
-v1.10 Keyboard [American Megatrends Inc. Virtual Keyboard and Mouse]
-on usb-0000:00:1d.0-1.4/input0
-[    8.793393] input: American Megatrends Inc. Virtual Keyboard and
-Mouse as /devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.4/2-1.4:1.1/input/input2
-[    8.809140] hid-generic 0003:046B:FF10.0002: input,hidraw1: USB HID
-v1.10 Mouse [American Megatrends Inc. Virtual Keyboard and Mouse] on
-usb-0000:00:1d.0-1.4/input1
-[    8.899511] usb 2-1.7: new low-speed USB device number 4 using ehci_hcd
-[    9.073473] usb 2-1.7: New USB device found, idVendor=0557, idProduct=2220
-[    9.081633] usb 2-1.7: New USB device strings: Mfr=1, Product=2,
-SerialNumber=0
-[    9.090643] usb 2-1.7: Product: ATEN  CS-1758/54
-[    9.096258] usb 2-1.7: Manufacturer: ATEN
-[    9.134093] input: ATEN ATEN  CS-1758/54 as
-/devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.7/2-1.7:1.0/input/input3
-[    9.146804] hid-generic 0003:0557:2220.0003: input,hidraw2: USB HID
-v1.10 Keyboard [ATEN ATEN  CS-1758/54] on usb-0000:00:1d.0-1.7/input0
-[    9.184396] input: ATEN ATEN  CS-1758/54 as
-/devices/pci0000:00/0000:00:1d.0/usb2/2-1/2-1.7/2-1.7:1.1/input/input4
-[    9.197210] hid-generic 0003:0557:2220.0004: input,hidraw3: USB HID
-v1.10 Mouse [ATEN ATEN  CS-1758/54] on usb-0000:00:1d.0-1.7/input1
-
-<hang here>
-
-On Wed, Nov 21, 2012 at 12:09 AM, Ingo Molnar <mingo@kernel.org> wrote:
+On 11/22/2012 11:26 PM, Fengguang Wu wrote:
+> Hi Jaegeuk,
 >
-> Ok, the patch withstood a bit more testing as well. Below is a
-> v2 version of it, with a couple of cleanups (no functional
-> changes).
+> Sorry for the delay. I'm traveling these days..
+>
+> On Wed, Nov 21, 2012 at 05:42:33PM +0800, Jaegeuk Hanse wrote:
+>> On 11/21/2012 05:02 PM, Fengguang Wu wrote:
+>>> On Wed, Nov 21, 2012 at 04:34:40PM +0800, Jaegeuk Hanse wrote:
+>>>> Cc Fengguang Wu.
+>>>>
+>>>> On 11/21/2012 04:13 PM, metin d wrote:
+>>>>>>    Curious. Added linux-mm list to CC to catch more attention. If you run
+>>>>>> echo 1 >/proc/sys/vm/drop_caches does it evict data-1 pages from memory?
+>>>>> I'm guessing it'd evict the entries, but am wondering if we could run any more diagnostics before trying this.
+>>>>>
+>>>>> We regularly use a setup where we have two databases; one gets used frequently and the other one about once a month. It seems like the memory manager keeps unused pages in memory at the expense of frequently used database's performance.
+>>>>> My understanding was that under memory pressure from heavily
+>>>>> accessed pages, unused pages would eventually get evicted. Is there
+>>>>> anything else we can try on this host to understand why this is
+>>>>> happening?
+>>> We may debug it this way.
+>>>
+>>> 1) run 'fadvise data-2 0 0 dontneed' to drop data-2 cached pages
+>>>     (please double check via /proc/vmstat whether it does the expected work)
+>>>
+>>> 2) run 'page-types -r' with root, to view the page status for the
+>>>     remaining pages of data-1
+>>>
+>>> The fadvise tool comes from Andrew Morton's ext3-tools. (source code attached)
+>>> Please compile them with options "-Dlinux -I. -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE"
+>>>
+>>> page-types can be found in the kernel source tree tools/vm/page-types.c
+>>>
+>>> Sorry that sounds a bit twisted.. I do have a patch to directly dump
+>>> page cache status of a user specified file, however it's not
+>>> upstreamed yet.
+>> Hi Fengguang,
+>>
+>> Thanks for you detail steps, I think metin can have a try.
+>>
+>>          flags    page-count       MB  symbolic-flags long-symbolic-flags
+>> 0x0000000000000000        607699     2373
+>> ___________________________________
+>> 0x0000000100000000        343227     1340
+>> _______________________r___________    reserved
+>   
+> We don't need to care about the above two pages states actually.
+> Page cache pages will never be in the special reserved or
+> all-flags-cleared state.
+
+Hi Fengguang,
+
+Thanks for your response. But which kind of pages are in the special 
+reserved and which are all-flags-cleared?
+
+Regards,
+Jaegeuk
+
+>
+>> But I have some questions of the print of page-type:
+>>
+>> Is 2373MB here mean total memory in used include page cache? I don't
+>> think so.
+>> Which kind of pages will be marked reserved?
+>> Which line of long-symbolic-flags is for page cache?
+> The (lru && !anonymous) pages are page cache pages.
 >
 > Thanks,
+> Fengguang
 >
->         Ingo
->
-> ----------------->
-> Subject: mm, numa: Turn 4K pte NUMA faults into effective hugepage ones
-> From: Ingo Molnar <mingo@kernel.org>
-> Date: Tue Nov 20 15:48:26 CET 2012
->
-> Reduce the 4K page fault count by looking around and processing
-> nearby pages if possible.
->
-> To keep the logic and cache overhead simple and straightforward
-> we do a couple of simplifications:
->
->  - we only scan in the HPAGE_SIZE range of the faulting address
->  - we only go as far as the vma allows us
->
-> Also simplify the do_numa_page() flow while at it and fix the
-> previous double faulting we incurred due to not properly fixing
-> up freshly migrated ptes.
->
-> Suggested-by: Mel Gorman <mgorman@suse.de>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> ---
->  mm/memory.c |   99 ++++++++++++++++++++++++++++++++++++++----------------------
->  1 file changed, 64 insertions(+), 35 deletions(-)
->
-> Index: linux/mm/memory.c
-> ===================================================================
-> --- linux.orig/mm/memory.c
-> +++ linux/mm/memory.c
-> @@ -3455,64 +3455,93 @@ static int do_nonlinear_fault(struct mm_
->         return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
->  }
->
-> -static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> +static int __do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
->                         unsigned long address, pte_t *ptep, pmd_t *pmd,
-> -                       unsigned int flags, pte_t entry)
-> +                       unsigned int flags, pte_t entry, spinlock_t *ptl)
->  {
-> -       struct page *page = NULL;
-> -       int node, page_nid = -1;
-> -       int last_cpu = -1;
-> -       spinlock_t *ptl;
-> -
-> -       ptl = pte_lockptr(mm, pmd);
-> -       spin_lock(ptl);
-> -       if (unlikely(!pte_same(*ptep, entry)))
-> -               goto out_unlock;
-> +       struct page *page;
-> +       int new_node;
->
->         page = vm_normal_page(vma, address, entry);
->         if (page) {
-> -               get_page(page);
-> -               page_nid = page_to_nid(page);
-> -               last_cpu = page_last_cpu(page);
-> -               node = mpol_misplaced(page, vma, address);
-> -               if (node != -1 && node != page_nid)
-> +               int page_nid = page_to_nid(page);
-> +               int last_cpu = page_last_cpu(page);
-> +
-> +               task_numa_fault(page_nid, last_cpu, 1);
-> +
-> +               new_node = mpol_misplaced(page, vma, address);
-> +               if (new_node != -1 && new_node != page_nid)
->                         goto migrate;
->         }
->
-> -out_pte_upgrade_unlock:
-> +out_pte_upgrade:
->         flush_cache_page(vma, address, pte_pfn(entry));
-> -
->         ptep_modify_prot_start(mm, address, ptep);
->         entry = pte_modify(entry, vma->vm_page_prot);
-> +       if (pte_dirty(entry))
-> +               entry = pte_mkwrite(entry);
->         ptep_modify_prot_commit(mm, address, ptep, entry);
-> -
->         /* No TLB flush needed because we upgraded the PTE */
-> -
->         update_mmu_cache(vma, address, ptep);
-> -
-> -out_unlock:
-> -       pte_unmap_unlock(ptep, ptl);
-> -
-> -       if (page) {
-> -               task_numa_fault(page_nid, last_cpu, 1);
-> -               put_page(page);
-> -       }
->  out:
->         return 0;
->
->  migrate:
-> +       get_page(page);
->         pte_unmap_unlock(ptep, ptl);
->
-> -       if (migrate_misplaced_page(page, node)) {
-> +       migrate_misplaced_page(page, new_node); /* Drops the page reference */
-> +
-> +       /* Re-check after migration: */
-> +
-> +       ptl = pte_lockptr(mm, pmd);
-> +       spin_lock(ptl);
-> +       entry = ACCESS_ONCE(*ptep);
-> +
-> +       if (!pte_numa(vma, entry))
->                 goto out;
-> -       }
-> -       page = NULL;
->
-> -       ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
-> -       if (!pte_same(*ptep, entry))
-> -               goto out_unlock;
-> +       goto out_pte_upgrade;
-> +}
-> +
-> +/*
-> + * Add a simple loop to also fetch ptes within the same pmd:
-> + */
-> +static int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> +                       unsigned long addr0, pte_t *ptep0, pmd_t *pmd,
-> +                       unsigned int flags, pte_t entry0)
-> +{
-> +       unsigned long addr0_pmd;
-> +       unsigned long addr_start;
-> +       unsigned long addr;
-> +       spinlock_t *ptl;
-> +       pte_t *ptep;
-> +
-> +       addr0_pmd = addr0 & PMD_MASK;
-> +       addr_start = max(addr0_pmd, vma->vm_start);
->
-> -       goto out_pte_upgrade_unlock;
-> +       ptep = pte_offset_map(pmd, addr_start);
-> +       ptl = pte_lockptr(mm, pmd);
-> +       spin_lock(ptl);
-> +
-> +       for (addr = addr_start; addr < vma->vm_end; addr += PAGE_SIZE, ptep++) {
-> +               pte_t entry;
-> +
-> +               entry = ACCESS_ONCE(*ptep);
-> +
-> +               if ((addr & PMD_MASK) != addr0_pmd)
-> +                       break;
-> +               if (!pte_present(entry))
-> +                       continue;
-> +               if (!pte_numa(vma, entry))
-> +                       continue;
-> +
-> +               __do_numa_page(mm, vma, addr, ptep, pmd, flags, entry, ptl);
-> +       }
-> +
-> +       pte_unmap_unlock(ptep, ptl);
-> +
-> +       return 0;
->  }
->
->  /*
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
-
--- 
-Thanks
-    Alex
+>>>>> On Tue 20-11-12 09:42:42, metin d wrote:
+>>>>>> I have two PostgreSQL databases named data-1 and data-2 that sit on the
+>>>>>> same machine. Both databases keep 40 GB of data, and the total memory
+>>>>>> available on the machine is 68GB.
+>>>>>>
+>>>>>> I started data-1 and data-2, and ran several queries to go over all their
+>>>>>> data. Then, I shut down data-1 and kept issuing queries against data-2.
+>>>>>> For some reason, the OS still holds on to large parts of data-1's pages
+>>>>>> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+>>>>>> a result, my queries on data-2 keep hitting disk.
+>>>>>>
+>>>>>> I'm checking page cache usage with fincore. When I run a table scan query
+>>>>>> against data-2, I see that data-2's pages get evicted and put back into
+>>>>>> the cache in a round-robin manner. Nothing happens to data-1's pages,
+>>>>>> although they haven't been touched for days.
+>>>>>>
+>>>>>> Does anybody know why data-1's pages aren't evicted from the page cache?
+>>>>>> I'm open to all kind of suggestions you think it might relate to problem.
+>>>>>    Curious. Added linux-mm list to CC to catch more attention. If you run
+>>>>> echo 1 >/proc/sys/vm/drop_caches
+>>>>>    does it evict data-1 pages from memory?
+>>>>>
+>>>>>> This is an EC2 m2.4xlarge instance on Amazon with 68 GB of RAM and no
+>>>>>> swap space. The kernel version is:
+>>>>>>
+>>>>>> $ uname -r
+>>>>>> 3.2.28-45.62.amzn1.x86_64
+>>>>>> Edit:
+>>>>>>
+>>>>>> and it seems that I use one NUMA instance, if  you think that it can a problem.
+>>>>>>
+>>>>>> $ numactl --hardware
+>>>>>> available: 1 nodes (0)
+>>>>>> node 0 cpus: 0 1 2 3 4 5 6 7
+>>>>>> node 0 size: 70007 MB
+>>>>>> node 0 free: 360 MB
+>>>>>> node distances:
+>>>>>> node   0
+>>>>>>     0:  10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
