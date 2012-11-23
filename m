@@ -1,47 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 5A7956B004D
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 04:09:17 -0500 (EST)
-Date: Fri, 23 Nov 2012 09:09:09 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 02/40] x86: mm: drop TLB flush from ptep_set_access_flags
-Message-ID: <20121123090909.GX8218@suse.de>
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
- <1353612353-1576-3-git-send-email-mgorman@suse.de>
- <20121122205637.4e9112e2@pyramind.ukuu.org.uk>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id C38836B005D
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 04:20:15 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id v13so11357723vbk.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 01:20:14 -0800 (PST)
+Date: Fri, 23 Nov 2012 10:20:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] memcg: debugging facility to access dangling memcgs.
+Message-ID: <20121123092010.GD24698@dhcp22.suse.cz>
+References: <1353580190-14721-1-git-send-email-glommer@parallels.com>
+ <1353580190-14721-3-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121122205637.4e9112e2@pyramind.ukuu.org.uk>
+In-Reply-To: <1353580190-14721-3-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
-On Thu, Nov 22, 2012 at 08:56:37PM +0000, Alan Cox wrote:
-> On Thu, 22 Nov 2012 19:25:15 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > From: Rik van Riel <riel@redhat.com>
-> > 
-> > Intel has an architectural guarantee that the TLB entry causing
-> > a page fault gets invalidated automatically. This means
-> > we should be able to drop the local TLB invalidation.
-> 
-> Can we get an AMD sign off on that ?
-> 
+On Thu 22-11-12 14:29:50, Glauber Costa wrote:
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 05b87aa..46f7cfb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -349,6 +366,33 @@ struct mem_cgroup {
+>  #endif
+>  };
+>  
+> +#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEMCG_SWAP)
 
-Hi Alan,
+Can we have a common config for this something like CONFIG_MEMCG_ASYNC_DESTROY
+which would be selected if either of the two (or potentially others)
+would be selected.
+Also you are saying that the feature is only for debugging purposes so
+it shouldn't be on by default probably.
 
-You sortof can[1]. Borislav Petkov answered that they do
-https://lkml.org/lkml/2012/11/17/85 and quoted the manual at
-https://lkml.org/lkml/2012/10/29/414 saying that this should be ok.
+> +static LIST_HEAD(dangling_memcgs);
+> +static DEFINE_MUTEX(dangling_memcgs_mutex);
+> +
+> +static inline void memcg_dangling_free(struct mem_cgroup *memcg)
+> +{
+> +	mutex_lock(&dangling_memcgs_mutex);
+> +	list_del(&memcg->dead);
+> +	mutex_unlock(&dangling_memcgs_mutex);
+> +	kfree(memcg->memcg_name);
+> +}
+> +
+> +static inline void memcg_dangling_add(struct mem_cgroup *memcg)
+> +{
+> +
+> +	memcg->memcg_name = kstrdup(cgroup_name(memcg->css.cgroup), GFP_KERNEL);
 
-[1] There is no delicate way of putting it. I've no idea what the
-    current status of current and former AMD kernel developers is.
+Who gets charged for this allocation? What if the allocation fails (not
+that it would be probable but still...)?
 
+> +
+> +	INIT_LIST_HEAD(&memcg->dead);
+> +	mutex_lock(&dangling_memcgs_mutex);
+> +	list_add(&memcg->dead, &dangling_memcgs);
+> +	mutex_unlock(&dangling_memcgs_mutex);
+> +}
+> +#else
+> +static inline void memcg_dangling_free(struct mem_cgroup *memcg) {}
+> +static inline void memcg_dangling_add(struct mem_cgroup *memcg) {}
+> +#endif
+> +
+>  /* internal only representation about the status of kmem accounting. */
+>  enum {
+>  	KMEM_ACCOUNTED_ACTIVE = 0, /* accounted by this cgroup itself */
+> @@ -4868,6 +4912,92 @@ static ssize_t mem_cgroup_read(struct cgroup *cont, struct cftype *cft,
+>  	return simple_read_from_buffer(buf, nbytes, ppos, str, len);
+>  }
+>  
+> +#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEMCG_SWAP)
+> +static void
+> +mem_cgroup_dangling_swap(struct mem_cgroup *memcg, struct seq_file *m)
+> +{
+> +#ifdef CONFIG_MEMCG_SWAP
+> +	u64 kmem;
+> +	u64 memsw;
+> +
+> +	/*
+> +	 * kmem will also propagate here, so we are only interested in the
+> +	 * difference.  See comment in mem_cgroup_reparent_charges for details.
+> +	 *
+> +	 * We could save this value for later consumption by kmem reports, but
+> +	 * there is not a lot of problem if the figures differ slightly.
+> +	 */
+> +	kmem = res_counter_read_u64(&memcg->kmem, RES_USAGE);
+> +	memsw = res_counter_read_u64(&memcg->memsw, RES_USAGE) - kmem;
+> +	seq_printf(m, "\t%llu swap bytes\n", memsw);
+> +#endif
+> +}
+> +
+> +static void
+> +mem_cgroup_dangling_kmem(struct mem_cgroup *memcg, struct seq_file *m)
+> +{
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	u64 kmem;
+> +	struct memcg_cache_params *params;
+> +
+> +#ifdef CONFIG_INET
+> +	struct tcp_memcontrol *tcp = &memcg->tcp_mem;
+> +	s64 tcp_socks;
+> +	u64 tcp_bytes;
+> +
+> +	tcp_socks = percpu_counter_sum_positive(&tcp->tcp_sockets_allocated);
+> +	tcp_bytes = res_counter_read_u64(&tcp->tcp_memory_allocated, RES_USAGE);
+> +	seq_printf(m, "\t%llu tcp bytes, in %lld sockets\n",
+> +		   tcp_bytes, tcp_socks);
+> +
+> +#endif
+
+Looks like this deserves its own function rather than this ifdef games
+inside functions.
+
+> +
+> +	kmem = res_counter_read_u64(&memcg->kmem, RES_USAGE);
+> +	seq_printf(m, "\t%llu kmem bytes", kmem);
+> +
+> +	/* list below may not be initialized, so not even try */
+> +	if (!kmem)
+> +		return;
+> +
+> +	seq_printf(m, " in caches");
+> +	mutex_lock(&memcg->slab_caches_mutex);
+> +	list_for_each_entry(params, &memcg->memcg_slab_caches, list) {
+> +			struct kmem_cache *s = memcg_params_to_cache(params);
+> +
+> +		seq_printf(m, " %s", s->name);
+> +	}
+> +	mutex_unlock(&memcg->slab_caches_mutex);
+> +	seq_printf(m, "\n");
+> +#endif
+> +}
+> +
+> +/*
+> + * After a memcg is destroyed, it may still be kept around in memory.
+> + * Currently, the two main reasons for it are swap entries, and kernel memory.
+> + * Because they will be freed assynchronously, they will pin the memcg structure
+> + * and its resources until the last reference goes away.
+> + *
+> + * This root-only file will show information about which users
+> + */
+> +static int mem_cgroup_dangling_read(struct cgroup *cont, struct cftype *cft,
+> +					struct seq_file *m)
+> +{
+> +	struct mem_cgroup *memcg;
+> +
+> +	mutex_lock(&dangling_memcgs_mutex);
+> +
+> +	list_for_each_entry(memcg, &dangling_memcgs, dead) {
+> +		seq_printf(m, "%s:\n", memcg->memcg_name);
+
+Hmm, we have lost the cgroup path so know there is something called A
+but we do not know whether it was A/A A/B/A A/......../A (aka we have
+lost the hierarchy information and a group with the same name might
+exist which can be really confusing).
+
+That being said I would prefer if this was covered by a debugging
+option, off by default.
+It would be better if we could preserve the whole group name (something
+like cgroup_path does) but I guess this would break caches names, right?
+And finally it would be really nice if you described what is the
+exported information good for. Can I somehow change the current state
+(e.g. force freeing those objects so that the memcg can finally pass out
+in piece)?
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
