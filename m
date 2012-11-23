@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id A17F06B0044
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 07:59:37 -0500 (EST)
-Date: Fri, 23 Nov 2012 11:13:17 +0100
-From: Tomas Racek <tracek@redhat.com>
-Subject: Re: 3.7-rc6 soft lockup in kswapd0
-Message-ID: <20121123101316.GA10295@luke.redhat.com>
-Reply-To: 20121123085137.GA646@suse.de
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 33D986B0044
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 08:31:50 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so4523078bkc.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:31:48 -0800 (PST)
+Date: Fri, 23 Nov 2012 14:31:38 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: numa/core regressions fixed - more testers wanted
+Message-ID: <20121123133138.GA28058@gmail.com>
+References: <20121119162909.GL8218@suse.de>
+ <20121119191339.GA11701@gmail.com>
+ <20121119211804.GM8218@suse.de>
+ <20121119223604.GA13470@gmail.com>
+ <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
+ <20121120071704.GA14199@gmail.com>
+ <20121120152933.GA17996@gmail.com>
+ <20121120175647.GA23532@gmail.com>
+ <CAGjg+kHKaQLcrnEftB+2mjeCjGUBiisSOpNCe+_9-4LDho9LpA@mail.gmail.com>
+ <20121122012122.GA7938@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20121122012122.GA7938@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, George Spelvin <linux@horizon.com>, riel@redhat.com
+To: Alex Shi <lkml.alex@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Hi Mel,
 
-I've encoutered the same problem as George yesterday running xfstests in qemu with latest git sources:
- 
- BUG: soft lockup - CPU#0 stuck for 23s! [kswapd0:31]
- irq event stamp: 9740956
- hardirqs last  enabled at (9740955): [<ffffffff8166c273>] restore_args+0x0/0x30
- hardirqs last disabled at (9740956): [<ffffffff8166d9ad>] apic_timer_interrupt+0x6d/0x80
- softirqs last  enabled at (9740954): [<ffffffff8105c887>] __do_softirq+0x167/0x3d0
- softirqs last disabled at (9740949): [<ffffffff8166e0fc>] call_softirq+0x1c/0x30
- CPU 0 
- Pid: 31, comm: kswapd0 Not tainted 3.7.0-rc6+ #232 Bochs Bochs
- Process kswapd0 (pid: 31, threadinfo ffff88003d2cc000, task ffff88003d2d8000)
- Call Trace:
-  [<ffffffff8113bb81>] zone_watermark_ok_safe+0x71/0x100
-  [<ffffffff8113baff>] ? zone_watermark_ok+0x1f/0x30
-  [<ffffffff8114bd6e>] kswapd+0x2fe/0xd70
-  [<ffffffff8114ba70>] ? try_to_free_pages+0x830/0x830
-  [<ffffffff8107f9bd>] kthread+0xed/0x100
-  [<ffffffff8107f8d0>] ? insert_kthread_work+0x80/0x80
-  [<ffffffff8166cdac>] ret_from_fork+0x7c/0xb0
-  [<ffffffff8107f8d0>] ? insert_kthread_work+0x80/0x80
- Code: 4c 2b 8f 00 01 00 00 48 d1 fa 49 39 d1 7e 30 31 c9 eb 20 0f 1f 80 00 00 00 00 48 8b 87 58 01 00 00 48 d1 fa 48 83 c7 58 48 d3 e0 <49> 29 c1 49 39 d1 7e 0f 83 c1 01 39 f1 75 e0 b8 01 00 00 00 5d 
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-Git bisect pointed me to:
+> * Alex Shi <lkml.alex@gmail.com> wrote:
+> 
+> > >
+> > > Those of you who would like to test all the latest patches are
+> > > welcome to pick up latest bits at tip:master:
+> > >
+> > >    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
+> > >
+> > 
+> > I am wondering if it is a problem, but it still exists on HEAD: c418de93e39891
+> > http://article.gmane.org/gmane.linux.kernel.mm/90131/match=compiled+with+name+pl+and+start+it+on+my
+> > 
+> > like when just start 4 pl tasks, often 3 were running on node 
+> > 0, and 1 was running on node 1. The old balance will average 
+> > assign tasks to different node, different core.
+> 
+> This is "normal" in the sense that the current mainline 
+> scheduler is (supposed to be) doing something similar: if the 
+> node is still within capacity, then there's no reason to move 
+> those threads.
+> 
+> OTOH, I think with NUMA balancing we indeed want to spread 
+> them better, if those tasks do not share memory with each 
+> other but use their own memory. If they share memory then they 
+> should remain on the same node if possible.
 
-c654345924f mm: remove __GFP_NO_KSWAPD
+Could you please check tip:master with -v17:
 
-[adding Rik to Cc:]
+  git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
 
-Prior to this commit I wasn't able to reproduce it.
+?
 
-(BTW: I hope I managed to send this mail with proper Reply-To:, strangely your mail and those from Honza were not delivered to my mailbox.)
+It should place your workload better than v16 did.
 
-Tom
+Note, you might be able to find other combinations of tasks that 
+are not scheduled NUMA-perfectly yet, as task group placement is 
+not exhaustive yet.
+
+You might want to check which combination looks the weirdest to 
+you and report it, so I can fix any remaining placement 
+inefficiencies in order of importance.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
