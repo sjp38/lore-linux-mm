@@ -1,148 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 39AEA6B005A
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 21:42:35 -0500 (EST)
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 5F6086B004D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 23:42:33 -0500 (EST)
+Date: Fri, 23 Nov 2012 13:42:50 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 2/2] zram: allocate metadata when disksize is set up
-Date: Fri, 23 Nov 2012 11:42:47 +0900
-Message-Id: <1353638567-3981-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1353638567-3981-1-git-send-email-minchan@kernel.org>
-References: <1353638567-3981-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
+ approaches low water mark
+Message-ID: <20121123044250.GG5121@bbox>
+References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
+ <20121120000137.GC447@bbox>
+ <50AB987F.30002@samsung.com>
+ <20121121010556.GD447@bbox>
+ <50ACF855.7010506@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50ACF855.7010506@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jerome Marchand <jmarchan@redhat.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Pekka Enberg <penberg@cs.helsinki.fi>, Minchan Kim <minchan@kernel.org>
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 
-Lockdep complains about recursive deadlock of zram->init_lock.
-Because zram_init_device could be called in reclaim context and
-it requires a page with GFP_KERNEL.
+Hi Marek,
 
-We can fix it via replacing GFP_KERNEL with GFP_NOIO.
-But more big problem is vzalloc in zram_init_device which calls GFP_KERNEL.
-We can change it with __vmalloc which can receive gfp_t.
-But still we have a problem. Although __vmalloc can handle gfp_t, it calls
-allocation of GFP_KERNEL. That's why I sent the patch.
-https://lkml.org/lkml/2012/4/23/77
+On Wed, Nov 21, 2012 at 04:50:45PM +0100, Marek Szyprowski wrote:
+> Hello,
+> 
+> On 11/21/2012 2:05 AM, Minchan Kim wrote:
+> >On Tue, Nov 20, 2012 at 03:49:35PM +0100, Marek Szyprowski wrote:
+> >> Hello,
+> >>
+> >> On 11/20/2012 1:01 AM, Minchan Kim wrote:
+> >> >Hi Marek,
+> >> >
+> >> >On Mon, Nov 12, 2012 at 09:59:42AM +0100, Marek Szyprowski wrote:
+> >> >> It has been observed that system tends to keep a lot of CMA free pages
+> >> >> even in very high memory pressure use cases. The CMA fallback for movable
+> >> >
+> >> >CMA free pages are just fallback for movable pages so if user requires many
+> >> >user pages, it ends up consuming cma free pages after out of movable pages.
+> >> >What do you mean that system tend to keep free pages even in very
+> >> >high memory pressure?
+> >> >> pages is used very rarely, only when system is completely pruned from
+> >> >> MOVABLE pages, what usually means that the out-of-memory even will be
+> >> >> triggered very soon. To avoid such situation and make better use of CMA
+> >> >
+> >> >Why does OOM is triggered very soon if movable pages are burned out while
+> >> >there are many cma pages?
+> >> >
+> >> >It seems I can't understand your point quitely.
+> >> >Please make your problem clear for silly me to understand clearly.
+> >>
+> >> Right now running out of 'plain' movable pages is the only possibility to
+> >> get movable pages allocated from CMA. On the other hand running out of
+> >> 'plain' movable pages is very deadly for the system, as movable pageblocks
+> >> are also the main fallbacks for reclaimable and non-movable pages.
+> >>
+> >> Then, once we run out of movable pages and kernel needs non-mobable or
+> >> reclaimable page (what happens quite often), it usually triggers OOM to
+> >> satisfy the memory needs. Such OOM is very strange, especially on a system
+> >> with dozen of megabytes of CMA memory, having most of them free at the OOM
+> >> event. By high memory pressure I mean the high memory usage.
+> >
+> >So your concern is that too many free pages in MIGRATE_CMA when OOM happens
+> >is odd? It's natural with considering CMA design which kernel never fallback
+> >non-movable page allocation to CMA area. I guess it's not a your concern.
+> 
+> My concern is how to minimize memory waste with CMA.
+> 
+> >Let's think below extreme cases.
+> >
+> >= Before =
+> >
+> >* 1000M DRAM system.
+> >* 400M kernel used pages.
+> >* 300M movable used pages.
+> >* 300M cma freed pages.
+> >
+> >1. kernel want to request 400M non-movable memory, additionally.
+> >2. VM start to reclaim 300M movable pages.
+> >3. But it's not enough to meet 400M request.
+> >4. go to OOM. (It's natural)
+> >
+> >= After(with your patch) =
+> >
+> >* 1000M DRAM system.
+> >* 400M kernel used pages.
+> >* 300M movable *freed* pages.
+> >* 300M cma used pages(by your patch, I simplified your concept)
+> >
+> >1. kernel want to request 400M non-movable memory.
+> >2. 300M movable freed pages isn't enough to meet 400M request.
+> >3. Also, there is no point to reclaim CMA pages for non-movable allocation.
+> >4. go to OOM. (It's natural)
+> >
+> >There is no difference between before and after in allocation POV.
+> >Let's think another example.
+> >
+> >= Before =
+> >
+> >* 1000M DRAM system.
+> >* 400M kernel used pages.
+> >* 300M movable used pages.
+> >* 300M cma freed pages.
+> >
+> >1. kernel want to request 300M non-movable memory.
+> >2. VM start to reclaim 300M movable pages.
+> >3. It's enough to meet 300M request.
+> >4. happy end
+> >
+> >= After(with your patch) =
+> >
+> >* 1000M DRAM system.
+> >* 400M kernel used pages.
+> >* 300M movable *freed* pages.
+> >* 300M cma used pages(by your patch, I simplified your concept)
+> >
+> >1. kernel want to request 300M non-movable memory.
+> >2. 300M movable freed pages is enough to meet 300M request.
+> >3. happy end.
+> >
+> >There is no difference in allocation POV, too.
+> 
+> Those cases are just theoretical, out-of-real live examples. In real world
+> kernel allocates (and frees) non-movable memory in small portions while
+> system is running. Typically keeping some amount of free 'plain' movable
+> pages is enough to make kernel happy about any kind of allocations
+> (especially non-movable). This requirement is in complete contrast to the
+> current fallback mechanism, which activates only when kernel runs out of
+> movable pages completely.
+> 
+> >So I guess that if you see OOM while there are many movable pages,
+> >I think principal problem is VM reclaimer which should try to reclaim
+> >best effort if there are freeable movable pages. If VM reclaimer has
+> >some problem for your workload, firstly we should try fix it rather than
+> >adding such heuristic to hot path. Otherwise, if you see OOM while there
+> >are many free CMA pages, it's not odd to me.
+> 
+> Frankly I don't see how reclaim procedure can ensure that it will be
+> always possible to allocate non-movable pages with current fallback
+> mechanism,
+> which is used only when kernel runs out of pages of a given type. Could you
+> explain how would You like to change the reclaim procedure to avoid
+> the above
+> situation?
 
-Yes. Fundamental problem is utter crap API vmalloc.
-If we can fix it, everyone would be happy. But life isn't simple
-like seeing my thread of the patch.
+What I have a mind is following as.
 
-So next option is to give up lazy initialization and initialize it at the
-very disksize setting time. But it makes unnecessary metadata waste until
-zram is really used. But let's think about it.
+1. Reclaimer should migrate MIGRATE_MOVABLE into MIGRATE_CMA
+   if there are free space in MIGRATE_CMA so VM could allocate
+   non-movalbe pages with MIGRATE_MOVABLE fallback.
 
-1) User of zram normally do mkfs.xxx or mkswap before using
-   the zram block device(ex, normally, do it at booting time)
-   It ends up allocating such metadata of zram before real usage so
-   benefit of lazy initialzation would be mitigated.
+2. Reclaimer should consider non-movable page allocation.
+   I mean reclaimer can reclaim MIGRATE_CMA pages when memory pressure happens
+   by request of non-movable page but it is useless and such unnecessary reclaim
+   hit performance. So reclaimer should reclaim target pages(ie, MIGRATE_MOVABLE)
 
-2) Some user want to use zram when memory pressure is high.(ie, load zram
-   dynamically, NOT booting time). It does make sense because people don't
-   want to waste memory until memory pressure is high(ie, where zram is really
-   helpful time). In this case, lazy initialzation could be failed easily
-   because we will use GFP_NOIO instead of GFP_KERNEL for avoiding deadlock.
-   So the benefit of lazy initialzation would be mitigated, too.
+3. If reclaiming got failed by some reason(ex, they are working set),
+   we should reclaim MIGRATE_CMA and migrate MIGRATE_MOVABLE pages to MIGRATE_CMA.
+   So kernel allocatio would be succeeded.
 
-3) Metadata overhead is not critical and Nitin has a plan to diet it.
-   4K : 12 byte(64bit machine) -> 64G : 192M so 0.3% isn't big overhead
-   If insane user use such big zram device up to 20, it could consume 6% of ram
-   but efficieny of zram will cover the waste.
+Above migration scheme is important for embedded system which don't have a swap
+because they has a limit to reclaim anonymous pages in MIGRATE_MOVABLE.
 
-So this patch gives up lazy initialization and instead we initialize metadata
-at disksize setting time.
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/staging/zram/zram_drv.c   |   21 ++++-----------------
- drivers/staging/zram/zram_sysfs.c |    1 +
- 2 files changed, 5 insertions(+), 17 deletions(-)
-
-diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-index 9ef1eca..f364fb5 100644
---- a/drivers/staging/zram/zram_drv.c
-+++ b/drivers/staging/zram/zram_drv.c
-@@ -441,16 +441,13 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
- {
- 	struct zram *zram = queue->queuedata;
- 
--	if (unlikely(!zram->init_done) && zram_init_device(zram))
--		goto error;
--
- 	down_read(&zram->init_lock);
- 	if (unlikely(!zram->init_done))
--		goto error_unlock;
-+		goto error;
- 
- 	if (!valid_io_request(zram, bio)) {
- 		zram_stat64_inc(zram, &zram->stats.invalid_io);
--		goto error_unlock;
-+		goto error;
- 	}
- 
- 	__zram_make_request(zram, bio, bio_data_dir(bio));
-@@ -458,9 +455,8 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
- 
- 	return;
- 
--error_unlock:
--	up_read(&zram->init_lock);
- error:
-+	up_read(&zram->init_lock);
- 	bio_io_error(bio);
- }
- 
-@@ -509,19 +505,12 @@ void zram_reset_device(struct zram *zram)
- 	up_write(&zram->init_lock);
- }
- 
-+/* zram->init_lock should be hold */
- int zram_init_device(struct zram *zram)
- {
- 	int ret;
- 	size_t num_pages;
- 
--	down_write(&zram->init_lock);
--	if (zram->init_done) {
--		up_write(&zram->init_lock);
--		return 0;
--	}
--
--	BUG_ON(!zram->disksize);
--
- 	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
- 		pr_info(
- 		"There is little point creating a zram of greater than "
-@@ -570,7 +559,6 @@ int zram_init_device(struct zram *zram)
- 	}
- 
- 	zram->init_done = 1;
--	up_write(&zram->init_lock);
- 
- 	pr_debug("Initialization done!\n");
- 	return 0;
-@@ -580,7 +568,6 @@ fail_no_table:
- 	zram->disksize = 0;
- fail:
- 	__zram_reset_device(zram);
--	up_write(&zram->init_lock);
- 	pr_err("Initialization failed: err=%d\n", ret);
- 	return ret;
- }
-diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-index 4143af9..369db12 100644
---- a/drivers/staging/zram/zram_sysfs.c
-+++ b/drivers/staging/zram/zram_sysfs.c
-@@ -71,6 +71,7 @@ static ssize_t disksize_store(struct device *dev,
- 
- 	zram->disksize = PAGE_ALIGN(disksize);
- 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-+	zram_init_device(zram);
- 	up_write(&zram->init_lock);
- 
- 	return len;
+Will take a look when I have a time.
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
