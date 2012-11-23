@@ -1,169 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 5F6086B004D
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 23:42:33 -0500 (EST)
-Date: Fri, 23 Nov 2012 13:42:50 +0900
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 4AE006B005D
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 00:08:46 -0500 (EST)
+Date: Fri, 23 Nov 2012 14:09:04 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: cma: allocate pages from CMA if NR_FREE_PAGES
- approaches low water mark
-Message-ID: <20121123044250.GG5121@bbox>
-References: <1352710782-25425-1-git-send-email-m.szyprowski@samsung.com>
- <20121120000137.GC447@bbox>
- <50AB987F.30002@samsung.com>
- <20121121010556.GD447@bbox>
- <50ACF855.7010506@samsung.com>
+Subject: Re: [PATCH] mm: vmscan: Check for fatal signals iff the process was
+ throttled
+Message-ID: <20121123050904.GA13626@bbox>
+References: <20121102223630.GA2070@barrios>
+ <20121105144614.GJ8218@suse.de>
+ <20121106002550.GA3530@barrios>
+ <20121106085822.GN8218@suse.de>
+ <20121106101719.GA2005@barrios>
+ <20121109095024.GI8218@suse.de>
+ <20121112133218.GA3156@barrios>
+ <20121112140631.GV8218@suse.de>
+ <20121113133109.GA5204@barrios>
+ <20121121153824.GG8218@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50ACF855.7010506@samsung.com>
+In-Reply-To: <20121121153824.GG8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, Michal Nazarewicz <mina86@mina86.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Sonny Rao <sonnyrao@google.com>
 
-Hi Marek,
-
-On Wed, Nov 21, 2012 at 04:50:45PM +0100, Marek Szyprowski wrote:
-> Hello,
+On Wed, Nov 21, 2012 at 03:38:24PM +0000, Mel Gorman wrote:
+> commit 5515061d22f0 ("mm: throttle direct reclaimers if PF_MEMALLOC reserves
+> are low and swap is backed by network storage") introduced a check for
+> fatal signals after a process gets throttled for network storage. The
+> intention was that if a process was throttled and got killed that it
+> should not trigger the OOM killer. As pointed out by Minchan Kim and
+> David Rientjes, this check is in the wrong place and too broad. If a
+> system is in am OOM situation and a process is exiting, it can loop in
+> __alloc_pages_slowpath() and calling direct reclaim in a loop. As the
+> fatal signal is pending it returns 1 as if it is making forward progress
+> and can effectively deadlock.
 > 
-> On 11/21/2012 2:05 AM, Minchan Kim wrote:
-> >On Tue, Nov 20, 2012 at 03:49:35PM +0100, Marek Szyprowski wrote:
-> >> Hello,
-> >>
-> >> On 11/20/2012 1:01 AM, Minchan Kim wrote:
-> >> >Hi Marek,
-> >> >
-> >> >On Mon, Nov 12, 2012 at 09:59:42AM +0100, Marek Szyprowski wrote:
-> >> >> It has been observed that system tends to keep a lot of CMA free pages
-> >> >> even in very high memory pressure use cases. The CMA fallback for movable
-> >> >
-> >> >CMA free pages are just fallback for movable pages so if user requires many
-> >> >user pages, it ends up consuming cma free pages after out of movable pages.
-> >> >What do you mean that system tend to keep free pages even in very
-> >> >high memory pressure?
-> >> >> pages is used very rarely, only when system is completely pruned from
-> >> >> MOVABLE pages, what usually means that the out-of-memory even will be
-> >> >> triggered very soon. To avoid such situation and make better use of CMA
-> >> >
-> >> >Why does OOM is triggered very soon if movable pages are burned out while
-> >> >there are many cma pages?
-> >> >
-> >> >It seems I can't understand your point quitely.
-> >> >Please make your problem clear for silly me to understand clearly.
-> >>
-> >> Right now running out of 'plain' movable pages is the only possibility to
-> >> get movable pages allocated from CMA. On the other hand running out of
-> >> 'plain' movable pages is very deadly for the system, as movable pageblocks
-> >> are also the main fallbacks for reclaimable and non-movable pages.
-> >>
-> >> Then, once we run out of movable pages and kernel needs non-mobable or
-> >> reclaimable page (what happens quite often), it usually triggers OOM to
-> >> satisfy the memory needs. Such OOM is very strange, especially on a system
-> >> with dozen of megabytes of CMA memory, having most of them free at the OOM
-> >> event. By high memory pressure I mean the high memory usage.
-> >
-> >So your concern is that too many free pages in MIGRATE_CMA when OOM happens
-> >is odd? It's natural with considering CMA design which kernel never fallback
-> >non-movable page allocation to CMA area. I guess it's not a your concern.
+> This patch moves the fatal_signal_pending() check after throttling to
+> throttle_direct_reclaim() where it belongs. If the process is killed
+> while throttled, it will return immediately without direct reclaim
+> except now it will have TIF_MEMDIE set and will use the PFMEMALLOC
+> reserves.
 > 
-> My concern is how to minimize memory waste with CMA.
+> Minchan pointed out that it may be better to direct reclaim before returning
+> to avoid using the reserves because there may be pages that can easily
+> reclaim that would avoid using the reserves. However, we do no such targetted
+> reclaim and there is no guarantee that suitable pages are available. As it
+
+I think we could mimic the target reclaim by checking the number of
+(NR_FILE_PAGES - NR_SHMEM) and sc.may_swap = false but I am not strong now.
+If some problem happens by this, we could consider this.
+Now, just want to remain history in case of forgetting.
+
+> is expected that this throttling happens when swap-over-NFS is used there
+> is a possibility that the process will instead swap which may allocate
+> network buffers from the PFMEMALLOC reserves. Hence, in the swap-over-nfs
+> case where a process can be throtted and be killed it can use the reserves
+> to exit or it can potentially use reserves to swap a few pages and then
+> exit. This patch takes the option of using the reserves if necessary to
+> allow the process exit quickly.
 > 
-> >Let's think below extreme cases.
-> >
-> >= Before =
-> >
-> >* 1000M DRAM system.
-> >* 400M kernel used pages.
-> >* 300M movable used pages.
-> >* 300M cma freed pages.
-> >
-> >1. kernel want to request 400M non-movable memory, additionally.
-> >2. VM start to reclaim 300M movable pages.
-> >3. But it's not enough to meet 400M request.
-> >4. go to OOM. (It's natural)
-> >
-> >= After(with your patch) =
-> >
-> >* 1000M DRAM system.
-> >* 400M kernel used pages.
-> >* 300M movable *freed* pages.
-> >* 300M cma used pages(by your patch, I simplified your concept)
-> >
-> >1. kernel want to request 400M non-movable memory.
-> >2. 300M movable freed pages isn't enough to meet 400M request.
-> >3. Also, there is no point to reclaim CMA pages for non-movable allocation.
-> >4. go to OOM. (It's natural)
-> >
-> >There is no difference between before and after in allocation POV.
-> >Let's think another example.
-> >
-> >= Before =
-> >
-> >* 1000M DRAM system.
-> >* 400M kernel used pages.
-> >* 300M movable used pages.
-> >* 300M cma freed pages.
-> >
-> >1. kernel want to request 300M non-movable memory.
-> >2. VM start to reclaim 300M movable pages.
-> >3. It's enough to meet 300M request.
-> >4. happy end
-> >
-> >= After(with your patch) =
-> >
-> >* 1000M DRAM system.
-> >* 400M kernel used pages.
-> >* 300M movable *freed* pages.
-> >* 300M cma used pages(by your patch, I simplified your concept)
-> >
-> >1. kernel want to request 300M non-movable memory.
-> >2. 300M movable freed pages is enough to meet 300M request.
-> >3. happy end.
-> >
-> >There is no difference in allocation POV, too.
+> If this patch passes review it should be considered a -stable candidate
+> for 3.6.
 > 
-> Those cases are just theoretical, out-of-real live examples. In real world
-> kernel allocates (and frees) non-movable memory in small portions while
-> system is running. Typically keeping some amount of free 'plain' movable
-> pages is enough to make kernel happy about any kind of allocations
-> (especially non-movable). This requirement is in complete contrast to the
-> current fallback mechanism, which activates only when kernel runs out of
-> movable pages completely.
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Thanks, Mel.
+
+> ---
+>  mm/vmscan.c |   37 +++++++++++++++++++++++++++----------
+>  1 file changed, 27 insertions(+), 10 deletions(-)
 > 
-> >So I guess that if you see OOM while there are many movable pages,
-> >I think principal problem is VM reclaimer which should try to reclaim
-> >best effort if there are freeable movable pages. If VM reclaimer has
-> >some problem for your workload, firstly we should try fix it rather than
-> >adding such heuristic to hot path. Otherwise, if you see OOM while there
-> >are many free CMA pages, it's not odd to me.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 48550c6..cbf84e1 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2207,9 +2207,12 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+>   * Throttle direct reclaimers if backing storage is backed by the network
+>   * and the PFMEMALLOC reserve for the preferred node is getting dangerously
+>   * depleted. kswapd will continue to make progress and wake the processes
+> - * when the low watermark is reached
+> + * when the low watermark is reached.
+> + *
+> + * Returns true if a fatal signal was delivered during throttling. If this
+> + * happens, the page allocator should not consider triggering the OOM killer.
+>   */
+> -static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+> +static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+>  					nodemask_t *nodemask)
+>  {
+>  	struct zone *zone;
+> @@ -2224,13 +2227,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+>  	 * processes to block on log_wait_commit().
+>  	 */
+>  	if (current->flags & PF_KTHREAD)
+> -		return;
+> +		goto out;
+> +
+> +	/*
+> +	 * If a fatal signal is pending, this process should not throttle.
+> +	 * It should return quickly so it can exit and free its memory
+> +	 */
+> +	if (fatal_signal_pending(current))
+> +		goto out;
+>  
+>  	/* Check if the pfmemalloc reserves are ok */
+>  	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+>  	pgdat = zone->zone_pgdat;
+>  	if (pfmemalloc_watermark_ok(pgdat))
+> -		return;
+> +		goto out;
+>  
+>  	/* Account for the throttling */
+>  	count_vm_event(PGSCAN_DIRECT_THROTTLE);
+> @@ -2246,12 +2256,20 @@ static void throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+>  	if (!(gfp_mask & __GFP_FS)) {
+>  		wait_event_interruptible_timeout(pgdat->pfmemalloc_wait,
+>  			pfmemalloc_watermark_ok(pgdat), HZ);
+> -		return;
+> +
+> +		goto check_pending;
+>  	}
+>  
+>  	/* Throttle until kswapd wakes the process */
+>  	wait_event_killable(zone->zone_pgdat->pfmemalloc_wait,
+>  		pfmemalloc_watermark_ok(pgdat));
+> +
+> +check_pending:
+> +	if (fatal_signal_pending(current))
+> +		return true;
+> +
+> +out:
+> +	return false;
+>  }
+>  
+>  unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+> @@ -2273,13 +2291,12 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+>  		.gfp_mask = sc.gfp_mask,
+>  	};
+>  
+> -	throttle_direct_reclaim(gfp_mask, zonelist, nodemask);
+> -
+>  	/*
+> -	 * Do not enter reclaim if fatal signal is pending. 1 is returned so
+> -	 * that the page allocator does not consider triggering OOM
+> +	 * Do not enter reclaim if fatal signal was delivered while throttled.
+> +	 * 1 is returned so that the page allocator does not OOM kill at this
+> +	 * point.
+>  	 */
+> -	if (fatal_signal_pending(current))
+> +	if (throttle_direct_reclaim(gfp_mask, zonelist, nodemask))
+>  		return 1;
+>  
+>  	trace_mm_vmscan_direct_reclaim_begin(order,
 > 
-> Frankly I don't see how reclaim procedure can ensure that it will be
-> always possible to allocate non-movable pages with current fallback
-> mechanism,
-> which is used only when kernel runs out of pages of a given type. Could you
-> explain how would You like to change the reclaim procedure to avoid
-> the above
-> situation?
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-What I have a mind is following as.
-
-1. Reclaimer should migrate MIGRATE_MOVABLE into MIGRATE_CMA
-   if there are free space in MIGRATE_CMA so VM could allocate
-   non-movalbe pages with MIGRATE_MOVABLE fallback.
-
-2. Reclaimer should consider non-movable page allocation.
-   I mean reclaimer can reclaim MIGRATE_CMA pages when memory pressure happens
-   by request of non-movable page but it is useless and such unnecessary reclaim
-   hit performance. So reclaimer should reclaim target pages(ie, MIGRATE_MOVABLE)
-
-3. If reclaiming got failed by some reason(ex, they are working set),
-   we should reclaim MIGRATE_CMA and migrate MIGRATE_MOVABLE pages to MIGRATE_CMA.
-   So kernel allocatio would be succeeded.
-
-Above migration scheme is important for embedded system which don't have a swap
-because they has a limit to reclaim anonymous pages in MIGRATE_MOVABLE.
-
-Will take a look when I have a time.
 -- 
 Kind regards,
 Minchan Kim
