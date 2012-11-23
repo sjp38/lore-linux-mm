@@ -1,74 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 8EEE96B004D
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 16:26:04 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so2801919dak.14
-        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 13:26:03 -0800 (PST)
-Date: Fri, 23 Nov 2012 13:25:59 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: percpu section failure with Gold linker
-Message-ID: <20121123212559.GW15971@htj.dyndns.org>
-References: <alpine.LNX.2.01.1211232136380.11359@nerf07.vanv.qr>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.01.1211232136380.11359@nerf07.vanv.qr>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id E95BB6B004D
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 18:34:20 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: [PATCH v3] mm: trace filemap add and del
+Date: Sat, 24 Nov 2012 00:34:06 +0100
+Message-Id: <1353713646-30362-1-git-send-email-robert.jarzmik@free.fr>
+In-Reply-To: <1353679819-6989-1-git-send-email-robert.jarzmik@free.fr>
+References: <1353679819-6989-1-git-send-email-robert.jarzmik@free.fr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Engelhardt <jengelh@inai.de>
-Cc: cl@linux-foundation.org, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Robert Jarzmik <robert.jarzmik@free.fr>
 
-Hello, Jan.
+Use the events API to trace filemap loading and
+unloading of file pieces into the page cache.
 
-On Fri, Nov 23, 2012 at 09:44:02PM +0100, Jan Engelhardt wrote:
-> when compiling a kernel with the gold linker (3.7.0-rc6 26d29d06ea0204, 
-> gcc-4.7 and binutils-2.23 in my case), certain pcpu symbols are 
-> seemingly errneously copied over from .o files to .ko files, leading to 
-> a hard warning during depmod:
-> 
-> 	gold$ make -j8 LD=gold HOSTLD=gold
-> 	gold$ make modules_install INSTALL_MOD_PATH=/tmp/foo
-> 	[...]
-> 	WARNING: /tmp/foo/lib/modules/3.7.0-rc6-jng6-default+
-> 	/kernel/net/rds/rds_tcp.ko needs unknown symbol
-> 	__pcpu_scope_rds_tcp_stats
+This patch aims at tracing the eviction reload
+cycle of executable and shared libraries pages in
+a memory constrained environment.
 
-Yeah, this is from the nasty tricks percpu plays to get percpu decls
-working on s390 and alpha.  Take a look at
-DECLARE/DEFINE_PER_CPU_SECTION() definitions in
-include/linux/percpu-defs.h for details.
+The typical usage is to spot a specific device and
+inode (for example /lib/libc.so) to see the eviction
+cycles, and find out if frequently used code is
+rather spread across many pages (bad) or coallesced
+(good).
 
-> This happens with many modules using percpu; looking at things with nm 
-> reveals:
-> 
-> 	gold/net/ipv6$ nm ipv6.o | grep __pcpu_
-> 	0000000000000000 D __pcpu_unique_ipv6_cookie_scratch
-> 	gold/net/ipv6$ nm ipv6.ko | grep __pcpu_
-> 	                 U __pcpu_unique_ipv6_cookie_scratch
-> 
-> On the other hand, in a linux tree built with the original ld (ld.bfd), 
-> things look like:
-> 
-> 	bfd$ make -j8
-> 	[...]
-> 	bfd/net/ipv6$ nm ipv6.o | grep pcpu
-> 	0000000000000000 D __pcpu_unique_ipv6_cookie_scratch
-> 	bfd/net/ipv6$ nm ipv6.ko | grep pcpu
-> 	(no result)
+Signed-off-by: Robert Jarzmik <robert.jarzmik@free.fr>
+---
+Since V1:
+ - included Andrew's comments
+ - included Dave's comment
+ - fixed according to Hugh's comment
+Since V2:
+ - amended inode print to hexadecimal format
+---
+ include/trace/events/filemap.h |   79 ++++++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                   |    5 +++
+ 2 files changed, 84 insertions(+)
+ create mode 100644 include/trace/events/filemap.h
 
-So, those __pcpu_unique and __pcpu_scope variables are only used so
-that multiple copy of them collide with each other and trigger compile
-failure (as the actual percpu variable needs to be declared __weak).
-They're all put into .discard section, so should go away once it
-passes through the linker.  gold left reference to that symbol while
-discarding the definition.  Hmmm... different interpretation of
-.discard?  Still weird tho.  There's nothing dereferencing that
-symbol.
-
-Thanks.
-
+diff --git a/include/trace/events/filemap.h b/include/trace/events/filemap.h
+new file mode 100644
+index 0000000..2d36386
+--- /dev/null
++++ b/include/trace/events/filemap.h
+@@ -0,0 +1,79 @@
++#undef TRACE_SYSTEM
++#define TRACE_SYSTEM filemap
++
++#if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
++#define _TRACE_FILEMAP_H
++
++#include <linux/types.h>
++#include <linux/tracepoint.h>
++#include <linux/mm.h>
++#include <linux/memcontrol.h>
++#include <linux/device.h>
++#include <linux/kdev_t.h>
++
++TRACE_EVENT(mm_filemap_delete_from_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++TRACE_EVENT(mm_filemap_add_to_page_cache,
++
++	TP_PROTO(struct page *page),
++
++	TP_ARGS(page),
++
++	TP_STRUCT__entry(
++		__field(struct page *, page)
++		__field(unsigned long, i_ino)
++		__field(unsigned long, index)
++		__field(dev_t, s_dev)
++	),
++
++	TP_fast_assign(
++		__entry->page = page;
++		__entry->i_ino = page->mapping->host->i_ino;
++		__entry->index = page->index;
++		if (page->mapping->host->i_sb)
++			__entry->s_dev = page->mapping->host->i_sb->s_dev;
++		else
++			__entry->s_dev = page->mapping->host->i_rdev;
++	),
++
++	TP_printk("dev %d:%d ino %lx page=%p pfn=%lu ofs=%lu",
++		MAJOR(__entry->s_dev), MINOR(__entry->s_dev),
++		__entry->i_ino,
++		__entry->page,
++		page_to_pfn(__entry->page),
++		__entry->index << PAGE_SHIFT)
++);
++
++#endif /* _TRACE_FILEMAP_H */
++
++/* This part must be outside protection */
++#include <trace/define_trace.h>
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 83efee7..1ee7cf6 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -35,6 +35,9 @@
+ #include <linux/cleancache.h>
+ #include "internal.h"
+ 
++#define CREATE_TRACE_POINTS
++#include <trace/events/filemap.h>
++
+ /*
+  * FIXME: remove all knowledge of the buffer layer from the core VM
+  */
+@@ -113,6 +116,7 @@ void __delete_from_page_cache(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+ 
++	trace_mm_filemap_delete_from_page_cache(page);
+ 	/*
+ 	 * if we're uptodate, flush out into the cleancache, otherwise
+ 	 * invalidate any existing cleancache entries.  We can't leave
+@@ -463,6 +467,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+ 		if (likely(!error)) {
+ 			mapping->nrpages++;
+ 			__inc_zone_page_state(page, NR_FILE_PAGES);
++			trace_mm_filemap_add_to_page_cache(page);
+ 			spin_unlock_irq(&mapping->tree_lock);
+ 		} else {
+ 			page->mapping = NULL;
 -- 
-tejun
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
