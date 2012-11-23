@@ -1,107 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 949E36B0083
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:45:18 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 4/5] page_alloc: Make movablecore_map has higher priority
-Date: Fri, 23 Nov 2012 18:44:04 +0800
-Message-Id: <1353667445-7593-5-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 5D3CC6B0044
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 05:51:59 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id gb30so2961280vcb.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 02:51:58 -0800 (PST)
+Date: Fri, 23 Nov 2012 11:51:54 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] memcg: debugging facility to access dangling memcgs.
+Message-ID: <20121123105154.GK24698@dhcp22.suse.cz>
+References: <1353580190-14721-1-git-send-email-glommer@parallels.com>
+ <1353580190-14721-3-git-send-email-glommer@parallels.com>
+ <20121123092010.GD24698@dhcp22.suse.cz>
+ <50AF42F0.6040407@parallels.com>
+ <20121123103307.GH24698@dhcp22.suse.cz>
+ <50AF51D1.6040702@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50AF51D1.6040702@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, tangchen@cn.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>
 
-If kernelcore or movablecore is specified at the same time
-with movablecore_map, movablecore_map will have higher
-priority to be satisfied.
-This patch will make find_zone_movable_pfns_for_nodes()
-calculate zone_movable_pfn[] with the limit from
-zone_movable_limit[].
+On Fri 23-11-12 14:37:05, Glauber Costa wrote:
+> On 11/23/2012 02:33 PM, Michal Hocko wrote:
+> > On Fri 23-11-12 13:33:36, Glauber Costa wrote:
+> >> On 11/23/2012 01:20 PM, Michal Hocko wrote:
+> >>> On Thu 22-11-12 14:29:50, Glauber Costa wrote:
+> >>> [...]
+> >>>> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> >>>> index 05b87aa..46f7cfb 100644
+> >>>> --- a/mm/memcontrol.c
+> >>>> +++ b/mm/memcontrol.c
+> >>> [...]
+> >>>> @@ -349,6 +366,33 @@ struct mem_cgroup {
+> >>>>  #endif
+> >>>>  };
+> >>>>  
+> >>>> +#if defined(CONFIG_MEMCG_KMEM) || defined(CONFIG_MEMCG_SWAP)
+> >>>
+> >>> Can we have a common config for this something like CONFIG_MEMCG_ASYNC_DESTROY
+> >>> which would be selected if either of the two (or potentially others)
+> >>> would be selected.
+> >>> Also you are saying that the feature is only for debugging purposes so
+> >>> it shouldn't be on by default probably.
+> >>>
+> >>
+> >> I personally wouldn't mind. But the big value I see from it is basically
+> >> being able to turn it off. For all the rest, we would have to wrap it
+> >> under one of those config options anyway...
+> > 
+> > Sure you would need to habe mem_cgroup_dangling_FOO wrapped by the
+> > correct one anyway but that still need to live inside a bigger ifdef and
+> > naming all the FOO is awkward. Besides that one
+> > CONFIG_MEMCG_ASYNC_DESTROY_DEBUG could have a Kconfig entry and so be
+> > enabled separately.
+> > 
+> 
+> How about a more general memcg debug option like CONFIG_MEMCG_DEBUG?
+> Do you foresee more facilities we could enable under this?
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- mm/page_alloc.c |   35 +++++++++++++++++++++++++++++++----
- 1 files changed, 31 insertions(+), 4 deletions(-)
+This sounds to generic and it doesn't say what kind of debugging you
+get. CONFIG_MEMCG_ASYNC_DESTROY_DEBUG on the other hand can be pretty
+explicit that it is aimed at debugging memory leaks caused by async
+memcg destruction.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f23d76a..05bafbb 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4800,12 +4800,25 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
- 	}
- 
--	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
--	if (!required_kernelcore)
-+	/*
-+	 * No matter kernelcore/movablecore was limited or not, movable_zone
-+	 * should always be set to a usable zone index.
-+	 */
-+	find_usable_zone_for_movable();
-+
-+	/*
-+	 * If neither kernelcore/movablecore nor movablecore_map is specified,
-+	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
-+	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
-+	 */
-+	if (!required_kernelcore) {
-+		if (movablecore_map.nr_map)
-+			memcpy(zone_movable_pfn, zone_movable_limit,
-+				sizeof(zone_movable_pfn));
- 		goto out;
-+	}
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
- restart:
-@@ -4833,10 +4846,24 @@ restart:
- 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
- 			unsigned long size_pages;
- 
-+			/*
-+			 * Find more memory for kernelcore in
-+			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
-+			 */
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
- 			if (start_pfn >= end_pfn)
- 				continue;
- 
-+			if (zone_movable_limit[nid]) {
-+				end_pfn = min(end_pfn, zone_movable_limit[nid]);
-+				/* No range left for kernelcore in this node */
-+				if (start_pfn >= end_pfn) {
-+					zone_movable_pfn[nid] =
-+							zone_movable_limit[nid];
-+					break;
-+				}
-+			}
-+
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
- 				unsigned long kernel_pages;
-@@ -4896,12 +4923,12 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
- 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
- 
--out:
- 	/* restore the node_state */
- 	node_states[N_HIGH_MEMORY] = saved_node_state;
- }
+> > Ohh, you are right you are using kmem_cache name for those. Sorry for
+> > the confusion
+> >  
+> >>> And finally it would be really nice if you described what is the
+> >>> exported information good for. Can I somehow change the current state
+> >>> (e.g. force freeing those objects so that the memcg can finally pass out
+> >>> in piece)?
+> >>>
+> >> I am open, but I would personally like to have this as a view-only
+> >> interface,
+> > 
+> > And I was not proposing to make it RW. I am just missing a description
+> > that would explain: "Ohh well, the file says there are some dangling
+> > memcgs. Should I report a bug or sue somebody or just have a coffee and
+> > wait some more?"
+> > 
+> 
+> People should pay me beer if the number of pending caches is odd, and
+> pay you beer if the number is even. If the number is 0, we both get it.
+
+Deal
+
+> >> just so we suspect a leak occurs, we can easily see what is
+> >> the dead memcg contribution to it. It shows you where the data come
+> >> from, and if you want to free it, you go search for subsystem-specific
+> >> ways to force a free should you want.
+> > 
+> > Yes, I can imagine its usefulness for developers but I do not see much
+> > of an use for admins yet. So I am a bit hesitant for this being on by
+> > default.
+> > 
+> Fully agreed. I am implementing this because Kame suggested. I promptly
+> agreed because I remembered how many times I asked myself "Who is
+> holding this?" and had to go put some printks all over...
+
+So please make it configurable, off by default and be explicit about its
+usefulness.
+
+Thanks
 -- 
-1.7.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
