@@ -1,58 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 42C236B0071
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 10:20:52 -0500 (EST)
-Message-ID: <50AF9450.9020803@leemhuis.info>
-Date: Fri, 23 Nov 2012 16:20:48 +0100
-From: Thorsten Leemhuis <fedora@leemhuis.info>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 4C93F6B0073
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 10:23:10 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id lz20so11507860obb.14
+        for <linux-mm@kvack.org>; Fri, 23 Nov 2012 07:23:09 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
-References: <20121015110937.GE29125@suse.de> <5093A3F4.8090108@redhat.com> <5093A631.5020209@suse.cz> <509422C3.1000803@suse.cz> <509C84ED.8090605@linux.vnet.ibm.com> <509CB9D1.6060704@redhat.com> <20121109090635.GG8218@suse.de> <509F6C2A.9060502@redhat.com> <20121112113731.GS8218@suse.de> <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com> <20121116200616.GK8218@suse.de> <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com> <50ABC128.80706@leemhuis.info>
-In-Reply-To: <50ABC128.80706@leemhuis.info>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20121123133138.GA28058@gmail.com>
+References: <20121119162909.GL8218@suse.de>
+	<20121119191339.GA11701@gmail.com>
+	<20121119211804.GM8218@suse.de>
+	<20121119223604.GA13470@gmail.com>
+	<CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com>
+	<20121120071704.GA14199@gmail.com>
+	<20121120152933.GA17996@gmail.com>
+	<20121120175647.GA23532@gmail.com>
+	<CAGjg+kHKaQLcrnEftB+2mjeCjGUBiisSOpNCe+_9-4LDho9LpA@mail.gmail.com>
+	<20121122012122.GA7938@gmail.com>
+	<20121123133138.GA28058@gmail.com>
+Date: Fri, 23 Nov 2012 23:23:09 +0800
+Message-ID: <CAGjg+kFq=f0wMoz-a5z-H08u_64RrQ=BF062uRx8crcvKa5QzQ@mail.gmail.com>
+Subject: Re: numa/core regressions fixed - more testers wanted
+From: Alex Shi <lkml.alex@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Boyer <jwboyer@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, bruno@wolff.to
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <alex.shi@intel.com>
 
-Thorsten Leemhuis wrote on 20.11.2012 18:43:
-> On 20.11.2012 16:38, Josh Boyer wrote:
-> 
-> The short story from my current point of view is:
+On Fri, Nov 23, 2012 at 9:31 PM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Ingo Molnar <mingo@kernel.org> wrote:
+>
+>> * Alex Shi <lkml.alex@gmail.com> wrote:
+>>
+>> > >
+>> > > Those of you who would like to test all the latest patches are
+>> > > welcome to pick up latest bits at tip:master:
+>> > >
+>> > >    git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
+>> > >
+>> >
+>> > I am wondering if it is a problem, but it still exists on HEAD: c418de93e39891
+>> > http://article.gmane.org/gmane.linux.kernel.mm/90131/match=compiled+with+name+pl+and+start+it+on+my
+>> >
+>> > like when just start 4 pl tasks, often 3 were running on node
+>> > 0, and 1 was running on node 1. The old balance will average
+>> > assign tasks to different node, different core.
+>>
+>> This is "normal" in the sense that the current mainline
+>> scheduler is (supposed to be) doing something similar: if the
+>> node is still within capacity, then there's no reason to move
+>> those threads.
+>>
+>> OTOH, I think with NUMA balancing we indeed want to spread
+>> them better, if those tasks do not share memory with each
+>> other but use their own memory. If they share memory then they
+>> should remain on the same node if possible.
 
-Quick update, in case anybody is interested:
+There is no share memory between them.
+>
+> Could you please check tip:master with -v17:
+>
+>   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
+>
+> ?
+>
+> It should place your workload better than v16 did.
 
->  * my main machine at home where I initially saw the issue that started
-> this thread seems to be running fine with rc6 and the "safe" patch Mel
-> posted in https://lkml.org/lkml/2012/11/12/113 Before that I ran a rc5
-> kernel with the revert that went into rc6 and the "safe" patch -- that
-> worked fine for a few days, too.
+OK. will try it on next Monday, if it is not late to you.
+>
+> Note, you might be able to find other combinations of tasks that
+> are not scheduled NUMA-perfectly yet, as task group placement is
+> not exhaustive yet.
 
-On this machine I'm running a rc6 kernel + the fix for the accounting
-bug(A1) that went into mainline ~40 hours ago + the "riskier" patch Mel
-posted in https://lkml.org/lkml/2012/11/12/151
+I am not familiar with task group. but anyway, will try it too.
+>
+> You might want to check which combination looks the weirdest to
+> you and report it, so I can fix any remaining placement
+> inefficiencies in order of importance.
 
-Up to now everything works fine.
+Any suggestions of combination?
+>
+> Thanks,
+>
+>         Ingo
 
-(A1) https://lkml.org/lkml/2012/11/21/362
 
->  * I have a second machine where I started to use 3.7-rc kernels only
-> yesterday (the machine triggered a bug in the radeon driver that seems
-> to be fixed in rc6) which showed symptoms like the ones Zdenek Kabelac
-> mentions in this thread. I wasn't able to look closer at it, but simply
-> tried rc6 with the safe patch, which didn't help. I'm now running rc6
-> with the "riskier" patch from https://lkml.org/lkml/2012/11/12/151
-> I can't yet tell if it helps. If the problems shows up again I'll try to
-> capture more debugging data via sysrq -- there wasn't any time for that
-> when I was running rc6 with the safe patch, sorry.
 
-This machine is now also behaving fine with above mentioned rc6 kernel +
-the two patches. It seems the accounting bug was the root cause for the
-problems this machine showed.
-
-CU
- Thorsten
+-- 
+Thanks
+    Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
