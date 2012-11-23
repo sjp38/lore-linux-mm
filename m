@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id E01E06B007B
-	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 04:44:25 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_memory=2Dcgroup_bug?=
-Date: Fri, 23 Nov 2012 10:44:23 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121121200207.01068046@pobox.sk>, <20121122152441.GA9609@dhcp22.suse.cz>, <20121122190526.390C7A28@pobox.sk>, <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk> <20121123092829.GE24698@dhcp22.suse.cz>
-In-Reply-To: <20121123092829.GE24698@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id D9DBC6B0081
+	for <linux-mm@kvack.org>; Fri, 23 Nov 2012 04:53:07 -0500 (EST)
+Date: Fri, 23 Nov 2012 10:53:02 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 02/40] x86: mm: drop TLB flush from ptep_set_access_flags
+Message-ID: <20121123095301.GB18765@x1.alien8.de>
+References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
+ <1353612353-1576-3-git-send-email-mgorman@suse.de>
+ <20121122205637.4e9112e2@pyramind.ukuu.org.uk>
+ <20121123090909.GX8218@suse.de>
 MIME-Version: 1.0
-Message-Id: <20121123104423.338C7725@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20121123090909.GX8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> CC: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "cgroups mailinglist" <cgroups@vger.kernel.org>
->On Fri 23-11-12 10:21:37, azurIt wrote:
->> >Either use gdb YOUR_VMLINUX and disassemble mem_cgroup_handle_oom or
->> >use objdump -d YOUR_VMLINUX and copy out only mem_cgroup_handle_oom
->> >function.
->> If 'YOUR_VMLINUX' is supposed to be my kernel image:
->> 
->> # gdb vmlinuz-3.2.34-grsec-1 
->> GNU gdb (GDB) 7.0.1-debian
->> Copyright (C) 2009 Free Software Foundation, Inc.
->> License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
->> This is free software: you are free to change and redistribute it.
->> There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
->> and "show warranty" for details.
->> This GDB was configured as "x86_64-linux-gnu".
->> For bug reporting instructions, please see:
->> <http://www.gnu.org/software/gdb/bugs/>...
->> "/root/bug/vmlinuz-3.2.34-grsec-1": not in executable format: File format not recognized
->> 
->> 
->> # objdump -d vmlinuz-3.2.34-grsec-1 
->
->You need vmlinux not vmlinuz...
+On Fri, Nov 23, 2012 at 09:09:09AM +0000, Mel Gorman wrote:
+> You sortof can[1]. Borislav Petkov answered that they do
+> https://lkml.org/lkml/2012/11/17/85 and quoted the manual at
+> https://lkml.org/lkml/2012/10/29/414 saying that this should be ok.
+> 
+> [1] There is no delicate way of putting it. I've no idea what the
+>     current status of current and former AMD kernel developers is.
 
+All those based in Dresden don't work for AMD anymore.
 
+But regardless, I've already confirmed with AMD design that this is
+actually architectural and we're zapping the TLB entry on a #PF on all
+relevant CPUs.
 
+I'd still like to have some sort of an assertion there just in case but,
+as Linus pointed out, that won't be easy. I'd guess it's up to you -mm
+guys to think up something sick that works under CONFIG_DEBUG_VM :).
 
-ok, got it but still no luck:
+HTH.
 
-# gdb vmlinux 
-GNU gdb (GDB) 7.0.1-debian
-Copyright (C) 2009 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
-and "show warranty" for details.
-This GDB was configured as "x86_64-linux-gnu".
-For bug reporting instructions, please see:
-<http://www.gnu.org/software/gdb/bugs/>...
-Reading symbols from /root/bug/dddddddd/vmlinux...(no debugging symbols found)...done.
-(gdb) disassemble mem_cgroup_handle_oom
-No symbol table is loaded.  Use the "file" command.
-
-
-
-# objdump -d vmlinux | grep mem_cgroup_handle_oom
-<no output>
-
-
-i can recompile the kernel if anything needs to be added into it.
-
-
-azur
+-- 
+Regards/Gruss,
+Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
