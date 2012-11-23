@@ -1,76 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 567B46B005D
-	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 21:10:33 -0500 (EST)
-Received: by mail-ia0-f169.google.com with SMTP id r4so7623774iaj.14
-        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 18:10:32 -0800 (PST)
-Message-ID: <50AEDB12.6090300@gmail.com>
-Date: Fri, 23 Nov 2012 10:10:26 +0800
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id 67AB56B005D
+	for <linux-mm@kvack.org>; Thu, 22 Nov 2012 21:14:13 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id 10so15812919ied.14
+        for <linux-mm@kvack.org>; Thu, 22 Nov 2012 18:14:12 -0800 (PST)
+Message-ID: <50AEDBEF.8070408@gmail.com>
+Date: Fri, 23 Nov 2012 10:14:07 +0800
 From: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>
 MIME-Version: 1.0
 Subject: Re: Problem in Page Cache Replacement
-References: <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com> <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com> <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost> <50ACA209.9000101@gmail.com> <1353491880.11679.YahooMailNeo@web141102.mail.bf1.yahoo.com> <50ACA634.5000007@gmail.com> <CAJOrxZBpefqtkXr+XTxEZ6qy-6SCwQJ11makD=Lg_M4itY5Ang@mail.gmail.com> <20121122154107.GB11736@localhost> <20121122155318.GA12636@localhost>
-In-Reply-To: <20121122155318.GA12636@localhost>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com> <20121120182500.GH1408@quack.suse.cz> <20121121213417.GC24381@cmpxchg.org> <50AD7647.7050200@gmail.com> <20121122010959.GF24381@cmpxchg.org> <50AE25AB.2060808@gmail.com> <20121122161743.GH24381@cmpxchg.org>
+In-Reply-To: <20121122161743.GH24381@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: =?UTF-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Jan Kara <jack@suse.cz>, metin d <metdos@yahoo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 11/22/2012 11:53 PM, Fengguang Wu wrote:
-> On Thu, Nov 22, 2012 at 11:41:07PM +0800, Fengguang Wu wrote:
->> On Wed, Nov 21, 2012 at 12:07:22PM +0200, Metin DA?A?lA 1/4  wrote:
->>> On Wed, Nov 21, 2012 at 12:00 PM, Jaegeuk Hanse <jaegeuk.hanse@gmail.com> wrote:
->>>> On 11/21/2012 05:58 PM, metin d wrote:
+On 11/23/2012 12:17 AM, Johannes Weiner wrote:
+> On Thu, Nov 22, 2012 at 09:16:27PM +0800, Jaegeuk Hanse wrote:
+>> On 11/22/2012 09:09 AM, Johannes Weiner wrote:
+>>> On Thu, Nov 22, 2012 at 08:48:07AM +0800, Jaegeuk Hanse wrote:
+>>>> On 11/22/2012 05:34 AM, Johannes Weiner wrote:
+>>>>> Hi,
+>>>>>
+>>>>> On Tue, Nov 20, 2012 at 07:25:00PM +0100, Jan Kara wrote:
+>>>>>> On Tue 20-11-12 09:42:42, metin d wrote:
+>>>>>>> I have two PostgreSQL databases named data-1 and data-2 that sit on the
+>>>>>>> same machine. Both databases keep 40 GB of data, and the total memory
+>>>>>>> available on the machine is 68GB.
+>>>>>>>
+>>>>>>> I started data-1 and data-2, and ran several queries to go over all their
+>>>>>>> data. Then, I shut down data-1 and kept issuing queries against data-2.
+>>>>>>> For some reason, the OS still holds on to large parts of data-1's pages
+>>>>>>> in its page cache, and reserves about 35 GB of RAM to data-2's files. As
+>>>>>>> a result, my queries on data-2 keep hitting disk.
+>>>>>>>
+>>>>>>> I'm checking page cache usage with fincore. When I run a table scan query
+>>>>>>> against data-2, I see that data-2's pages get evicted and put back into
+>>>>>>> the cache in a round-robin manner. Nothing happens to data-1's pages,
+>>>>>>> although they haven't been touched for days.
+>>>>>>>
+>>>>>>> Does anybody know why data-1's pages aren't evicted from the page cache?
+>>>>>>> I'm open to all kind of suggestions you think it might relate to problem.
+>>>>> This might be because we do not deactive pages as long as there is
+>>>>> cache on the inactive list.  I'm guessing that the inter-reference
+>>>>> distance of data-2 is bigger than half of memory, so it's never
+>>>>> getting activated and data-1 is never challenged.
+>>>> Hi Johannes,
 >>>>
->>>> Hi Fengguang,
->>>>
->>>> I run tests and attached the results. The line below I guess shows the data-1 page caches.
->>>>
->>>> 0x000000080000006c       6584051    25718  __RU_lA___________________P________    referenced,uptodate,lru,active,private
->>>>
->>>>
->>>> I thinks this is just one state of page cache pages.
->>> But why these page caches are in this state as opposed to other page
->>> caches. From the results I conclude that:
+>>>> What's the meaning of "inter-reference distance"
+>>> It's the number of memory accesses between two accesses to the same
+>>> page:
 >>>
->>> data-1 pages are in state : referenced,uptodate,lru,active,private
->> I wonder if it's this code that stops data-1 pages from being
->> reclaimed:
+>>>    A B C D A B C E ...
+>>>      |_______|
+>>>      |       |
+>>>
+>>>> and why compare it with half of memoy, what's the trick?
+>>> If B gets accessed twice, it gets activated.  If it gets evicted in
+>>> between, the second access will be a fresh page fault and B will not
+>>> be recognized as frequently used.
+>>>
+>>> Our cutoff for scanning the active list is cache size / 2 right now
+>>> (inactive_file_is_low), leaving 50% of memory to the inactive list.
+>>> If the inter-reference distance for pages on the inactive list is
+>>> bigger than that, they get evicted before their second access.
+>> Hi Johannes,
 >>
->> shrink_page_list():
->>
->>                  if (page_has_private(page)) {
->>                          if (!try_to_release_page(page, sc->gfp_mask))
->>                                  goto activate_locked;
->>
->> What's the filesystem used?
-> Ah it's more likely caused by this logic:
+>> Thanks for your explanation. But could you give a short description
+>> of how you resolve this inactive list thrashing issues?
+> I remember a time stamp of evicted file pages in the page cache radix
+> tree that let me reconstruct the inter-reference distance even after a
+> page has been evicted from cache when it's faulted back in.  This way
+> I can tell a one-time sequence from thrashing, no matter how small the
+> inactive list.
 >
->          if (is_active_lru(lru)) {
->                  if (inactive_list_is_low(mz, file))
->                          shrink_active_list(nr_to_scan, mz, sc, priority, file);
->
-> The active file list won't be scanned at all if it's smaller than the
-> active list. In this case, it's inactive=33586MB > active=25719MB. So
-> the data-1 pages in the active list will never be scanned and reclaimed.
+> When thrashing is detected, I start deactivating protected pages and
+> put them next to the refaulted cache on the head of the inactive list
+> and let them fight it out as usual.  In this reported case, the old
+> data will be challenged and since it's no longer used, it will just
+> drop off the inactive list eventually.  If the guess is wrong and the
+> deactivated memory is used more heavily than the refaulting pages,
+> they will just get activated again without incurring any disruption
+> like a major fault.
 
-Hi Fengguang,
+Hi Johannes,
 
-It seems that most of data-1 file pages are in active lru cache and most 
-of data-2 file pages are in inactive lru cache. As Johannes mentioned, 
-if inter-reference distance is bigger than half of memory, the pages 
-will not be actived. How you intend to resolve this issue? Is Johannes's 
-inactive list threshing idea  available?
+If you also add the time stamp to the protected pages which you deactive 
+when incur thrashing?
 
 Regards,
 Jaegeuk
 
->
->>> data-2 pages are in state : referenced,uptodate,lru,mappedtodisk
->> Thanks,
->> Fengguang
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
