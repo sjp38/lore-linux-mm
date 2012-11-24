@@ -1,80 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 5703B6B0068
-	for <linux-mm@kvack.org>; Sat, 24 Nov 2012 08:01:10 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so3112389pad.14
-        for <linux-mm@kvack.org>; Sat, 24 Nov 2012 05:01:10 -0800 (PST)
-From: Ming Lei <ming.lei@canonical.com>
-Subject: [PATCH v6 6/6] USB: forbid memory allocation with I/O during bus reset
-Date: Sat, 24 Nov 2012 20:59:18 +0800
-Message-Id: <1353761958-12810-7-git-send-email-ming.lei@canonical.com>
-In-Reply-To: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
-References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 069346B0044
+	for <linux-mm@kvack.org>; Sat, 24 Nov 2012 10:06:30 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id s11so2295273qaa.14
+        for <linux-mm@kvack.org>; Sat, 24 Nov 2012 07:06:30 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20121122154107.GB11736@localhost>
+References: <1353433362.85184.YahooMailNeo@web141101.mail.bf1.yahoo.com>
+ <20121120182500.GH1408@quack.suse.cz> <1353485020.53500.YahooMailNeo@web141104.mail.bf1.yahoo.com>
+ <1353485630.17455.YahooMailNeo@web141106.mail.bf1.yahoo.com>
+ <50AC9220.70202@gmail.com> <20121121090204.GA9064@localhost>
+ <50ACA209.9000101@gmail.com> <1353491880.11679.YahooMailNeo@web141102.mail.bf1.yahoo.com>
+ <50ACA634.5000007@gmail.com> <CAJOrxZBpefqtkXr+XTxEZ6qy-6SCwQJ11makD=Lg_M4itY5Ang@mail.gmail.com>
+ <20121122154107.GB11736@localhost>
+From: =?UTF-8?B?TWV0aW4gRMO2xZ9sw7w=?= <metindoslu@gmail.com>
+Date: Sat, 24 Nov 2012 17:06:09 +0200
+Message-ID: <CAJOrxZBp52a_7Rx6nxoSkMTTLHxA4pDnyfirLgN7BZXC8BxBzQ@mail.gmail.com>
+Subject: Re: Problem in Page Cache Replacement
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Ming Lei <ming.lei@canonical.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-If one storage interface or usb network interface(iSCSI case)
-exists in current configuration, memory allocation with
-GFP_KERNEL during usb_device_reset() might trigger I/O transfer
-on the storage interface itself and cause deadlock because
-the 'us->dev_mutex' is held in .pre_reset() and the storage
-interface can't do I/O transfer when the reset is triggered
-by other interface, or the error handling can't be completed
-if the reset is triggered by the storage itself(error handling path).
-Cc: Alan Stern <stern@rowland.harvard.edu>
-Cc: Oliver Neukum <oneukum@suse.de>
-Signed-off-by: Ming Lei <ming.lei@canonical.com>
----
-v5:
-        - use inline memalloc_noio_save()
-v4:
-	- mark current memalloc_noio for every usb device reset
----
- drivers/usb/core/hub.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+On Thu, Nov 22, 2012 at 5:41 PM, Fengguang Wu <fengguang.wu@intel.com> wrot=
+e:
+> On Wed, Nov 21, 2012 at 12:07:22PM +0200, Metin D=C3=B6=C5=9Fl=C3=BC wrot=
+e:
+>> On Wed, Nov 21, 2012 at 12:00 PM, Jaegeuk Hanse <jaegeuk.hanse@gmail.com=
+> wrote:
+>> >
+>> > On 11/21/2012 05:58 PM, metin d wrote:
+>> >
+>> > Hi Fengguang,
+>> >
+>> > I run tests and attached the results. The line below I guess shows the=
+ data-1 page caches.
+>> >
+>> > 0x000000080000006c       6584051    25718  __RU_lA___________________P=
+________    referenced,uptodate,lru,active,private
+>> >
+>> >
+>> > I thinks this is just one state of page cache pages.
+>>
+>> But why these page caches are in this state as opposed to other page
+>> caches. From the results I conclude that:
+>>
+>> data-1 pages are in state : referenced,uptodate,lru,active,private
+>
+> I wonder if it's this code that stops data-1 pages from being
+> reclaimed:
+>
+> shrink_page_list():
+>
+>                 if (page_has_private(page)) {
+>                         if (!try_to_release_page(page, sc->gfp_mask))
+>                                 goto activate_locked;
+>
+> What's the filesystem used?
 
-diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
-index 90accde..2d5cc1c 100644
---- a/drivers/usb/core/hub.c
-+++ b/drivers/usb/core/hub.c
-@@ -5040,6 +5040,7 @@ int usb_reset_device(struct usb_device *udev)
- {
- 	int ret;
- 	int i;
-+	unsigned int noio_flag;
- 	struct usb_host_config *config = udev->actconfig;
- 
- 	if (udev->state == USB_STATE_NOTATTACHED ||
-@@ -5049,6 +5050,17 @@ int usb_reset_device(struct usb_device *udev)
- 		return -EINVAL;
- 	}
- 
-+	/*
-+	 * Don't allocate memory with GFP_KERNEL in current
-+	 * context to avoid possible deadlock if usb mass
-+	 * storage interface or usbnet interface(iSCSI case)
-+	 * is included in current configuration. The easist
-+	 * approach is to do it for every device reset,
-+	 * because the device 'memalloc_noio' flag may have
-+	 * not been set before reseting the usb device.
-+	 */
-+	noio_flag = memalloc_noio_save();
-+
- 	/* Prevent autosuspend during the reset */
- 	usb_autoresume_device(udev);
- 
-@@ -5093,6 +5105,7 @@ int usb_reset_device(struct usb_device *udev)
- 	}
- 
- 	usb_autosuspend_device(udev);
-+	memalloc_noio_restore(noio_flag);
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(usb_reset_device);
--- 
-1.7.9.5
+It was ext3.
+
+>> data-2 pages are in state : referenced,uptodate,lru,mappedtodisk
+>
+> Thanks,
+> Fengguang
+
+
+
+--=20
+Metin D=C3=B6=C5=9Fl=C3=BC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
