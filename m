@@ -1,110 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id A98DC6B005D
-	for <linux-mm@kvack.org>; Sat, 24 Nov 2012 11:23:50 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so7532899pbc.14
-        for <linux-mm@kvack.org>; Sat, 24 Nov 2012 08:23:50 -0800 (PST)
-Message-ID: <50B0F493.3000103@gmail.com>
-Date: Sun, 25 Nov 2012 00:23:47 +0800
-From: Wen Congyang <wencongyang@gmail.com>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 251A06B005A
+	for <linux-mm@kvack.org>; Sat, 24 Nov 2012 19:10:49 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_memory=2Dcgroup_bug?=
+Date: Sun, 25 Nov 2012 01:10:47 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121121200207.01068046@pobox.sk>, <20121122152441.GA9609@dhcp22.suse.cz>, <20121122190526.390C7A28@pobox.sk>, <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk> <20121123100438.GF24698@dhcp22.suse.cz>
+In-Reply-To: <20121123100438.GF24698@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 2/3] acpi_memhotplug: Add prepare_remove operation
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1353693037-21704-3-git-send-email-vasilis.liaskovitis@profitbricks.com>
-In-Reply-To: <1353693037-21704-3-git-send-email-vasilis.liaskovitis@profitbricks.com>
-Content-Type: text/plain; charset=GB2312
-Content-Transfer-Encoding: 7bit
+Message-Id: <20121125011047.7477BB5E@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, toshi.kani@hp.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>
 
-At 2012/11/24 1:50, Vasilis Liaskovitis Wrote:
-> Offlining and removal of memory is now done in the prepare_remove callback,
-> not in the remove callback.
-> 
-> The prepare_remove callback will be called when trying to remove a memory device
-> with the following ways:
-> 
-> 1. send eject request by SCI
-> 2. echo 1>/sys/bus/pci/devices/PNP0C80:XX/eject
-> 
-> Note that unbinding the acpi driver from a memory device with:
-> echo "PNP0C80:XX">  /sys/bus/acpi/drivers/acpi_memhotplug/unbind
-> 
-> will no longer try to remove the memory. This is in compliance with normal
-> unbind driver core semantics, see the discussion in v2 of this patchset:
-> https://lkml.org/lkml/2012/11/16/649
+>Could you take few snapshots over time?
 
-If we don't remove it when unbinding it, it may cause kernel panicked.
 
-I have explained in another mail.
-
-Thanks
-Wen Congyang
-
-> 
-> After a successful unbind of the driver:
-> - OSPM ejects of the memory device cannot proceed, as acpi_eject_store will
-> return -ENODEV on missing driver.
-> - SCI ejects of the memory device also cannot proceed, as they will also get
-> a "driver data is NULL" error.
-> So the memory can continue to be used safely after unbind.
-> 
-> Signed-off-by: Vasilis Liaskovitis<vasilis.liaskovitis@profitbricks.com>
-> ---
->   drivers/acpi/acpi_memhotplug.c |   18 ++++++++++++++++--
->   1 files changed, 16 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index eb30e5a..d0cfbd9 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -55,6 +55,7 @@ MODULE_LICENSE("GPL");
-> 
->   static int acpi_memory_device_add(struct acpi_device *device);
->   static int acpi_memory_device_remove(struct acpi_device *device, int type);
-> +static int acpi_memory_device_prepare_remove(struct acpi_device *device);
-> 
->   static const struct acpi_device_id memory_device_ids[] = {
->   	{ACPI_MEMORY_DEVICE_HID, 0},
-> @@ -69,6 +70,7 @@ static struct acpi_driver acpi_memory_device_driver = {
->   	.ops = {
->   		.add = acpi_memory_device_add,
->   		.remove = acpi_memory_device_remove,
-> +		.prepare_remove = acpi_memory_device_prepare_remove,
->   		},
->   };
-> 
-> @@ -448,6 +450,20 @@ static int acpi_memory_device_add(struct acpi_device *device)
->   static int acpi_memory_device_remove(struct acpi_device *device, int type)
->   {
->   	struct acpi_memory_device *mem_device = NULL;
-> +
-> +	if (!device || !acpi_driver_data(device))
-> +		return -EINVAL;
-> +
-> +	mem_device = acpi_driver_data(device);
-> +
-> +	acpi_memory_device_free(mem_device);
-> +
-> +	return 0;
-> +}
-> +
-> +static int acpi_memory_device_prepare_remove(struct acpi_device *device)
-> +{
-> +	struct acpi_memory_device *mem_device = NULL;
->   	int result;
-> 
->   	if (!device || !acpi_driver_data(device))
-> @@ -459,8 +475,6 @@ static int acpi_memory_device_remove(struct acpi_device *device, int type)
->   	if (result)
->   		return result;
-> 
-> -	acpi_memory_device_free(mem_device);
-> -
->   	return 0;
->   }
-> 
+Here it is, now from different server, snapshot was taken every second for 10 minutes (hope it's enough):
+www.watchdog.sk/lkml/memcg-bug-2.tar.gz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
