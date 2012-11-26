@@ -1,42 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 3A7236B0072
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 15:12:38 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so4700654eaa.14
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 12:12:36 -0800 (PST)
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id DDB3C6B0073
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 15:13:16 -0500 (EST)
+Date: Mon, 26 Nov 2012 15:13:08 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [Bug 50981] generic_file_aio_read ?: No locking means DATA
+ CORRUPTION read and write on same 4096 page  range
+Message-ID: <20121126201308.GA21050@infradead.org>
+References: <bug-50981-5823@https.bugzilla.kernel.org/>
+ <20121126163328.ACEB011FE9C@bugzilla.kernel.org>
+ <20121126164555.GL31891@thunk.org>
+ <alpine.LNX.2.00.1211261144190.1183@eggly.anvils>
 MIME-Version: 1.0
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 26 Nov 2012 12:12:16 -0800
-Message-ID: <CALCETrW=0gQMBW=nLKCWS-O7H5q6zYFCbFGOcC2PTS668=Z_NA@mail.gmail.com>
-Subject: mmap_sem contention issues
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1211261144190.1183@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, bugzilla-daemon@bugzilla.kernel.org, meetmehiro@gmail.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-I'm having serious latency problems due to mmap_sem contention.  I
-have a real-time thread that has (soft) page faults on locked pages,
-and it blocks for multiple milliseconds on
-(call_rwsem_down_read_failed do_page_fault page_fault).  Can this be
-fixed?
+On Mon, Nov 26, 2012 at 12:05:57PM -0800, Hugh Dickins wrote:
+> Gosh, that's a very sudden new consensus.  The consensus over the past
+> ten or twenty years has been that the Linux kernel enforce locking for
+> consistent atomic writes, but skip that overhead on reads - hasn't it?
 
-Some ideas:
+I'm not sure there was much of a consensus ever.  We XFS people always
+ttried to push everyone down the strict rule, but there was enough
+pushback that it didn't actually happen.
 
-1. Drop mmap_sem during the filesystem part of mmap and munmap.
-(MAP_POPULATE in particular is a disaster -- using it will easily
-increase latency from a few milliseconds to a respectable fraction of
-a second.)
+> Thanks, that's helpful; but I think linux-mm people would want to defer
+> to linux-fsdevel maintainers on this: mm/filemap.c happens to be in mm/,
+> but a fundamental change to VFS locking philosophy is not mm's call.
+> 
+> I don't see that page locking would have anything to do with it: if we
+> are going to start guaranteeing reads atomic against concurrent writes,
+> then surely it's the size requested by the user to be guaranteed,
+> spanning however many pages and fs-blocks: i_mutex, or a more
+> efficiently crafted alternative.
 
-2. Come up with some way to lock specific vm_area_structs for read
-access without taking mmap_sem at all.  This looks unpleasant with the
-current rbtree structure -- something like a radix tree might work
-much better if the nodes were to contain their own locks.
+What XFS does is simply replace (or rather augment currently) i_mutex
+with a rw_semaphore (i_iolock in XFS) which is used the following way:
 
---Andy
+exclusive:
+ - buffer writes
+ - pagecache flushing before direct I/O (then downgraded)
+ - appending direct I/O writes
+ - less than blocksize granularity direct I/O
 
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+shared:
+ - everything else (buffered reads, "normal" direct I/O)
+
+Doing this in the highest levels of the generic_file_ code would be
+trivial, and would allow us to get rid of a fair chunk of wrappers in
+XFS.
+
+Note that we've been thinking about replacing this lock with a range
+lock, but this will require more research.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
