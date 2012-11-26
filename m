@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 34DD86B0062
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 07:23:19 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so8422534pbc.14
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 04:23:18 -0800 (PST)
-Message-ID: <50B35F0E.1090905@gmail.com>
-Date: Mon, 26 Nov 2012 20:22:38 +0800
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id A2AFB6B006C
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 07:41:28 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so8433810pbc.14
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 04:41:28 -0800 (PST)
+Message-ID: <50B36354.7040501@gmail.com>
+Date: Mon, 26 Nov 2012 20:40:52 +0800
 From: wujianguo <wujianguo106@gmail.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
@@ -16,7 +16,91 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+Cc: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, wujianguo@huawei.com, qiuxishi@huawei.com
+
+Hi Tang,
+	I tested this patchset in x86_64, and I found that this patch didn't
+work as expected.
+	For example, if node2's memory pfn range is [0x680000-0x980000),
+I boot kernel with movablecore_map=4G@0x680000000, all memory in node2 will be
+in ZONE_MOVABLE, but bootmem still can be allocated from [0x780000000-0x980000000),
+that means bootmem *is allocated* from ZONE_MOVABLE. This because movablecore_map
+only contains [0x680000000-0x780000000). I think we can fixup movablecore_map, how
+about this:
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+---
+ arch/x86/mm/srat.c |   15 +++++++++++++++
+ include/linux/mm.h |    3 +++
+ mm/page_alloc.c    |    2 +-
+ 3 files changed, 19 insertions(+), 1 deletions(-)
+
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 4ddf497..f1aac08 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -147,6 +147,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ {
+ 	u64 start, end;
+ 	int node, pxm;
++	int i;
++	unsigned long start_pfn, end_pfn;
+
+ 	if (srat_disabled())
+ 		return -1;
+@@ -181,6 +183,19 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
+ 	       node, pxm,
+ 	       (unsigned long long) start, (unsigned long long) end - 1);
++
++	start_pfn = PFN_DOWN(start);
++	end_pfn = PFN_UP(end);
++	for (i = 0; i < movablecore_map.nr_map; i++) {
++		if (end_pfn <= movablecore_map.map[i].start)
++			break;
++
++		if (movablecore_map.map[i].end < end_pfn) {
++			insert_movablecore_map(movablecore_map.map[i].end,
++						end_pfn);
++		}
++	}
++
+ 	return 0;
+ }
+
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 5a65251..7a23403 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1356,6 +1356,9 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn);
+ #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+ #endif
+
++extern void insert_movablecore_map(unsigned long start_pfn,
++					  unsigned long end_pfn);
++
+ extern void set_dma_reserve(unsigned long new_dma_reserve);
+ extern void memmap_init_zone(unsigned long, int, unsigned long,
+ 				unsigned long, enum memmap_context);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 544c829..e6b5090 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5089,7 +5089,7 @@ early_param("movablecore", cmdline_parse_movablecore);
+  * This function will also merge the overlapped ranges, and sort the array
+  * by start_pfn in monotonic increasing order.
+  */
+-static void __init insert_movablecore_map(unsigned long start_pfn,
++void __init insert_movablecore_map(unsigned long start_pfn,
+ 					  unsigned long end_pfn)
+ {
+ 	int pos, overlap;
+-- 1.7.6.1
+.
+
+Thanks,
+Jianguo Wu
 
 On 2012-11-23 18:44, Tang Chen wrote:
 > This patch make sure bootmem will not allocate memory from areas that
@@ -66,20 +150,12 @@ On 2012-11-23 18:44, Tang Chen wrote:
 >  
 > +		for (; curr >= 0; curr--) {
 > +			if (movablecore_map.map[curr].start < this_end)
-
-movablecore_map[curr].start should be movablecore_map[curr].start << PAGE_SHIFT.
-May be you can change movablecore_map[].start/end to movablecore_map[].start_pfn/end_pfn
-to avoid confusion.
-
 > +				break;
 > +		}
 > +
 >  		cand = round_down(this_end - size, align);
 > +		if (curr >= 0 && cand < movablecore_map.map[curr].end) {
 > +			this_end = movablecore_map.map[curr].start;
-
-Ditto.
-
 > +			goto restart;
 > +		}
 > +
