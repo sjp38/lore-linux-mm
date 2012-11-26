@@ -1,61 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 6C9746B006C
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 08:42:19 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0ME3000K8KQHMM00@mailout1.samsung.com> for
- linux-mm@kvack.org; Mon, 26 Nov 2012 22:42:17 +0900 (KST)
-Received: from localhost.localdomain ([106.116.147.30])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0ME300LU3KQ7P550@mmp2.samsung.com> for linux-mm@kvack.org;
- Mon, 26 Nov 2012 22:42:17 +0900 (KST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] dma-mapping: fix dma_common_get_sgtable() conditional
- compilation
-Date: Mon, 26 Nov 2012 14:41:48 +0100
-Message-id: <1353937308-887-1-git-send-email-m.szyprowski@samsung.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 2D22F6B0062
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 09:27:49 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so8502891pbc.14
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 06:27:48 -0800 (PST)
+Message-ID: <50B37C52.2060301@gmail.com>
+Date: Mon, 26 Nov 2012 22:27:30 +0800
+From: Jianguo Wu <wujianguo106@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 11/12] memory-hotplug: remove sysfs file of node
+References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-12-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1351763083-7905-12-git-send-email-wency@cn.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Mauro Carvalho Chehab <mchehab@infradead.org>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-dma_common_get_sgtable() function doesn't depend on
-ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY, so it must not be compiled
-conditionally.
+On 2012/11/1 17:44, Wen Congyang wrote:
+> This patch introduces a new function try_offline_node() to
+> remove sysfs file of node when all memory sections of this
+> node are removed. If some memory sections of this node are
+> not removed, this function does nothing.
+> 
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
+>  drivers/acpi/acpi_memhotplug.c |  8 +++++-
+>  include/linux/memory_hotplug.h |  2 +-
+>  mm/memory_hotplug.c            | 58 ++++++++++++++++++++++++++++++++++++++++--
+>  3 files changed, 64 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index 24c807f..0780f99 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -310,7 +310,9 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>  {
+>  	int result;
+>  	struct acpi_memory_info *info, *n;
+> +	int node;
+>  
+> +	node = acpi_get_node(mem_device->device->handle);
+>  
+>  	/*
+>  	 * Ask the VM to offline this memory range.
+> @@ -318,7 +320,11 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
+>  	 */
+>  	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+>  		if (info->enabled) {
+> -			result = remove_memory(info->start_addr, info->length);
+> +			if (node < 0)
+> +				node = memory_add_physaddr_to_nid(
+> +					info->start_addr);
+> +			result = remove_memory(node, info->start_addr,
+> +				info->length);
+>  			if (result)
+>  				return result;
+>  		}
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index d4c4402..7b4cfe6 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -231,7 +231,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern int offline_memory_block(struct memory_block *mem);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+> -extern int remove_memory(u64 start, u64 size);
+> +extern int remove_memory(int node, u64 start, u64 size);
+>  extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+>  								int nr_pages);
+>  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 7bcced0..d965da3 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -29,6 +29,7 @@
+>  #include <linux/suspend.h>
+>  #include <linux/mm_inline.h>
+>  #include <linux/firmware-map.h>
+> +#include <linux/stop_machine.h>
+>  
+>  #include <asm/tlbflush.h>
+>  
+> @@ -1299,7 +1300,58 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+>  	return ret;
+>  }
+>  
+> -int __ref remove_memory(u64 start, u64 size)
+> +static int check_cpu_on_node(void *data)
+> +{
+> +	struct pglist_data *pgdat = data;
+> +	int cpu;
+> +
+> +	for_each_present_cpu(cpu) {
+> +		if (cpu_to_node(cpu) == pgdat->node_id)
+> +			/*
+> +			 * the cpu on this node isn't removed, and we can't
+> +			 * offline this node.
+> +			 */
+> +			return -EBUSY;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +/* offline the node if all memory sections of this node are removed */
+> +static void try_offline_node(int nid)
+> +{
+> +	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+> +	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+> +	unsigned long pfn;
+> +
+> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+> +		unsigned long section_nr = pfn_to_section_nr(pfn);
+> +
+> +		if (!present_section_nr(section_nr))
+> +			continue;
+> +
+> +		if (pfn_to_nid(pfn) != nid)
+> +			continue;
+> +
+> +		/*
+> +		 * some memory sections of this node are not removed, and we
+> +		 * can't offline node now.
+> +		 */
+> +		return;
+> +	}
+> +
+> +	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
+> +		return;
 
-Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
----
- drivers/base/dma-mapping.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/drivers/base/dma-mapping.c b/drivers/base/dma-mapping.c
-index 3fbedc7..0ce39a3 100644
---- a/drivers/base/dma-mapping.c
-+++ b/drivers/base/dma-mapping.c
-@@ -218,6 +218,8 @@ void dmam_release_declared_memory(struct device *dev)
- }
- EXPORT_SYMBOL(dmam_release_declared_memory);
- 
-+#endif
-+
- /*
-  * Create scatter-list for the already allocated DMA buffer.
-  */
-@@ -236,8 +238,6 @@ int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
- }
- EXPORT_SYMBOL(dma_common_get_sgtable);
- 
--#endif
--
- /*
-  * Create userspace mapping for the DMA-coherent memory.
-  */
--- 
-1.7.9.5
+how about:
+	if (nr_cpus_node(nid))
+		return;
+> +
+> +	/*
+> +	 * all memory/cpu of this node are removed, we can offline this
+> +	 * node now.
+> +	 */
+> +	node_set_offline(nid);
+> +	unregister_one_node(nid);
+> +}
+> +
+> +int __ref remove_memory(int nid, u64 start, u64 size)
+>  {
+>  	unsigned long start_pfn, end_pfn;
+>  	int ret = 0;
+> @@ -1346,6 +1398,8 @@ repeat:
+>  
+>  	arch_remove_memory(start, size);
+>  
+> +	try_offline_node(nid);
+> +
+>  	unlock_memory_hotplug();
+>  
+>  	return 0;
+> @@ -1355,7 +1409,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>  {
+>  	return -EINVAL;
+>  }
+> -int remove_memory(u64 start, u64 size)
+> +int remove_memory(int nid, u64 start, u64 size)
+>  {
+>  	return -EINVAL;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
