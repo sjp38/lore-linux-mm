@@ -1,27 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 2366E6B006C
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 16:28:28 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Mon, 26 Nov 2012 22:28:26 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk>, <20121123100438.GF24698@dhcp22.suse.cz>, <20121125011047.7477BB5E@pobox.sk>, <20121125120524.GB10623@dhcp22.suse.cz>, <20121125135542.GE10623@dhcp22.suse.cz>, <20121126013855.AF118F5E@pobox.sk>, <20121126131837.GC17860@dhcp22.suse.cz> <20121126132149.GD17860@dhcp22.suse.cz>
-In-Reply-To: <20121126132149.GD17860@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 603446B0072
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 16:28:49 -0500 (EST)
+Date: Tue, 27 Nov 2012 08:28:45 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [Bug 50981] generic_file_aio_read ?: No locking means DATA
+ CORRUPTION read and write on same 4096 page  range
+Message-ID: <20121126212845.GJ6434@dastard>
+References: <bug-50981-5823@https.bugzilla.kernel.org/>
+ <20121126163328.ACEB011FE9C@bugzilla.kernel.org>
+ <20121126164555.GL31891@thunk.org>
+ <alpine.LNX.2.00.1211261144190.1183@eggly.anvils>
+ <20121126201308.GA21050@infradead.org>
 MIME-Version: 1.0
-Message-Id: <20121126222826.3843D563@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121126201308.GA21050@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, bugzilla-daemon@bugzilla.kernel.org, meetmehiro@gmail.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
->Here we go with the patch for 3.2.34. Could you test with this one,
->please?
+On Mon, Nov 26, 2012 at 03:13:08PM -0500, Christoph Hellwig wrote:
+> On Mon, Nov 26, 2012 at 12:05:57PM -0800, Hugh Dickins wrote:
+> > Gosh, that's a very sudden new consensus.  The consensus over the past
+> > ten or twenty years has been that the Linux kernel enforce locking for
+> > consistent atomic writes, but skip that overhead on reads - hasn't it?
+> 
+> I'm not sure there was much of a consensus ever.  We XFS people always
+> ttried to push everyone down the strict rule, but there was enough
+> pushback that it didn't actually happen.
+> 
+> > Thanks, that's helpful; but I think linux-mm people would want to defer
+> > to linux-fsdevel maintainers on this: mm/filemap.c happens to be in mm/,
+> > but a fundamental change to VFS locking philosophy is not mm's call.
+> > 
+> > I don't see that page locking would have anything to do with it: if we
+> > are going to start guaranteeing reads atomic against concurrent writes,
+> > then surely it's the size requested by the user to be guaranteed,
+> > spanning however many pages and fs-blocks: i_mutex, or a more
+> > efficiently crafted alternative.
+> 
+> What XFS does is simply replace (or rather augment currently) i_mutex
+> with a rw_semaphore (i_iolock in XFS) which is used the following way:
+> 
+> exclusive:
+>  - buffer writes
+>  - pagecache flushing before direct I/O (then downgraded)
+>  - appending direct I/O writes
+>  - less than blocksize granularity direct I/O
+   - splice write
 
-Michal, regarding to your conversation with Johannes Weiner, should i try this patch or not?
+Also, direct extent manipulations that are outside the IO path such
+as:
+   - truncate
+   - preallocation
+   - hole punching
 
-azur
+use the XFS_IOLOCK_EXCL to provide exclusion against new IO starting
+while such an operation is in progress.
+
+> shared:
+>  - everything else (buffered reads, "normal" direct I/O)
+> 
+> Doing this in the highest levels of the generic_file_ code would be
+> trivial, and would allow us to get rid of a fair chunk of wrappers in
+> XFS.
+
+We still need the iolock deep in the guts of the filesystem, though.
+
+I suspect that if we are going to change the VFS locking, then we
+should seriously consider allowing the filesystem to provide it's
+own locking implementation and the VFS just pass the type of lock
+required. Otherwise we are still going to need all the locking
+within the filesystem to serialise all the core pieces that the VFS
+locking doesn't serialise (e.g. EOF truncation on close/evict,
+extent swaps for online defrag, etc).
+
+> Note that we've been thinking about replacing this lock with a range
+> lock, but this will require more research.
+
+I'd say we need a working implementation in a filesystem before even
+considering a VFS implementation...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
