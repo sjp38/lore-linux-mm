@@ -1,61 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id A69456B004D
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 10:07:32 -0500 (EST)
-Received: from /spool/local
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 26 Nov 2012 08:07:31 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 2162E3E40063
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 08:07:14 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAQF73BD312358
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 08:07:03 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAQF6xVP010046
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 08:06:59 -0700
-Message-ID: <50B3858D.2060404@linux.vnet.ibm.com>
-Date: Mon, 26 Nov 2012 07:06:53 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 87ED66B0044
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 10:32:24 -0500 (EST)
+Message-ID: <50B38B7C.2080201@redhat.com>
+Date: Mon, 26 Nov 2012 10:32:12 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: compaction: Fix return value of capture_free_page
-References: <20121121192151.3FFE0A9A@kernel.stglabs.ibm.com> <20121126112350.GI8218@suse.de>
-In-Reply-To: <20121126112350.GI8218@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Subject: Re: [PATCH] mm,vmscan: only loop back if compaction would fail in
+ all zones
+References: <20121119202152.4B0E420004E@hpza10.eem.corp.google.com> <20121125175728.3db4ac6a@fem.tu-ilmenau.de> <20121125132950.11b15e38@annuminas.surriel.com> <20121125224433.GB2799@cmpxchg.org> <20121125191645.0ebc6d59@annuminas.surriel.com> <20121126031518.GC2799@cmpxchg.org> <20121126041041.GD2799@cmpxchg.org>
+In-Reply-To: <20121126041041.GD2799@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, akpm@linux-foundation.org, mgorman@suse.de, Valdis.Kletnieks@vt.edu, jirislaby@gmail.com, jslaby@suse.cz, zkabelac@redhat.com, mm-commits@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
 
-On 11/26/2012 03:23 AM, Mel Gorman wrote:
-> On Wed, Nov 21, 2012 at 02:21:51PM -0500, Dave Hansen wrote:
->>
->> This needs to make it in before 3.7 is released.
->>
-> 
-> This is also required. Dave, can you double check? The surprise is that
-> this does not blow up very obviously.
-...
-> @@ -1422,7 +1422,7 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
->  		}
->  	}
-> 
-> -	return 1UL << order;
-> +	return 1UL << alloc_order;
->  }
+On 11/25/2012 11:10 PM, Johannes Weiner wrote:
 
-compact_capture_page() only looks at the boolean return value out of
-capture_free_page(), so it wouldn't notice.  split_free_page() does.
-But, when it calls capture_free_page(), order==alloc_order, so it
-wouldn't make a difference.  So, there's probably no actual bug here,
-but it's certainly a wrong return value.
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: vmscan: fix endless loop in kswapd balancing
+>
+> Kswapd does not in all places have the same criteria for when it
+> considers a zone balanced.  This leads to zones being not reclaimed
+> because they are considered just fine and the compaction checks to
+> loop over the zonelist again because they are considered unbalanced,
+> causing kswapd to run forever.
+>
+> Add a function, zone_balanced(), that checks the watermark and if
+> compaction has enough free memory to do its job.  Then use it
+> uniformly for when kswapd needs to check if a zone is balanced.
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-We should probably also fix the set_pageblock_migratetype() loop in
-there while we're at it.  I think it's potentially trampling on the
-migration type of pages currently in the allocator.  I _think_ that
-completes the list of things that need to get audited in there.
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
