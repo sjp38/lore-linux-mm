@@ -1,103 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 68B9B6B0068
-	for <linux-mm@kvack.org>; Sun, 25 Nov 2012 19:16:58 -0500 (EST)
-Date: Sun, 25 Nov 2012 19:16:45 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH] mm,vmscan: only loop back if compaction would fail in all
- zones
-Message-ID: <20121125191645.0ebc6d59@annuminas.surriel.com>
-In-Reply-To: <20121125224433.GB2799@cmpxchg.org>
-References: <20121119202152.4B0E420004E@hpza10.eem.corp.google.com>
-	<20121125175728.3db4ac6a@fem.tu-ilmenau.de>
-	<20121125132950.11b15e38@annuminas.surriel.com>
-	<20121125224433.GB2799@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 924556B005A
+	for <linux-mm@kvack.org>; Sun, 25 Nov 2012 19:38:57 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_memory=2Dcgroup_bug?=
+Date: Mon, 26 Nov 2012 01:38:55 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121121200207.01068046@pobox.sk>, <20121122152441.GA9609@dhcp22.suse.cz>, <20121122190526.390C7A28@pobox.sk>, <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk>, <20121123100438.GF24698@dhcp22.suse.cz>, <20121125011047.7477BB5E@pobox.sk>, <20121125120524.GB10623@dhcp22.suse.cz> <20121125135542.GE10623@dhcp22.suse.cz>
+In-Reply-To: <20121125135542.GE10623@dhcp22.suse.cz>
+MIME-Version: 1.0
+Message-Id: <20121126013855.AF118F5E@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, akpm@linux-foundation.org, mgorman@suse.de, Valdis.Kletnieks@vt.edu, jirislaby@gmail.com, jslaby@suse.cz, zkabelac@redhat.com, mm-commits@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Sun, 25 Nov 2012 17:44:33 -0500
-Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Sun, Nov 25, 2012 at 01:29:50PM -0500, Rik van Riel wrote:
+>This is hackish but it should help you in this case. Kamezawa, what do
+>you think about that? Should we generalize this and prepare something
+>like mem_cgroup_cache_charge_locked which would add __GFP_NORETRY
+>automatically and use the function whenever we are in a locked context?
+>To be honest I do not like this very much but nothing more sensible
+>(without touching non-memcg paths) comes to my mind.
 
-> > Could you try this patch?
-> 
-> It's not quite enough because it's not reaching the conditions you
-> changed, see analysis in https://lkml.org/lkml/2012/11/20/567
 
-Johannes,
+I installed kernel with this patch, will report back if problem occurs again OR in few weeks if everything will be ok. Thank you!
 
-does the patch below fix your problem?
+Btw, will this patch be backported to 3.2?
 
-I suspect it would, because kswapd should only ever run into this
-particular problem when we have a tiny memory zone in a pgdat,
-and in that case we will also have a larger zone nearby, where
-compaction would just succeed.
-
----8<---
-
-Subject: mm,vmscan: only loop back if compaction would fail in all zones
-
-Kswapd frees memory to satisfy two goals:
-1) allow allocations to succeed, and
-2) balance memory pressure between zones 
-
-Currently, kswapd has an issue where it will loop back to free
-more memory if any memory zone in the pgdat has not enough free
-memory for compaction.  This can lead to unnecessary overhead,
-and even infinite loops in kswapd.
-
-It is better to only loop back to free more memory if all of
-the zones in the pgdat have insufficient free memory for
-compaction.  That satisfies both of kswapd's goals with less
-overhead.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- mm/vmscan.c |   11 ++++++++---
- 1 files changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b99ecba..f0d111b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2790,6 +2790,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 	 */
- 	if (order) {
- 		int zones_need_compaction = 1;
-+		int compaction_needs_memory = 1;
- 
- 		for (i = 0; i <= end_zone; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
-@@ -2801,10 +2802,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 			    sc.priority != DEF_PRIORITY)
- 				continue;
- 
--			/* Would compaction fail due to lack of free memory? */
-+			/* Is there enough memory for compaction? */
- 			if (COMPACTION_BUILD &&
--			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
--				goto loop_again;
-+			    compaction_suitable(zone, order) != COMPACT_SKIPPED)
-+				compaction_needs_memory = 0;
- 
- 			/* Confirm the zone is balanced for order-0 */
- 			if (!zone_watermark_ok(zone, 0,
-@@ -2822,6 +2823,10 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 			zone_clear_flag(zone, ZONE_CONGESTED);
- 		}
- 
-+		/* None of the zones had enough free memory for compaction. */
-+		if (compaction_needs_memory)
-+			goto loop_again;
-+
- 		if (zones_need_compaction)
- 			compact_pgdat(pgdat, order);
- 	}
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
