@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 82F276B006C
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 04:52:17 -0500 (EST)
-Message-ID: <50B3323E.7020907@cn.fujitsu.com>
-Date: Mon, 26 Nov 2012 17:11:26 +0800
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 65CC16B0070
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 04:56:02 -0500 (EST)
+Message-ID: <50B33E35.2020106@cn.fujitsu.com>
+Date: Mon, 26 Nov 2012 18:02:29 +0800
 From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1353693037-21704-4-git-send-email-vasilis.liaskovitis@profitbricks.com> <50B0F3DF.4000802@gmail.com> <20121126083634.GA4574@dhcp-192-168-178-175.profitbricks.localdomain>
-In-Reply-To: <20121126083634.GA4574@dhcp-192-168-178-175.profitbricks.localdomain>
+Subject: [PATCH] memory: fix the argument passed to sync_alobal_pgds()
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Cc: Wen Congyang <wencongyang@gmail.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, toshi.kani@hp.com, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Mel Gorman <mgorman@suse.de>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Yasuaki ISIMATU <isimatu.yasuaki@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-At 11/26/2012 04:36 PM, Vasilis Liaskovitis Wrote:
-> On Sun, Nov 25, 2012 at 12:20:47AM +0800, Wen Congyang wrote:
->> At 2012/11/24 1:50, Vasilis Liaskovitis Wrote:
->>> Consider the following sequence of operations for a hotplugged memory device:
->>>
->>> 1. echo "PNP0C80:XX">  /sys/bus/acpi/drivers/acpi_memhotplug/unbind
->>> 2. echo "PNP0C80:XX">  /sys/bus/acpi/drivers/acpi_memhotplug/bind
->>> 3. echo 1>/sys/bus/pci/devices/PNP0C80:XX/eject
->>>
->>> The driver is successfully re-bound to the device in step 2. However step 3 will
->>> not attempt to remove the memory. This is because the acpi_memory_info enabled
->>> bit for the newly bound driver has not been set to 1. This bit needs to be set
->>> in the case where the memory is already used by the kernel (add_memory returns
->>> -EEXIST)
->>
->> Hmm, I think the reason is that we don't offline/remove memory when
->> unbinding it
->> from the driver. I have sent a patch to fix this problem, and this patch
->> is in
->> pm tree now. With this patch, we will offline/remove memory when
->> unbinding it from
->> the drriver.
-> 
-> ok. Which patch is this? Does it require driver-core changes?
+The address rang of sync_global_pgds() should be [start, end],
+but we pass [start, end) to this function.
 
-https://lkml.org/lkml/2012/11/15/21
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Jiang Liu <liuj97@gmail.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+---
+ arch/x86/mm/init_64.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Patch 1-6 is in pm tree now.
-
-> 
->>
->> Consider the following sequence of operations for a hotplugged memory
->> device:
->>
->> 1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
->> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->>
->> If we don't offline/remove the memory, we have no chance to do it in
->> step 2. After
->> step2, the memory is used by the kernel, but we have powered off it. It
->> is very
->> dangerous.
-> 
-> How does power-off happen after unbind? acpi_eject_store checks for existing
-> driver before taking any action:
-> 
-> #ifndef FORCE_EJECT
-> 	if (acpi_device->driver == NULL) {
-> 		ret = -ENODEV;
-> 		goto err;
-> 	}
-> #endif
-> 
-> FORCE_EJECT is not defined afaict, so the function returns without scheduling
-> acpi_bus_hot_remove_device. Is there another code path that calls power-off?
-
-Consider the following case:
-
-We hotremove the memory device by SCI and unbind it from the driver at the same time:
-
-CPUa                                                  CPUb
-acpi_memory_device_notify()
-                                       unbind it from the driver
-    acpi_bus_hot_remove_device()
-
-Thanks
-Wen Congyang
-
-> 
-> thanks,
-> 
-> - Vasilis
-> 
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 3baff25..df50b43 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -605,7 +605,7 @@ kernel_physical_mapping_init(unsigned long start,
+ 	}
+ 
+ 	if (pgd_changed)
+-		sync_global_pgds(addr, end);
++		sync_global_pgds(addr, end - 1);
+ 
+ 	__flush_tlb_all();
+ 
+@@ -979,7 +979,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
+ 		}
+ 
+ 	}
+-	sync_global_pgds((unsigned long)start_page, end);
++	sync_global_pgds((unsigned long)start_page, end - 1);
+ 	return 0;
+ }
+ 
+-- 
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
