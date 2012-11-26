@@ -1,124 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id A2DE86B006C
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 13:59:37 -0500 (EST)
-Received: by mail-wi0-f179.google.com with SMTP id hj6so2877048wib.8
-        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 10:59:36 -0800 (PST)
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 6B0036B0062
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 14:03:33 -0500 (EST)
+Received: by mail-wi0-f179.google.com with SMTP id hj6so2880227wib.8
+        for <linux-mm@kvack.org>; Mon, 26 Nov 2012 11:03:31 -0800 (PST)
+Date: Mon, 26 Nov 2012 20:03:29 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121126190329.GB12602@dhcp22.suse.cz>
+References: <20121123102137.10D6D653@pobox.sk>
+ <20121123100438.GF24698@dhcp22.suse.cz>
+ <20121125011047.7477BB5E@pobox.sk>
+ <20121125120524.GB10623@dhcp22.suse.cz>
+ <20121125135542.GE10623@dhcp22.suse.cz>
+ <20121126013855.AF118F5E@pobox.sk>
+ <20121126131837.GC17860@dhcp22.suse.cz>
+ <20121126174622.GE2799@cmpxchg.org>
+ <20121126180444.GA12602@dhcp22.suse.cz>
+ <20121126182421.GB2301@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20121126164555.GL31891@thunk.org>
-References: <bug-50981-5823@https.bugzilla.kernel.org/>
-	<20121126163328.ACEB011FE9C@bugzilla.kernel.org>
-	<20121126164555.GL31891@thunk.org>
-Date: Tue, 27 Nov 2012 00:29:35 +0530
-Message-ID: <CANPs=i4xSJPD6+Y0UCk7rOY6qFpnpnF4h4FT+bN5K3tGGA3x_g@mail.gmail.com>
-Subject: Re: [Bug 50981] generic_file_aio_read ?: No locking means DATA
- CORRUPTION read and write on same 4096 page range
-From: Hiro Lalwani <meetmehiro@gmail.com>
-Content-Type: multipart/alternative; boundary=001636ef0283d38c4104cf6a88f3
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121126182421.GB2301@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
---001636ef0283d38c4104cf6a88f3
-Content-Type: text/plain; charset=ISO-8859-1
+On Mon 26-11-12 13:24:21, Johannes Weiner wrote:
+> On Mon, Nov 26, 2012 at 07:04:44PM +0100, Michal Hocko wrote:
+> > On Mon 26-11-12 12:46:22, Johannes Weiner wrote:
+[...]
+> > > I think global oom already handles this in a much better way: invoke
+> > > the OOM killer, sleep for a second, then return to userspace to
+> > > relinquish all kernel resources and locks.  The only reason why we
+> > > can't simply change from an endless retry loop is because we don't
+> > > want to return VM_FAULT_OOM and invoke the global OOM killer.
+> > 
+> > Exactly.
+> > 
+> > > But maybe we can return a new VM_FAULT_OOM_HANDLED for memcg OOM and
+> > > just restart the pagefault.  Return -ENOMEM to the buffered IO syscall
+> > > respectively.  This way, the memcg OOM killer is invoked as it should
+> > > but nobody gets stuck anywhere livelocking with the exiting task.
+> > 
+> > Hmm, we would still have a problem with oom disabled (aka user space OOM
+> > killer), right? All processes but those in mem_cgroup_handle_oom are
+> > risky to be killed.
+> 
+> Could we still let everybody get stuck in there when the OOM killer is
+> disabled and let userspace take care of it?
 
- Thanks a lot Theodore Ts'o ...
+I am not sure what exactly you mean by "userspace take care of it" but
+if those processes are stuck and holding the lock then it is usually
+hard to find that out. Well if somebody is familiar with internal then
+it is doable but this makes the interface really unusable for regular
+usage.
 
- Thanks to all (kernel,ext4 ..etc. )developer for quick debug and
-response...
+> > Other POV might be, why we should trigger an OOM killer from those paths
+> > in the first place. Write or read (or even readahead) are all calls that
+> > should rather fail than cause an OOM killer in my opinion.
+> 
+> Readahead is arguable, but we kill globally for read() and write() and
+> I think we should do the same for memcg.
 
+Fair point but the global case is little bit easier than memcg in this
+case because nobody can hook on OOM killer and provide a userspace
+implementation for it which is one of the cooler feature of memcg...
+I am all open to any suggestions but we should somehow fix this (and
+backport it to stable trees as this is there for quite some time. The
+current report shows that the problem is not that hard to trigger).
 
-On Mon, Nov 26, 2012 at 10:15 PM, Theodore Ts'o <tytso@mit.edu> wrote:
+> The OOM killer is there to resolve a problem that comes from
+> overcommitting the machine but the overuse does not have to be from
+> the application that pushes the machine over the edge, that's why we
+> don't just kill the allocating task but actually go look for the best
+> candidate.  If you have one memory hog that overuses the resources,
+> attempted memory consumption in a different program should invoke the
+> OOM killer.  
 
-> On Mon, Nov 26, 2012 at 04:33:28PM +0000,
-> bugzilla-daemon@bugzilla.kernel.org wrote:
-> > https://bugzilla.kernel.org/show_bug.cgi?id=50981
-> >
-> > as this is working properly with XFS, so in ext4/ext3...etc also we
-> shouldn't
-> > require synchronization at the Application level,., FS should take care
-> of
-> > locking... will we expecting the fix for the same ???
->
-> Meetmehiro,
->
-> At this point, there seems to be consensus that the kernel should take
-> care of the locking, and that this is not something that needs be a
-> worry for the application.  Whether this should be done in the file
-> system layer or in the mm layer is the current question at hand ---
-> since this is a bug that also affects btrfs and other non-XFS file
-> systems.
->
-> So the question is whether every file system which supports AIO should
-> add its own locking, or whether it should be done at the mm layer, and
-> at which point the lock in the XFS layer could be removed as no longer
-> necessary.
->
-> I've added linux-mm and linux-fsdevel to make sure all of the relevant
-> kernel developers are aware of this question/issue.
->
-> Regards,
->
->                                                 - Ted
->
+> It does not matter if this is a page fault (would still happen with
+> your patch) or a bufferd read/write (would no longer happen).
 
+true and it is sad that mmap then behaves slightly different than
+read/write which should I've mentioned in the changelog. As I said I am
+open to other suggestions.
 
-
+Thanks
 -- 
-thanks & regards
-Hiro Lalwani
-
---001636ef0283d38c4104cf6a88f3
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-=A0Thanks a lot Theodore Ts&#39;o ...<div><br></div><div>=A0Thanks to all (=
-kernel,ext4 ..etc. )developer for quick debug and response...</div><div><br=
-></div><div><br><div class=3D"gmail_quote">On Mon, Nov 26, 2012 at 10:15 PM=
-, Theodore Ts&#39;o <span dir=3D"ltr">&lt;<a href=3D"mailto:tytso@mit.edu" =
-target=3D"_blank">tytso@mit.edu</a>&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex">On Mon, Nov 26, 2012 at 04:33:28PM +0000, <a=
- href=3D"mailto:bugzilla-daemon@bugzilla.kernel.org">bugzilla-daemon@bugzil=
-la.kernel.org</a> wrote:<br>
-
-&gt; <a href=3D"https://bugzilla.kernel.org/show_bug.cgi?id=3D50981" target=
-=3D"_blank">https://bugzilla.kernel.org/show_bug.cgi?id=3D50981</a><br>
-&gt;<br>
-&gt; as this is working properly with XFS, so in ext4/ext3...etc also we sh=
-ouldn&#39;t<br>
-&gt; require synchronization at the Application level,., FS should take car=
-e of<br>
-&gt; locking... will we expecting the fix for the same ???<br>
-<br>
-Meetmehiro,<br>
-<br>
-At this point, there seems to be consensus that the kernel should take<br>
-care of the locking, and that this is not something that needs be a<br>
-worry for the application. =A0Whether this should be done in the file<br>
-system layer or in the mm layer is the current question at hand ---<br>
-since this is a bug that also affects btrfs and other non-XFS file<br>
-systems.<br>
-<br>
-So the question is whether every file system which supports AIO should<br>
-add its own locking, or whether it should be done at the mm layer, and<br>
-at which point the lock in the XFS layer could be removed as no longer<br>
-necessary.<br>
-<br>
-I&#39;ve added linux-mm and linux-fsdevel to make sure all of the relevant<=
-br>
-kernel developers are aware of this question/issue.<br>
-<br>
-Regards,<br>
-<br>
-=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0=
- =A0 =A0 =A0 =A0 =A0 - Ted<br>
-</blockquote></div><br><br clear=3D"all"><div><br></div>-- <br>thanks &amp;=
- regards<br>Hiro Lalwani<br>
-</div>
-
---001636ef0283d38c4104cf6a88f3--
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
