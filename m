@@ -1,232 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id D9F5C6B006C
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 10:01:36 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id k14so15900415oag.14
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 07:01:36 -0800 (PST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 74C806B002B
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 10:46:32 -0500 (EST)
+Message-ID: <50B4E032.2010206@redhat.com>
+Date: Tue, 27 Nov 2012 16:45:54 +0100
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20121119234619.GB447@bbox>
-References: <1351702597-10795-1-git-send-email-js1304@gmail.com>
-	<1351702597-10795-5-git-send-email-js1304@gmail.com>
-	<20121101050347.GD24883@bbox>
-	<CAAmzW4P=YdFt9KFmHcQh=tJheuZuvZVojYGNTqfO4YDy+C8_1g@mail.gmail.com>
-	<20121102224236.GB2070@barrios>
-	<CAAmzW4MoXExAMxxJTGehBEY76nUjkSsJ66L0C+sZsnAQANA+Lw@mail.gmail.com>
-	<20121113124937.GA4360@barrios>
-	<CAAmzW4Oz6pAsF7cA6Q5Hvr3Md8dsZtaaX8k_HaJcP+9=iBb3nQ@mail.gmail.com>
-	<20121113150159.GA5296@barrios>
-	<CAAmzW4MxZYXCV3UqmPpCfzunLS5ufcqNOjeTSHABEyfTASTn=w@mail.gmail.com>
-	<20121119234619.GB447@bbox>
-Date: Wed, 28 Nov 2012 00:01:35 +0900
-Message-ID: <CAAmzW4PtzcB2nPTaLigPkyUwHR1XmoGetJwxH+38g=Osk+-NCA@mail.gmail.com>
-Subject: Re: [PATCH v2 4/5] mm, highmem: makes flush_all_zero_pkmaps() return
- index of first flushed entry
-From: JoonSoo Kim <js1304@gmail.com>
+Subject: Re: [PATCH 2/2] zram: allocate metadata when disksize is set up
+References: <1353638567-3981-1-git-send-email-minchan@kernel.org> <1353638567-3981-2-git-send-email-minchan@kernel.org> <50B44BF4.30803@vflare.org>
+In-Reply-To: <50B44BF4.30803@vflare.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mel@csn.ul.ie>, Minchan Kim <minchan@kernel.org>
+To: Nitin Gupta <ngupta@vflare.org>
+Cc: Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-Hello, Andrew.
-
-2012/11/20 Minchan Kim <minchan@kernel.org>:
-> Hi Joonsoo,
-> Sorry for the delay.
->
-> On Thu, Nov 15, 2012 at 02:09:04AM +0900, JoonSoo Kim wrote:
->> Hi, Minchan.
+On 11/27/2012 06:13 AM, Nitin Gupta wrote:
+> On 11/22/2012 06:42 PM, Minchan Kim wrote:
+>> Lockdep complains about recursive deadlock of zram->init_lock.
+>> Because zram_init_device could be called in reclaim context and
+>> it requires a page with GFP_KERNEL.
 >>
->> 2012/11/14 Minchan Kim <minchan@kernel.org>:
->> > On Tue, Nov 13, 2012 at 11:12:28PM +0900, JoonSoo Kim wrote:
->> >> 2012/11/13 Minchan Kim <minchan@kernel.org>:
->> >> > On Tue, Nov 13, 2012 at 09:30:57AM +0900, JoonSoo Kim wrote:
->> >> >> 2012/11/3 Minchan Kim <minchan@kernel.org>:
->> >> >> > Hi Joonsoo,
->> >> >> >
->> >> >> > On Sat, Nov 03, 2012 at 04:07:25AM +0900, JoonSoo Kim wrote:
->> >> >> >> Hello, Minchan.
->> >> >> >>
->> >> >> >> 2012/11/1 Minchan Kim <minchan@kernel.org>:
->> >> >> >> > On Thu, Nov 01, 2012 at 01:56:36AM +0900, Joonsoo Kim wrote:
->> >> >> >> >> In current code, after flush_all_zero_pkmaps() is invoked,
->> >> >> >> >> then re-iterate all pkmaps. It can be optimized if flush_all_zero_pkmaps()
->> >> >> >> >> return index of first flushed entry. With this index,
->> >> >> >> >> we can immediately map highmem page to virtual address represented by index.
->> >> >> >> >> So change return type of flush_all_zero_pkmaps()
->> >> >> >> >> and return index of first flushed entry.
->> >> >> >> >>
->> >> >> >> >> Additionally, update last_pkmap_nr to this index.
->> >> >> >> >> It is certain that entry which is below this index is occupied by other mapping,
->> >> >> >> >> therefore updating last_pkmap_nr to this index is reasonable optimization.
->> >> >> >> >>
->> >> >> >> >> Cc: Mel Gorman <mel@csn.ul.ie>
->> >> >> >> >> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
->> >> >> >> >> Cc: Minchan Kim <minchan@kernel.org>
->> >> >> >> >> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
->> >> >> >> >>
->> >> >> >> >> diff --git a/include/linux/highmem.h b/include/linux/highmem.h
->> >> >> >> >> index ef788b5..97ad208 100644
->> >> >> >> >> --- a/include/linux/highmem.h
->> >> >> >> >> +++ b/include/linux/highmem.h
->> >> >> >> >> @@ -32,6 +32,7 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
->> >> >> >> >>
->> >> >> >> >>  #ifdef CONFIG_HIGHMEM
->> >> >> >> >>  #include <asm/highmem.h>
->> >> >> >> >> +#define PKMAP_INVALID_INDEX (LAST_PKMAP)
->> >> >> >> >>
->> >> >> >> >>  /* declarations for linux/mm/highmem.c */
->> >> >> >> >>  unsigned int nr_free_highpages(void);
->> >> >> >> >> diff --git a/mm/highmem.c b/mm/highmem.c
->> >> >> >> >> index d98b0a9..b365f7b 100644
->> >> >> >> >> --- a/mm/highmem.c
->> >> >> >> >> +++ b/mm/highmem.c
->> >> >> >> >> @@ -106,10 +106,10 @@ struct page *kmap_to_page(void *vaddr)
->> >> >> >> >>       return virt_to_page(addr);
->> >> >> >> >>  }
->> >> >> >> >>
->> >> >> >> >> -static void flush_all_zero_pkmaps(void)
->> >> >> >> >> +static unsigned int flush_all_zero_pkmaps(void)
->> >> >> >> >>  {
->> >> >> >> >>       int i;
->> >> >> >> >> -     int need_flush = 0;
->> >> >> >> >> +     unsigned int index = PKMAP_INVALID_INDEX;
->> >> >> >> >>
->> >> >> >> >>       flush_cache_kmaps();
->> >> >> >> >>
->> >> >> >> >> @@ -141,10 +141,13 @@ static void flush_all_zero_pkmaps(void)
->> >> >> >> >>                         &pkmap_page_table[i]);
->> >> >> >> >>
->> >> >> >> >>               set_page_address(page, NULL);
->> >> >> >> >> -             need_flush = 1;
->> >> >> >> >> +             if (index == PKMAP_INVALID_INDEX)
->> >> >> >> >> +                     index = i;
->> >> >> >> >>       }
->> >> >> >> >> -     if (need_flush)
->> >> >> >> >> +     if (index != PKMAP_INVALID_INDEX)
->> >> >> >> >>               flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
->> >> >> >> >> +
->> >> >> >> >> +     return index;
->> >> >> >> >>  }
->> >> >> >> >>
->> >> >> >> >>  /**
->> >> >> >> >> @@ -152,14 +155,19 @@ static void flush_all_zero_pkmaps(void)
->> >> >> >> >>   */
->> >> >> >> >>  void kmap_flush_unused(void)
->> >> >> >> >>  {
->> >> >> >> >> +     unsigned int index;
->> >> >> >> >> +
->> >> >> >> >>       lock_kmap();
->> >> >> >> >> -     flush_all_zero_pkmaps();
->> >> >> >> >> +     index = flush_all_zero_pkmaps();
->> >> >> >> >> +     if (index != PKMAP_INVALID_INDEX && (index < last_pkmap_nr))
->> >> >> >> >> +             last_pkmap_nr = index;
->> >> >> >> >
->> >> >> >> > I don't know how kmap_flush_unused is really fast path so how my nitpick
->> >> >> >> > is effective. Anyway,
->> >> >> >> > What problem happens if we do following as?
->> >> >> >> >
->> >> >> >> > lock()
->> >> >> >> > index = flush_all_zero_pkmaps();
->> >> >> >> > if (index != PKMAP_INVALID_INDEX)
->> >> >> >> >         last_pkmap_nr = index;
->> >> >> >> > unlock();
->> >> >> >> >
->> >> >> >> > Normally, last_pkmap_nr is increased with searching empty slot in
->> >> >> >> > map_new_virtual. So I expect return value of flush_all_zero_pkmaps
->> >> >> >> > in kmap_flush_unused normally become either less than last_pkmap_nr
->> >> >> >> > or last_pkmap_nr + 1.
->> >> >> >>
->> >> >> >> There is a case that return value of kmap_flush_unused() is larger
->> >> >> >> than last_pkmap_nr.
->> >> >> >
->> >> >> > I see but why it's problem? kmap_flush_unused returns larger value than
->> >> >> > last_pkmap_nr means that there is no free slot at below the value.
->> >> >> > So unconditional last_pkmap_nr update is vaild.
->> >> >>
->> >> >> I think that this is not true.
->> >> >> Look at the slightly different example.
->> >> >>
->> >> >> Assume last_pkmap = 20 and index 1-9, 12-19 is kmapped. 10, 11 is kunmapped.
->> >> >>
->> >> >> do kmap_flush_unused() => flush index 10,11 => last_pkmap = 10;
->> >> >> do kunmap() with index 17
->> >> >> do kmap_flush_unused() => flush index 17 => last_pkmap = 17?
->> >> >>
->> >> >> In this case, unconditional last_pkmap_nr update skip one kunmapped index.
->> >> >> So, conditional update is needed.
->> >> >
->> >> > Thanks for pouinting out, Joonsoo.
->> >> > You're right. I misunderstood your flush_all_zero_pkmaps change.
->> >> > As your change, flush_all_zero_pkmaps returns first *flushed* free slot index.
->> >> > What's the benefit returning flushed flushed free slot index rather than free slot index?
->> >>
->> >> If flush_all_zero_pkmaps() return free slot index rather than first
->> >> flushed free slot,
->> >> we need another comparison like as 'if pkmap_count[i] == 0' and
->> >> need another local variable for determining whether flush is occurred or not.
->> >> I want to minimize these overhead and churning of the code, although
->> >> they are negligible.
->> >>
->> >> > I think flush_all_zero_pkmaps should return first free slot because customer of
->> >> > flush_all_zero_pkmaps doesn't care whether it's just flushed or not.
->> >> > What he want is just free or not. In such case, we can remove above check and it makes
->> >> > flusha_all_zero_pkmaps more intuitive.
->> >>
->> >> Yes, it is more intuitive, but as I mentioned above, it need another comparison,
->> >> so with that, a benefit which prevent to re-iterate when there is no
->> >> free slot, may be disappeared.
->> >
->> > If you're very keen on the performance, why do you have such code?
->> > You can remove below branch if you were keen on the performance.
->> >
->> > diff --git a/mm/highmem.c b/mm/highmem.c
->> > index c8be376..44a88dd 100644
->> > --- a/mm/highmem.c
->> > +++ b/mm/highmem.c
->> > @@ -114,7 +114,7 @@ static unsigned int flush_all_zero_pkmaps(void)
->> >
->> >         flush_cache_kmaps();
->> >
->> > -       for (i = 0; i < LAST_PKMAP; i++) {
->> > +       for (i = LAST_PKMAP - 1; i >= 0; i--) {
->> >                 struct page *page;
->> >
->> >                 /*
->> > @@ -141,8 +141,7 @@ static unsigned int flush_all_zero_pkmaps(void)
->> >                 pte_clear(&init_mm, PKMAP_ADDR(i), &pkmap_page_table[i]);
->> >
->> >                 set_page_address(page, NULL);
->> > -               if (index == PKMAP_INVALID_INDEX)
->> > -                       index = i;
->> > +               index = i;
->> >         }
->> >         if (index != PKMAP_INVALID_INDEX)
->> >                 flush_tlb_kernel_range(PKMAP_ADDR(0), PKMAP_ADDR(LAST_PKMAP));
->> >
->> >
->> > Anyway, if you have the concern of performance, Okay let's give up making code clear
->> > although I didn't see any report about kmap perfomance. Instead, please consider above
->> > optimization because you have already broken what you mentioned.
->> > If we can't make function clear, another method for it is to add function comment. Please.
+>> We can fix it via replacing GFP_KERNEL with GFP_NOIO.
+>> But more big problem is vzalloc in zram_init_device which calls GFP_KERNEL.
+>> We can change it with __vmalloc which can receive gfp_t.
+>> But still we have a problem. Although __vmalloc can handle gfp_t, it calls
+>> allocation of GFP_KERNEL. That's why I sent the patch.
+>> https://lkml.org/lkml/2012/4/23/77
 >>
->> Yes, I also didn't see any report about kmap performance.
->> By your reviewing comment, I eventually reach that this patch will not
->> give any benefit.
->> So how about to drop it?
->
-> Personally, I prefer to proceed but if you don't have a confidence about gain,
-> No problem to drop it.
-> Thanks.
->
+>> Yes. Fundamental problem is utter crap API vmalloc.
+>> If we can fix it, everyone would be happy. But life isn't simple
+>> like seeing my thread of the patch.
 >>
->> Thanks for review.
+>> So next option is to give up lazy initialization and initialize it at the
+>> very disksize setting time. But it makes unnecessary metadata waste until
+>> zram is really used. But let's think about it.
+>>
+>> 1) User of zram normally do mkfs.xxx or mkswap before using
+>>     the zram block device(ex, normally, do it at booting time)
+>>     It ends up allocating such metadata of zram before real usage so
+>>     benefit of lazy initialzation would be mitigated.
+>>
+>> 2) Some user want to use zram when memory pressure is high.(ie, load zram
+>>     dynamically, NOT booting time). It does make sense because people don't
+>>     want to waste memory until memory pressure is high(ie, where zram is really
+>>     helpful time). In this case, lazy initialzation could be failed easily
+>>     because we will use GFP_NOIO instead of GFP_KERNEL for avoiding deadlock.
+>>     So the benefit of lazy initialzation would be mitigated, too.
+>>
+>> 3) Metadata overhead is not critical and Nitin has a plan to diet it.
+>>     4K : 12 byte(64bit machine) -> 64G : 192M so 0.3% isn't big overhead
+>>     If insane user use such big zram device up to 20, it could consume 6% of ram
+>>     but efficieny of zram will cover the waste.
+>>
+>> So this patch gives up lazy initialization and instead we initialize metadata
+>> at disksize setting time.
+>>
+>> Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> ---
+>>   drivers/staging/zram/zram_drv.c   |   21 ++++-----------------
+>>   drivers/staging/zram/zram_sysfs.c |    1 +
+>>   2 files changed, 5 insertions(+), 17 deletions(-)
+>>
+>> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
+>> index 9ef1eca..f364fb5 100644
+>> --- a/drivers/staging/zram/zram_drv.c
+>> +++ b/drivers/staging/zram/zram_drv.c
+>> @@ -441,16 +441,13 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+>>   {
+>>   	struct zram *zram = queue->queuedata;
+>>
+>> -	if (unlikely(!zram->init_done) && zram_init_device(zram))
+>> -		goto error;
+>> -
+>>   	down_read(&zram->init_lock);
+>>   	if (unlikely(!zram->init_done))
+>> -		goto error_unlock;
+>> +		goto error;
+>>
+>>   	if (!valid_io_request(zram, bio)) {
+>>   		zram_stat64_inc(zram, &zram->stats.invalid_io);
+>> -		goto error_unlock;
+>> +		goto error;
+>>   	}
+>>
+>>   	__zram_make_request(zram, bio, bio_data_dir(bio));
+>> @@ -458,9 +455,8 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
+>>
+>>   	return;
+>>
+>> -error_unlock:
+>> -	up_read(&zram->init_lock);
+>>   error:
+>> +	up_read(&zram->init_lock);
+>>   	bio_io_error(bio);
+>>   }
+>>
+>> @@ -509,19 +505,12 @@ void zram_reset_device(struct zram *zram)
+>>   	up_write(&zram->init_lock);
+>>   }
+>>
+>> +/* zram->init_lock should be hold */
+> 
+> s/hold/held
+> 
+> btw, shouldn't we also change GFP_KERNEL to GFP_NOIO in is_partial_io() 
+> case in both read/write handlers?
 
-During the review, I concluded that this patch have no gain.
-And this patch churn the code too much.
-So I want to drop this patch for your tree.
+Good point. Actually, the one in zram_bvec_read() should actually be
+GFP_ATOMIC because of the kmap_atomic() above (or be moved out of
+kmap_atomic/kunmap_atomic nest).
+Another solution would be to allocate some working buffer at device
+init as it's done for compress_buffer/workmem. It would make
+zram_bvec_read/write look simpler (no need to free memory or manage 
+kmalloc failure).
 
-Sorry for late notification.
+Jerome
+
+> 
+> Rest of the patch looks good.
+> 
+> 
+> Thanks,
+> Nitin
+> 
+>>   int zram_init_device(struct zram *zram)
+>>   {
+>>   	int ret;
+>>   	size_t num_pages;
+>>
+>> -	down_write(&zram->init_lock);
+>> -	if (zram->init_done) {
+>> -		up_write(&zram->init_lock);
+>> -		return 0;
+>> -	}
+>> -
+>> -	BUG_ON(!zram->disksize);
+>> -
+>>   	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
+>>   		pr_info(
+>>   		"There is little point creating a zram of greater than "
+>> @@ -570,7 +559,6 @@ int zram_init_device(struct zram *zram)
+>>   	}
+>>
+>>   	zram->init_done = 1;
+>> -	up_write(&zram->init_lock);
+>>
+>>   	pr_debug("Initialization done!\n");
+>>   	return 0;
+>> @@ -580,7 +568,6 @@ fail_no_table:
+>>   	zram->disksize = 0;
+>>   fail:
+>>   	__zram_reset_device(zram);
+>> -	up_write(&zram->init_lock);
+>>   	pr_err("Initialization failed: err=%d\n", ret);
+>>   	return ret;
+>>   }
+>> diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
+>> index 4143af9..369db12 100644
+>> --- a/drivers/staging/zram/zram_sysfs.c
+>> +++ b/drivers/staging/zram/zram_sysfs.c
+>> @@ -71,6 +71,7 @@ static ssize_t disksize_store(struct device *dev,
+>>
+>>   	zram->disksize = PAGE_ALIGN(disksize);
+>>   	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+>> +	zram_init_device(zram);
+>>   	up_write(&zram->init_lock);
+>>
+>>   	return len;
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
