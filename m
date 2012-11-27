@@ -1,115 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id DEB386B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:13:26 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 1/3] acpi: Introduce prepare_remove operation in acpi_device_ops
-Date: Wed, 28 Nov 2012 00:18:09 +0100
-Message-ID: <2024212.WCrra54xSP@vostro.rjw.lan>
-In-Reply-To: <1353975021.26955.178.camel@misato.fc.hp.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1353693037-21704-2-git-send-email-vasilis.liaskovitis@profitbricks.com> <1353975021.26955.178.camel@misato.fc.hp.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 90B386B0062
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:01 -0500 (EST)
+From: Dave Chinner <david@fromorbit.com>
+Subject: [PATCH 06/19] list: add a new LRU list type
+Date: Wed, 28 Nov 2012 10:14:33 +1100
+Message-Id: <1354058086-27937-7-git-send-email-david@fromorbit.com>
+In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: Toshi Kani <toshi.kani@hp.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Monday, November 26, 2012 05:10:21 PM Toshi Kani wrote:
-> On Fri, 2012-11-23 at 18:50 +0100, Vasilis Liaskovitis wrote:
-> > This function should be registered for devices that need to execute some
-> > non-acpi related action in order to be safely removed. If this function
-> > returns zero, the acpi core can continue with removing the device.
-> > 
-> > Make acpi_bus_remove call the device-specific prepare_remove callback before
-> > removing the device. If prepare_remove fails, the removal is aborted.
-> > 
-> > Signed-off-by: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-> > ---
-> >  drivers/acpi/scan.c     |    9 ++++++++-
-> >  include/acpi/acpi_bus.h |    2 ++
-> >  2 files changed, 10 insertions(+), 1 deletions(-)
-> > 
-> > diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
-> > index 8c4ac6d..e1c1d5d 100644
-> > --- a/drivers/acpi/scan.c
-> > +++ b/drivers/acpi/scan.c
-> > @@ -1380,10 +1380,16 @@ static int acpi_device_set_context(struct acpi_device *device)
-> >  
-> >  static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
-> >  {
-> > +	int ret = 0;
-> >  	if (!dev)
-> >  		return -EINVAL;
-> >  
-> >  	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
-> > +
-> > +	if (dev->driver && dev->driver->ops.prepare_remove)
-> > +		ret = dev->driver->ops.prepare_remove(dev);
-> > +	if (ret)
-> > +		return ret;
-> 
-> Hi Vasilis,
-> 
-> The above code should be like below. Then you do not need to initialize
-> ret, either.  Please also add some comments explaining about
-> prepare_remove can fail, but remove cannot.
-> 
-> 	if (dev->driver && dev->driver->ops.prepare_remove) {
-> 		ret = dev->driver->ops.prepare_remove(dev);
-> 		if (ret)
-> 			return ret;
-> 	}
-> 
-> >  	device_release_driver(&dev->dev);
-> >  
-> >  	if (!rmdevice)
-> > @@ -1702,7 +1708,8 @@ int acpi_bus_trim(struct acpi_device *start, int rmdevice)
-> >  				err = acpi_bus_remove(child, rmdevice);
-> >  			else
-> >  				err = acpi_bus_remove(child, 1);
-> > -
-> > +			if (err)
-> > +				return err;
-> >  			continue;
-> >  		}
-> >  
-> > diff --git a/include/acpi/acpi_bus.h b/include/acpi/acpi_bus.h
-> > index 7ced5dc..9d94a55 100644
-> > --- a/include/acpi/acpi_bus.h
-> > +++ b/include/acpi/acpi_bus.h
-> > @@ -94,6 +94,7 @@ typedef int (*acpi_op_start) (struct acpi_device * device);
-> >  typedef int (*acpi_op_bind) (struct acpi_device * device);
-> >  typedef int (*acpi_op_unbind) (struct acpi_device * device);
-> >  typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
-> > +typedef int (*acpi_op_prepare_remove) (struct acpi_device *device);
-> >  
-> >  struct acpi_bus_ops {
-> >  	u32 acpi_op_add:1;
-> > @@ -107,6 +108,7 @@ struct acpi_device_ops {
-> >  	acpi_op_bind bind;
-> >  	acpi_op_unbind unbind;
-> >  	acpi_op_notify notify;
-> > +	acpi_op_prepare_remove prepare_remove;
-> 
-> I'd prefer pre_remove, which indicates this interface is called before
-> remove.  prepare_remove sounds as if it only performs preparation, which
-> may be misleading.
-> 
-> BTW, Rafael mentioned we should avoid extending ACPI driver's
-> interface...  But I do not have other idea, either.
+From: Dave Chinner <dchinner@redhat.com>
 
-It's fine in this particular case, since it looks like it would be difficult
-to do that differently with what we have at the moment.
+Several subsystems use the same construct for LRU lists - a list
+head, a spin lock and and item count. They also use exactly the same
+code for adding and removing items from the LRU. Create a generic
+type for these LRU lists.
 
-Thanks,
-Rafael
+This is the beginning of generic, node aware LRUs for shrinkers to
+work with.
 
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ include/linux/list_lru.h |   36 ++++++++++++++
+ lib/Makefile             |    2 +-
+ lib/list_lru.c           |  117 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 1 deletion(-)
+ create mode 100644 include/linux/list_lru.h
+ create mode 100644 lib/list_lru.c
 
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+new file mode 100644
+index 0000000..3423949
+--- /dev/null
++++ b/include/linux/list_lru.h
+@@ -0,0 +1,36 @@
++/*
++ * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
++ * Author: David Chinner
++ *
++ * Generic LRU infrastructure
++ */
++#ifndef _LRU_LIST_H
++#define _LRU_LIST_H 0
++
++#include <linux/list.h>
++
++struct list_lru {
++	spinlock_t		lock;
++	struct list_head	list;
++	long			nr_items;
++};
++
++int list_lru_init(struct list_lru *lru);
++int list_lru_add(struct list_lru *lru, struct list_head *item);
++int list_lru_del(struct list_lru *lru, struct list_head *item);
++
++static inline long list_lru_count(struct list_lru *lru)
++{
++	return lru->nr_items;
++}
++
++typedef int (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock,
++				void *cb_arg);
++typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
++
++long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
++		   void *cb_arg, long nr_to_walk);
++
++long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
++
++#endif /* _LRU_LIST_H */
+diff --git a/lib/Makefile b/lib/Makefile
+index 821a162..a0849d7 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -12,7 +12,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+ 	 idr.o int_sqrt.o extable.o \
+ 	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
+ 	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
+-	 is_single_threaded.o plist.o decompress.o
++	 is_single_threaded.o plist.o decompress.o list_lru.o
+ 
+ lib-$(CONFIG_MMU) += ioremap.o
+ lib-$(CONFIG_SMP) += cpumask.o
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+new file mode 100644
+index 0000000..475d0e9
+--- /dev/null
++++ b/lib/list_lru.c
+@@ -0,0 +1,117 @@
++/*
++ * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
++ * Author: David Chinner
++ *
++ * Generic LRU infrastructure
++ */
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/list_lru.h>
++
++int
++list_lru_add(
++	struct list_lru	*lru,
++	struct list_head *item)
++{
++	spin_lock(&lru->lock);
++	if (list_empty(item)) {
++		list_add_tail(item, &lru->list);
++		lru->nr_items++;
++		spin_unlock(&lru->lock);
++		return 1;
++	}
++	spin_unlock(&lru->lock);
++	return 0;
++}
++EXPORT_SYMBOL_GPL(list_lru_add);
++
++int
++list_lru_del(
++	struct list_lru	*lru,
++	struct list_head *item)
++{
++	spin_lock(&lru->lock);
++	if (!list_empty(item)) {
++		list_del_init(item);
++		lru->nr_items--;
++		spin_unlock(&lru->lock);
++		return 1;
++	}
++	spin_unlock(&lru->lock);
++	return 0;
++}
++EXPORT_SYMBOL_GPL(list_lru_del);
++
++long
++list_lru_walk(
++	struct list_lru *lru,
++	list_lru_walk_cb isolate,
++	void		*cb_arg,
++	long		nr_to_walk)
++{
++	struct list_head *item, *n;
++	long removed = 0;
++restart:
++	spin_lock(&lru->lock);
++	list_for_each_safe(item, n, &lru->list) {
++		int ret;
++
++		if (nr_to_walk-- < 0)
++			break;
++
++		ret = isolate(item, &lru->lock, cb_arg);
++		switch (ret) {
++		case 0:	/* item removed from list */
++			lru->nr_items--;
++			removed++;
++			break;
++		case 1: /* item referenced, give another pass */
++			list_move_tail(item, &lru->list);
++			break;
++		case 2: /* item cannot be locked, skip */
++			break;
++		case 3: /* item not freeable, lock dropped */
++			goto restart;
++		default:
++			BUG();
++		}
++	}
++	spin_unlock(&lru->lock);
++	return removed;
++}
++EXPORT_SYMBOL_GPL(list_lru_walk);
++
++long
++list_lru_dispose_all(
++	struct list_lru *lru,
++	list_lru_dispose_cb dispose)
++{
++	long disposed = 0;
++	LIST_HEAD(dispose_list);
++
++	spin_lock(&lru->lock);
++	while (!list_empty(&lru->list)) {
++		list_splice_init(&lru->list, &dispose_list);
++		disposed += lru->nr_items;
++		lru->nr_items = 0;
++		spin_unlock(&lru->lock);
++
++		dispose(&dispose_list);
++
++		spin_lock(&lru->lock);
++	}
++	spin_unlock(&lru->lock);
++	return disposed;
++}
++
++int
++list_lru_init(
++	struct list_lru	*lru)
++{
++	spin_lock_init(&lru->lock);
++	INIT_LIST_HEAD(&lru->list);
++	lru->nr_items = 0;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(list_lru_init);
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+1.7.10
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
