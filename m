@@ -1,177 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id DC5296B005A
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 16:14:46 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
-Date: Tue, 27 Nov 2012 22:19:29 +0100
-Message-ID: <5434404.G1ERYjuorE@vostro.rjw.lan>
-In-Reply-To: <1353761958-12810-3-git-send-email-ming.lei@canonical.com>
-References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com> <1353761958-12810-3-git-send-email-ming.lei@canonical.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 792536B004D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 16:17:10 -0500 (EST)
+Message-ID: <50B52DC4.5000109@redhat.com>
+Date: Tue, 27 Nov 2012 16:16:52 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: kswapd craziness in 3.7
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org> <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+In-Reply-To: <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-pm@vger.kernel.org
-Cc: Ming Lei <ming.lei@canonical.com>, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Saturday, November 24, 2012 08:59:14 PM Ming Lei wrote:
-> The patch introduces the flag of memalloc_noio in 'struct dev_pm_info'
-> to help PM core to teach mm not allocating memory with GFP_KERNEL
-> flag for avoiding probable deadlock.
-> 
-> As explained in the comment, any GFP_KERNEL allocation inside
-> runtime_resume() or runtime_suspend() on any one of device in
-> the path from one block or network device to the root device
-> in the device tree may cause deadlock, the introduced
-> pm_runtime_set_memalloc_noio() sets or clears the flag on
-> device in the path recursively.
-> 
-> Cc: Alan Stern <stern@rowland.harvard.edu>
-> Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-> Signed-off-by: Ming Lei <ming.lei@canonical.com>
-> ---
-> v5:
-> 	- fix code style error
-> 	- add comment on clear the device memalloc_noio flag
-> v4:
-> 	- rename memalloc_noio_resume as memalloc_noio
-> 	- remove pm_runtime_get_memalloc_noio()
-> 	- add comments on pm_runtime_set_memalloc_noio
-> v3:
-> 	- introduce pm_runtime_get_memalloc_noio()
-> 	- hold one global lock on pm_runtime_set_memalloc_noio
-> 	- hold device power lock when accessing memalloc_noio_resume
-> 	  flag suggested by Alan Stern
-> 	- implement pm_runtime_set_memalloc_noio without recursion
-> 	  suggested by Alan Stern
-> v2:
-> 	- introduce pm_runtime_set_memalloc_noio()
-> ---
->  drivers/base/power/runtime.c |   60 ++++++++++++++++++++++++++++++++++++++++++
->  include/linux/pm.h           |    1 +
->  include/linux/pm_runtime.h   |    3 +++
->  3 files changed, 64 insertions(+)
-> 
-> diff --git a/drivers/base/power/runtime.c b/drivers/base/power/runtime.c
-> index 3148b10..3e198a0 100644
-> --- a/drivers/base/power/runtime.c
-> +++ b/drivers/base/power/runtime.c
-> @@ -124,6 +124,66 @@ unsigned long pm_runtime_autosuspend_expiration(struct device *dev)
->  }
->  EXPORT_SYMBOL_GPL(pm_runtime_autosuspend_expiration);
->  
-> +static int dev_memalloc_noio(struct device *dev, void *data)
-> +{
-> +	return dev->power.memalloc_noio;
-> +}
-> +
-> +/*
-> + * pm_runtime_set_memalloc_noio - Set a device's memalloc_noio flag.
-> + * @dev: Device to handle.
-> + * @enable: True for setting the flag and False for clearing the flag.
-> + *
-> + * Set the flag for all devices in the path from the device to the
-> + * root device in the device tree if @enable is true, otherwise clear
-> + * the flag for devices in the path whose siblings don't set the flag.
-> + *
+On 11/27/2012 03:58 PM, Linus Torvalds wrote:
+> Note that in the meantime, I've also applied (through Andrew) the
+> patch that reverts commit c654345924f7 (see commit 82b212f40059
+> 'Revert "mm: remove __GFP_NO_KSWAPD"').
+>
+> I wonder if that revert may be bogus, and a result of this same issue.
+> Maybe that revert should be reverted, and replaced with your patch?
+>
+> Mel? Zdenek? What's the status here?
 
-Please use counters instead of walking the whole path every time.  Ie. in
-addition to the flag add a counter to store the number of the device's
-children having that flag set.
+Mel posted several patches to fix the kswapd issue.  This one is
+slightly more risky than the outright revert, but probably preferred
+from a performance point of view:
 
-Besides, don't you need to check children for the arg device itself?
+https://lkml.org/lkml/2012/11/12/151
 
-> + * The function should only be called by block device, or network
-> + * device driver for solving the deadlock problem during runtime
-> + * resume/suspend:
-> + *
-> + *     If memory allocation with GFP_KERNEL is called inside runtime
-> + *     resume/suspend callback of any one of its ancestors(or the
-> + *     block device itself), the deadlock may be triggered inside the
-> + *     memory allocation since it might not complete until the block
-> + *     device becomes active and the involed page I/O finishes. The
-> + *     situation is pointed out first by Alan Stern. Network device
-> + *     are involved in iSCSI kind of situation.
-> + *
-> + * The lock of dev_hotplug_mutex is held in the function for handling
-> + * hotplug race because pm_runtime_set_memalloc_noio() may be called
-> + * in async probe().
-> + *
-> + * The function should be called between device_add() and device_del()
-> + * on the affected device(block/network device).
-> + */
-> +void pm_runtime_set_memalloc_noio(struct device *dev, bool enable)
-> +{
-> +	static DEFINE_MUTEX(dev_hotplug_mutex);
+It works by skipping the kswapd wakeup for THP allocations, only
+if compaction is deferred or contended.
 
-What's the mutex for?
-
-> +
-> +	mutex_lock(&dev_hotplug_mutex);
-> +	for (;;) {
-> +		/* hold power lock since bitfield is not SMP-safe. */
-> +		spin_lock_irq(&dev->power.lock);
-> +		dev->power.memalloc_noio = enable;
-> +		spin_unlock_irq(&dev->power.lock);
-> +
-> +		dev = dev->parent;
-> +
-> +		/*
-> +		 * clear flag of the parent device only if all the
-> +		 * children don't set the flag because ancestor's
-> +		 * flag was set by any one of the descendants.
-> +		 */
-> +		if (!dev || (!enable &&
-> +			     device_for_each_child(dev, NULL,
-> +						   dev_memalloc_noio)))
-> +			break;
-> +	}
-> +	mutex_unlock(&dev_hotplug_mutex);
-> +}
-> +EXPORT_SYMBOL_GPL(pm_runtime_set_memalloc_noio);
-> +
->  /**
->   * rpm_check_suspend_allowed - Test whether a device may be suspended.
->   * @dev: Device to test.
-> diff --git a/include/linux/pm.h b/include/linux/pm.h
-> index 03d7bb1..1a8a69d 100644
-> --- a/include/linux/pm.h
-> +++ b/include/linux/pm.h
-> @@ -538,6 +538,7 @@ struct dev_pm_info {
->  	unsigned int		irq_safe:1;
->  	unsigned int		use_autosuspend:1;
->  	unsigned int		timer_autosuspends:1;
-> +	unsigned int		memalloc_noio:1;
->  	enum rpm_request	request;
->  	enum rpm_status		runtime_status;
->  	int			runtime_error;
-> diff --git a/include/linux/pm_runtime.h b/include/linux/pm_runtime.h
-> index f271860..775e063 100644
-> --- a/include/linux/pm_runtime.h
-> +++ b/include/linux/pm_runtime.h
-> @@ -47,6 +47,7 @@ extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
->  extern unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
->  extern void pm_runtime_update_max_time_suspended(struct device *dev,
->  						 s64 delta_ns);
-> +extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
->  
->  static inline bool pm_children_suspended(struct device *dev)
->  {
-> @@ -149,6 +150,8 @@ static inline void pm_runtime_set_autosuspend_delay(struct device *dev,
->  						int delay) {}
->  static inline unsigned long pm_runtime_autosuspend_expiration(
->  				struct device *dev) { return 0; }
-> +static inline void pm_runtime_set_memalloc_noio(struct device *dev,
-> +						bool enable){}
->  
->  #endif /* !CONFIG_PM_RUNTIME */
->  
-> 
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
