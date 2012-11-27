@@ -1,190 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 1BF276B0044
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 21:18:22 -0500 (EST)
-Message-ID: <50B42471.6060403@cn.fujitsu.com>
-Date: Tue, 27 Nov 2012 10:24:49 +0800
-From: Wen Congyang <wency@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 3282E6B0068
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 21:18:58 -0500 (EST)
+Message-ID: <50B422A9.7050103@huawei.com>
+Date: Tue, 27 Nov 2012 10:17:13 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 11/12] memory-hotplug: remove sysfs file of node
-References: <1351763083-7905-1-git-send-email-wency@cn.fujitsu.com> <1351763083-7905-12-git-send-email-wency@cn.fujitsu.com> <50B37C52.2060301@gmail.com>
-In-Reply-To: <50B37C52.2060301@gmail.com>
+Subject: mm/vmemmap: fix wrong use of virt_to_page
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo106@gmail.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
+To: akpm@linux-foundation.org, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, shangw@linux.vnet.ibm.com, hannes@cmpxchg.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-At 11/26/2012 10:27 PM, Jianguo Wu Wrote:
-> On 2012/11/1 17:44, Wen Congyang wrote:
->> This patch introduces a new function try_offline_node() to
->> remove sysfs file of node when all memory sections of this
->> node are removed. If some memory sections of this node are
->> not removed, this function does nothing.
->>
->> CC: David Rientjes <rientjes@google.com>
->> CC: Jiang Liu <liuj97@gmail.com>
->> CC: Len Brown <len.brown@intel.com>
->> CC: Christoph Lameter <cl@linux.com>
->> Cc: Minchan Kim <minchan.kim@gmail.com>
->> CC: Andrew Morton <akpm@linux-foundation.org>
->> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
->> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
->> ---
->>  drivers/acpi/acpi_memhotplug.c |  8 +++++-
->>  include/linux/memory_hotplug.h |  2 +-
->>  mm/memory_hotplug.c            | 58 ++++++++++++++++++++++++++++++++++++++++--
->>  3 files changed, 64 insertions(+), 4 deletions(-)
->>
->> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
->> index 24c807f..0780f99 100644
->> --- a/drivers/acpi/acpi_memhotplug.c
->> +++ b/drivers/acpi/acpi_memhotplug.c
->> @@ -310,7 +310,9 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->>  {
->>  	int result;
->>  	struct acpi_memory_info *info, *n;
->> +	int node;
->>  
->> +	node = acpi_get_node(mem_device->device->handle);
->>  
->>  	/*
->>  	 * Ask the VM to offline this memory range.
->> @@ -318,7 +320,11 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
->>  	 */
->>  	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
->>  		if (info->enabled) {
->> -			result = remove_memory(info->start_addr, info->length);
->> +			if (node < 0)
->> +				node = memory_add_physaddr_to_nid(
->> +					info->start_addr);
->> +			result = remove_memory(node, info->start_addr,
->> +				info->length);
->>  			if (result)
->>  				return result;
->>  		}
->> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->> index d4c4402..7b4cfe6 100644
->> --- a/include/linux/memory_hotplug.h
->> +++ b/include/linux/memory_hotplug.h
->> @@ -231,7 +231,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
->>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
->>  extern int offline_memory_block(struct memory_block *mem);
->>  extern bool is_memblock_offlined(struct memory_block *mem);
->> -extern int remove_memory(u64 start, u64 size);
->> +extern int remove_memory(int node, u64 start, u64 size);
->>  extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
->>  								int nr_pages);
->>  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 7bcced0..d965da3 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -29,6 +29,7 @@
->>  #include <linux/suspend.h>
->>  #include <linux/mm_inline.h>
->>  #include <linux/firmware-map.h>
->> +#include <linux/stop_machine.h>
->>  
->>  #include <asm/tlbflush.h>
->>  
->> @@ -1299,7 +1300,58 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
->>  	return ret;
->>  }
->>  
->> -int __ref remove_memory(u64 start, u64 size)
->> +static int check_cpu_on_node(void *data)
->> +{
->> +	struct pglist_data *pgdat = data;
->> +	int cpu;
->> +
->> +	for_each_present_cpu(cpu) {
->> +		if (cpu_to_node(cpu) == pgdat->node_id)
->> +			/*
->> +			 * the cpu on this node isn't removed, and we can't
->> +			 * offline this node.
->> +			 */
->> +			return -EBUSY;
->> +	}
->> +
->> +	return 0;
->> +}
->> +
->> +/* offline the node if all memory sections of this node are removed */
->> +static void try_offline_node(int nid)
->> +{
->> +	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
->> +	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
->> +	unsigned long pfn;
->> +
->> +	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
->> +		unsigned long section_nr = pfn_to_section_nr(pfn);
->> +
->> +		if (!present_section_nr(section_nr))
->> +			continue;
->> +
->> +		if (pfn_to_nid(pfn) != nid)
->> +			continue;
->> +
->> +		/*
->> +		 * some memory sections of this node are not removed, and we
->> +		 * can't offline node now.
->> +		 */
->> +		return;
->> +	}
->> +
->> +	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
->> +		return;
-> 
-> how about:
-> 	if (nr_cpus_node(nid))
+I enable CONFIG_DEBUG_VIRTUAL and CONFIG_SPARSEMEM_VMEMMAP, when doing memory hotremove,
+there is a kernel BUG at arch/x86/mm/physaddr.c:20.
 
-If all cpus on the node is offlined, but not removed, nr_cpus_node(nid) will
-return 0. In this case, we still can't offline the node.
+It is caused by free_section_usemap()->virt_to_page(),
+virt_to_page() is only used for kernel direct mapping address,
+but sparse-vmemmap uses vmemmap address, so it is going wrong here.
 
-Another purpose to use stop_machine() is to prevent cpu hotplug. We can't lock
-cpuhotplug here.
+[  517.727381] ------------[ cut here ]------------
+[  517.728851] kernel BUG at arch/x86/mm/physaddr.c:20!
+[  517.728851] invalid opcode: 0000 [#1] SMP
+[  517.740170] Modules linked in: acpihp_drv acpihp_slot edd cpufreq_conservativ
+e cpufreq_userspace cpufreq_powersave acpi_cpufreq mperf fuse vfat fat loop dm_m
+od coretemp kvm crc32c_intel ipv6 ixgbe igb iTCO_wdt i7core_edac edac_core pcspk
+r iTCO_vendor_support ioatdma microcode joydev sr_mod i2c_i801 dca lpc_ich mfd_c
+ore mdio tpm_tis i2c_core hid_generic tpm cdrom sg tpm_bios rtc_cmos button ext3
+ jbd mbcache usbhid hid uhci_hcd ehci_hcd usbcore usb_common sd_mod crc_t10dif p
+rocessor thermal_sys hwmon scsi_dh_alua scsi_dh_hp_sw scsi_dh_rdac scsi_dh_emc s
+csi_dh ata_generic ata_piix libata megaraid_sas scsi_mod
+[  517.740170] CPU 39
+[  517.740170] Pid: 6454, comm: sh Not tainted 3.7.0-rc1-acpihp-final+ #45 QCI Q
+SSC-S4R/QSSC-S4R
+[  517.740170] RIP: 0010:[<ffffffff8103c908>]  [<ffffffff8103c908>] __phys_addr+
+0x88/0x90
+[  517.740170] RSP: 0018:ffff8804440d7c08  EFLAGS: 00010006
+[  517.740170] RAX: 0000000000000006 RBX: ffffea0012000000 RCX: 000000000000002c
 
-Thanks
-Wen Congyang
+[  517.740170] RDX: 0000620012000000 RSI: 0000000000000000 RDI: ffffea0012000000
 
-> 		return;
->> +
->> +	/*
->> +	 * all memory/cpu of this node are removed, we can offline this
->> +	 * node now.
->> +	 */
->> +	node_set_offline(nid);
->> +	unregister_one_node(nid);
->> +}
->> +
->> +int __ref remove_memory(int nid, u64 start, u64 size)
->>  {
->>  	unsigned long start_pfn, end_pfn;
->>  	int ret = 0;
->> @@ -1346,6 +1398,8 @@ repeat:
->>  
->>  	arch_remove_memory(start, size);
->>  
->> +	try_offline_node(nid);
->> +
->>  	unlock_memory_hotplug();
->>  
->>  	return 0;
->> @@ -1355,7 +1409,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
->>  {
->>  	return -EINVAL;
->>  }
->> -int remove_memory(u64 start, u64 size)
->> +int remove_memory(int nid, u64 start, u64 size)
->>  {
->>  	return -EINVAL;
->>  }
->>
-> 
-> 
+[  517.740170] RBP: ffff8804440d7c08 R08: 0070000000000400 R09: 0000000000488000
+
+[  517.740170] R10: 0000000000000091 R11: 0000000000000001 R12: ffff88047fb87800
+
+[  517.740170] R13: ffffea0000000000 R14: ffff88047ffb3440 R15: 0000000000480000
+
+[  517.740170] FS:  00007f0462b49700(0000) GS:ffff8804570c0000(0000) knlGS:00000
+00000000000
+[  517.740170] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  517.740170] CR2: 00007f006dc5fd14 CR3: 0000000440e85000 CR4: 00000000000007e0
+
+[  517.740170] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+
+[  517.896799] DR3: 0000000000000000 DR6
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+---
+ mm/sparse.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/mm/sparse.c b/mm/sparse.c
+index fac95f2..a83de2f 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -617,7 +617,7 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+ {
+ 	return; /* XXX: Not implemented yet */
+ }
+-static void free_map_bootmem(struct page *page, unsigned long nr_pages)
++static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+ {
+ }
+ #else
+@@ -658,10 +658,11 @@ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+ 			   get_order(sizeof(struct page) * nr_pages));
+ }
+ 
+-static void free_map_bootmem(struct page *page, unsigned long nr_pages)
++static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+ {
+ 	unsigned long maps_section_nr, removing_section_nr, i;
+ 	unsigned long magic;
++	struct page *page = virt_to_page(memmap);
+ 
+ 	for (i = 0; i < nr_pages; i++, page++) {
+ 		magic = (unsigned long) page->lru.next;
+@@ -710,13 +711,10 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ 	 */
+ 
+ 	if (memmap) {
+-		struct page *memmap_page;
+-		memmap_page = virt_to_page(memmap);
+-
+ 		nr_pages = PAGE_ALIGN(PAGES_PER_SECTION * sizeof(struct page))
+ 			>> PAGE_SHIFT;
+ 
+-		free_map_bootmem(memmap_page, nr_pages);
++		free_map_bootmem(memmap, nr_pages);
+ 	}
+ }
+ 
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
