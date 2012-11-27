@@ -1,85 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 9B8286B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 17:37:08 -0500 (EST)
-Subject: Re: [PATCH] mm,vmscan: only loop back if compaction would fail in all zones
-In-Reply-To: Your message of "Sun, 25 Nov 2012 23:10:41 -0500."
-             <20121126041041.GD2799@cmpxchg.org>
-From: Valdis.Kletnieks@vt.edu
-References: <20121119202152.4B0E420004E@hpza10.eem.corp.google.com> <20121125175728.3db4ac6a@fem.tu-ilmenau.de> <20121125132950.11b15e38@annuminas.surriel.com> <20121125224433.GB2799@cmpxchg.org> <20121125191645.0ebc6d59@annuminas.surriel.com> <20121126031518.GC2799@cmpxchg.org>
-            <20121126041041.GD2799@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1354055756_2187P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 27 Nov 2012 17:35:56 -0500
-Message-ID: <27425.1354055756@turing-police.cc.vt.edu>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 1543F6B004D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 17:42:55 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm, soft offline: split thp at the beginning of soft_offline_page()
+Date: Tue, 27 Nov 2012 17:42:43 -0500
+Message-Id: <1354056163-30558-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20121127135458.4b7369f7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, akpm@linux-foundation.org, mgorman@suse.de, jirislaby@gmail.com, jslaby@suse.cz, zkabelac@redhat.com, mm-commits@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---==_Exmh_1354055756_2187P
-Content-Type: text/plain; charset=us-ascii
+On Tue, Nov 27, 2012 at 01:54:58PM -0800, Andrew Morton wrote:
+> On Tue, 27 Nov 2012 16:05:31 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+> 
+> > When we try to soft-offline a thp tail page, put_page() is called on the
+> > tail page unthinkingly and VM_BUG_ON is triggered in put_compound_page().
+> > This patch splits thp before going into the main body of soft-offlining.
+> > 
+> > The interface of soft-offlining is open for userspace, so this bug can
+> > lead to DoS attack and should be fixed immedately.
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > Cc: stable@vger.kernel.org
+> > ---
+> >  mm/memory-failure.c | 8 ++++++++
+> >  1 file changed, 8 insertions(+)
+> > 
+> > diff --git v3.7-rc7.orig/mm/memory-failure.c v3.7-rc7/mm/memory-failure.c
+> > index 8fe3640..e48e235 100644
+> > --- v3.7-rc7.orig/mm/memory-failure.c
+> > +++ v3.7-rc7/mm/memory-failure.c
+> > @@ -1548,9 +1548,17 @@ int soft_offline_page(struct page *page, int flags)
+> >  {
+> >  	int ret;
+> >  	unsigned long pfn = page_to_pfn(page);
+> > +	struct page *hpage = compound_trans_head(page);
+> >  
+> >  	if (PageHuge(page))
+> >  		return soft_offline_huge_page(page, flags);
+> > +	if (PageTransHuge(hpage)) {
+> > +		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
+> > +			pr_info("soft offline: %#lx: failed to split THP\n",
+> > +				pfn);
+> > +			return -EBUSY;
+> > +		}
+> > +	}
+> 
+> We can use PageTransCompound() here, as we know it isn't a hugetlbfs
+> page.  This will then permit the PageAnon() test to be omitted, methinks?
 
-On Sun, 25 Nov 2012 23:10:41 -0500, Johannes Weiner said:
+Using PageTransCompound() is OK for me. But without this PageAnon() test,
+we can trigger BUG_ON(!PageAnon) inside split_huge_page() when soft
+offlining is kicked on non-huge compound pages.
 
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: vmscan: fix endless loop in kswapd balancing
->
-> Kswapd does not in all places have the same criteria for when it
-> considers a zone balanced.  This leads to zones being not reclaimed
-> because they are considered just fine and the compaction checks to
-> loop over the zonelist again because they are considered unbalanced,
-> causing kswapd to run forever.
->
-> Add a function, zone_balanced(), that checks the watermark and if
-> compaction has enough free memory to do its job.  Then use it
-> uniformly for when kswapd needs to check if a zone is balanced.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/vmscan.c | 27 ++++++++++++++++++---------
->  1 file changed, 18 insertions(+), 9 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 48550c6..3b0aef4 100644
+The point about telling thp from hugetlbfs pages and non-huge compound
+pages was discussed last month over 7a71932d5676b7410 ("kpageflags: fix
+wrong KPF_THP on non-huge compound pages"), where we used a bit tricky
+workaround of using PageTransCompound(page) && PageLRU(compound_trans_head(page)).
 
-> +	if (COMPACTION_BUILD && order && !compaction_suitable(zone, order))
-> +		return false;
-
-Applying to next-20121117,I had to hand-patch for this other apkm patch:
-
-./Next/merge.log:Applying: mm: use IS_ENABLED(CONFIG_COMPACTION) instead of COMPACTION_BUILD
-
-Probably won't be till tomorrow before I know if this worked, it seems
-to take a while before the kswapd storms start hitting (appears to be
-a function of uptime - see almost none for 8-16 hours, after 24-30 hours
-I'll be having a spinning kswapd most of the time).
-
---==_Exmh_1354055756_2187P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iQIVAwUBULVATAdmEQWDXROgAQLEoBAApVp6hc1/HiMpkLQubEqbab+Nhvz6oXri
-MqALE0I1kfpFiqxROmMAvejy+1nEp6AEL6MYYAh7Kdz9nlHZaJvCg8YByr3jpt5n
-DRXc7e0817rlnrYEvf+Jq4vXJwwpCWKRGOUr40hOAZfn727pwwkTHTEz58UqDkUd
-RiK4GUJflaH5FgHrbYNMtJk3B4cpYqFG61168m/glwRD2gI2v6r1gQQ3OJ1zaEhp
-KHUtwbSKlfWjd3pk2u9qauiE814bU550s+hnPBwgUcUxG5PjCExPVJNQq5iOZMHi
-93IdjV5mRwZC7afRPXQY5u6g5IdqgYFCNGKywgBvBlaiuEy2aHJTSx14S+qo7BMg
-2DZokE4F3Jt8X53b1FtMGLD11PUHTzHRhgyL35cNggfe6OP9Mqg4XrFXqY8gbYX2
-1xZ9uJk0rzFZ5HWxs6DSzreYTcznIccI2Umw/a9MeUuPCfQuGovPAhdjOz2l8JXn
-pdcgXX9H+oaS2BF2Ws8mQOtclmxsG/2W5bIxMUB4+VNG/Tbjw2d0iSCzOhxBoV3v
-J5ad6OkAMroqXAC2cQO4n/9qIcGPenmKBQK8FysrF627rO4r3s2JMpmZclOEVIfX
-f90OV5p9q+PicYnShDekVd8hq3JhaqLTXJyNBaSfyPIERwIyr8G4c90bSfhyAUdq
-CCFM6a28/ko=
-=xGoo
------END PGP SIGNATURE-----
-
---==_Exmh_1354055756_2187P--
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
