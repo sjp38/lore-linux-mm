@@ -1,53 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 7042F6B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 15:49:41 -0500 (EST)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id E3E0C6B005A
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 15:49:45 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: kswapd craziness in 3.7
-Date: Tue, 27 Nov 2012 15:48:34 -0500
-Message-Id: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch] mm: vmscan: fix kswapd endless loop on higher order allocation
+Date: Tue, 27 Nov 2012 15:48:35 -0500
+Message-Id: <1354049315-12874-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi everyone,
+Kswapd does not in all places have the same criteria for a balanced
+zone.  Zones are only being reclaimed when their high watermark is
+breached, but compaction checks loop over the zonelist again when the
+zone does not meet the low watermark plus two times the size of the
+allocation.  This gets kswapd stuck in an endless loop over a small
+zone, like the DMA zone, where the high watermark is smaller than the
+compaction requirement.
 
-I hope I included everybody that participated in the various threads
-on kswapd getting stuck / exhibiting high CPU usage.  We were looking
-at at least three root causes as far as I can see, so it's not really
-clear who observed which problem.  Please correct me if the
-reported-by, tested-by, bisected-by tags are incomplete.
+Add a function, zone_balanced(), that checks the watermark, and, for
+higher order allocations, if compaction has enough free memory.  Then
+use it uniformly to check for balanced zones.
 
-One problem was, as it seems, overly aggressive reclaim due to scaling
-up reclaim goals based on compaction failures.  This one was reverted
-in 9671009 mm: revert "mm: vmscan: scale number of pages reclaimed by
-reclaim/compaction based on failures".
+This makes sure that when the compaction watermark is not met, at
+least reclaim happens and progress is made - or the zone is declared
+unreclaimable at some point and skipped entirely.
 
-Another one was an accounting problem where a freed higher order page
-was underreported, and so kswapd had trouble restoring watermarks.
-This one was fixed in ef6c5be fix incorrect NR_FREE_PAGES accounting
-(appears like memory leak).
+Reported-by: George Spelvin <linux@horizon.com>
+Reported-by: Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>
+Reported-by: Tomas Racek <tracek@redhat.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Tested-by: Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ mm/vmscan.c | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)
 
-The third one is a problem with small zones, like the DMA zone, where
-the high watermark is lower than the low watermark plus compaction gap
-(2 * allocation size).  The zonelist reclaim in kswapd would do
-nothing because all high watermarks are met, but the compaction logic
-would find its own requirements unmet and loop over the zones again.
-Indefinitely, until some third party would free enough memory to help
-meet the higher compaction watermark.  The problematic code has been
-there since the 3.4 merge window for non-THP higher order allocations
-but has been more prominent since the 3.7 merge window, where kswapd
-is also woken up for the much more common THP allocations.
-
-The following patch should fix the third issue by making both reclaim
-and compaction code in kswapd use the same predicate to determine
-whether a zone is balanced or not.
-
-Hopefully, the sum of all three fixes should tame kswapd enough for
-3.7.
-
-Johannes
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 48550c6..3b0aef4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2397,6 +2397,19 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
+ 	} while (memcg);
+ }
+ 
++static bool zone_balanced(struct zone *zone, int order,
++			  unsigned long balance_gap, int classzone_idx)
++{
++	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
++				    balance_gap, classzone_idx, 0))
++		return false;
++
++	if (COMPACTION_BUILD && order && !compaction_suitable(zone, order))
++		return false;
++
++	return true;
++}
++
+ /*
+  * pgdat_balanced is used when checking if a node is balanced for high-order
+  * allocations. Only zones that meet watermarks and are in a zone allowed
+@@ -2475,8 +2488,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 			continue;
+ 		}
+ 
+-		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
+-							i, 0))
++		if (!zone_balanced(zone, order, 0, i))
+ 			all_zones_ok = false;
+ 		else
+ 			balanced += zone->present_pages;
+@@ -2585,8 +2597,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				break;
+ 			}
+ 
+-			if (!zone_watermark_ok_safe(zone, order,
+-					high_wmark_pages(zone), 0, 0)) {
++			if (!zone_balanced(zone, order, 0, 0)) {
+ 				end_zone = i;
+ 				break;
+ 			} else {
+@@ -2662,9 +2673,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				testorder = 0;
+ 
+ 			if ((buffer_heads_over_limit && is_highmem_idx(i)) ||
+-				    !zone_watermark_ok_safe(zone, testorder,
+-					high_wmark_pages(zone) + balance_gap,
+-					end_zone, 0)) {
++			    !zone_balanced(zone, testorder,
++					   balance_gap, end_zone)) {
+ 				shrink_zone(zone, &sc);
+ 
+ 				reclaim_state->reclaimed_slab = 0;
+@@ -2691,8 +2701,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				continue;
+ 			}
+ 
+-			if (!zone_watermark_ok_safe(zone, testorder,
+-					high_wmark_pages(zone), end_zone, 0)) {
++			if (!zone_balanced(zone, testorder, 0, end_zone)) {
+ 				all_zones_ok = 0;
+ 				/*
+ 				 * We are still under min water mark.  This
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
