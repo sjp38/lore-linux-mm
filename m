@@ -1,68 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id AA4B46B002B
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 06:07:52 -0500 (EST)
-Date: Tue, 27 Nov 2012 11:07:47 +0000
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 4665F6B004D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 06:12:31 -0500 (EST)
+Date: Tue, 27 Nov 2012 11:12:25 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: compaction: Fix return value of capture_free_page
-Message-ID: <20121127110746.GN8218@suse.de>
-References: <20121121192151.3FFE0A9A@kernel.stglabs.ibm.com>
- <20121126112350.GI8218@suse.de>
- <50B3858D.2060404@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
+Message-ID: <20121127111225.GO8218@suse.de>
+References: <509C84ED.8090605@linux.vnet.ibm.com>
+ <509CB9D1.6060704@redhat.com>
+ <20121109090635.GG8218@suse.de>
+ <509F6C2A.9060502@redhat.com>
+ <20121112113731.GS8218@suse.de>
+ <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
+ <20121116200616.GK8218@suse.de>
+ <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com>
+ <50ABC128.80706@leemhuis.info>
+ <50AF9450.9020803@leemhuis.info>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <50B3858D.2060404@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <50AF9450.9020803@leemhuis.info>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org
+To: Thorsten Leemhuis <fedora@leemhuis.info>
+Cc: Josh Boyer <jwboyer@gmail.com>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, bruno@wolff.to
 
-On Mon, Nov 26, 2012 at 07:06:53AM -0800, Dave Hansen wrote:
-> On 11/26/2012 03:23 AM, Mel Gorman wrote:
-> > On Wed, Nov 21, 2012 at 02:21:51PM -0500, Dave Hansen wrote:
-> >>
-> >> This needs to make it in before 3.7 is released.
-> >>
+On Fri, Nov 23, 2012 at 04:20:48PM +0100, Thorsten Leemhuis wrote:
+> Thorsten Leemhuis wrote on 20.11.2012 18:43:
+> > On 20.11.2012 16:38, Josh Boyer wrote:
 > > 
-> > This is also required. Dave, can you double check? The surprise is that
-> > this does not blow up very obviously.
-> ...
-> > @@ -1422,7 +1422,7 @@ int capture_free_page(struct page *page, int alloc_order, int migratetype)
-> >  		}
-> >  	}
-> > 
-> > -	return 1UL << order;
-> > +	return 1UL << alloc_order;
-> >  }
+> > The short story from my current point of view is:
 > 
-> compact_capture_page() only looks at the boolean return value out of
-> capture_free_page(), so it wouldn't notice.  split_free_page() does.
-> But, when it calls capture_free_page(), order==alloc_order, so it
-> wouldn't make a difference.  So, there's probably no actual bug here,
-> but it's certainly a wrong return value.
+> Quick update, in case anybody is interested:
+> 
+> >  * my main machine at home where I initially saw the issue that started
+> > this thread seems to be running fine with rc6 and the "safe" patch Mel
+> > posted in https://lkml.org/lkml/2012/11/12/113 Before that I ran a rc5
+> > kernel with the revert that went into rc6 and the "safe" patch -- that
+> > worked fine for a few days, too.
+> 
+> On this machine I'm running a rc6 kernel + the fix for the accounting
+> bug(1) that went into mainline ~40 hours ago + the "riskier" patch Mel
+> posted in https://lkml.org/lkml/2012/11/12/151
+> 
+> Up to now everything works fine.
+> 
+> (1) https://lkml.org/lkml/2012/11/21/362
 > 
 
-I don't think it is fine in this case.
+That's good news, thanks for the follow up. Maybe 3.7 will not be a complete
+disaster with respect to THP after all this.
 
-isolate_freepages_block
-isolated = split_free_page(page);
-  -> split_free_page
-     nr_pages = capture_free_page(page, order, 0);
-     -> capture_free_page (returns wrong value of too many pages)
-     return nr_pages;
+The riskier patch was not picked up simply because it was riskier and
+would still be vunerable to the effective infinite loop Johannes found in
+kswapd. It'll all need to be revisisted.
 
-so now isolate_freepages_block has the wrong value with nr_pages holding
-a value for a larger number of pages than are really isolated and does
-this
+> >  * I have a second machine where I started to use 3.7-rc kernels only
+> > yesterday (the machine triggered a bug in the radeon driver that seems
+> > to be fixed in rc6) which showed symptoms like the ones Zdenek Kabelac
+> > mentions in this thread. I wasn't able to look closer at it, but simply
+> > tried rc6 with the safe patch, which didn't help. I'm now running rc6
+> > with the "riskier" patch from https://lkml.org/lkml/2012/11/12/151
+> > I can't yet tell if it helps. If the problems shows up again I'll try to
+> > capture more debugging data via sysrq -- there wasn't any time for that
+> > when I was running rc6 with the safe patch, sorry.
+> 
+> This machine is now also behaving fine with above mentioned rc6 kernel +
+> the two patches. It seems the accounting bug was the root cause for the
+> problems this machine showed.
+> 
 
-                for (i = 0; i < isolated; i++) {
-                        list_add(&page->lru, freelist);
-                        page++;
-                }
+For some yes, for others no. Others are getting stuck within effective
+infinite loops in kswapd and the trigger cases are different although
+the symptoms loop similar.
 
-so potentially that is now adding pages that are already on the buddy list
-to the local free list and "fun" ensues.
+Thanks again.
 
 -- 
 Mel Gorman
