@@ -1,217 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id 90B386B0062
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:01 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 598DB6B006C
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:08 -0500 (EST)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 06/19] list: add a new LRU list type
-Date: Wed, 28 Nov 2012 10:14:33 +1100
-Message-Id: <1354058086-27937-7-git-send-email-david@fromorbit.com>
-In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+Subject: [RFC, PATCH 00/19] Numa aware LRU lists and shrinkers
+Date: Wed, 28 Nov 2012 10:14:27 +1100
+Message-Id: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: glommer@parallels.com
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-From: Dave Chinner <dchinner@redhat.com>
+Hi Glauber,
 
-Several subsystems use the same construct for LRU lists - a list
-head, a spin lock and and item count. They also use exactly the same
-code for adding and removing items from the LRU. Create a generic
-type for these LRU lists.
+Here's a working version of my patchset for generic LRU lists and
+NUMA-aware shrinkers.
 
-This is the beginning of generic, node aware LRUs for shrinkers to
-work with.
+There are several parts to this patch set. The NUMA aware shrinkers
+are based on having a generic node-based LRU list implementation,
+and there are subsystems that need to be converted to use these
+lists as part of the process. There is also a long overdue change to
+the shrinker API to give it separate object count and object scan
+callbacks, getting rid of the magic and confusing "nr_to_scan = 0"
+semantics.
 
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
- include/linux/list_lru.h |   36 ++++++++++++++
- lib/Makefile             |    2 +-
- lib/list_lru.c           |  117 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 154 insertions(+), 1 deletion(-)
- create mode 100644 include/linux/list_lru.h
- create mode 100644 lib/list_lru.c
+First of all, the patch set is based on a current 3.7-rc7 tree with
+the current xfs dev tree merged into it [can be found at
+git://oss.sgi.com/xfs/xfs]. That's because there are lots of XFS
+changes in the patch set, and theres no way I'm going to write them
+a second time in a couple of weeks when the current dev tree is
+merged into 3.8-rc1....
 
-diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-new file mode 100644
-index 0000000..3423949
---- /dev/null
-+++ b/include/linux/list_lru.h
-@@ -0,0 +1,36 @@
-+/*
-+ * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
-+ * Author: David Chinner
-+ *
-+ * Generic LRU infrastructure
-+ */
-+#ifndef _LRU_LIST_H
-+#define _LRU_LIST_H 0
-+
-+#include <linux/list.h>
-+
-+struct list_lru {
-+	spinlock_t		lock;
-+	struct list_head	list;
-+	long			nr_items;
-+};
-+
-+int list_lru_init(struct list_lru *lru);
-+int list_lru_add(struct list_lru *lru, struct list_head *item);
-+int list_lru_del(struct list_lru *lru, struct list_head *item);
-+
-+static inline long list_lru_count(struct list_lru *lru)
-+{
-+	return lru->nr_items;
-+}
-+
-+typedef int (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock,
-+				void *cb_arg);
-+typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
-+
-+long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
-+		   void *cb_arg, long nr_to_walk);
-+
-+long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
-+
-+#endif /* _LRU_LIST_H */
-diff --git a/lib/Makefile b/lib/Makefile
-index 821a162..a0849d7 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -12,7 +12,7 @@ lib-y := ctype.o string.o vsprintf.o cmdline.o \
- 	 idr.o int_sqrt.o extable.o \
- 	 sha1.o md5.o irq_regs.o reciprocal_div.o argv_split.o \
- 	 proportions.o flex_proportions.o prio_heap.o ratelimit.o show_mem.o \
--	 is_single_threaded.o plist.o decompress.o
-+	 is_single_threaded.o plist.o decompress.o list_lru.o
- 
- lib-$(CONFIG_MMU) += ioremap.o
- lib-$(CONFIG_SMP) += cpumask.o
-diff --git a/lib/list_lru.c b/lib/list_lru.c
-new file mode 100644
-index 0000000..475d0e9
---- /dev/null
-+++ b/lib/list_lru.c
-@@ -0,0 +1,117 @@
-+/*
-+ * Copyright (c) 2010-2012 Red Hat, Inc. All rights reserved.
-+ * Author: David Chinner
-+ *
-+ * Generic LRU infrastructure
-+ */
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/list_lru.h>
-+
-+int
-+list_lru_add(
-+	struct list_lru	*lru,
-+	struct list_head *item)
-+{
-+	spin_lock(&lru->lock);
-+	if (list_empty(item)) {
-+		list_add_tail(item, &lru->list);
-+		lru->nr_items++;
-+		spin_unlock(&lru->lock);
-+		return 1;
-+	}
-+	spin_unlock(&lru->lock);
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_add);
-+
-+int
-+list_lru_del(
-+	struct list_lru	*lru,
-+	struct list_head *item)
-+{
-+	spin_lock(&lru->lock);
-+	if (!list_empty(item)) {
-+		list_del_init(item);
-+		lru->nr_items--;
-+		spin_unlock(&lru->lock);
-+		return 1;
-+	}
-+	spin_unlock(&lru->lock);
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_del);
-+
-+long
-+list_lru_walk(
-+	struct list_lru *lru,
-+	list_lru_walk_cb isolate,
-+	void		*cb_arg,
-+	long		nr_to_walk)
-+{
-+	struct list_head *item, *n;
-+	long removed = 0;
-+restart:
-+	spin_lock(&lru->lock);
-+	list_for_each_safe(item, n, &lru->list) {
-+		int ret;
-+
-+		if (nr_to_walk-- < 0)
-+			break;
-+
-+		ret = isolate(item, &lru->lock, cb_arg);
-+		switch (ret) {
-+		case 0:	/* item removed from list */
-+			lru->nr_items--;
-+			removed++;
-+			break;
-+		case 1: /* item referenced, give another pass */
-+			list_move_tail(item, &lru->list);
-+			break;
-+		case 2: /* item cannot be locked, skip */
-+			break;
-+		case 3: /* item not freeable, lock dropped */
-+			goto restart;
-+		default:
-+			BUG();
-+		}
-+	}
-+	spin_unlock(&lru->lock);
-+	return removed;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_walk);
-+
-+long
-+list_lru_dispose_all(
-+	struct list_lru *lru,
-+	list_lru_dispose_cb dispose)
-+{
-+	long disposed = 0;
-+	LIST_HEAD(dispose_list);
-+
-+	spin_lock(&lru->lock);
-+	while (!list_empty(&lru->list)) {
-+		list_splice_init(&lru->list, &dispose_list);
-+		disposed += lru->nr_items;
-+		lru->nr_items = 0;
-+		spin_unlock(&lru->lock);
-+
-+		dispose(&dispose_list);
-+
-+		spin_lock(&lru->lock);
-+	}
-+	spin_unlock(&lru->lock);
-+	return disposed;
-+}
-+
-+int
-+list_lru_init(
-+	struct list_lru	*lru)
-+{
-+	spin_lock_init(&lru->lock);
-+	INIT_LIST_HEAD(&lru->list);
-+	lru->nr_items = 0;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(list_lru_init);
--- 
-1.7.10
+So, where's what the patches do:
+
+[PATCH 01/19] dcache: convert dentry_stat.nr_unused to per-cpu
+[PATCH 02/19] dentry: move to per-sb LRU locks
+[PATCH 03/19] dcache: remove dentries from LRU before putting on
+
+These three patches are preparation of the dcache for moving to the
+generic LRU list API. it basically gets rid of the global dentry LRU
+lock, and in doing so has to avoid several creative abuses of the
+lru list detection to allow dentries on shrink lists to be still
+magically be on the LRU list. The main change here is that now
+dentries on the shrink lists *must* have the DCACHE_SHRINK_LIST flag
+set and be entirely removed from the LRU before being disposed of.
+
+This is probably a good cleanup to do regardless of the rest of the
+patch set because it removes a couple of landmines in
+shrink_dentry_list() that took me a while to work out...
+
+[PATCH 04/19] mm: new shrinker API
+[PATCH 05/19] shrinker: convert superblock shrinkers to new API
+
+These introduce the count/scan shrinker API, and for testing
+purposes convert the superblock shrinker to use it before any other
+changes are made. This gives a clean separation of counting the
+number of objects in a cache for pressure calculations, and the act
+of scanning objects in an attempt to free memory. Indeed, the
+scan_objects() callback now returns the number of objects freed by
+the scan instead of having to try to work out whether any progress
+was made by comparing absolute counts.
+
+This is also more efficient as we don't have to count all the
+objects in a cache on every scan pass. It is now done once per
+shrink_slab() invocation to calculate how much to scan, and we get
+direct feedback on how much gets reclaimed in that pass. i.e. we get
+reliable, accurate feedback on shrinker progress.
+
+[PATCH 06/19] list: add a new LRU list type
+[PATCH 07/19] inode: convert inode lru list to generic lru list
+[PATCH 08/19] dcache: convert to use new lru list infrastructure
+
+These add the generic LRU list API and infrastructure and convert
+the inode and dentry caches to use it. This is still just a single
+global list per LRU at this point, so it's really only changing the
+where the LRU implemenation is rather than the fundamental
+algorithm. It does, however, introduce a new method of walking the
+LRU lists and building the dispose list of items for shrinkers, but
+because we are still dealing with a global list the algorithmic
+changes are minimal.
+
+[PATCH 09/19] list_lru: per-node list infrastructure
+
+This makes the generic LRU list much more scalable by changing it to
+a {list,lock,count} tuple per node. There are no external API
+changes to this changeover, so is transparent to current users.
+
+[PATCH 10/19] shrinker: add node awareness
+[PATCH 11/19] fs: convert inode and dentry shrinking to be node
+
+Adds a nodemask to the struct shrink_control for callers of
+shrink_slab to set appropriately for their reclaim context. This
+nodemask is then passed by the inode and dentry cache reclaim code
+to the generic LRU list code to implement node aware shrinking.
+
+What this doesn't do is convert the internal shrink_slab() algorithm
+to be node aware. I'm not sure what the best approach is here, but
+it strikes me that it should really be calculating and keeping track
+of scan counts and pressure on a per-node basis. The current code
+seems to work OK at the moment, though.
+
+[PATCH 12/19] xfs: convert buftarg LRU to generic code
+[PATCH 13/19] xfs: Node aware direct inode reclaim
+[PATCH 14/19] xfs: use generic AG walk for background inode reclaim
+[PATCH 15/19] xfs: convert dquot cache lru to list_lru
+
+These patches convert all the XFS LRUs and shrinkers to be node
+aware. This gets rid of a lot of hairy, special case code in the
+inode cache shrinker for avoiding concurrent shrinker contention and
+to throttle direct reclaim to prevent premature OOM conditions.
+Removing this code greatly simplifies inode cache reclaim whilst
+reducing overhead and improving performance. In all, it converts
+three separate caches and shrinkers to use the generic LRU lists and
+pass nodemasks around appropriately.
+
+This is how I've really tested the code - lots of interesting
+filesystem workloads that generate simultaneous slab and page cache
+pressure on VM's with and without fake_numa configs....
+
+[PATCH 16/19] fs: convert fs shrinkers to new scan/count API
+[PATCH 17/19] drivers: convert shrinkers to new count/scan API
+[PATCH 18/19] shrinker: convert remaining shrinkers to count/scan
+[PATCH 19/19] shrinker: Kill old ->shrink API.
+
+These last three patches convert all the other shrinker
+implementations to the new count/scan API.  The fs, android and dm
+shrinkers are pretty well behaved and are implemented as is expected
+for there intended purposes. The driver and staging code, however,
+is basically a bunch of hacks to try to do something resembling
+reclaim when a shrinker tells it there is memory pressure. Looking
+at all the driver and staging code is not an exercise I recommend if
+you value your eyes and/or your sanity.
+
+I haven't even tried to compile this on a CONFIG_SMP=n
+configuration, nor have I done extensive allmod style build tests
+and it's only been built and tested on x86-64. That said, apart from
+CONFIG_SMP=n, I don't see there being any major problems here.
+
+There's still a bunch of cleanup work needed. e.g. the LRU list
+walk/isolation code needs to use enums for the isolate callback
+return code, there needs to be a generic list_lru_for_each() style
+function for walking all the objects in the cache (which will allow
+the list_lru structures to be used for things like the per-sb inode
+list). Indeed, even the name "list_lru" is probably something that
+should be changed - I think the list has become more of a general
+per-node list than it's initial functionality as a scalable LRU list
+implementation and I can see uses for it outside of LRUs...
+
+Comments, thoughts and flames all welcome.
+
+Cheers,
+
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
