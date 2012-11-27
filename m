@@ -1,103 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id D5DF66B0068
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 16:41:51 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
-Date: Tue, 27 Nov 2012 22:46:34 +0100
-Message-ID: <3562840.kvm4ZTnunM@vostro.rjw.lan>
-In-Reply-To: <5434404.G1ERYjuorE@vostro.rjw.lan>
-References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com> <1353761958-12810-3-git-send-email-ming.lei@canonical.com> <5434404.G1ERYjuorE@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id DE1786B0062
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 16:50:33 -0500 (EST)
+Date: Tue, 27 Nov 2012 16:49:28 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: kswapd craziness in 3.7
+Message-ID: <20121127214928.GA20253@cmpxchg.org>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+ <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+ <50B52DC4.5000109@redhat.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50B52DC4.5000109@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-pm@vger.kernel.org
-Cc: Ming Lei <ming.lei@canonical.com>, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tuesday, November 27, 2012 10:19:29 PM Rafael J. Wysocki wrote:
-> On Saturday, November 24, 2012 08:59:14 PM Ming Lei wrote:
-> > The patch introduces the flag of memalloc_noio in 'struct dev_pm_info'
-> > to help PM core to teach mm not allocating memory with GFP_KERNEL
-> > flag for avoiding probable deadlock.
-> > 
-> > As explained in the comment, any GFP_KERNEL allocation inside
-> > runtime_resume() or runtime_suspend() on any one of device in
-> > the path from one block or network device to the root device
-> > in the device tree may cause deadlock, the introduced
-> > pm_runtime_set_memalloc_noio() sets or clears the flag on
-> > device in the path recursively.
-> > 
-> > Cc: Alan Stern <stern@rowland.harvard.edu>
-> > Cc: "Rafael J. Wysocki" <rjw@sisk.pl>
-> > Signed-off-by: Ming Lei <ming.lei@canonical.com>
-> > ---
-> > v5:
-> > 	- fix code style error
-> > 	- add comment on clear the device memalloc_noio flag
-> > v4:
-> > 	- rename memalloc_noio_resume as memalloc_noio
-> > 	- remove pm_runtime_get_memalloc_noio()
-> > 	- add comments on pm_runtime_set_memalloc_noio
-> > v3:
-> > 	- introduce pm_runtime_get_memalloc_noio()
-> > 	- hold one global lock on pm_runtime_set_memalloc_noio
-> > 	- hold device power lock when accessing memalloc_noio_resume
-> > 	  flag suggested by Alan Stern
-> > 	- implement pm_runtime_set_memalloc_noio without recursion
-> > 	  suggested by Alan Stern
-> > v2:
-> > 	- introduce pm_runtime_set_memalloc_noio()
-> > ---
-> >  drivers/base/power/runtime.c |   60 ++++++++++++++++++++++++++++++++++++++++++
-> >  include/linux/pm.h           |    1 +
-> >  include/linux/pm_runtime.h   |    3 +++
-> >  3 files changed, 64 insertions(+)
-> > 
-> > diff --git a/drivers/base/power/runtime.c b/drivers/base/power/runtime.c
-> > index 3148b10..3e198a0 100644
-> > --- a/drivers/base/power/runtime.c
-> > +++ b/drivers/base/power/runtime.c
-> > @@ -124,6 +124,66 @@ unsigned long pm_runtime_autosuspend_expiration(struct device *dev)
-> >  }
-> >  EXPORT_SYMBOL_GPL(pm_runtime_autosuspend_expiration);
-> >  
-> > +static int dev_memalloc_noio(struct device *dev, void *data)
-> > +{
-> > +	return dev->power.memalloc_noio;
-> > +}
-> > +
-> > +/*
-> > + * pm_runtime_set_memalloc_noio - Set a device's memalloc_noio flag.
-> > + * @dev: Device to handle.
-> > + * @enable: True for setting the flag and False for clearing the flag.
-> > + *
-> > + * Set the flag for all devices in the path from the device to the
-> > + * root device in the device tree if @enable is true, otherwise clear
-> > + * the flag for devices in the path whose siblings don't set the flag.
-> > + *
+On Tue, Nov 27, 2012 at 04:16:52PM -0500, Rik van Riel wrote:
+> On 11/27/2012 03:58 PM, Linus Torvalds wrote:
+> >Note that in the meantime, I've also applied (through Andrew) the
+> >patch that reverts commit c654345924f7 (see commit 82b212f40059
+> >'Revert "mm: remove __GFP_NO_KSWAPD"').
+> >
+> >I wonder if that revert may be bogus, and a result of this same issue.
+> >Maybe that revert should be reverted, and replaced with your patch?
+> >
+> >Mel? Zdenek? What's the status here?
 > 
-> Please use counters instead of walking the whole path every time.  Ie. in
-> addition to the flag add a counter to store the number of the device's
-> children having that flag set.
+> Mel posted several patches to fix the kswapd issue.  This one is
+> slightly more risky than the outright revert, but probably preferred
+> from a performance point of view:
+> 
+> https://lkml.org/lkml/2012/11/12/151
+> 
+> It works by skipping the kswapd wakeup for THP allocations, only
+> if compaction is deferred or contended.
 
-I would use the flag only to store the information that
-pm_runtime_set_memalloc_noio(dev, true) has been run for this device directly
-and I'd use a counter for everything else.
+Just to clarify, this would be a replacement strictly for the
+__GFP_NO_KSWAPD removal revert, to control how often kswapd is woken
+up for higher order allocations like THP.
 
-That is, have power.memalloc_count that would be incremented when (1)
-pm_runtime_set_memalloc_noio(dev, true) is called for that device and (2) when
-power.memalloc_count for one of its children changes from 0 to 1 (and
-analogously for decrementation).  Then, check the counter in rpm_callback().
+My patch is to fix how kswapd actually does higher order reclaim, and
+it is required either way.
 
-Thanks,
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+[ But isn't the _reason_ why the "wake up kswapd more carefully for
+  THP" patch was written kind of moot now since it was developed
+  against a crazy kswapd?  It would certainly need to be re-evaluated.
+  My (limited) testing didn't show any issues anymore with waking
+  kswapd unconditionally once it's fixed. ]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
