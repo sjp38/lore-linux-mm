@@ -1,171 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 331616B009C
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:31 -0500 (EST)
-From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 19/19] shrinker: Kill old ->shrink API.
-Date: Wed, 28 Nov 2012 10:14:46 +1100
-Message-Id: <1354058086-27937-20-git-send-email-david@fromorbit.com>
-In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id C25EA6B009C
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:20:01 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id t49so4110078wey.14
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 15:20:00 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20121127222637.GG2301@cmpxchg.org>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+ <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+ <50B52DC4.5000109@redhat.com> <20121127214928.GA20253@cmpxchg.org>
+ <50B5387C.1030005@redhat.com> <20121127222637.GG2301@cmpxchg.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 27 Nov 2012 15:19:38 -0800
+Message-ID: <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
+Subject: Re: kswapd craziness in 3.7
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: glommer@parallels.com
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-From: Dave Chinner <dchinner@redhat.com>
+On Tue, Nov 27, 2012 at 2:26 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Nov 27, 2012 at 05:02:36PM -0500, Rik van Riel wrote:
+>>
+>> Kswapd going crazy is certainly a large part of the problem.
+>>
+>> However, that leaves the issue of page_alloc.c waking up
+>> kswapd when the system is not actually low on memory.
+>>
+>> Instead, kswapd is woken up because memory compaction failed,
+>> potentially even due to lock contention during compaction!
+>>
+>> Ideally the allocation code would only wake up kswapd if
+>> memory needs to be freed, or in order for kswapd to do
+>> memory compaction (so the allocator does not have to).
+>
+> Maybe I missed something, but shouldn't this be solved with my patch?
 
-There are no more users of this API, so kill it dead, dead, dead and
-quietly bury the corpse in a shallow, unmarked grave in a dark
-forest deep in the hills...
+Ok, guys. Cage fight!
 
-Signed-off-by: Dave Chinner <dchinner@redhat.com>
----
- include/linux/shrinker.h      |   15 +++++----------
- include/trace/events/vmscan.h |    4 ++--
- mm/vmscan.c                   |   39 ++++++++-------------------------------
- 3 files changed, 15 insertions(+), 43 deletions(-)
+The rules are simple: two men enter, one man leaves.
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index e71286f..d4636a0 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -7,14 +7,15 @@
-  *
-  * The 'gfpmask' refers to the allocation we are currently trying to
-  * fulfil.
-- *
-- * Note that 'shrink' will be passed nr_to_scan == 0 when the VM is
-- * querying the cache size, so a fastpath for that case is appropriate.
-  */
- struct shrink_control {
- 	gfp_t gfp_mask;
- 
--	/* How many slab objects shrinker() should scan and try to reclaim */
-+	/*
-+	 * How many objects scan_objects should scan and try to reclaim.
-+	 * This is reset before every call, so it is safe for callees
-+	 * to modify.
-+	 */
- 	long nr_to_scan;
- 
- 	/* shrink from these nodes */
-@@ -24,11 +25,6 @@ struct shrink_control {
- /*
-  * A callback you can register to apply pressure to ageable caches.
-  *
-- * @shrink() should look through the least-recently-used 'nr_to_scan' entries
-- * and attempt to free them up.  It should return the number of objects which
-- * remain in the cache.  If it returns -1, it means it cannot do any scanning at
-- * this time (eg. there is a risk of deadlock).
-- *
-  * @count_objects should return the number of freeable items in the cache. If
-  * there are no objects to free or the number of freeable items cannot be
-  * determined, it should return 0. No deadlock checks should be done during the
-@@ -44,7 +40,6 @@ struct shrink_control {
-  * @scan_objects will be made from the current reclaim context.
-  */
- struct shrinker {
--	int (*shrink)(struct shrinker *, struct shrink_control *sc);
- 	long (*count_objects)(struct shrinker *, struct shrink_control *sc);
- 	long (*scan_objects)(struct shrinker *, struct shrink_control *sc);
- 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index 63cfccc..132a985 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -202,7 +202,7 @@ TRACE_EVENT(mm_shrink_slab_start,
- 
- 	TP_fast_assign(
- 		__entry->shr = shr;
--		__entry->shrink = shr->shrink;
-+		__entry->shrink = shr->scan_objects;
- 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
- 		__entry->gfp_flags = sc->gfp_mask;
- 		__entry->pgs_scanned = pgs_scanned;
-@@ -241,7 +241,7 @@ TRACE_EVENT(mm_shrink_slab_end,
- 
- 	TP_fast_assign(
- 		__entry->shr = shr;
--		__entry->shrink = shr->shrink;
-+		__entry->shrink = shr->scan_objects;
- 		__entry->unused_scan = unused_scan_cnt;
- 		__entry->new_scan = new_scan_cnt;
- 		__entry->retval = shrinker_retval;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4a602ec..81731f5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -176,14 +176,6 @@ void unregister_shrinker(struct shrinker *shrinker)
- }
- EXPORT_SYMBOL(unregister_shrinker);
- 
--static inline int do_shrinker_shrink(struct shrinker *shrinker,
--				     struct shrink_control *sc,
--				     unsigned long nr_to_scan)
--{
--	sc->nr_to_scan = nr_to_scan;
--	return (*shrinker->shrink)(shrinker, sc);
--}
--
- #define SHRINK_BATCH 128
- /*
-  * Call the shrink functions to age shrinkable caches
-@@ -229,11 +221,8 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 		long batch_size = shrinker->batch ? shrinker->batch
- 						  : SHRINK_BATCH;
- 
--		if (shrinker->scan_objects) {
--			max_pass = shrinker->count_objects(shrinker, sc);
--			WARN_ON(max_pass < 0);
--		} else
--			max_pass = do_shrinker_shrink(shrinker, sc, 0);
-+		max_pass = shrinker->count_objects(shrinker, sc);
-+		WARN_ON(max_pass < 0);
- 		if (max_pass <= 0)
- 			continue;
- 
-@@ -252,7 +241,7 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 		if (total_scan < 0) {
- 			printk(KERN_ERR
- 			"shrink_slab: %pF negative objects to delete nr=%ld\n",
--			       shrinker->shrink, total_scan);
-+			       shrinker->scan_objects, total_scan);
- 			total_scan = max_pass;
- 		}
- 
-@@ -286,24 +275,12 @@ unsigned long shrink_slab(struct shrink_control *sc,
- 		while (total_scan >= batch_size) {
- 			long ret;
- 
--			if (shrinker->scan_objects) {
--				sc->nr_to_scan = batch_size;
--				ret = shrinker->scan_objects(shrinker, sc);
-+			sc->nr_to_scan = batch_size;
-+			ret = shrinker->scan_objects(shrinker, sc);
- 
--				if (ret == -1)
--					break;
--				freed += ret;
--			} else {
--				int nr_before;
--
--				nr_before = do_shrinker_shrink(shrinker, sc, 0);
--				ret = do_shrinker_shrink(shrinker, sc,
--								batch_size);
--				if (ret == -1)
--					break;
--				if (ret < nr_before)
--					freed += nr_before - ret;
--			}
-+			if (ret == -1)
-+				break;
-+			freed += ret;
- 			count_vm_events(SLABS_SCANNED, batch_size);
- 			total_scan -= batch_size;
- 
--- 
-1.7.10
+And the one who comes out gets to explain to me which patch(es) I
+should apply, and which I should revert, if any.
+
+My current guess is that I should apply the one Johannes just sent
+("mm: vmscan: fix kswapd endless loop on higher order allocation")
+after having added the cc to stable to it, and then revert the recent
+revert (commit 82b212f40059).
+
+But I await the Thunderdome. <Cue Tina Turner "We Don't Need Another Hero">
+
+                      Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
