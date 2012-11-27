@@ -1,90 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 3AD146B00A9
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:32:54 -0500 (EST)
-Date: Tue, 27 Nov 2012 21:32:44 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: fix balloon_page_movable() page->flags check
-Message-ID: <20121127233243.GB1812@t510.redhat.com>
-References: <20121127145708.c7173d0d.akpm@linux-foundation.org>
- <1ccb1c95a52185bcc6009761cb2829197e2737ea.1354058194.git.aquini@redhat.com>
+Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
+	by kanga.kvack.org (Postfix) with SMTP id 755916B00AA
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:36:38 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Wed, 28 Nov 2012 00:41:21 +0100
+Message-ID: <2804331.4p7pU4ARvy@vostro.rjw.lan>
+In-Reply-To: <1354053827.26955.196.camel@misato.fc.hp.com>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <20121127183245.GA4674@dhcp-192-168-178-175.profitbricks.localdomain> <1354053827.26955.196.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1ccb1c95a52185bcc6009761cb2829197e2737ea.1354058194.git.aquini@redhat.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 27, 2012 at 09:31:10PM -0200, Rafael Aquini wrote:
-> This patch fixes the following crash by fixing and enhancing the way 
-> page->flags are tested to identify a ballooned page.
+On Tuesday, November 27, 2012 03:03:47 PM Toshi Kani wrote:
+> On Tue, 2012-11-27 at 19:32 +0100, Vasilis Liaskovitis wrote:
+> > On Mon, Nov 26, 2012 at 05:19:01PM -0700, Toshi Kani wrote:
+> > > > >> Consider the following sequence of operations for a hotplugged memory
+> > > > >> device:
+> > > > >>
+> > > > >> 1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+> > > > >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> > > > >>
+> > > > >> If we don't offline/remove the memory, we have no chance to do it in
+> > > > >> step 2. After
+> > > > >> step2, the memory is used by the kernel, but we have powered off it. It
+> > > > >> is very
+> > > > >> dangerous.
+> > > > > 
+> > > > > How does power-off happen after unbind? acpi_eject_store checks for existing
+> > > > > driver before taking any action:
+> > > > > 
+> > > > > #ifndef FORCE_EJECT
+> > > > > 	if (acpi_device->driver == NULL) {
+> > > > > 		ret = -ENODEV;
+> > > > > 		goto err;
+> > > > > 	}
+> > > > > #endif
+> > > > > 
+> > > > > FORCE_EJECT is not defined afaict, so the function returns without scheduling
+> > > > > acpi_bus_hot_remove_device. Is there another code path that calls power-off?
+> > > > 
+> > > > Consider the following case:
+> > > > 
+> > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
+> > > > 
+> > > > CPUa                                                  CPUb
+> > > > acpi_memory_device_notify()
+> > > >                                        unbind it from the driver
+> > > >     acpi_bus_hot_remove_device()
+> > > 
+> > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
+> > > bound with a driver?  If so, can we make the unbind operation to perform
+> > > unbind only?
+> > 
+> > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
+> > if it's not present (dev->driver == NULL).
+> > 
+> > But there can still be a race between an eject and an unbind operation happening
+> > simultaneously. This seems like a general problem to me i.e. not specific to an
+> > acpi memory device. How do we ensure an eject does not race with a driver unbind
+> > for other acpi devices?
+> > 
+> > Is there a per-device lock in acpi-core or device-core that can prevent this from
+> > happening? Driver core does a device_lock(dev) on all operations, but this is
+> > probably not grabbed on SCI-initiated acpi ejects.
 > 
-> ---8<---
-> BUG: unable to handle kernel NULL pointer dereference at 0000000000000194
-> IP: [<ffffffff8122b354>] isolate_migratepages_range+0x344/0x7b0
-> --->8---
-> 
-> The NULL pointer deref was taking place because balloon_page_movable()
-> page->flags tests were incomplete and we ended up 
-> inadvertently poking at private pages.
-> 
-> Reported-by: Sasha Levin <levinsasha928@gmail.com>
-> Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> ---
+> Since driver_unbind() calls device_lock(dev->parent) before calling
+> device_release_driver(), I am wondering if we can call
+> device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
+> (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
+> parent lock is otherwise released after device_release_driver() is done.
 
-Here it is Andrew, sorry by the lagged reply
+I would be careful.  You may introduce some subtle locking-related issues
+this way.
 
-Cheers!
---Rafael
+Besides, there may be an alternative approach to all this.  For example,
+what if we don't remove struct device objects on eject?  The ACPI handles
+associated with them don't go away in that case after all, do they?
+
+Rafael
 
 
->  include/linux/balloon_compaction.h | 21 +++++++++++++++++++--
->  1 file changed, 19 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-> index 68893bc..634a19b 100644
-> --- a/include/linux/balloon_compaction.h
-> +++ b/include/linux/balloon_compaction.h
-> @@ -107,6 +107,23 @@ static inline void balloon_mapping_free(struct address_space *balloon_mapping)
->  }
->  
->  /*
-> + * __balloon_page_flags - helper to perform balloon @page ->flags tests.
-> + *
-> + * As balloon pages are got from Buddy, and we do not play with page->flags
-> + * at driver level (exception made when we get the page lock for compaction),
-> + * therefore we can safely identify a ballooned page by checking if the
-> + * NR_PAGEFLAGS rightmost bits from the page->flags are all cleared.
-> + * This approach also helps on skipping ballooned pages that are locked for
-> + * compaction or release, thus mitigating their racy check at
-> + * balloon_page_movable()
-> + */
-> +#define BALLOON_PAGE_FLAGS_MASK       ((1UL << NR_PAGEFLAGS) - 1)
-> +static inline bool __balloon_page_flags(struct page *page)
-> +{
-> +	return page->flags & BALLOON_PAGE_FLAGS_MASK ? false : true;
-> +}
-> +
-> +/*
->   * __is_movable_balloon_page - helper to perform @page mapping->flags tests
->   */
->  static inline bool __is_movable_balloon_page(struct page *page)
-> @@ -135,8 +152,8 @@ static inline bool balloon_page_movable(struct page *page)
->  	 * Before dereferencing and testing mapping->flags, lets make sure
->  	 * this is not a page that uses ->mapping in a different way
->  	 */
-> -	if (!PageSlab(page) && !PageSwapCache(page) && !PageAnon(page) &&
-> -	    !page_mapped(page))
-> +	if (__balloon_page_flags(page) && !page_mapped(page) &&
-> +	    page_count(page) == 1)
->  		return __is_movable_balloon_page(page);
->  
->  	return false;
-> -- 
-> 1.7.11.7
-> 
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
