@@ -1,35 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 05AB26B0062
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 11:03:07 -0500 (EST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: O_DIRECT on tmpfs (again)
-Date: Tue, 27 Nov 2012 11:03:03 -0500
-Message-ID: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 1EF546B006E
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 11:31:09 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so9511240pbc.14
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 08:31:08 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH v2 0/3] introduce static_vm for ARM-specific static mapped area
+Date: Wed, 28 Nov 2012 01:28:47 +0900
+Message-Id: <1354033730-850-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Russell King <rmk+kernel@arm.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-Hi Hugh and others,
+In current implementation, we used ARM-specific flag, that is,
+VM_ARM_STATIC_MAPPING, for distinguishing ARM specific static mapped area.
+The purpose of static mapped area is to re-use static mapped area when
+entire physical address range of the ioremap request can be covered
+by this area.
 
-In 2007, there were some discussions on whether to allow opens to
-specify O_DIRECT for files backed by tmpfs.[1][2] On the surface, it
-sounds like a completely crazy thing to do.  However, distributions like
-Fedora are now defaulting to using a tmpfs /tmp.  I'm not aware of any
-applications that open temp files using O_DIRECT, but I wanted to get
-some new discussion going on whether this is a reasonable thing to
-expect to work.
+This implementation causes needless overhead for some cases.
+For example, assume that there is only one static mapped area and
+vmlist has 300 areas. Every time we call ioremap, we check 300 areas for
+deciding whether it is matched or not. Moreover, even if there is
+no static mapped area and vmlist has 300 areas, every time we call
+ioremap, we check 300 areas in now.
 
-Thoughts?
+If we construct a extra list for static mapped area, we can eliminate
+above mentioned overhead.
+With a extra list, if there is one static mapped area,
+we just check only one area and proceed next operation quickly.
 
-Cheers,
-Jeff
+In fact, it is not a critical problem, because ioremap is not frequently
+used. But reducing overhead is better idea.
 
-[1] https://lkml.org/lkml/2007/1/4/55
-[2] http://thread.gmane.org/gmane.linux.kernel/482031
+Another reason for doing this work is for removing architecture dependency
+on vmalloc layer. I think that vmlist and vmlist_lock is internal data
+structure for vmalloc layer. Some codes for debugging and stat inevitably
+use vmlist and vmlist_lock. But it is preferable that they are used
+as least as possible in outside of vmalloc.c
+
+Changelog
+v1->v2: 
+  [2/3]: patch description is improved.
+  Rebased on v3.7-rc7
+
+Joonsoo Kim (3):
+  ARM: vmregion: remove vmregion code entirely
+  ARM: static_vm: introduce an infrastructure for static mapped area
+  ARM: mm: use static_vm for managing static mapped areas
+
+ arch/arm/include/asm/mach/static_vm.h |   51 ++++++++
+ arch/arm/mm/Makefile                  |    2 +-
+ arch/arm/mm/ioremap.c                 |   69 ++++-------
+ arch/arm/mm/mm.h                      |   10 --
+ arch/arm/mm/mmu.c                     |   55 +++++----
+ arch/arm/mm/static_vm.c               |   97 ++++++++++++++++
+ arch/arm/mm/vmregion.c                |  205 ---------------------------------
+ arch/arm/mm/vmregion.h                |   31 -----
+ 8 files changed, 208 insertions(+), 312 deletions(-)
+ create mode 100644 arch/arm/include/asm/mach/static_vm.h
+ create mode 100644 arch/arm/mm/static_vm.c
+ delete mode 100644 arch/arm/mm/vmregion.c
+ delete mode 100644 arch/arm/mm/vmregion.h
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
