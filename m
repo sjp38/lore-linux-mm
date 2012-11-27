@@ -1,166 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 03F416B0068
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 14:48:29 -0500 (EST)
-Date: Tue, 27 Nov 2012 14:48:13 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm] memcg: do not trigger OOM from
- add_to_page_cache_locked
-Message-ID: <20121127194813.GP24381@cmpxchg.org>
-References: <20121122233434.3D5E35E6@pobox.sk>
- <20121123074023.GA24698@dhcp22.suse.cz>
- <20121123102137.10D6D653@pobox.sk>
- <20121123100438.GF24698@dhcp22.suse.cz>
- <20121125011047.7477BB5E@pobox.sk>
- <20121125120524.GB10623@dhcp22.suse.cz>
- <20121125135542.GE10623@dhcp22.suse.cz>
- <20121126013855.AF118F5E@pobox.sk>
- <20121126131837.GC17860@dhcp22.suse.cz>
- <50B403CA.501@jp.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50B403CA.501@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id B3CE26B004D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 15:25:37 -0500 (EST)
+Date: Tue, 27 Nov 2012 12:25:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 0/6] solve deadlock caused by memory allocation with
+ I/O
+Message-Id: <20121127122536.a0e94ab8.akpm@linux-foundation.org>
+In-Reply-To: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
+References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
+To: Ming Lei <ming.lei@canonical.com>
+Cc: linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 27, 2012 at 09:05:30AM +0900, Kamezawa Hiroyuki wrote:
-> (2012/11/26 22:18), Michal Hocko wrote:
-> >[CCing also Johannes - the thread started here:
-> >https://lkml.org/lkml/2012/11/21/497]
-> >
-> >On Mon 26-11-12 01:38:55, azurIt wrote:
-> >>>This is hackish but it should help you in this case. Kamezawa, what do
-> >>>you think about that? Should we generalize this and prepare something
-> >>>like mem_cgroup_cache_charge_locked which would add __GFP_NORETRY
-> >>>automatically and use the function whenever we are in a locked context?
-> >>>To be honest I do not like this very much but nothing more sensible
-> >>>(without touching non-memcg paths) comes to my mind.
-> >>
-> >>
-> >>I installed kernel with this patch, will report back if problem occurs
-> >>again OR in few weeks if everything will be ok. Thank you!
-> >
-> >Now that I am looking at the patch closer it will not work because it
-> >depends on other patch which is not merged yet and even that one would
-> >help on its own because __GFP_NORETRY doesn't break the charge loop.
-> >Sorry I have missed that...
-> >
-> >The patch bellow should help though. (it is based on top of the current
-> >-mm tree but I will send a backport to 3.2 in the reply as well)
-> >---
-> > From 7796f942d62081ad45726efd90b5292b80e7c690 Mon Sep 17 00:00:00 2001
-> >From: Michal Hocko <mhocko@suse.cz>
-> >Date: Mon, 26 Nov 2012 11:47:57 +0100
-> >Subject: [PATCH] memcg: do not trigger OOM from add_to_page_cache_locked
-> >
-> >memcg oom killer might deadlock if the process which falls down to
-> >mem_cgroup_handle_oom holds a lock which prevents other task to
-> >terminate because it is blocked on the very same lock.
-> >This can happen when a write system call needs to allocate a page but
-> >the allocation hits the memcg hard limit and there is nothing to reclaim
-> >(e.g. there is no swap or swap limit is hit as well and all cache pages
-> >have been reclaimed already) and the process selected by memcg OOM
-> >killer is blocked on i_mutex on the same inode (e.g. truncate it).
-> >
-> >Process A
-> >[<ffffffff811109b8>] do_truncate+0x58/0xa0		# takes i_mutex
-> >[<ffffffff81121c90>] do_last+0x250/0xa30
-> >[<ffffffff81122547>] path_openat+0xd7/0x440
-> >[<ffffffff811229c9>] do_filp_open+0x49/0xa0
-> >[<ffffffff8110f7d6>] do_sys_open+0x106/0x240
-> >[<ffffffff8110f950>] sys_open+0x20/0x30
-> >[<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
-> >[<ffffffffffffffff>] 0xffffffffffffffff
-> >
-> >Process B
-> >[<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
-> >[<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
-> >[<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
-> >[<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
-> >[<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
-> >[<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
-> >[<ffffffff81193a18>] ext3_write_begin+0x88/0x270
-> >[<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
-> >[<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
-> >[<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
-> >[<ffffffff8111156a>] do_sync_write+0xea/0x130
-> >[<ffffffff81112183>] vfs_write+0xf3/0x1f0
-> >[<ffffffff81112381>] sys_write+0x51/0x90
-> >[<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
-> >[<ffffffffffffffff>] 0xffffffffffffffff
-> >
-> >This is not a hard deadlock though because administrator can still
-> >intervene and increase the limit on the group which helps the writer to
-> >finish the allocation and release the lock.
-> >
-> >This patch heals the problem by forbidding OOM from page cache charges
-> >(namely add_ro_page_cache_locked). mem_cgroup_cache_charge_no_oom helper
-> >function is defined which adds GFP_MEMCG_NO_OOM to the gfp mask which
-> >then tells mem_cgroup_charge_common that OOM is not allowed for the
-> >charge. No OOM from this path, except for fixing the bug, also make some
-> >sense as we really do not want to cause an OOM because of a page cache
-> >usage.
-> >As a possibly visible result add_to_page_cache_lru might fail more often
-> >with ENOMEM but this is to be expected if the limit is set and it is
-> >preferable than OOM killer IMO.
-> >
-> >__GFP_NORETRY is abused for this memcg specific flag because it has been
-> >used to prevent from OOM already (since not-merged-yet "memcg: reclaim
-> >when more than one page needed"). The only difference is that the flag
-> >doesn't prevent from reclaim anymore which kind of makes sense because
-> >the global memory allocator triggers reclaim as well. The retry without
-> >any reclaim on __GFP_NORETRY doesn't make much sense anyway because this
-> >is effectively a busy loop with allowed OOM in this path.
-> >
-> >Reported-by: azurIt <azurit@pobox.sk>
-> >Signed-off-by: Michal Hocko <mhocko@suse.cz>
+On Sat, 24 Nov 2012 20:59:12 +0800
+Ming Lei <ming.lei@canonical.com> wrote:
+
+> This patchset try to solve one deadlock problem which might be caused
+> by memory allocation with block I/O during runtime PM and block device
+> error handling path. Traditionly, the problem is addressed by passing
+> GFP_NOIO statically to mm, but that is not a effective solution, see
+> detailed description in patch 1's commit log.
 > 
-> As a short term fix, I think this patch will work enough and seems simple enough.
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> This patch set introduces one process flag and trys to fix the deadlock
+> problem on block device/network device during runtime PM or usb bus reset.
+> 
+> The 1st one is the change on include/sched.h and mm.
+> 
+> The 2nd patch introduces the flag of memalloc_noio on 'dev_pm_info',
+> and pm_runtime_set_memalloc_noio(), so that PM Core can teach mm to not
+> allocate mm with GFP_IO during the runtime_resume callback only on
+> device with the flag set.
+> 
+> The following 2 patches apply the introduced pm_runtime_set_memalloc_noio()
+> to mark all devices as memalloc_noio_resume in the path from the block or
+> network device to the root device in device tree.
+> 
+> The last 2 patches are applied again PM and USB subsystem to demonstrate
+> how to use the introduced mechanism to fix the deadlock problem.
+> 
+> Andrew, could you queue these patches into your tree since V6 fixes all
+> your concerns and looks no one objects these patches?
 
-Yes, let's do this for now.
-
-> >diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> >index 10e667f..aac9b21 100644
-> >--- a/include/linux/gfp.h
-> >+++ b/include/linux/gfp.h
-> >@@ -152,6 +152,9 @@ struct vm_area_struct;
-> >  /* 4GB DMA on some platforms */
-> >  #define GFP_DMA32	__GFP_DMA32
-> >
-> >+/* memcg oom killer is not allowed */
-> >+#define GFP_MEMCG_NO_OOM	__GFP_NORETRY
-
-Could we leave this within memcg, please?  An extra flag to
-mem_cgroup_cache_charge() or the like.  GFP flags are about
-controlling the page allocator, this seems abusive.  We have an oom
-flag down in try_charge, maybe just propagate this up the stack?
-
-> >diff --git a/mm/filemap.c b/mm/filemap.c
-> >index 83efee7..ef14351 100644
-> >--- a/mm/filemap.c
-> >+++ b/mm/filemap.c
-> >@@ -447,7 +447,13 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-> >  	VM_BUG_ON(!PageLocked(page));
-> >  	VM_BUG_ON(PageSwapBacked(page));
-> >
-> >-	error = mem_cgroup_cache_charge(page, current->mm,
-> >+	/*
-> >+	 * Cannot trigger OOM even if gfp_mask would allow that normally
-> >+	 * because we might be called from a locked context and that
-> >+	 * could lead to deadlocks if the killed process is waiting for
-> >+	 * the same lock.
-> >+	 */
-> >+	error = mem_cgroup_cache_charge_no_oom(page, current->mm,
-> >  					gfp_mask & GFP_RECLAIM_MASK);
-> >  	if (error)
-> >  		goto out;
-
-Shmem does not use this function but also charges under the i_mutex in
-the write path and fallocate at least.
+Yes, this patchset looks ready to run with.  But as we're at -rc7 I'll ask
+you to refresh, retest and resend after 3.8-rc1, please.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
