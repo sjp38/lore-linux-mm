@@ -1,32 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 940DE6B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 15:59:47 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so5240213eaa.14
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 12:59:46 -0800 (PST)
-Date: Tue, 27 Nov 2012 21:59:44 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 -mm] memcg: do not trigger OOM from
- add_to_page_cache_locked
-Message-ID: <20121127205944.GB2433@dhcp22.suse.cz>
-References: <20121123102137.10D6D653@pobox.sk>
- <20121123100438.GF24698@dhcp22.suse.cz>
- <20121125011047.7477BB5E@pobox.sk>
- <20121125120524.GB10623@dhcp22.suse.cz>
- <20121125135542.GE10623@dhcp22.suse.cz>
- <20121126013855.AF118F5E@pobox.sk>
- <20121126131837.GC17860@dhcp22.suse.cz>
- <50B403CA.501@jp.fujitsu.com>
- <20121127194813.GP24381@cmpxchg.org>
- <20121127205431.GA2433@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121127205431.GA2433@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id CD02D6B004D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 16:06:14 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm, soft offline: split thp at the beginning of soft_offline_page()
+Date: Tue, 27 Nov 2012 16:05:31 -0500
+Message-Id: <1354050331-26844-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Sorry, forgot to about one shmem charge:
+When we try to soft-offline a thp tail page, put_page() is called on the
+tail page unthinkingly and VM_BUG_ON is triggered in put_compound_page().
+This patch splits thp before going into the main body of soft-offlining.
+
+The interface of soft-offlining is open for userspace, so this bug can
+lead to DoS attack and should be fixed immedately.
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org
 ---
+ mm/memory-failure.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git v3.7-rc7.orig/mm/memory-failure.c v3.7-rc7/mm/memory-failure.c
+index 8fe3640..e48e235 100644
+--- v3.7-rc7.orig/mm/memory-failure.c
++++ v3.7-rc7/mm/memory-failure.c
+@@ -1548,9 +1548,17 @@ int soft_offline_page(struct page *page, int flags)
+ {
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
++	struct page *hpage = compound_trans_head(page);
+ 
+ 	if (PageHuge(page))
+ 		return soft_offline_huge_page(page, flags);
++	if (PageTransHuge(hpage)) {
++		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
++			pr_info("soft offline: %#lx: failed to split THP\n",
++				pfn);
++			return -EBUSY;
++		}
++	}
+ 
+ 	ret = get_any_page(page, pfn, flags);
+ 	if (ret < 0)
+-- 
+1.7.11.7
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
