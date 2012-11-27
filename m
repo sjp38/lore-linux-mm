@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 35E686B0072
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 20:21:09 -0500 (EST)
-Message-ID: <50B41573.4020205@zytor.com>
-Date: Mon, 26 Nov 2012 17:20:51 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 148566B0074
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 20:33:01 -0500 (EST)
+Date: Mon, 26 Nov 2012 20:32:54 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [Bug 50981] generic_file_aio_read ?: No locking means DATA
+ CORRUPTION read and write on same 4096 page  range
+Message-ID: <20121127013254.GA25222@thunk.org>
+References: <bug-50981-5823@https.bugzilla.kernel.org/>
+ <20121126163328.ACEB011FE9C@bugzilla.kernel.org>
+ <20121126164555.GL31891@thunk.org>
+ <alpine.LNX.2.00.1211261144190.1183@eggly.anvils>
+ <20121126201308.GA21050@infradead.org>
+ <20121126214937.GA21590@thunk.org>
+ <20121126220908.GA20733@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <1353667445-7593-6-git-send-email-tangchen@cn.fujitsu.com> <50B36354.7040501@gmail.com> <50B36B54.7050506@cn.fujitsu.com> <50B38F69.6020902@zytor.com> <50B41395.60808@huawei.com>
-In-Reply-To: <50B41395.60808@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121126220908.GA20733@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, wujianguo <wujianguo106@gmail.com>, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, wujianguo@huawei.com, qiuxishi@huawei.com, Len Brown <lenb@kernel.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, bugzilla-daemon@bugzilla.kernel.org, meetmehiro@gmail.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 11/26/2012 05:12 PM, Jiang Liu wrote:
-> Hi Peter,
->
-> I have tried to reserved movable memory from bootmem allocator, but the
-> ACPICA subsystem is initialized later than setting up movable zone.
-> So still trying to figure out a way to setup/reserve movable zones
-> according to information from static ACPI tables such as SRAT/MPST etc.
->
+On Mon, Nov 26, 2012 at 05:09:08PM -0500, Christoph Hellwig wrote:
+> On Mon, Nov 26, 2012 at 04:49:37PM -0500, Theodore Ts'o wrote:
+> > Christoph, can you give some kind of estimate for the overhead that
+> > adding this locking in XFS actually costs in practice?
+> 
+> I don't know any real life measurements, but in terms of implementation
+> the over head is:
+> 
+>  a) taking a the rw_semaphore in shared mode for every buffered read
+>  b) taking the slightly slower exclusive rw_semaphore for buffered writes
+>     instead of the plain mutex
+> 
+> On the other hand it significantly simplifies the locking for direct
+> I/O and allows parallel direct I/O writers.
 
-[Adding Len Brown]
+I should probably just look at the XFS code, but.... if you're taking
+an exclusve lock for buffered writes, won't this impact the
+performance of buffered writes happening in parallel on different
+CPU's?
 
-Right, for the case of platform-configured memory.  Len, I'm wondering 
-if there is any reasonable way we can get memory-map-related stuff out 
-of ACPI before we initialize the full ACPICA... we could of course write 
-an ad hoc static parser (these are just static tables, after all), but 
-I'm not sure if that fits into your overall view of how the subsystem 
-should work?
-
-	-hpa
-
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
