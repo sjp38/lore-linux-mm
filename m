@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 6A1BD6B0070
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 04:58:13 -0500 (EST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 6B2BA6B0071
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 04:58:15 -0500 (EST)
 From: Wen Congyang <wency@cn.fujitsu.com>
-Subject: [Patch v4 01/12] memory-hotplug: try to offline the memory twice to avoid dependence
-Date: Tue, 27 Nov 2012 18:00:11 +0800
-Message-Id: <1354010422-19648-2-git-send-email-wency@cn.fujitsu.com>
+Subject: [Patch v4 02/12] memory-hotplug: check whether all memory blocks are offlined or not when removing memory
+Date: Tue, 27 Nov 2012 18:00:12 +0800
+Message-Id: <1354010422-19648-3-git-send-email-wency@cn.fujitsu.com>
 In-Reply-To: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com>
 References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,24 +13,20 @@ List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 Cc: David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>
 
-memory can't be offlined when CONFIG_MEMCG is selected.
-For example: there is a memory device on node 1. The address range
-is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
-and memory11 under the directory /sys/devices/system/memory/.
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
-when we online pages. When we online memory8, the memory stored page cgroup
-is not provided by this memory device. But when we online memory9, the memory
-stored page cgroup may be provided by memory8. So we can't offline memory8
-now. We should offline the memory in the reversed order.
+We remove the memory like this:
+1. lock memory hotplug
+2. offline a memory block
+3. unlock memory hotplug
+4. repeat 1-3 to offline all memory blocks
+5. lock memory hotplug
+6. remove memory(TODO)
+7. unlock memory hotplug
 
-When the memory device is hotremoved, we will auto offline memory provided
-by this memory device. But we don't know which memory is onlined first, so
-offlining memory may fail. In such case, iterate twice to offline the memory.
-1st iterate: offline every non primary memory block.
-2nd iterate: offline primary (i.e. first added) memory block.
-
-This idea is suggested by KOSAKI Motohiro.
+All memory blocks must be offlined before removing memory. But we don't hold
+the lock in the whole operation. So we should check whether all memory blocks
+are offlined before step6. Otherwise, kernel maybe panicked.
 
 CC: David Rientjes <rientjes@google.com>
 CC: Jiang Liu <liuj97@gmail.com>
@@ -39,52 +35,97 @@ CC: Christoph Lameter <cl@linux.com>
 Cc: Minchan Kim <minchan.kim@gmail.com>
 CC: Andrew Morton <akpm@linux-foundation.org>
 CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c | 16 ++++++++++++++--
- 1 file changed, 14 insertions(+), 2 deletions(-)
+ drivers/base/memory.c          |  6 ++++++
+ include/linux/memory_hotplug.h |  1 +
+ mm/memory_hotplug.c            | 47 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+)
 
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index 86c8821..badb025 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -675,6 +675,12 @@ int offline_memory_block(struct memory_block *mem)
+ 	return ret;
+ }
+ 
++/* return true if the memory block is offlined, otherwise, return false */
++bool is_memblock_offlined(struct memory_block *mem)
++{
++	return mem->state == MEM_OFFLINE;
++}
++
+ /*
+  * Initialize the sysfs support for memory devices...
+  */
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 95573ec..38675e9 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -236,6 +236,7 @@ extern int add_memory(int nid, u64 start, u64 size);
+ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern int offline_memory_block(struct memory_block *mem);
++extern bool is_memblock_offlined(struct memory_block *mem);
+ extern int remove_memory(u64 start, u64 size);
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 								int nr_pages);
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e4eeaca..b825dbc 100644
+index b825dbc..b6d1101 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -1012,10 +1012,13 @@ int remove_memory(u64 start, u64 size)
- 	unsigned long start_pfn, end_pfn;
- 	unsigned long pfn, section_nr;
- 	int ret;
-+	int return_on_error = 0;
-+	int retry = 0;
- 
- 	start_pfn = PFN_DOWN(start);
- 	end_pfn = start_pfn + PFN_DOWN(size);
- 
-+repeat:
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
- 		section_nr = pfn_to_section_nr(pfn);
- 		if (!present_section_nr(section_nr))
-@@ -1034,14 +1037,23 @@ int remove_memory(u64 start, u64 size)
- 
- 		ret = offline_memory_block(mem);
- 		if (ret) {
--			kobject_put(&mem->dev.kobj);
--			return ret;
-+			if (return_on_error) {
-+				kobject_put(&mem->dev.kobj);
-+				return ret;
-+			} else {
-+				retry = 1;
-+			}
- 		}
+@@ -1054,6 +1054,53 @@ repeat:
+ 		goto repeat;
  	}
  
- 	if (mem)
- 		kobject_put(&mem->dev.kobj);
- 
-+	if (retry) {
-+		return_on_error = 1;
-+		goto repeat;
++	lock_memory_hotplug();
++
++	/*
++	 * we have offlined all memory blocks like this:
++	 *   1. lock memory hotplug
++	 *   2. offline a memory block
++	 *   3. unlock memory hotplug
++	 *
++	 * repeat step1-3 to offline the memory block. All memory blocks
++	 * must be offlined before removing memory. But we don't hold the
++	 * lock in the whole operation. So we should check whether all
++	 * memory blocks are offlined.
++	 */
++
++	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		section_nr = pfn_to_section_nr(pfn);
++		if (!present_section_nr(section_nr))
++			continue;
++
++		section = __nr_to_section(section_nr);
++		/* same memblock? */
++		if (mem)
++			if ((section_nr >= mem->start_section_nr) &&
++			    (section_nr <= mem->end_section_nr))
++				continue;
++
++		mem = find_memory_block_hinted(section, mem);
++		if (!mem)
++			continue;
++
++		ret = is_memblock_offlined(mem);
++		if (!ret) {
++			pr_warn("removing memory fails, because memory "
++				"[%#010llx-%#010llx] is onlined\n",
++				PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
++				PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1)) - 1);
++
++			kobject_put(&mem->dev.kobj);
++			unlock_memory_hotplug();
++			return ret;
++		}
 +	}
++
++	if (mem)
++		kobject_put(&mem->dev.kobj);
++	unlock_memory_hotplug();
 +
  	return 0;
  }
