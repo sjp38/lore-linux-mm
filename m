@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 644976B006E
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:09 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 9A9D06B0071
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:12 -0500 (EST)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 03/19] dcache: remove dentries from LRU before putting on dispose list
-Date: Wed, 28 Nov 2012 10:14:30 +1100
-Message-Id: <1354058086-27937-4-git-send-email-david@fromorbit.com>
+Subject: [PATCH 11/19] fs: convert inode and dentry shrinking to be node aware
+Date: Wed, 28 Nov 2012 10:14:38 +1100
+Message-Id: <1354058086-27937-12-git-send-email-david@fromorbit.com>
 In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,189 +15,277 @@ Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-One of the big problems with modifying the way the dcache shrinker
-and LRU implementation works is that the LRU is abused in several
-ways. One of these is shrink_dentry_list().
+Now that the shrinker is passing a nodemask in the scan control
+structure, we can pass this to the the generic LRU list code to
+isolate reclaim to the lists on matching nodes.
 
-Basically, we can move a dentry off the LRU onto a different list
-without doing any accounting changes, and then use dentry_lru_prune()
-to remove it from what-ever list it is now on to do the LRU
-accounting at that point.
-
-This makes it -really hard- to change the LRU implementation. The
-use of the per-sb LRU lock serialises movement of the dentries
-between the different lists and the removal of them, and this is the
-only reason that it works. If we want to break up the dentry LRU
-lock and lists into, say, per-node lists, we remove the only
-serialisation that allows this lru list/dispose list abuse to work.
-
-To make this work effectively, the dispose list has to be isolated
-from the LRU list - dentries have to be removed from the LRU
-*before* being placed on the dispose list. This means that the LRU
-accounting and isolation is completed before disposal is started,
-and that means we can change the LRU implementation freely in
-future.
-
-This means that dentries *must* be marked with DCACHE_SHRINK_LIST
-when they are placed on the dispose list so that we don't think that
-parent dentries found in try_prune_one_dentry() are on the LRU when
-the are actually on the dispose list. This would result in
-accounting the dentry to the LRU a second time. Hence
-dentry_lru_prune() has to handle the DCACHE_SHRINK_LIST case
-differently because the dentry isn't on the LRU list.
+This requires a small amount of refactoring of the LRU list API,
+which might be best split out into a separate patch.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/dcache.c |   73 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 63 insertions(+), 10 deletions(-)
+ fs/dcache.c              |    7 ++++---
+ fs/inode.c               |    7 ++++---
+ fs/internal.h            |    6 ++++--
+ fs/super.c               |   22 +++++++++++++---------
+ fs/xfs/xfs_super.c       |    6 ++++--
+ include/linux/fs.h       |    4 ++--
+ include/linux/list_lru.h |   19 ++++++++++++++++---
+ lib/list_lru.c           |   18 ++++++++++--------
+ 8 files changed, 57 insertions(+), 32 deletions(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index e0c97fe..0124a84 100644
+index d72e388..7f107fb 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -330,7 +330,6 @@ static void dentry_lru_add(struct dentry *dentry)
- static void __dentry_lru_del(struct dentry *dentry)
- {
- 	list_del_init(&dentry->d_lru);
--	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 	dentry->d_sb->s_nr_dentry_unused--;
- 	this_cpu_dec(nr_dentry_unused);
- }
-@@ -340,6 +339,8 @@ static void __dentry_lru_del(struct dentry *dentry)
+@@ -907,13 +907,14 @@ static int dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * This function may fail to free any resources if all the dentries are in
+  * use.
   */
- static void dentry_lru_del(struct dentry *dentry)
+-long prune_dcache_sb(struct super_block *sb, long nr_to_scan)
++long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
++		     nodemask_t *nodes_to_walk)
  {
-+	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
-+
- 	if (!list_empty(&dentry->d_lru)) {
- 		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 		__dentry_lru_del(dentry);
-@@ -351,28 +352,42 @@ static void dentry_lru_del(struct dentry *dentry)
-  * Remove a dentry that is unreferenced and about to be pruned
-  * (unhashed and destroyed) from the LRU, and inform the file system.
-  * This wrapper should be called _prior_ to unhashing a victim dentry.
-+ *
-+ * Check that the dentry really is on the LRU as it may be on a private dispose
-+ * list and in that case we do not want to call the generic LRU removal
-+ * functions. This typically happens when shrink_dcache_sb() clears the LRU in
-+ * one go and then try_prune_one_dentry() walks back up the parent chain finding
-+ * dentries that are also on the dispose list.
+ 	LIST_HEAD(dispose);
+ 	long freed;
+ 
+-	freed = list_lru_walk(&sb->s_dentry_lru, dentry_lru_isolate,
+-			      &dispose, nr_to_scan);
++	freed = list_lru_walk_nodemask(&sb->s_dentry_lru, dentry_lru_isolate,
++				       &dispose, nr_to_scan, nodes_to_walk);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/inode.c b/fs/inode.c
+index 2662305..3857f9f 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -731,13 +731,14 @@ static int inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock,
+  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
+  * then are freed outside inode_lock by dispose_list().
   */
- static void dentry_lru_prune(struct dentry *dentry)
+-long prune_icache_sb(struct super_block *sb, long nr_to_scan)
++long prune_icache_sb(struct super_block *sb, long nr_to_scan,
++		     nodemask_t *nodes_to_walk)
  {
- 	if (!list_empty(&dentry->d_lru)) {
-+
- 		if (dentry->d_flags & DCACHE_OP_PRUNE)
- 			dentry->d_op->d_prune(dentry);
+ 	LIST_HEAD(freeable);
+ 	long freed;
  
--		spin_lock(&dentry->d_sb->s_dentry_lru_lock);
--		__dentry_lru_del(dentry);
--		spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-+		if ((dentry->d_flags & DCACHE_SHRINK_LIST))
-+			list_del_init(&dentry->d_lru);
-+		else {
-+			spin_lock(&dentry->d_sb->s_dentry_lru_lock);
-+			__dentry_lru_del(dentry);
-+			spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
-+		}
-+		dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 	}
+-	freed = list_lru_walk(&sb->s_inode_lru, inode_lru_isolate,
+-						&freeable, nr_to_scan);
++	freed = list_lru_walk_nodemask(&sb->s_inode_lru, inode_lru_isolate,
++				       &freeable, nr_to_scan, nodes_to_walk);
+ 	dispose_list(&freeable);
+ 	return freed;
  }
+diff --git a/fs/internal.h b/fs/internal.h
+index 7d7908b..95c4e9b 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -110,7 +110,8 @@ extern int open_check_o_direct(struct file *f);
+  * inode.c
+  */
+ extern spinlock_t inode_sb_list_lock;
+-extern long prune_icache_sb(struct super_block *sb, long nr_to_scan);
++extern long prune_icache_sb(struct super_block *sb, long nr_to_scan,
++			    nodemask_t *nodes_to_scan);
  
- static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
+ 
+ /*
+@@ -126,4 +127,5 @@ extern int invalidate_inodes(struct super_block *, bool);
+  * dcache.c
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+-extern long prune_dcache_sb(struct super_block *sb, long nr_to_scan);
++extern long prune_dcache_sb(struct super_block *sb, long nr_to_scan,
++			    nodemask_t *nodes_to_scan);
+diff --git a/fs/super.c b/fs/super.c
+index b1d24ef..3c975b1 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -75,10 +75,10 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 		return -1;
+ 
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+-		fs_objects = sb->s_op->nr_cached_objects(sb);
++		fs_objects = sb->s_op->nr_cached_objects(sb, &sc->nodes_to_scan);
+ 
+-	inodes = list_lru_count(&sb->s_inode_lru);
+-	dentries = list_lru_count(&sb->s_dentry_lru);
++	inodes = list_lru_count_nodemask(&sb->s_inode_lru, &sc->nodes_to_scan);
++	dentries = list_lru_count_nodemask(&sb->s_dentry_lru, &sc->nodes_to_scan);
+ 	total_objects = dentries + inodes + fs_objects + 1;
+ 
+ 	/* proportion the scan between the caches */
+@@ -89,12 +89,13 @@ static long super_cache_scan(struct shrinker *shrink, struct shrink_control *sc)
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
+ 	 */
+-	freed = prune_dcache_sb(sb, dentries);
+-	freed += prune_icache_sb(sb, inodes);
++	freed = prune_dcache_sb(sb, dentries, &sc->nodes_to_scan);
++	freed += prune_icache_sb(sb, inodes, &sc->nodes_to_scan);
+ 
+ 	if (fs_objects) {
+ 		fs_objects = (sc->nr_to_scan * fs_objects) / total_objects;
+-		freed += sb->s_op->free_cached_objects(sb, fs_objects);
++		freed += sb->s_op->free_cached_objects(sb, fs_objects,
++						       &sc->nodes_to_scan);
+ 	}
+ 
+ 	drop_super(sb);
+@@ -112,10 +113,13 @@ static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc
+ 		return -1;
+ 
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+-		total_objects = sb->s_op->nr_cached_objects(sb);
++		total_objects = sb->s_op->nr_cached_objects(sb,
++						 &sc->nodes_to_scan);
+ 
+-	total_objects += list_lru_count(&sb->s_dentry_lru);
+-	total_objects += list_lru_count(&sb->s_inode_lru);
++	total_objects += list_lru_count_nodemask(&sb->s_dentry_lru,
++						 &sc->nodes_to_scan);
++	total_objects += list_lru_count_nodemask(&sb->s_inode_lru,
++						 &sc->nodes_to_scan);
+ 
+ 	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+ 	drop_super(sb);
+diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
+index 00aa61d..33d67d5 100644
+--- a/fs/xfs/xfs_super.c
++++ b/fs/xfs/xfs_super.c
+@@ -1516,7 +1516,8 @@ xfs_fs_mount(
+ 
+ static long
+ xfs_fs_nr_cached_objects(
+-	struct super_block	*sb)
++	struct super_block	*sb,
++	nodemask_t		*nodes_to_count)
  {
-+	BUG_ON(dentry->d_flags & DCACHE_SHRINK_LIST);
-+
- 	spin_lock(&dentry->d_sb->s_dentry_lru_lock);
- 	if (list_empty(&dentry->d_lru)) {
- 		list_add_tail(&dentry->d_lru, list);
--		dentry->d_sb->s_nr_dentry_unused++;
--		this_cpu_inc(nr_dentry_unused);
- 	} else {
- 		list_move_tail(&dentry->d_lru, list);
-+		dentry->d_sb->s_nr_dentry_unused--;
-+		this_cpu_dec(nr_dentry_unused);
- 	}
- 	spin_unlock(&dentry->d_sb->s_dentry_lru_lock);
+ 	return xfs_reclaim_inodes_count(XFS_M(sb));
  }
-@@ -840,12 +855,18 @@ static void shrink_dentry_list(struct list_head *list)
- 		}
- 
- 		/*
-+		 * The dispose list is isolated and dentries are not accounted
-+		 * to the LRU here, so we can simply remove it from the list
-+		 * here regardless of whether it is referenced or not.
-+		 */
-+		list_del_init(&dentry->d_lru);
-+
-+		/*
- 		 * We found an inuse dentry which was not removed from
--		 * the LRU because of laziness during lookup.  Do not free
--		 * it - just keep it off the LRU list.
-+		 * the LRU because of laziness during lookup. Do not free it.
- 		 */
- 		if (dentry->d_count) {
--			dentry_lru_del(dentry);
-+			dentry->d_flags &= ~DCACHE_SHRINK_LIST;
- 			spin_unlock(&dentry->d_lock);
- 			continue;
- 		}
-@@ -897,6 +918,8 @@ relock:
- 		} else {
- 			list_move_tail(&dentry->d_lru, &tmp);
- 			dentry->d_flags |= DCACHE_SHRINK_LIST;
-+			this_cpu_dec(nr_dentry_unused);
-+			sb->s_nr_dentry_unused--;
- 			spin_unlock(&dentry->d_lock);
- 			if (!--count)
- 				break;
-@@ -910,6 +933,28 @@ relock:
- 	shrink_dentry_list(&tmp);
+@@ -1524,7 +1525,8 @@ xfs_fs_nr_cached_objects(
+ static long
+ xfs_fs_free_cached_objects(
+ 	struct super_block	*sb,
+-	long			nr_to_scan)
++	long			nr_to_scan,
++	nodemask_t		*nodes_to_scan)
+ {
+ 	return xfs_reclaim_inodes_nr(XFS_M(sb), nr_to_scan);
  }
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index befa46f..fda4ee2 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1614,8 +1614,8 @@ struct super_operations {
+ 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+ #endif
+ 	int (*bdev_try_to_free_page)(struct super_block*, struct page*, gfp_t);
+-	long (*nr_cached_objects)(struct super_block *);
+-	long (*free_cached_objects)(struct super_block *, long);
++	long (*nr_cached_objects)(struct super_block *, nodemask_t *);
++	long (*free_cached_objects)(struct super_block *, long, nodemask_t *);
+ };
  
-+/*
-+ * Mark all the dentries as on being the dispose list so we don't think they are
-+ * still on the LRU if we try to kill them from ascending the parent chain in
-+ * try_prune_one_dentry() rather than directly from the dispose list.
-+ */
-+static void
-+shrink_dcache_list(
-+	struct list_head *dispose)
+ /*
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index b0e3ba2..02796da 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -24,14 +24,27 @@ struct list_lru {
+ int list_lru_init(struct list_lru *lru);
+ int list_lru_add(struct list_lru *lru, struct list_head *item);
+ int list_lru_del(struct list_lru *lru, struct list_head *item);
+-long list_lru_count(struct list_lru *lru);
++long list_lru_count_nodemask(struct list_lru *lru, nodemask_t *nodes_to_count);
++
++static inline long list_lru_count(struct list_lru *lru)
 +{
-+	struct dentry *dentry;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(dentry, dispose, d_lru) {
-+		spin_lock(&dentry->d_lock);
-+		dentry->d_flags |= DCACHE_SHRINK_LIST;
-+		this_cpu_dec(nr_dentry_unused);
-+		spin_unlock(&dentry->d_lock);
-+	}
-+	rcu_read_unlock();
-+	shrink_dentry_list(dispose);
++	return list_lru_count_nodemask(lru, &lru->active_nodes);
 +}
 +
- /**
-  * shrink_dcache_sb - shrink dcache for a superblock
-  * @sb: superblock
-@@ -924,8 +969,16 @@ void shrink_dcache_sb(struct super_block *sb)
- 	spin_lock(&sb->s_dentry_lru_lock);
- 	while (!list_empty(&sb->s_dentry_lru)) {
- 		list_splice_init(&sb->s_dentry_lru, &tmp);
+ 
+ typedef int (*list_lru_walk_cb)(struct list_head *item, spinlock_t *lock,
+ 				void *cb_arg);
+ typedef void (*list_lru_dispose_cb)(struct list_head *dispose_list);
+ 
+-long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+-		   void *cb_arg, long nr_to_walk);
++long list_lru_walk_nodemask(struct list_lru *lru, list_lru_walk_cb isolate,
++		   void *cb_arg, long nr_to_walk, nodemask_t *nodes_to_walk);
 +
-+		/*
-+		 * account for removal here so we don't need to handle it later
-+		 * even though the dentry is no longer on the lru list.
-+		 */
-+		this_cpu_sub(nr_dentry_unused, sb->s_nr_dentry_unused);
-+		sb->s_nr_dentry_unused = 0;
-+
- 		spin_unlock(&sb->s_dentry_lru_lock);
--		shrink_dentry_list(&tmp);
-+		shrink_dcache_list(&tmp);
- 		spin_lock(&sb->s_dentry_lru_lock);
++static inline long list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
++				 void *cb_arg, long nr_to_walk)
++{
++	return list_lru_walk_nodemask(lru, isolate, cb_arg, nr_to_walk,
++				      &lru->active_nodes);
++}
+ 
+ long list_lru_dispose_all(struct list_lru *lru, list_lru_dispose_cb dispose);
+ 
+diff --git a/lib/list_lru.c b/lib/list_lru.c
+index 881e342..0f08ed6 100644
+--- a/lib/list_lru.c
++++ b/lib/list_lru.c
+@@ -54,13 +54,14 @@ list_lru_del(
+ EXPORT_SYMBOL_GPL(list_lru_del);
+ 
+ long
+-list_lru_count(
+-	struct list_lru *lru)
++list_lru_count_nodemask(
++	struct list_lru *lru,
++	nodemask_t	*nodes_to_count)
+ {
+ 	long count = 0;
+ 	int nid;
+ 
+-	for_each_node_mask(nid, lru->active_nodes) {
++	for_each_node_mask(nid, *nodes_to_count) {
+ 		struct list_lru_node *nlru = &lru->node[nid];
+ 
+ 		spin_lock(&nlru->lock);
+@@ -71,7 +72,7 @@ list_lru_count(
+ 
+ 	return count;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_count);
++EXPORT_SYMBOL_GPL(list_lru_count_nodemask);
+ 
+ static long
+ list_lru_walk_node(
+@@ -116,16 +117,17 @@ restart:
+ }
+ 
+ long
+-list_lru_walk(
++list_lru_walk_nodemask(
+ 	struct list_lru	*lru,
+ 	list_lru_walk_cb isolate,
+ 	void		*cb_arg,
+-	long		nr_to_walk)
++	long		nr_to_walk,
++	nodemask_t	*nodes_to_walk)
+ {
+ 	long isolated = 0;
+ 	int nid;
+ 
+-	for_each_node_mask(nid, lru->active_nodes) {
++	for_each_node_mask(nid, *nodes_to_walk) {
+ 		isolated += list_lru_walk_node(lru, nid, isolate,
+ 					       cb_arg, &nr_to_walk);
+ 		if (nr_to_walk <= 0)
+@@ -133,7 +135,7 @@ list_lru_walk(
  	}
- 	spin_unlock(&sb->s_dentry_lru_lock);
+ 	return isolated;
+ }
+-EXPORT_SYMBOL_GPL(list_lru_walk);
++EXPORT_SYMBOL_GPL(list_lru_walk_nodemask);
+ 
+ long
+ list_lru_dispose_all_node(
 -- 
 1.7.10
 
