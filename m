@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id E53F86B0089
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:21 -0500 (EST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 267746B0093
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 18:15:25 -0500 (EST)
 From: Dave Chinner <david@fromorbit.com>
-Subject: [PATCH 12/19] xfs: convert buftarg LRU to generic code
-Date: Wed, 28 Nov 2012 10:14:39 +1100
-Message-Id: <1354058086-27937-13-git-send-email-david@fromorbit.com>
+Subject: [PATCH 14/19] xfs: use generic AG walk for background inode reclaim
+Date: Wed, 28 Nov 2012 10:14:41 +1100
+Message-Id: <1354058086-27937-15-git-send-email-david@fromorbit.com>
 In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,276 +15,407 @@ Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.
 
 From: Dave Chinner <dchinner@redhat.com>
 
-Convert the buftarg LRU to use the new generic LRU list and take
-advantage of the functionality it supplies to make the buffer cache
-shrinker node aware.
+The per-ag inode cache radix trees are not walked by the shrinkers
+any more, so there is no need for a special walker that contained
+heurisitcs to prevent multiple shrinker instances from colliding
+with each other. Hence we can just remote that and convert the code
+to use the generic walker.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- fs/xfs/xfs_buf.c |  162 +++++++++++++++++++++++++-----------------------------
- fs/xfs/xfs_buf.h |    5 +-
- 2 files changed, 76 insertions(+), 91 deletions(-)
+ fs/xfs/xfs_ag.h          |    2 -
+ fs/xfs/xfs_icache.c      |  217 +++++++++++-----------------------------------
+ fs/xfs/xfs_icache.h      |    4 +-
+ fs/xfs/xfs_mount.c       |    1 -
+ fs/xfs/xfs_qm_syscalls.c |    2 +-
+ 5 files changed, 55 insertions(+), 171 deletions(-)
 
-diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-index a80195b..1011c59 100644
---- a/fs/xfs/xfs_buf.c
-+++ b/fs/xfs/xfs_buf.c
-@@ -85,20 +85,14 @@ xfs_buf_vmap_len(
-  * The LRU takes a new reference to the buffer so that it will only be freed
-  * once the shrinker takes the buffer off the LRU.
-  */
--STATIC void
-+static void
- xfs_buf_lru_add(
- 	struct xfs_buf	*bp)
+diff --git a/fs/xfs/xfs_ag.h b/fs/xfs/xfs_ag.h
+index f2aeedb..40a7df9 100644
+--- a/fs/xfs/xfs_ag.h
++++ b/fs/xfs/xfs_ag.h
+@@ -218,8 +218,6 @@ typedef struct xfs_perag {
+ 	spinlock_t	pag_ici_lock;	/* incore inode cache lock */
+ 	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
+ 	int		pag_ici_reclaimable;	/* reclaimable inodes */
+-	struct mutex	pag_ici_reclaim_lock;	/* serialisation point */
+-	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
+ 
+ 	/* buffer cache index */
+ 	spinlock_t	pag_buf_lock;	/* lock for pag_buf_tree */
+diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
+index 82b053f..5cfc2eb 100644
+--- a/fs/xfs/xfs_icache.c
++++ b/fs/xfs/xfs_icache.c
+@@ -468,7 +468,8 @@ out_error_or_again:
+ 
+ STATIC int
+ xfs_inode_ag_walk_grab(
+-	struct xfs_inode	*ip)
++	struct xfs_inode	*ip,
++	int			flags)
  {
--	struct xfs_buftarg *btp = bp->b_target;
--
--	spin_lock(&btp->bt_lru_lock);
--	if (list_empty(&bp->b_lru)) {
--		atomic_inc(&bp->b_hold);
--		list_add_tail(&bp->b_lru, &btp->bt_lru);
--		btp->bt_lru_nr++;
-+	if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
- 		bp->b_lru_flags &= ~_XBF_LRU_DISPOSE;
-+		atomic_inc(&bp->b_hold);
- 	}
--	spin_unlock(&btp->bt_lru_lock);
- }
+ 	struct inode		*inode = VFS_I(ip);
  
- /*
-@@ -107,24 +101,13 @@ xfs_buf_lru_add(
-  * The unlocked check is safe here because it only occurs when there are not
-  * b_lru_ref counts left on the inode under the pag->pag_buf_lock. it is there
-  * to optimise the shrinker removing the buffer from the LRU and calling
-- * xfs_buf_free(). i.e. it removes an unnecessary round trip on the
-- * bt_lru_lock.
-+ * xfs_buf_free().
-  */
--STATIC void
-+static void
- xfs_buf_lru_del(
- 	struct xfs_buf	*bp)
- {
--	struct xfs_buftarg *btp = bp->b_target;
--
--	if (list_empty(&bp->b_lru))
--		return;
--
--	spin_lock(&btp->bt_lru_lock);
--	if (!list_empty(&bp->b_lru)) {
--		list_del_init(&bp->b_lru);
--		btp->bt_lru_nr--;
--	}
--	spin_unlock(&btp->bt_lru_lock);
-+	list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
- }
+@@ -517,6 +518,7 @@ STATIC int
+ xfs_inode_ag_walk(
+ 	struct xfs_mount	*mp,
+ 	struct xfs_perag	*pag,
++	int			(*grab)(struct xfs_inode *ip, int flags),
+ 	int			(*execute)(struct xfs_inode *ip,
+ 					   struct xfs_perag *pag, int flags,
+ 					   void *args),
+@@ -530,6 +532,9 @@ xfs_inode_ag_walk(
+ 	int			done;
+ 	int			nr_found;
  
- /*
-@@ -151,18 +134,10 @@ xfs_buf_stale(
- 	bp->b_flags &= ~_XBF_DELWRI_Q;
- 
- 	atomic_set(&(bp)->b_lru_ref, 0);
--	if (!list_empty(&bp->b_lru)) {
--		struct xfs_buftarg *btp = bp->b_target;
--
--		spin_lock(&btp->bt_lru_lock);
--		if (!list_empty(&bp->b_lru) &&
--		    !(bp->b_lru_flags & _XBF_LRU_DISPOSE)) {
--			list_del_init(&bp->b_lru);
--			btp->bt_lru_nr--;
--			atomic_dec(&bp->b_hold);
--		}
--		spin_unlock(&btp->bt_lru_lock);
--	}
-+	if (!(bp->b_lru_flags & _XBF_LRU_DISPOSE) &&
-+	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
-+		atomic_dec(&bp->b_hold);
++	if (!grab)
++		grab = xfs_inode_ag_walk_grab;
 +
- 	ASSERT(atomic_read(&bp->b_hold) >= 1);
+ restart:
+ 	done = 0;
+ 	skipped = 0;
+@@ -564,7 +569,7 @@ restart:
+ 		for (i = 0; i < nr_found; i++) {
+ 			struct xfs_inode *ip = batch[i];
+ 
+-			if (done || xfs_inode_ag_walk_grab(ip))
++			if (done || grab(ip, flags))
+ 				batch[i] = NULL;
+ 
+ 			/*
+@@ -593,7 +598,8 @@ restart:
+ 			if (!batch[i])
+ 				continue;
+ 			error = execute(batch[i], pag, flags, args);
+-			IRELE(batch[i]);
++			if (grab == xfs_inode_ag_walk_grab)
++				IRELE(batch[i]);
+ 			if (error == EAGAIN) {
+ 				skipped++;
+ 				continue;
+@@ -617,35 +623,10 @@ restart:
+ 	return last_error;
  }
  
-@@ -1476,81 +1451,92 @@ xfs_buf_iomove(
-  * returned. These buffers will have an elevated hold count, so wait on those
-  * while freeing all the buffers only held by the LRU.
-  */
+-/*
+- * Background scanning to trim post-EOF preallocated space. This is queued
+- * based on the 'background_prealloc_discard_period' tunable (5m by default).
+- */
+-STATIC void
+-xfs_queue_eofblocks(
+-	struct xfs_mount *mp)
+-{
+-	rcu_read_lock();
+-	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_EOFBLOCKS_TAG))
+-		queue_delayed_work(mp->m_eofblocks_workqueue,
+-				   &mp->m_eofblocks_work,
+-				   msecs_to_jiffies(xfs_eofb_secs * 1000));
+-	rcu_read_unlock();
+-}
+-
 -void
--xfs_wait_buftarg(
--	struct xfs_buftarg	*btp)
-+static int
-+xfs_buftarg_wait_rele(
-+	struct list_head	*item,
-+	spinlock_t		*lru_lock,
-+	void			*arg)
+-xfs_eofblocks_worker(
+-	struct work_struct *work)
+-{
+-	struct xfs_mount *mp = container_of(to_delayed_work(work),
+-				struct xfs_mount, m_eofblocks_work);
+-	xfs_icache_free_eofblocks(mp, NULL);
+-	xfs_queue_eofblocks(mp);
+-}
+-
+ int
+ xfs_inode_ag_iterator(
+ 	struct xfs_mount	*mp,
++	int			(*grab)(struct xfs_inode *ip, int flags),
+ 	int			(*execute)(struct xfs_inode *ip,
+ 					   struct xfs_perag *pag, int flags,
+ 					   void *args),
+@@ -660,7 +641,8 @@ xfs_inode_ag_iterator(
+ 	ag = 0;
+ 	while ((pag = xfs_perag_get(mp, ag))) {
+ 		ag = pag->pag_agno + 1;
+-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, -1);
++		error = xfs_inode_ag_walk(mp, pag, grab, execute,
++					  flags, args, -1);
+ 		xfs_perag_put(pag);
+ 		if (error) {
+ 			last_error = error;
+@@ -674,6 +656,7 @@ xfs_inode_ag_iterator(
+ int
+ xfs_inode_ag_iterator_tag(
+ 	struct xfs_mount	*mp,
++	int			(*grab)(struct xfs_inode *ip, int flags),
+ 	int			(*execute)(struct xfs_inode *ip,
+ 					   struct xfs_perag *pag, int flags,
+ 					   void *args),
+@@ -689,7 +672,8 @@ xfs_inode_ag_iterator_tag(
+ 	ag = 0;
+ 	while ((pag = xfs_perag_get_tag(mp, ag, tag))) {
+ 		ag = pag->pag_agno + 1;
+-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, tag);
++		error = xfs_inode_ag_walk(mp, pag, grab, execute,
++					  flags, args, tag);
+ 		xfs_perag_put(pag);
+ 		if (error) {
+ 			last_error = error;
+@@ -904,7 +888,8 @@ STATIC int
+ xfs_reclaim_inode(
+ 	struct xfs_inode	*ip,
+ 	struct xfs_perag	*pag,
+-	int			sync_mode)
++	int			sync_mode,
++	void			*args)
  {
--	struct xfs_buf		*bp;
-+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
- 
--restart:
--	spin_lock(&btp->bt_lru_lock);
--	while (!list_empty(&btp->bt_lru)) {
--		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
--		if (atomic_read(&bp->b_hold) > 1) {
--			spin_unlock(&btp->bt_lru_lock);
--			delay(100);
--			goto restart;
--		}
-+	if (atomic_read(&bp->b_hold) > 1) {
-+		/* need to wait */
-+		spin_unlock(lru_lock);
-+		delay(100);
-+	} else {
- 		/*
- 		 * clear the LRU reference count so the buffer doesn't get
- 		 * ignored in xfs_buf_rele().
- 		 */
- 		atomic_set(&bp->b_lru_ref, 0);
--		spin_unlock(&btp->bt_lru_lock);
-+		spin_unlock(lru_lock);
- 		xfs_buf_rele(bp);
--		spin_lock(&btp->bt_lru_lock);
- 	}
--	spin_unlock(&btp->bt_lru_lock);
-+	return 3;
+ 	struct xfs_buf		*bp = NULL;
+ 	int			error;
+@@ -1032,140 +1017,14 @@ out:
+ 	return 0;
  }
  
--int
--xfs_buftarg_shrink(
-+void
-+xfs_wait_buftarg(
-+	struct xfs_buftarg	*btp)
-+{
-+	while (list_lru_count(&btp->bt_lru))
-+		list_lru_walk(&btp->bt_lru, xfs_buftarg_wait_rele,
-+			      NULL, LONG_MAX);
-+}
-+
-+static int
-+xfs_buftarg_isolate(
-+	struct list_head	*item,
-+	spinlock_t		*lru_lock,
-+	void			*arg)
-+{
-+	struct xfs_buf		*bp = container_of(item, struct xfs_buf, b_lru);
-+	struct list_head	*dispose = arg;
-+
-+	/*
-+	 * Decrement the b_lru_ref count unless the value is already
-+	 * zero. If the value is already zero, we need to reclaim the
-+	 * buffer, otherwise it gets another trip through the LRU.
-+	 */
-+	if (!atomic_add_unless(&bp->b_lru_ref, -1, 0))
-+		return 1;
-+
-+	bp->b_lru_flags |= _XBF_LRU_DISPOSE;
-+	list_move(item, dispose);
-+	return 0;
-+}
-+
-+static long
-+xfs_buftarg_shrink_scan(
- 	struct shrinker		*shrink,
- 	struct shrink_control	*sc)
- {
- 	struct xfs_buftarg	*btp = container_of(shrink,
- 					struct xfs_buftarg, bt_shrinker);
--	struct xfs_buf		*bp;
--	int nr_to_scan = sc->nr_to_scan;
- 	LIST_HEAD(dispose);
-+	long			freed;
- 
--	if (!nr_to_scan)
--		return btp->bt_lru_nr;
+-/*
+- * Walk the AGs and reclaim the inodes in them. Even if the filesystem is
+- * corrupted, we still want to try to reclaim all the inodes. If we don't,
+- * then a shut down during filesystem unmount reclaim walk leak all the
+- * unreclaimed inodes.
+- */
+-STATIC int
+-xfs_reclaim_inodes_ag(
+-	struct xfs_mount	*mp,
+-	int			flags,
+-	long			*nr_to_scan)
+-{
+-	struct xfs_perag	*pag;
+-	int			error = 0;
+-	int			last_error = 0;
+-	xfs_agnumber_t		ag;
+-	int			trylock = flags & SYNC_TRYLOCK;
+-	int			skipped;
 -
--	spin_lock(&btp->bt_lru_lock);
--	while (!list_empty(&btp->bt_lru)) {
--		if (nr_to_scan-- <= 0)
--			break;
+-restart:
+-	ag = 0;
+-	skipped = 0;
+-	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+-		unsigned long	first_index = 0;
+-		int		done = 0;
+-		int		nr_found = 0;
 -
--		bp = list_first_entry(&btp->bt_lru, struct xfs_buf, b_lru);
+-		ag = pag->pag_agno + 1;
 -
--		/*
--		 * Decrement the b_lru_ref count unless the value is already
--		 * zero. If the value is already zero, we need to reclaim the
--		 * buffer, otherwise it gets another trip through the LRU.
--		 */
--		if (!atomic_add_unless(&bp->b_lru_ref, -1, 0)) {
--			list_move_tail(&bp->b_lru, &btp->bt_lru);
--			continue;
--		}
+-		if (trylock) {
+-			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
+-				skipped++;
+-				xfs_perag_put(pag);
+-				continue;
+-			}
+-			first_index = pag->pag_ici_reclaim_cursor;
+-		} else
+-			mutex_lock(&pag->pag_ici_reclaim_lock);
 -
--		/*
--		 * remove the buffer from the LRU now to avoid needing another
--		 * lock round trip inside xfs_buf_rele().
--		 */
--		list_move(&bp->b_lru, &dispose);
--		btp->bt_lru_nr--;
--		bp->b_lru_flags |= _XBF_LRU_DISPOSE;
+-		do {
+-			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
+-			int	i;
+-
+-			rcu_read_lock();
+-			nr_found = radix_tree_gang_lookup_tag(
+-					&pag->pag_ici_root,
+-					(void **)batch, first_index,
+-					XFS_LOOKUP_BATCH,
+-					XFS_ICI_RECLAIM_TAG);
+-			if (!nr_found) {
+-				done = 1;
+-				rcu_read_unlock();
+-				break;
+-			}
+-
+-			/*
+-			 * Grab the inodes before we drop the lock. if we found
+-			 * nothing, nr == 0 and the loop will be skipped.
+-			 */
+-			for (i = 0; i < nr_found; i++) {
+-				struct xfs_inode *ip = batch[i];
+-
+-				if (done || xfs_reclaim_inode_grab(ip, flags))
+-					batch[i] = NULL;
+-
+-				/*
+-				 * Update the index for the next lookup. Catch
+-				 * overflows into the next AG range which can
+-				 * occur if we have inodes in the last block of
+-				 * the AG and we are currently pointing to the
+-				 * last inode.
+-				 *
+-				 * Because we may see inodes that are from the
+-				 * wrong AG due to RCU freeing and
+-				 * reallocation, only update the index if it
+-				 * lies in this AG. It was a race that lead us
+-				 * to see this inode, so another lookup from
+-				 * the same index will not find it again.
+-				 */
+-				if (XFS_INO_TO_AGNO(mp, ip->i_ino) !=
+-								pag->pag_agno)
+-					continue;
+-				first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
+-				if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
+-					done = 1;
+-			}
+-
+-			/* unlock now we've grabbed the inodes. */
+-			rcu_read_unlock();
+-
+-			for (i = 0; i < nr_found; i++) {
+-				if (!batch[i])
+-					continue;
+-				error = xfs_reclaim_inode(batch[i], pag, flags);
+-				if (error && last_error != EFSCORRUPTED)
+-					last_error = error;
+-			}
+-
+-			*nr_to_scan -= XFS_LOOKUP_BATCH;
+-
+-			cond_resched();
+-
+-		} while (nr_found && !done && *nr_to_scan > 0);
+-
+-		if (trylock && !done)
+-			pag->pag_ici_reclaim_cursor = first_index;
+-		else
+-			pag->pag_ici_reclaim_cursor = 0;
+-		mutex_unlock(&pag->pag_ici_reclaim_lock);
+-		xfs_perag_put(pag);
 -	}
--	spin_unlock(&btp->bt_lru_lock);
-+	freed = list_lru_walk_nodemask(&btp->bt_lru, xfs_buftarg_isolate,
-+				       &dispose, sc->nr_to_scan,
-+				       &sc->nodes_to_scan);
+-
+-	/*
+-	 * if we skipped any AG, and we still have scan count remaining, do
+-	 * another pass this time using blocking reclaim semantics (i.e
+-	 * waiting on the reclaim locks and ignoring the reclaim cursors). This
+-	 * ensure that when we get more reclaimers than AGs we block rather
+-	 * than spin trying to execute reclaim.
+-	 */
+-	if (skipped && (flags & SYNC_WAIT) && *nr_to_scan > 0) {
+-		trylock = 0;
+-		goto restart;
+-	}
+-	return XFS_ERROR(last_error);
+-}
+-
+ int
+ xfs_reclaim_inodes(
+-	xfs_mount_t	*mp,
+-	int		mode)
++	struct xfs_mount	*mp,
++	int			flags)
+ {
+-	long		nr_to_scan = LONG_MAX;
+-
+-	return xfs_reclaim_inodes_ag(mp, mode, &nr_to_scan);
++	return xfs_inode_ag_iterator_tag(mp, xfs_reclaim_inode_grab,
++					 xfs_reclaim_inode, flags,
++					 NULL, XFS_ICI_RECLAIM_TAG);
+ }
  
- 	while (!list_empty(&dispose)) {
-+		struct xfs_buf *bp;
- 		bp = list_first_entry(&dispose, struct xfs_buf, b_lru);
- 		list_del_init(&bp->b_lru);
- 		xfs_buf_rele(bp);
+ static int
+@@ -1229,13 +1088,39 @@ xfs_reclaim_inodes_nr(
+ 
+ 		pag = xfs_perag_get(mp,
+ 				    XFS_INO_TO_AGNO(mp, XFS_I(inode)->i_ino));
+-		xfs_reclaim_inode(XFS_I(inode), pag, SYNC_WAIT);
++		xfs_reclaim_inode(XFS_I(inode), pag, SYNC_WAIT, NULL);
+ 		xfs_perag_put(pag);
  	}
-+	return freed;
-+}
-+static long
-+xfs_buftarg_shrink_count(
-+	struct shrinker		*shrink,
-+	struct shrink_control	*sc)
-+{
-+	struct xfs_buftarg	*btp = container_of(shrink,
-+					struct xfs_buftarg, bt_shrinker);
  
--	return btp->bt_lru_nr;
-+	return list_lru_count_nodemask(&btp->bt_lru, &sc->nodes_to_scan);
+ 	return freed;
+ }
+ 
++/*
++ * Background scanning to trim post-EOF preallocated space. This is queued
++ * based on the 'background_prealloc_discard_period' tunable (5m by default).
++ */
++STATIC void
++xfs_queue_eofblocks(
++	struct xfs_mount *mp)
++{
++	rcu_read_lock();
++	if (radix_tree_tagged(&mp->m_perag_tree, XFS_ICI_EOFBLOCKS_TAG))
++		queue_delayed_work(mp->m_eofblocks_workqueue,
++				   &mp->m_eofblocks_work,
++				   msecs_to_jiffies(xfs_eofb_secs * 1000));
++	rcu_read_unlock();
++}
++
++void
++xfs_eofblocks_worker(
++	struct work_struct *work)
++{
++	struct xfs_mount *mp = container_of(to_delayed_work(work),
++				struct xfs_mount, m_eofblocks_work);
++	xfs_icache_free_eofblocks(mp, NULL);
++	xfs_queue_eofblocks(mp);
++}
++
+ STATIC int
+ xfs_inode_match_id(
+ 	struct xfs_inode	*ip,
+@@ -1310,8 +1195,8 @@ xfs_icache_free_eofblocks(
+ 	if (eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC))
+ 		flags = SYNC_WAIT;
+ 
+-	return xfs_inode_ag_iterator_tag(mp, xfs_inode_free_eofblocks, flags,
+-					 eofb, XFS_ICI_EOFBLOCKS_TAG);
++	return xfs_inode_ag_iterator_tag(mp, NULL, xfs_inode_free_eofblocks,
++					 flags, eofb, XFS_ICI_EOFBLOCKS_TAG);
  }
  
  void
-@@ -1632,11 +1618,11 @@ xfs_alloc_buftarg(
- 	if (!btp->bt_bdi)
- 		goto error;
+diff --git a/fs/xfs/xfs_icache.h b/fs/xfs/xfs_icache.h
+index 4214518..a3380bf 100644
+--- a/fs/xfs/xfs_icache.h
++++ b/fs/xfs/xfs_icache.h
+@@ -29,7 +29,7 @@ int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t ino,
  
--	INIT_LIST_HEAD(&btp->bt_lru);
--	spin_lock_init(&btp->bt_lru_lock);
-+	list_lru_init(&btp->bt_lru);
- 	if (xfs_setsize_buftarg_early(btp, bdev))
- 		goto error;
--	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
-+	btp->bt_shrinker.count_objects = xfs_buftarg_shrink_count;
-+	btp->bt_shrinker.scan_objects = xfs_buftarg_shrink_scan;
- 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
- 	register_shrinker(&btp->bt_shrinker);
- 	return btp;
-diff --git a/fs/xfs/xfs_buf.h b/fs/xfs/xfs_buf.h
-index e541c0a..54113a1 100644
---- a/fs/xfs/xfs_buf.h
-+++ b/fs/xfs/xfs_buf.h
-@@ -25,6 +25,7 @@
- #include <linux/fs.h>
- #include <linux/buffer_head.h>
- #include <linux/uio.h>
-+#include <linux/list_lru.h>
+ void xfs_reclaim_worker(struct work_struct *work);
  
- /*
-  *	Base types
-@@ -92,9 +93,7 @@ typedef struct xfs_buftarg {
+-int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
++int xfs_reclaim_inodes(struct xfs_mount *mp, int flags);
+ long xfs_reclaim_inodes_nr(struct xfs_mount *mp, long nr_to_scan,
+ 			   nodemask_t *nodes_to_scan);
  
- 	/* LRU control structures */
- 	struct shrinker		bt_shrinker;
--	struct list_head	bt_lru;
--	spinlock_t		bt_lru_lock;
--	unsigned int		bt_lru_nr;
-+	struct list_lru		bt_lru;
- } xfs_buftarg_t;
+@@ -42,10 +42,12 @@ void xfs_eofblocks_worker(struct work_struct *);
  
- struct xfs_buf;
+ int xfs_sync_inode_grab(struct xfs_inode *ip);
+ int xfs_inode_ag_iterator(struct xfs_mount *mp,
++	int (*grab)(struct xfs_inode *ip, int flags),
+ 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+ 		int flags, void *args),
+ 	int flags, void *args);
+ int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
++	int (*grab)(struct xfs_inode *ip, int flags),
+ 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag,
+ 		int flags, void *args),
+ 	int flags, void *args, int tag);
+diff --git a/fs/xfs/xfs_mount.c b/fs/xfs/xfs_mount.c
+index da50846..6985a32 100644
+--- a/fs/xfs/xfs_mount.c
++++ b/fs/xfs/xfs_mount.c
+@@ -456,7 +456,6 @@ xfs_initialize_perag(
+ 		pag->pag_agno = index;
+ 		pag->pag_mount = mp;
+ 		spin_lock_init(&pag->pag_ici_lock);
+-		mutex_init(&pag->pag_ici_reclaim_lock);
+ 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+ 		spin_lock_init(&pag->pag_buf_lock);
+ 		pag->pag_buf_tree = RB_ROOT;
+diff --git a/fs/xfs/xfs_qm_syscalls.c b/fs/xfs/xfs_qm_syscalls.c
+index 5f53e75..85294a6 100644
+--- a/fs/xfs/xfs_qm_syscalls.c
++++ b/fs/xfs/xfs_qm_syscalls.c
+@@ -883,5 +883,5 @@ xfs_qm_dqrele_all_inodes(
+ 	uint		 flags)
+ {
+ 	ASSERT(mp->m_quotainfo);
+-	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, NULL);
++	xfs_inode_ag_iterator(mp, NULL, xfs_dqrele_inode, flags, NULL);
+ }
 -- 
 1.7.10
 
