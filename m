@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id E8BA86B0062
-	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 19:27:26 -0500 (EST)
-Message-ID: <1353975541.26955.182.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 26 Nov 2012 17:19:01 -0700
-In-Reply-To: <50B3323E.7020907@cn.fujitsu.com>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <1353693037-21704-4-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <50B0F3DF.4000802@gmail.com>
-	 <20121126083634.GA4574@dhcp-192-168-178-175.profitbricks.localdomain>
-	 <50B3323E.7020907@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id CFB5C6B0044
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2012 19:59:34 -0500 (EST)
+Message-ID: <50B41041.6030902@huawei.com>
+Date: Tue, 27 Nov 2012 08:58:41 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <1353667445-7593-6-git-send-email-tangchen@cn.fujitsu.com> <50B36354.7040501@gmail.com> <50B36B54.7050506@cn.fujitsu.com> <50B38F69.6020902@zytor.com>
+In-Reply-To: <50B38F69.6020902@zytor.com>
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wencongyang@gmail.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, wujianguo <wujianguo106@gmail.com>, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, qiuxishi@huawei.com
 
-> >> Consider the following sequence of operations for a hotplugged memory
-> >> device:
-> >>
-> >> 1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
-> >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> >>
-> >> If we don't offline/remove the memory, we have no chance to do it in
-> >> step 2. After
-> >> step2, the memory is used by the kernel, but we have powered off it. It
-> >> is very
-> >> dangerous.
-> > 
-> > How does power-off happen after unbind? acpi_eject_store checks for existing
-> > driver before taking any action:
-> > 
-> > #ifndef FORCE_EJECT
-> > 	if (acpi_device->driver == NULL) {
-> > 		ret = -ENODEV;
-> > 		goto err;
-> > 	}
-> > #endif
-> > 
-> > FORCE_EJECT is not defined afaict, so the function returns without scheduling
-> > acpi_bus_hot_remove_device. Is there another code path that calls power-off?
-> 
-> Consider the following case:
-> 
-> We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> 
-> CPUa                                                  CPUb
-> acpi_memory_device_notify()
->                                        unbind it from the driver
->     acpi_bus_hot_remove_device()
+On 2012/11/26 23:48, H. Peter Anvin wrote:
 
-Can we make acpi_bus_remove() to fail if a given acpi_device is not
-bound with a driver?  If so, can we make the unbind operation to perform
-unbind only?
+> On 11/26/2012 05:15 AM, Tang Chen wrote:
+>>
+>> Hi Wu,
+>>
+>> That is really a problem. And, before numa memory got initialized,
+>> memblock subsystem would be used to allocate memory. I didn't find any
+>> approach that could fully address it when I making the patches. There
+>> always be risk that memblock allocates memory on ZONE_MOVABLE. I think
+>> we can only do our best to prevent it from happening.
+>>
+>> Your patch is very helpful. And after a shot look at the code, it seems
+>> that acpi_numa_memory_affinity_init() is an architecture dependent
+>> function. Could we do this somewhere which is not depending on the
+>> architecture ?
+>>
+> 
+> The movable memory should be classified as a non-RAM type in memblock,
+> that way we will not allocate from it early on.
+> 
+> 	-hpa
 
-Thanks,
--Toshi
+
+yep, we can put movable memory in reserved.regions in memblock.
+
+> 
+> 
+> .
+> 
+
 
 
 --
