@@ -1,42 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 17C086B0044
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 00:31:40 -0500 (EST)
-Message-ID: <50B45021.2000009@zytor.com>
-Date: Mon, 26 Nov 2012 21:31:13 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 6DF756B0044
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 00:44:56 -0500 (EST)
+Message-ID: <50B45318.3020605@cn.fujitsu.com>
+Date: Tue, 27 Nov 2012 13:43:52 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <1353667445-7593-6-git-send-email-tangchen@cn.fujitsu.com> <50B36354.7040501@gmail.com> <50B36B54.7050506@cn.fujitsu.com> <50B38F69.6020902@zytor.com> <50B4304F.4070302@cn.fujitsu.com>
-In-Reply-To: <50B4304F.4070302@cn.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B42F32.4050107@gmail.com>
+In-Reply-To: <50B42F32.4050107@gmail.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, wujianguo <wujianguo106@gmail.com>, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, wujianguo@huawei.com, qiuxishi@huawei.com
+To: wujianguo <wujianguo106@gmail.com>
+Cc: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On 11/26/2012 07:15 PM, Wen Congyang wrote:
+On 11/27/2012 11:10 AM, wujianguo wrote:
+> On 2012-11-23 18:44, Tang Chen wrote:
+>> [What we are doing]
+>> This patchset provide a boot option for user to specify ZONE_MOVABLE memory
+>> map for each node in the system.
+>>
+>> movablecore_map=nn[KMG]@ss[KMG]
+>>
 >
-> Hi, hpa
+> Hi Tang,
+> 	DMA address can't be set as movable, if some one boot kernel with
+> movablecore_map=4G@0xa00000 or other memory region that contains DMA address,
+> system maybe boot failed. Should this case be handled or mentioned
+> in the change log and kernel-parameters.txt?
+
+Hi Wu,
+
+Right, DMA address can't be set as movable. And I should have mentioned
+it in the doc more clear. :)
+
+Actually, the situation is not only for DMA address. Because we limited
+the memblock allocation, even if users did not specified the DMA
+address, but set too much memory as movable, which means there was too
+little memory for kernel to use, kernel will also fail to boot.
+
+I added the following info into doc, but obviously it was not clear
+enough. :)
++		If kernelcore or movablecore is also specified,
++		movablecore_map will have higher priority to be
++		satisfied. So the administrator should be careful that
++		the amount of movablecore_map areas are not too large.
++		Otherwise kernel won't have enough memory to start.
+
+
+And about how to fix it, as you said, we can handle the situation if
+user specified DMA address as movable. But how to handle "too little
+memory for kernel to start" case ?  Is there any info about how much
+at least memory kernel needs ?
+
+
+Thanks for the comments. :)
+
 >
-> The problem is that:
-> node1 address rang: [18G, 34G), and the user specifies movable map is [8G, 24G).
-> We don't know node1's address range before numa init. So we can't prevent
-> allocating boot memory in the range [24G, 34G).
->
-> The movable memory should be classified as a non-RAM type in memblock. What
-> do you want to say? We don't save type in memblock because we only
-> add E820_RAM and E820_RESERVED_KERN to memblock.
+> Thanks,
+> Jianguo Wu
 >
 
-We either need to keep the type or not add it to the memblocks.
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
