@@ -1,85 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 4665F6B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 06:12:31 -0500 (EST)
-Date: Tue, 27 Nov 2012 11:12:25 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] Revert "mm: remove __GFP_NO_KSWAPD"
-Message-ID: <20121127111225.GO8218@suse.de>
-References: <509C84ED.8090605@linux.vnet.ibm.com>
- <509CB9D1.6060704@redhat.com>
- <20121109090635.GG8218@suse.de>
- <509F6C2A.9060502@redhat.com>
- <20121112113731.GS8218@suse.de>
- <CA+5PVA75XDJjo45YQ7+8chJp9OEhZxgPMBUpHmnq1ihYFfpOaw@mail.gmail.com>
- <20121116200616.GK8218@suse.de>
- <CA+5PVA7__=JcjLAhs5cpVK-WaZbF5bQhp5WojBJsdEt9SnG3cw@mail.gmail.com>
- <50ABC128.80706@leemhuis.info>
- <50AF9450.9020803@leemhuis.info>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 735F36B006C
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 06:59:34 -0500 (EST)
+Date: Tue, 27 Nov 2012 09:59:10 -0200
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH v11 4/7] mm: introduce compaction and migration for
+ ballooned pages
+Message-ID: <20121127115910.GA1812@t510.redhat.com>
+References: <cover.1352256081.git.aquini@redhat.com>
+ <08be4346b620ae9344691cc6c2ad0bc51f492e01.1352256088.git.aquini@redhat.com>
+ <20121109121602.GQ3886@csn.ul.ie>
+ <20121120153324.7119bd3b.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <50AF9450.9020803@leemhuis.info>
+In-Reply-To: <20121120153324.7119bd3b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Josh Boyer <jwboyer@gmail.com>, Zdenek Kabelac <zkabelac@redhat.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Jiri Slaby <jslaby@suse.cz>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jirislaby@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, bruno@wolff.to
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Rik van Riel <riel@redhat.com>, Andi Kleen <andi@firstfloor.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Fri, Nov 23, 2012 at 04:20:48PM +0100, Thorsten Leemhuis wrote:
-> Thorsten Leemhuis wrote on 20.11.2012 18:43:
-> > On 20.11.2012 16:38, Josh Boyer wrote:
+On Tue, Nov 20, 2012 at 03:33:24PM -0800, Andrew Morton wrote:
+> On Fri, 9 Nov 2012 12:16:02 +0000
+> Mel Gorman <mel@csn.ul.ie> wrote:
+> 
+> > On Wed, Nov 07, 2012 at 01:05:51AM -0200, Rafael Aquini wrote:
+> > > Memory fragmentation introduced by ballooning might reduce significantly
+> > > the number of 2MB contiguous memory blocks that can be used within a guest,
+> > > thus imposing performance penalties associated with the reduced number of
+> > > transparent huge pages that could be used by the guest workload.
+> > > 
+> > > This patch introduces the helper functions as well as the necessary changes
+> > > to teach compaction and migration bits how to cope with pages which are
+> > > part of a guest memory balloon, in order to make them movable by memory
+> > > compaction procedures.
+> > > 
+> >
+> > ...
+> >
+> > > --- a/mm/compaction.c
+> > > +++ b/mm/compaction.c
+> > > @@ -14,6 +14,7 @@
+> > >  #include <linux/backing-dev.h>
+> > >  #include <linux/sysctl.h>
+> > >  #include <linux/sysfs.h>
+> > > +#include <linux/balloon_compaction.h>
+> > >  #include "internal.h"
+> > >  
+> > >  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+> > > @@ -565,9 +566,24 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> > >  			goto next_pageblock;
+> > >  		}
+> > >  
+> > > -		/* Check may be lockless but that's ok as we recheck later */
+> > > -		if (!PageLRU(page))
+> > > +		/*
+> > > +		 * Check may be lockless but that's ok as we recheck later.
+> > > +		 * It's possible to migrate LRU pages and balloon pages
+> > > +		 * Skip any other type of page
+> > > +		 */
+> > > +		if (!PageLRU(page)) {
+> > > +			if (unlikely(balloon_page_movable(page))) {
 > > 
-> > The short story from my current point of view is:
-> 
-> Quick update, in case anybody is interested:
-> 
-> >  * my main machine at home where I initially saw the issue that started
-> > this thread seems to be running fine with rc6 and the "safe" patch Mel
-> > posted in https://lkml.org/lkml/2012/11/12/113 Before that I ran a rc5
-> > kernel with the revert that went into rc6 and the "safe" patch -- that
-> > worked fine for a few days, too.
-> 
-> On this machine I'm running a rc6 kernel + the fix for the accounting
-> bug(1) that went into mainline ~40 hours ago + the "riskier" patch Mel
-> posted in https://lkml.org/lkml/2012/11/12/151
-> 
-> Up to now everything works fine.
-> 
-> (1) https://lkml.org/lkml/2012/11/21/362
+> > Because it's lockless, it really seems that the barrier stuck down there
+> > is unnecessary. At worst you get a temporarily incorrect answer that you
+> > recheck later under page lock in balloon_page_isolate.
 > 
 
-That's good news, thanks for the follow up. Maybe 3.7 will not be a complete
-disaster with respect to THP after all this.
+Sorry for the late reply.
 
-The riskier patch was not picked up simply because it was riskier and
-would still be vunerable to the effective infinite loop Johannes found in
-kswapd. It'll all need to be revisisted.
-
-> >  * I have a second machine where I started to use 3.7-rc kernels only
-> > yesterday (the machine triggered a bug in the radeon driver that seems
-> > to be fixed in rc6) which showed symptoms like the ones Zdenek Kabelac
-> > mentions in this thread. I wasn't able to look closer at it, but simply
-> > tried rc6 with the safe patch, which didn't help. I'm now running rc6
-> > with the "riskier" patch from https://lkml.org/lkml/2012/11/12/151
-> > I can't yet tell if it helps. If the problems shows up again I'll try to
-> > capture more debugging data via sysrq -- there wasn't any time for that
-> > when I was running rc6 with the safe patch, sorry.
+> What happened with this?
 > 
-> This machine is now also behaving fine with above mentioned rc6 kernel +
-> the two patches. It seems the accounting bug was the root cause for the
-> problems this machine showed.
-> 
+This Mel's concern were addressed by the last submitted review (v12)
 
-For some yes, for others no. Others are getting stuck within effective
-infinite loops in kswapd and the trigger cases are different although
-the symptoms loop similar.
 
-Thanks again.
+> Also: what barrier?
 
--- 
-Mel Gorman
-SUSE Labs
+Mel was refering to these barriers, at balloon_compaction.h:
+---8<---
++/*
++ * balloon_page_insert - insert a page into the balloon's page list and make
++ *                      the page->mapping assignment accordingly.
++ * @page    : page to be assigned as a 'balloon page'
++ * @mapping : allocated special 'balloon_mapping'
++ * @head    : balloon's device page list head
++ */
++static inline void balloon_page_insert(struct page *page,
++                                      struct address_space *mapping,
++                                      struct list_head *head)
++{
++       list_add(&page->lru, head);
++       /*
++        * Make sure the page is already inserted on balloon's page list
++        * before assigning its ->mapping.
++        */
++       smp_wmb();
++       page->mapping = mapping;
++}
++
++/*
++ * balloon_page_delete - clear the page->mapping and delete the page from
++ *                      balloon's page list accordingly.
++ * @page    : page to be released from balloon's page list
++ */
++static inline void balloon_page_delete(struct page *page)
++{
++       page->mapping = NULL;
++       /*
++        * Make sure page->mapping is cleared before we proceed with
++        * balloon's page list deletion.
++        */
++       smp_wmb();
++       list_del(&page->lru);
++}
++
++/*
++ * __is_movable_balloon_page - helper to perform @page mapping->flags tests
++ */
++static inline bool __is_movable_balloon_page(struct page *page)
++{
++       /*
++        * we might attempt to read ->mapping concurrently to other
++        * threads trying to write to it.
++        */
++       struct address_space *mapping = ACCESS_ONCE(page->mapping);
++       smp_read_barrier_depends();
++       return mapping_balloon(mapping);
++}
+---8<---
+
+The last review got rid of them to stick with Mel's ACK.
+
+
+Cheers!
+--Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
