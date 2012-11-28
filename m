@@ -1,93 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 9999C6B004D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:45:03 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
-Date: Thu, 29 Nov 2012 00:49:47 +0100
-Message-ID: <4042591.gpFk7OYmph@vostro.rjw.lan>
-In-Reply-To: <1354136568.26955.312.camel@misato.fc.hp.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <9212118.3s2xH6uJDI@vostro.rjw.lan> <1354136568.26955.312.camel@misato.fc.hp.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id CD1696B004D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:52:23 -0500 (EST)
+Date: Wed, 28 Nov 2012 15:52:21 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of
+ pages occupied by memmap
+Message-Id: <20121128155221.df369ce4.akpm@linux-foundation.org>
+In-Reply-To: <1353510586-6393-1-git-send-email-jiang.liu@huawei.com>
+References: <20121120111942.c9596d3f.akpm@linux-foundation.org>
+	<1353510586-6393-1-git-send-email-jiang.liu@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org
-Cc: Toshi Kani <toshi.kani@hp.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
-> > > > > > > > Consider the following case:
-> > > > > > > > 
-> > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > > 
-> > > > > > > > CPUa                                                  CPUb
-> > > > > > > > acpi_memory_device_notify()
-> > > > > > > >                                        unbind it from the driver
-> > > > > > > >     acpi_bus_hot_remove_device()
-> > > > > > > 
-> > > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
-> > > > > > > bound with a driver?  If so, can we make the unbind operation to perform
-> > > > > > > unbind only?
-> > > > > > 
-> > > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
-> > > > > > if it's not present (dev->driver == NULL).
-> > > > > > 
-> > > > > > But there can still be a race between an eject and an unbind operation happening
-> > > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
-> > > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
-> > > > > > for other acpi devices?
-> > > > > > 
-> > > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
-> > > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
-> > > > > > probably not grabbed on SCI-initiated acpi ejects.
-> > > > > 
-> > > > > Since driver_unbind() calls device_lock(dev->parent) before calling
-> > > > > device_release_driver(), I am wondering if we can call
-> > > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
-> > > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
-> > > > > parent lock is otherwise released after device_release_driver() is done.
-> > > > 
-> > > > I would be careful.  You may introduce some subtle locking-related issues
-> > > > this way.
-> > > 
-> > > Right.  This requires careful inspection and testing.  As far as the
-> > > locking is concerned, I am not keen on using fine grained locking for
-> > > hot-plug.  It is much simpler and solid if we serialize such operations.
-> > > 
-> > > > Besides, there may be an alternative approach to all this.  For example,
-> > > > what if we don't remove struct device objects on eject?  The ACPI handles
-> > > > associated with them don't go away in that case after all, do they?
-> > > 
-> > > Umm...  Sorry, I am not getting your point.  The issue is that we need
-> > > to be able to fail a request when memory range cannot be off-lined.
-> > > Otherwise, we end up ejecting online memory range.
-> > 
-> > Yes, this is the major one.  The minor issue, however, is a race condition
-> > between unbinding a driver from a device and removing the device if I
-> > understand it correctly.  Which will go away automatically if the device is
-> > not removed in the first place.  Or so I would think. :-)
+On Wed, 21 Nov 2012 23:09:46 +0800
+Jiang Liu <liuj97@gmail.com> wrote:
+
+> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages occupied by memmap
+
+How are people to test this?  "does it boot"?
+
+> If SPARSEMEM is enabled, it won't build page structures for
+> non-existing pages (holes) within a zone, so provide a more accurate
+> estimation of pages occupied by memmap if there are bigger holes within
+> the zone.
 > 
-> I see.  I do not think whether or not the device is removed on eject
-> makes any difference here.  The issue is that after driver_unbind() is
-> done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
-> driver (hence, it cannot fail in prepare_remove), and goes ahead to call
-> _EJ0.
+> And pages for highmem zones' memmap will be allocated from lowmem, so
+> charge nr_kernel_pages for that.
+> 
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4442,6 +4442,26 @@ void __init set_pageblock_order(void)
+>  
+>  #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+>  
+> +static unsigned long calc_memmap_size(unsigned long spanned_pages,
+> +				      unsigned long present_pages)
+> +{
+> +	unsigned long pages = spanned_pages;
+> +
+> +	/*
+> +	 * Provide a more accurate estimation if there are holes within
+> +	 * the zone and SPARSEMEM is in use. If there are holes within the
+> +	 * zone, each populated memory region may cost us one or two extra
+> +	 * memmap pages due to alignment because memmap pages for each
+> +	 * populated regions may not naturally algined on page boundary.
+> +	 * So the (present_pages >> 4) heuristic is a tradeoff for that.
+> +	 */
+> +	if (spanned_pages > present_pages + (present_pages >> 4) &&
+> +	    IS_ENABLED(CONFIG_SPARSEMEM))
+> +		pages = present_pages;
+> +
+> +	return PAGE_ALIGN(pages * sizeof(struct page)) >> PAGE_SHIFT;
+> +}
+> +
 
-I see two reasons for calling acpi_bus_hot_remove_device() for memory (correct
-me if I'm wrong): (1) from the memhotplug driver's notify handler and (2) from
-acpi_eject_store() which is exposed through sysfs.  If we disabled exposing
-acpi_eject_store() for memory devices, then the only way would be from the
-notify handler.  So I wonder if driver_unbind() shouldn't just uninstall the
-notify handler for memory (so that memory eject events are simply dropped on
-the floor after unbinding the driver)?
+I spose we should do this, although it makes no difference as the
+compiler will inline calc_memmap_size() into its caller:
 
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+--- a/mm/page_alloc.c~mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap-fix
++++ a/mm/page_alloc.c
+@@ -4526,8 +4526,8 @@ void __init set_pageblock_order(void)
+ 
+ #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
+ 
+-static unsigned long calc_memmap_size(unsigned long spanned_pages,
+-				      unsigned long present_pages)
++static unsigned long __paginginit calc_memmap_size(unsigned long spanned_pages,
++						   unsigned long present_pages)
+ {
+ 	unsigned long pages = spanned_pages;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
