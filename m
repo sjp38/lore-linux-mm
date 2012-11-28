@@ -1,124 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 4EA616B004D
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 19:34:22 -0500 (EST)
-Date: Tue, 27 Nov 2012 22:34:10 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: fix balloon_page_movable() page->flags check
-Message-ID: <20121128003409.GB7401@t510.redhat.com>
-References: <20121127145708.c7173d0d.akpm@linux-foundation.org>
- <1ccb1c95a52185bcc6009761cb2829197e2737ea.1354058194.git.aquini@redhat.com>
- <20121127155201.ddfea7e1.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 5294A6B0062
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 19:44:17 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 406D03EE0C7
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:44:15 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 22B1445DE5B
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:44:15 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id F3DBE45DE4E
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:44:14 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id E16671DB8044
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:44:14 +0900 (JST)
+Received: from g01jpexchkw02.g01.fujitsu.local (g01jpexchkw02.g01.fujitsu.local [10.0.194.41])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 88F351DB8040
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:44:14 +0900 (JST)
+Message-ID: <50B55E28.1030608@jp.fujitsu.com>
+Date: Wed, 28 Nov 2012 09:43:20 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121127155201.ddfea7e1.akpm@linux-foundation.org>
+Subject: Re: [Patch v4 00/12] memory-hotplug: hot-remove physical memory
+References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <20121127112741.b616c2f6.akpm@linux-foundation.org>
+In-Reply-To: <20121127112741.b616c2f6.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Rik van Riel <riel@redhat.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-On Tue, Nov 27, 2012 at 03:52:01PM -0800, Andrew Morton wrote:
-> On Tue, 27 Nov 2012 21:31:10 -0200
-> Rafael Aquini <aquini@redhat.com> wrote:
-> 
-> > This patch fixes the following crash by fixing and enhancing the way 
-> > page->flags are tested to identify a ballooned page.
-> > 
-> > ---8<---
-> > BUG: unable to handle kernel NULL pointer dereference at 0000000000000194
-> > IP: [<ffffffff8122b354>] isolate_migratepages_range+0x344/0x7b0
-> > --->8---
-> > 
-> > The NULL pointer deref was taking place because balloon_page_movable()
-> > page->flags tests were incomplete and we ended up 
-> > inadvertently poking at private pages.
-> > 
-> > ....
-> >
-> >  /*
-> > + * __balloon_page_flags - helper to perform balloon @page ->flags tests.
-> > + *
-> > + * As balloon pages are got from Buddy, and we do not play with page->flags
-> > + * at driver level (exception made when we get the page lock for compaction),
-> > + * therefore we can safely identify a ballooned page by checking if the
-> > + * NR_PAGEFLAGS rightmost bits from the page->flags are all cleared.
-> > + * This approach also helps on skipping ballooned pages that are locked for
-> > + * compaction or release, thus mitigating their racy check at
-> > + * balloon_page_movable()
-> > + */
-> > +#define BALLOON_PAGE_FLAGS_MASK       ((1UL << NR_PAGEFLAGS) - 1)
-> 
-> hm, this seems a bit fragile.
-> 
-> What's actually going on here?  You're assuming that a page fresh from
-> buddy has all flags 0..NR_PAGEFLAGS cleared?
+Hi Andrew,
+
+2012/11/28 4:27, Andrew Morton wrote:
+> On Tue, 27 Nov 2012 18:00:10 +0800
+> Wen Congyang <wency@cn.fujitsu.com> wrote:
 >
- 
-Yes, thats the idea, as when we get pages from freelists, they are all checked 
-by prep_new_page()->check_new_page() before buffered_rmqueue() returns them.
-By the path we use to get balloon pages, if the page has any of 0..NR_PAGEFLAGS
-flags set at the alloc time it's regarded as bad_page by check_new_page(),
-and we go after another victim.
+>> The patch-set was divided from following thread's patch-set.
+>>      https://lkml.org/lkml/2012/9/5/201
+>>
+>> The last version of this patchset:
+>>      https://lkml.org/lkml/2012/11/1/93
+>
+> As we're now at -rc7 I'd prefer to take a look at all of this after the
+> 3.7 release - please resend everything shortly after 3.8-rc1.
 
+Almost patches about memory hotplug has been merged into your and Rafael's
+tree. And these patches are waiting to open the v3.8 merge window.
+Remaining patches are only this patch-set. So we hope that this patch-set
+is merged into v3.8.
 
-> That may be true, I'm unsure.  Please take a look at
-> PAGE_FLAGS_CHECK_AT_FREE and PAGE_FLAGS_CHECK_AT_PREP and work out why
-> the heck these aren't the same thing!
+In merging this patch-set into v3.8, Linux on x86_64 makes a memory hot plug
+possible.
 
-Humm, I can't think of why, either... As I've followed the prep path, I didn't
-notice that difference. I'll look at it closer, though.
-
+Thanks,
+Yasuaki Ishimatsu
 
 >
-> Either way around, doing
-> 
-> 	#define BALLOON_PAGE_FLAGS_MASK PAGE_FLAGS_CHECK_AT_PREP
-> 
-> seems rather more maintainable.
+>> If you want to know the reason, please read following thread.
+>>
+>> https://lkml.org/lkml/2012/10/2/83
+>
+> Please include the rationale within each version of the patchset rather
+> than by linking to an old email.  Because
+>
+> a) this way, more people are likely to read it
+>
+> b) it permits the text to be maimtained as the code evolves
+>
+> c) it permits the text to be included in the mainlnie commit, where
+>     people can find it.
+>
+>> The patch-set has only the function of kernel core side for physical
+>> memory hot remove. So if you use the patch, please apply following
+>> patches.
+>>
+>> - bug fix for memory hot remove
+>>    https://lkml.org/lkml/2012/10/31/269
+>>
+>> - acpi framework
+>>    https://lkml.org/lkml/2012/10/26/175
+>
+> What's happening with the acpi framework?  has it received any feedback
+> from the ACPI developers?
+>
 
-As usual, your suggestion is far way better than my orinal proposal :)
-
-
-> 
-> > +static inline bool __balloon_page_flags(struct page *page)
-> > +{
-> > +	return page->flags & BALLOON_PAGE_FLAGS_MASK ? false : true;
-> 
-> We have a neater way of doing the scalar-to-boolean conversion:
-> 
-> 	return !(page->flags & BALLOON_PAGE_FLAGS_MASK);
-> 
-
-ditto! :)
-
-
-Do you want me to resubmit this patch with the changes you suggested?
-
-
-Cheers!
-Rafael
-
-> > +}
-> > +
-> > +/*
-> >   * __is_movable_balloon_page - helper to perform @page mapping->flags tests
-> >   */
-> >  static inline bool __is_movable_balloon_page(struct page *page)
-> > @@ -135,8 +152,8 @@ static inline bool balloon_page_movable(struct page *page)
-> >  	 * Before dereferencing and testing mapping->flags, lets make sure
-> >  	 * this is not a page that uses ->mapping in a different way
-> >  	 */
-> > -	if (!PageSlab(page) && !PageSwapCache(page) && !PageAnon(page) &&
-> > -	    !page_mapped(page))
-> > +	if (__balloon_page_flags(page) && !page_mapped(page) &&
-> > +	    page_count(page) == 1)
-> >  		return __is_movable_balloon_page(page);
-> >  
-> >  	return false;
-> >
-> > ...
-> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
