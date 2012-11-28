@@ -1,109 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 900FE6B0072
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:26:18 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
-Date: Thu, 29 Nov 2012 00:31:02 +0100
-Message-ID: <2363618.GHMYUtrpGK@vostro.rjw.lan>
-In-Reply-To: <20121128231046.GA15416@kroah.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <4960597.PcG7YIEMVH@vostro.rjw.lan> <20121128231046.GA15416@kroah.com>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id B91936B0074
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:29:29 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id t2so12790401qcq.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 15:29:28 -0800 (PST)
+Date: Wed, 28 Nov 2012 15:29:30 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch] mm, memcg: avoid unnecessary function call when memcg
+ is disabled
+In-Reply-To: <20121121083505.GA8761@dhcp22.suse.cz>
+Message-ID: <alpine.LNX.2.00.1211281509560.15410@eggly.anvils>
+References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com> <20121120134932.055bc192.akpm@linux-foundation.org> <20121121083505.GA8761@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: Toshi Kani <toshi.kani@hp.com>, linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Wednesday, November 28, 2012 03:10:46 PM Greg KH wrote:
-> On Thu, Nov 29, 2012 at 12:05:20AM +0100, Rafael J. Wysocki wrote:
-> > On Wednesday, November 28, 2012 02:46:33 PM Greg KH wrote:
-> > > > So, it looks like the driver core wants us to handle driver unbinding no
-> > > > matter what.
-> > > 
-> > > Yes.  Well, the driver core does the unbinding no matter what, if it was
-> > > told, by a user, to do so.  Why is that a problem?  The user then is
-> > > responsible for any bad things (i.e. not able to control the device any
-> > > more), if they do so.
+On Wed, 21 Nov 2012, Michal Hocko wrote:
+> On Tue 20-11-12 13:49:32, Andrew Morton wrote:
+> > On Mon, 19 Nov 2012 17:44:34 -0800 (PST)
+> > David Rientjes <rientjes@google.com> wrote:
 > > 
-> > I don't really agree with that, because the user may simply not know what
-> > the consequences of that will be.  In my not so humble opinion any interface
-> > allowing user space to crash the kernel is a bad one.  And this is an example
-> > of that.
-> 
-> This has been in place since 2005, over 7 years now, and I have never
-> heard any problems with it being used to crash the kernel, despite the
-> easy ability for people to unbind all of their devices from drivers and
-> instantly cause a system hang.  So really doubt this is a problem in
-> real life :)
-> 
-> > > > This pretty much means that it is a bad idea to have a driver that is
-> > > > exposed as a "device driver" in sysfs for memory hotplugging.
+> > > While profiling numa/core v16 with cgroup_disable=memory on the command 
+> > > line, I noticed mem_cgroup_count_vm_event() still showed up as high as 
+> > > 0.60% in perftop.
 > > > 
-> > > Again, why?  All this means is that the driver is now not connected to
-> > > the device (memory in this case.)  The memory is still there, still
-> > > operates as before, only difference is, the driver can't touch it
-> > > anymore.
+> > > This occurs because the function is called extremely often even when memcg 
+> > > is disabled.
 > > > 
-> > > This is the same for any ACPI driver, and has been for years.
+> > > To fix this, inline the check for mem_cgroup_disabled() so we avoid the 
+> > > unnecessary function call if memcg is disabled.
+> > > 
+> > > ...
+> > >
+> > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > > --- a/include/linux/memcontrol.h
+> > > +++ b/include/linux/memcontrol.h
+> > > @@ -181,7 +181,14 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+> > >  						gfp_t gfp_mask,
+> > >  						unsigned long *total_scanned);
+> > >  
+> > > -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> > > +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> > > +static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+> > > +					     enum vm_event_item idx)
+> > > +{
+> > > +	if (mem_cgroup_disabled() || !mm)
+> > > +		return;
+> > > +	__mem_cgroup_count_vm_event(mm, idx);
+> > > +}
 > > 
-> > Except that if this driver has been unbound and the removal is triggered by
-> > an SCI, the core will just go on and remove the memory, although it may
-> > be killing the kernel this way.
+> > Does the !mm case occur frequently enough to justify inlining it, or
+> > should that test remain out-of-line?
 > 
-> Why would memory go away if a driver is unbound from a device?  The
-> device didn't go away.  It's the same if the driver was a module and it
-> was unloaded, you should not turn memory off in that situation, right?
-
-Right.  It looks like there's some confusion about the role of .remove()
-in the ACPI subsystem, but I need to investigate it a bit more.
-
-> Are you also going to prevent module unloading of this driver?
-
-I'm not sure what I'm going to do with that driver at the moment to be honest. :-)
-
-> > Arguably, this may be considered as the core's fault, but the only way to
-> > fix that would be to move the code from that driver into the core and not to
-> > register it as a "driver" any more.  Which was my point. :-)
+> Now that you've asked about it I started looking around and I cannot see
+> how mm can ever be NULL. The condition is there since the very beginning
+> (456f998e memcg: add the pagefault count into memcg stats) but all the
+> callers are page fault handlers and those shouldn't have mm==NULL.
+> Or is there anything obvious I am missing?
 > 
-> No, I think people are totally overreacting to the unbind/bind files,
-> which are there to aid in development, and in adding new device ids to
-> drivers, as well as sometimes doing a hacky revoke() call.
-> 
-> > > Please don't confuse unbind with any "normal" system operation, it is
-> > > not to be used for memory hotplug, or anything else like this.
-> > > 
-> > > Also, if you really do not want to do this, turn off the ability to
-> > > unbind/bind for these devices, that is under your control in your bus
-> > > logic.
-> > 
-> > OK, but how?  I'm looking at driver_unbind() and not seeing any way to do
-> > that actually.
-> 
-> See the suppress_bind_attrs field in struct device_driver.  It's even
-> documented in device.h, but sadly, no one reads documentation :)
+> Ying, the whole thread starts https://lkml.org/lkml/2012/11/19/545 but
+> the primary question is why we need !mm test for mem_cgroup_count_vm_event
+> at all.
 
-That's good to know, thanks. :-)
+Here's a guess: as Ying's 456f998e patch started out in akpm's tree,
+shmem.c was calling mem_cgroup_count_vm_event(current->mm, PGMAJFAULT).
 
-And if I knew I could find that information in device.h, I'd look in there.
+Then I insisted that was inconsistent with how we usually account when
+one task touches another's address space, and rearranged it to work on
+vma->vm_mm instead.
 
-> I recommend you set this field if you don't want the bind/unbind files
-> to show up for your memory driver, although I would argue that the
-> driver needs to be fixed up to not do foolish things like removing
-> memory from a system unless it really does go away...
+Done the original way, if the touching task were a kernel daemon (KSM's
+ksmd comes to my mind), then the current->mm could well have been NULL.
 
-Quite frankly, I need to look at that driver and how things are supposed to
-work more thoroughly, because I don't seem to see a reason to do various
-things the way they are done.  Well, maybe it's just me.
+I agree with you that it looks redundant now.
 
-Thanks,
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
