@@ -1,134 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 90A4C6B006C
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:37:59 -0500 (EST)
-Date: Wed, 28 Nov 2012 11:37:36 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -v2 -mm] memcg: do not trigger OOM from
- add_to_page_cache_locked
-Message-ID: <20121128163736.GV24381@cmpxchg.org>
-References: <20121125120524.GB10623@dhcp22.suse.cz>
- <20121125135542.GE10623@dhcp22.suse.cz>
- <20121126013855.AF118F5E@pobox.sk>
- <20121126131837.GC17860@dhcp22.suse.cz>
- <50B403CA.501@jp.fujitsu.com>
- <20121127194813.GP24381@cmpxchg.org>
- <20121127205431.GA2433@dhcp22.suse.cz>
- <20121127205944.GB2433@dhcp22.suse.cz>
- <20121128152631.GT24381@cmpxchg.org>
- <20121128160447.GH12309@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id BF2EC6B006E
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:42:24 -0500 (EST)
+Date: Wed, 28 Nov 2012 16:42:18 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd craziness in 3.7
+Message-ID: <20121128164217.GV8218@suse.de>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+ <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+ <50B52DC4.5000109@redhat.com>
+ <20121127214928.GA20253@cmpxchg.org>
+ <50B5387C.1030005@redhat.com>
+ <20121127222637.GG2301@cmpxchg.org>
+ <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
+ <20121128101359.GT8218@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121128160447.GH12309@dhcp22.suse.cz>
+In-Reply-To: <20121128101359.GT8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 28, 2012 at 05:04:47PM +0100, Michal Hocko wrote:
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 095d2b4..5abe441 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -57,13 +57,14 @@ extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
->  				gfp_t gfp_mask);
->  /* for swap handling */
->  extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-> -		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
-> +		struct page *page, gfp_t mask, struct mem_cgroup **memcgp,
-> +		bool oom);
+On Wed, Nov 28, 2012 at 10:13:59AM +0000, Mel Gorman wrote:
+> On Tue, Nov 27, 2012 at 03:19:38PM -0800, Linus Torvalds wrote:
+> > On Tue, Nov 27, 2012 at 2:26 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > > On Tue, Nov 27, 2012 at 05:02:36PM -0500, Rik van Riel wrote:
+> > >>
+> > >> Kswapd going crazy is certainly a large part of the problem.
+> > >>
+> > >> However, that leaves the issue of page_alloc.c waking up
+> > >> kswapd when the system is not actually low on memory.
+> > >>
+> > >> Instead, kswapd is woken up because memory compaction failed,
+> > >> potentially even due to lock contention during compaction!
+> > >>
+> > >> Ideally the allocation code would only wake up kswapd if
+> > >> memory needs to be freed, or in order for kswapd to do
+> > >> memory compaction (so the allocator does not have to).
+> > >
+> > > Maybe I missed something, but shouldn't this be solved with my patch?
+> > 
+> > Ok, guys. Cage fight!
+> > 
+> > The rules are simple: two men enter, one man leaves.
+> > 
+> 
+> I'm fairly scorch damaged from this whole cycle already. I won't need a
+> prop master to look the part for a thunderdome match.
+> 
+> > And the one who comes out gets to explain to me which patch(es) I
+> > should apply, and which I should revert, if any.
+> > 
+> 
+> Based on the reports I've seen I expect the following to work for 3.7
+> 
+> Keep
+>   96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
+>   ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
+> 
+> Revert
+>   82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
+> 
+> Merge
+>   mm: vmscan: fix kswapd endless loop on higher order allocation
+>   mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
+> 
 
-Ok, now I feel almost bad for asking, but why the public interface,
-too?  You only ever pass "true" in there and this is unlikely to
-change anytime soon, no?
+and
+    mm: compaction: Fix return value of capture_free_page
 
-> @@ -3754,7 +3753,8 @@ int mem_cgroup_newpage_charge(struct page *page,
->  static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
->  					  struct page *page,
->  					  gfp_t mask,
-> -					  struct mem_cgroup **memcgp)
-> +					  struct mem_cgroup **memcgp,
-> +					  bool oom)
->  {
->  	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc;
-> @@ -3776,20 +3776,21 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
->  	if (!memcg)
->  		goto charge_cur_mm;
->  	*memcgp = memcg;
-> -	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
-> +	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, oom);
->  	css_put(&memcg->css);
->  	if (ret == -EINTR)
->  		ret = 0;
->  	return ret;
->  charge_cur_mm:
-> -	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
-> +	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, oom);
->  	if (ret == -EINTR)
->  		ret = 0;
->  	return ret;
->  }
+but this one may already be in flight from Andrew's tree as he picked it
+up already.
 
-Only this one is needed...
-
-> @@ -3851,7 +3852,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
->  }
->  
->  int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> -				gfp_t gfp_mask)
-> +				gfp_t gfp_mask, bool oom)
->  {
->  	struct mem_cgroup *memcg = NULL;
->  	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
-> @@ -3863,10 +3864,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
->  		return 0;
->  
->  	if (!PageSwapCache(page))
-> -		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-> +		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type, oom);
->  	else { /* page is swapcache/shmem */
->  		ret = __mem_cgroup_try_charge_swapin(mm, page,
-> -						     gfp_mask, &memcg);
-> +						     gfp_mask, &memcg, oom);
->  		if (!ret)
->  			__mem_cgroup_commit_charge_swapin(page, memcg, type);
->  	}
-
-...for this site.
-
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6891d3b..afad903 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2991,7 +2991,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		}
->  	}
->  
-> -	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
-> +	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr, true)) {
->  		ret = VM_FAULT_OOM;
->  		goto out_page;
->  	}
-
-Can not happen for shmem, the fault handler uses vma->vm_ops->fault.
-
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 2f8e429..8ec511e 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -828,7 +828,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
->  	int ret = 1;
->  
->  	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page,
-> -					 GFP_KERNEL, &memcg)) {
-> +					 GFP_KERNEL, &memcg, true)) {
->  		ret = -ENOMEM;
->  		goto out_nolock;
->  	}
-
-Can not happen for shmem, uses shmem_unuse() instead.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
