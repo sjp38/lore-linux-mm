@@ -1,150 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 628076B0072
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 22:17:24 -0500 (EST)
-Date: Wed, 28 Nov 2012 14:17:19 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 17/19] drivers: convert shrinkers to new count/scan API
-Message-ID: <20121128031719.GR6434@dastard>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
- <1354058086-27937-18-git-send-email-david@fromorbit.com>
- <b94cdc$7i2bv3@fmsmga001.fm.intel.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 84A426B0074
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 22:24:36 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id t49so4177911wey.14
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 19:24:35 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b94cdc$7i2bv3@fmsmga001.fm.intel.com>
+In-Reply-To: <50B4B6BE.3000902@cn.fujitsu.com>
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
+	<CAA_GA1d7CxHvmZELvD_DO6u5tu1WBqfmLiuEzeFo=xMzuW50Tg@mail.gmail.com>
+	<50B479FA.6010307@cn.fujitsu.com>
+	<CAA_GA1ezZJyqVL=Dp5U2zzNw6bkfMKJY_STkt3E7TXkUYcv+jQ@mail.gmail.com>
+	<50B4B6BE.3000902@cn.fujitsu.com>
+Date: Wed, 28 Nov 2012 11:24:34 +0800
+Message-ID: <CAA_GA1fE0fhLVs50rRZ6OsTw7DV0hyVC2EuRyUrbzxLztPLoeg@mail.gmail.com>
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: glommer@parallels.com, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, m.szyprowski@samsung.com
 
-On Wed, Nov 28, 2012 at 01:13:11AM +0000, Chris Wilson wrote:
-> On Wed, 28 Nov 2012 10:14:44 +1100, Dave Chinner <david@fromorbit.com> wrote:
-> > +/*
-> > + * XXX: (dchinner) This is one of the worst cases of shrinker abuse I've seen.
-> > + *
-> > + * i915_gem_purge() expects a byte count to be passed, and the minimum object
-> > + * size is PAGE_SIZE.
-> 
-> No, purge() expects a count of pages to be freed. Each pass of the
-> shrinker therefore tries to free a minimum of 128 pages.
+On Tue, Nov 27, 2012 at 8:49 PM, Tang Chen <tangchen@cn.fujitsu.com> wrote:
+> On 11/27/2012 08:09 PM, Bob Liu wrote:
+>>
+>> On Tue, Nov 27, 2012 at 4:29 PM, Tang Chen<tangchen@cn.fujitsu.com>
+>> wrote:
+>>>
+>>> Hi Liu,
+>>>
+>>>
+>>> This feature is used in memory hotplug.
+>>>
+>>> In order to implement a whole node hotplug, we need to make sure the
+>>> node contains no kernel memory, because memory used by kernel could
+>>> not be migrated. (Since the kernel memory is directly mapped,
+>>> VA = PA + __PAGE_OFFSET. So the physical address could not be changed.)
+>>>
+>>> User could specify all the memory on a node to be movable, so that the
+>>> node could be hot-removed.
+>>>
+>>
+>> Thank you for your explanation. It's reasonable.
+>>
+>> But i think it's a bit duplicated with CMA, i'm not sure but maybe we
+>> can combine it with CMA which already in mainline?
+>>
+> Hi Liu,
+>
+> Thanks for your advice. :)
+>
+> CMA is Contiguous Memory Allocator, right?  What I'm trying to do is
+> controlling where is the start of ZONE_MOVABLE of each node. Could
+> CMA do this job ?
 
-Ah, I got the shifts mixed up. I'd been looking at way too much crap
-already when I saw this. But the fact this can be misunderstood says
-something about the level of documentation that the code has (i.e.
-none).
+cma will not control the start of ZONE_MOVABLE of each node, but it
+can declare a memory that always movable
+and all non movable allocate request will not happen on that area.
 
-> > The shrinker doesn't work on bytes - it works on
-> > + * *objects*.
-> 
-> And I thought you were reviewing the shrinker API to be useful where a
-> single object may range between 4K and 4G.
+Currently cma use a boot parameter "cma=" to declare a memory size
+that always movable.
+I think it might fulfill your requirement if extending the boot
+parameter with a start address.
 
-Which requires rewriting all the algorithms to not be dependent on
-the subsystems using a fixed size object. The shrinker control
-function is called shrink_slab() for a reason - it was expected to
-be used to shrink caches of fixed sized objects allocated from slab
-memory.
+more info at http://lwn.net/Articles/468044/
+>
+> And also, after a short investigation, CMA seems need to base on
+> memblock. But we need to limit memblock not to allocate memory on
+> ZONE_MOVABLE. As a result, we need to know the ranges before memblock
+> could be used. I'm afraid we still need an approach to get the ranges,
+> such as a boot option, or from static ACPI tables such as SRAT/MPST.
+>
 
-It has no concept of the amount of memory that each object consumes,
-just an idea of how much *IO* it takes to replace the object in
-memory once it's been reclaimed. The DEFAULT_SEEKS is design to
-encode the fact it generally takes 2 IOs to replace either a LRU
-page or a filesystem slab object, and so balances the scanning based
-on that value. i.e. the shrinker algorithms are solidly based around
-fixed sized objects that have some relationship to the cost of
-physical IO operations to replace them in the cache.
+Yes, it's based on memblock and with boot option.
+In setup_arch32()
+    dma_contiguous_reserve(0);   => will declare a cma area using
+memblock_reserve()
 
-The API change is the first step in the path to removing these built
-in assumptions. The current API is just insane and any attempt to
-build on it is going to be futile. The way I see this developing is
-this:
+> I'm don't know much about CMA for now. So if you have any better idea,
+> please share with us, thanks. :)
 
-	- make the shrink_slab count -> scan algorithm per node
+My idea is reuse cma like below patch(even not compiled) and boot with
+"cma=size@start_address".
+I don't know whether it can work and whether suitable for your
+requirement, if not forgive me for this noises.
 
-	- add information about size of objects in the cache for
-	  fixed size object caches.
-		- the shrinker now has some idea of how many objects
-		  need to be freed to be able to free a page of
-		  memory, as well as the relative penalty for
-		  replacing them.
-		- tells the shrinker the size of the cache
-		  in bytes so overall memory footprint of the caches
-		  can be taken into account
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 612afcc..564962a 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -59,11 +59,18 @@ struct cma *dma_contiguous_default_area;
+  */
+ static const unsigned long size_bytes = CMA_SIZE_MBYTES * SZ_1M;
+ static long size_cmdline = -1;
++static long cma_start_cmdline = -1;
 
-	- add new count and scan operations for caches that are
-	  based on memory used, not object counts
-		- allows us to use the same count/scan algorithm for
-		  calculating how much pressure to put on caches
-		  with variable size objects.
+ static int __init early_cma(char *p)
+ {
++       char *oldp;
+        pr_debug("%s(%s)\n", __func__, p);
++       oldp = p;
+        size_cmdline = memparse(p, &p);
++
++       if (*p == '@')
++               cma_start_cmdline = memparse(p+1, &p);
++       printk("cma start:0x%x, size: 0x%x\n", size_cmdline, cma_start_cmdline);
+        return 0;
+ }
+ early_param("cma", early_cma);
+@@ -127,8 +134,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+        if (selected_size) {
+                pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+                         selected_size / SZ_1M);
+-
+-               dma_declare_contiguous(NULL, selected_size, 0, limit);
++               if (cma_size_cmdline != -1)
++                       dma_declare_contiguous(NULL, selected_size,
+cma_start_cmdline, limit);
++               else
++                       dma_declare_contiguous(NULL, selected_size, 0, limit);
+        }
+ };
 
-My care factor mostly ends here, as it will allow XFS to corectly
-balance the metadata buffer cache (variable size objects) against the
-inode, dentry and dquot caches which are object based. The next
-steps that I'm about to give you are based on some discussions with
-some MM people over bottles of red wine, so take it with a grain of
-salt...
-
-	- calculate a "pressure" value for each cache controlled by a
-	  shrinker so that the relative memory pressure between
-	  caches can be compared. This allows the shrinkers to bias
-	  reclaim based on where the memory pressure is being
-	  generated
-
-	- start grouping shrinkers into a heirarchy, allowing
-	  related shrinkers (e.g. all the caches in a memcg) to be
-	  shrunk according resource limits that can be placed on the
-	  group. i.e. memory pressure is proportioned across
-	  groups rather than many individual shrinkers.
-
-	- comments have been made to the extent that with generic
-	  per-node lists and a node aware shrinker, all of the page
-	  scanning could be driven by the shrinker infrastructure,
-	  rather than the shrinkers being driven by how many pages
-	  in the page cache just got scanned for reclaim.
-
-	  IOWs, the main memory reclaim algorithm walks all the
-	  shrinkers groups to calculate overall memory pressure,
-	  calculate how much reclaim is necessary, and then
-	  proportion reclaim across all the shrinker groups. i.e.
-	  everything is a shrinker.
-
-This patch set is really just the start of a long process. balance
-between the page cache and VFS/filesystem shrinkers is critical to
-the efficient operation of the OS under many, many workloads, so I'm
-not about to change more than oe little thing at a time. This API
-change is just one little step. You'll get what you want eventually,
-but you're not going to get it as a first step.
-
-> > + * But the craziest part comes when i915_gem_purge() has walked all the objects
-> > + * and can't free any memory. That results in i915_gem_shrink_all() being
-> > + * called, which idles the GPU and frees everything the driver has in it's
-> > + * active and inactive lists. It's basically hitting the driver with a great big
-> > + * hammer because it was busy doing stuff when something else generated memory
-> > + * pressure. This doesn't seem particularly wise...
-> > + */
-> 
-> As opposed to triggering an OOM? The choice was between custom code for
-> a hopefully rare code path in a situation of last resort, or first
-> implementing the simplest code that stopped i915 from starving the
-> system of memory.
-
-And when it's something else that is causing the memory pressue?
-The shrinker gets called whenever somethign runs low on memory - it
-might be called thousands of times a second so there's a very good
-chance you have very little to free after the first purge has
-occurred. After than you're going to idle the GPU and purge all the
-memory on every single shrinker call, even though the GPU is not
-generating memory pressure and not causing the shrinkers to run.
-That's why it's crazy - it's got close to worst case behaviour when
-the GPU is already using as little memory as possible.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
