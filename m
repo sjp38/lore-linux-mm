@@ -1,93 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id DAD206B006C
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:36:04 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
-Date: Wed, 28 Nov 2012 22:40:47 +0100
-Message-ID: <2080453.Ry9A79n0aE@vostro.rjw.lan>
-In-Reply-To: <1354136568.26955.312.camel@misato.fc.hp.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <9212118.3s2xH6uJDI@vostro.rjw.lan> <1354136568.26955.312.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id B3D566B006C
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:39:09 -0500 (EST)
+Message-ID: <50B68467.5020008@zytor.com>
+Date: Wed, 28 Nov 2012 13:38:47 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B5CFAE.80103@huawei.com> <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
 
-On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
-> > > > > > > > Consider the following case:
-> > > > > > > > 
-> > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > > 
-> > > > > > > > CPUa                                                  CPUb
-> > > > > > > > acpi_memory_device_notify()
-> > > > > > > >                                        unbind it from the driver
-> > > > > > > >     acpi_bus_hot_remove_device()
-> > > > > > > 
-> > > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
-> > > > > > > bound with a driver?  If so, can we make the unbind operation to perform
-> > > > > > > unbind only?
-> > > > > > 
-> > > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
-> > > > > > if it's not present (dev->driver == NULL).
-> > > > > > 
-> > > > > > But there can still be a race between an eject and an unbind operation happening
-> > > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
-> > > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
-> > > > > > for other acpi devices?
-> > > > > > 
-> > > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
-> > > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
-> > > > > > probably not grabbed on SCI-initiated acpi ejects.
-> > > > > 
-> > > > > Since driver_unbind() calls device_lock(dev->parent) before calling
-> > > > > device_release_driver(), I am wondering if we can call
-> > > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
-> > > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
-> > > > > parent lock is otherwise released after device_release_driver() is done.
-> > > > 
-> > > > I would be careful.  You may introduce some subtle locking-related issues
-> > > > this way.
-> > > 
-> > > Right.  This requires careful inspection and testing.  As far as the
-> > > locking is concerned, I am not keen on using fine grained locking for
-> > > hot-plug.  It is much simpler and solid if we serialize such operations.
-> > > 
-> > > > Besides, there may be an alternative approach to all this.  For example,
-> > > > what if we don't remove struct device objects on eject?  The ACPI handles
-> > > > associated with them don't go away in that case after all, do they?
-> > > 
-> > > Umm...  Sorry, I am not getting your point.  The issue is that we need
-> > > to be able to fail a request when memory range cannot be off-lined.
-> > > Otherwise, we end up ejecting online memory range.
-> > 
-> > Yes, this is the major one.  The minor issue, however, is a race condition
-> > between unbinding a driver from a device and removing the device if I
-> > understand it correctly.  Which will go away automatically if the device is
-> > not removed in the first place.  Or so I would think. :-)
+On 11/28/2012 01:34 PM, Luck, Tony wrote:
+>>
+>> 2. use boot option
+>>   This is our proposal. New boot option can specify memory range to use
+>>   as movable memory.
 > 
-> I see.  I do not think whether or not the device is removed on eject
-> makes any difference here.  The issue is that after driver_unbind() is
-> done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
-> driver (hence, it cannot fail in prepare_remove), and goes ahead to call
-> _EJ0.  If driver_unbind() did off-line the memory, this is OK.  However,
-> it cannot off-line kernel memory ranges.  So, we basically need to
-> either 1) serialize acpi_bus_hot_remove_device() and driver_unbind(), or
-> 2) make acpi_bus_hot_remove_device() to fail if driver_unbind() is run
-> during the operation.
+> Isn't this just moving the work to the user? To pick good values for the
+> movable areas, they need to know how the memory lines up across
+> node boundaries ... because they need to make sure to allow some
+> non-movable memory allocations on each node so that the kernel can
+> take advantage of node locality.
+> 
+> So the user would have to read at least the SRAT table, and perhaps
+> more, to figure out what to provide as arguments.
+> 
+> Since this is going to be used on a dynamic system where nodes might
+> be added an removed - the right values for these arguments might
+> change from one boot to the next. So even if the user gets them right
+> on day 1, a month later when a new node has been added, or a broken
+> node removed the values would be stale.
+> 
 
-OK, I see the problem now.
+I gave this feedback in person at LCE: I consider the kernel
+configuration option to be useless for anything other than debugging.
+Trying to promote it as an actual solution, to be used by end users in
+the field, is ridiculous at best.
 
-What exactly is triggering the driver_unbind() in this scenario?
+	-hpa
 
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
