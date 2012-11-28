@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 649D96B0078
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 23:34:38 -0500 (EST)
-Received: from mail-ee0-f41.google.com ([74.125.83.41])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TdZM5-0000rF-CC
-	for linux-mm@kvack.org; Wed, 28 Nov 2012 04:34:37 +0000
-Received: by mail-ee0-f41.google.com with SMTP id d41so8999808eek.14
-        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 20:34:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 9CB506B007D
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 23:54:47 -0500 (EST)
+Message-ID: <50B598E7.6090506@huawei.com>
+Date: Wed, 28 Nov 2012 12:53:59 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <5434404.G1ERYjuorE@vostro.rjw.lan>
-References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
-	<1353761958-12810-3-git-send-email-ming.lei@canonical.com>
-	<5434404.G1ERYjuorE@vostro.rjw.lan>
-Date: Wed, 28 Nov 2012 12:34:36 +0800
-Message-ID: <CACVXFVODD9fRqQc3kR58OJm3ERgBWojnx=790xGwu=MPGaSmMA@mail.gmail.com>
-Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B42F32.4050107@gmail.com> <50B58965.7040703@cn.fujitsu.com>
+In-Reply-To: <50B58965.7040703@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: wujianguo <wujianguo106@gmail.com>, hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Wed, Nov 28, 2012 at 5:19 AM, Rafael J. Wysocki <rjw@sisk.pl> wrote:
->
-> Please use counters instead of walking the whole path every time.  Ie. in
-> addition to the flag add a counter to store the number of the device's
-> children having that flag set.
+On 2012/11/28 11:47, Tang Chen wrote:
 
-Even though counter is added, walking the whole path can't be avoided too,
-and may be a explicit walking or recursion, because pm_runtime_set_memalloc_noio
-is required to set or clear the flag(or increase/decrease the counter) of
-devices in the whole path.
+> On 11/27/2012 11:10 AM, wujianguo wrote:
+>>
+>> Hi Tang,
+>>     DMA address can't be set as movable, if some one boot kernel with
+>> movablecore_map=4G@0xa00000 or other memory region that contains DMA address,
+>> system maybe boot failed. Should this case be handled or mentioned
+>> in the change log and kernel-parameters.txt?
+> 
+> Hi Wu,
+> 
+> I think we can use MAX_DMA_PFN and MAX_DMA32_PFN to prevent setting DMA
+> address as movable. Just ignore the address lower than them, and set
+> the rest as movable. How do you think ?
+> 
 
-Thanks,
---
-Ming Lei
+I think it's OK for now.
+
+> And, since we cannot figure out the minimum of memory kernel needs, I
+> think for now, we can just add some warning into kernel-parameters.txt.
+> 
+> Thanks. :)
+> 
+>>
+>> Thanks,
+>> Jianguo Wu
+>>
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
