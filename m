@@ -1,50 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id E1F076B0078
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:34:44 -0500 (EST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH v2 0/5] Add movablecore_map boot option
-Date: Wed, 28 Nov 2012 21:34:43 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com>
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
- <50B5CFAE.80103@huawei.com>
-In-Reply-To: <50B5CFAE.80103@huawei.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 413836B0080
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:34:46 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so6262945pad.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:34:45 -0800 (PST)
+From: Tejun Heo <tj@kernel.org>
+Subject: [PATCH 07/13] cpuset: drop async_rebuild_sched_domains()
+Date: Wed, 28 Nov 2012 13:34:14 -0800
+Message-Id: <1354138460-19286-8-git-send-email-tj@kernel.org>
+In-Reply-To: <1354138460-19286-1-git-send-email-tj@kernel.org>
+References: <1354138460-19286-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>
-Cc: "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
+To: lizefan@huawei.com, paul@paulmenage.org, glommer@parallels.com
+Cc: containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-> 1. use firmware information
->   According to ACPI spec 5.0, SRAT table has memory affinity structure
->   and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
->   Affinity Structure". If we use the information, we might be able to
->   specify movable memory by firmware. For example, if Hot Pluggable
->   Filed is enabled, Linux sets the memory as movable memory.
->=20
-> 2. use boot option
->   This is our proposal. New boot option can specify memory range to use
->   as movable memory.
+get_online_cpus() is already nested inside cgroup_mutex from memcg
+when it's registering cpu notifiers.  Also, in generall, we want to
+make cgroup_mutex one of the outermost locks and be able to use
+get_online_cpus() and friends from cgroup methods.
 
-Isn't this just moving the work to the user? To pick good values for the
-movable areas, they need to know how the memory lines up across
-node boundaries ... because they need to make sure to allow some
-non-movable memory allocations on each node so that the kernel can
-take advantage of node locality.
+Currently, cpuset avoids nesting get_online_cpus() inside cgroup_mutex
+by bouncing sched_domain rebuilding to a work item.  As such nesting
+is gonna be allowed, remove the workqueue bouncing code and always
+rebuild sched_domains synchronously.  This also nests
+sched_domains_mutex inside cgroup_mutex, which should be okay.
 
-So the user would have to read at least the SRAT table, and perhaps
-more, to figure out what to provide as arguments.
+Note that the CPU / memory hotplug path still grabs the two locks in
+the reverse order and thus this is a deadlock hazard; however, the two
+locks are already deadlock-prone and the hotplug path will be updated
+by further patches.
 
-Since this is going to be used on a dynamic system where nodes might
-be added an removed - the right values for these arguments might
-change from one boot to the next. So even if the user gets them right
-on day 1, a month later when a new node has been added, or a broken
-node removed the values would be stale.
+Signed-off-by: Tejun Heo <tj@kernel.org>
+---
+ kernel/cpuset.c | 76 ++++++++++++---------------------------------------------
+ 1 file changed, 16 insertions(+), 60 deletions(-)
 
--Tony
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 8bdd983..2049504 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -61,14 +61,6 @@
+ #include <linux/cgroup.h>
+ 
+ /*
+- * Workqueue for cpuset related tasks.
+- *
+- * Using kevent workqueue may cause deadlock when memory_migrate
+- * is set. So we create a separate workqueue thread for cpuset.
+- */
+-static struct workqueue_struct *cpuset_wq;
+-
+-/*
+  * Tracks how many cpusets are currently defined in system.
+  * When there is only one cpuset (the root cpuset) we can
+  * short circuit some hooks.
+@@ -752,25 +744,25 @@ done:
+ /*
+  * Rebuild scheduler domains.
+  *
+- * Call with neither cgroup_mutex held nor within get_online_cpus().
+- * Takes both cgroup_mutex and get_online_cpus().
++ * If the flag 'sched_load_balance' of any cpuset with non-empty
++ * 'cpus' changes, or if the 'cpus' allowed changes in any cpuset
++ * which has that flag enabled, or if any cpuset with a non-empty
++ * 'cpus' is removed, then call this routine to rebuild the
++ * scheduler's dynamic sched domains.
+  *
+- * Cannot be directly called from cpuset code handling changes
+- * to the cpuset pseudo-filesystem, because it cannot be called
+- * from code that already holds cgroup_mutex.
++ * Call with cgroup_mutex held.  Takes get_online_cpus().
+  */
+-static void do_rebuild_sched_domains(struct work_struct *unused)
++static void rebuild_sched_domains_locked(void)
+ {
+ 	struct sched_domain_attr *attr;
+ 	cpumask_var_t *doms;
+ 	int ndoms;
+ 
++	WARN_ON_ONCE(!cgroup_lock_is_held());
+ 	get_online_cpus();
+ 
+ 	/* Generate domain masks and attrs */
+-	cgroup_lock();
+ 	ndoms = generate_sched_domains(&doms, &attr);
+-	cgroup_unlock();
+ 
+ 	/* Have scheduler rebuild the domains */
+ 	partition_sched_domains(ndoms, doms, attr);
+@@ -778,7 +770,7 @@ static void do_rebuild_sched_domains(struct work_struct *unused)
+ 	put_online_cpus();
+ }
+ #else /* !CONFIG_SMP */
+-static void do_rebuild_sched_domains(struct work_struct *unused)
++static void rebuild_sched_domains_locked(void)
+ {
+ }
+ 
+@@ -790,44 +782,11 @@ static int generate_sched_domains(cpumask_var_t **domains,
+ }
+ #endif /* CONFIG_SMP */
+ 
+-static DECLARE_WORK(rebuild_sched_domains_work, do_rebuild_sched_domains);
+-
+-/*
+- * Rebuild scheduler domains, asynchronously via workqueue.
+- *
+- * If the flag 'sched_load_balance' of any cpuset with non-empty
+- * 'cpus' changes, or if the 'cpus' allowed changes in any cpuset
+- * which has that flag enabled, or if any cpuset with a non-empty
+- * 'cpus' is removed, then call this routine to rebuild the
+- * scheduler's dynamic sched domains.
+- *
+- * The rebuild_sched_domains() and partition_sched_domains()
+- * routines must nest cgroup_lock() inside get_online_cpus(),
+- * but such cpuset changes as these must nest that locking the
+- * other way, holding cgroup_lock() for much of the code.
+- *
+- * So in order to avoid an ABBA deadlock, the cpuset code handling
+- * these user changes delegates the actual sched domain rebuilding
+- * to a separate workqueue thread, which ends up processing the
+- * above do_rebuild_sched_domains() function.
+- */
+-static void async_rebuild_sched_domains(void)
+-{
+-	queue_work(cpuset_wq, &rebuild_sched_domains_work);
+-}
+-
+-/*
+- * Accomplishes the same scheduler domain rebuild as the above
+- * async_rebuild_sched_domains(), however it directly calls the
+- * rebuild routine synchronously rather than calling it via an
+- * asynchronous work thread.
+- *
+- * This can only be called from code that is not holding
+- * cgroup_mutex (not nested in a cgroup_lock() call.)
+- */
+ void rebuild_sched_domains(void)
+ {
+-	do_rebuild_sched_domains(NULL);
++	cgroup_lock();
++	rebuild_sched_domains_locked();
++	cgroup_unlock();
+ }
+ 
+ /**
+@@ -947,7 +906,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
+ 	heap_free(&heap);
+ 
+ 	if (is_load_balanced)
+-		async_rebuild_sched_domains();
++		rebuild_sched_domains_locked();
+ 	return 0;
+ }
+ 
+@@ -1195,7 +1154,7 @@ static int update_relax_domain_level(struct cpuset *cs, s64 val)
+ 		cs->relax_domain_level = val;
+ 		if (!cpumask_empty(cs->cpus_allowed) &&
+ 		    is_sched_load_balance(cs))
+-			async_rebuild_sched_domains();
++			rebuild_sched_domains_locked();
+ 	}
+ 
+ 	return 0;
+@@ -1287,7 +1246,7 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
+ 	mutex_unlock(&callback_mutex);
+ 
+ 	if (!cpumask_empty(trialcs->cpus_allowed) && balance_flag_changed)
+-		async_rebuild_sched_domains();
++		rebuild_sched_domains_locked();
+ 
+ 	if (spread_flag_changed)
+ 		update_tasks_flags(cs, &heap);
+@@ -1905,7 +1864,7 @@ static void cpuset_css_offline(struct cgroup *cgrp)
+ /*
+  * If the cpuset being removed has its flag 'sched_load_balance'
+  * enabled, then simulate turning sched_load_balance off, which
+- * will call async_rebuild_sched_domains().
++ * will call rebuild_sched_domains_locked().
+  */
+ 
+ static void cpuset_css_free(struct cgroup *cont)
+@@ -2210,9 +2169,6 @@ void __init cpuset_init_smp(void)
+ 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+ 
+ 	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
+-
+-	cpuset_wq = create_singlethread_workqueue("cpuset");
+-	BUG_ON(!cpuset_wq);
+ }
+ 
+ /**
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
