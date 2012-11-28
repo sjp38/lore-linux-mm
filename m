@@ -1,89 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 51ED96B006C
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:11:15 -0500 (EST)
-Message-ID: <1354136568.26955.312.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 28 Nov 2012 14:02:48 -0700
-In-Reply-To: <9212118.3s2xH6uJDI@vostro.rjw.lan>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <2804331.4p7pU4ARvy@vostro.rjw.lan>
-	 <1354118473.26955.208.camel@misato.fc.hp.com>
-	 <9212118.3s2xH6uJDI@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 6FCF36B0070
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:17:46 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id t2so12624225qcq.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:17:45 -0800 (PST)
+Date: Wed, 28 Nov 2012 13:17:53 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: O_DIRECT on tmpfs (again)
+In-Reply-To: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
+Message-ID: <alpine.LNX.2.00.1211281248270.14968@eggly.anvils>
+References: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dave Kleikamp <dave.kleikamp@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-> > > > > > > Consider the following case:
-> > > > > > > 
-> > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > 
-> > > > > > > CPUa                                                  CPUb
-> > > > > > > acpi_memory_device_notify()
-> > > > > > >                                        unbind it from the driver
-> > > > > > >     acpi_bus_hot_remove_device()
-> > > > > > 
-> > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
-> > > > > > bound with a driver?  If so, can we make the unbind operation to perform
-> > > > > > unbind only?
-> > > > > 
-> > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
-> > > > > if it's not present (dev->driver == NULL).
-> > > > > 
-> > > > > But there can still be a race between an eject and an unbind operation happening
-> > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
-> > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
-> > > > > for other acpi devices?
-> > > > > 
-> > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
-> > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
-> > > > > probably not grabbed on SCI-initiated acpi ejects.
-> > > > 
-> > > > Since driver_unbind() calls device_lock(dev->parent) before calling
-> > > > device_release_driver(), I am wondering if we can call
-> > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
-> > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
-> > > > parent lock is otherwise released after device_release_driver() is done.
-> > > 
-> > > I would be careful.  You may introduce some subtle locking-related issues
-> > > this way.
-> > 
-> > Right.  This requires careful inspection and testing.  As far as the
-> > locking is concerned, I am not keen on using fine grained locking for
-> > hot-plug.  It is much simpler and solid if we serialize such operations.
-> > 
-> > > Besides, there may be an alternative approach to all this.  For example,
-> > > what if we don't remove struct device objects on eject?  The ACPI handles
-> > > associated with them don't go away in that case after all, do they?
-> > 
-> > Umm...  Sorry, I am not getting your point.  The issue is that we need
-> > to be able to fail a request when memory range cannot be off-lined.
-> > Otherwise, we end up ejecting online memory range.
+On Tue, 27 Nov 2012, Jeff Moyer wrote:
+
+> Hi Hugh and others,
 > 
-> Yes, this is the major one.  The minor issue, however, is a race condition
-> between unbinding a driver from a device and removing the device if I
-> understand it correctly.  Which will go away automatically if the device is
-> not removed in the first place.  Or so I would think. :-)
+> In 2007, there were some discussions on whether to allow opens to
+> specify O_DIRECT for files backed by tmpfs.[1][2] On the surface, it
+> sounds like a completely crazy thing to do.  However, distributions like
+> Fedora are now defaulting to using a tmpfs /tmp.  I'm not aware of any
+> applications that open temp files using O_DIRECT, but I wanted to get
+> some new discussion going on whether this is a reasonable thing to
+> expect to work.
+> 
+> Thoughts?
+> 
+> Cheers,
+> Jeff
+> 
+> [1] https://lkml.org/lkml/2007/1/4/55
+> [2] http://thread.gmane.org/gmane.linux.kernel/482031
 
-I see.  I do not think whether or not the device is removed on eject
-makes any difference here.  The issue is that after driver_unbind() is
-done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
-driver (hence, it cannot fail in prepare_remove), and goes ahead to call
-_EJ0.  If driver_unbind() did off-line the memory, this is OK.  However,
-it cannot off-line kernel memory ranges.  So, we basically need to
-either 1) serialize acpi_bus_hot_remove_device() and driver_unbind(), or
-2) make acpi_bus_hot_remove_device() to fail if driver_unbind() is run
-during the operation.
+Thanks a lot for refreshing my memory with those links.
 
-Thanks,
--Toshi
+Whilst I agree with every contradictory word I said back then ;)
+my current position is to wait to see what happens with Shaggy's "loop:
+Issue O_DIRECT aio using bio_vec" https://lkml.org/lkml/2012/11/22/847
+
+I've been using loop on tmpfs-file in testing for years, and will not
+allow that to go away.  I've not yet tried applying the patches and
+fixing up mm/shmem.c to suit, but will make sure that it's working
+before a release emerges with those changes in.
+
+It would be possible to add nominal O_DIRECT support to tmpfs without
+that, and perhaps it would be possible to add that loop support without
+enabling O_DIRECT from userspace; but my inclination is to make those
+changes together.
+
+(I'm not thinking of doing ramfs and hugetlbfs too.)
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
