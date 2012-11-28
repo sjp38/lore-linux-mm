@@ -1,109 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id BF5346B004D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:36:10 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
-Date: Wed, 28 Nov 2012 19:40:54 +0100
-Message-ID: <9212118.3s2xH6uJDI@vostro.rjw.lan>
-In-Reply-To: <1354118473.26955.208.camel@misato.fc.hp.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <2804331.4p7pU4ARvy@vostro.rjw.lan> <1354118473.26955.208.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 775E36B0062
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:44:49 -0500 (EST)
+Date: Wed, 28 Nov 2012 13:44:33 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v2 -mm] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121128184433.GH2301@cmpxchg.org>
+References: <20121126131837.GC17860@dhcp22.suse.cz>
+ <50B403CA.501@jp.fujitsu.com>
+ <20121127194813.GP24381@cmpxchg.org>
+ <20121127205431.GA2433@dhcp22.suse.cz>
+ <20121127205944.GB2433@dhcp22.suse.cz>
+ <20121128152631.GT24381@cmpxchg.org>
+ <20121128160447.GH12309@dhcp22.suse.cz>
+ <20121128163736.GV24381@cmpxchg.org>
+ <20121128164640.GB22201@dhcp22.suse.cz>
+ <20121128164824.GC22201@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121128164824.GC22201@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
 
-On Wednesday, November 28, 2012 09:01:13 AM Toshi Kani wrote:
-> On Wed, 2012-11-28 at 00:41 +0100, Rafael J. Wysocki wrote:
-> > On Tuesday, November 27, 2012 03:03:47 PM Toshi Kani wrote:
-> > > On Tue, 2012-11-27 at 19:32 +0100, Vasilis Liaskovitis wrote:
-> > > > On Mon, Nov 26, 2012 at 05:19:01PM -0700, Toshi Kani wrote:
-> > > > > > >> Consider the following sequence of operations for a hotplugged memory
-> > > > > > >> device:
-> > > > > > >>
-> > > > > > >> 1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
-> > > > > > >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> > > > > > >>
-> > > > > > >> If we don't offline/remove the memory, we have no chance to do it in
-> > > > > > >> step 2. After
-> > > > > > >> step2, the memory is used by the kernel, but we have powered off it. It
-> > > > > > >> is very
-> > > > > > >> dangerous.
-> > > > > > > 
-> > > > > > > How does power-off happen after unbind? acpi_eject_store checks for existing
-> > > > > > > driver before taking any action:
-> > > > > > > 
-> > > > > > > #ifndef FORCE_EJECT
-> > > > > > > 	if (acpi_device->driver == NULL) {
-> > > > > > > 		ret = -ENODEV;
-> > > > > > > 		goto err;
-> > > > > > > 	}
-> > > > > > > #endif
-> > > > > > > 
-> > > > > > > FORCE_EJECT is not defined afaict, so the function returns without scheduling
-> > > > > > > acpi_bus_hot_remove_device. Is there another code path that calls power-off?
-> > > > > > 
-> > > > > > Consider the following case:
-> > > > > > 
-> > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > 
-> > > > > > CPUa                                                  CPUb
-> > > > > > acpi_memory_device_notify()
-> > > > > >                                        unbind it from the driver
-> > > > > >     acpi_bus_hot_remove_device()
-> > > > > 
-> > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
-> > > > > bound with a driver?  If so, can we make the unbind operation to perform
-> > > > > unbind only?
-> > > > 
-> > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
-> > > > if it's not present (dev->driver == NULL).
-> > > > 
-> > > > But there can still be a race between an eject and an unbind operation happening
-> > > > simultaneously. This seems like a general problem to me i.e. not specific to an
-> > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
-> > > > for other acpi devices?
-> > > > 
-> > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
-> > > > happening? Driver core does a device_lock(dev) on all operations, but this is
-> > > > probably not grabbed on SCI-initiated acpi ejects.
+On Wed, Nov 28, 2012 at 05:48:24PM +0100, Michal Hocko wrote:
+> On Wed 28-11-12 17:46:40, Michal Hocko wrote:
+> > On Wed 28-11-12 11:37:36, Johannes Weiner wrote:
+> > > On Wed, Nov 28, 2012 at 05:04:47PM +0100, Michal Hocko wrote:
+> > > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > > > index 095d2b4..5abe441 100644
+> > > > --- a/include/linux/memcontrol.h
+> > > > +++ b/include/linux/memcontrol.h
+> > > > @@ -57,13 +57,14 @@ extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
+> > > >  				gfp_t gfp_mask);
+> > > >  /* for swap handling */
+> > > >  extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+> > > > -		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
+> > > > +		struct page *page, gfp_t mask, struct mem_cgroup **memcgp,
+> > > > +		bool oom);
 > > > 
-> > > Since driver_unbind() calls device_lock(dev->parent) before calling
-> > > device_release_driver(), I am wondering if we can call
-> > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
-> > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
-> > > parent lock is otherwise released after device_release_driver() is done.
+> > > Ok, now I feel almost bad for asking, but why the public interface,
+> > > too?
 > > 
-> > I would be careful.  You may introduce some subtle locking-related issues
-> > this way.
+> > Would it work out if I tell it was to double check that your review
+> > quality is not decreased after that many revisions? :P
+
+Deal.
+
+> >From e21bb704947e9a477ec1df9121575c606dbfcb52 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Wed, 28 Nov 2012 17:46:32 +0100
+> Subject: [PATCH] memcg: do not trigger OOM from add_to_page_cache_locked
 > 
-> Right.  This requires careful inspection and testing.  As far as the
-> locking is concerned, I am not keen on using fine grained locking for
-> hot-plug.  It is much simpler and solid if we serialize such operations.
+> memcg oom killer might deadlock if the process which falls down to
+> mem_cgroup_handle_oom holds a lock which prevents other task to
+> terminate because it is blocked on the very same lock.
+> This can happen when a write system call needs to allocate a page but
+> the allocation hits the memcg hard limit and there is nothing to reclaim
+> (e.g. there is no swap or swap limit is hit as well and all cache pages
+> have been reclaimed already) and the process selected by memcg OOM
+> killer is blocked on i_mutex on the same inode (e.g. truncate it).
 > 
-> > Besides, there may be an alternative approach to all this.  For example,
-> > what if we don't remove struct device objects on eject?  The ACPI handles
-> > associated with them don't go away in that case after all, do they?
+> Process A
+> [<ffffffff811109b8>] do_truncate+0x58/0xa0		# takes i_mutex
+> [<ffffffff81121c90>] do_last+0x250/0xa30
+> [<ffffffff81122547>] path_openat+0xd7/0x440
+> [<ffffffff811229c9>] do_filp_open+0x49/0xa0
+> [<ffffffff8110f7d6>] do_sys_open+0x106/0x240
+> [<ffffffff8110f950>] sys_open+0x20/0x30
+> [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+> [<ffffffffffffffff>] 0xffffffffffffffff
 > 
-> Umm...  Sorry, I am not getting your point.  The issue is that we need
-> to be able to fail a request when memory range cannot be off-lined.
-> Otherwise, we end up ejecting online memory range.
+> Process B
+> [<ffffffff8110a9c1>] mem_cgroup_handle_oom+0x241/0x3b0
+> [<ffffffff8110b5ab>] T.1146+0x5ab/0x5c0
+> [<ffffffff8110c22e>] mem_cgroup_cache_charge+0xbe/0xe0
+> [<ffffffff810ca28c>] add_to_page_cache_locked+0x4c/0x140
+> [<ffffffff810ca3a2>] add_to_page_cache_lru+0x22/0x50
+> [<ffffffff810ca45b>] grab_cache_page_write_begin+0x8b/0xe0
+> [<ffffffff81193a18>] ext3_write_begin+0x88/0x270
+> [<ffffffff810c8fc6>] generic_file_buffered_write+0x116/0x290
+> [<ffffffff810cb3cc>] __generic_file_aio_write+0x27c/0x480
+> [<ffffffff810cb646>] generic_file_aio_write+0x76/0xf0           # takes ->i_mutex
+> [<ffffffff8111156a>] do_sync_write+0xea/0x130
+> [<ffffffff81112183>] vfs_write+0xf3/0x1f0
+> [<ffffffff81112381>] sys_write+0x51/0x90
+> [<ffffffff815b5926>] system_call_fastpath+0x18/0x1d
+> [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> This is not a hard deadlock though because administrator can still
+> intervene and increase the limit on the group which helps the writer to
+> finish the allocation and release the lock.
+> 
+> This patch heals the problem by forbidding OOM from page cache charges
+> (namely add_ro_page_cache_locked). mem_cgroup_cache_charge grows oom
+> argument which is pushed down the call chain.
+> 
+> As a possibly visible result add_to_page_cache_lru might fail more often
+> with ENOMEM but this is to be expected if the limit is set and it is
+> preferable than OOM killer IMO.
+> 
+> Changes since v1
+> - do not abuse gfp_flags and rather use oom parameter directly as per
+>   Johannes
+> - handle also shmem write fauls resp. fallocate properly as per Johannes
+> 
+> Reported-by: azurIt <azurit@pobox.sk>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Yes, this is the major one.  The minor issue, however, is a race condition
-between unbinding a driver from a device and removing the device if I
-understand it correctly.  Which will go away automatically if the device is
-not removed in the first place.  Or so I would think. :-)
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Thanks,
-Rafael
-
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Thanks, Michal!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
