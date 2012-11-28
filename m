@@ -1,54 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 37BA96B004D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 05:10:21 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
-Date: Wed, 28 Nov 2012 11:15:05 +0100
-Message-ID: <2662154.Tcp7v84XkT@vostro.rjw.lan>
-In-Reply-To: <CACVXFVOk45wr8jv3w=KO7uTThGSTSkq0FRsPD6p_AyQZLWGQJg@mail.gmail.com>
-References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com> <1408044.6czCGhbHJH@vostro.rjw.lan> <CACVXFVOk45wr8jv3w=KO7uTThGSTSkq0FRsPD6p_AyQZLWGQJg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 3C3AE6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 05:14:04 -0500 (EST)
+Date: Wed, 28 Nov 2012 10:13:59 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd craziness in 3.7
+Message-ID: <20121128101359.GT8218@suse.de>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+ <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+ <50B52DC4.5000109@redhat.com>
+ <20121127214928.GA20253@cmpxchg.org>
+ <50B5387C.1030005@redhat.com>
+ <20121127222637.GG2301@cmpxchg.org>
+ <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <ming.lei@canonical.com>
-Cc: linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wednesday, November 28, 2012 05:47:18 PM Ming Lei wrote:
-> On Wed, Nov 28, 2012 at 5:29 PM, Rafael J. Wysocki <rjw@sisk.pl> wrote:
+On Tue, Nov 27, 2012 at 03:19:38PM -0800, Linus Torvalds wrote:
+> On Tue, Nov 27, 2012 at 2:26 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Nov 27, 2012 at 05:02:36PM -0500, Rik van Riel wrote:
+> >>
+> >> Kswapd going crazy is certainly a large part of the problem.
+> >>
+> >> However, that leaves the issue of page_alloc.c waking up
+> >> kswapd when the system is not actually low on memory.
+> >>
+> >> Instead, kswapd is woken up because memory compaction failed,
+> >> potentially even due to lock contention during compaction!
+> >>
+> >> Ideally the allocation code would only wake up kswapd if
+> >> memory needs to be freed, or in order for kswapd to do
+> >> memory compaction (so the allocator does not have to).
 > >
-> > But it doesn't have to walk the children.  Moreover, with counters it only
+> > Maybe I missed something, but shouldn't this be solved with my patch?
 > 
-> Yeah, I got it, it is the advantage of counter, but with extra 'int'
-> field introduced
-> in 'struct device'.
+> Ok, guys. Cage fight!
 > 
-> > needs to walk the whole path if all devices in it need to be updated.  For
-> > example, if you call pm_runtime_set_memalloc_noio(dev, true) for a device
-> > whose parent's counter is greater than zero already, you don't need to
-> > walk the path above the parent.
+> The rules are simple: two men enter, one man leaves.
 > 
-> We still can do it with the flag only, pm_runtime_set_memalloc_noio(dev, true)
-> can return immediately if one parent or the 'dev' flag is true.
-> 
-> But considered that the pm_runtime_set_memalloc_noio(dev, false) is only
-> called in a very infrequent path(network/block device->remove()), looks the
-> introduced cost isn't worthy of the obtained advantage.
-> 
-> So could you accept not introducing counter? and I will update with the
-> above improvement you suggested.
 
-Well, please see my other message I sent a while ago. :-)
+I'm fairly scorch damaged from this whole cycle already. I won't need a
+prop master to look the part for a thunderdome match.
 
-Thanks,
-Rafael
+> And the one who comes out gets to explain to me which patch(es) I
+> should apply, and which I should revert, if any.
+> 
 
+Based on the reports I've seen I expect the following to work for 3.7
+
+Keep
+  96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
+  ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
+
+Revert
+  82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
+
+Merge
+  mm: vmscan: fix kswapd endless loop on higher order allocation
+  mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
+
+Johannes' patch should remove the necessity for __GFP_NO_KSWAPD revert but I
+think we should also avoid waking kswapd for THP allocations if compaction
+is deferred. Johannes' patch might mean that kswapd goes quickly go back
+to sleep but it's still busy work.
+
+3.6 is still known to be screwed in terms of THP because of the amount of
+time it can spend in compaction after lumpy reclaim was removed. This is
+my old list of patches I felt needed to be backported after 3.7 came out.
+They are not tagged -stable, I'll be sending it to Greg manually.
+
+e64c523 mm: compaction: abort compaction loop if lock is contended or run too long
+3cc668f mm: compaction: move fatal signal check out of compact_checklock_irqsave
+661c4cb mm: compaction: Update try_to_compact_pages()kerneldoc comment
+2a1402a mm: compaction: acquire the zone->lru_lock as late as possible
+f40d1e4 mm: compaction: acquire the zone->lock as late as possible
+753341a revert "mm: have order > 0 compaction start off where it left"
+bb13ffe mm: compaction: cache if a pageblock was scanned and no pages were isolated
+c89511a mm: compaction: Restart compaction from near where it left off
+6299702 mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
+0db63d7 mm: compaction: correct the nr_strict va isolated check for CMA
+
+Only Johannes' patch needs to be added to this list. kswapd is not woken
+for THP in 3.6 but as it calls compaction for other high-order allocations
+it still makes sense.
 
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
