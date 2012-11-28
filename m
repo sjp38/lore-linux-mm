@@ -1,60 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 19F4D6B004D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 03:52:48 -0500 (EST)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 353B23EE0C0
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:46 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BD4645DE59
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 048B045DE58
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:46 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id E5DDB1DB8042
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:45 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77F7EE38002
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:45 +0900 (JST)
-Message-ID: <50B5D0C8.2010209@jp.fujitsu.com>
-Date: Wed, 28 Nov 2012 17:52:24 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 3E5156B004D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 04:17:50 -0500 (EST)
+Date: Wed, 28 Nov 2012 10:17:45 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
+ iterators
+Message-ID: <20121128091745.GC12309@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+ <1353955671-14385-4-git-send-email-mhocko@suse.cz>
+ <50B5CFBF.2090100@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2 4/6] memcg: simplify mem_cgroup_iter
-References: <1353955671-14385-1-git-send-email-mhocko@suse.cz> <1353955671-14385-5-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1353955671-14385-5-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50B5CFBF.2090100@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-(2012/11/27 3:47), Michal Hocko wrote:
-> Current implementation of mem_cgroup_iter has to consider both css and
-> memcg to find out whether no group has been found (css==NULL - aka the
-> loop is completed) and that no memcg is associated with the found node
-> (!memcg - aka css_tryget failed because the group is no longer alive).
-> This leads to awkward tweaks like tests for css && !memcg to skip the
-> current node.
+On Wed 28-11-12 17:47:59, KAMEZAWA Hiroyuki wrote:
+> (2012/11/27 3:47), Michal Hocko wrote:
+[...]
+> > +		/*
+> > +		 * Even if we found a group we have to make sure it is alive.
+> > +		 * css && !memcg means that the groups should be skipped and
+> > +		 * we should continue the tree walk.
+> > +		 * last_visited css is safe to use because it is protected by
+> > +		 * css_get and the tree walk is rcu safe.
+> > +		 */
+> > +		if (css == &root->css || (css && css_tryget(css)))
+> > +			memcg = mem_cgroup_from_css(css);
 > 
-> It will be much easier if we got rid off css variable altogether and
-> only rely on memcg. In order to do that the iteration part has to skip
-> dead nodes. This sounds natural to me and as a nice side effect we will
-> get a simple invariant that memcg is always alive when non-NULL and all
-> nodes have been visited otherwise.
-> 
-> We could get rid of the surrounding while loop but keep it in for now to
-> make review easier. It will go away in the following patch.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Could you note that this iterator will never visit dangling(removed)
+> memcg, somewhere ?
 
-seems nice clean up. I'll ack when I ack 3/6 and we make agreement on that
-iterator will skip dead node.
+OK, I can add it to the function comment but the behavior hasn't changed
+so I wouldn't like to confuse anybody.
 
-Thanks,
--Kame
+> Hmm, I'm not sure but it may be trouble at shrkinking dangling
+> kmem_cache(slab).
+
+We do not shrink slab at all. Those objects that are in a dead memcg
+wait for their owner tho release them which will make the dangling group
+eventually go away
+
+> 
+> Costa, how do you think ?
+> 
+> I guess there is no problem with swap and not against the way you go.
+
+Yes, swap should be OK. Pages charged against removed memcg will
+fallback to the the current's mm (try_get_mem_cgroup_from_page and
+__mem_cgroup_try_charge_swapin)
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
