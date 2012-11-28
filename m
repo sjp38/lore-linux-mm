@@ -1,282 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id EA7C16B0078
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 08:49:37 -0500 (EST)
-Date: Wed, 28 Nov 2012 13:49:30 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 00/45] Automatic NUMA Balancing V7
-Message-ID: <20121128134930.GB20087@suse.de>
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
- <20121126145800.GK8218@suse.de>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 966476B007D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 08:51:14 -0500 (EST)
+Received: from mail-ea0-f169.google.com ([209.85.215.169])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1Tdi2j-0002gA-IU
+	for linux-mm@kvack.org; Wed, 28 Nov 2012 13:51:13 +0000
+Received: by mail-ea0-f169.google.com with SMTP id a12so5566190eaa.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 05:51:13 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121126145800.GK8218@suse.de>
+In-Reply-To: <2254856.YsOm9y7BK1@vostro.rjw.lan>
+References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
+	<5434404.G1ERYjuorE@vostro.rjw.lan>
+	<CACVXFVP=3s3pawyEbogjb=PfbSeD1B+LFk7g04FAMkGuXDQUbQ@mail.gmail.com>
+	<2254856.YsOm9y7BK1@vostro.rjw.lan>
+Date: Wed, 28 Nov 2012 21:51:13 +0800
+Message-ID: <CACVXFVN9RSU+j48cDVqc5mL=++y0BLc58BBRSxa_OWysysqQeg@mail.gmail.com>
+Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
+From: Ming Lei <ming.lei@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
 
-Like V6, I'm only posting the git tree reference instead of sending out a
-flood of emails as the differences are small. The v7 release is justified
-by a page count reference bug identified and fixed by Hillf Danton in the
-transhuge migration patch.
+On Wed, Nov 28, 2012 at 6:06 PM, Rafael J. Wysocki <rjw@sisk.pl> wrote:
+>
+> Well, it may be unfrequent, but does it mean it has to do things that may
+> be avoided (ie. walking the children of every node in the path in some cases)?
 
-I'll send the full series if people would prefer that.
+I agree so without introducing extra cost, :-)
 
-git tree: git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git mm-balancenuma-v7r6
-git tag:  git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git mm-balancenuma-v7
+> I don't really think that the counters would cost us that much anyway.
 
-Changelog since V6
-  o Transfer last_nid information during transhuge migration		(dhillf)
-  o Transfer last_nid information during splits				(dhillf)
-  o Drop page reference if target node is full				(dhillf)
-  o Account for transhuge allocation failure as migration failure	(mel)
+On ARM v7, sizeof(struct device) becomes 376 from 368 after introducing
+'unsigned int            noio_cnt;' to 'struct dev_pm_info', and total memory
+increases about 3752bytes in a small configuration(about 494 device instance).
+The actual memory increase should be more than the data because 'struct device'
+is generally embedded into other concrete device structure.
 
-Changelog since V5
-  o Fix build errors related to config options, make bisect-safe
-  o Account for transhuge migrations
-  o Count HPAGE_PMD_NR pages when isolating transhuge
-  o Account for local transphuge faults
-  o Fix a memory leak on isolation failure
+>> Also looks the current implementation of pm_runtime_set_memalloc_noio()
+>> is simple and clean enough with the flag, IMO.
+>
+> I know you always know better. :-)
 
-Changelog since V4
-  o Allow enabling/disable from command line
-  o Delay PTE scanning until tasks are running on a new node
-  o THP migration bits needed for memcg
-  o Adapt the scanning rate depending on whether pages need to migrate
-  o Drop all the scheduler policy stuff on top, it was broken
+We still need to consider cost and the function calling frequency, :-)
 
-Changelog since V3
-  o Use change_protection
-  o Architecture-hook twiddling
-  o Port of the THP migration patch.
-  o Additional TLB optimisations
-  o Fixes from Hillf Danton
+>
+>> > I would use the flag only to store the information that
+>> > pm_runtime_set_memalloc_noio(dev, true) has been run for this device directly
+>> > and I'd use a counter for everything else.
+>> >
+>> > That is, have power.memalloc_count that would be incremented when (1)
+>> > pm_runtime_set_memalloc_noio(dev, true) is called for that device and (2) when
+>> > power.memalloc_count for one of its children changes from 0 to 1 (and
+>> > analogously for decrementation).  Then, check the counter in rpm_callback().
+>>
+>> Sorry, could you explain in a bit detail why we need the counter? Looks only
+>> checking the flag in rpm_callback() is enough, doesn't it?
+>
+> Why would I want to use power.memalloc_count in addition to the
+> power.memalloc_noio flag?
+>
+> Consider this:
+>
+> pm_runtime_set_memalloc_noio(dev):
+>         return if power.memalloc_noio is set
+>         set power.memalloc_noio
+>   loop:
+>         increment power.memalloc_count
+>         if power.memalloc_count is 1 now switch to parent and go to loop
 
-Changelog since V2
-  o Do not allocate from home node
-  o Mostly remove pmd_numa handling for regular pmds
-  o HOME policy will allocate from and migrate towards local node
-  o Load balancer is more aggressive about moving tasks towards home node
-  o Renames to sync up more with -tip version
-  o Move pte handlers to generic code
-  o Scanning rate starts at 100ms, system CPU usage expected to increase
-  o Handle migration of PMD hinting faults
-  o Rate limit migration on a per-node basis
-  o Alter how the rate of PTE scanning is adapted
-  o Rate limit setting of pte_numa if node is congested
-  o Only flush local TLB is unmapping a pte_numa page
-  o Only consider one CPU in cpu follow algorithm
+I am wondering if the above should be changed to below because the child
+count of memalloc_noio device need to be recorded.
 
-Changelog since V1
-  o Account for faults on the correct node after migration
-  o Do not account for THP splits as faults.
-  o Account THP faults on the node they occurred
-  o Ensure preferred_node_policy is initialised before use
-  o Mitigate double faults
-  o Add home-node logic
-  o Add some tlb-flush mitigation patches
-  o Add variation of CPU follows memory algorithm
-  o Add last_nid and use it as a two-stage filter before migrating pages
-  o Restart the PTE scanner when it reaches the end of the address space
-  o Lots of stuff I did not note properly
+pm_runtime_set_memalloc_noio(dev):
+         return if power.memalloc_noio is set
+         set power.memalloc_noio
+loop:
+         increment power.memalloc_count
+         switch to parent and go to loop
 
-There are currently two (three depending on how you look at it) competing
-approaches to implement support for automatically migrating pages to
-optimise NUMA locality. Performance results are available but review
-highlighted different problems in both.  They are not compatible with each
-other even though some fundamental mechanics should have been the same.
-This series addresses part of the integration and sharing problem by
-implementing a foundation that either the policy for schednuma or autonuma
-can be rebased on.
+So pm_runtime_set_memalloc_noio(dev) will become worse than
+the improved pm_runtime_set_memalloc_noio(dev, true), which
+can return immediately if one dev or parent's flag is true.
 
-The initial policy it implements is a very basic greedy policy called
-"Migrate On Reference Of pte_numa Node (MORON)".  I expect people to
-build upon this revised policy and rename it to something more sensible
-that reflects what it means. The ideal *worst-case* behaviour is that
-it is comparable to current mainline but for some workloads this is an
-improvement over mainline.
+> pm_runtime_clear_memalloc_noio(dev):
+>         return if power.memalloc_noio is unset
+>         unset power.memalloc_noio
+>   loop:
+>         decrement power.memalloc_count
+>         if power.memalloc_count is 0 now switch to parent and go to loop
 
-This series can be treated as 5 major stages.
+The above will perform well than pm_runtime_set_memalloc_noio(dev, false),
+because the above avoids to walk children of device.
 
-1. TLB optimisations that we're likely to want unconditionally.
-2. Basic foundation and core mechanics, initial policy that does very little
-3. Full PMD fault handling, rate limiting of migration, two-stage migration
-   filter to mitigate poor migration decisions.  This will migrate pages
-   on a PTE or PMD level using just the current referencing CPU as a
-   placement hint
-4. Scan rate adaption
-5. Native THP migration
+So one becomes worse and another becomes better, :-)
 
-Very broadly speaking the TODOs that spring to mind are
+Also the children count of one device is generally very small, less than
+10 for most devices, see the data obtained in one common x86 pc(thinkpad
+t410) from below link:
 
-1. Revisit MPOL_NOOP and MPOL_MF_LAZY
-2. Other architecture support or at least validation that it could be made work. I'm
-   half-hoping that the PPC64 people are watching because they tend to be interested
-   in this type of thing.
+        http://kernel.ubuntu.com/~ming/up/t410-dev-child-cnt.log
 
-Some advantages of the series are;
+- about 8 devices whose child count is more than 10, top three are 18, 17 ,12,
+and all the three are root devices.
 
-1. It handles regular PMDs which reduces overhead in case where pages within
-   a PMD are on the same node
-2. It rate limits migrations to avoid saturating the bus and backs off
-   PTE scanning (in a fairly heavy manner) if the node is rate-limited
-3. It keeps major optimisations like THP towards the end to be sure I am
-   not accidentally depending on them
-4. It has some vmstats which allow a user to make a rough guess as to how
-   much overhead the balancing is introducing
-5. It implements a basic policy that acts as a second performance baseline.
-   The three baselines become vanilla kernel, basic placement policy,
-   complex placement policy. This allows like-with-like comparisons with
-   implementations.
+- about 117 devices whose child count is between 1 and 9
 
-In terms of building on top of the foundation the ideal would be that
-patches affect one of the following areas although obviously that will
-not always be possible
+- other 501 devices whose child count is zero
 
-1. The PTE update helper functions
-2. The PTE scanning machinary driven from task_numa_tick
-3. Task and process fault accounting and how that information is used
-   to determine if a page is misplaced
-4. Fault handling, migrating the page if misplaced, what information is
-   provided to the placement policy
-5. Scheduler and load balancing
+>From above data, walking device children should have not much effect on
+performance of pm_runtime_set_memalloc_noio(), which is also called in
+very infrequent path.
 
-Patches in this series are as follows.
+> Looks kind of simpler, doesn't it?
 
-Patches 1-5 are some TLB optimisations that mostly make sense on their own.
-	They are likely to make it into the tree either way
+Looks simpler, but more code lines than single
+pm_runtime_set_memalloc_noio(), :-)
 
-Patches 6-7 are an mprotect optimisation
+>
+> And why rpm_callback() should check power.memalloc_count instead of the count?
+> Because power.memalloc_noio will only be set for devices that
+> pm_runtime_set_memalloc_noio(dev) was called for directly (not necessarily for
+> the parents).
+>
+> And that works even if someone calls any of them twice in a row for the same
+> device (presumably by mistake) and doesn't have to make any assumptions
+> about devices it is called for.
 
-Patches 8-10 move some vmstat counters so that migrated pages get accounted
-	for. In the past the primary user of migration was compaction but
-	if pages are to migrate for NUMA optimisation then the counters
-	need to be generally useful.
+IMO, we can ignore the mistake usage because the function is called only
+in network/block core code currently, not by individual driver.
 
-Patch 11 defines an arch-specific PTE bit called _PAGE_NUMA that is used
-	to trigger faults later in the series. A placement policy is expected
-	to use these faults to determine if a page should migrate.  On x86,
-	the bit is the same as _PAGE_PROTNONE but other architectures
-	may differ. Note that it is also possible to avoid using this bit
-	and go with plain PROT_NONE but the resulting helpers are then
-	heavier.
+>
+>> > Besides, don't you need to check children for the arg device itself?
+>>
+>> It isn't needed since the children of network/block device can't be
+>> involved of the deadlock in runtime PM path.
+>>
+>> Also, the function is only called by network device or block device
+>> subsystem, both the two kind of device are class device and should
+>> have no children.
+>
+> OK, so not walking the arg device's children is an optimization related to
+> some assumptions regarding who's supposed to use this routine.  That should
+> be clearly documented.
 
-Patch 12-14 defines pte_numa, pmd_numa, pte_mknuma, pte_mknonuma and
-	friends, updated GUP and huge page splitting.
+I think the patch already documents it in the comment of
+pm_runtime_set_memalloc_noio().
 
-Patch 15 creates the fault handler for p[te|md]_numa PTEs and just clears
-	them again.
-
-Patch 16 adds a MPOL_LOCAL policy so applications can explicitly request the
-	historical behaviour.
-
-Patch 17 is premature but adds a MPOL_NOOP policy that can be used in
-	conjunction with the LAZY flags introduced later in the series.
-
-Patch 18 adds migrate_misplaced_page which is responsible for migrating
-	a page to a new location.
-
-Patch 19-20 migrates the page on fault if mpol_misplaced() says to do so.
-
-Patch 21 updates the page fault handlers. Transparent huge pages are split.
-	Pages pointed to by PTEs are migrated. Pages pointed to by PMDs
-	are not properly handed until later in the series.
-
-Patch 22 adds a MPOL_MF_LAZY mempolicy that an interested application can use.
-	On the next reference the memory should be migrated to the node that
-	references the memory.
-
-Patch 23 reimplements change_prot_numa in terms of change_protection. It could
-	be collapsed with patch 21 but this might be easier to review.
-
-Patch 24 notes that the MPOL_MF_LAZY and MPOL_NOOP flags have not been properly
-	reviewed and there are no manual pages. They are removed for now and
-	need to be revisited.
-
-Patch 25 sets pte_numa within the context of the scheduler.
-
-Patches 26-28 note that the marking of pte_numa has a number of disadvantages and
-	instead incrementally updates a limited range of the address space
-	each tick.
-
-Patch 29 adds some vmstats that can be used to approximate the cost of the
-	scheduling policy in a more fine-grained fashion than looking at
-	the system CPU usage.
-
-Patch 30 implements the MORON policy.
-
-Patch 31 properly handles the migration of pages faulted when handling a pmd
-	numa hinting fault. This could be improved as it's a bit tangled
-	to follow. PMDs are only marked if the PTEs underneath are expected
-	to point to pages on the same node.
-
-Patches 32-34 rate-limit the number of pages being migrated and marked as pte_numa
-
-Patch 35 slowly decreases the pte_numa update scanning rate
-
-Patch 36-39 introduces last_nid and uses it to build a two-stage filter
-	that delays when a page gets migrated to avoid a situation where
-	a task running temporarily off its home node forces a migration.
-
-Patch 40 adapts the scanning rate if pages do not have to be migrated
-
-Patch 41 allows the enabling/disabling from command line
-
-Patch 42 allows balancenuma to be disabled even if !SCHED_DEBUG
-
-Patch 43 delays PTE scanning until a task is scheduled on a new node
-
-Patch 44 implements native THP migration for NUMA hinting faults.
-
-Patch 45 accounts for transhuge allocation failures as migration failures.
-
- Documentation/kernel-parameters.txt  |    3 +
- arch/sh/mm/Kconfig                   |    1 +
- arch/x86/Kconfig                     |    2 +
- arch/x86/include/asm/pgtable.h       |   17 +-
- arch/x86/include/asm/pgtable_types.h |   20 ++
- arch/x86/mm/pgtable.c                |    8 +-
- include/asm-generic/pgtable.h        |  110 +++++++++++
- include/linux/huge_mm.h              |   14 +-
- include/linux/hugetlb.h              |    8 +-
- include/linux/mempolicy.h            |    8 +
- include/linux/migrate.h              |   45 ++++-
- include/linux/mm.h                   |   39 ++++
- include/linux/mm_types.h             |   31 ++++
- include/linux/mmzone.h               |   13 ++
- include/linux/sched.h                |   27 +++
- include/linux/vm_event_item.h        |   12 +-
- include/linux/vmstat.h               |    8 +
- include/trace/events/migrate.h       |   51 ++++++
- include/uapi/linux/mempolicy.h       |   15 +-
- init/Kconfig                         |   41 +++++
- kernel/fork.c                        |    3 +
- kernel/sched/core.c                  |   71 ++++++--
- kernel/sched/fair.c                  |  227 +++++++++++++++++++++++
- kernel/sched/features.h              |   11 ++
- kernel/sched/sched.h                 |   12 ++
- kernel/sysctl.c                      |   45 ++++-
- mm/compaction.c                      |   15 +-
- mm/huge_memory.c                     |   95 +++++++++-
- mm/hugetlb.c                         |   10 +-
- mm/internal.h                        |    7 +-
- mm/memcontrol.c                      |    7 +-
- mm/memory-failure.c                  |    3 +-
- mm/memory.c                          |  188 ++++++++++++++++++-
- mm/memory_hotplug.c                  |    3 +-
- mm/mempolicy.c                       |  283 ++++++++++++++++++++++++++---
- mm/migrate.c                         |  333 +++++++++++++++++++++++++++++++++-
- mm/mprotect.c                        |  124 ++++++++++---
- mm/page_alloc.c                      |   10 +-
- mm/pgtable-generic.c                 |    9 +-
- mm/vmstat.c                          |   16 +-
- 40 files changed, 1836 insertions(+), 109 deletions(-)
- create mode 100644 include/trace/events/migrate.h
-
--- 
-1.7.9.2
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
