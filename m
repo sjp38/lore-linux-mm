@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 3F5536B007D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:34:51 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so10587559pbc.14
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:34:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 1A7546B0085
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:34:53 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so6262945pad.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 13:34:53 -0800 (PST)
 From: Tejun Heo <tj@kernel.org>
-Subject: [PATCH 09/13] cpuset: don't nest cgroup_mutex inside get_online_cpus()
-Date: Wed, 28 Nov 2012 13:34:16 -0800
-Message-Id: <1354138460-19286-10-git-send-email-tj@kernel.org>
+Subject: [PATCH 10/13] cpuset: make CPU / memory hotplug propagation asynchronous
+Date: Wed, 28 Nov 2012 13:34:17 -0800
+Message-Id: <1354138460-19286-11-git-send-email-tj@kernel.org>
 In-Reply-To: <1354138460-19286-1-git-send-email-tj@kernel.org>
 References: <1354138460-19286-1-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,193 +15,156 @@ List-ID: <linux-mm.kvack.org>
 To: lizefan@huawei.com, paul@paulmenage.org, glommer@parallels.com
 Cc: containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-CPU / memory hotplug path currently grabs cgroup_mutex from hotplug
-event notifications.  As other places nest the other way around, we
-end up with lockdep warning attached below.
+cpuset_hotplug_workfn() has been invoking cpuset_propagate_hotplug()
+directly to propagate hotplug updates to !root cpusets; however, this
+has the following problems.
 
-We want to keep cgroup_mutex outer to most locks including hotplug
-ones.  Break the circular dependency by handling hotplug from a work
-item.  Convert cpuset_handle_hotplug() to cpuset_hotplug_workfn() and
-schedule it from the hotplug notifications.  As the function can
-already handle multiple mixed events without any input, converting it
-to a work function is trivial.
+* cpuset locking is scheduled to be decoupled from cgroup_mutex,
+  cgroup_mutex will be unexported, and cgroup_attach_task() will do
+  cgroup locking internally, so propagation can't synchronously move
+  tasks to a parent cgroup while walking the hierarchy.
 
-This decouples cpuset hotplug handling from the notification callbacks
-and there can be an arbitrary delay between the actual event and
-updates to cpuset.  Scheduler and mm can handle it fine but moving
-tasks out of an empty cpuset may race against writes to the cpuset
-restoring execution resources which can lead to confusing behavior.
-Flush hotplug work item from cpuset_write_resmask() to avoid such
-confusions.
+* We can't use cgroup generic tree iterator because propagation to
+  each cpuset may sleep.  With propagation done asynchronously, we can
+  lose the rather ugly cpuset specific iteration.
 
-  ======================================================
-  [ INFO: possible circular locking dependency detected ]
-  3.7.0-rc4-work+ #42 Not tainted
-  -------------------------------------------------------
-  bash/645 is trying to acquire lock:
-   (cgroup_mutex){+.+.+.}, at: [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
+Convert cpuset_propagate_hotplug() to
+cpuset_propagate_hotplug_workfn() and execute it from newly added
+cpuset->hotplug_work.  The work items are run on an ordered workqueue,
+so the propagation order is preserved.  cpuset_hotplug_workfn()
+schedules all propagations while holding cgroup_mutex and waits for
+completion without cgroup_mutex.  Each in-flight propagation holds a
+reference to the cpuset->css.
 
-  but task is already holding lock:
-   (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff8109300f>] cpu_hotplug_begin+0x2f/0x60
-
-  which lock already depends on the new lock.
-
-
-  the existing dependency chain (in reverse order) is:
-
- -> #1 (cpu_hotplug.lock){+.+.+.}:
-	 [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
-	 [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
-	 [<ffffffff810930fc>] get_online_cpus+0x3c/0x60
-	 [<ffffffff811152fb>] rebuild_sched_domains_locked+0x1b/0x70
-	 [<ffffffff81116718>] cpuset_write_resmask+0x298/0x2c0
-	 [<ffffffff8110f70f>] cgroup_file_write+0x1ef/0x300
-	 [<ffffffff811c3b78>] vfs_write+0xa8/0x160
-	 [<ffffffff811c3e82>] sys_write+0x52/0xa0
-	 [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
-
- -> #0 (cgroup_mutex){+.+.+.}:
-	 [<ffffffff810f74de>] __lock_acquire+0x14ce/0x1d20
-	 [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
-	 [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
-	 [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
-	 [<ffffffff81116deb>] cpuset_handle_hotplug+0x1b/0x560
-	 [<ffffffff8111744e>] cpuset_update_active_cpus+0xe/0x10
-	 [<ffffffff810d0587>] cpuset_cpu_inactive+0x47/0x50
-	 [<ffffffff810c1476>] notifier_call_chain+0x66/0x150
-	 [<ffffffff810c156e>] __raw_notifier_call_chain+0xe/0x10
-	 [<ffffffff81092fa0>] __cpu_notify+0x20/0x40
-	 [<ffffffff81b9827e>] _cpu_down+0x7e/0x2f0
-	 [<ffffffff81b98526>] cpu_down+0x36/0x50
-	 [<ffffffff81b9c12d>] store_online+0x5d/0xe0
-	 [<ffffffff816b6ef8>] dev_attr_store+0x18/0x30
-	 [<ffffffff8123bb50>] sysfs_write_file+0xe0/0x150
-	 [<ffffffff811c3b78>] vfs_write+0xa8/0x160
-	 [<ffffffff811c3e82>] sys_write+0x52/0xa0
-	 [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
-
-  other info that might help us debug this:
-
-   Possible unsafe locking scenario:
-
-	 CPU0                    CPU1
-	 ----                    ----
-    lock(cpu_hotplug.lock);
-				 lock(cgroup_mutex);
-				 lock(cpu_hotplug.lock);
-    lock(cgroup_mutex);
-
-   *** DEADLOCK ***
-
-  5 locks held by bash/645:
-   #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff8123bab8>] sysfs_write_file+0x48/0x150
-   #1:  (s_active#42){.+.+.+}, at: [<ffffffff8123bb38>] sysfs_write_file+0xc8/0x150
-   #2:  (x86_cpu_hotplug_driver_mutex){+.+...}, at: [<ffffffff81079277>] cpu_hotplug_driver_lock+0x17/0x20
-   #3:  (cpu_add_remove_lock){+.+.+.}, at: [<ffffffff81093157>] cpu_maps_update_begin+0x17/0x20
-   #4:  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff8109300f>] cpu_hotplug_begin+0x2f/0x60
-
-  stack backtrace:
-  Pid: 645, comm: bash Not tainted 3.7.0-rc4-work+ #42
-  Call Trace:
-   [<ffffffff81bdadfd>] print_circular_bug+0x28e/0x29f
-   [<ffffffff810f74de>] __lock_acquire+0x14ce/0x1d20
-   [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
-   [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
-   [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
-   [<ffffffff81116deb>] cpuset_handle_hotplug+0x1b/0x560
-   [<ffffffff8111744e>] cpuset_update_active_cpus+0xe/0x10
-   [<ffffffff810d0587>] cpuset_cpu_inactive+0x47/0x50
-   [<ffffffff810c1476>] notifier_call_chain+0x66/0x150
-   [<ffffffff810c156e>] __raw_notifier_call_chain+0xe/0x10
-   [<ffffffff81092fa0>] __cpu_notify+0x20/0x40
-   [<ffffffff81b9827e>] _cpu_down+0x7e/0x2f0
-   [<ffffffff81b98526>] cpu_down+0x36/0x50
-   [<ffffffff81b9c12d>] store_online+0x5d/0xe0
-   [<ffffffff816b6ef8>] dev_attr_store+0x18/0x30
-   [<ffffffff8123bb50>] sysfs_write_file+0xe0/0x150
-   [<ffffffff811c3b78>] vfs_write+0xa8/0x160
-   [<ffffffff811c3e82>] sys_write+0x52/0xa0
-   [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
+This patch doesn't cause any functional difference.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 ---
- kernel/cpuset.c | 28 ++++++++++++++++++++++++----
- 1 file changed, 24 insertions(+), 4 deletions(-)
+ kernel/cpuset.c | 54 ++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 48 insertions(+), 6 deletions(-)
 
 diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 4ab3e4c..b530fba 100644
+index b530fba..3558250 100644
 --- a/kernel/cpuset.c
 +++ b/kernel/cpuset.c
-@@ -252,6 +252,13 @@ static char cpuset_nodelist[CPUSET_NODELIST_LEN];
- static DEFINE_SPINLOCK(cpuset_buffer_lock);
+@@ -99,6 +99,8 @@ struct cpuset {
  
+ 	/* used for walking a cpuset hierarchy */
+ 	struct list_head stack_list;
++
++	struct work_struct hotplug_work;
+ };
+ 
+ /* Retrieve the cpuset for a cgroup */
+@@ -254,7 +256,10 @@ static DEFINE_SPINLOCK(cpuset_buffer_lock);
  /*
-+ * CPU / memory hotplug is handled asynchronously.
-+ */
-+static void cpuset_hotplug_workfn(struct work_struct *work);
+  * CPU / memory hotplug is handled asynchronously.
+  */
++static struct workqueue_struct *cpuset_propagate_hotplug_wq;
 +
-+static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
-+
-+/*
-  * This is ugly, but preserves the userspace API for existing cpuset
-  * users. If someone tries to mount the "cpuset" filesystem, we
-  * silently switch it to mount "cgroup" instead
-@@ -1518,6 +1525,19 @@ static int cpuset_write_resmask(struct cgroup *cgrp, struct cftype *cft,
- 	struct cpuset *cs = cgroup_cs(cgrp);
- 	struct cpuset *trialcs;
+ static void cpuset_hotplug_workfn(struct work_struct *work);
++static void cpuset_propagate_hotplug_workfn(struct work_struct *work);
  
-+	/*
-+	 * CPU or memory hotunplug may leave @cs w/o any execution
-+	 * resources, in which case the hotplug code asynchronously updates
-+	 * configuration and transfers all tasks to the nearest ancestor
-+	 * which can execute.
-+	 *
-+	 * As writes to "cpus" or "mems" may restore @cs's execution
-+	 * resources, wait for the previously scheduled operations before
-+	 * proceeding, so that we don't end up keep removing tasks added
-+	 * after execution capability is restored.
-+	 */
-+	flush_work(&cpuset_hotplug_work);
-+
- 	if (!cgroup_lock_live_group(cgrp))
- 		return -ENODEV;
+ static DECLARE_WORK(cpuset_hotplug_work, cpuset_hotplug_workfn);
  
-@@ -2045,7 +2065,7 @@ static void cpuset_propagate_hotplug(struct cpuset *cs)
+@@ -1802,6 +1807,7 @@ static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
+ 	cpumask_clear(cs->cpus_allowed);
+ 	nodes_clear(cs->mems_allowed);
+ 	fmeter_init(&cs->fmeter);
++	INIT_WORK(&cs->hotplug_work, cpuset_propagate_hotplug_workfn);
+ 	cs->relax_domain_level = -1;
+ 	cs->parent = cgroup_cs(cont->parent);
+ 
+@@ -2024,21 +2030,20 @@ static struct cpuset *cpuset_next(struct list_head *queue)
  }
  
  /**
-- * cpuset_handle_hotplug - handle CPU/memory hot[un]plug
-+ * cpuset_hotplug_workfn - handle CPU/memory hotunplug for a cpuset
+- * cpuset_propagate_hotplug - propagate CPU/memory hotplug to a cpuset
++ * cpuset_propagate_hotplug_workfn - propagate CPU/memory hotplug to a cpuset
+  * @cs: cpuset in interest
   *
-  * This function is called after either CPU or memory configuration has
-  * changed and updates cpuset accordingly.  The top_cpuset is always
-@@ -2060,7 +2080,7 @@ static void cpuset_propagate_hotplug(struct cpuset *cs)
-  * Note that CPU offlining during suspend is ignored.  We don't modify
-  * cpusets across suspend/resume cycles at all.
+  * Compare @cs's cpu and mem masks against top_cpuset and if some have gone
+  * offline, update @cs accordingly.  If @cs ends up with no CPU or memory,
+  * all its tasks are moved to the nearest ancestor with both resources.
+- *
+- * Should be called with cgroup_mutex held.
   */
--static void cpuset_handle_hotplug(void)
-+static void cpuset_hotplug_workfn(struct work_struct *work)
+-static void cpuset_propagate_hotplug(struct cpuset *cs)
++static void cpuset_propagate_hotplug_workfn(struct work_struct *work)
  {
- 	static cpumask_t new_cpus, tmp_cpus;
- 	static nodemask_t new_mems, tmp_mems;
-@@ -2127,7 +2147,7 @@ static void cpuset_handle_hotplug(void)
+ 	static cpumask_t off_cpus;
+ 	static nodemask_t off_mems, tmp_mems;
++	struct cpuset *cs = container_of(work, struct cpuset, hotplug_work);
  
- void cpuset_update_active_cpus(bool cpu_online)
- {
--	cpuset_handle_hotplug();
-+	schedule_work(&cpuset_hotplug_work);
+-	WARN_ON_ONCE(!cgroup_lock_is_held());
++	cgroup_lock();
+ 
+ 	cpumask_andnot(&off_cpus, cs->cpus_allowed, top_cpuset.cpus_allowed);
+ 	nodes_andnot(off_mems, cs->mems_allowed, top_cpuset.mems_allowed);
+@@ -2062,6 +2067,36 @@ static void cpuset_propagate_hotplug(struct cpuset *cs)
+ 
+ 	if (cpumask_empty(cs->cpus_allowed) || nodes_empty(cs->mems_allowed))
+ 		remove_tasks_in_empty_cpuset(cs);
++
++	cgroup_unlock();
++
++	/* the following may free @cs, should be the last operation */
++	css_put(&cs->css);
++}
++
++/**
++ * schedule_cpuset_propagate_hotplug - schedule hotplug propagation to a cpuset
++ * @cs: cpuset of interest
++ *
++ * Schedule cpuset_propagate_hotplug_workfn() which will update CPU and
++ * memory masks according to top_cpuset.
++ */
++static void schedule_cpuset_propagate_hotplug(struct cpuset *cs)
++{
++	/*
++	 * Pin @cs.  The refcnt will be released when the work item
++	 * finishes executing.
++	 */
++	if (!css_tryget(&cs->css))
++		return;
++
++	/*
++	 * Queue @cs->empty_cpuset_work.  If already pending, lose the css
++	 * ref.  cpuset_propagate_hotplug_wq is ordered and propagation
++	 * will happen in the order this function is called.
++	 */
++	if (!queue_work(cpuset_propagate_hotplug_wq, &cs->hotplug_work))
++		css_put(&cs->css);
  }
  
- #ifdef CONFIG_MEMORY_HOTPLUG
-@@ -2139,7 +2159,7 @@ void cpuset_update_active_cpus(bool cpu_online)
- static int cpuset_track_online_nodes(struct notifier_block *self,
- 				     unsigned long action, void *arg)
- {
--	cpuset_handle_hotplug();
-+	schedule_work(&cpuset_hotplug_work);
- 	return NOTIFY_OK;
+ /**
+@@ -2126,11 +2161,14 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
+ 		list_add_tail(&top_cpuset.stack_list, &queue);
+ 		while ((cs = cpuset_next(&queue)))
+ 			if (cs != &top_cpuset)
+-				cpuset_propagate_hotplug(cs);
++				schedule_cpuset_propagate_hotplug(cs);
+ 	}
+ 
+ 	cgroup_unlock();
+ 
++	/* wait for propagations to finish */
++	flush_workqueue(cpuset_propagate_hotplug_wq);
++
+ 	/* rebuild sched domains if cpus_allowed has changed */
+ 	if (cpus_updated) {
+ 		struct sched_domain_attr *attr;
+@@ -2176,6 +2214,10 @@ void __init cpuset_init_smp(void)
+ 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
+ 
+ 	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
++
++	cpuset_propagate_hotplug_wq =
++		alloc_ordered_workqueue("cpuset_hotplug", 0);
++	BUG_ON(!cpuset_propagate_hotplug_wq);
  }
- #endif
+ 
+ /**
 -- 
 1.7.11.7
 
