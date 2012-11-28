@@ -1,193 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id BC9456B0070
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:23:45 -0500 (EST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: [patch] bdi: add a user-tunable cpu_list for the bdi flusher threads
-Date: Wed, 28 Nov 2012 18:23:41 -0500
-Message-ID: <x49boehtipu.fsf@segfault.boston.devel.redhat.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 900FE6B0072
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:26:18 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Thu, 29 Nov 2012 00:31:02 +0100
+Message-ID: <2363618.GHMYUtrpGK@vostro.rjw.lan>
+In-Reply-To: <20121128231046.GA15416@kroah.com>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <4960597.PcG7YIEMVH@vostro.rjw.lan> <20121128231046.GA15416@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Toshi Kani <toshi.kani@hp.com>, linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+On Wednesday, November 28, 2012 03:10:46 PM Greg KH wrote:
+> On Thu, Nov 29, 2012 at 12:05:20AM +0100, Rafael J. Wysocki wrote:
+> > On Wednesday, November 28, 2012 02:46:33 PM Greg KH wrote:
+> > > > So, it looks like the driver core wants us to handle driver unbinding no
+> > > > matter what.
+> > > 
+> > > Yes.  Well, the driver core does the unbinding no matter what, if it was
+> > > told, by a user, to do so.  Why is that a problem?  The user then is
+> > > responsible for any bad things (i.e. not able to control the device any
+> > > more), if they do so.
+> > 
+> > I don't really agree with that, because the user may simply not know what
+> > the consequences of that will be.  In my not so humble opinion any interface
+> > allowing user space to crash the kernel is a bad one.  And this is an example
+> > of that.
+> 
+> This has been in place since 2005, over 7 years now, and I have never
+> heard any problems with it being used to crash the kernel, despite the
+> easy ability for people to unbind all of their devices from drivers and
+> instantly cause a system hang.  So really doubt this is a problem in
+> real life :)
+> 
+> > > > This pretty much means that it is a bad idea to have a driver that is
+> > > > exposed as a "device driver" in sysfs for memory hotplugging.
+> > > 
+> > > Again, why?  All this means is that the driver is now not connected to
+> > > the device (memory in this case.)  The memory is still there, still
+> > > operates as before, only difference is, the driver can't touch it
+> > > anymore.
+> > > 
+> > > This is the same for any ACPI driver, and has been for years.
+> > 
+> > Except that if this driver has been unbound and the removal is triggered by
+> > an SCI, the core will just go on and remove the memory, although it may
+> > be killing the kernel this way.
+> 
+> Why would memory go away if a driver is unbound from a device?  The
+> device didn't go away.  It's the same if the driver was a module and it
+> was unloaded, you should not turn memory off in that situation, right?
 
-In realtime environments, it may be desirable to keep the per-bdi
-flusher threads from running on certain cpus.  This patch adds a
-cpu_list file to /sys/class/bdi/* to enable this.  The default is to tie
-the flusher threads to the same numa node as the backing device (though
-I could be convinced to make it a mask of all cpus to avoid a change in
-behaviour).
+Right.  It looks like there's some confusion about the role of .remove()
+in the ACPI subsystem, but I need to investigate it a bit more.
 
-Comments, as always, are appreciated.
+> Are you also going to prevent module unloading of this driver?
 
-Cheers,
-Jeff
+I'm not sure what I'm going to do with that driver at the moment to be honest. :-)
 
-Signed-off-by: Jeff Moyer <jmoyer@redhat.com>
+> > Arguably, this may be considered as the core's fault, but the only way to
+> > fix that would be to move the code from that driver into the core and not to
+> > register it as a "driver" any more.  Which was my point. :-)
+> 
+> No, I think people are totally overreacting to the unbind/bind files,
+> which are there to aid in development, and in adding new device ids to
+> drivers, as well as sometimes doing a hacky revoke() call.
+> 
+> > > Please don't confuse unbind with any "normal" system operation, it is
+> > > not to be used for memory hotplug, or anything else like this.
+> > > 
+> > > Also, if you really do not want to do this, turn off the ability to
+> > > unbind/bind for these devices, that is under your control in your bus
+> > > logic.
+> > 
+> > OK, but how?  I'm looking at driver_unbind() and not seeing any way to do
+> > that actually.
+> 
+> See the suppress_bind_attrs field in struct device_driver.  It's even
+> documented in device.h, but sadly, no one reads documentation :)
 
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 2a9a9ab..68263e0 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -18,6 +18,7 @@
- #include <linux/writeback.h>
- #include <linux/atomic.h>
- #include <linux/sysctl.h>
-+#include <linux/mutex.h>
- 
- struct page;
- struct device;
-@@ -105,6 +106,9 @@ struct backing_dev_info {
- 
- 	struct timer_list laptop_mode_wb_timer;
- 
-+	cpumask_t *flusher_cpumask; /* used for writeback thread scheduling */
-+	struct mutex flusher_cpumask_mutex;
-+
- #ifdef CONFIG_DEBUG_FS
- 	struct dentry *debug_dir;
- 	struct dentry *debug_stats;
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index d3ca2b3..c4f7dde 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -10,6 +10,7 @@
- #include <linux/module.h>
- #include <linux/writeback.h>
- #include <linux/device.h>
-+#include <linux/slab.h>
- #include <trace/events/writeback.h>
- 
- static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
-@@ -221,12 +222,59 @@ static ssize_t max_ratio_store(struct device *dev,
- }
- BDI_SHOW(max_ratio, bdi->max_ratio)
- 
-+static ssize_t cpu_list_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	struct bdi_writeback *wb = &bdi->wb;
-+	cpumask_var_t newmask;
-+	ssize_t ret;
-+	struct task_struct *task;
-+
-+	if (!alloc_cpumask_var(&newmask, GFP_KERNEL))
-+		return -ENOMEM;
-+
-+	ret = cpulist_parse(buf, newmask);
-+	if (!ret) {
-+		spin_lock(&bdi->wb_lock);
-+		task = wb->task;
-+		get_task_struct(task);
-+		spin_unlock(&bdi->wb_lock);
-+		if (task)
-+			ret = set_cpus_allowed_ptr(task, newmask);
-+		put_task_struct(task);
-+		if (ret == 0) {
-+			mutex_lock(&bdi->flusher_cpumask_mutex);
-+			cpumask_copy(bdi->flusher_cpumask, newmask);
-+			mutex_unlock(&bdi->flusher_cpumask_mutex);
-+			ret = count;
-+		}
-+	}
-+	free_cpumask_var(newmask);
-+
-+	return ret;
-+}
-+
-+static ssize_t cpu_list_show(struct device *dev,
-+		struct device_attribute *attr, char *page)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	ssize_t ret;
-+
-+	mutex_lock(&bdi->flusher_cpumask_mutex);
-+	ret = cpulist_scnprintf(page, PAGE_SIZE-1, bdi->flusher_cpumask);
-+	mutex_unlock(&bdi->flusher_cpumask_mutex);
-+
-+	return ret;
-+}
-+
- #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
- 
- static struct device_attribute bdi_dev_attrs[] = {
- 	__ATTR_RW(read_ahead_kb),
- 	__ATTR_RW(min_ratio),
- 	__ATTR_RW(max_ratio),
-+	__ATTR_RW(cpu_list),
- 	__ATTR_NULL,
- };
- 
-@@ -428,6 +476,7 @@ static int bdi_forker_thread(void *ptr)
- 				writeback_inodes_wb(&bdi->wb, 1024,
- 						    WB_REASON_FORKER_THREAD);
- 			} else {
-+				int ret;
- 				/*
- 				 * The spinlock makes sure we do not lose
- 				 * wake-ups when racing with 'bdi_queue_work()'.
-@@ -437,6 +486,14 @@ static int bdi_forker_thread(void *ptr)
- 				spin_lock_bh(&bdi->wb_lock);
- 				bdi->wb.task = task;
- 				spin_unlock_bh(&bdi->wb_lock);
-+				mutex_lock(&bdi->flusher_cpumask_mutex);
-+				ret = set_cpus_allowed_ptr(task,
-+							bdi->flusher_cpumask);
-+				mutex_unlock(&bdi->flusher_cpumask_mutex);
-+				if (ret)
-+					printk_once("%s: failed to bind flusher"
-+						    " thread %s, error %d\n",
-+						    __func__, task->comm, ret);
- 				wake_up_process(task);
- 			}
- 			bdi_clear_pending(bdi);
-@@ -509,6 +566,17 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
- 						dev_name(dev));
- 		if (IS_ERR(wb->task))
- 			return PTR_ERR(wb->task);
-+	} else {
-+		int node;
-+		/*
-+		 * Set up a default cpumask for the flusher threads that
-+		 * includes all cpus on the same numa node as the device.
-+		 * The mask may be overridden via sysfs.
-+		 */
-+		node = dev_to_node(bdi->dev);
-+		if (node != NUMA_NO_NODE)
-+			cpumask_copy(bdi->flusher_cpumask,
-+				     cpumask_of_node(node));
- 	}
- 
- 	bdi_debug_register(bdi, dev_name(dev));
-@@ -634,6 +702,15 @@ int bdi_init(struct backing_dev_info *bdi)
- 
- 	bdi_wb_init(&bdi->wb, bdi);
- 
-+	if (!bdi_cap_flush_forker(bdi)) {
-+		bdi->flusher_cpumask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
-+		if (!bdi->flusher_cpumask)
-+			return -ENOMEM;
-+		cpumask_setall(bdi->flusher_cpumask);
-+		mutex_init(&bdi->flusher_cpumask_mutex);
-+	} else
-+		bdi->flusher_cpumask = NULL;
-+
- 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
- 		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
- 		if (err)
-@@ -683,6 +760,8 @@ void bdi_destroy(struct backing_dev_info *bdi)
- 
- 	bdi_unregister(bdi);
- 
-+	kfree(bdi->flusher_cpumask);
-+
- 	/*
- 	 * If bdi_unregister() had already been called earlier, the
- 	 * wakeup_timer could still be armed because bdi_prune_sb()
+That's good to know, thanks. :-)
+
+And if I knew I could find that information in device.h, I'd look in there.
+
+> I recommend you set this field if you don't want the bind/unbind files
+> to show up for your memory driver, although I would argue that the
+> driver needs to be fixed up to not do foolish things like removing
+> memory from a system unless it really does go away...
+
+Quite frankly, I need to look at that driver and how things are supposed to
+work more thoroughly, because I don't seem to see a reason to do various
+things the way they are done.  Well, maybe it's just me.
+
+Thanks,
+Rafael
+
+
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
