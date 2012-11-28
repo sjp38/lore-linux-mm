@@ -1,94 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 51D9C6B0068
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:04:50 -0500 (EST)
-Date: Wed, 28 Nov 2012 17:04:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 -mm] memcg: do not trigger OOM from
- add_to_page_cache_locked
-Message-ID: <20121128160447.GH12309@dhcp22.suse.cz>
-References: <20121125011047.7477BB5E@pobox.sk>
- <20121125120524.GB10623@dhcp22.suse.cz>
- <20121125135542.GE10623@dhcp22.suse.cz>
- <20121126013855.AF118F5E@pobox.sk>
- <20121126131837.GC17860@dhcp22.suse.cz>
- <50B403CA.501@jp.fujitsu.com>
- <20121127194813.GP24381@cmpxchg.org>
- <20121127205431.GA2433@dhcp22.suse.cz>
- <20121127205944.GB2433@dhcp22.suse.cz>
- <20121128152631.GT24381@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121128152631.GT24381@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id B1C1B6B006E
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:09:40 -0500 (EST)
+Message-ID: <1354118473.26955.208.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
+ rebind scenario
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 28 Nov 2012 09:01:13 -0700
+In-Reply-To: <2804331.4p7pU4ARvy@vostro.rjw.lan>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	 <20121127183245.GA4674@dhcp-192-168-178-175.profitbricks.localdomain>
+	 <1354053827.26955.196.camel@misato.fc.hp.com>
+	 <2804331.4p7pU4ARvy@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 28-11-12 10:26:31, Johannes Weiner wrote:
-> On Tue, Nov 27, 2012 at 09:59:44PM +0100, Michal Hocko wrote:
-> > @@ -3863,7 +3862,7 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-> >  		return 0;
-> >  
-> >  	if (!PageSwapCache(page))
-> > -		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
-> > +		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type, oom);
-> >  	else { /* page is swapcache/shmem */
-> >  		ret = __mem_cgroup_try_charge_swapin(mm, page,
-> >  						     gfp_mask, &memcg);
+On Wed, 2012-11-28 at 00:41 +0100, Rafael J. Wysocki wrote:
+> On Tuesday, November 27, 2012 03:03:47 PM Toshi Kani wrote:
+> > On Tue, 2012-11-27 at 19:32 +0100, Vasilis Liaskovitis wrote:
+> > > On Mon, Nov 26, 2012 at 05:19:01PM -0700, Toshi Kani wrote:
+> > > > > >> Consider the following sequence of operations for a hotplugged memory
+> > > > > >> device:
+> > > > > >>
+> > > > > >> 1. echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
+> > > > > >> 2. echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> > > > > >>
+> > > > > >> If we don't offline/remove the memory, we have no chance to do it in
+> > > > > >> step 2. After
+> > > > > >> step2, the memory is used by the kernel, but we have powered off it. It
+> > > > > >> is very
+> > > > > >> dangerous.
+> > > > > > 
+> > > > > > How does power-off happen after unbind? acpi_eject_store checks for existing
+> > > > > > driver before taking any action:
+> > > > > > 
+> > > > > > #ifndef FORCE_EJECT
+> > > > > > 	if (acpi_device->driver == NULL) {
+> > > > > > 		ret = -ENODEV;
+> > > > > > 		goto err;
+> > > > > > 	}
+> > > > > > #endif
+> > > > > > 
+> > > > > > FORCE_EJECT is not defined afaict, so the function returns without scheduling
+> > > > > > acpi_bus_hot_remove_device. Is there another code path that calls power-off?
+> > > > > 
+> > > > > Consider the following case:
+> > > > > 
+> > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
+> > > > > 
+> > > > > CPUa                                                  CPUb
+> > > > > acpi_memory_device_notify()
+> > > > >                                        unbind it from the driver
+> > > > >     acpi_bus_hot_remove_device()
+> > > > 
+> > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
+> > > > bound with a driver?  If so, can we make the unbind operation to perform
+> > > > unbind only?
+> > > 
+> > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
+> > > if it's not present (dev->driver == NULL).
+> > > 
+> > > But there can still be a race between an eject and an unbind operation happening
+> > > simultaneously. This seems like a general problem to me i.e. not specific to an
+> > > acpi memory device. How do we ensure an eject does not race with a driver unbind
+> > > for other acpi devices?
+> > > 
+> > > Is there a per-device lock in acpi-core or device-core that can prevent this from
+> > > happening? Driver core does a device_lock(dev) on all operations, but this is
+> > > probably not grabbed on SCI-initiated acpi ejects.
+> > 
+> > Since driver_unbind() calls device_lock(dev->parent) before calling
+> > device_release_driver(), I am wondering if we can call
+> > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
+> > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
+> > parent lock is otherwise released after device_release_driver() is done.
 > 
-> I think you need to pass it down the swapcache path too, as that is
-> what happens when the shmem page written to is in swap and has been
-> read into swapcache by the time of charging.
+> I would be careful.  You may introduce some subtle locking-related issues
+> this way.
 
-You are right, of course. I shouldn't send patches late in the evening
-after staring to a crashdump for a good part of the day. /me ashamed.
+Right.  This requires careful inspection and testing.  As far as the
+locking is concerned, I am not keen on using fine grained locking for
+hot-plug.  It is much simpler and solid if we serialize such operations.
 
-> > @@ -1152,8 +1152,16 @@ repeat:
-> >  				goto failed;
-> >  		}
-> >  
-> > +		 /*
-> > +                  * Cannot trigger OOM even if gfp_mask would allow that
-> > +                  * normally because we might be called from a locked
-> > +                  * context (i_mutex held) if this is a write lock or
-> > +                  * fallocate and that could lead to deadlocks if the
-> > +                  * killed process is waiting for the same lock.
-> > +		  */
-> 
-> Indentation broken?
+> Besides, there may be an alternative approach to all this.  For example,
+> what if we don't remove struct device objects on eject?  The ACPI handles
+> associated with them don't go away in that case after all, do they?
 
-c&p
+Umm...  Sorry, I am not getting your point.  The issue is that we need
+to be able to fail a request when memory range cannot be off-lined.
+Otherwise, we end up ejecting online memory range.
 
-> >  		error = mem_cgroup_cache_charge(page, current->mm,
-> > -						gfp & GFP_RECLAIM_MASK);
-> > +						gfp & GFP_RECLAIM_MASK,
-> > +						sgp < SGP_WRITE);
-> 
-> The code tests for read-only paths a bunch of times using
-> 
-> 	sgp != SGP_WRITE && sgp != SGP_FALLOC
-> 
-> Would probably be more consistent and more robust to use this here as
-> well?
+Thanks,
+-Toshi
 
-Yes my laziness. I was considering that but it was really long so I've
-chosen the simpler way. But you are right that consistency is probably
-better here
-
-> > @@ -1209,7 +1217,8 @@ repeat:
-> >  		SetPageSwapBacked(page);
-> >  		__set_page_locked(page);
-> >  		error = mem_cgroup_cache_charge(page, current->mm,
-> > -						gfp & GFP_RECLAIM_MASK);
-> > +						gfp & GFP_RECLAIM_MASK,
-> > +						sgp < SGP_WRITE);
-> 
-> Same.
-> 
-> Otherwise, the patch looks good to me, thanks for persisting :)
-
-Thanks for the throughout review.
-Here we go with the fixed version.
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
