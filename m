@@ -1,34 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 74CB86B0068
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:21:17 -0500 (EST)
-Message-ID: <50B61DD6.5020005@intel.com>
-Date: Wed, 28 Nov 2012 22:21:10 +0800
-From: Alex Shi <alex.shi@intel.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id F248E6B0083
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 09:55:18 -0500 (EST)
+Date: Wed, 28 Nov 2012 09:55:15 -0500
+From: Dave Jones <davej@redhat.com>
+Subject: livelock in __writeback_inodes_wb ?
+Message-ID: <20121128145515.GA26564@redhat.com>
 MIME-Version: 1.0
-Subject: Re: numa/core regressions fixed - more testers wanted
-References: <20121119162909.GL8218@suse.de> <20121119191339.GA11701@gmail.com> <20121119211804.GM8218@suse.de> <20121119223604.GA13470@gmail.com> <CA+55aFzQYH4qW_Cw3aHPT0bxsiC_Q_ggy4YtfvapiMG7bR=FsA@mail.gmail.com> <20121120071704.GA14199@gmail.com> <20121120152933.GA17996@gmail.com> <20121120175647.GA23532@gmail.com> <CAGjg+kHKaQLcrnEftB+2mjeCjGUBiisSOpNCe+_9-4LDho9LpA@mail.gmail.com> <20121122012122.GA7938@gmail.com> <20121123133138.GA28058@gmail.com> <CAGjg+kE8=cp=NyHrviyRWAZ=id6sZM1Gtb0N1_+SZ2TuBHE5cw@mail.gmail.com>
-In-Reply-To: <CAGjg+kE8=cp=NyHrviyRWAZ=id6sZM1Gtb0N1_+SZ2TuBHE5cw@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Shi <lkml.alex@gmail.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>
 
-> 
->>
->> Could you please check tip:master with -v17:
->>
->>   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git master
->>
+We had a user report the soft lockup detector kicked after 22
+seconds of no progress, with this trace..
 
-Tested this version on our SNB EP 2 sockets box, 8 cores * HT with
-specjbb2005 on jrockit.
-With single JVM setting it has 40% performance increase compare to
-3.7-rc6. impressive!
+:BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
+:Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
+:RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
+:Call Trace:
+: [<ffffffff811b783e>] redirty_tail+0x5e/0x80
+: [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
+: [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
+: [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
+: [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
+: [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
+: [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
+: [<ffffffff8107fde3>] kthread+0x93/0xa0
+: [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
+: [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
+: [<ffffffff81627e00>] ? gs_change+0x13/0x13
 
+Looking over the code, is it possible that something could be
+dirtying pages faster than writeback can get them written out,
+keeping us in this loop indefitely ?
 
+Should there be something in this loop periodically poking
+the watchdog perhaps ?
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
