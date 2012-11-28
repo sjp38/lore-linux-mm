@@ -1,195 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 6EF046B0073
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:29:29 -0500 (EST)
-Date: Wed, 28 Nov 2012 17:29:24 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] Add mempressure cgroup
-Message-ID: <20121128162924.GA22201@dhcp22.suse.cz>
-References: <20121128102908.GA15415@lizard>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 90A4C6B006C
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 11:37:59 -0500 (EST)
+Date: Wed, 28 Nov 2012 11:37:36 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v2 -mm] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121128163736.GV24381@cmpxchg.org>
+References: <20121125120524.GB10623@dhcp22.suse.cz>
+ <20121125135542.GE10623@dhcp22.suse.cz>
+ <20121126013855.AF118F5E@pobox.sk>
+ <20121126131837.GC17860@dhcp22.suse.cz>
+ <50B403CA.501@jp.fujitsu.com>
+ <20121127194813.GP24381@cmpxchg.org>
+ <20121127205431.GA2433@dhcp22.suse.cz>
+ <20121127205944.GB2433@dhcp22.suse.cz>
+ <20121128152631.GT24381@cmpxchg.org>
+ <20121128160447.GH12309@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121128102908.GA15415@lizard>
+In-Reply-To: <20121128160447.GH12309@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, azurIt <azurit@pobox.sk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>
 
-On Wed 28-11-12 02:29:08, Anton Vorontsov wrote:
-> This is an attempt to implement David Rientjes' idea of mempressure
-> cgroup.
-> 
-> The main characteristics are the same to what I've tried to add to vmevent
-> API:
-> 
->   Internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
->   pressure index calculation. But we don't expose the index to the
->   userland. Instead, there are three levels of the pressure:
-> 
->   o low (just reclaiming, e.g. caches are draining);
->   o medium (allocation cost becomes high, e.g. swapping);
->   o oom (about to oom very soon).
-> 
->   The rationale behind exposing levels and not the raw pressure index
->   described here: http://lkml.org/lkml/2012/11/16/675
-> 
-> The API uses standard cgroups eventfd notifications:
-> 
->   $ gcc Documentation/cgroups/cgroup_event_listener.c -o \
-> 	cgroup_event_listener
->   $ cd /sys/fs/cgroup/
->   $ mkdir mempressure
->   $ mount -t cgroup cgroup ./mempressure -o mempressure
->   $ cd mempressure
->   $ cgroup_event_listener ./mempressure.level low
->   ("low", "medium", "oom" are permitted values.)
-> 
->   Upon hitting the threshold, you should see "/sys/fs/cgroup/mempressure
->   low: crossed" messages.
-> 
-> To test that it actually works on per-cgroup basis, I did a small trick: I
-> moved all kswapd into a separate cgroup, and hooked the listener onto
-> another (non-root) cgroup. The listener no longer received global reclaim
-> pressure, which is expected.
+On Wed, Nov 28, 2012 at 05:04:47PM +0100, Michal Hocko wrote:
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 095d2b4..5abe441 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -57,13 +57,14 @@ extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
+>  				gfp_t gfp_mask);
+>  /* for swap handling */
+>  extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+> -		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
+> +		struct page *page, gfp_t mask, struct mem_cgroup **memcgp,
+> +		bool oom);
 
-Is this really expected? So you want to be notified only about the
-direct reclaim?
-I am not sure how much useful is that. If you co-mount with e.g. memcg then
-the picture is different because even global memory pressure is spread
-among groups so it would be just a matter of the proper accounting
-(which can be handled similar to lruvec when your code doesn't have to
-care about memcg internally).
-Co-mounting with cpusets makes sense as well because then you get a
-pressure notification based on the placement policy.
+Ok, now I feel almost bad for asking, but why the public interface,
+too?  You only ever pass "true" in there and this is unlikely to
+change anytime soon, no?
 
-So does it make much sense to mount mempressure on its own without
-co-mounting with other controllers?
+> @@ -3754,7 +3753,8 @@ int mem_cgroup_newpage_charge(struct page *page,
+>  static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+>  					  struct page *page,
+>  					  gfp_t mask,
+> -					  struct mem_cgroup **memcgp)
+> +					  struct mem_cgroup **memcgp,
+> +					  bool oom)
+>  {
+>  	struct mem_cgroup *memcg;
+>  	struct page_cgroup *pc;
+> @@ -3776,20 +3776,21 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+>  	if (!memcg)
+>  		goto charge_cur_mm;
+>  	*memcgp = memcg;
+> -	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
+> +	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, oom);
+>  	css_put(&memcg->css);
+>  	if (ret == -EINTR)
+>  		ret = 0;
+>  	return ret;
+>  charge_cur_mm:
+> -	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
+> +	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, oom);
+>  	if (ret == -EINTR)
+>  		ret = 0;
+>  	return ret;
+>  }
 
-> For a task it is possible to be in both cpusets, memcg and mempressure
-> cgroups, so by rearranging the tasks it should be possible to watch a
-> specific pressure.
+Only this one is needed...
 
-Could you be more specific what you mean by rearranging? Creating a same
-hierarchy? Co-mounting?
-
-> Note that while this adds the cgroups support, the code is well separated
-> and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
-> But this is another story.
-
-I think it would be nice to follow freezer and split this into 2 files.
-Generic and cgroup spefici.
-
-> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
-> ---
-[...]
-> +/* These are defaults. Might make them configurable one day. */
-> +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
-
-I realize this is just an RFC but could you be more specific what is the
-meaning of vmpressure_win?
-
-> +static const uint vmpressure_level_med = 60;
-> +static const uint vmpressure_level_oom = 99;
-> +static const uint vmpressure_level_oom_prio = 4;
-> +
-> +enum vmpressure_levels {
-> +	VMPRESSURE_LOW = 0,
-> +	VMPRESSURE_MEDIUM,
-> +	VMPRESSURE_OOM,
-> +	VMPRESSURE_NUM_LEVELS,
-> +};
-> +
-> +static const char const *vmpressure_str_levels[] = {
-> +	[VMPRESSURE_LOW] = "low",
-> +	[VMPRESSURE_MEDIUM] = "medium",
-> +	[VMPRESSURE_OOM] = "oom",
-> +};
-> +
-> +static enum vmpressure_levels vmpressure_level(uint pressure)
-> +{
-> +	if (pressure >= vmpressure_level_oom)
-> +		return VMPRESSURE_OOM;
-> +	else if (pressure >= vmpressure_level_med)
-> +		return VMPRESSURE_MEDIUM;
-> +	return VMPRESSURE_LOW;
-> +}
-> +
-> +static ulong vmpressure_calc_level(uint win, uint s, uint r)
-> +{
-> +	ulong p;
-> +
-> +	if (!s)
-> +		return 0;
-> +
-> +	/*
-> +	 * We calculate the ratio (in percents) of how many pages were
-> +	 * scanned vs. reclaimed in a given time frame (window). Note that
-> +	 * time is in VM reclaimer's "ticks", i.e. number of pages
-> +	 * scanned. This makes it possible to set desired reaction time
-> +	 * and serves as a ratelimit.
-> +	 */
-> +	p = win - (r * win / s);
-> +	p = p * 100 / win;
-
-Do we need the win at all?
-	p = 100 - (100 * r / s);
-> +
-> +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, p, s, r);
-> +
-> +	return vmpressure_level(p);
-> +}
-> +
-[...]
-> +static int mpc_pre_destroy(struct cgroup *cg)
-> +{
-> +	struct mpc_state *mpc = cg2mpc(cg);
-> +	int ret = 0;
-> +
-> +	mutex_lock(&mpc->lock);
-> +
-> +	if (mpc->eventfd)
-> +		ret = -EBUSY;
-
-The current cgroup's core doesn't allow pre_destroy to fail anymore. The
-code is marked for 3.8
-
-[...]
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 48550c6..430d8a5 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1877,6 +1877,8 @@ restart:
->  		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
->  				   sc, LRU_ACTIVE_ANON);
+> @@ -3851,7 +3852,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
+>  }
 >  
-> +	vmpressure(sc->nr_scanned - nr_scanned, nr_reclaimed);
-> +
-
-I think this should already report to a proper group otherwise all the
-global reclaim would go to a group where kswapd sits rather than to the
-target group as I mentioned above (so it at least wouldn't work with a
-co-mounted cases).
-
->  	/* reclaim/compaction might need reclaim to continue */
->  	if (should_continue_reclaim(lruvec, nr_reclaimed,
->  				    sc->nr_scanned - nr_scanned, sc))
-> @@ -2099,6 +2101,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		count_vm_event(ALLOCSTALL);
+>  int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+> -				gfp_t gfp_mask)
+> +				gfp_t gfp_mask, bool oom)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
+> @@ -3863,10 +3864,10 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+>  		return 0;
 >  
->  	do {
-> +		vmpressure_prio(sc->priority);
+>  	if (!PageSwapCache(page))
+> -		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
+> +		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type, oom);
+>  	else { /* page is swapcache/shmem */
+>  		ret = __mem_cgroup_try_charge_swapin(mm, page,
+> -						     gfp_mask, &memcg);
+> +						     gfp_mask, &memcg, oom);
+>  		if (!ret)
+>  			__mem_cgroup_commit_charge_swapin(page, memcg, type);
+>  	}
 
-Shouldn't this go into shrink_lruvec or somewhere at that level to catch
-also kswapd low priorities? If you insist on the direct reclaim then you
-should hook into __zone_reclaim as well.
+...for this site.
 
->  		sc->nr_scanned = 0;
->  		aborted_reclaim = shrink_zones(zonelist, sc);
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 6891d3b..afad903 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2991,7 +2991,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		}
+>  	}
+>  
+> -	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr)) {
+> +	if (mem_cgroup_try_charge_swapin(mm, page, GFP_KERNEL, &ptr, true)) {
+>  		ret = VM_FAULT_OOM;
+>  		goto out_page;
+>  	}
 
--- 
-Michal Hocko
-SUSE Labs
+Can not happen for shmem, the fault handler uses vma->vm_ops->fault.
+
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 2f8e429..8ec511e 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -828,7 +828,7 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
+>  	int ret = 1;
+>  
+>  	if (mem_cgroup_try_charge_swapin(vma->vm_mm, page,
+> -					 GFP_KERNEL, &memcg)) {
+> +					 GFP_KERNEL, &memcg, true)) {
+>  		ret = -ENOMEM;
+>  		goto out_nolock;
+>  	}
+
+Can not happen for shmem, uses shmem_unuse() instead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
