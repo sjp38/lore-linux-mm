@@ -1,83 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id B91936B0074
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:29:29 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id t2so12790401qcq.14
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 15:29:28 -0800 (PST)
-Date: Wed, 28 Nov 2012 15:29:30 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch] mm, memcg: avoid unnecessary function call when memcg
- is disabled
-In-Reply-To: <20121121083505.GA8761@dhcp22.suse.cz>
-Message-ID: <alpine.LNX.2.00.1211281509560.15410@eggly.anvils>
-References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com> <20121120134932.055bc192.akpm@linux-foundation.org> <20121121083505.GA8761@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 9999C6B004D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:45:03 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Thu, 29 Nov 2012 00:49:47 +0100
+Message-ID: <4042591.gpFk7OYmph@vostro.rjw.lan>
+In-Reply-To: <1354136568.26955.312.camel@misato.fc.hp.com>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <9212118.3s2xH6uJDI@vostro.rjw.lan> <1354136568.26955.312.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ying Han <yinghan@google.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: linux-acpi@vger.kernel.org
+Cc: Toshi Kani <toshi.kani@hp.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 Nov 2012, Michal Hocko wrote:
-> On Tue 20-11-12 13:49:32, Andrew Morton wrote:
-> > On Mon, 19 Nov 2012 17:44:34 -0800 (PST)
-> > David Rientjes <rientjes@google.com> wrote:
+On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
+> > > > > > > > Consider the following case:
+> > > > > > > > 
+> > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
+> > > > > > > > 
+> > > > > > > > CPUa                                                  CPUb
+> > > > > > > > acpi_memory_device_notify()
+> > > > > > > >                                        unbind it from the driver
+> > > > > > > >     acpi_bus_hot_remove_device()
+> > > > > > > 
+> > > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
+> > > > > > > bound with a driver?  If so, can we make the unbind operation to perform
+> > > > > > > unbind only?
+> > > > > > 
+> > > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
+> > > > > > if it's not present (dev->driver == NULL).
+> > > > > > 
+> > > > > > But there can still be a race between an eject and an unbind operation happening
+> > > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
+> > > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
+> > > > > > for other acpi devices?
+> > > > > > 
+> > > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
+> > > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
+> > > > > > probably not grabbed on SCI-initiated acpi ejects.
+> > > > > 
+> > > > > Since driver_unbind() calls device_lock(dev->parent) before calling
+> > > > > device_release_driver(), I am wondering if we can call
+> > > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
+> > > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
+> > > > > parent lock is otherwise released after device_release_driver() is done.
+> > > > 
+> > > > I would be careful.  You may introduce some subtle locking-related issues
+> > > > this way.
+> > > 
+> > > Right.  This requires careful inspection and testing.  As far as the
+> > > locking is concerned, I am not keen on using fine grained locking for
+> > > hot-plug.  It is much simpler and solid if we serialize such operations.
+> > > 
+> > > > Besides, there may be an alternative approach to all this.  For example,
+> > > > what if we don't remove struct device objects on eject?  The ACPI handles
+> > > > associated with them don't go away in that case after all, do they?
+> > > 
+> > > Umm...  Sorry, I am not getting your point.  The issue is that we need
+> > > to be able to fail a request when memory range cannot be off-lined.
+> > > Otherwise, we end up ejecting online memory range.
 > > 
-> > > While profiling numa/core v16 with cgroup_disable=memory on the command 
-> > > line, I noticed mem_cgroup_count_vm_event() still showed up as high as 
-> > > 0.60% in perftop.
-> > > 
-> > > This occurs because the function is called extremely often even when memcg 
-> > > is disabled.
-> > > 
-> > > To fix this, inline the check for mem_cgroup_disabled() so we avoid the 
-> > > unnecessary function call if memcg is disabled.
-> > > 
-> > > ...
-> > >
-> > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> > > --- a/include/linux/memcontrol.h
-> > > +++ b/include/linux/memcontrol.h
-> > > @@ -181,7 +181,14 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-> > >  						gfp_t gfp_mask,
-> > >  						unsigned long *total_scanned);
-> > >  
-> > > -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-> > > +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
-> > > +static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
-> > > +					     enum vm_event_item idx)
-> > > +{
-> > > +	if (mem_cgroup_disabled() || !mm)
-> > > +		return;
-> > > +	__mem_cgroup_count_vm_event(mm, idx);
-> > > +}
-> > 
-> > Does the !mm case occur frequently enough to justify inlining it, or
-> > should that test remain out-of-line?
+> > Yes, this is the major one.  The minor issue, however, is a race condition
+> > between unbinding a driver from a device and removing the device if I
+> > understand it correctly.  Which will go away automatically if the device is
+> > not removed in the first place.  Or so I would think. :-)
 > 
-> Now that you've asked about it I started looking around and I cannot see
-> how mm can ever be NULL. The condition is there since the very beginning
-> (456f998e memcg: add the pagefault count into memcg stats) but all the
-> callers are page fault handlers and those shouldn't have mm==NULL.
-> Or is there anything obvious I am missing?
-> 
-> Ying, the whole thread starts https://lkml.org/lkml/2012/11/19/545 but
-> the primary question is why we need !mm test for mem_cgroup_count_vm_event
-> at all.
+> I see.  I do not think whether or not the device is removed on eject
+> makes any difference here.  The issue is that after driver_unbind() is
+> done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
+> driver (hence, it cannot fail in prepare_remove), and goes ahead to call
+> _EJ0.
 
-Here's a guess: as Ying's 456f998e patch started out in akpm's tree,
-shmem.c was calling mem_cgroup_count_vm_event(current->mm, PGMAJFAULT).
+I see two reasons for calling acpi_bus_hot_remove_device() for memory (correct
+me if I'm wrong): (1) from the memhotplug driver's notify handler and (2) from
+acpi_eject_store() which is exposed through sysfs.  If we disabled exposing
+acpi_eject_store() for memory devices, then the only way would be from the
+notify handler.  So I wonder if driver_unbind() shouldn't just uninstall the
+notify handler for memory (so that memory eject events are simply dropped on
+the floor after unbinding the driver)?
 
-Then I insisted that was inconsistent with how we usually account when
-one task touches another's address space, and rearranged it to work on
-vma->vm_mm instead.
+Rafael
 
-Done the original way, if the touching task were a kernel daemon (KSM's
-ksmd comes to my mind), then the current->mm could well have been NULL.
 
-I agree with you that it looks redundant now.
-
-Hugh
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
