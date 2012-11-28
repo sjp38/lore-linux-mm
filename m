@@ -1,91 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 7B5706B0062
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:46:36 -0500 (EST)
-Date: Wed, 28 Nov 2012 14:46:33 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-Message-ID: <20121128224633.GA14555@kroah.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
- <1451747.3VlxbhJES4@vostro.rjw.lan>
- <1354140982.26955.341.camel@misato.fc.hp.com>
- <11009650.oKuHEgoNWB@vostro.rjw.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <11009650.oKuHEgoNWB@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id A814A6B0062
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:52:17 -0500 (EST)
+Date: Wed, 28 Nov 2012 14:52:15 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: kswapd craziness in 3.7
+Message-Id: <20121128145215.d23aeb1b.akpm@linux-foundation.org>
+In-Reply-To: <20121128101359.GT8218@suse.de>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+	<CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+	<50B52DC4.5000109@redhat.com>
+	<20121127214928.GA20253@cmpxchg.org>
+	<50B5387C.1030005@redhat.com>
+	<20121127222637.GG2301@cmpxchg.org>
+	<CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
+	<20121128101359.GT8218@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Toshi Kani <toshi.kani@hp.com>, linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 28, 2012 at 11:39:22PM +0100, Rafael J. Wysocki wrote:
-> On Wednesday, November 28, 2012 03:16:22 PM Toshi Kani wrote:
-> > > > > > > > I see.  I do not think whether or not the device is removed on eject
-> > > > > > > > makes any difference here.  The issue is that after driver_unbind() is
-> > > > > > > > done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
-> > > > > > > > driver (hence, it cannot fail in prepare_remove), and goes ahead to call
-> > > > > > > > _EJ0.  If driver_unbind() did off-line the memory, this is OK.  However,
-> > > > > > > > it cannot off-line kernel memory ranges.  So, we basically need to
-> > > > > > > > either 1) serialize acpi_bus_hot_remove_device() and driver_unbind(), or
-> > > > > > > > 2) make acpi_bus_hot_remove_device() to fail if driver_unbind() is run
-> > > > > > > > during the operation.
-> > > > > > > 
-> > > > > > > OK, I see the problem now.
-> > > > > > > 
-> > > > > > > What exactly is triggering the driver_unbind() in this scenario?
-> > > > > > 
-> > > > > > User can request driver_unbind() from sysfs as follows.  I do not see
-> > > > > > much reason why user has to do for memory, though.
-> > > > > > 
-> > > > > > echo "PNP0C80:XX" > /sys/bus/acpi/drivers/acpi_memhotplug/unbind
-> > > > > 
-> > > > > This is wrong.  Even if we want to permit user space to forcibly unbind
-> > > > > drivers from anything like this, we should at least check for some
-> > > > > situations in which it is plain dangerous.  Like in this case.  So I think
-> > > > > the above should fail unless we know that the driver won't be necessary
-> > > > > to handle hot-removal of memory.
-> > > > 
-> > > > Well, we tried twice already... :)
-> > > > https://lkml.org/lkml/2012/11/16/649
-> > > 
-> > > I didn't mean driver_unbind() should fail.  The code path that executes
-> > > driver_unbind() eventually should fail _before_ executing it.
-> > 
-> > driver_unbind() is the handler, so it is called directly from this
-> > unbind interface.
+On Wed, 28 Nov 2012 10:13:59 +0000
+Mel Gorman <mgorman@suse.de> wrote:
+
+> Based on the reports I've seen I expect the following to work for 3.7
 > 
-> Yes, sorry for the confusion.
+> Keep
+>   96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
+>   ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
 > 
-> So, it looks like the driver core wants us to handle driver unbinding no
-> matter what.
+> Revert
+>   82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
+> 
+> Merge
+>   mm: vmscan: fix kswapd endless loop on higher order allocation
+>   mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
 
-Yes.  Well, the driver core does the unbinding no matter what, if it was
-told, by a user, to do so.  Why is that a problem?  The user then is
-responsible for any bad things (i.e. not able to control the device any
-more), if they do so.
+"mm: Avoid waking kswapd for THP ..." is marked "I have not tested it
+myself" and when Zdenek tested it he hit an unexplained oom.
 
-> This pretty much means that it is a bad idea to have a driver that is
-> exposed as a "device driver" in sysfs for memory hotplugging.
+> Johannes' patch should remove the necessity for __GFP_NO_KSWAPD revert but I
+> think we should also avoid waking kswapd for THP allocations if compaction
+> is deferred. Johannes' patch might mean that kswapd goes quickly go back
+> to sleep but it's still busy work.
+> 
+> 3.6 is still known to be screwed in terms of THP because of the amount of
+> time it can spend in compaction after lumpy reclaim was removed. This is
+> my old list of patches I felt needed to be backported after 3.7 came out.
+> They are not tagged -stable, I'll be sending it to Greg manually.
+> 
+> e64c523 mm: compaction: abort compaction loop if lock is contended or run too long
+> 3cc668f mm: compaction: move fatal signal check out of compact_checklock_irqsave
+> 661c4cb mm: compaction: Update try_to_compact_pages()kerneldoc comment
+> 2a1402a mm: compaction: acquire the zone->lru_lock as late as possible
+> f40d1e4 mm: compaction: acquire the zone->lock as late as possible
+> 753341a revert "mm: have order > 0 compaction start off where it left"
+> bb13ffe mm: compaction: cache if a pageblock was scanned and no pages were isolated
+> c89511a mm: compaction: Restart compaction from near where it left off
+> 6299702 mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
+> 0db63d7 mm: compaction: correct the nr_strict va isolated check for CMA
+> 
+> Only Johannes' patch needs to be added to this list. kswapd is not woken
+> for THP in 3.6 but as it calls compaction for other high-order allocations
+> it still makes sense.
 
-Again, why?  All this means is that the driver is now not connected to
-the device (memory in this case.)  The memory is still there, still
-operates as before, only difference is, the driver can't touch it
-anymore.
-
-This is the same for any ACPI driver, and has been for years.
-
-Please don't confuse unbind with any "normal" system operation, it is
-not to be used for memory hotplug, or anything else like this.
-
-Also, if you really do not want to do this, turn off the ability to
-unbind/bind for these devices, that is under your control in your bus
-logic.
-
-thanks,
-
-greg k-h
+Please identify "Johannes' patch"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
