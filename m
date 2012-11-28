@@ -1,200 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 96A1F6B006C
-	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 23:26:08 -0500 (EST)
-Date: Wed, 28 Nov 2012 13:26:07 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] zram: allocate metadata when disksize is set up
-Message-ID: <20121128042607.GC23136@blaptop>
-References: <1353638567-3981-1-git-send-email-minchan@kernel.org>
- <1353638567-3981-2-git-send-email-minchan@kernel.org>
- <50B44BF4.30803@vflare.org>
- <50B4E032.2010206@redhat.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 649D96B0078
+	for <linux-mm@kvack.org>; Tue, 27 Nov 2012 23:34:38 -0500 (EST)
+Received: from mail-ee0-f41.google.com ([74.125.83.41])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1TdZM5-0000rF-CC
+	for linux-mm@kvack.org; Wed, 28 Nov 2012 04:34:37 +0000
+Received: by mail-ee0-f41.google.com with SMTP id d41so8999808eek.14
+        for <linux-mm@kvack.org>; Tue, 27 Nov 2012 20:34:37 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50B4E032.2010206@redhat.com>
+In-Reply-To: <5434404.G1ERYjuorE@vostro.rjw.lan>
+References: <1353761958-12810-1-git-send-email-ming.lei@canonical.com>
+	<1353761958-12810-3-git-send-email-ming.lei@canonical.com>
+	<5434404.G1ERYjuorE@vostro.rjw.lan>
+Date: Wed, 28 Nov 2012 12:34:36 +0800
+Message-ID: <CACVXFVODD9fRqQc3kR58OJm3ERgBWojnx=790xGwu=MPGaSmMA@mail.gmail.com>
+Subject: Re: [PATCH v6 2/6] PM / Runtime: introduce pm_runtime_set_memalloc_noio()
+From: Ming Lei <ming.lei@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-pm@vger.kernel.org, linux-kernel@vger.kernel.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Andrew Morton <akpm@linux-foundation.org>, netdev@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 27, 2012 at 04:45:54PM +0100, Jerome Marchand wrote:
-> On 11/27/2012 06:13 AM, Nitin Gupta wrote:
-> > On 11/22/2012 06:42 PM, Minchan Kim wrote:
-> >> Lockdep complains about recursive deadlock of zram->init_lock.
-> >> Because zram_init_device could be called in reclaim context and
-> >> it requires a page with GFP_KERNEL.
-> >>
-> >> We can fix it via replacing GFP_KERNEL with GFP_NOIO.
-> >> But more big problem is vzalloc in zram_init_device which calls GFP_KERNEL.
-> >> We can change it with __vmalloc which can receive gfp_t.
-> >> But still we have a problem. Although __vmalloc can handle gfp_t, it calls
-> >> allocation of GFP_KERNEL. That's why I sent the patch.
-> >> https://lkml.org/lkml/2012/4/23/77
-> >>
-> >> Yes. Fundamental problem is utter crap API vmalloc.
-> >> If we can fix it, everyone would be happy. But life isn't simple
-> >> like seeing my thread of the patch.
-> >>
-> >> So next option is to give up lazy initialization and initialize it at the
-> >> very disksize setting time. But it makes unnecessary metadata waste until
-> >> zram is really used. But let's think about it.
-> >>
-> >> 1) User of zram normally do mkfs.xxx or mkswap before using
-> >>     the zram block device(ex, normally, do it at booting time)
-> >>     It ends up allocating such metadata of zram before real usage so
-> >>     benefit of lazy initialzation would be mitigated.
-> >>
-> >> 2) Some user want to use zram when memory pressure is high.(ie, load zram
-> >>     dynamically, NOT booting time). It does make sense because people don't
-> >>     want to waste memory until memory pressure is high(ie, where zram is really
-> >>     helpful time). In this case, lazy initialzation could be failed easily
-> >>     because we will use GFP_NOIO instead of GFP_KERNEL for avoiding deadlock.
-> >>     So the benefit of lazy initialzation would be mitigated, too.
-> >>
-> >> 3) Metadata overhead is not critical and Nitin has a plan to diet it.
-> >>     4K : 12 byte(64bit machine) -> 64G : 192M so 0.3% isn't big overhead
-> >>     If insane user use such big zram device up to 20, it could consume 6% of ram
-> >>     but efficieny of zram will cover the waste.
-> >>
-> >> So this patch gives up lazy initialization and instead we initialize metadata
-> >> at disksize setting time.
-> >>
-> >> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> ---
-> >>   drivers/staging/zram/zram_drv.c   |   21 ++++-----------------
-> >>   drivers/staging/zram/zram_sysfs.c |    1 +
-> >>   2 files changed, 5 insertions(+), 17 deletions(-)
-> >>
-> >> diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> >> index 9ef1eca..f364fb5 100644
-> >> --- a/drivers/staging/zram/zram_drv.c
-> >> +++ b/drivers/staging/zram/zram_drv.c
-> >> @@ -441,16 +441,13 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
-> >>   {
-> >>   	struct zram *zram = queue->queuedata;
-> >>
-> >> -	if (unlikely(!zram->init_done) && zram_init_device(zram))
-> >> -		goto error;
-> >> -
-> >>   	down_read(&zram->init_lock);
-> >>   	if (unlikely(!zram->init_done))
-> >> -		goto error_unlock;
-> >> +		goto error;
-> >>
-> >>   	if (!valid_io_request(zram, bio)) {
-> >>   		zram_stat64_inc(zram, &zram->stats.invalid_io);
-> >> -		goto error_unlock;
-> >> +		goto error;
-> >>   	}
-> >>
-> >>   	__zram_make_request(zram, bio, bio_data_dir(bio));
-> >> @@ -458,9 +455,8 @@ static void zram_make_request(struct request_queue *queue, struct bio *bio)
-> >>
-> >>   	return;
-> >>
-> >> -error_unlock:
-> >> -	up_read(&zram->init_lock);
-> >>   error:
-> >> +	up_read(&zram->init_lock);
-> >>   	bio_io_error(bio);
-> >>   }
-> >>
-> >> @@ -509,19 +505,12 @@ void zram_reset_device(struct zram *zram)
-> >>   	up_write(&zram->init_lock);
-> >>   }
-> >>
-> >> +/* zram->init_lock should be hold */
-> > 
-> > s/hold/held
-> > 
-> > btw, shouldn't we also change GFP_KERNEL to GFP_NOIO in is_partial_io() 
-> > case in both read/write handlers?
-> 
-> Good point. Actually, the one in zram_bvec_read() should actually be
-> GFP_ATOMIC because of the kmap_atomic() above (or be moved out of
+On Wed, Nov 28, 2012 at 5:19 AM, Rafael J. Wysocki <rjw@sisk.pl> wrote:
+>
+> Please use counters instead of walking the whole path every time.  Ie. in
+> addition to the flag add a counter to store the number of the device's
+> children having that flag set.
 
-Right.
+Even though counter is added, walking the whole path can't be avoided too,
+and may be a explicit walking or recursion, because pm_runtime_set_memalloc_noio
+is required to set or clear the flag(or increase/decrease the counter) of
+devices in the whole path.
 
-> kmap_atomic/kunmap_atomic nest).
-> Another solution would be to allocate some working buffer at device
-> init as it's done for compress_buffer/workmem. It would make
-> zram_bvec_read/write look simpler (no need to free memory or manage 
-> kmalloc failure).
-
-Fair enough.
-I sent a patch which replace GFP_KERNEL with GFP_ATOMIC but your suggestion
-would be better. It could be a separate patch. I will send it.
-
-Thanks.
-
-> 
-> Jerome
-> 
-> > 
-> > Rest of the patch looks good.
-> > 
-> > 
-> > Thanks,
-> > Nitin
-> > 
-> >>   int zram_init_device(struct zram *zram)
-> >>   {
-> >>   	int ret;
-> >>   	size_t num_pages;
-> >>
-> >> -	down_write(&zram->init_lock);
-> >> -	if (zram->init_done) {
-> >> -		up_write(&zram->init_lock);
-> >> -		return 0;
-> >> -	}
-> >> -
-> >> -	BUG_ON(!zram->disksize);
-> >> -
-> >>   	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
-> >>   		pr_info(
-> >>   		"There is little point creating a zram of greater than "
-> >> @@ -570,7 +559,6 @@ int zram_init_device(struct zram *zram)
-> >>   	}
-> >>
-> >>   	zram->init_done = 1;
-> >> -	up_write(&zram->init_lock);
-> >>
-> >>   	pr_debug("Initialization done!\n");
-> >>   	return 0;
-> >> @@ -580,7 +568,6 @@ fail_no_table:
-> >>   	zram->disksize = 0;
-> >>   fail:
-> >>   	__zram_reset_device(zram);
-> >> -	up_write(&zram->init_lock);
-> >>   	pr_err("Initialization failed: err=%d\n", ret);
-> >>   	return ret;
-> >>   }
-> >> diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
-> >> index 4143af9..369db12 100644
-> >> --- a/drivers/staging/zram/zram_sysfs.c
-> >> +++ b/drivers/staging/zram/zram_sysfs.c
-> >> @@ -71,6 +71,7 @@ static ssize_t disksize_store(struct device *dev,
-> >>
-> >>   	zram->disksize = PAGE_ALIGN(disksize);
-> >>   	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
-> >> +	zram_init_device(zram);
-> >>   	up_write(&zram->init_lock);
-> >>
-> >>   	return len;
-> >>
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
