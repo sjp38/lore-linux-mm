@@ -1,85 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 832D16B006E
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 15:35:03 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id t2so12557776qcq.14
-        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 12:35:02 -0800 (PST)
-Date: Wed, 28 Nov 2012 12:35:10 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: BUG_ON(inode->i_blocks);
-In-Reply-To: <20121127182738.GA13608@redhat.com>
-Message-ID: <alpine.LNX.2.00.1211281221140.14341@eggly.anvils>
-References: <20121127182738.GA13608@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 51ED96B006C
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 16:11:15 -0500 (EST)
+Message-ID: <1354136568.26955.312.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
+ rebind scenario
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 28 Nov 2012 14:02:48 -0700
+In-Reply-To: <9212118.3s2xH6uJDI@vostro.rjw.lan>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	 <2804331.4p7pU4ARvy@vostro.rjw.lan>
+	 <1354118473.26955.208.camel@misato.fc.hp.com>
+	 <9212118.3s2xH6uJDI@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Fedora Kernel Team <kernel-team@fedoraproject.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, 27 Nov 2012, Dave Jones wrote:
-
-> Hugh,
+> > > > > > > Consider the following case:
+> > > > > > > 
+> > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
+> > > > > > > 
+> > > > > > > CPUa                                                  CPUb
+> > > > > > > acpi_memory_device_notify()
+> > > > > > >                                        unbind it from the driver
+> > > > > > >     acpi_bus_hot_remove_device()
+> > > > > > 
+> > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
+> > > > > > bound with a driver?  If so, can we make the unbind operation to perform
+> > > > > > unbind only?
+> > > > > 
+> > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
+> > > > > if it's not present (dev->driver == NULL).
+> > > > > 
+> > > > > But there can still be a race between an eject and an unbind operation happening
+> > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
+> > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
+> > > > > for other acpi devices?
+> > > > > 
+> > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
+> > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
+> > > > > probably not grabbed on SCI-initiated acpi ejects.
+> > > > 
+> > > > Since driver_unbind() calls device_lock(dev->parent) before calling
+> > > > device_release_driver(), I am wondering if we can call
+> > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
+> > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
+> > > > parent lock is otherwise released after device_release_driver() is done.
+> > > 
+> > > I would be careful.  You may introduce some subtle locking-related issues
+> > > this way.
+> > 
+> > Right.  This requires careful inspection and testing.  As far as the
+> > locking is concerned, I am not keen on using fine grained locking for
+> > hot-plug.  It is much simpler and solid if we serialize such operations.
+> > 
+> > > Besides, there may be an alternative approach to all this.  For example,
+> > > what if we don't remove struct device objects on eject?  The ACPI handles
+> > > associated with them don't go away in that case after all, do they?
+> > 
+> > Umm...  Sorry, I am not getting your point.  The issue is that we need
+> > to be able to fail a request when memory range cannot be off-lined.
+> > Otherwise, we end up ejecting online memory range.
 > 
-> We had a user report hitting the BUG_ON at the end of shmem_evict_inode.
-> I see in 3.7 you changed this to a WARN instead.
-> 
-> Does the trace below match the one you described chasing in commit
-> 0f3c42f522dc1ad7e27affc0a4aa8c790bce0a66 ?
+> Yes, this is the major one.  The minor issue, however, is a race condition
+> between unbinding a driver from a device and removing the device if I
+> understand it correctly.  Which will go away automatically if the device is
+> not removed in the first place.  Or so I would think. :-)
 
-The trace fits (apart from, I hit mine in the days before task_work_run
-was used for fput), but that doesn't tell us anything much.
+I see.  I do not think whether or not the device is removed on eject
+makes any difference here.  The issue is that after driver_unbind() is
+done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
+driver (hence, it cannot fail in prepare_remove), and goes ahead to call
+_EJ0.  If driver_unbind() did off-line the memory, this is OK.  However,
+it cannot off-line kernel memory ranges.  So, we basically need to
+either 1) serialize acpi_bus_hot_remove_device() and driver_unbind(), or
+2) make acpi_bus_hot_remove_device() to fail if driver_unbind() is run
+during the operation.
 
-> 
-> Full report at https://bugzilla.redhat.com/show_bug.cgi?id=879422, though
-> there's not much more than the trace tbh.
-
-It does say "system was idle", which makes me think that this has to
-have a different cause from my race between eviction and swapout.
-
-Of course, the change from BUG_ON to WARN_ON would equally neuter
-this crash, but it looks to me like a sign of... something else.
-Please do let me know if more keep coming.
-
-Hugh
-
-> 
-> 	Dave
-> 
-> 
-> :kernel BUG at mm/shmem.c:657!
-> :invalid opcode: 0000 [#1] SMP 
-> :CPU 1 
-> :Pid: 1017, comm: kwin Not tainted 3.6.6-1.fc17.x86_64 #1 System manufacturer P5E-VM HDMI/P5E-VM HDMI
-> :RIP: 0010:[<ffffffff81145792>]  [<ffffffff81145792>] shmem_evict_inode+0x112/0x120
-> :RSP: 0018:ffff88012b94ddb8  EFLAGS: 00010282
-> :RAX: 0000000050aeab47 RBX: ffff880117a424a8 RCX: 0000000000000018
-> :RDX: 000000001fea11fd RSI: 0000000005537c1c RDI: ffffffff81f1d500
-> :RBP: ffff88012b94ddd8 R08: 0000000000000000 R09: 0000000000000000
-> :R10: 0000000000000000 R11: 0000000000000000 R12: ffff880117a424a8
-> :R13: ffff880117a424a8 R14: ffff880117a424b8 R15: ffff880139a79220
-> :FS:  00007fa606014880(0000) GS:ffff88013fc80000(0000) knlGS:0000000000000000
-> :CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> :CR2: 00007fa5f0021010 CR3: 000000012c2d0000 CR4: 00000000000007e0
-> :DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> :DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> :Process kwin (pid: 1017, threadinfo ffff88012b94c000, task ffff880134f30000)
-> :Stack:
-> : ffff880117a424b8 ffff880117a425b0 ffffffff81812f80 ffffffff81812f80
-> : ffff88012b94de08 ffffffff811a8da2 ffff88012b94dde8 ffff880117a424b8
-> : ffff880117a42540 ffff880139a34000 ffff88012b94de38 ffffffff811a8fa3
-> :Call Trace:
-> : [<ffffffff811a8da2>] evict+0xa2/0x1a0
-> : [<ffffffff811a8fa3>] iput+0x103/0x1f0
-> : [<ffffffff811a50e8>] d_kill+0xd8/0x110
-> : [<ffffffff811a5782>] dput+0xe2/0x1b0
-> : [<ffffffff811900d6>] __fput+0x166/0x240
-> : [<ffffffff811901be>] ____fput+0xe/0x10
-> : [<ffffffff8107beab>] task_work_run+0x6b/0x90
-> : [<ffffffff81013921>] do_notify_resume+0x71/0xb0
-> : [<ffffffff81625be2>] int_signal+0x12/0x17
-> :Code: c7 80 1c c4 81 e8 8f 5a 4d 00 48 89 df e8 77 80 1a 00 49 89 5e e0 49 89 5e e8 48 c7 c7 80 1c c4 81 e8 13 5a 4d 00 e9 1c ff ff ff <0f> 0b 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 41 57 41 
-> :RIP  [<ffffffff81145792>] shmem_evict_inode+0x112/0x120
-> : RSP <ffff88012b94ddb8>
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
