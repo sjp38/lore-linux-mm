@@ -1,104 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 7B1CA6B0071
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 01:12:59 -0500 (EST)
-Date: Wed, 28 Nov 2012 15:12:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: another allocation livelock with zram
-Message-ID: <20121128061257.GA24735@blaptop>
-References: <CAA25o9T8cBhuFnesnxHDsv3PmV8tiHKoLz0dGQeUSCvtpBBv3A@mail.gmail.com>
- <20121121012726.GA5121@bbox>
- <CAA25o9Q=qnmrZ5iyVcmKxDr+nO7J-o-z1X6QtiEdLdxZHCViBw@mail.gmail.com>
- <20121121135957.GB2084@barrios>
- <CAA25o9SeEM0RH1Ztt9aqjpAd50tzbf=0FUXuCOapZjBQuNRZEw@mail.gmail.com>
- <20121123054446.GB13626@bbox>
- <CAA25o9Rbt17E9vNP=J0rkfGnu=YQPhZpeUA+nnaHNRWht0M05w@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 425E36B0070
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 01:17:28 -0500 (EST)
+Message-ID: <50B5AC38.9060207@cn.fujitsu.com>
+Date: Wed, 28 Nov 2012 14:16:24 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA25o9Rbt17E9vNP=J0rkfGnu=YQPhZpeUA+nnaHNRWht0M05w@mail.gmail.com>
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <CAA_GA1d7CxHvmZELvD_DO6u5tu1WBqfmLiuEzeFo=xMzuW50Tg@mail.gmail.com> <50B479FA.6010307@cn.fujitsu.com> <CAA_GA1ezZJyqVL=Dp5U2zzNw6bkfMKJY_STkt3E7TXkUYcv+jQ@mail.gmail.com> <50B4B6BE.3000902@cn.fujitsu.com> <CAA_GA1fE0fhLVs50rRZ6OsTw7DV0hyVC2EuRyUrbzxLztPLoeg@mail.gmail.com> <50B58E30.9060804@huawei.com>
+In-Reply-To: <50B58E30.9060804@huawei.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Bryan Freed <bfreed@google.com>
+To: Jiang Liu <jiang.liu@huawei.com>
+Cc: Bob Liu <lliubbo@gmail.com>, hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, m.szyprowski@samsung.com
 
-On Mon, Nov 26, 2012 at 05:00:26PM -0800, Luigi Semenzato wrote:
-> Still no measurable progress on this one, but some new information.
-> To recapitulate:
-> 
-> --- vanilla 3.4 kernel + hacky min_filelist_kbytes patch + Minchan's
-> patch below:
-> 
-> >> > --- a/mm/vmscan.c
-> >> > +++ b/mm/vmscan.c
-> >> > @@ -2101,7 +2101,7 @@ static bool all_unreclaimable(struct zonelist *zonelist,
-> >> >                         continue;
-> >> >                 if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-> >> >                         continue;
-> >> > -               if (!zone->all_unreclaimable)
-> >> > +               if (zone->pages_scanned < zone_reclaimable_pages(zone) * 6)
-> >> >                         return false;
-> >> >         }
-> 
-> --- no longer running the Chrome browser; instead, running this
-> synthetic load: several instances of a process that allocates 200MB,
-> then touches some subset of its pages in an endless loop.  The
-> process's data segment compresses well (10:1).
-> 
-> --- running the load on two similar systems: one ARM-based, the other
-> x86-based.  Both systems run the same kernel and the same image
-> (different but equivalent configurations).  Both have 2 GB RAM.
-> 
-> On the x86 system, the mm behaves as expected.  All 3 Gb of the zram
-> device are consumed before OOM-kills happen.
-> 
-> On the ARM system, OOM kills start happening when there are still
-> about 2.1 GB of swap available.  Because the compression ratio is so
-> good, the zram disk is only using 100 to 150 MB.
-> 
-> The systems are pretty similar.  The x86 device has a rotating disk,
-> vs. SSD on the ARM device.  This could affect the speed of paging in
-> code, but the program is very small so I don't think that's a factor.
-> 
-> There are no messages from zram in the log.
-> 
-> It could be either an ARM bug, or maybe the bug is on both systems,
-> and the performance behavior on ARM is different enough to expose it.
+Hi Bob, Liu Jiang,
 
-The scenario I can imagine is by kswapd.
-Did you tried to move wakeup_all_kswapd to rebalance below?
+About CMA, could you give me more info ?
+Thanks for your patent and nice advice. :)
 
-The reason why I guess so is direct reclaim which caused by zram page
-allocation is normally GFP_NOIO. It has big limits to reclaim pages,
-for instance, it can't page out dirty pages and swap out of anon pages
-for avoding deadlock so scanning rate of LRU would be high easily for 
-finding easy-reclaimable pages(ie, clean page, likely code). Even, you
-used min_filelist_kbytes, which prevent to reclaim clean pages which
-are only reclaimable pages in case of GFP_NOIO.
 
-High scanning speed without freeing the page would be short cut to OOM load.
+1) I saw the following on http://lwn.net/Articles/447405/:
 
-> 
-> I will continue trying to figure out why kswapd isn't more proactive on ARM.
+The "CMA" type is sticky; pages which are marked as being for CMA
+should never have their migration type changed by the kernel.
 
-Just for the hint. I'm not sure it's really problem.
-Historically, kswapd had problems about balancing of zones,
-(ex, size of zones for balancing) and it was not too long that ARM started
-to use multiple zones with big RAM.
+As Wen said, we now support a user interface to change movable memory
+into kernel memory. But seeing from above, the memory specified as
+CMA will not be able to be changed, right ?  If so, I don't think
+using CMA is a good idea.
 
-> 
-> Thanks!
-> Luigi
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Kind regards,
-Minchan Kim
+2) Is CMA just implemented on ARM platform ?  I found the following in
+kernel-parameters.txt.
+
+cma=nn[MG]      [ARM,KNL]
+         Sets the size of kernel global memory area for contiguous
+         memory allocations. For more information, see
+         include/linux/dma-contiguous.h
+
+We are developing on x86. Could we use it ?
+
+
+3) Is CMA just used for DMA ? I am a little confused here. :)
+I found the main code of CMA is implemented in dma-contiguous.c.
+
+
+4) The boot options cma=xxx and movablecore_map=xxx have different
+meanings for user. Reusing CMA could make user confused, I'm afraid.
+
+And, even if we reuse "cma=" option, we still need to do the work
+in patch 3~5, right ?
+
+
+Thanks. :)
+
+
+
+On 11/28/2012 12:08 PM, Jiang Liu wrote:
+> On 2012-11-28 11:24, Bob Liu wrote:
+>> On Tue, Nov 27, 2012 at 8:49 PM, Tang Chen<tangchen@cn.fujitsu.com>  wrote:
+>>> On 11/27/2012 08:09 PM, Bob Liu wrote:
+>>>>
+>>>> On Tue, Nov 27, 2012 at 4:29 PM, Tang Chen<tangchen@cn.fujitsu.com>
+>>>> wrote:
+>>>>>
+>>>>> Hi Liu,
+>>>>>
+>>>>>
+>>>>> This feature is used in memory hotplug.
+>>>>>
+>>>>> In order to implement a whole node hotplug, we need to make sure the
+>>>>> node contains no kernel memory, because memory used by kernel could
+>>>>> not be migrated. (Since the kernel memory is directly mapped,
+>>>>> VA = PA + __PAGE_OFFSET. So the physical address could not be changed.)
+>>>>>
+>>>>> User could specify all the memory on a node to be movable, so that the
+>>>>> node could be hot-removed.
+>>>>>
+>>>>
+>>>> Thank you for your explanation. It's reasonable.
+>>>>
+>>>> But i think it's a bit duplicated with CMA, i'm not sure but maybe we
+>>>> can combine it with CMA which already in mainline?
+>>>>
+>>> Hi Liu,
+>>>
+>>> Thanks for your advice. :)
+>>>
+>>> CMA is Contiguous Memory Allocator, right?  What I'm trying to do is
+>>> controlling where is the start of ZONE_MOVABLE of each node. Could
+>>> CMA do this job ?
+>>
+>> cma will not control the start of ZONE_MOVABLE of each node, but it
+>> can declare a memory that always movable
+>> and all non movable allocate request will not happen on that area.
+>>
+>> Currently cma use a boot parameter "cma=" to declare a memory size
+>> that always movable.
+>> I think it might fulfill your requirement if extending the boot
+>> parameter with a start address.
+>>
+>> more info at http://lwn.net/Articles/468044/
+>>>
+>>> And also, after a short investigation, CMA seems need to base on
+>>> memblock. But we need to limit memblock not to allocate memory on
+>>> ZONE_MOVABLE. As a result, we need to know the ranges before memblock
+>>> could be used. I'm afraid we still need an approach to get the ranges,
+>>> such as a boot option, or from static ACPI tables such as SRAT/MPST.
+>>>
+>>
+>> Yes, it's based on memblock and with boot option.
+>> In setup_arch32()
+>>      dma_contiguous_reserve(0);   =>  will declare a cma area using
+>> memblock_reserve()
+>>
+>>> I'm don't know much about CMA for now. So if you have any better idea,
+>>> please share with us, thanks. :)
+>>
+>> My idea is reuse cma like below patch(even not compiled) and boot with
+>> "cma=size@start_address".
+>> I don't know whether it can work and whether suitable for your
+>> requirement, if not forgive me for this noises.
+>>
+>> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+>> index 612afcc..564962a 100644
+>> --- a/drivers/base/dma-contiguous.c
+>> +++ b/drivers/base/dma-contiguous.c
+>> @@ -59,11 +59,18 @@ struct cma *dma_contiguous_default_area;
+>>    */
+>>   static const unsigned long size_bytes = CMA_SIZE_MBYTES * SZ_1M;
+>>   static long size_cmdline = -1;
+>> +static long cma_start_cmdline = -1;
+>>
+>>   static int __init early_cma(char *p)
+>>   {
+>> +       char *oldp;
+>>          pr_debug("%s(%s)\n", __func__, p);
+>> +       oldp = p;
+>>          size_cmdline = memparse(p,&p);
+>> +
+>> +       if (*p == '@')
+>> +               cma_start_cmdline = memparse(p+1,&p);
+>> +       printk("cma start:0x%x, size: 0x%x\n", size_cmdline, cma_start_cmdline);
+>>          return 0;
+>>   }
+>>   early_param("cma", early_cma);
+>> @@ -127,8 +134,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+>>          if (selected_size) {
+>>                  pr_debug("%s: reserving %ld MiB for global area\n", __func__,
+>>                           selected_size / SZ_1M);
+>> -
+>> -               dma_declare_contiguous(NULL, selected_size, 0, limit);
+>> +               if (cma_size_cmdline != -1)
+>> +                       dma_declare_contiguous(NULL, selected_size,
+>> cma_start_cmdline, limit);
+>> +               else
+>> +                       dma_declare_contiguous(NULL, selected_size, 0, limit);
+>>          }
+>>   };
+> Seems a good idea to reserve memory by reusing CMA logic, though need more
+> investigation here. One of CMA goal is to ensure pages in CMA are really
+> movable, and this patchset tries to achieve the same goal at a first glance.
+>
+>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
