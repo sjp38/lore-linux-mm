@@ -1,143 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 721D66B005A
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 08:15:45 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id c14so10248156ieb.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 05:15:44 -0800 (PST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 80C856B005A
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 08:29:00 -0500 (EST)
+Date: Thu, 29 Nov 2012 14:28:54 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] memcg: do not check for mm in mem_cgroup_count_vm_event
+ disabled
+Message-ID: <20121129132854.GB27887@dhcp22.suse.cz>
+References: <alpine.DEB.2.00.1211191741060.24618@chino.kir.corp.google.com>
+ <20121120134932.055bc192.akpm@linux-foundation.org>
+ <20121121083505.GA8761@dhcp22.suse.cz>
+ <alpine.LNX.2.00.1211281509560.15410@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
-References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com>
-	<1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
-Date: Thu, 29 Nov 2012 21:15:44 +0800
-Message-ID: <CA+quRcbBCau+2h0fxncR3ck-PZeB2NzFJZxQVea3y0VHAHp2uQ@mail.gmail.com>
-Subject: Re: [Patch v5 5/7] acpi_memhotplug.c: don't allow to eject the memory
- device if it is being used
-From: =?GB2312?B?YW5keXd1MTA2vai5+g==?= <wujianguo106@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1211281509560.15410@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Ying Han <yinghan@google.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-2012/11/15 Wen Congyang <wency@cn.fujitsu.com>
->
-> We eject the memory device even if it is in use.  It is very dangerous,
-> and it will cause the kernel to be panicked.
->
-> CC: David Rientjes <rientjes@google.com>
-> CC: Jiang Liu <liuj97@gmail.com>
-> CC: Len Brown <len.brown@intel.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Christoph Lameter <cl@linux.com>
-> Cc: Minchan Kim <minchan.kim@gmail.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> CC: Rafael J. Wysocki <rjw@sisk.pl>
-> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-> ---
->  drivers/acpi/acpi_memhotplug.c | 42 +++++++++++++++++++++++++++++++++---------
->  1 file changed, 33 insertions(+), 9 deletions(-)
->
-> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> index e52ad5d..f7e3007 100644
-> --- a/drivers/acpi/acpi_memhotplug.c
-> +++ b/drivers/acpi/acpi_memhotplug.c
-> @@ -78,6 +78,7 @@ struct acpi_memory_info {
->         unsigned short caching; /* memory cache attribute */
->         unsigned short write_protect;   /* memory read/write attribute */
->         unsigned int enabled:1;
-> +       unsigned int failed:1;
->  };
->
->  struct acpi_memory_device {
-> @@ -257,9 +258,23 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->                         node = memory_add_physaddr_to_nid(info->start_addr);
->
->                 result = add_memory(node, info->start_addr, info->length);
-> -               if (result)
-> +
-> +               /*
-> +                * If the memory block has been used by the kernel, add_memory()
-> +                * returns -EEXIST. If add_memory() returns the other error, it
-> +                * means that this memory block is not used by the kernel.
-> +                */
-> +               if (result && result != -EEXIST) {
-> +                       info->failed = 1;
->                         continue;
-> -               info->enabled = 1;
-> +               }
-> +
-> +               if (!result)
-> +                       info->enabled = 1;
+On Wed 28-11-12 15:29:30, Hugh Dickins wrote:
+> On Wed, 21 Nov 2012, Michal Hocko wrote:
+> > On Tue 20-11-12 13:49:32, Andrew Morton wrote:
+> > > On Mon, 19 Nov 2012 17:44:34 -0800 (PST)
+> > > David Rientjes <rientjes@google.com> wrote:
+[...]
+> > > > -void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> > > > +void __mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
+> > > > +static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+> > > > +					     enum vm_event_item idx)
+> > > > +{
+> > > > +	if (mem_cgroup_disabled() || !mm)
+> > > > +		return;
+> > > > +	__mem_cgroup_count_vm_event(mm, idx);
+> > > > +}
+> > > 
+> > > Does the !mm case occur frequently enough to justify inlining it, or
+> > > should that test remain out-of-line?
+> > 
+> > Now that you've asked about it I started looking around and I cannot see
+> > how mm can ever be NULL. The condition is there since the very beginning
+> > (456f998e memcg: add the pagefault count into memcg stats) but all the
+> > callers are page fault handlers and those shouldn't have mm==NULL.
+> > Or is there anything obvious I am missing?
+> > 
+> > Ying, the whole thread starts https://lkml.org/lkml/2012/11/19/545 but
+> > the primary question is why we need !mm test for mem_cgroup_count_vm_event
+> > at all.
+> 
+> Here's a guess: as Ying's 456f998e patch started out in akpm's tree,
+> shmem.c was calling mem_cgroup_count_vm_event(current->mm, PGMAJFAULT).
+> 
+> Then I insisted that was inconsistent with how we usually account when
+> one task touches another's address space, and rearranged it to work on
+> vma->vm_mm instead.
 
-Hi Congyang,
+Thanks Hugh!
+ 
+> Done the original way, if the touching task were a kernel daemon (KSM's
+> ksmd comes to my mind), then the current->mm could well have been NULL.
+> 
+> I agree with you that it looks redundant now.
 
-If a memory device booting with the system, the info->enable will equal to 0,
-and can not be hot-removed in  acpi_memory_remove_memory(), right?
-
-Thanks,
-Jianguo Wu
-
->
-> +               /*
-> +                * Add num_enable even if add_memory() returns -EEXIST, so the
-> +                * device is bound to this driver.
-> +                */
->                 num_enabled++;
->         }
->         if (!num_enabled) {
-> @@ -280,21 +295,30 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
->
->  static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
->  {
-> -       int result;
-> +       int result = 0;
->         struct acpi_memory_info *info, *n;
->
->         list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
-> -               if (info->enabled) {
-> -                       result = remove_memory(info->start_addr, info->length);
-> -                       if (result)
-> -                               return result;
-> -               }
-> +               if (info->failed)
-> +                       /* The kernel does not use this memory block */
-> +                       continue;
-> +
-> +               if (!info->enabled)
-> +                       /*
-> +                        * The kernel uses this memory block, but it may be not
-> +                        * managed by us.
-> +                        */
-> +                       return -EBUSY;
-> +
-> +               result = remove_memory(info->start_addr, info->length);
-> +               if (result)
-> +                       return result;
->
->                 list_del(&info->list);
->                 kfree(info);
->         }
->
-> -       return 0;
-> +       return result;
->  }
->
->  static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
-> --
-> 1.8.0
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrew could you please pick this up?
+---
