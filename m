@@ -1,39 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id A2E396B0074
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 09:47:25 -0500 (EST)
-Date: Thu, 29 Nov 2012 15:47:22 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [memcg:since-3.6 480/499] mm/highmem.c:157:8: error: void value
- not ignored as it ought to be
-Message-ID: <20121129144722.GD27887@dhcp22.suse.cz>
-References: <50b76ffc.m4U/dAKBPFmQn+3W%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50b76ffc.m4U/dAKBPFmQn+3W%fengguang.wu@intel.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 8C7C56B0078
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 09:54:15 -0500 (EST)
+Date: 29 Nov 2012 09:54:14 -0500
+Message-ID: <20121129145414.9415.qmail@science.horizon.com>
+From: "George Spelvin" <linux@horizon.com>
+Subject: Re: 3.7-rc6 soft lockup in kswapd0
+In-Reply-To: <20121128113920.GU8218@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: linux-mm@kvack.org
+To: linux@horizon.com, mgorman@suse.de
+Cc: dave@linux.vnet.ibm.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
 
-On Thu 29-11-12 22:23:56, Wu Fengguang wrote:
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-> head:   8695b9105cdb22a5a4b66eea52c0232cbd5e6e48
-> commit: b86ed88f692e53331ef7d6b6b753993df75fc59a [480/499] Reverted "mm, highmem: makes flush_all_zero_pkmaps() return index of last flushed entry"
-> config: i386-randconfig-b780 (attached as .config)
-> 
-> All error/warnings:
-> 
-> mm/highmem.c: In function 'kmap_flush_unused':
-> mm/highmem.c:157:8: error: void value not ignored as it ought to be
-> mm/highmem.c:158:15: error: 'PKMAP_INVALID_INDEX' undeclared (first use in this function)
-> mm/highmem.c:158:15: note: each undeclared identifier is reported only once for each function it appears in
+Mel Gorman <mgorman@suse.de> wrote:
+> On Tue, Nov 27, 2012 at 04:25:14PM -0500, George Spelvin wrote:
+>> Well, it just made it to 24 hours, 
+>> it did before.  I'm going to wait a couple more days before declaring
+>> victory, but it looks good so far.
+>> 
+>>  19:19:10 up 1 day, 0 min,  2 users,  load average: 0.15, 0.20, 0.22
+>>  21:24:05 up 1 day,  2:05,  2 users,  load average: 0.25, 0.19, 0.18
+>
+> Superb. The relevant patches *should* be in flight for 3.7 assuming they
+> make it through the confusion of last-minute fixes.
 
-Dohh, I have screwed revert of "mm, highmem: makes
-flush_all_zero_pkmaps() return index of last flushed entry"
+ 14:53:54 up 2 days, 19:35,  2 users,  load average: 0.20, 0.24, 0.23
 
-Thanks a lot for the report
+Almost three days, when it wouldn't live overnight before.
+As promised, I'm declaring victory.
 
-The patch bellow should heal this.
----
+The patch that worked (on top of -rc7) was Johannes Weiner's
+"mm: vmscan: fix endless loop in kswapd balancing"
+that added the zone_balanced() function to mm/vmscan.c:2400.
+
+Thank you all very much!
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
