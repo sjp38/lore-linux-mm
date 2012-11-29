@@ -1,71 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id C53A36B006E
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:18:10 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Wed, 28 Nov 2012 23:18:09 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 505FBC90043
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:18:07 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAT4I7rv55378118
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:18:07 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAT4I50F022561
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 02:18:06 -0200
-Message-ID: <50B6E1F9.5010301@linaro.org>
-Date: Wed, 28 Nov 2012 20:18:01 -0800
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id C37AC6B0074
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:20:52 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so6487545pad.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 20:20:51 -0800 (PST)
+Date: Wed, 28 Nov 2012 20:17:12 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC] Add mempressure cgroup
+Message-ID: <20121129041711.GA31883@lizard>
+References: <20121128102908.GA15415@lizard>
+ <20121128162924.GA22201@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC v2] Support volatile range for anon vma
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org> <50AD739A.30804@linaro.org>
-In-Reply-To: <50AD739A.30804@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20121128162924.GA22201@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 11/21/2012 04:36 PM, John Stultz wrote:
-> 2) Being able to use this with tmpfs files. I'm currently trying to 
-> better understand the rmap code, looking to see if there's a way to 
-> have try_to_unmap_file() work similarly to try_to_unmap_anon(), to 
-> allow allow users to madvise() on mmapped tmpfs files. This would 
-> provide a very similar interface as to what I've been proposing with 
-> fadvise/fallocate, but just using process virtual addresses instead of 
-> (fd, offset) pairs.   The benefit with (fd,offset) pairs for Android 
-> is that its easier to manage shared volatile ranges between two 
-> processes that are sharing data via an mmapped tmpfs file (although 
-> this actual use case may be fairly rare).  I believe we should still 
-> be able to rework the ashmem internals to use madvise (which would 
-> provide legacy support for existing android apps), so then its just a 
-> question of if we could then eventually convince Android apps to use 
-> the madvise interface directly, rather then the ashmem unpin ioctl.
+Hello Michal,
 
-Hey Minchan,
-     I've been playing around with your patch trying to better 
-understand your approach and to extend it to support tmpfs files. In 
-doing so I've found a few bugs, and have some rough fixes I wanted to 
-share. There's still a few edge cases I need to deal with (the 
-vma-purged flag isn't being properly handled through vma merge/split 
-operations), but its starting to come along.
+Thanks a lot for taking a look into this!
 
-Anyway, take a look at the tree here and let me know what you think.
-http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
+On Wed, Nov 28, 2012 at 05:29:24PM +0100, Michal Hocko wrote:
+> On Wed 28-11-12 02:29:08, Anton Vorontsov wrote:
+> > This is an attempt to implement David Rientjes' idea of mempressure
+> > cgroup.
+> > 
+> > The main characteristics are the same to what I've tried to add to vmevent
+> > API:
+> > 
+> >   Internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
+> >   pressure index calculation. But we don't expose the index to the
+> >   userland. Instead, there are three levels of the pressure:
+> > 
+> >   o low (just reclaiming, e.g. caches are draining);
+> >   o medium (allocation cost becomes high, e.g. swapping);
+> >   o oom (about to oom very soon).
+> > 
+> >   The rationale behind exposing levels and not the raw pressure index
+> >   described here: http://lkml.org/lkml/2012/11/16/675
+> > 
+> > The API uses standard cgroups eventfd notifications:
+> > 
+> >   $ gcc Documentation/cgroups/cgroup_event_listener.c -o \
+> > 	cgroup_event_listener
+> >   $ cd /sys/fs/cgroup/
+> >   $ mkdir mempressure
+> >   $ mount -t cgroup cgroup ./mempressure -o mempressure
+> >   $ cd mempressure
+> >   $ cgroup_event_listener ./mempressure.level low
+> >   ("low", "medium", "oom" are permitted values.)
+> > 
+> >   Upon hitting the threshold, you should see "/sys/fs/cgroup/mempressure
+> >   low: crossed" messages.
+> > 
+> > To test that it actually works on per-cgroup basis, I did a small trick: I
+> > moved all kswapd into a separate cgroup, and hooked the listener onto
+> > another (non-root) cgroup. The listener no longer received global reclaim
+> > pressure, which is expected.
+> 
+> Is this really expected? So you want to be notified only about the
+> direct reclaim?
 
-I'm sure much is wrong with the tree, but with it I can now mark tmpfs 
-file pages as volatile/nonvolatile and see them purged under pressure. 
-Unfortunately its not limited to tmpfs, so persistent files will also 
-work, but the state of the underlying files on purge is undefined. 
-Hopefully I can find a way to limit it to non-persistent filesystems for 
-now, and if needed find a way to extend it to persistent filesystems in 
-a sane way later.
+I didn't try to put much meaning into assinging a task to a non-global
+reclaim watchers, I just mentioned this as an easiest way to test that we
+actually can account things on per-thread basis. :)
 
-thanks
--john
+> I am not sure how much useful is that. If you co-mount with e.g. memcg then
+> the picture is different because even global memory pressure is spread
+> among groups so it would be just a matter of the proper accounting
+> (which can be handled similar to lruvec when your code doesn't have to
+> care about memcg internally).
+> Co-mounting with cpusets makes sense as well because then you get a
+> pressure notification based on the placement policy.
+> 
+> So does it make much sense to mount mempressure on its own without
+> co-mounting with other controllers?
+
+Android does not actually need any of these (memcg or cpusets), but we
+still want to get notifications (for a root cgroup would be enough for us
+-- but I'm trying to make things generic, of course).
+
+> > For a task it is possible to be in both cpusets, memcg and mempressure
+> > cgroups, so by rearranging the tasks it should be possible to watch a
+> > specific pressure.
+> 
+> Could you be more specific what you mean by rearranging? Creating a same
+> hierarchy? Co-mounting?
+> 
+> > Note that while this adds the cgroups support, the code is well separated
+> > and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
+> > But this is another story.
+> 
+> I think it would be nice to follow freezer and split this into 2 files.
+> Generic and cgroup spefici.
+
+Yeah, this is surely an option, but so far it's only a few hundrends lines
+of code, plus we don't have any other users for the "internals". So, for
+the time being, I'd rather keep it in one file.
+
+> > Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+> > ---
+> [...]
+> > +/* These are defaults. Might make them configurable one day. */
+> > +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
+> 
+> I realize this is just an RFC but could you be more specific what is the
+> meaning of vmpressure_win?
+
+Sure, let me just copy the text from the previous RFC, to which you were
+not Cc'ed:
+
+ When the system is short on idle pages, the new memory is allocated by
+ reclaiming least recently used resources: kernel scans pages to be
+ reclaimed (e.g. from file caches, mmap(2) volatile ranges, etc.; and
+ potentially swapping some pages out). The index shows the relative time
+ spent by the kernel uselessly scanning pages, or, in other words, the
+ percentage of scans of pages (vmpressure_window) that were not reclaimed.
+ ...
+ Window size is used as a rate-limit tunable for VMPRESSURE_LOW
+ notifications and for averaging for VMPRESSURE_{MEDIUM,OOM} levels. So,
+ using small window sizes can cause lot of false positives for _MEDIUM and
+ _OOM levels, but too big window size may delay notifications. By default
+ the window size equals to 256 pages (1MB).
+
+You can find more about the tunables in the previus RFC:
+
+	http://lkml.org/lkml/2012/11/7/169 
+
+> > +static const uint vmpressure_level_med = 60;
+> > +static const uint vmpressure_level_oom = 99;
+> > +static const uint vmpressure_level_oom_prio = 4;
+> > +
+> > +enum vmpressure_levels {
+> > +	VMPRESSURE_LOW = 0,
+> > +	VMPRESSURE_MEDIUM,
+> > +	VMPRESSURE_OOM,
+> > +	VMPRESSURE_NUM_LEVELS,
+> > +};
+> > +
+> > +static const char const *vmpressure_str_levels[] = {
+> > +	[VMPRESSURE_LOW] = "low",
+> > +	[VMPRESSURE_MEDIUM] = "medium",
+> > +	[VMPRESSURE_OOM] = "oom",
+> > +};
+> > +
+> > +static enum vmpressure_levels vmpressure_level(uint pressure)
+> > +{
+> > +	if (pressure >= vmpressure_level_oom)
+> > +		return VMPRESSURE_OOM;
+> > +	else if (pressure >= vmpressure_level_med)
+> > +		return VMPRESSURE_MEDIUM;
+> > +	return VMPRESSURE_LOW;
+> > +}
+> > +
+> > +static ulong vmpressure_calc_level(uint win, uint s, uint r)
+> > +{
+> > +	ulong p;
+> > +
+> > +	if (!s)
+> > +		return 0;
+> > +
+> > +	/*
+> > +	 * We calculate the ratio (in percents) of how many pages were
+> > +	 * scanned vs. reclaimed in a given time frame (window). Note that
+> > +	 * time is in VM reclaimer's "ticks", i.e. number of pages
+> > +	 * scanned. This makes it possible to set desired reaction time
+> > +	 * and serves as a ratelimit.
+> > +	 */
+> > +	p = win - (r * win / s);
+> > +	p = p * 100 / win;
+> 
+> Do we need the win at all?
+> 	p = 100 - (100 * r / s);
+
+Other than for me being pedant, pretty much no. :) It's just less
+"precise" (try s=1000, r=9). (But in return, my version is prone to
+misbehave when window is too large.)
+
+> > +
+> > +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, p, s, r);
+> > +
+> > +	return vmpressure_level(p);
+> > +}
+> > +
+> [...]
+> > +static int mpc_pre_destroy(struct cgroup *cg)
+> > +{
+> > +	struct mpc_state *mpc = cg2mpc(cg);
+> > +	int ret = 0;
+> > +
+> > +	mutex_lock(&mpc->lock);
+> > +
+> > +	if (mpc->eventfd)
+> > +		ret = -EBUSY;
+> 
+> The current cgroup's core doesn't allow pre_destroy to fail anymore. The
+> code is marked for 3.8
+
+Sure, I can rebase. (Currently, the code is based on the v3.7-rc6, which
+isn't even released but seems way too old already, heh. :)
+
+> [...]
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 48550c6..430d8a5 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1877,6 +1877,8 @@ restart:
+> >  		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+> >  				   sc, LRU_ACTIVE_ANON);
+> >  
+> > +	vmpressure(sc->nr_scanned - nr_scanned, nr_reclaimed);
+> > +
+> 
+> I think this should already report to a proper group otherwise all the
+> global reclaim would go to a group where kswapd sits rather than to the
+> target group as I mentioned above (so it at least wouldn't work with a
+> co-mounted cases).
+
+Um. Yeah, I guess I was too optimistic here, relying on the things to
+"just work". I guess I still need to pass memcg pointer to the
+vmpressure() and check if the process is also part of the
+sc->target_mem_cgroup.
+
+> >  	/* reclaim/compaction might need reclaim to continue */
+> >  	if (should_continue_reclaim(lruvec, nr_reclaimed,
+> >  				    sc->nr_scanned - nr_scanned, sc))
+> > @@ -2099,6 +2101,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+> >  		count_vm_event(ALLOCSTALL);
+> >  
+> >  	do {
+> > +		vmpressure_prio(sc->priority);
+> 
+> Shouldn't this go into shrink_lruvec or somewhere at that level to catch
+> also kswapd low priorities? If you insist on the direct reclaim then you
+> should hook into __zone_reclaim as well.
+
+Probably... Thanks for pointing out, I'll take a closer look once we
+resolve the global/design issues.
+
+Thanks!
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
