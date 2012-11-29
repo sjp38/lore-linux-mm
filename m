@@ -1,113 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 889576B007D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 20:10:58 -0500 (EST)
-Message-ID: <1354150952.26955.377.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 28 Nov 2012 18:02:32 -0700
-In-Reply-To: <4042591.gpFk7OYmph@vostro.rjw.lan>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <9212118.3s2xH6uJDI@vostro.rjw.lan>
-	 <1354136568.26955.312.camel@misato.fc.hp.com>
-	 <4042591.gpFk7OYmph@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 41E9C6B0068
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 20:22:04 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id t2so12895509qcq.14
+        for <linux-mm@kvack.org>; Wed, 28 Nov 2012 17:22:03 -0800 (PST)
+Date: Wed, 28 Nov 2012 17:22:03 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: support SEEK_DATA and SEEK_HOLE (reprise)
+Message-ID: <alpine.LNX.2.00.1211281706390.1516@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Zheng Liu <wenqing.lz@taobao.com>, Jeff liu <jeff.liu@oracle.com>, Jim Meyering <jim@meyering.net>, Paul Eggert <eggert@cs.ucla.edu>, Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Chris Mason <chris.mason@fusionio.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 2012-11-29 at 00:49 +0100, Rafael J. Wysocki wrote:
-> On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
-> > > > > > > > > Consider the following case:
-> > > > > > > > > 
-> > > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > > > 
-> > > > > > > > > CPUa                                                  CPUb
-> > > > > > > > > acpi_memory_device_notify()
-> > > > > > > > >                                        unbind it from the driver
-> > > > > > > > >     acpi_bus_hot_remove_device()
-> > > > > > > > 
-> > > > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
-> > > > > > > > bound with a driver?  If so, can we make the unbind operation to perform
-> > > > > > > > unbind only?
-> > > > > > > 
-> > > > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
-> > > > > > > if it's not present (dev->driver == NULL).
-> > > > > > > 
-> > > > > > > But there can still be a race between an eject and an unbind operation happening
-> > > > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
-> > > > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
-> > > > > > > for other acpi devices?
-> > > > > > > 
-> > > > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
-> > > > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
-> > > > > > > probably not grabbed on SCI-initiated acpi ejects.
-> > > > > > 
-> > > > > > Since driver_unbind() calls device_lock(dev->parent) before calling
-> > > > > > device_release_driver(), I am wondering if we can call
-> > > > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
-> > > > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
-> > > > > > parent lock is otherwise released after device_release_driver() is done.
-> > > > > 
-> > > > > I would be careful.  You may introduce some subtle locking-related issues
-> > > > > this way.
-> > > > 
-> > > > Right.  This requires careful inspection and testing.  As far as the
-> > > > locking is concerned, I am not keen on using fine grained locking for
-> > > > hot-plug.  It is much simpler and solid if we serialize such operations.
-> > > > 
-> > > > > Besides, there may be an alternative approach to all this.  For example,
-> > > > > what if we don't remove struct device objects on eject?  The ACPI handles
-> > > > > associated with them don't go away in that case after all, do they?
-> > > > 
-> > > > Umm...  Sorry, I am not getting your point.  The issue is that we need
-> > > > to be able to fail a request when memory range cannot be off-lined.
-> > > > Otherwise, we end up ejecting online memory range.
-> > > 
-> > > Yes, this is the major one.  The minor issue, however, is a race condition
-> > > between unbinding a driver from a device and removing the device if I
-> > > understand it correctly.  Which will go away automatically if the device is
-> > > not removed in the first place.  Or so I would think. :-)
-> > 
-> > I see.  I do not think whether or not the device is removed on eject
-> > makes any difference here.  The issue is that after driver_unbind() is
-> > done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
-> > driver (hence, it cannot fail in prepare_remove), and goes ahead to call
-> > _EJ0.
-> 
-> I see two reasons for calling acpi_bus_hot_remove_device() for memory (correct
-> me if I'm wrong): (1) from the memhotplug driver's notify handler and (2) from
-> acpi_eject_store() which is exposed through sysfs.  
+Revert 3.5's f21f8062201f ("tmpfs: revert SEEK_DATA and SEEK_HOLE")
+to reinstate 4fb5ef089b28 ("tmpfs: support SEEK_DATA and SEEK_HOLE"),
+with the intervening additional arg to generic_file_llseek_size().
 
-Yes, that is correct.
+In 3.8, ext4 is expected to join btrfs, ocfs2 and xfs with proper
+SEEK_DATA and SEEK_HOLE support; and a good case has now been made
+for it on tmpfs, so let's join the party.
 
-> If we disabled exposing
-> acpi_eject_store() for memory devices, then the only way would be from the
-> notify handler.  So I wonder if driver_unbind() shouldn't just uninstall the
-> notify handler for memory (so that memory eject events are simply dropped on
-> the floor after unbinding the driver)?
+It's quite easy for tmpfs to scan the radix_tree to support llseek's new
+SEEK_DATA and SEEK_HOLE options: so add them while the minutiae are still
+on my mind (in particular, the !PageUptodate-ness of pages fallocated but
+still unwritten).
 
-If driver_unbind() happens before an eject request, we do not have a
-problem.  acpi_eject_store() fails if a driver is not bound to the
-device.  acpi_memory_device_notify() fails as well.
+[akpm@linux-foundation.org: fix warning with CONFIG_TMPFS=n]
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-The race condition Wen pointed out (see the top of this email) is that
-driver_unbind() may come in while eject operation is in-progress.  This
-is why I mentioned the following in previous email.
+ mm/shmem.c |   92 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 91 insertions(+), 1 deletion(-)
 
-> So, we basically need to either 1) serialize
-> acpi_bus_hot_remove_device() and driver_unbind(), or 2) make
-> acpi_bus_hot_remove_device() to fail if driver_unbind() is run
-> during the operation.
-
-
-Thanks,
--Toshi
+--- 3.7-rc7/mm/shmem.c	2012-11-16 19:26:56.388459961 -0800
++++ linux/mm/shmem.c	2012-11-28 15:53:38.788477201 -0800
+@@ -1709,6 +1709,96 @@ static ssize_t shmem_file_splice_read(st
+ 	return error;
+ }
+ 
++/*
++ * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
++ */
++static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
++				    pgoff_t index, pgoff_t end, int origin)
++{
++	struct page *page;
++	struct pagevec pvec;
++	pgoff_t indices[PAGEVEC_SIZE];
++	bool done = false;
++	int i;
++
++	pagevec_init(&pvec, 0);
++	pvec.nr = 1;		/* start small: we may be there already */
++	while (!done) {
++		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
++					pvec.nr, pvec.pages, indices);
++		if (!pvec.nr) {
++			if (origin == SEEK_DATA)
++				index = end;
++			break;
++		}
++		for (i = 0; i < pvec.nr; i++, index++) {
++			if (index < indices[i]) {
++				if (origin == SEEK_HOLE) {
++					done = true;
++					break;
++				}
++				index = indices[i];
++			}
++			page = pvec.pages[i];
++			if (page && !radix_tree_exceptional_entry(page)) {
++				if (!PageUptodate(page))
++					page = NULL;
++			}
++			if (index >= end ||
++			    (page && origin == SEEK_DATA) ||
++			    (!page && origin == SEEK_HOLE)) {
++				done = true;
++				break;
++			}
++		}
++		shmem_deswap_pagevec(&pvec);
++		pagevec_release(&pvec);
++		pvec.nr = PAGEVEC_SIZE;
++		cond_resched();
++	}
++	return index;
++}
++
++static loff_t shmem_file_llseek(struct file *file, loff_t offset, int origin)
++{
++	struct address_space *mapping = file->f_mapping;
++	struct inode *inode = mapping->host;
++	pgoff_t start, end;
++	loff_t new_offset;
++
++	if (origin != SEEK_DATA && origin != SEEK_HOLE)
++		return generic_file_llseek_size(file, offset, origin,
++					MAX_LFS_FILESIZE, i_size_read(inode));
++	mutex_lock(&inode->i_mutex);
++	/* We're holding i_mutex so we can access i_size directly */
++
++	if (offset < 0)
++		offset = -EINVAL;
++	else if (offset >= inode->i_size)
++		offset = -ENXIO;
++	else {
++		start = offset >> PAGE_CACHE_SHIFT;
++		end = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
++		new_offset = shmem_seek_hole_data(mapping, start, end, origin);
++		new_offset <<= PAGE_CACHE_SHIFT;
++		if (new_offset > offset) {
++			if (new_offset < inode->i_size)
++				offset = new_offset;
++			else if (origin == SEEK_DATA)
++				offset = -ENXIO;
++			else
++				offset = inode->i_size;
++		}
++	}
++
++	if (offset >= 0 && offset != file->f_pos) {
++		file->f_pos = offset;
++		file->f_version = 0;
++	}
++	mutex_unlock(&inode->i_mutex);
++	return offset;
++}
++
+ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 							 loff_t len)
+ {
+@@ -2580,7 +2670,7 @@ static const struct address_space_operat
+ static const struct file_operations shmem_file_operations = {
+ 	.mmap		= shmem_mmap,
+ #ifdef CONFIG_TMPFS
+-	.llseek		= generic_file_llseek,
++	.llseek		= shmem_file_llseek,
+ 	.read		= do_sync_read,
+ 	.write		= do_sync_write,
+ 	.aio_read	= shmem_file_aio_read,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
