@@ -1,52 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 5ED406B0072
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 09:36:56 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so6870194pad.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:36:55 -0800 (PST)
-Date: Thu, 29 Nov 2012 06:36:50 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.8] cpuset: decouple cpuset locking from
- cgroup core
-Message-ID: <20121129143650.GE24683@htj.dyndns.org>
-References: <1354138460-19286-1-git-send-email-tj@kernel.org>
- <50B743A1.4040405@parallels.com>
- <20121129142646.GD24683@htj.dyndns.org>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id A2E396B0074
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 09:47:25 -0500 (EST)
+Date: Thu, 29 Nov 2012 15:47:22 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [memcg:since-3.6 480/499] mm/highmem.c:157:8: error: void value
+ not ignored as it ought to be
+Message-ID: <20121129144722.GD27887@dhcp22.suse.cz>
+References: <50b76ffc.m4U/dAKBPFmQn+3W%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121129142646.GD24683@htj.dyndns.org>
+In-Reply-To: <50b76ffc.m4U/dAKBPFmQn+3W%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: lizefan@huawei.com, paul@paulmenage.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: linux-mm@kvack.org
 
-On Thu, Nov 29, 2012 at 06:26:46AM -0800, Tejun Heo wrote:
-> > What I'll try to do, is to come with another specialized lock in cgroup
-> > just for this case. So after taking the cgroup lock, we would also take
-> > an extra lock if we are adding another entry - be it task or children -
-> > to the cgroup.
+On Thu 29-11-12 22:23:56, Wu Fengguang wrote:
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> head:   8695b9105cdb22a5a4b66eea52c0232cbd5e6e48
+> commit: b86ed88f692e53331ef7d6b6b753993df75fc59a [480/499] Reverted "mm, highmem: makes flush_all_zero_pkmaps() return index of last flushed entry"
+> config: i386-randconfig-b780 (attached as .config)
 > 
-> No, please don't do that.  Just don't invoke cgroup operation inside
-> any subsystem lock.
+> All error/warnings:
+> 
+> mm/highmem.c: In function 'kmap_flush_unused':
+> mm/highmem.c:157:8: error: void value not ignored as it ought to be
+> mm/highmem.c:158:15: error: 'PKMAP_INVALID_INDEX' undeclared (first use in this function)
+> mm/highmem.c:158:15: note: each undeclared identifier is reported only once for each function it appears in
 
-To add a bit, you won't be solving any problem by adding more locks
-here.  cpuset wants to initiate task cgroup migration.  It doesn't
-matter how many locks cgroup uses internally.  You'll have to grab
-them all anyway to do that.  It's not a problem caused by granularity
-of cgroup_lock at all, so there just isn't any logic in dividing locks
-for this.  So, again, please don't go that direction.  What we need to
-do is isolating subsystem locking and implementation from cgroup
-internals, not complicating cgroup internals even more, and now we
-have good enoug API to achieve such isolation.
+Dohh, I have screwed revert of "mm, highmem: makes
+flush_all_zero_pkmaps() return index of last flushed entry"
 
-Thanks.
+Thanks a lot for the report
 
--- 
-tejun
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+The patch bellow should heal this.
+---
