@@ -1,99 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 8A1946B0068
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:36:42 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so7240382bkc.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 03:36:40 -0800 (PST)
-Date: Thu, 29 Nov 2012 12:36:35 +0100
-From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
- operation
-Message-ID: <20121129113635.GC639@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
- <50B5EFE9.3040206@huawei.com>
- <1354128096.26955.276.camel@misato.fc.hp.com>
- <75241306.UQIr1RW8Qh@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 721D66B005A
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 08:15:45 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id c14so10248156ieb.14
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 05:15:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <75241306.UQIr1RW8Qh@vostro.rjw.lan>
+In-Reply-To: <1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
+References: <1352962777-24407-1-git-send-email-wency@cn.fujitsu.com>
+	<1352962777-24407-6-git-send-email-wency@cn.fujitsu.com>
+Date: Thu, 29 Nov 2012 21:15:44 +0800
+Message-ID: <CA+quRcbBCau+2h0fxncR3ck-PZeB2NzFJZxQVea3y0VHAHp2uQ@mail.gmail.com>
+Subject: Re: [Patch v5 5/7] acpi_memhotplug.c: don't allow to eject the memory
+ device if it is being used
+From: =?GB2312?B?YW5keXd1MTA2vai5+g==?= <wujianguo106@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-acpi@vger.kernel.org, Toshi Kani <toshi.kani@hp.com>, Hanjun Guo <guohanjun@huawei.com>, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-acpi@vger.kernel.org, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Toshi Kani <toshi.kani@hp.com>, Jiang Liu <liuj97@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Christoph Lameter <cl@linux.com>
 
-On Thu, Nov 29, 2012 at 11:15:31AM +0100, Rafael J. Wysocki wrote:
-> On Wednesday, November 28, 2012 11:41:36 AM Toshi Kani wrote:
-> > On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
-> > > We met the same problem when we doing computer node hotplug, It is a good idea
-> > > to introduce prepare_remove before actual device removal.
-> > > 
-> > > I think we could do more in prepare_remove, such as rollback. In most cases, we can
-> > > offline most of memory sections except kernel used pages now, should we rollback
-> > > and online the memory sections when prepare_remove failed ?
-> > 
-> > I think hot-plug operation should have all-or-nothing semantics.  That
-> > is, an operation should either complete successfully, or rollback to the
-> > original state.
-> 
-> That's correct.
-> 
-> > > As you may know, the ACPI based hotplug framework we are working on already addressed
-> > > this problem, and the way we slove this problem is a bit like yours.
-> > > 
-> > > We introduce hp_ops in struct acpi_device_ops:
-> > > struct acpi_device_ops {
-> > > 	acpi_op_add add;
-> > > 	acpi_op_remove remove;
-> > > 	acpi_op_start start;
-> > > 	acpi_op_bind bind;
-> > > 	acpi_op_unbind unbind;
-> > > 	acpi_op_notify notify;
-> > > #ifdef	CONFIG_ACPI_HOTPLUG
-> > > 	struct acpihp_dev_ops *hp_ops;
-> > > #endif	/* CONFIG_ACPI_HOTPLUG */
-> > > };
-> > > 
-> > > in hp_ops, we divide the prepare_remove into six small steps, that is:
-> > > 1) pre_release(): optional step to mark device going to be removed/busy
-> > > 2) release(): reclaim device from running system
-> > > 3) post_release(): rollback if cancelled by user or error happened
-> > > 4) pre_unconfigure(): optional step to solve possible dependency issue
-> > > 5) unconfigure(): remove devices from running system
-> > > 6) post_unconfigure(): free resources used by devices
-> > > 
-> > > In this way, we can easily rollback if error happens.
-> > > How do you think of this solution, any suggestion ? I think we can achieve
-> > > a better way for sharing ideas. :)
-> > 
-> > Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
-> > have not looked at all your changes yet..), but in my mind, a hot-plug
-> > operation should be composed with the following 3 phases.
-> > 
-> > 1. Validate phase - Verify if the request is a supported operation.  All
-> > known restrictions are verified at this phase.  For instance, if a
-> > hot-remove request involves kernel memory, it is failed in this phase.
-> > Since this phase makes no change, no rollback is necessary to fail.  
-> 
-> Actually, we can't do it this way, because the conditions may change between
-> the check and the execution.  So the first phase needs to involve execution
-> to some extent, although only as far as it remains reversible.
-> 
-> > 2. Execute phase - Perform hot-add / hot-remove operation that can be
-> > rolled-back in case of error or cancel.
-> 
-> I would just merge 1 and 2.
+2012/11/15 Wen Congyang <wency@cn.fujitsu.com>
+>
+> We eject the memory device even if it is in use.  It is very dangerous,
+> and it will cause the kernel to be panicked.
+>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Jiang Liu <liuj97@gmail.com>
+> CC: Len Brown <len.brown@intel.com>
+> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> CC: Paul Mackerras <paulus@samba.org>
+> CC: Christoph Lameter <cl@linux.com>
+> Cc: Minchan Kim <minchan.kim@gmail.com>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> CC: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+> CC: Rafael J. Wysocki <rjw@sisk.pl>
+> CC: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> ---
+>  drivers/acpi/acpi_memhotplug.c | 42 +++++++++++++++++++++++++++++++++---------
+>  1 file changed, 33 insertions(+), 9 deletions(-)
+>
+> diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> index e52ad5d..f7e3007 100644
+> --- a/drivers/acpi/acpi_memhotplug.c
+> +++ b/drivers/acpi/acpi_memhotplug.c
+> @@ -78,6 +78,7 @@ struct acpi_memory_info {
+>         unsigned short caching; /* memory cache attribute */
+>         unsigned short write_protect;   /* memory read/write attribute */
+>         unsigned int enabled:1;
+> +       unsigned int failed:1;
+>  };
+>
+>  struct acpi_memory_device {
+> @@ -257,9 +258,23 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+>                         node = memory_add_physaddr_to_nid(info->start_addr);
+>
+>                 result = add_memory(node, info->start_addr, info->length);
+> -               if (result)
+> +
+> +               /*
+> +                * If the memory block has been used by the kernel, add_memory()
+> +                * returns -EEXIST. If add_memory() returns the other error, it
+> +                * means that this memory block is not used by the kernel.
+> +                */
+> +               if (result && result != -EEXIST) {
+> +                       info->failed = 1;
+>                         continue;
+> -               info->enabled = 1;
+> +               }
+> +
+> +               if (!result)
+> +                       info->enabled = 1;
 
-I agree steps 1 and 2 can be merged, at least for the current ACPI framework.
-E.g. for memory hotplug, the mm function we call for memory removal
-(remove_memory) handles both these steps.
+Hi Congyang,
 
-The new ACPI framework could perhaps expand the operations as Hanjun described,
-if it makes sense.
+If a memory device booting with the system, the info->enable will equal to 0,
+and can not be hot-removed in  acpi_memory_remove_memory(), right?
 
-thanks,
+Thanks,
+Jianguo Wu
 
-- Vasilis
+>
+> +               /*
+> +                * Add num_enable even if add_memory() returns -EEXIST, so the
+> +                * device is bound to this driver.
+> +                */
+>                 num_enabled++;
+>         }
+>         if (!num_enabled) {
+> @@ -280,21 +295,30 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+>
+>  static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+>  {
+> -       int result;
+> +       int result = 0;
+>         struct acpi_memory_info *info, *n;
+>
+>         list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+> -               if (info->enabled) {
+> -                       result = remove_memory(info->start_addr, info->length);
+> -                       if (result)
+> -                               return result;
+> -               }
+> +               if (info->failed)
+> +                       /* The kernel does not use this memory block */
+> +                       continue;
+> +
+> +               if (!info->enabled)
+> +                       /*
+> +                        * The kernel uses this memory block, but it may be not
+> +                        * managed by us.
+> +                        */
+> +                       return -EBUSY;
+> +
+> +               result = remove_memory(info->start_addr, info->length);
+> +               if (result)
+> +                       return result;
+>
+>                 list_del(&info->list);
+>                 kfree(info);
+>         }
+>
+> -       return 0;
+> +       return result;
+>  }
+>
+>  static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
+> --
+> 1.8.0
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
