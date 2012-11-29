@@ -1,92 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 0541F6B004D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 18:54:18 -0500 (EST)
-Date: Wed, 28 Nov 2012 23:54:12 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: kswapd craziness in 3.7
-Message-ID: <20121128235412.GW8218@suse.de>
-References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
- <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
- <50B52DC4.5000109@redhat.com>
- <20121127214928.GA20253@cmpxchg.org>
- <50B5387C.1030005@redhat.com>
- <20121127222637.GG2301@cmpxchg.org>
- <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
- <20121128101359.GT8218@suse.de>
- <20121128145215.d23aeb1b.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 44D426B0062
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:09:24 -0500 (EST)
+Received: from /spool/local
+	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Wed, 28 Nov 2012 19:09:23 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 95B3FC90044
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAT044vd340438
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAT043jS005324
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500
+Message-ID: <50B6A66E.8030406@linux.vnet.ibm.com>
+Date: Wed, 28 Nov 2012 16:03:58 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121128145215.d23aeb1b.akpm@linux-foundation.org>
+Subject: 32/64-bit NUMA consolidation behavior regresion
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Wed, Nov 28, 2012 at 02:52:15PM -0800, Andrew Morton wrote:
-> On Wed, 28 Nov 2012 10:13:59 +0000
-> Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > Based on the reports I've seen I expect the following to work for 3.7
-> > 
-> > Keep
-> >   96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
-> >   ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
-> > 
-> > Revert
-> >   82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
-> > 
-> > Merge
-> >   mm: vmscan: fix kswapd endless loop on higher order allocation
-> >   mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
-> 
-> "mm: Avoid waking kswapd for THP ..." is marked "I have not tested it
-> myself" and when Zdenek tested it he hit an unexplained oom.
-> 
+Hi Tejun,
 
-I thought Zdenek was testing with __GFP_NO_KSWAPD when he hit that OOM.
-Further, when he hit that OOM, it looked like a genuine OOM. He had no
-swap configured and inactive/active file pages were very low. Finally,
-the free pages for Normal looked off and could also have been affected by
-the accounting bug. I'm looking at https://lkml.org/lkml/2012/11/18/132
-here. Are you thinking of something else?
+I was bisecting a boot problem on a 32-bit NUMA kernel and it bisected
+down to commit 8db78cc4.  It turns out that, with this patch,
+pcpu_need_numa() changed its return value on my system from 1 to 0.
+What that basically meant was that we stopped using the remapped lowmem
+areas for percpu data.
 
-I have not tested with the patch admittedly but Thorsten has and seemed
-to be ok with it https://lkml.org/lkml/2012/11/23/276.
+My system is just qemu booted with:
 
-> > Johannes' patch should remove the necessity for __GFP_NO_KSWAPD revert but I
-> > think we should also avoid waking kswapd for THP allocations if compaction
-> > is deferred. Johannes' patch might mean that kswapd goes quickly go back
-> > to sleep but it's still busy work.
-> > 
-> > 3.6 is still known to be screwed in terms of THP because of the amount of
-> > time it can spend in compaction after lumpy reclaim was removed. This is
-> > my old list of patches I felt needed to be backported after 3.7 came out.
-> > They are not tagged -stable, I'll be sending it to Greg manually.
-> > 
-> > e64c523 mm: compaction: abort compaction loop if lock is contended or run too long
-> > 3cc668f mm: compaction: move fatal signal check out of compact_checklock_irqsave
-> > 661c4cb mm: compaction: Update try_to_compact_pages()kerneldoc comment
-> > 2a1402a mm: compaction: acquire the zone->lru_lock as late as possible
-> > f40d1e4 mm: compaction: acquire the zone->lock as late as possible
-> > 753341a revert "mm: have order > 0 compaction start off where it left"
-> > bb13ffe mm: compaction: cache if a pageblock was scanned and no pages were isolated
-> > c89511a mm: compaction: Restart compaction from near where it left off
-> > 6299702 mm: compaction: clear PG_migrate_skip based on compaction and reclaim activity
-> > 0db63d7 mm: compaction: correct the nr_strict va isolated check for CMA
-> > 
-> > Only Johannes' patch needs to be added to this list. kswapd is not woken
-> > for THP in 3.6 but as it calls compaction for other high-order allocations
-> > it still makes sense.
-> 
-> Please identify "Johannes' patch"?
+-smp 8 -m 8192 -numa node,nodeid=0,cpus=0-3 -numa node,nodeid=1,cpus=4-7
 
-mm: vmscan: fix kswapd endless loop on higher order allocation
+Watch the "PERCPU:" line early in boot, and you can see the "Embedded"
+come and go with or without your patch:
 
--- 
-Mel Gorman
-SUSE Labs
+[    0.000000] PERCPU: Embedded 11 pages/cpu @f3000000 s30592 r0 d14464
+vs
+[    0.000000] PERCPU: 11 4K pages/cpu @f83fe000 s30592 r0 d14464
+
+I believe this has to do with the hunks in your patch that do:
+
+-#ifdef CONFIG_X86_64
+        init_cpu_to_node();
+-#endif
+...
+-#ifdef CONFIG_X86_32
+-DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, 0);
+-#else
+ DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
+-#endif
+ EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+
+I don't have a fix handy because I'm working on the original problem,
+but I just happened to run across this during a bisect.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
