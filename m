@@ -1,75 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id E67286B0070
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 11:00:33 -0500 (EST)
-Date: Thu, 29 Nov 2012 16:58:51 +0100
-From: Mike Hommey <mh@glandium.org>
-Subject: Re: [PATCH 0/3] Volatile Ranges (v7) & Lots of words
-Message-ID: <20121129155851.GA24630@glandium.org>
-References: <1348888593-23047-1-git-send-email-john.stultz@linaro.org>
- <20121002173928.2062004e@notabene.brown>
- <506B6CE0.1060800@linaro.org>
- <CAHO5Pa0KvH+MTYm6BCM5LHj995HpO+t87szyJjjXgupVq2VTfA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 5BC966B0072
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 11:07:41 -0500 (EST)
+Message-ID: <50B7882D.5060100@zytor.com>
+Date: Thu, 29 Nov 2012 08:07:09 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHO5Pa0KvH+MTYm6BCM5LHj995HpO+t87szyJjjXgupVq2VTfA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B5CFAE.80103@huawei.com> <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com> <50B68467.5020008@zytor.com> <20121129110045.GX8218@suse.de>
+In-Reply-To: <20121129110045.GX8218@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: John Stultz <john.stultz@linaro.org>, NeilBrown <neilb@suse.de>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Andrea Righi <andrea@betterlinux.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Hellwig <hch@infradead.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
 
-On Fri, Nov 02, 2012 at 09:59:07PM +0100, Michael Kerrisk wrote:
-> John,
+On 11/29/2012 03:00 AM, Mel Gorman wrote:
 > 
-> A question at on one point:
+> I've not been paying a whole pile of attention to this because it's not an
+> area I'm active in but I agree that configuring ZONE_MOVABLE like
+> this at boot-time is going to be problematic. As awkward as it is, it
+> would probably work out better to only boot with one node by default and
+> then hot-add the nodes at runtime using either an online sysfs file or
+> an online-reserved file that hot-adds the memory to ZONE_MOVABLE. Still
+> clumsy but better than specifying addresses on the command line.
 > 
-> On Wed, Oct 3, 2012 at 12:38 AM, John Stultz <john.stultz@linaro.org> wrote:
-> > On 10/02/2012 12:39 AM, NeilBrown wrote:
-> [...]
-> >>   The SIGBUS interface could have some merit if it really reduces
-> >> overhead.  I
-> >>   worry about app bugs that could result from the non-deterministic
-> >>   behaviour.   A range could get unmapped while it is in use and testing
-> >> for
-> >>   the case of "get a SIGBUS half way though accessing something" would not
-> >>   be straight forward (SIGBUS on first step of access should be easy).
-> >>   I guess that is up to the app writer, but I have never liked anything
-> >> about
-> >>   the signal interface and encouraging further use doesn't feel wise.
-> >
-> > Initially I didn't like the idea, but have warmed considerably to it. Mainly
-> > due to the concern that the constant unmark/access/mark pattern would be too
-> > much overhead, and having a lazy method will be much nicer for performance.
-> > But yes, at the cost of additional complexity of handling the signal,
-> > marking the faulted address range as non-volatile, restoring the data and
-> > continuing.
+> That said, I also find using ZONE_MOVABLE to be a problem in itself that
+> will cause problems down the road. Maybe this was discussed already but
+> just in case I'll describe the problems I see.
 > 
-> At a finer level of detail, how do you see this as happening in the
-> application. I mean: in the general case, repopulating the purged
-> volatile page would have to be done outside the signal handler (I
-> think, because async-signal-safety considerations would preclude too
-> much compdex stuff going on inside the handler). That implies
-> longjumping out of the handler, repopulating the pages with data, and
-> then restarting whatever work was being done when the SIGBUS was
-> generated.
 
-There are different strategies that can be used to repopulate the pages,
-within or outside the signal handler, and I'd say it's not that
-important of a detail.
+Yes, and it does mean that we definitely don't want everything that can
+be in ZONE_MOVABLE to be there without administrator control.  I suspect
+that a lot of users of such platforms actually will not use the feature,
+and don't want to take the substantial penalty.
 
-That being said, if the kernel could be helpful and avoid people
-shooting themselves in the foot, that would be great, too.
+The other bit is that if you really really want high reliability, memory
+mirroring is the way to go; it is the only way you will be able to
+hotremove memory without having to have a pre-event to migrate the
+memory away from the affected node before the memory is offlined.
 
-I don't know how possible this would be but being able to get the
-notification on a signalfd in a dedicated thread would certainly improve
-things (I guess other usecases of SIGSEGV/SIGBUG handlers could
-appreciate something like this). The kernel would pause the faulting
-thread while sending the notification on the signalfd, and the notified
-thread would be allowed to resume the faulting thread when it's done
-doing its job.
-
-Mike
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
