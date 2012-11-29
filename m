@@ -1,82 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 1EFF76B0068
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 10:26:47 -0500 (EST)
-Message-ID: <50B77F84.1030907@leemhuis.info>
-Date: Thu, 29 Nov 2012 16:30:12 +0100
-From: Thorsten Leemhuis <fedora@leemhuis.info>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id A45336B0068
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 10:48:06 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so6918115pad.14
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 07:48:06 -0800 (PST)
+Message-ID: <50B78387.5070707@gmail.com>
+Date: Thu, 29 Nov 2012 23:47:19 +0800
+From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Subject: Re: kswapd craziness in 3.7
-References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org> <CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com> <50B52DC4.5000109@redhat.com> <20121127214928.GA20253@cmpxchg.org> <50B5387C.1030005@redhat.com> <20121127222637.GG2301@cmpxchg.org> <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com> <20121128101359.GT8218@suse.de> <20121128145215.d23aeb1b.akpm@linux-foundation.org> <20121128235412.GW8218@suse.de>
-In-Reply-To: <20121128235412.GW8218@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B5CFAE.80103@huawei.com> <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com> <50B73B22.90500@jp.fujitsu.com>
+In-Reply-To: <50B73B22.90500@jp.fujitsu.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
 
-Mel Gorman wrote on 29.11.2012 00:54:
-> On Wed, Nov 28, 2012 at 02:52:15PM -0800, Andrew Morton wrote:
->> On Wed, 28 Nov 2012 10:13:59 +0000
->> Mel Gorman <mgorman@suse.de> wrote:
->> 
->> > Based on the reports I've seen I expect the following to work for 3.7
->> > Keep
->> >   96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
->> >   ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
->> > Revert
->> >   82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
->> > Merge
->> >   mm: vmscan: fix kswapd endless loop on higher order allocation
->> >   mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
->> "mm: Avoid waking kswapd for THP ..." is marked "I have not tested it
->> myself" and when Zdenek tested it he hit an unexplained oom.
-> I thought Zdenek was testing with __GFP_NO_KSWAPD when he hit that OOM.
-> Further, when he hit that OOM, it looked like a genuine OOM. He had no
-> swap configured and inactive/active file pages were very low. Finally,
-> the free pages for Normal looked off and could also have been affected by
-> the accounting bug. I'm looking at https://lkml.org/lkml/2012/11/18/132
-> here. Are you thinking of something else?
+On 11/29/2012 06:38 PM, Yasuaki Ishimatsu wrote:
+> Hi Tony,
 > 
-> I have not tested with the patch admittedly but Thorsten has and seemed
-> to be ok with it https://lkml.org/lkml/2012/11/23/276.
+> 2012/11/29 6:34, Luck, Tony wrote:
+>>> 1. use firmware information
+>>>    According to ACPI spec 5.0, SRAT table has memory affinity structure
+>>>    and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+>>>    Affinity Structure". If we use the information, we might be able to
+>>>    specify movable memory by firmware. For example, if Hot Pluggable
+>>>    Filed is enabled, Linux sets the memory as movable memory.
+>>>
+>>> 2. use boot option
+>>>    This is our proposal. New boot option can specify memory range to use
+>>>    as movable memory.
+>>
+>> Isn't this just moving the work to the user? To pick good values for the
+> 
+> Yes.
+> 
+>> movable areas, they need to know how the memory lines up across
+>> node boundaries ... because they need to make sure to allow some
+>> non-movable memory allocations on each node so that the kernel can
+>> take advantage of node locality.
+> 
+> There is no problem.
+> Linux has already two boot options, kernelcore= and movablecore=.
+> So if we use them, non-movable memory is divided into each node evenly.
+> 
+> But there is no way to specify a node used as movable currently. So
+> we proposed the new boot option.
+> 
+>> So the user would have to read at least the SRAT table, and perhaps
+>> more, to figure out what to provide as arguments.
+>>
+> 
+>> Since this is going to be used on a dynamic system where nodes might
+>> be added an removed - the right values for these arguments might
+>> change from one boot to the next. So even if the user gets them right
+>> on day 1, a month later when a new node has been added, or a broken
+>> node removed the values would be stale.
+> 
+> I don't think so. Even if we hot add/remove node, the memory range of
+> each memory device is not changed. So we don't need to change the boot
+> option.
+Hi Yasuaki,
+	Addresses assigned to each memory device may change under different 
+hardware configurations.
+	According to my experiences with some hotplug capable Xeon and Itanium
+systems, a typical algorithm adopted by BIOS to support memory hotplug is:
+1) For backward compatibility, BIOS assigns continuous addresses to memory
+devices present at boot time. In other words, there are no holes in the memory
+addresses except the hole just below 4G reserved for MMIO and other arch 
+specific usage.
+2) To support memory hotplug, BIOS reserves enough memory address ranges 
+at the high end.
+ 
+	Let's take a typical 4 sockets system as an example. Say we have four
+sockets S0-S3, and each socket supports two memory devices(M0-M1) at maximum. 
+Each memory device supports 128G memory at maximum. And at boot, all memory
+slots are fully populated with 4GB memory. Then the address assignment looks
+like:
+0-2G: 		S0.M0
+2-4G: 		MMIO
+4-8G: 		S0.M1
+8-12G: 		S1.M0
+12-16G: 	S1.M1
+16-20G: 	S2.M0
+20-24G:		S2.M1
+24-28G: 	S2.M0
+28-32G:		S2.M1
+32-34G:		S0.M0 (memory recovered from the MMIO hole)
+1024-1152G:	reserved for S0.M0
+1152-1280G:	reserved for S0.M1
+1280-1408G:	reserved for S1.M0
+1408-1536G:	reserved for S1.M1
+1536-1664G:	reserved for S2.M0
+1664-1792G:	reserved for S2.M1
+1792-1920G:	reserved for S3.M0
+1920-2048G:	reserved for S4.M1
 
-Yeah, on my two main work horses a few different kernels based on rc6 or
-rc7 worked fine with this patch. But sorry, it seems the patch doesn't
-fix the problems Fedora user John Ellson sees, who tried kernels I built
-in the Fedora buildsystem. Details:
+If we hot-remove S2.M0 and add back a bigger memory device with 8G memory, it will
+be assigned a new memory address range 1536-1544G.
 
-In https://bugzilla.redhat.com/show_bug.cgi?id=866988#c35 he mentioned
-his machine worked fine with a rc6 based kernel I built that contained
-82b212f4 (Revert "mm: remove __GFP_NO_KSWAPD"). Before that he had tried
-a kernel with the same baseline that contained "Avoid waking kswapd for
-THP allocations when [a?|]" instead and reported it didn't help on his
-i686 machine (seems it helped the x86-64 one):
-https://bugzilla.redhat.com/show_bug.cgi?id=866988#c33
+Based on above algorithm, and we configure 16-24G(S2.M0 and S2.M1) as movable memory.
+1) memory on S3 will be configured as movable if S2 isn't present at boot time. (the
+same effect as "movable_node" in discussion at https://lkml.org/lkml/2012/11/27/154)
+2) S2.M0 will be configured as non-movable and S3.M0 will be configured as movable
+   if S1.M0 isn't present at boot.
+3) And how about replace S1.M0 with a 8GB memory device?
 
-He now tried a recent mainline kernel I built 20 hours ago that is based
-on a git checkout from round about two days ago, reverts 82b212f4, and had
- * fix-kswapd-endless-loop-on-higher-order-allocation.patch
- * Avoid-waking-kswapd-for-THP-allocations-when.patch
- * mm-compaction-Fix-return-value-of-capture_free_page.patch
-applied. In https://bugzilla.redhat.com/show_bug.cgi?id=866988#c39 and
-comment 41 he reported that this kernel on his i686 host showed 100%cpu
-usage by kswapd0 :-/
+To summarize, kernel parameter to configure movable memory for hotplug will easily
+become invalid if hardware configuration changes, and that may confuse administrators.
+I still think the most reliable way is to figure out movable memory for hotplug by
+parsing hardware configuration information from BIOS.
 
-Build log for said kernel rpms (I quite sure I applied the patches
-properly, but you know: mistakes happen, so be careful, maybe I did
-something stupid somewhere...):
-http://kojipkgs.fedoraproject.org//work/tasks/8253/4738253/build.log
-
-I know, this makes things more complicated again; but I wanted to let
-you guys know that some problem might still be lurking somewhere. Side
-note: right now it seems John with kernels that contain
-"Avoid-waking-kswapd-for-THP-allocations-when" can trigger the problem
-quicker (or only?) on i686 than on x86-64.
-
-CU
-Thorsten
+Regards!
+Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
