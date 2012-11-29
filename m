@@ -1,94 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 7233C6B006E
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:30:37 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so7236451bkc.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 03:30:35 -0800 (PST)
-Date: Thu, 29 Nov 2012 12:30:30 +0100
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id 8A1946B0068
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:36:42 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so7240382bkc.14
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 03:36:40 -0800 (PST)
+Date: Thu, 29 Nov 2012 12:36:35 +0100
 From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-Message-ID: <20121129113030.GB639@dhcp-192-168-178-175.profitbricks.localdomain>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
+ operation
+Message-ID: <20121129113635.GC639@dhcp-192-168-178-175.profitbricks.localdomain>
 References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
- <1354150952.26955.377.camel@misato.fc.hp.com>
- <1354151742.26955.385.camel@misato.fc.hp.com>
- <2315811.arm7RJr4ey@vostro.rjw.lan>
+ <50B5EFE9.3040206@huawei.com>
+ <1354128096.26955.276.camel@misato.fc.hp.com>
+ <75241306.UQIr1RW8Qh@vostro.rjw.lan>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2315811.arm7RJr4ey@vostro.rjw.lan>
+In-Reply-To: <75241306.UQIr1RW8Qh@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Toshi Kani <toshi.kani@hp.com>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-acpi@vger.kernel.org, Toshi Kani <toshi.kani@hp.com>, Hanjun Guo <guohanjun@huawei.com>, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
 
-On Thu, Nov 29, 2012 at 11:03:05AM +0100, Rafael J. Wysocki wrote:
-> On Wednesday, November 28, 2012 06:15:42 PM Toshi Kani wrote:
-> > On Wed, 2012-11-28 at 18:02 -0700, Toshi Kani wrote:
-> > > On Thu, 2012-11-29 at 00:49 +0100, Rafael J. Wysocki wrote:
-> > > > On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
-> > > > > > > > > > > > Consider the following case:
-> > > > > > > > > > > > 
-> > > > > > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > > > > > > 
-> > > > > > > > > > > > CPUa                                                  CPUb
-> > > > > > > > > > > > acpi_memory_device_notify()
-> > > > > > > > > > > >                                        unbind it from the driver
-> > > > > > > > > > > >     acpi_bus_hot_remove_device()
-> > > > > > > > > > > 
-[...]
-> Well, in the meantime I've had a look at acpi_bus_hot_remove_device() and
-> friends and I think there's a way to address all of these problems
-> without big redesign (for now).
+On Thu, Nov 29, 2012 at 11:15:31AM +0100, Rafael J. Wysocki wrote:
+> On Wednesday, November 28, 2012 11:41:36 AM Toshi Kani wrote:
+> > On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+> > > We met the same problem when we doing computer node hotplug, It is a good idea
+> > > to introduce prepare_remove before actual device removal.
+> > > 
+> > > I think we could do more in prepare_remove, such as rollback. In most cases, we can
+> > > offline most of memory sections except kernel used pages now, should we rollback
+> > > and online the memory sections when prepare_remove failed ?
+> > 
+> > I think hot-plug operation should have all-or-nothing semantics.  That
+> > is, an operation should either complete successfully, or rollback to the
+> > original state.
 > 
-> First, why don't we introduce an ACPI device flag (in the flags field of
-> struct acpi_device) called eject_forbidden or something like this such that:
+> That's correct.
 > 
-> (1) It will be clear by default.
-> (2) It may only be set by a driver's .add() routine if necessary.
-> (3) Once set, it may only be cleared by the driver's .remove() routine if
->     it's safe to physically remove the device after the .remove().
+> > > As you may know, the ACPI based hotplug framework we are working on already addressed
+> > > this problem, and the way we slove this problem is a bit like yours.
+> > > 
+> > > We introduce hp_ops in struct acpi_device_ops:
+> > > struct acpi_device_ops {
+> > > 	acpi_op_add add;
+> > > 	acpi_op_remove remove;
+> > > 	acpi_op_start start;
+> > > 	acpi_op_bind bind;
+> > > 	acpi_op_unbind unbind;
+> > > 	acpi_op_notify notify;
+> > > #ifdef	CONFIG_ACPI_HOTPLUG
+> > > 	struct acpihp_dev_ops *hp_ops;
+> > > #endif	/* CONFIG_ACPI_HOTPLUG */
+> > > };
+> > > 
+> > > in hp_ops, we divide the prepare_remove into six small steps, that is:
+> > > 1) pre_release(): optional step to mark device going to be removed/busy
+> > > 2) release(): reclaim device from running system
+> > > 3) post_release(): rollback if cancelled by user or error happened
+> > > 4) pre_unconfigure(): optional step to solve possible dependency issue
+> > > 5) unconfigure(): remove devices from running system
+> > > 6) post_unconfigure(): free resources used by devices
+> > > 
+> > > In this way, we can easily rollback if error happens.
+> > > How do you think of this solution, any suggestion ? I think we can achieve
+> > > a better way for sharing ideas. :)
+> > 
+> > Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+> > have not looked at all your changes yet..), but in my mind, a hot-plug
+> > operation should be composed with the following 3 phases.
+> > 
+> > 1. Validate phase - Verify if the request is a supported operation.  All
+> > known restrictions are verified at this phase.  For instance, if a
+> > hot-remove request involves kernel memory, it is failed in this phase.
+> > Since this phase makes no change, no rollback is necessary to fail.  
 > 
-> Then, after the .remove() (which must be successful) has returned, and the
-> flag is set, it will tell acpi_bus_remove() to return a specific error code
-> (such as -EBUSY or -EAGAIN).  It doesn't matter if .remove() was called
-> earlier, because if it left the flag set, there's no way to clear it afterward
-> and acpi_bus_remove() will see it set anyway.  I think the struct acpi_device
-> should be unregistered anyway if that error code is to be returned.
+> Actually, we can't do it this way, because the conditions may change between
+> the check and the execution.  So the first phase needs to involve execution
+> to some extent, although only as far as it remains reversible.
 > 
-> [By the way, do you know where we free the memory allocated for struct
->  acpi_device objects?]
+> > 2. Execute phase - Perform hot-add / hot-remove operation that can be
+> > rolled-back in case of error or cancel.
 > 
-> Now if acpi_bus_trim() gets that error code from acpi_bus_remove(), it should
-> store it, but continue the trimming normally and finally it should return that
-> error code to acpi_bus_hot_remove_device().
+> I would just merge 1 and 2.
 
-Side-note: In the pre_remove patches, acpi_bus_trim actually returns on the
-first error from acpi_bus_remove (e.g. when memory offlining in pre_remove
-fails). Trimming is not continued. 
+I agree steps 1 and 2 can be merged, at least for the current ACPI framework.
+E.g. for memory hotplug, the mm function we call for memory removal
+(remove_memory) handles both these steps.
 
-Normally, acpi_bus_trim keeps trimming as you say, and always returns the last
-error. Is this the desired behaviour that we want to keep for bus_trim? (This is
-more a general question, not specific to the eject_forbidden suggestion)
-
-> 
-> Now, if acpi_bus_hot_remove_device() gets that error code, it should just
-> reverse the whole trimming (i.e. trigger acpi_bus_scan() from the device
-> we attempted to eject) and notify the firmware about the failure.
-
-sounds like this rollback needs to be implemented in any solution we choose
-to implement, correct?
-
-> 
-> If we have that, then the memory hotplug driver would only need to set
-> flags.eject_forbidden in its .add() routine and make its .remove() routine
-> only clear that flag if it is safe to actually remove the memory.
-> 
-
-But when .remove op is called, we are already in the irreversible/error-free
-removal (final removal step).
-Maybe we need to reset eject_forbidden in a prepare_remove operation which
-handles the removal part that can fail ?
+The new ACPI framework could perhaps expand the operations as Hanjun described,
+if it makes sense.
 
 thanks,
 
