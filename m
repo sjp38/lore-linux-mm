@@ -1,65 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id CB9396B0089
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 01:45:44 -0500 (EST)
-Date: Thu, 29 Nov 2012 08:45:15 +0200
-From: Hiroshi Doyu <hdoyu@nvidia.com>
-Subject: Re: [PATCH 1/1] ARM: tegra: bus_notifier registers IOMMU
- devices(was: How to specify IOMMU'able devices in DT)
-Message-ID: <20121129084515.8a818bf4793e0d4bb3305c36@nvidia.com>
-In-Reply-To: <50B652F2.5050407@wwwdotorg.org>
-References: <20120924124452.41070ed2ee9944d930cffffc@nvidia.com>
-	<054901cd9a45$db1a7ea0$914f7be0$%szyprowski@samsung.com>
-	<20120924.145014.1452596970914043018.hdoyu@nvidia.com>
-	<20121128.154832.539666140149950229.hdoyu@nvidia.com>
-	<50B652F2.5050407@wwwdotorg.org>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id AC4246B004D
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 01:53:08 -0500 (EST)
+From: Jim Meyering <jim@meyering.net>
+Subject: Re: [PATCH] tmpfs: support SEEK_DATA and SEEK_HOLE (reprise)
+In-Reply-To: <50B6E7CB.1040504@oracle.com> (Jeff Liu's message of "Thu, 29 Nov
+	2012 12:42:51 +0800")
+References: <alpine.LNX.2.00.1211281706390.1516@eggly.anvils>
+	<20121129012933.GA9112@kernel>
+	<alpine.LNX.2.00.1211281745200.1641@eggly.anvils>
+	<87lidlxcw9.fsf@rho.meyering.net> <50B6E7CB.1040504@oracle.com>
+Date: Thu, 29 Nov 2012 07:53:06 +0100
+Message-ID: <87d2yw3not.fsf@rho.meyering.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Warren <swarren@wwwdotorg.org>
-Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "joro@8bytes.org" <joro@8bytes.org>, "James.Bottomley@HansenPartnership.com" <James.Bottomley@HansenPartnership.com>, "arnd@arndb.de" <arnd@arndb.de>, Krishna Reddy <vdumpa@nvidia.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "minchan@kernel.org" <minchan@kernel.org>, "chunsang.jeong@linaro.org" <chunsang.jeong@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "subashrp@gmail.com" <subashrp@gmail.com>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "linux-tegra@vger.kernel.org" <linux-tegra@vger.kernel.org>, "kyungmin.park@samsung.com" <kyungmin.park@samsung.com>, "pullip.cho@samsung.com" <pullip.cho@samsung.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Zheng Liu <wenqing.lz@taobao.com>, Paul Eggert <eggert@cs.ucla.edu>, Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Chris Mason <chris.mason@fusionio.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 28 Nov 2012 19:07:46 +0100
-Stephen Warren <swarren@wwwdotorg.org> wrote:
-......
-> >>> Please read more about bus notifiers. IMHO a good example is provided in 
-> >>> the following thread:
-> >>> http://www.mail-archive.com/linux-samsung-soc@vger.kernel.org/msg12238.html
-> >>
-> >> This bus notifier seems enough flexible to afford the variation of
-> >> IOMMU map info, like Tegra ASID, which could be platform-specific, and
-> >> the other could be common too. There's already iommu_bus_notifier
-> >> too. I'll try to implement something base on this.
-> > 
-> > Experimentally implemented as below. With the followig patch, each
-> > device could specify its own map in DT, and automatically the device
-> > would be attached to the map.
-> > 
-> > There is a case that some devices share a map. This patch doesn't
-> > suppor such case yet.
-> > 
-> > From 8cb75bb6f3a8535a077e0e85265f87c1f1289bfd Mon Sep 17 00:00:00 2001
-> > From: Hiroshi Doyu <hdoyu@nvidia.com>
-> > Date: Wed, 28 Nov 2012 14:47:04 +0200
-> > Subject: [PATCH 1/1] ARM: tegra: bus_notifier registers IOMMU devices
-> > 
-> > platform_bus notifier registers IOMMU devices if dma-window is
-> > specified.
-> > 
-> > Its format is:
-> >   dma-window = <"start" "size">;
-> > ex)
-> >   dma-window = <0x12345000 0x8000>;
-> > 
-> > Signed-off-by: Hiroshi Doyu <hdoyu@nvidia.com>
-> > ---
-> >  arch/arm/mach-tegra/board-dt-tegra30.c |   40 ++++++++++++++++++++++++++++++++
-> 
-> Shouldn't this patch be to the IOMMU driver itself, not the core Tegra code?
+Jeff Liu wrote:
 
-That could be possible and cleaner. I'll check if it works.
+> On 11/29/2012 12:15 PM, Jim Meyering wrote:
+>> Hugh Dickins wrote:
+>>> On Thu, 29 Nov 2012, Jaegeuk Hanse wrote:
+>> ...
+>>>> But this time in which scenario will use it?
+>>>
+>>> I was not very convinced by the grep argument from Jim and Paul:
+>>> that seemed to be grep holding on to a no-arbitrary-limits dogma,
+>>> at the expense of its users, causing an absurd line-length issue,
+>>> which use of SEEK_DATA happens to avoid in some cases.
+>>>
+>>> The cp of sparse files from Jeff and Dave was more convincing;
+>>> but I still didn't see why little old tmpfs needed to be ahead
+>>> of the pack.
+>>>
+>>> But at LinuxCon/Plumbers in San Diego in August, a more convincing
+>>> case was made: I was hoping you would not ask, because I did not take
+>>> notes, and cannot pass on the details - was it rpm building on tmpfs?
+>>> I was convinced enough to promise support on tmpfs when support on
+>>> ext4 goes in.
+>>
+>> Re the cp-vs-sparse-file case, the current FIEMAP-based code in GNU
+>> cp is ugly and complicated enough that until recently it harbored a
+>> hard-to-reproduce data-corrupting bug[*].  Now that SEEK_DATA/SEEK_HOLE
+>> support work will work also for tmpfs and ext4, we can plan to remove
+>> the FIEMAP-based code in favor of a simpler SEEK_DATA/SEEK_HOLE-based
+>> implementation.
+> How do we teach du(1) to aware of the real disk footprint with Btrfs
+> clone or OCFS2 reflinked files if we remove the FIEMAP-based code?
+>
+> How about if we still keep it there, and introduce SEEK_DATA/SEEK_HOLE
+> code to the extent-scan module which is dedicated to deal with sparse files?
+
+Hi Jeff,
+By "removing the FIEMAP-based code" I mean the uses in copy.c.
+All of that should remain independent of how du does its job,
+so if FIEMAP is required for your planned du enhancement,
+then feel free to use it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
