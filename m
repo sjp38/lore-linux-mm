@@ -1,88 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id E40476B0088
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 18:30:00 -0500 (EST)
-Received: by mail-qc0-f169.google.com with SMTP id t2so13824716qcq.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 15:30:00 -0800 (PST)
-Date: Thu, 29 Nov 2012 15:29:15 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] tmpfs: support SEEK_DATA and SEEK_HOLE (reprise)
-In-Reply-To: <20121129145924.9fb05982.akpm@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1211291522550.3226@eggly.anvils>
-References: <alpine.LNX.2.00.1211281706390.1516@eggly.anvils> <20121129145924.9fb05982.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 29 Nov 2012 15:39:30 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [BUG REPORT] [mm-hotplug, aio] aio ring_pages can't be offlined
+Message-Id: <20121129153930.477e9709.akpm@linux-foundation.org>
+In-Reply-To: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com>
+References: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Zheng Liu <wenqing.lz@taobao.com>, Jeff liu <jeff.liu@oracle.com>, Jim Meyering <jim@meyering.net>, Paul Eggert <eggert@cs.ucla.edu>, Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Chris Mason <chris.mason@fusionio.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: viro@zeniv.linux.org.uk, bcrl@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hughd@google.com, cl@linux.com, mgorman@suse.de, minchan@kernel.org, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 29 Nov 2012, Andrew Morton wrote:
-> On Wed, 28 Nov 2012 17:22:03 -0800 (PST)
-> Hugh Dickins <hughd@google.com> wrote:
-> 
-> > +/*
-> > + * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-> > + */
-> > +static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
-> > +				    pgoff_t index, pgoff_t end, int origin)
-> 
-> So I was starting at this wondering what on earth "origin" is and why
-> it has the fishy-in-this-context type "int".
-> 
-> There is a pretty well established convention that the lseek seek mode
-> is called "whence".
-> 
-> The below gets most of it.  Too anal?
+On Thu, 29 Nov 2012 14:54:58 +0800
+Lin Feng <linfeng@cn.fujitsu.com> wrote:
 
-No, not too anal: I'm all in favour of "whence", which is indeed
-the name of that lseek argument - since mediaeval times I believe.
+> Hi all,
+> 
+> We encounter a "Resource temporarily unavailable" fail while trying
+> to offline a memory section in a movable zone. We found that there are 
+> some pages can't be migrated. The offline operation fails in function 
+> migrate_page_move_mapping() returning -EAGAIN till timeout because 
+> the if assertion 'page_count(page) != 1' fails.
+> I wonder in the case 'page_count(page) != 1', should we always wait
+> (return -EAGAING)? Or in other words, can we do something here for 
+> migration if we know where the pages from?
+> 
+> And finally found that such pages are used by /sbin/multipathd in the form
+> of aio ring_pages. Besides once increment introduced by the offline calling
+> chain, another increment is added by aio_setup_ring() via callling
+> get_userpages(), it won't decrease until we call aio_free_ring().
+> 
+> The dump_page info in the offline context is showed as following:
+> page:ffffea0011e69140 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1d
+> page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> page:ffffea0011fb0480 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1c
+> page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> page:ffffea0011fbaa80 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1a
+> page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> page:ffffea0011ff21c0 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1b
+> page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> 
+> The multipathd seems never going to release the ring_pages until we reboot the box.
+> Furthermore, if some guy makes app which only calls io_setup() but never calls 
+> io_destroy() for the reason that he has to keep the io_setup() for a long time 
+> or just forgets to or even on purpose that we can't expect.
+> So I think the mm-hotplug framwork should get the capability to deal with such
+> situation. And should we consider adding migration support for such pages?
+> 
+> However I don't know if there are any other kinds of such particular pages in 
+> current kernel/Linux system. If unluckily there are many apparently it's hard to 
+> handle them all, just adding migrate support for aio ring_pages is insufficient. 
+> 
+> But if luckily can we use the private field of page struct to track the
+> ring_pages[] pointer so that we can retrieve the user when migrate? 
+> Doing so another problem occurs, how to distinguish such special pages?
+> Use pageflag may cause an impact on current pageflag layout, add new pageflag
+> item also seems to be impossible.
+> 
+> I'm not sure what way is the right approach, seeking for help.
+> Any comments are extremely needed, thanks :)
 
-It's good to have words like that in the kernel source: while you're
-in the mood, please see if you can find good homes for "whither" and
-"thrice" and "widdershins".
+Tricky.
 
-Thanks!
-Hugh
+I expect the same problem would occur with pages which are under
+O_DIRECT I/O.  Obviously O_DIRECT pages won't be pinned for such long
+periods, but the durations could still be lengthy (seconds).
 
-> 
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: lseek: the "whence" argument is called "whence"
-> 
-> But the kernel decided to call it "origin" instead.  Fix most of the
-> sites.
-> 
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> 
->  fs/bad_inode.c           |    2 -
->  fs/block_dev.c           |    4 +--
->  fs/btrfs/file.c          |   16 +++++++-------
->  fs/ceph/dir.c            |    4 +--
->  fs/ceph/file.c           |    6 ++---
->  fs/cifs/cifsfs.c         |    8 +++----
->  fs/configfs/dir.c        |    4 +--
->  fs/ext3/dir.c            |    6 ++---
->  fs/ext4/dir.c            |    6 ++---
->  fs/ext4/file.c           |   22 ++++++++++----------
->  fs/fuse/file.c           |    8 +++----
->  fs/gfs2/file.c           |   10 ++++-----
->  fs/libfs.c               |    4 +--
->  fs/nfs/dir.c             |    6 ++---
->  fs/nfs/file.c            |   10 ++++-----
->  fs/ocfs2/extent_map.c    |   12 +++++------
->  fs/ocfs2/file.c          |    6 ++---
->  fs/pstore/inode.c        |    6 ++---
->  fs/read_write.c          |   40 ++++++++++++++++++-------------------
->  fs/seq_file.c            |    4 +--
->  fs/ubifs/dir.c           |    4 +--
->  include/linux/fs.h       |   12 +++++------
->  include/linux/ftrace.h   |    4 +--
->  include/linux/syscalls.h |    4 +--
->  kernel/trace/ftrace.c    |    4 +--
->  mm/shmem.c               |   20 +++++++++---------
->  26 files changed, 116 insertions(+), 116 deletions(-)
+Worse is a futex page, which could easily remain pinned indefinitely.
+
+The best I can think of is to make changes in or around
+get_user_pages(), to steal the pages from userspace and replace them
+with non-movable ones before pinning them.  The performance cost of
+something like this would surely be unacceptable for direct-io, but
+maybe OK for the aio ring and futexes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
