@@ -1,100 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 9029F6B0070
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:05:04 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so7220712bkc.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 03:05:02 -0800 (PST)
-Date: Thu, 29 Nov 2012 12:04:51 +0100
-From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-Message-ID: <20121129110451.GA639@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
- <9212118.3s2xH6uJDI@vostro.rjw.lan>
- <1354136568.26955.312.camel@misato.fc.hp.com>
- <4042591.gpFk7OYmph@vostro.rjw.lan>
- <1354150952.26955.377.camel@misato.fc.hp.com>
- <1354151742.26955.385.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 9D5456B0072
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 06:05:41 -0500 (EST)
+Date: Thu, 29 Nov 2012 11:05:35 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+Message-ID: <20121129110535.GY8218@suse.de>
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
+ <50B5CFAE.80103@huawei.com>
+ <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com>
+ <50B73B22.90500@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1354151742.26955.385.camel@misato.fc.hp.com>
+In-Reply-To: <50B73B22.90500@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "hpa@zytor.com" <hpa@zytor.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
 
-Hi,
-
-On Wed, Nov 28, 2012 at 06:15:42PM -0700, Toshi Kani wrote:
-> On Wed, 2012-11-28 at 18:02 -0700, Toshi Kani wrote:
-> > On Thu, 2012-11-29 at 00:49 +0100, Rafael J. Wysocki wrote:
-> > > On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
-> > > > > > > > > > > Consider the following case:
-> > > > > > > > > > > 
-> > > > > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
-> > > > > > > > > > > 
-> > > > > > > > > > > CPUa                                                  CPUb
-> > > > > > > > > > > acpi_memory_device_notify()
-> > > > > > > > > > >                                        unbind it from the driver
-> > > > > > > > > > >     acpi_bus_hot_remove_device()
-> > > I see two reasons for calling acpi_bus_hot_remove_device() for memory (correct
-> > > me if I'm wrong): (1) from the memhotplug driver's notify handler and (2) from
-> > > acpi_eject_store() which is exposed through sysfs.  
-> > 
-> > Yes, that is correct.
-> > 
-> > > If we disabled exposing
-> > > acpi_eject_store() for memory devices, then the only way would be from the
-> > > notify handler.  So I wonder if driver_unbind() shouldn't just uninstall the
-> > > notify handler for memory (so that memory eject events are simply dropped on
-> > > the floor after unbinding the driver)?
-> > 
-> > If driver_unbind() happens before an eject request, we do not have a
-> > problem.  acpi_eject_store() fails if a driver is not bound to the
-> > device.  acpi_memory_device_notify() fails as well.
-> > 
-> > The race condition Wen pointed out (see the top of this email) is that
-> > driver_unbind() may come in while eject operation is in-progress.  This
-> > is why I mentioned the following in previous email.
-> > 
-> > > So, we basically need to either 1) serialize
-> > > acpi_bus_hot_remove_device() and driver_unbind(), or 2) make
-> > > acpi_bus_hot_remove_device() to fail if driver_unbind() is run
-> > > during the operation.
+On Thu, Nov 29, 2012 at 07:38:26PM +0900, Yasuaki Ishimatsu wrote:
+> Hi Tony,
 > 
-> Forgot to mention.  The 3rd option is what Greg said -- use the
-> suppress_bind_attrs field.  I think this is a good option to address
-> this race condition for now.  For a long term solution, we should have a
-> better infrastructure in place to address such issue in general.
+> 2012/11/29 6:34, Luck, Tony wrote:
+> >>1. use firmware information
+> >>   According to ACPI spec 5.0, SRAT table has memory affinity structure
+> >>   and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+> >>   Affinity Structure". If we use the information, we might be able to
+> >>   specify movable memory by firmware. For example, if Hot Pluggable
+> >>   Filed is enabled, Linux sets the memory as movable memory.
+> >>
+> >>2. use boot option
+> >>   This is our proposal. New boot option can specify memory range to use
+> >>   as movable memory.
+> >
+> >Isn't this just moving the work to the user? To pick good values for the
+> 
+> Yes.
+> 
+> >movable areas, they need to know how the memory lines up across
+> >node boundaries ... because they need to make sure to allow some
+> >non-movable memory allocations on each node so that the kernel can
+> >take advantage of node locality.
+> 
+> There is no problem.
+> Linux has already two boot options, kernelcore= and movablecore=.
+> So if we use them, non-movable memory is divided into each node evenly.
+> 
 
-I like the suppress_bind_attrs idea, I 'll take a look.
+The motivation for those options was to reserve a percentage of memory
+to be used for hugepage allocation. If hugepages were not being used at
+a particular time then they could be used for other purposes. While the
+system could in theory face lowmem/highmem style problems, in practice
+it did not happen because the memory would be allocated as hugetlbfs
+pages and unavailable anyway. The same does not really apply to a general
+purpose system that you want to support memory hot-remove on so be wary of
+lowmem/highmem style problems caused by relying too heavily on ZONE_MOVABLE.
 
-As I said for option 2), acpi_bus_remove could check for driver presence.
-But It's more a quick hack to abort the eject (the race with unbind can still
-happen, but acpi_bus_remove can now detect it later in the eject path).
-Something like:
-
- static int acpi_bus_remove(struct acpi_device *dev, int rmdevice)
- {
-+	int ret;
- 	if (!dev)
- 		return -EINVAL;
- 
- 	dev->removal_type = ACPI_BUS_REMOVAL_EJECT;
-+
-+	if (dev->driver && dev->driver->ops.prepare_remove) {
-+		ret = dev->driver->ops.prepare_remove(dev);
-+		if (ret)
-+			return ret;
-+	}
-+	else if (!dev->driver)
-+		return -ENODEV;
- 	device_release_driver(&dev->dev);
-
-thanks,
-
-- Vasilis
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
