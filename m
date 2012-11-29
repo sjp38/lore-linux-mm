@@ -1,122 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id A83EE6B0075
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 16:33:58 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id o19so898315qap.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 13:33:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAPz6YkUGO9DayCNbJBbzR0Lx8-zX5=+QTKWoueV8_TXAy1HZPQ@mail.gmail.com>
-References: <CAA25o9S5zpH_No+xgYuFSAKSRkQ=19Vf_aLgO1UWiajQxtjrpg@mail.gmail.com>
-	<CAA25o9TnmSqBe48EN+9E6E8EiSzKf275AUaAijdk3wxg6QV2kQ@mail.gmail.com>
-	<CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
-	<CAPz6YkUGO9DayCNbJBbzR0Lx8-zX5=+QTKWoueV8_TXAy1HZPQ@mail.gmail.com>
-Date: Thu, 29 Nov 2012 13:33:57 -0800
-Message-ID: <CAA25o9R0XrEuQPTUHy8NYLeg74tDmBjuQ-jVu1Vcct34-tkTDg@mail.gmail.com>
-Subject: Re: zram, OOM, and speed of allocation
-From: Luigi Semenzato <semenzato@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id D29316B006E
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 16:55:11 -0500 (EST)
+Message-ID: <1354225604.7776.37.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
+ rebind scenario
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 29 Nov 2012 14:46:44 -0700
+In-Reply-To: <5067588.Jc88xNrCFc@vostro.rjw.lan>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	 <1666001.sopVksfMvY@vostro.rjw.lan>
+	 <1354221519.7776.10.camel@misato.fc.hp.com>
+	 <5067588.Jc88xNrCFc@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sonny Rao <sonnyrao@google.com>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Nov 29, 2012 at 12:55 PM, Sonny Rao <sonnyrao@google.com> wrote:
-> On Thu, Nov 29, 2012 at 11:31 AM, Luigi Semenzato <semenzato@google.com> wrote:
->> Oh well, I found the problem, it's laptop_mode.  We keep it on by
->> default.  When I turn it off, I can allocate as fast as I can, and no
->> OOMs happen until swap is exhausted.
->>
->> I don't think this is a desirable behavior even for laptop_mode, so if
->> anybody wants to help me debug it (or wants my help in debugging it)
->> do let me know.
->>
->
-> Luigi, I thought we disabled Laptop mode a few weeks ago -- due to
-> undesirable behavior with respect to too many writes happening.
-> Are you sure it's on?
+On Thu, 2012-11-29 at 22:23 +0100, Rafael J. Wysocki wrote:
+> On Thursday, November 29, 2012 01:38:39 PM Toshi Kani wrote:
+> > On Thu, 2012-11-29 at 21:25 +0100, Rafael J. Wysocki wrote:
+> > > On Thursday, November 29, 2012 10:56:30 AM Toshi Kani wrote:
+> > > > On Thu, 2012-11-29 at 12:30 +0100, Vasilis Liaskovitis wrote:
+> > > > > Side-note: In the pre_remove patches, acpi_bus_trim actually returns on the
+> > > > > first error from acpi_bus_remove (e.g. when memory offlining in pre_remove
+> > > > > fails). Trimming is not continued. 
+> > > > > 
+> > > > > Normally, acpi_bus_trim keeps trimming as you say, and always returns the last
+> > > > > error. Is this the desired behaviour that we want to keep for bus_trim? (This is
+> > > > > more a general question, not specific to the eject_forbidden suggestion)
+> > > > 
+> > > > Your change makes sense to me.  At least until we have rollback code in
+> > > > place, we need to fail as soon as we hit an error.
+> > > 
+> > > Are you sure this makes sense?  What happens to the devices that we have
+> > > trimmed already and then there's an error?  Looks like they are just unusable
+> > > going forward, aren't they?
+> > 
+> > Yes, the devices trimmed already are released from the kernel, and their
+> > memory ranges become unusable.  This is bad.  But I do not think we
+> > should trim further to make more devices unusable after an error. 
+> > 
+> > 
+> > > > > > Now, if acpi_bus_hot_remove_device() gets that error code, it should just
+> > > > > > reverse the whole trimming (i.e. trigger acpi_bus_scan() from the device
+> > > > > > we attempted to eject) and notify the firmware about the failure.
+> > > > > 
+> > > > > sounds like this rollback needs to be implemented in any solution we choose
+> > > > > to implement, correct?
+> > > > 
+> > > > Yes, rollback is necessary.  But I do not think we need to include it
+> > > > into your patch, though.
+> > > 
+> > > As the first step, we should just trim everything and then return an error
+> > > code in my opinion.
+> > 
+> > But we cannot trim devices with kernel memory.
+> 
+> Well, let's put it this way: If we started a trim, we should just do it
+> completely, in which case we know we can go for the eject, or we should
+> roll it back completely.  Now, if you just break the trim on first error,
+> the complete rollback is kind of problematic.  It should be doable, but
+> it won't be easy.  On the other hand, if you go for the full trim,
+> doing a rollback is trivial, it's as though you have reinserted the whole
+> stuff.
 
-Yes.  The change happened a month ago, but I hadn't updated my testing
-image since then.
+acpi_bus_check_add() skips initialization when an ACPI device already
+has its associated acpi_device.  So, I think it works either way.
 
-So I suppose we aren't really too interested in fixing the laptop_mode
-behavior, but I'll be happy to test fixes if anybody would like me to.
 
->
->> Thanks!
->> Luigi
->>
->> On Thu, Nov 29, 2012 at 10:46 AM, Luigi Semenzato <semenzato@google.com> wrote:
->>> Minchan:
->>>
->>> I tried your suggestion to move the call to wake_all_kswapd from after
->>> "restart:" to after "rebalance:".  The behavior is still similar, but
->>> slightly improved.  Here's what I see.
->>>
->>> Allocating as fast as I can: 1.5 GB of the 3 GB of zram swap are used,
->>> then OOM kills happen, and the system ends up with 1 GB swap used, 2
->>> unused.
->>>
->>> Allocating 10 MB/s: some kills happen when only 1 to 1.5 GB are used,
->>> and continue happening while swap fills up.  Eventually swap fills up
->>> completely.  This is better than before (could not go past about 1 GB
->>> of swap used), but there are too many kills too early.  I would like
->>> to see no OOM kills until swap is full or almost full.
->>>
->>> Allocating 20 MB/s: almost as good as with 10 MB/s, but more kills
->>> happen earlier, and not all swap space is used (400 MB free at the
->>> end).
->>>
->>> This is with 200 processes using 20 MB each, and 2:1 compression ratio.
->>>
->>> So it looks like kswapd is still not aggressive enough in pushing
->>> pages out.  What's the best way of changing that?  Play around with
->>> the watermarks?
->>>
->>> Incidentally, I also tried removing the min_filelist_kbytes hacky
->>> patch, but, as usual, the system thrashes so badly that it's
->>> impossible to complete any experiment.  I set it to a lower minimum
->>> amount of free file pages, 10 MB instead of the 50 MB which we use
->>> normally, and I could run with some thrashing, but I got the same
->>> results.
->>>
->>> Thanks!
->>> Luigi
->>>
->>>
->>> On Wed, Nov 28, 2012 at 4:31 PM, Luigi Semenzato <semenzato@google.com> wrote:
->>>> I am beginning to understand why zram appears to work fine on our x86
->>>> systems but not on our ARM systems.  The bottom line is that swapping
->>>> doesn't work as I would expect when allocation is "too fast".
->>>>
->>>> In one of my tests, opening 50 tabs simultaneously in a Chrome browser
->>>> on devices with 2 GB of RAM and a zram-disk of 3 GB (uncompressed), I
->>>> was observing that on the x86 device all of the zram swap space was
->>>> used before OOM kills happened, but on the ARM device I would see OOM
->>>> kills when only about 1 GB (out of 3) was swapped out.
->>>>
->>>> I wrote a simple program to understand this behavior.  The program
->>>> (called "hog") allocates memory and fills it with a mix of
->>>> incompressible data (from /dev/urandom) and highly compressible data
->>>> (1's, just to avoid zero pages) in a given ratio.  The memory is never
->>>> touched again.
->>>>
->>>> It turns out that if I don't limit the allocation speed, I see
->>>> premature OOM kills also on the x86 device.  If I limit the allocation
->>>> to 10 MB/s, the premature OOM kills stop happening on the x86 device,
->>>> but still happen on the ARM device.  If I further limit the allocation
->>>> speed to 5 Mb/s, the premature OOM kills disappear also from the ARM
->>>> device.
->>>>
->>>> I have noticed a few time constants in the MM whose value is not well
->>>> explained, and I am wondering if the code is tuned for some ideal
->>>> system that doesn't behave like ours (considering, for instance, that
->>>> zram is much faster than swapping to a disk device, but it also uses
->>>> more CPU).  If this is plausible, I am wondering if anybody has
->>>> suggestions for changes that I could try out to obtain a better
->>>> behavior with a higher allocation speed.
->>>>
->>>> Thanks!
->>>> Luigi
+> Now, that need not harm functionality, and that's why I proposed the
+> eject_forbidden flag, so that .remove() can say "I'm not done, please
+> rollback", in which case the device can happily function going forward,
+> even if we don't rebind the driver to it.
+
+A partially trimmed acpi_device is hard to rollback.  acpi_device should
+be either trimmed completely or intact.  When a function failed to trim
+an acpi_device, it needs to rollback its operation for the device before
+returning an error.  This is because only the failed function has enough
+context to rollback when an error occurred in the middle of its
+procedure.
+
+Thanks,
+-Toshi  
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
