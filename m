@@ -1,122 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id B8EA46B008A
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 15:47:56 -0500 (EST)
-Message-ID: <1354221570.7776.11.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 29 Nov 2012 13:39:30 -0700
-In-Reply-To: <1553400.FCdSlj7sbe@vostro.rjw.lan>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	 <75241306.UQIr1RW8Qh@vostro.rjw.lan>
-	 <1354208592.26955.429.camel@misato.fc.hp.com>
-	 <1553400.FCdSlj7sbe@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 6CCF76B004D
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 15:55:50 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id t2so13731698qcq.14
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 12:55:49 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
+References: <CAA25o9S5zpH_No+xgYuFSAKSRkQ=19Vf_aLgO1UWiajQxtjrpg@mail.gmail.com>
+ <CAA25o9TnmSqBe48EN+9E6E8EiSzKf275AUaAijdk3wxg6QV2kQ@mail.gmail.com> <CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
+From: Sonny Rao <sonnyrao@google.com>
+Date: Thu, 29 Nov 2012 12:55:29 -0800
+Message-ID: <CAPz6YkUGO9DayCNbJBbzR0Lx8-zX5=+QTKWoueV8_TXAy1HZPQ@mail.gmail.com>
+Subject: Re: zram, OOM, and speed of allocation
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: linux-acpi@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>
 
-On Thu, 2012-11-29 at 21:30 +0100, Rafael J. Wysocki wrote:
-> On Thursday, November 29, 2012 10:03:12 AM Toshi Kani wrote:
-> > On Thu, 2012-11-29 at 11:15 +0100, Rafael J. Wysocki wrote:
-> > > On Wednesday, November 28, 2012 11:41:36 AM Toshi Kani wrote:
-> > > > On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
-> > > > > On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
-> > > > > > As discussed in https://patchwork.kernel.org/patch/1581581/
-> > > > > > the driver core remove function needs to always succeed. This means we need
-> > > > > > to know that the device can be successfully removed before acpi_bus_trim / 
-> > > > > > acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
-> > > > > > or SCI-initiated eject of memory devices fail e.g with:
-> > > > > > echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> > > > > > 
-> > > > > > since the ACPI core goes ahead and ejects the device regardless of whether the
-> > > > > > the memory is still in use or not.
-> > > > > > 
-> > > > > > For this reason a new acpi_device operation called prepare_remove is introduced.
-> > > > > > This operation should be registered for acpi devices whose removal (from kernel
-> > > > > > perspective) can fail.  Memory devices fall in this category.
-> > > > > > 
-> > > > > > acpi_bus_remove() is changed to handle removal in 2 steps:
-> > > > > > - preparation for removal i.e. perform part of removal that can fail. Should
-> > > > > >   succeed for device and all its children.
-> > > > > > - if above step was successfull, proceed to actual device removal
-> > > > > 
-> > > > > Hi Vasilis,
-> > > > > We met the same problem when we doing computer node hotplug, It is a good idea
-> > > > > to introduce prepare_remove before actual device removal.
-> > > > > 
-> > > > > I think we could do more in prepare_remove, such as rollback. In most cases, we can
-> > > > > offline most of memory sections except kernel used pages now, should we rollback
-> > > > > and online the memory sections when prepare_remove failed ?
-> > > > 
-> > > > I think hot-plug operation should have all-or-nothing semantics.  That
-> > > > is, an operation should either complete successfully, or rollback to the
-> > > > original state.
-> > > 
-> > > That's correct.
-> > > 
-> > > > > As you may know, the ACPI based hotplug framework we are working on already addressed
-> > > > > this problem, and the way we slove this problem is a bit like yours.
-> > > > > 
-> > > > > We introduce hp_ops in struct acpi_device_ops:
-> > > > > struct acpi_device_ops {
-> > > > > 	acpi_op_add add;
-> > > > > 	acpi_op_remove remove;
-> > > > > 	acpi_op_start start;
-> > > > > 	acpi_op_bind bind;
-> > > > > 	acpi_op_unbind unbind;
-> > > > > 	acpi_op_notify notify;
-> > > > > #ifdef	CONFIG_ACPI_HOTPLUG
-> > > > > 	struct acpihp_dev_ops *hp_ops;
-> > > > > #endif	/* CONFIG_ACPI_HOTPLUG */
-> > > > > };
-> > > > > 
-> > > > > in hp_ops, we divide the prepare_remove into six small steps, that is:
-> > > > > 1) pre_release(): optional step to mark device going to be removed/busy
-> > > > > 2) release(): reclaim device from running system
-> > > > > 3) post_release(): rollback if cancelled by user or error happened
-> > > > > 4) pre_unconfigure(): optional step to solve possible dependency issue
-> > > > > 5) unconfigure(): remove devices from running system
-> > > > > 6) post_unconfigure(): free resources used by devices
-> > > > > 
-> > > > > In this way, we can easily rollback if error happens.
-> > > > > How do you think of this solution, any suggestion ? I think we can achieve
-> > > > > a better way for sharing ideas. :)
-> > > > 
-> > > > Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
-> > > > have not looked at all your changes yet..), but in my mind, a hot-plug
-> > > > operation should be composed with the following 3 phases.
-> > > > 
-> > > > 1. Validate phase - Verify if the request is a supported operation.  All
-> > > > known restrictions are verified at this phase.  For instance, if a
-> > > > hot-remove request involves kernel memory, it is failed in this phase.
-> > > > Since this phase makes no change, no rollback is necessary to fail.  
-> > > 
-> > > Actually, we can't do it this way, because the conditions may change between
-> > > the check and the execution.  So the first phase needs to involve execution
-> > > to some extent, although only as far as it remains reversible.
-> > 
-> > For memory hot-remove, we can check if the target memory ranges are
-> > within ZONE_MOVABLE.  We should not allow user to change this setup
-> > during hot-remove operation.  Other things may be to check if a target
-> > node contains cpu0 (until it is supported), the console UART (assuming
-> > we cannot delete it), etc.  We should avoid doing rollback as much as we
-> > can.
-> 
-> Yes, we can make some checks upfront as an optimization and fail early if
-> the conditions are not met, but for correctness we need to repeat those
-> checks later anyway.  Once we've decided to go for the eject, the conditions
-> must hold whatever happens.
+On Thu, Nov 29, 2012 at 11:31 AM, Luigi Semenzato <semenzato@google.com> wrote:
+> Oh well, I found the problem, it's laptop_mode.  We keep it on by
+> default.  When I turn it off, I can allocate as fast as I can, and no
+> OOMs happen until swap is exhausted.
+>
+> I don't think this is a desirable behavior even for laptop_mode, so if
+> anybody wants to help me debug it (or wants my help in debugging it)
+> do let me know.
+>
 
-Agreed.
+Luigi, I thought we disabled Laptop mode a few weeks ago -- due to
+undesirable behavior with respect to too many writes happening.
+Are you sure it's on?
 
-Thanks,
--Toshi
+> Thanks!
+> Luigi
+>
+> On Thu, Nov 29, 2012 at 10:46 AM, Luigi Semenzato <semenzato@google.com> wrote:
+>> Minchan:
+>>
+>> I tried your suggestion to move the call to wake_all_kswapd from after
+>> "restart:" to after "rebalance:".  The behavior is still similar, but
+>> slightly improved.  Here's what I see.
+>>
+>> Allocating as fast as I can: 1.5 GB of the 3 GB of zram swap are used,
+>> then OOM kills happen, and the system ends up with 1 GB swap used, 2
+>> unused.
+>>
+>> Allocating 10 MB/s: some kills happen when only 1 to 1.5 GB are used,
+>> and continue happening while swap fills up.  Eventually swap fills up
+>> completely.  This is better than before (could not go past about 1 GB
+>> of swap used), but there are too many kills too early.  I would like
+>> to see no OOM kills until swap is full or almost full.
+>>
+>> Allocating 20 MB/s: almost as good as with 10 MB/s, but more kills
+>> happen earlier, and not all swap space is used (400 MB free at the
+>> end).
+>>
+>> This is with 200 processes using 20 MB each, and 2:1 compression ratio.
+>>
+>> So it looks like kswapd is still not aggressive enough in pushing
+>> pages out.  What's the best way of changing that?  Play around with
+>> the watermarks?
+>>
+>> Incidentally, I also tried removing the min_filelist_kbytes hacky
+>> patch, but, as usual, the system thrashes so badly that it's
+>> impossible to complete any experiment.  I set it to a lower minimum
+>> amount of free file pages, 10 MB instead of the 50 MB which we use
+>> normally, and I could run with some thrashing, but I got the same
+>> results.
+>>
+>> Thanks!
+>> Luigi
+>>
+>>
+>> On Wed, Nov 28, 2012 at 4:31 PM, Luigi Semenzato <semenzato@google.com> wrote:
+>>> I am beginning to understand why zram appears to work fine on our x86
+>>> systems but not on our ARM systems.  The bottom line is that swapping
+>>> doesn't work as I would expect when allocation is "too fast".
+>>>
+>>> In one of my tests, opening 50 tabs simultaneously in a Chrome browser
+>>> on devices with 2 GB of RAM and a zram-disk of 3 GB (uncompressed), I
+>>> was observing that on the x86 device all of the zram swap space was
+>>> used before OOM kills happened, but on the ARM device I would see OOM
+>>> kills when only about 1 GB (out of 3) was swapped out.
+>>>
+>>> I wrote a simple program to understand this behavior.  The program
+>>> (called "hog") allocates memory and fills it with a mix of
+>>> incompressible data (from /dev/urandom) and highly compressible data
+>>> (1's, just to avoid zero pages) in a given ratio.  The memory is never
+>>> touched again.
+>>>
+>>> It turns out that if I don't limit the allocation speed, I see
+>>> premature OOM kills also on the x86 device.  If I limit the allocation
+>>> to 10 MB/s, the premature OOM kills stop happening on the x86 device,
+>>> but still happen on the ARM device.  If I further limit the allocation
+>>> speed to 5 Mb/s, the premature OOM kills disappear also from the ARM
+>>> device.
+>>>
+>>> I have noticed a few time constants in the MM whose value is not well
+>>> explained, and I am wondering if the code is tuned for some ideal
+>>> system that doesn't behave like ours (considering, for instance, that
+>>> zram is much faster than swapping to a disk device, but it also uses
+>>> more CPU).  If this is plausible, I am wondering if anybody has
+>>> suggestions for changes that I could try out to obtain a better
+>>> behavior with a higher allocation speed.
+>>>
+>>> Thanks!
+>>> Luigi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
