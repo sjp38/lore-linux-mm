@@ -1,66 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 8315B6B0071
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 16:20:45 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
-Date: Thu, 29 Nov 2012 22:25:30 +0100
-Message-ID: <7256354.mIkI9CW3OY@vostro.rjw.lan>
-In-Reply-To: <1354222577.7776.22.camel@misato.fc.hp.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1354221570.7776.11.camel@misato.fc.hp.com> <1354222577.7776.22.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id A83EE6B0075
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 16:33:58 -0500 (EST)
+Received: by mail-qa0-f48.google.com with SMTP id o19so898315qap.14
+        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 13:33:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CAPz6YkUGO9DayCNbJBbzR0Lx8-zX5=+QTKWoueV8_TXAy1HZPQ@mail.gmail.com>
+References: <CAA25o9S5zpH_No+xgYuFSAKSRkQ=19Vf_aLgO1UWiajQxtjrpg@mail.gmail.com>
+	<CAA25o9TnmSqBe48EN+9E6E8EiSzKf275AUaAijdk3wxg6QV2kQ@mail.gmail.com>
+	<CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
+	<CAPz6YkUGO9DayCNbJBbzR0Lx8-zX5=+QTKWoueV8_TXAy1HZPQ@mail.gmail.com>
+Date: Thu, 29 Nov 2012 13:33:57 -0800
+Message-ID: <CAA25o9R0XrEuQPTUHy8NYLeg74tDmBjuQ-jVu1Vcct34-tkTDg@mail.gmail.com>
+Subject: Re: zram, OOM, and speed of allocation
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-acpi@vger.kernel.org, Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Sonny Rao <sonnyrao@google.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>
 
-On Thursday, November 29, 2012 01:56:17 PM Toshi Kani wrote:
-> On Thu, 2012-11-29 at 13:39 -0700, Toshi Kani wrote:
-> > On Thu, 2012-11-29 at 21:30 +0100, Rafael J. Wysocki wrote:
-> > > On Thursday, November 29, 2012 10:03:12 AM Toshi Kani wrote:
-> > > > On Thu, 2012-11-29 at 11:15 +0100, Rafael J. Wysocki wrote:
-> > > > > On Wednesday, November 28, 2012 11:41:36 AM Toshi Kani wrote:
-> > > > > > 1. Validate phase - Verify if the request is a supported operation.  All
-> > > > > > known restrictions are verified at this phase.  For instance, if a
-> > > > > > hot-remove request involves kernel memory, it is failed in this phase.
-> > > > > > Since this phase makes no change, no rollback is necessary to fail.  
-> > > > > 
-> > > > > Actually, we can't do it this way, because the conditions may change between
-> > > > > the check and the execution.  So the first phase needs to involve execution
-> > > > > to some extent, although only as far as it remains reversible.
-> > > > 
-> > > > For memory hot-remove, we can check if the target memory ranges are
-> > > > within ZONE_MOVABLE.  We should not allow user to change this setup
-> > > > during hot-remove operation.  Other things may be to check if a target
-> > > > node contains cpu0 (until it is supported), the console UART (assuming
-> > > > we cannot delete it), etc.  We should avoid doing rollback as much as we
-> > > > can.
-> > > 
-> > > Yes, we can make some checks upfront as an optimization and fail early if
-> > > the conditions are not met, but for correctness we need to repeat those
-> > > checks later anyway.  Once we've decided to go for the eject, the conditions
-> > > must hold whatever happens.
-> > 
-> > Agreed.
-> 
-> BTW, it is not an optimization I am after for this phase.  There are
-> many error cases during hot-plug operations.  It is difficult to assure
-> that rollback is successful for every error condition in terms of
-> testing and maintaining the code.  So, it is easier to fail beforehand
-> when possible.
+On Thu, Nov 29, 2012 at 12:55 PM, Sonny Rao <sonnyrao@google.com> wrote:
+> On Thu, Nov 29, 2012 at 11:31 AM, Luigi Semenzato <semenzato@google.com> wrote:
+>> Oh well, I found the problem, it's laptop_mode.  We keep it on by
+>> default.  When I turn it off, I can allocate as fast as I can, and no
+>> OOMs happen until swap is exhausted.
+>>
+>> I don't think this is a desirable behavior even for laptop_mode, so if
+>> anybody wants to help me debug it (or wants my help in debugging it)
+>> do let me know.
+>>
+>
+> Luigi, I thought we disabled Laptop mode a few weeks ago -- due to
+> undesirable behavior with respect to too many writes happening.
+> Are you sure it's on?
 
-OK, but as I said it is necessary to ensure that the conditions will be met
-in the next phases as well if we don't fail.
+Yes.  The change happened a month ago, but I hadn't updated my testing
+image since then.
 
-Thanks,
-Rafael
+So I suppose we aren't really too interested in fixing the laptop_mode
+behavior, but I'll be happy to test fixes if anybody would like me to.
 
-
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+>
+>> Thanks!
+>> Luigi
+>>
+>> On Thu, Nov 29, 2012 at 10:46 AM, Luigi Semenzato <semenzato@google.com> wrote:
+>>> Minchan:
+>>>
+>>> I tried your suggestion to move the call to wake_all_kswapd from after
+>>> "restart:" to after "rebalance:".  The behavior is still similar, but
+>>> slightly improved.  Here's what I see.
+>>>
+>>> Allocating as fast as I can: 1.5 GB of the 3 GB of zram swap are used,
+>>> then OOM kills happen, and the system ends up with 1 GB swap used, 2
+>>> unused.
+>>>
+>>> Allocating 10 MB/s: some kills happen when only 1 to 1.5 GB are used,
+>>> and continue happening while swap fills up.  Eventually swap fills up
+>>> completely.  This is better than before (could not go past about 1 GB
+>>> of swap used), but there are too many kills too early.  I would like
+>>> to see no OOM kills until swap is full or almost full.
+>>>
+>>> Allocating 20 MB/s: almost as good as with 10 MB/s, but more kills
+>>> happen earlier, and not all swap space is used (400 MB free at the
+>>> end).
+>>>
+>>> This is with 200 processes using 20 MB each, and 2:1 compression ratio.
+>>>
+>>> So it looks like kswapd is still not aggressive enough in pushing
+>>> pages out.  What's the best way of changing that?  Play around with
+>>> the watermarks?
+>>>
+>>> Incidentally, I also tried removing the min_filelist_kbytes hacky
+>>> patch, but, as usual, the system thrashes so badly that it's
+>>> impossible to complete any experiment.  I set it to a lower minimum
+>>> amount of free file pages, 10 MB instead of the 50 MB which we use
+>>> normally, and I could run with some thrashing, but I got the same
+>>> results.
+>>>
+>>> Thanks!
+>>> Luigi
+>>>
+>>>
+>>> On Wed, Nov 28, 2012 at 4:31 PM, Luigi Semenzato <semenzato@google.com> wrote:
+>>>> I am beginning to understand why zram appears to work fine on our x86
+>>>> systems but not on our ARM systems.  The bottom line is that swapping
+>>>> doesn't work as I would expect when allocation is "too fast".
+>>>>
+>>>> In one of my tests, opening 50 tabs simultaneously in a Chrome browser
+>>>> on devices with 2 GB of RAM and a zram-disk of 3 GB (uncompressed), I
+>>>> was observing that on the x86 device all of the zram swap space was
+>>>> used before OOM kills happened, but on the ARM device I would see OOM
+>>>> kills when only about 1 GB (out of 3) was swapped out.
+>>>>
+>>>> I wrote a simple program to understand this behavior.  The program
+>>>> (called "hog") allocates memory and fills it with a mix of
+>>>> incompressible data (from /dev/urandom) and highly compressible data
+>>>> (1's, just to avoid zero pages) in a given ratio.  The memory is never
+>>>> touched again.
+>>>>
+>>>> It turns out that if I don't limit the allocation speed, I see
+>>>> premature OOM kills also on the x86 device.  If I limit the allocation
+>>>> to 10 MB/s, the premature OOM kills stop happening on the x86 device,
+>>>> but still happen on the ARM device.  If I further limit the allocation
+>>>> speed to 5 Mb/s, the premature OOM kills disappear also from the ARM
+>>>> device.
+>>>>
+>>>> I have noticed a few time constants in the MM whose value is not well
+>>>> explained, and I am wondering if the code is tuned for some ideal
+>>>> system that doesn't behave like ours (considering, for instance, that
+>>>> zram is much faster than swapping to a disk device, but it also uses
+>>>> more CPU).  If this is plausible, I am wondering if anybody has
+>>>> suggestions for changes that I could try out to obtain a better
+>>>> behavior with a higher allocation speed.
+>>>>
+>>>> Thanks!
+>>>> Luigi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
