@@ -1,65 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 44D426B0062
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:09:24 -0500 (EST)
-Received: from /spool/local
-	by e3.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 28 Nov 2012 19:09:23 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 95B3FC90044
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAT044vd340438
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAT043jS005324
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:04:04 -0500
-Message-ID: <50B6A66E.8030406@linux.vnet.ibm.com>
-Date: Wed, 28 Nov 2012 16:03:58 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: 32/64-bit NUMA consolidation behavior regresion
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 678626B005A
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:14:54 -0500 (EST)
+Date: Wed, 28 Nov 2012 16:14:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: kswapd craziness in 3.7
+Message-Id: <20121128161452.c1ddc9a3.akpm@linux-foundation.org>
+In-Reply-To: <20121128235412.GW8218@suse.de>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+	<CA+55aFywygqWUBNWtZYa+vk8G0cpURZbFdC7+tOzyWk6tLi=WA@mail.gmail.com>
+	<50B52DC4.5000109@redhat.com>
+	<20121127214928.GA20253@cmpxchg.org>
+	<50B5387C.1030005@redhat.com>
+	<20121127222637.GG2301@cmpxchg.org>
+	<CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
+	<20121128101359.GT8218@suse.de>
+	<20121128145215.d23aeb1b.akpm@linux-foundation.org>
+	<20121128235412.GW8218@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Hi Tejun,
+On Wed, 28 Nov 2012 23:54:12 +0000
+Mel Gorman <mgorman@suse.de> wrote:
 
-I was bisecting a boot problem on a 32-bit NUMA kernel and it bisected
-down to commit 8db78cc4.  It turns out that, with this patch,
-pcpu_need_numa() changed its return value on my system from 1 to 0.
-What that basically meant was that we stopped using the remapped lowmem
-areas for percpu data.
+> On Wed, Nov 28, 2012 at 02:52:15PM -0800, Andrew Morton wrote:
+> > On Wed, 28 Nov 2012 10:13:59 +0000
+> > Mel Gorman <mgorman@suse.de> wrote:
+> > 
+> > > Based on the reports I've seen I expect the following to work for 3.7
+> > > 
+> > > Keep
+> > >   96710098 mm: revert "mm: vmscan: scale number of pages reclaimed by reclaim/compaction based on failures"
+> > >   ef6c5be6 fix incorrect NR_FREE_PAGES accounting (appears like memory leak)
+> > > 
+> > > Revert
+> > >   82b212f4 Revert "mm: remove __GFP_NO_KSWAPD"
+> > > 
+> > > Merge
+> > >   mm: vmscan: fix kswapd endless loop on higher order allocation
+> > >   mm: Avoid waking kswapd for THP allocations when compaction is deferred or contended
+> > 
+> > "mm: Avoid waking kswapd for THP ..." is marked "I have not tested it
+> > myself" and when Zdenek tested it he hit an unexplained oom.
+> > 
+> 
+> I thought Zdenek was testing with __GFP_NO_KSWAPD when he hit that OOM.
+> Further, when he hit that OOM, it looked like a genuine OOM. He had no
+> swap configured and inactive/active file pages were very low. Finally,
+> the free pages for Normal looked off and could also have been affected by
+> the accounting bug. I'm looking at https://lkml.org/lkml/2012/11/18/132
+> here. Are you thinking of something else?
 
-My system is just qemu booted with:
+who, me, think?  I was trying to work out why I hadn't merged or queued
+a patch which you felt was important.  Turned out it was because it
+didn't look very tested and final.
 
--smp 8 -m 8192 -numa node,nodeid=0,cpus=0-3 -numa node,nodeid=1,cpus=4-7
+> I have not tested with the patch admittedly but Thorsten has and seemed
+> to be ok with it https://lkml.org/lkml/2012/11/23/276.
 
-Watch the "PERCPU:" line early in boot, and you can see the "Embedded"
-come and go with or without your patch:
+OK, I'll queue revert-revert-mm-remove-__gfp_no_kswapd.patch and the
+patch from https://patchwork.kernel.org/patch/1728081/.
 
-[    0.000000] PERCPU: Embedded 11 pages/cpu @f3000000 s30592 r0 d14464
-vs
-[    0.000000] PERCPU: 11 4K pages/cpu @f83fe000 s30592 r0 d14464
+So what I'm currently sitting on for 3.7 is
 
-I believe this has to do with the hunks in your patch that do:
+mm-compaction-fix-return-value-of-capture_free_page.patch
+mm-vmemmap-fix-wrong-use-of-virt_to_page.patch
+mm-vmscan-fix-endless-loop-in-kswapd-balancing.patch
+revert-revert-mm-remove-__gfp_no_kswapd.patch
+mm-avoid-waking-kswapd-for-thp-allocations-when-compaction-is-deferred-or-contended.patch
+mm-soft-offline-split-thp-at-the-beginning-of-soft_offline_page.patch
 
--#ifdef CONFIG_X86_64
-        init_cpu_to_node();
--#endif
-...
--#ifdef CONFIG_X86_32
--DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, 0);
--#else
- DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
--#endif
- EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
+> > Please identify "Johannes' patch"?
+> 
+> mm: vmscan: fix kswapd endless loop on higher order allocation
 
-I don't have a fix handy because I'm working on the original problem,
-but I just happened to run across this during a bisect.
+OK, we have that.  I'll start a round of testing, do another -next drop
+and send the above Linuswards tomorrow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
