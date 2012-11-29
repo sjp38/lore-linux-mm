@@ -1,56 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 736986B007D
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 10:20:56 -0500 (EST)
-Date: Thu, 29 Nov 2012 15:20:51 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: 3.7-rc6 soft lockup in kswapd0
-Message-ID: <20121129152051.GZ8218@suse.de>
-References: <20121128113920.GU8218@suse.de>
- <20121129145414.9415.qmail@science.horizon.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 751106B0068
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 10:23:16 -0500 (EST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: O_DIRECT on tmpfs (again)
+References: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
+	<alpine.LNX.2.00.1211281248270.14968@eggly.anvils>
+	<50B6830A.20308@oracle.com>
+Date: Thu, 29 Nov 2012 10:23:13 -0500
+In-Reply-To: <50B6830A.20308@oracle.com> (Dave Kleikamp's message of "Wed, 28
+	Nov 2012 15:32:58 -0600")
+Message-ID: <x498v9kwhzy.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121129145414.9415.qmail@science.horizon.com>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: dave@linux.vnet.ibm.com, hannes@cmpxchg.org, jack@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
+To: Dave Kleikamp <dave.kleikamp@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Nov 29, 2012 at 09:54:14AM -0500, George Spelvin wrote:
-> Mel Gorman <mgorman@suse.de> wrote:
-> > On Tue, Nov 27, 2012 at 04:25:14PM -0500, George Spelvin wrote:
-> >> Well, it just made it to 24 hours, 
-> >> it did before.  I'm going to wait a couple more days before declaring
-> >> victory, but it looks good so far.
-> >> 
-> >>  19:19:10 up 1 day, 0 min,  2 users,  load average: 0.15, 0.20, 0.22
-> >>  21:24:05 up 1 day,  2:05,  2 users,  load average: 0.25, 0.19, 0.18
-> >
-> > Superb. The relevant patches *should* be in flight for 3.7 assuming they
-> > make it through the confusion of last-minute fixes.
-> 
->  14:53:54 up 2 days, 19:35,  2 users,  load average: 0.20, 0.24, 0.23
-> 
-> Almost three days, when it wouldn't live overnight before.
-> As promised, I'm declaring victory.
-> 
-> The patch that worked (on top of -rc7) was Johannes Weiner's
-> "mm: vmscan: fix endless loop in kswapd balancing"
-> that added the zone_balanced() function to mm/vmscan.c:2400.
-> 
-> Thank you all very much!
+Dave Kleikamp <dave.kleikamp@oracle.com> writes:
 
-Excellent, thanks for getting back quickly. The necessary patches in
-question are sortof-in-flight but I expect they'll make it in for 3.7.
-If that happens, it would be very nice if you could test with 3.7 to confirm
-and if all goes according to plan, I'll do a backport for 3.6-stable and
-hopefully squash most of the THP-causes-all-and-sundry-to-go-nuts bugs.
+>> Whilst I agree with every contradictory word I said back then ;)
+>> my current position is to wait to see what happens with Shaggy's "loop:
+>> Issue O_DIRECT aio using bio_vec" https://lkml.org/lkml/2012/11/22/847
+>
+> As the patches exist today, the loop driver will only make the aio calls
+> if the underlying file defines a direct_IO address op since
+> generic_file_read/write_iter() will call a_ops->direct_IO() when
+> O_DIRECT is set. For tmpfs or any other filesystem that doesn't support
+> O_DIRECT, the loop driver will continue to call the read() or write()
+> method.
 
+Hi, Hugh and Shaggy,
 
--- 
-Mel Gorman
-SUSE Labs
+Thanks for your replies--it looks like we're back to square one.  I
+think it would be trivial to add O_DIRECT support to tmpfs, but I'm not
+convinced it's necessary.  Should we wait until bug reports start to
+come in?
+
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
