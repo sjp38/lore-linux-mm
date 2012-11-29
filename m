@@ -1,105 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id D94A36B0080
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 20:00:48 -0500 (EST)
-Received: from /spool/local
-	by e5.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Wed, 28 Nov 2012 20:00:47 -0500
-Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 470B2C900A2
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:53:57 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAT0rvq918874512
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 19:53:57 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAT0ruGQ021633
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 22:53:56 -0200
-Subject: [RFC][PATCH 2/2] fix kvm's use of __pa() on percpu areas
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Thu, 29 Nov 2012 00:53:56 +0000
-References: <20121129005355.966BD487@kernel.stglabs.ibm.com>
-In-Reply-To: <20121129005355.966BD487@kernel.stglabs.ibm.com>
-Message-Id: <20121129005356.186166B0@kernel.stglabs.ibm.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 889576B007D
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 20:10:58 -0500 (EST)
+Message-ID: <1354150952.26955.377.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
+ rebind scenario
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 28 Nov 2012 18:02:32 -0700
+In-Reply-To: <4042591.gpFk7OYmph@vostro.rjw.lan>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	 <9212118.3s2xH6uJDI@vostro.rjw.lan>
+	 <1354136568.26955.312.camel@misato.fc.hp.com>
+	 <4042591.gpFk7OYmph@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: linux-acpi@vger.kernel.org, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+
+On Thu, 2012-11-29 at 00:49 +0100, Rafael J. Wysocki wrote:
+> On Wednesday, November 28, 2012 02:02:48 PM Toshi Kani wrote:
+> > > > > > > > > Consider the following case:
+> > > > > > > > > 
+> > > > > > > > > We hotremove the memory device by SCI and unbind it from the driver at the same time:
+> > > > > > > > > 
+> > > > > > > > > CPUa                                                  CPUb
+> > > > > > > > > acpi_memory_device_notify()
+> > > > > > > > >                                        unbind it from the driver
+> > > > > > > > >     acpi_bus_hot_remove_device()
+> > > > > > > > 
+> > > > > > > > Can we make acpi_bus_remove() to fail if a given acpi_device is not
+> > > > > > > > bound with a driver?  If so, can we make the unbind operation to perform
+> > > > > > > > unbind only?
+> > > > > > > 
+> > > > > > > acpi_bus_remove_device could check if the driver is present, and return -ENODEV
+> > > > > > > if it's not present (dev->driver == NULL).
+> > > > > > > 
+> > > > > > > But there can still be a race between an eject and an unbind operation happening
+> > > > > > > simultaneously. This seems like a general problem to me i.e. not specific to an
+> > > > > > > acpi memory device. How do we ensure an eject does not race with a driver unbind
+> > > > > > > for other acpi devices?
+> > > > > > > 
+> > > > > > > Is there a per-device lock in acpi-core or device-core that can prevent this from
+> > > > > > > happening? Driver core does a device_lock(dev) on all operations, but this is
+> > > > > > > probably not grabbed on SCI-initiated acpi ejects.
+> > > > > > 
+> > > > > > Since driver_unbind() calls device_lock(dev->parent) before calling
+> > > > > > device_release_driver(), I am wondering if we can call
+> > > > > > device_lock(dev->dev->parent) at the beginning of acpi_bus_remove()
+> > > > > > (i.e. before calling pre_remove) and fails if dev->driver is NULL.  The
+> > > > > > parent lock is otherwise released after device_release_driver() is done.
+> > > > > 
+> > > > > I would be careful.  You may introduce some subtle locking-related issues
+> > > > > this way.
+> > > > 
+> > > > Right.  This requires careful inspection and testing.  As far as the
+> > > > locking is concerned, I am not keen on using fine grained locking for
+> > > > hot-plug.  It is much simpler and solid if we serialize such operations.
+> > > > 
+> > > > > Besides, there may be an alternative approach to all this.  For example,
+> > > > > what if we don't remove struct device objects on eject?  The ACPI handles
+> > > > > associated with them don't go away in that case after all, do they?
+> > > > 
+> > > > Umm...  Sorry, I am not getting your point.  The issue is that we need
+> > > > to be able to fail a request when memory range cannot be off-lined.
+> > > > Otherwise, we end up ejecting online memory range.
+> > > 
+> > > Yes, this is the major one.  The minor issue, however, is a race condition
+> > > between unbinding a driver from a device and removing the device if I
+> > > understand it correctly.  Which will go away automatically if the device is
+> > > not removed in the first place.  Or so I would think. :-)
+> > 
+> > I see.  I do not think whether or not the device is removed on eject
+> > makes any difference here.  The issue is that after driver_unbind() is
+> > done, acpi_bus_hot_remove_device() no longer calls the ACPI memory
+> > driver (hence, it cannot fail in prepare_remove), and goes ahead to call
+> > _EJ0.
+> 
+> I see two reasons for calling acpi_bus_hot_remove_device() for memory (correct
+> me if I'm wrong): (1) from the memhotplug driver's notify handler and (2) from
+> acpi_eject_store() which is exposed through sysfs.  
+
+Yes, that is correct.
+
+> If we disabled exposing
+> acpi_eject_store() for memory devices, then the only way would be from the
+> notify handler.  So I wonder if driver_unbind() shouldn't just uninstall the
+> notify handler for memory (so that memory eject events are simply dropped on
+> the floor after unbinding the driver)?
+
+If driver_unbind() happens before an eject request, we do not have a
+problem.  acpi_eject_store() fails if a driver is not bound to the
+device.  acpi_memory_device_notify() fails as well.
+
+The race condition Wen pointed out (see the top of this email) is that
+driver_unbind() may come in while eject operation is in-progress.  This
+is why I mentioned the following in previous email.
+
+> So, we basically need to either 1) serialize
+> acpi_bus_hot_remove_device() and driver_unbind(), or 2) make
+> acpi_bus_hot_remove_device() to fail if driver_unbind() is run
+> during the operation.
 
 
-In short, it is illegal to call __pa() on an address holding
-a percpu variable.  The times when this actually matters are
-pretty obscure (certain 32-bit NUMA systems), but it _does_
-happen.  It is important to keep KVM guests working on these
-systems because the real hardware is getting harder and
-harder to find.
-
-This bug manifested first by me seeing a plain hang at boot
-after this message:
-
-	CPU 0 irqstacks, hard=f3018000 soft=f301a000
-
-or, sometimes, it would actually make it out to the console:
-
-[    0.000000] BUG: unable to handle kernel paging request at ffffffff
-
-I eventually traced it down to the KVM async pagefault code.
-This can be worked around by disabling that code either at
-compile-time, or on the kernel command-line.
-
-The kvm async pagefault code was injecting page faults in
-to the guest which the guest misinterpreted because its
-"reason" was not being properly sent from the host.
-
-The guest passes a physical address of an per-cpu async page
-fault structure via an MSR to the host.  Since __pa() is
-broken on percpu data, the physical address it sent was
-bascially bogus and the host went scribbling on random data.
-The guest never saw the real reason for the page fault (it
-was injected by the host), assumed that the kernel had taken
-a _real_ page fault, and panic()'d.
-
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/arch/x86/kernel/kvm.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff -puN arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvm.c
---- linux-2.6.git/arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas	2012-11-29 00:39:59.130213376 +0000
-+++ linux-2.6.git-dave/arch/x86/kernel/kvm.c	2012-11-29 00:51:55.428091802 +0000
-@@ -284,9 +284,9 @@ static void kvm_register_steal_time(void
- 
- 	memset(st, 0, sizeof(*st));
- 
--	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
-+	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
- 	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
--		cpu, __pa(st));
-+		cpu, slow_virt_to_phys(st));
- }
- 
- static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
-@@ -311,7 +311,7 @@ void __cpuinit kvm_guest_cpu_init(void)
- 		return;
- 
- 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
--		u64 pa = __pa(&__get_cpu_var(apf_reason));
-+		u64 pa = slow_virt_to_phys(&__get_cpu_var(apf_reason));
- 
- #ifdef CONFIG_PREEMPT
- 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
-@@ -327,7 +327,8 @@ void __cpuinit kvm_guest_cpu_init(void)
- 		/* Size alignment is implied but just to make it explicit. */
- 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
- 		__get_cpu_var(kvm_apic_eoi) = 0;
--		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
-+		pa = slow_virt_to_phys(&__get_cpu_var(kvm_apic_eoi))
-+			| KVM_MSR_ENABLED;
- 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
- 	}
- 
-_
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
