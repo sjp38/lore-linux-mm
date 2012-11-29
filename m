@@ -1,68 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 7590C6B007D
-	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:43:38 -0500 (EST)
-Message-ID: <50B6E7CB.1040504@oracle.com>
-Date: Thu, 29 Nov 2012 12:42:51 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 7EBAC6B0082
+	for <linux-mm@kvack.org>; Wed, 28 Nov 2012 23:49:47 -0500 (EST)
+Message-ID: <50B6E936.2080308@huawei.com>
+Date: Thu, 29 Nov 2012 12:48:54 +0800
+From: Hanjun Guo <guohanjun@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] tmpfs: support SEEK_DATA and SEEK_HOLE (reprise)
-References: <alpine.LNX.2.00.1211281706390.1516@eggly.anvils> <20121129012933.GA9112@kernel> <alpine.LNX.2.00.1211281745200.1641@eggly.anvils> <87lidlxcw9.fsf@rho.meyering.net>
-In-Reply-To: <87lidlxcw9.fsf@rho.meyering.net>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>  <50B5EFE9.3040206@huawei.com> <1354128096.26955.276.camel@misato.fc.hp.com>
+In-Reply-To: <1354128096.26955.276.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jim Meyering <jim@meyering.net>
-Cc: Hugh Dickins <hughd@google.com>, Jaegeuk Hanse <jaegeuk.hanse@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Zheng Liu <wenqing.lz@taobao.com>, Paul Eggert <eggert@cs.ucla.edu>, Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Chris Mason <chris.mason@fusionio.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
 
-On 11/29/2012 12:15 PM, Jim Meyering wrote:
-> Hugh Dickins wrote:
->> On Thu, 29 Nov 2012, Jaegeuk Hanse wrote:
-> ...
->>> But this time in which scenario will use it?
+On 2012/11/29 2:41, Toshi Kani wrote:
+> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+>> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
+>>> As discussed in https://patchwork.kernel.org/patch/1581581/
+>>> the driver core remove function needs to always succeed. This means we need
+>>> to know that the device can be successfully removed before acpi_bus_trim / 
+>>> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+>>> or SCI-initiated eject of memory devices fail e.g with:
+>>> echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+>>>
+>>> since the ACPI core goes ahead and ejects the device regardless of whether the
+>>> the memory is still in use or not.
+>>>
+>>> For this reason a new acpi_device operation called prepare_remove is introduced.
+>>> This operation should be registered for acpi devices whose removal (from kernel
+>>> perspective) can fail.  Memory devices fall in this category.
+>>>
+>>> acpi_bus_remove() is changed to handle removal in 2 steps:
+>>> - preparation for removal i.e. perform part of removal that can fail. Should
+>>>   succeed for device and all its children.
+>>> - if above step was successfull, proceed to actual device removal
 >>
->> I was not very convinced by the grep argument from Jim and Paul:
->> that seemed to be grep holding on to a no-arbitrary-limits dogma,
->> at the expense of its users, causing an absurd line-length issue,
->> which use of SEEK_DATA happens to avoid in some cases.
+>> Hi Vasilis,
+>> We met the same problem when we doing computer node hotplug, It is a good idea
+>> to introduce prepare_remove before actual device removal.
 >>
->> The cp of sparse files from Jeff and Dave was more convincing;
->> but I still didn't see why little old tmpfs needed to be ahead
->> of the pack.
->>
->> But at LinuxCon/Plumbers in San Diego in August, a more convincing
->> case was made: I was hoping you would not ask, because I did not take
->> notes, and cannot pass on the details - was it rpm building on tmpfs?
->> I was convinced enough to promise support on tmpfs when support on
->> ext4 goes in.
+>> I think we could do more in prepare_remove, such as rollback. In most cases, we can
+>> offline most of memory sections except kernel used pages now, should we rollback
+>> and online the memory sections when prepare_remove failed ?
 > 
-> Re the cp-vs-sparse-file case, the current FIEMAP-based code in GNU
-> cp is ugly and complicated enough that until recently it harbored a
-> hard-to-reproduce data-corrupting bug[*].  Now that SEEK_DATA/SEEK_HOLE
-> support work will work also for tmpfs and ext4, we can plan to remove
-> the FIEMAP-based code in favor of a simpler SEEK_DATA/SEEK_HOLE-based
-> implementation.
-How do we teach du(1) to aware of the real disk footprint with Btrfs
-clone or OCFS2 reflinked files if we remove the FIEMAP-based code?
+> I think hot-plug operation should have all-or-nothing semantics.  That
+> is, an operation should either complete successfully, or rollback to the
+> original state.
 
-How about if we still keep it there, and introduce SEEK_DATA/SEEK_HOLE
-code to the extent-scan module which is dedicated to deal with sparse files?
+Yes, we have the same point of view with you. We handle this problem in the ACPI
+based hot-plug framework as following:
+1) hot add / hot remove complete successfully if no error happens;
+2) automatic rollback to the original state if meets some error ;
+3) rollback to the original if hot-plug operation cancelled by user ;
 
-Thanks,
--Jeff
 > 
-> With the rise of virtualization, copying sparse images efficiently
-> (probably searching, too) is becoming more and more important.
+>> As you may know, the ACPI based hotplug framework we are working on already addressed
+>> this problem, and the way we slove this problem is a bit like yours.
+>>
+>> We introduce hp_ops in struct acpi_device_ops:
+>> struct acpi_device_ops {
+>> 	acpi_op_add add;
+>> 	acpi_op_remove remove;
+>> 	acpi_op_start start;
+>> 	acpi_op_bind bind;
+>> 	acpi_op_unbind unbind;
+>> 	acpi_op_notify notify;
+>> #ifdef	CONFIG_ACPI_HOTPLUG
+>> 	struct acpihp_dev_ops *hp_ops;
+>> #endif	/* CONFIG_ACPI_HOTPLUG */
+>> };
+>>
+>> in hp_ops, we divide the prepare_remove into six small steps, that is:
+>> 1) pre_release(): optional step to mark device going to be removed/busy
+>> 2) release(): reclaim device from running system
+>> 3) post_release(): rollback if cancelled by user or error happened
+>> 4) pre_unconfigure(): optional step to solve possible dependency issue
+>> 5) unconfigure(): remove devices from running system
+>> 6) post_unconfigure(): free resources used by devices
+>>
+>> In this way, we can easily rollback if error happens.
+>> How do you think of this solution, any suggestion ? I think we can achieve
+>> a better way for sharing ideas. :)
 > 
-> So, yes, GNU cp will soon use this feature.
+> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+> have not looked at all your changes yet..), but in my mind, a hot-plug
+> operation should be composed with the following 3 phases.
+
+Good idea ! we also implement a hot-plug operation in 3 phases:
+1) acpihp_drv_pre_execute
+2) acpihp_drv_execute
+3) acpihp_drv_post_execute
+you may refer to :
+https://lkml.org/lkml/2012/11/4/79
+
 > 
-> [*] https://plus.google.com/u/0/114228401647637059102/posts/FDV3JEaYsKD
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 1. Validate phase - Verify if the request is a supported operation.  All
+> known restrictions are verified at this phase.  For instance, if a
+> hot-remove request involves kernel memory, it is failed in this phase.
+> Since this phase makes no change, no rollback is necessary to fail. 
+
+Yes, we have done this in acpihp_drv_pre_execute, and check following things:
+
+1) Hot-plugble or not. the instance kernel memory you mentioned is also checked
+   when memory device remove;
+
+2) Dependency check involved. For instance, if hot-add a memory device,
+   processor should be added first, otherwise it's not valid to this operation.
+
+3) Race condition check. if the device and its dependent device is in hot-plug
+   process, another request will be denied.
+
+No rollback is needed for the above checks.
+
 > 
+> 2. Execute phase - Perform hot-add / hot-remove operation that can be
+> rolled-back in case of error or cancel.
+
+In this phase, we introduce a state machine for the hot-plugble device,
+please refer to:
+https://lkml.org/lkml/2012/11/4/79
+
+I think we have the same idea for the major framework, but the ACPI based
+hot-plug framework implement it differently in detail, right ?
+
+Thanks
+Hanjun
+
+> 
+> 3. Commit phase - Perform the final hot-add / hot-remove operation that
+> cannot be rolled-back.  No error / cancel is allowed in this phase.  For
+> instance, eject operation is performed at this phase.  
+> 
+> 
+> Thanks,
+> -Toshi
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
