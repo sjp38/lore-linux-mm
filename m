@@ -1,66 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id E67A46B0092
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 18:46:48 -0500 (EST)
-Date: Fri, 30 Nov 2012 07:46:13 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [memcg:since-3.6 493/499] include/trace/events/filemap.h:14:1:
- sparse: incompatible types for operation (<)
-Message-ID: <50b7f3c5.kjvAZJjuJNxsqjDZ%fengguang.wu@intel.com>
+Date: Thu, 29 Nov 2012 16:04:43 -0800
+From: Zach Brown <zab@zabbo.net>
+Subject: Re: [BUG REPORT] [mm-hotplug, aio] aio ring_pages can't be offlined
+Message-ID: <20121130000443.GK18574@lenny.home.zabbo.net>
+References: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com>
+ <20121129153930.477e9709.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20121129153930.477e9709.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Jarzmik <robert.jarzmik@free.fr>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lin Feng <linfeng@cn.fujitsu.com>, viro@zeniv.linux.org.uk, bcrl@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hughd@google.com, cl@linux.com, mgorman@suse.de, minchan@kernel.org, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
-commit: 07b81da5f80b27543ddbe3164170c64e0941a812 [493/499] mm: trace filemap add and del
+> The best I can think of is to make changes in or around
+> get_user_pages(), to steal the pages from userspace and replace them
+> with non-movable ones before pinning them.  The performance cost of
+> something like this would surely be unacceptable for direct-io, but
+> maybe OK for the aio ring and futexes.
 
+In the aio case it seems like it could be taught to populate the mapping
+with non-movable pages to begin with.  It's calling get_user_pages() a
+few lines after instantiating the mapping itself with do_mmap_pgoff().
 
-sparse warnings:
-
-+ include/trace/events/filemap.h:14:1: sparse: incompatible types for operation (<)
-include/trace/events/filemap.h:14:1:    left side has type struct page *<noident>
-include/trace/events/filemap.h:14:1:    right side has type int
-include/trace/events/filemap.h:45:1: sparse: incompatible types for operation (<)
-include/trace/events/filemap.h:45:1:    left side has type struct page *<noident>
-include/trace/events/filemap.h:45:1:    right side has type int
-include/linux/radix-tree.h:152:16: sparse: incompatible types in comparison expression (different address spaces)
-include/linux/radix-tree.h:152:16: sparse: incompatible types in comparison expression (different address spaces)
-include/linux/radix-tree.h:152:16: sparse: incompatible types in comparison expression (different address spaces)
-include/linux/radix-tree.h:152:16: sparse: incompatible types in comparison expression (different address spaces)
-
-vim +14 include/trace/events/filemap.h
-
-07b81da5 Robert Jarzmik 2012-11-29   1  #undef TRACE_SYSTEM
-07b81da5 Robert Jarzmik 2012-11-29   2  #define TRACE_SYSTEM filemap
-07b81da5 Robert Jarzmik 2012-11-29   3  
-07b81da5 Robert Jarzmik 2012-11-29   4  #if !defined(_TRACE_FILEMAP_H) || defined(TRACE_HEADER_MULTI_READ)
-07b81da5 Robert Jarzmik 2012-11-29   5  #define _TRACE_FILEMAP_H
-07b81da5 Robert Jarzmik 2012-11-29   6  
-07b81da5 Robert Jarzmik 2012-11-29   7  #include <linux/types.h>
-07b81da5 Robert Jarzmik 2012-11-29   8  #include <linux/tracepoint.h>
-07b81da5 Robert Jarzmik 2012-11-29   9  #include <linux/mm.h>
-07b81da5 Robert Jarzmik 2012-11-29  10  #include <linux/memcontrol.h>
-07b81da5 Robert Jarzmik 2012-11-29  11  #include <linux/device.h>
-07b81da5 Robert Jarzmik 2012-11-29  12  #include <linux/kdev_t.h>
-07b81da5 Robert Jarzmik 2012-11-29  13  
-07b81da5 Robert Jarzmik 2012-11-29 @14  TRACE_EVENT(mm_filemap_delete_from_page_cache,
-07b81da5 Robert Jarzmik 2012-11-29  15  
-07b81da5 Robert Jarzmik 2012-11-29  16  	TP_PROTO(struct page *page),
-07b81da5 Robert Jarzmik 2012-11-29  17  
-07b81da5 Robert Jarzmik 2012-11-29  18  	TP_ARGS(page),
-07b81da5 Robert Jarzmik 2012-11-29  19  
-07b81da5 Robert Jarzmik 2012-11-29  20  	TP_STRUCT__entry(
-07b81da5 Robert Jarzmik 2012-11-29  21  		__field(struct page *, page)
-07b81da5 Robert Jarzmik 2012-11-29  22  		__field(unsigned long, i_ino)
-
----
-0-DAY kernel build testing backend         Open Source Technology Center
-Fengguang Wu, Yuanhan Liu                              Intel Corporation
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
