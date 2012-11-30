@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 520E16B009D
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 14:59:14 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so657952eek.14
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 11:59:13 -0800 (PST)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 682306B00E4
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 14:59:16 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so427555eaa.14
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 11:59:15 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 09/10] sched: Add convergence strength based adaptive NUMA page fault rate
-Date: Fri, 30 Nov 2012 20:58:40 +0100
-Message-Id: <1354305521-11583-10-git-send-email-mingo@kernel.org>
+Subject: [PATCH 10/10] sched: Refine the 'shared tasks' memory interleaving logic
+Date: Fri, 30 Nov 2012 20:58:41 +0100
+Message-Id: <1354305521-11583-11-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354305521-11583-1-git-send-email-mingo@kernel.org>
 References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,17 +15,30 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Mel Gorman reported that the NUMA code is system-time intense even
-after a workload has converged.
+Change the adaptive memory policy code to take a majority of buddies
+on a node into account. Previously, since this commit:
 
-To remedy this, turn sched_numa_scan_size into a range:
+  "sched: Track shared task's node groups and interleave their memory allocations"
 
-   sched_numa_scan_size_min        [default:  32 MB]
-   sched_numa_scan_size_max        [default: 512 MB]
+We'd include any node that has run a buddy in the past, which was too
+aggressive and spread the allocations of 'mostly converged' workloads
+too much, and prevented their further convergence.
 
-As workloads converge, so does their scanning activity get reduced.
-If they unconverge again - for example because system load changes,
-then their scanning will pick up again.
+Add a few other variants for testing:
+
+  NUMA_POLICY_ADAPTIVE:		use memory on every node that runs a buddy of this task
+
+  NUMA_POLICY_SYSWIDE:		use a simple, static, system-wide mask
+
+  NUMA_POLICY_MAXNODE:		use memory on this task's 'maximum node'
+
+  NUMA_POLICY_MAXBUDDIES:	use memory on the node with the most buddies
+
+  NUMA_POLICY_MANYBUDDIES:	this is the default, a quorum of buddies
+				determines the allocation mask
+
+The 'many buddies' quorum logic appears to work best in practice,
+but the 'maxnode' and 'syswide' ones are good, robust policies too.
 
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -36,143 +49,142 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/sched.h |  3 ++-
- kernel/sched/fair.c   | 57 +++++++++++++++++++++++++++++++++++++++++++--------
- kernel/sysctl.c       | 11 ++++++++--
- 3 files changed, 59 insertions(+), 12 deletions(-)
+ kernel/sched/core.c     |  2 +-
+ kernel/sched/fair.c     | 43 +++++++++++++++++++++++++++++++++++++------
+ kernel/sched/features.h |  6 ++++++
+ kernel/sched/sched.h    |  4 ++--
+ 4 files changed, 46 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5b2cf2e..ce834e7 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2057,7 +2057,8 @@ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
- extern unsigned int sysctl_sched_numa_scan_delay;
- extern unsigned int sysctl_sched_numa_scan_period_min;
- extern unsigned int sysctl_sched_numa_scan_period_max;
--extern unsigned int sysctl_sched_numa_scan_size;
-+extern unsigned int sysctl_sched_numa_scan_size_min;
-+extern unsigned int sysctl_sched_numa_scan_size_max;
- extern unsigned int sysctl_sched_numa_settle_count;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 47b14d1..9fef0d3 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -134,7 +134,7 @@ void update_rq_clock(struct rq *rq)
+ #define SCHED_FEAT(name, enabled)	\
+ 	(1UL << __SCHED_FEAT_##name) * enabled |
  
- #ifdef CONFIG_SCHED_DEBUG
+-const_debug unsigned int sysctl_sched_features =
++const_debug u64 sysctl_sched_features =
+ #include "features.h"
+ 	0;
+ 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 10cbfa3..9262692 100644
+index 9262692..18d732f 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -805,15 +805,17 @@ static unsigned long task_h_load(struct task_struct *p);
- /*
-  * Scan @scan_size MB every @scan_period after an initial @scan_delay.
-  */
--unsigned int sysctl_sched_numa_scan_delay = 1000;	/* ms */
--unsigned int sysctl_sched_numa_scan_period_min = 100;	/* ms */
--unsigned int sysctl_sched_numa_scan_period_max = 100*16;/* ms */
--unsigned int sysctl_sched_numa_scan_size = 256;		/* MB */
-+unsigned int sysctl_sched_numa_scan_delay	__read_mostly = 1000;	/* ms */
-+unsigned int sysctl_sched_numa_scan_period_min	__read_mostly = 100;	/* ms */
-+unsigned int sysctl_sched_numa_scan_period_max	__read_mostly = 100*16;	/* ms */
+@@ -1611,6 +1611,9 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
+ 	min_node_load = LONG_MAX;
+ 	min_node = -1;
+ 
++	if (sched_feat(NUMA_POLICY_MANYBUDDIES))
++		nodes_clear(p->numa_policy.v.nodes);
 +
-+unsigned int sysctl_sched_numa_scan_size_min	__read_mostly =  32;	/* MB */
-+unsigned int sysctl_sched_numa_scan_size_max	__read_mostly = 512;	/* MB */
+ 	/*
+ 	 * Map out our maximum buddies layout:
+ 	 */
+@@ -1677,16 +1680,28 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
+ 			min_node = node;
+ 		}
  
- /*
-  * Wait for the 2-sample stuff to settle before migrating again
-  */
--unsigned int sysctl_sched_numa_settle_count = 2;
-+unsigned int sysctl_sched_numa_settle_count	__read_mostly = 2;
+-		if (buddies)
+-			node_set(node, p->numa_policy.v.nodes);
+-		else
+-			node_clear(node, p->numa_policy.v.nodes);
++		if (sched_feat(NUMA_POLICY_ADAPTIVE)) {
++			if (buddies)
++				node_set(node, p->numa_policy.v.nodes);
++			else
++				node_clear(node, p->numa_policy.v.nodes);
++		}
++
++		if (!buddies) {
++			if (sched_feat(NUMA_POLICY_MANYBUDDIES))
++				node_clear(node, p->numa_policy.v.nodes);
++			continue;
++		}
++
++		/* A majority of buddies attracts memory: */
++		if (sched_feat(NUMA_POLICY_MANYBUDDIES)) {
++			if (buddies >= 3)
++				node_set(node, p->numa_policy.v.nodes);
++		}
  
- static int task_ideal_cpu(struct task_struct *p)
- {
-@@ -2077,9 +2079,15 @@ static void task_numa_placement_tick(struct task_struct *p)
+ 		/* Don't go to a node that is near its capacity limit: */
+ 		if (node_load + SCHED_LOAD_SCALE > node_capacity)
+ 			continue;
+-		if (!buddies)
+-			continue;
+ 
+ 		if (buddies > max_buddies && target_cpu != -1) {
+ 			max_buddies = buddies;
+@@ -1696,6 +1711,13 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
+ 		}
+ 	}
+ 
++	/* Cluster memory around the buddies maximum: */
++	if (sched_feat(NUMA_POLICY_MAXBUDDIES)) {
++		if (ideal_node != -1) {
++			nodes_clear(p->numa_policy.v.nodes);
++			node_set(ideal_node, p->numa_policy.v.nodes);
++		}
++	}
+ 	if (WARN_ON_ONCE(ideal_node == -1 && ideal_cpu != -1))
+ 		return this_cpu;
+ 	if (WARN_ON_ONCE(ideal_node != -1 && ideal_cpu == -1))
+@@ -2079,6 +2101,15 @@ static void task_numa_placement_tick(struct task_struct *p)
  			p->numa_faults[idx_oldnode] = 0;
  		}
  		sched_setnuma(p, ideal_node, shared);
-+		/*
-+		 * We changed a node, start scanning more frequently again
-+		 * to map out the working set:
-+		 */
-+		p->numa_scan_period = sysctl_sched_numa_scan_period_min;
- 	} else {
- 		/* node unchanged, back off: */
--		p->numa_scan_period = min(p->numa_scan_period * 2, sysctl_sched_numa_scan_period_max);
-+		p->numa_scan_period = min(p->numa_scan_period*2,
-+						sysctl_sched_numa_scan_period_max);
- 	}
++
++		/* Allocate only the maximum node: */
++		if (sched_feat(NUMA_POLICY_MAXNODE)) {
++			nodes_clear(p->numa_policy.v.nodes);
++			node_set(ideal_node, p->numa_policy.v.nodes);
++		}
++		/* Allocate system-wide: */
++		if (sched_feat(NUMA_POLICY_SYSWIDE))
++			p->numa_policy.v.nodes = node_online_map;
+ 		/*
+ 		 * We changed a node, start scanning more frequently again
+ 		 * to map out the working set:
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index 9075faf..1775b80 100644
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -81,5 +81,11 @@ SCHED_FEAT(NUMA_LB,			false)
+ SCHED_FEAT(NUMA_GROUP_LB_COMPRESS,	true)
+ SCHED_FEAT(NUMA_GROUP_LB_SPREAD,	true)
+ SCHED_FEAT(MIGRATE_FAULT_STATS,		false)
++SCHED_FEAT(NUMA_POLICY_ADAPTIVE,	false)
++SCHED_FEAT(NUMA_POLICY_SYSWIDE,		false)
++SCHED_FEAT(NUMA_POLICY_MAXNODE,		false)
++SCHED_FEAT(NUMA_POLICY_MAXBUDDIES,	false)
++SCHED_FEAT(NUMA_POLICY_MANYBUDDIES,	true)
++
+ SCHED_FEAT(NUMA_CONVERGE_MIGRATIONS,	true)
+ #endif
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index ca92adf..ace1159 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -648,7 +648,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
+ # define const_debug const
+ #endif
  
- 	this_cpu = task_cpu(p);
-@@ -2238,6 +2246,7 @@ void task_numa_scan_work(struct callback_head *work)
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
- 	struct vm_area_struct *vma;
-+	long pages_min, pages_max;
+-extern const_debug unsigned int sysctl_sched_features;
++extern const_debug u64 sysctl_sched_features;
  
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_scan_work));
+ #define SCHED_FEAT(name, enabled)	\
+ 	__SCHED_FEAT_##name ,
+@@ -684,7 +684,7 @@ static __always_inline bool static_branch_##name(struct static_key *key) \
+ extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
+ #define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
+ #else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
+-#define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
++#define sched_feat(x) (sysctl_sched_features & (1ULL << __SCHED_FEAT_##x))
+ #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
  
-@@ -2260,10 +2269,40 @@ void task_numa_scan_work(struct callback_head *work)
- 	current->numa_scan_period += jiffies_to_msecs(2);
- 
- 	start0 = start = end = mm->numa_scan_offset;
--	pages_total = sysctl_sched_numa_scan_size;
--	pages_total <<= 20 - PAGE_SHIFT; /* MB in pages */
--	if (!pages_total)
-+
-+	pages_max = sysctl_sched_numa_scan_size_max;
-+	pages_max <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages_max)
-+		return;
-+
-+	pages_min = sysctl_sched_numa_scan_size_min;
-+	pages_min <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages_min)
-+		return;
-+
-+	if (WARN_ON_ONCE(p->convergence_strength < 0 || p->convergence_strength > 1024))
- 		return;
-+	if (WARN_ON_ONCE(pages_min > pages_max))
-+		return;
-+
-+	/*
-+	 * Convergence strength is a number in the range of
-+	 * 0 ... 1024.
-+	 *
-+	 * As tasks converge, scale down our scanning to the minimum
-+	 * of the allowed range. Shortly after they get unsettled
-+	 * (because the workload changes or the system is loaded
-+	 * differently), scanning revs up again.
-+	 *
-+	 * The important thing is that when the system is in an
-+	 * equilibrium, we do the minimum amount of scanning.
-+	 */
-+
-+	pages_total = pages_min;
-+	pages_total += (pages_max - pages_min)*(1024-p->convergence_strength)/1024;
-+
-+	pages_total = max(pages_min, pages_total);
-+	pages_total = min(pages_max, pages_total);
- 
- 	sum_pages_scanned = 0;
- 	pages_left = pages_total;
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 6d2fe5b..b6ddfae 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -374,8 +374,15 @@ static struct ctl_table kern_table[] = {
- 		.proc_handler	= proc_dointvec,
- 	},
- 	{
--		.procname	= "sched_numa_scan_size_mb",
--		.data		= &sysctl_sched_numa_scan_size,
-+		.procname	= "sched_numa_scan_size_min_mb",
-+		.data		= &sysctl_sched_numa_scan_size_min,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+	},
-+	{
-+		.procname	= "sched_numa_scan_size_max_mb",
-+		.data		= &sysctl_sched_numa_scan_size_max,
- 		.maxlen		= sizeof(unsigned int),
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec,
+ #ifdef CONFIG_NUMA_BALANCING
 -- 
 1.7.11.7
 
