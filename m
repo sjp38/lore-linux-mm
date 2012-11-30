@@ -1,33 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 389F26B005D
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 21:07:39 -0500 (EST)
-Date: Thu, 29 Nov 2012 18:07:37 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [memcg:since-3.6 341/499]
- drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
-Message-Id: <20121129180737.d4b308b6.akpm@linux-foundation.org>
-In-Reply-To: <20121130020015.GA29687@localhost>
-References: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
-	<20121130002848.GA28177@localhost>
-	<20121129164616.6c308ce0.akpm@linux-foundation.org>
-	<20121130020015.GA29687@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 7ED026B0068
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 21:29:20 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Fri, 30 Nov 2012 03:29:18 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121122214249.GA20319@dhcp22.suse.cz>, <20121122233434.3D5E35E6@pobox.sk>, <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk>, <20121123100438.GF24698@dhcp22.suse.cz>, <20121125011047.7477BB5E@pobox.sk>, <20121125120524.GB10623@dhcp22.suse.cz>, <20121125135542.GE10623@dhcp22.suse.cz>, <20121126013855.AF118F5E@pobox.sk>, <20121126131837.GC17860@dhcp22.suse.cz> <20121126132149.GD17860@dhcp22.suse.cz>
+In-Reply-To: <20121126132149.GD17860@dhcp22.suse.cz>
+MIME-Version: 1.0
+Message-Id: <20121130032918.59B3F780@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Rafael Aquini <aquini@redhat.com>, kbuild@01.org, Julia Lawall <julia.lawall@lip6.fr>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On Fri, 30 Nov 2012 10:00:15 +0800
-Fengguang Wu <fengguang.wu@intel.com> wrote:
+>Here we go with the patch for 3.2.34. Could you test with this one,
+>please?
 
-> Thanks for sharing the code and howto! It won't be hard for me to
-> follow that rule, however it seems a bit more straightforward to
-> detect the "fix" magic keyword in the subject line?
 
-OK, including "fix" is easy ;)
+Michal, unfortunately i had to boot to another kernel because the one with this patch keeps killing my MySQL server :( it was, probably, doing it on OOM in any cgroup - looks like OOM was not choosing processes only from cgroup which is out of memory. Here is the log from syslog: http://www.watchdog.sk/lkml/oom_mysqld
+
+Maybe i should mention that MySQL server has it's own cgroup (called 'mysql') but with no limits to any resources.
+
+azurIt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
