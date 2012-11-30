@@ -1,65 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 2689F6B00AB
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:31:48 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 0/4] replace cgroup_lock with local lock in memcg
-Date: Fri, 30 Nov 2012 17:31:22 +0400
-Message-Id: <1354282286-32278-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id D31D26B00AF
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:44:29 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Fri, 30 Nov 2012 14:44:27 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk>, <20121123100438.GF24698@dhcp22.suse.cz>, <20121125011047.7477BB5E@pobox.sk>, <20121125120524.GB10623@dhcp22.suse.cz>, <20121125135542.GE10623@dhcp22.suse.cz>, <20121126013855.AF118F5E@pobox.sk>, <20121126131837.GC17860@dhcp22.suse.cz>, <20121126132149.GD17860@dhcp22.suse.cz>, <20121130032918.59B3F780@pobox.sk> <20121130124506.GH29317@dhcp22.suse.cz>
+In-Reply-To: <20121130124506.GH29317@dhcp22.suse.cz>
+MIME-Version: 1.0
+Message-Id: <20121130144427.51A09169@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-Hi,
+>Anyway your system is under both global and local memory pressure. You
+>didn't see apache going down previously because it was probably the one
+>which was stuck and could be killed.
+>Anyway you need to setup your system more carefully.
 
-In memcg, we use the cgroup_lock basically to synchronize against two events:
-attaching tasks and children to a cgroup.
 
-For the problem of attaching tasks, I am using something similar to cpusets:
-when task attaching starts, we will flip a flag "attach_in_progress", that will
-be flipped down when it finishes. This way, all readers can know that a task is
-joining the group and take action accordingly. With this, we can guarantee that
-the behavior of move_charge_at_immigrate continues safe
+There is, also, an evidence that system has enough of memory! :) Just take column 'rss' from process list in OOM message and sum it - you will get 2489911. It's probably in KB so it's about 2.4 GB. System has 14 GB of RAM so this also match data on my graph - 2.4 is about 17% of 14.
 
-Protecting against children creation requires a bit more work. For those, the
-calls to cgroup_lock() all live in handlers like mem_cgroup_hierarchy_write(),
-where we change a tunable in the group, that is hierarchy-related. For
-instance, the use_hierarchy flag cannot be changed if the cgroup already have
-children.
-
-Furthermore, those values are propageted from the parent to the child when a
-new child is created. So if we don't lock like this, we can end up with the
-following situation:
-
-A                                   B
- memcg_css_alloc()                       mem_cgroup_hierarchy_write()
- copy use hierarchy from parent          change use hierarchy in parent
- finish creation.
-
-This is mainly because during create, we are still not fully connected to the
-css tree. So all iterators and the such that we could use, will fail to show
-that the group has children.
-
-My observation is that all of creation can proceed in parallel with those
-tasks, except value assignment. So what this patchseries does is to first move
-all value assignment that is dependent on parent values from css_alloc to
-css_online, where the iterators all work, and then we lock only the value
-assignment. This will guarantee that parent and children always have
-consistent values.
-
-Glauber Costa (4):
-  cgroup: warn about broken hierarchies only after css_online
-  memcg: prevent changes to move_charge_at_immigrate during task attach
-  memcg: split part of memcg creation to css_online
-  memcg: replace cgroup_lock with memcg specific memcg_lock
-
- kernel/cgroup.c |  18 +++----
- mm/memcontrol.c | 164 +++++++++++++++++++++++++++++++++++++++++---------------
- 2 files changed, 129 insertions(+), 53 deletions(-)
-
--- 
-1.7.11.7
+azur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
