@@ -1,61 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id D3FA86B007B
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 05:00:28 -0500 (EST)
-Message-ID: <50B883B5.8020705@parallels.com>
-Date: Fri, 30 Nov 2012 14:00:21 +0400
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 93B836B0081
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 05:19:52 -0500 (EST)
+Message-ID: <50B88835.80805@parallels.com>
+Date: Fri, 30 Nov 2012 14:19:33 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHSET cgroup/for-3.8] cpuset: decouple cpuset locking from
- cgroup core
-References: <1354138460-19286-1-git-send-email-tj@kernel.org> <50B8263C.7060908@jp.fujitsu.com> <50B875B4.2020507@parallels.com> <20121130092435.GD29317@dhcp22.suse.cz> <50B87F84.7040206@parallels.com> <20121130094959.GE29317@dhcp22.suse.cz>
-In-Reply-To: <20121130094959.GE29317@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
+References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B5CFAE.80103@huawei.com> <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com> <50B68467.5020008@zytor.com> <20121129110045.GX8218@suse.de> <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, lizefan@huawei.com, paul@paulmenage.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, bsingharora@gmail.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
 
-On 11/30/2012 01:49 PM, Michal Hocko wrote:
-> On Fri 30-11-12 13:42:28, Glauber Costa wrote:
-> [...]
->> Speaking of it: Tejun's tree still lacks the kmem bits. How hard would
->> it be for you to merge his branch into a temporary branch of your tree?
+On 11/30/2012 06:58 AM, Luck, Tony wrote:
+>> If any significant percentage of memory is in ZONE_MOVABLE then the memory
+>> hotplug people will have to deal with all the lowmem/highmem problems
+>> that used to be faced by 32-bit x86 with PAE enabled. 
 > 
-> review-cpuset-locking is based on a post merge window merges so I cannot
-> merge it as is. I could cherry-pick the series after it is settled. I
-> have no idea how much conflicts this would bring, though.
+> While these problems may still exist on large systems - I think it becomes
+> harder to construct workloads that run into problems.  In those bad old days
+> a significant fraction of lowmem was consumed by the kernel ... so it was
+> pretty easy to find meta-data intensive workloads that would push it over
+> a cliff.  Here we  are talking about systems with say 128GB per node divided
+> into 64GB moveable and 64GB non-moveable (and I'd regard this as a rather
+> low-end machine).  Unless the workload consists of zillions of tiny processes
+> all mapping shared memory blocks, the percentage of memory allocated to
+> the kernel is going to be tiny compared with the old 4GB days.
 > 
-Ok.
 
-I believe the task problem only exist for us for kmem. So I could come
-up with a patchset that only deals with child cgroup creation, and
-ignore attach for now. So long as we have a mechanism that will work for
-it, and don't get lost and forget to patch it when the trees are merged.
+Which is a perfectly common workload for containers, where you can have
+hundreds of machines (per node) being sold out to third parties, a lot
+of them consuming every single bit of metadata they can.
 
-Now, what I am actually seeing with cgroup creation, is that the
-children will copy a lot of the values from the parent, like swappiness,
-hierarchy, etc. Once the child copies it, we should no longer be able to
-change those values in the parent: otherwise we'll get funny things like
-parent.use_hierarchy = 1, child.use_hierarchy = 0.
-
-One option is to take a global lock in memcg_alloc_css(), and keep it
-locked until we did all the cgroup bookkeeping, and then unlock it in
-css_online. But I am guessing Tejun won't like it very much.
-
-What do you think about a children counter? If we are going to do things
-similar to the attach_in_progress of cpuset, we might very well turn it
-into a direct counter so we don't have to iterate at all.
-
-The code would look like: (simplified example for use_hierarchy)
-
-memcg_lock();
-if (memcg->nr_children != 0)
-    return -EINVAL;
-else
-    memcg->use_hierarchy = val
-memcg_unlock()
 
 
 --
