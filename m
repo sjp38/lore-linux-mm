@@ -1,64 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 3AD7D6B0088
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 05:52:55 -0500 (EST)
-Date: Fri, 30 Nov 2012 10:52:47 +0000
+Date: Fri, 30 Nov 2012 10:57:15 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
-Message-ID: <20121130105247.GB8218@suse.de>
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com>
- <50B5CFAE.80103@huawei.com>
- <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com>
- <50B68467.5020008@zytor.com>
- <20121129110045.GX8218@suse.de>
- <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
+Subject: Re: [BUG REPORT] [mm-hotplug, aio] aio ring_pages can't be offlined
+Message-ID: <20121130105715.GC8218@suse.de>
+References: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com>
+ <20121129153930.477e9709.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
+In-Reply-To: <20121129153930.477e9709.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lin Feng <linfeng@cn.fujitsu.com>, viro@zeniv.linux.org.uk, bcrl@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hughd@google.com, cl@linux.com, minchan@kernel.org, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 30, 2012 at 02:58:40AM +0000, Luck, Tony wrote:
-> > If any significant percentage of memory is in ZONE_MOVABLE then the memory
-> > hotplug people will have to deal with all the lowmem/highmem problems
-> > that used to be faced by 32-bit x86 with PAE enabled. 
+On Thu, Nov 29, 2012 at 03:39:30PM -0800, Andrew Morton wrote:
+> On Thu, 29 Nov 2012 14:54:58 +0800
+> Lin Feng <linfeng@cn.fujitsu.com> wrote:
 > 
-> While these problems may still exist on large systems - I think it becomes
-> harder to construct workloads that run into problems.  In those bad old days
-> a significant fraction of lowmem was consumed by the kernel ... so it was
-> pretty easy to find meta-data intensive workloads that would push it over
-> a cliff.  Here we  are talking about systems with say 128GB per node divided
-> into 64GB moveable and 64GB non-moveable (and I'd regard this as a rather
-> low-end machine).  Unless the workload consists of zillions of tiny processes
-> all mapping shared memory blocks, the percentage of memory allocated to
-> the kernel is going to be tiny compared with the old 4GB days.
+> > Hi all,
+> > 
+> > We encounter a "Resource temporarily unavailable" fail while trying
+> > to offline a memory section in a movable zone. We found that there are 
+> > some pages can't be migrated. The offline operation fails in function 
+> > migrate_page_move_mapping() returning -EAGAIN till timeout because 
+> > the if assertion 'page_count(page) != 1' fails.
+> > I wonder in the case 'page_count(page) != 1', should we always wait
+> > (return -EAGAING)? Or in other words, can we do something here for 
+> > migration if we know where the pages from?
+> > 
+> > And finally found that such pages are used by /sbin/multipathd in the form
+> > of aio ring_pages. Besides once increment introduced by the offline calling
+> > chain, another increment is added by aio_setup_ring() via callling
+> > get_userpages(), it won't decrease until we call aio_free_ring().
+> > 
+> > The dump_page info in the offline context is showed as following:
+> > page:ffffea0011e69140 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1d
+> > page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> > page:ffffea0011fb0480 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1c
+> > page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> > page:ffffea0011fbaa80 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1a
+> > page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> > page:ffffea0011ff21c0 count:2 mapcount:0 mapping:ffff8801d6949881 index:0x7fc4b6d1b
+> > page flags: 0x30000000018081d(locked|referenced|uptodate|dirty|swapbacked|unevictable)
+> > 
+> > The multipathd seems never going to release the ring_pages until we reboot the box.
+> > Furthermore, if some guy makes app which only calls io_setup() but never calls 
+> > io_destroy() for the reason that he has to keep the io_setup() for a long time 
+> > or just forgets to or even on purpose that we can't expect.
+> > So I think the mm-hotplug framwork should get the capability to deal with such
+> > situation. And should we consider adding migration support for such pages?
+> > 
+> > However I don't know if there are any other kinds of such particular pages in 
+> > current kernel/Linux system. If unluckily there are many apparently it's hard to 
+> > handle them all, just adding migrate support for aio ring_pages is insufficient. 
+> > 
+> > But if luckily can we use the private field of page struct to track the
+> > ring_pages[] pointer so that we can retrieve the user when migrate? 
+> > Doing so another problem occurs, how to distinguish such special pages?
+> > Use pageflag may cause an impact on current pageflag layout, add new pageflag
+> > item also seems to be impossible.
+> > 
+> > I'm not sure what way is the right approach, seeking for help.
+> > Any comments are extremely needed, thanks :)
+> 
+> Tricky.
+> 
+> I expect the same problem would occur with pages which are under
+> O_DIRECT I/O.  Obviously O_DIRECT pages won't be pinned for such long
+> periods, but the durations could still be lengthy (seconds).
+> 
+> Worse is a futex page, which could easily remain pinned indefinitely.
+> 
+> The best I can think of is to make changes in or around
+> get_user_pages(), to steal the pages from userspace and replace them
+> with non-movable ones before pinning them.  The performance cost of
+> something like this would surely be unacceptable for direct-io, but
+> maybe OK for the aio ring and futexes.
 > 
 
-Sure, if that's how the end-user decides to configure it. My concern is
-what they'll do is configure node-0 to be ZONE_NORMAL and all other nodes
-to be ZONE_MOVABLE -- 3 to 1 ratio "highmem" to "lowmem" effectively on
-a 4-node machine or 7 to 1 on an 8-node. It'll be harder than it was in
-the old days to trigger the problems but it'll still be possible and it
-will generate bug reports down the road. Some will be obvious at least --
-OOM killer triggered for GFP_KERNEL with plenty of free memory but all in
-ZONE_MOVABLE. Others will be less obvious -- major stalls during IO tests
-while ramping up with large amounts of reclaim activity visible even though
-only 20-40% of memory is in use.
-
-I'm not even getting into the impact this has on NUMA performance.
-
-I'm not saying that ZONE_MOVABLE will not work. It will and it'll work
-in the short-term but it's far from being a great long-term solution and
-it is going to generate bug reports that will have to be supported by
-distributions. Even if the interface to how it is configured gets ironed
-out there still should be a replacement plan in place. FWIW, I dislike the
-command-line configuration option. If it was me, I would have gone with
-starting a machine with memory mostly off-lined and used sysfs files or
-different sysfs strings written to the "online" file to determine if a
-section was ZONE_MOVABLE or the next best alternative.
+If this happens then it would be preferred if this only happened for
+ZONE_MOVABLE. If it generally happens it means we're going to have a lot
+more MIGRATE_UNMOVABLE pageblocks and a lot more fragmentation leading
+to lower THP availability. For THP, we're ok if some pageblocks are
+temporarily unavailable or even unavailable for long periods of time,
+we can cope with that but we (or I at least) do not want to lower THP
+availability on systems that do not care about ZONE_MOVABLE or node hot-plug.
 
 -- 
 Mel Gorman
