@@ -1,46 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 0212D6B0073
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 15:38:10 -0500 (EST)
-Received: by mail-wi0-f181.google.com with SMTP id hm9so385613wib.8
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 12:38:09 -0800 (PST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id DCF656B0081
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 15:42:48 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so635045pad.14
+        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 12:42:48 -0800 (PST)
+Date: Fri, 30 Nov 2012 12:42:37 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: 32/64-bit NUMA consolidation behavior regresion
+Message-ID: <20121130204237.GH3873@htj.dyndns.org>
+References: <50B6A66E.8030406@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <1354305521-11583-1-git-send-email-mingo@kernel.org>
-References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 30 Nov 2012 12:37:49 -0800
-Message-ID: <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
-Subject: Re: [PATCH 00/10] Latest numa/core release, v18
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50B6A66E.8030406@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Fri, Nov 30, 2012 at 11:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> When pushed hard enough via threaded workloads (for example via the
-> numa02 test) then the upstream page migration code in mm/migration.c
-> becomes unscalable, resulting in lot of scheduling on the anon vma
-> mutex and a subsequent drop in performance.
+Hello, Dave.
 
-Ugh.
+On Wed, Nov 28, 2012 at 04:03:58PM -0800, Dave Hansen wrote:
+> My system is just qemu booted with:
+> 
+> -smp 8 -m 8192 -numa node,nodeid=0,cpus=0-3 -numa node,nodeid=1,cpus=4-7
+> 
+> Watch the "PERCPU:" line early in boot, and you can see the "Embedded"
+> come and go with or without your patch:
+> 
+> [    0.000000] PERCPU: Embedded 11 pages/cpu @f3000000 s30592 r0 d14464
+> vs
+> [    0.000000] PERCPU: 11 4K pages/cpu @f83fe000 s30592 r0 d14464
+...
+> I don't have a fix handy because I'm working on the original problem,
+> but I just happened to run across this during a bisect.
 
-I wonder if migration really needs that thing to be a mutex? I may be
-wrong, but the anon_vma lock only protects the actual rmap chains, and
-migration only ever changes the pte *contents*, not the actual chains
-of pte's themselves, right?
+Just tested 3.7-rc7 w/ qemu and it works as expected here.
 
-So if this is a migration-specific scalability issue, then it might be
-possible to solve by making the mutex be a rwsem instead, and have
-migration only take it for reading.
+Can you please boot with the following debug patch and report the boot
+message before and after?
 
-Of course, I'm quite possibly wrong, and the code depends on full
-mutual exclusion.
+Thanks.
 
-Just a thought, in case it makes somebody go "Hmm.."
-
-               Linus
+diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c
+index 5cdff03..1133dc8 100644
+--- a/arch/x86/kernel/setup_percpu.c
++++ b/arch/x86/kernel/setup_percpu.c
+@@ -71,9 +71,13 @@ static bool __init pcpu_need_numa(void)
+ 	for_each_possible_cpu(cpu) {
+ 		int node = early_cpu_to_node(cpu);
+ 
++		printk("XXX pcpu_need_numa: cpu%d@%d online=%d ND=%p\n",
++		       cpu, node, node_online(node), NODE_DATA(node));
+ 		if (node_online(node) && NODE_DATA(node) &&
+-		    last && last != NODE_DATA(node))
++		    last && last != NODE_DATA(node)) {
++			printk("XXX need numa\n");
+ 			return true;
++		}
+ 
+ 		last = NODE_DATA(node);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
