@@ -1,30 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id D31D26B00AF
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:44:29 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Fri, 30 Nov 2012 14:44:27 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121123074023.GA24698@dhcp22.suse.cz>, <20121123102137.10D6D653@pobox.sk>, <20121123100438.GF24698@dhcp22.suse.cz>, <20121125011047.7477BB5E@pobox.sk>, <20121125120524.GB10623@dhcp22.suse.cz>, <20121125135542.GE10623@dhcp22.suse.cz>, <20121126013855.AF118F5E@pobox.sk>, <20121126131837.GC17860@dhcp22.suse.cz>, <20121126132149.GD17860@dhcp22.suse.cz>, <20121130032918.59B3F780@pobox.sk> <20121130124506.GH29317@dhcp22.suse.cz>
-In-Reply-To: <20121130124506.GH29317@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id EFF486B00B1
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:50:56 -0500 (EST)
+Date: Fri, 30 Nov 2012 13:50:52 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: MMTests 0.08
+Message-ID: <20121130135052.GE20087@suse.de>
 MIME-Version: 1.0
-Message-Id: <20121130144427.51A09169@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Linux-MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>
 
->Anyway your system is under both global and local memory pressure. You
->didn't see apache going down previously because it was probably the one
->which was stuck and could be killed.
->Anyway you need to setup your system more carefully.
+MMTests 0.08 is a configurable test suite that runs a number of common
+workloads of interest to MM developers. This release is very monitor but
+contains some specjbb configs for running with a single JVM and preliminary
+support for rendering reports as HTML.
 
+Changelog since v0.07
+o Preliminary support for rendering HTML reports
+o specjbb configs for single JVMs
+o specjbb extraction script changes for single JVMs
+o nas reporting scripts
 
-There is, also, an evidence that system has enough of memory! :) Just take column 'rss' from process list in OOM message and sum it - you will get 2489911. It's probably in KB so it's about 2.4 GB. System has 14 GB of RAM so this also match data on my graph - 2.4 is about 17% of 14.
+At LSF/MM at some point a request was made that a series of tests
+be identified that were of interest to MM developers and that could be
+used for testing the Linux memory management subsystem. There is renewed
+interest in some sort of general testing framework during discussions for
+Kernel Summit 2012 so here is what I use.
 
-azur
+http://www.csn.ul.ie/~mel/projects/mmtests/
+http://www.csn.ul.ie/~mel/projects/mmtests/mmtests-0.08-mmtests-0.01.tar.gz
+
+There is a git repository at
+
+https://github.com/gormanm/mmtests.git
+
+There are a number of stock configurations stored in configs/.  For example
+config-global-dhp__pagealloc-performance runs a number of tests that
+may be able to identify performance regressions or gains in the page
+allocator. Similarly there network and scheduler configs. There are also
+more complex options. config-global-dhp__parallelio-memcachetest will run
+memcachetest in the foreground while doing IO of different sizes in the
+background to measure how much unrelated IO affects the throughput of an
+in-memory database.
+
+Out of the box it should now do something useful by running a page fault
+microbenchmark.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
