@@ -1,55 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id A374A6B0073
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 19:18:23 -0500 (EST)
-Date: Thu, 29 Nov 2012 16:18:21 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] tmpfs: support SEEK_DATA and SEEK_HOLE (reprise)
-Message-Id: <20121129161821.8103962c.akpm@linux-foundation.org>
-In-Reply-To: <alpine.LNX.2.00.1211291522550.3226@eggly.anvils>
-References: <alpine.LNX.2.00.1211281706390.1516@eggly.anvils>
-	<20121129145924.9fb05982.akpm@linux-foundation.org>
-	<alpine.LNX.2.00.1211291522550.3226@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 28D3D6B007B
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 19:28:54 -0500 (EST)
+Date: Fri, 30 Nov 2012 08:28:48 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [memcg:since-3.6 341/499] drivers/virtio/virtio_balloon.c:157:2-8:
+ preceding lock on line 136
+Message-ID: <20121130002848.GA28177@localhost>
+References: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Zheng Liu <wenqing.lz@taobao.com>, Jeff liu <jeff.liu@oracle.com>, Jim Meyering <jim@meyering.net>, Paul Eggert <eggert@cs.ucla.edu>, Christoph Hellwig <hch@infradead.org>, Josef Bacik <josef@redhat.com>, Andi Kleen <andi@firstfloor.org>, Andreas Dilger <adilger@dilger.ca>, Dave Chinner <david@fromorbit.com>, Marco Stornelli <marco.stornelli@gmail.com>, Chris Mason <chris.mason@fusionio.com>, Sunil Mushran <sunil.mushran@oracle.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: kbuild@01.org, Julia Lawall <julia.lawall@lip6.fr>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 29 Nov 2012 15:29:15 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+Hi Rafael,
 
-> On Thu, 29 Nov 2012, Andrew Morton wrote:
-> > On Wed, 28 Nov 2012 17:22:03 -0800 (PST)
-> > Hugh Dickins <hughd@google.com> wrote:
-> > 
-> > > +/*
-> > > + * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-> > > + */
-> > > +static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
-> > > +				    pgoff_t index, pgoff_t end, int origin)
-> > 
-> > So I was starting at this wondering what on earth "origin" is and why
-> > it has the fishy-in-this-context type "int".
-> > 
-> > There is a pretty well established convention that the lseek seek mode
-> > is called "whence".
-> > 
-> > The below gets most of it.  Too anal?
-> 
-> No, not too anal: I'm all in favour of "whence", which is indeed
-> the name of that lseek argument - since mediaeval times I believe.
+[Julia and me think that this coccinelle warning is worth reporting.]
 
-Alas, the rest of us don't have personal memories from those days.
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
+commit: 5f1da4063294480b3fabcee554f976565dec54b5 [341/499] virtio_balloon: introduce migration primitives to balloon pages
 
-> It's good to have words like that in the kernel source: while you're
-> in the mood, please see if you can find good homes for "whither" and
-> "thrice" and "widdershins".
++ drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
 
-We use "thrice" quite a lot.  And "whither" once coz alfa peeps cnat spel. 
-No widdershins yet.
+vim +157 drivers/virtio/virtio_balloon.c
+
+6b35e407 Rusty Russell      2008-02-04  130  {
+5f1da406 Rafael Aquini      2012-11-09  131  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+5f1da406 Rafael Aquini      2012-11-09  132  
+6b35e407 Rusty Russell      2008-02-04  133  	/* We can only do one array worth at a time. */
+6b35e407 Rusty Russell      2008-02-04  134  	num = min(num, ARRAY_SIZE(vb->pfns));
+6b35e407 Rusty Russell      2008-02-04  135  
+5f1da406 Rafael Aquini      2012-11-09 @136  	mutex_lock(&vb->balloon_lock);
+3ccc9372 Michael S. Tsirkin 2012-04-12  137  	for (vb->num_pfns = 0; vb->num_pfns < num;
+3ccc9372 Michael S. Tsirkin 2012-04-12  138  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+5f1da406 Rafael Aquini      2012-11-09  139  		struct page *page = balloon_page_enqueue(vb_dev_info);
+5f1da406 Rafael Aquini      2012-11-09  140  
+6b35e407 Rusty Russell      2008-02-04  141  		if (!page) {
+6b35e407 Rusty Russell      2008-02-04  142  			if (printk_ratelimit())
+6b35e407 Rusty Russell      2008-02-04  143  				dev_printk(KERN_INFO, &vb->vdev->dev,
+6b35e407 Rusty Russell      2008-02-04  144  					   "Out of puff! Can't get %zu pages\n",
+5f1da406 Rafael Aquini      2012-11-09  145  					   VIRTIO_BALLOON_PAGES_PER_PAGE);
+6b35e407 Rusty Russell      2008-02-04  146  			/* Sleep for at least 1/5 of a second before retry. */
+6b35e407 Rusty Russell      2008-02-04  147  			msleep(200);
+6b35e407 Rusty Russell      2008-02-04  148  			break;
+6b35e407 Rusty Russell      2008-02-04  149  		}
+3ccc9372 Michael S. Tsirkin 2012-04-12  150  		set_page_pfns(vb->pfns + vb->num_pfns, page);
+3ccc9372 Michael S. Tsirkin 2012-04-12  151  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+6b35e407 Rusty Russell      2008-02-04  152  		totalram_pages--;
+6b35e407 Rusty Russell      2008-02-04  153  	}
+6b35e407 Rusty Russell      2008-02-04  154  
+6b35e407 Rusty Russell      2008-02-04  155  	/* Didn't get any?  Oh well. */
+6b35e407 Rusty Russell      2008-02-04  156  	if (vb->num_pfns == 0)
+6b35e407 Rusty Russell      2008-02-04 @157  		return;
+6b35e407 Rusty Russell      2008-02-04  158  
+6b35e407 Rusty Russell      2008-02-04  159  	tell_host(vb, vb->inflate_vq);
+5f1da406 Rafael Aquini      2012-11-09  160  	mutex_unlock(&vb->balloon_lock);
+
+---
+0-DAY kernel build testing backend         Open Source Technology Center
+Fengguang Wu, Yuanhan Liu                              Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
