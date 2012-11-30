@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id CB2CE6B00A5
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id F22876B00A6
 	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:31:39 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 4/4] memcg: replace cgroup_lock with memcg specific memcg_lock
-Date: Fri, 30 Nov 2012 17:31:26 +0400
-Message-Id: <1354282286-32278-5-git-send-email-glommer@parallels.com>
+Subject: [PATCH 3/4] memcg: split part of memcg creation to css_online
+Date: Fri, 30 Nov 2012 17:31:25 +0400
+Message-Id: <1354282286-32278-4-git-send-email-glommer@parallels.com>
 In-Reply-To: <1354282286-32278-1-git-send-email-glommer@parallels.com>
 References: <1354282286-32278-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,188 +13,107 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>
 
-After the preparation work done in earlier patches, the
-cgroup_lock can be trivially replaced with a memcg-specific lock in all
-readers.
+Although there is arguably some value in doing this per se, the main
+goal of this patch is to make room for the locking changes to come.
 
-The writers, however, used to be naturally called under cgroup_lock, and
-now we need to explicitly add the memcg_lock. Those are the callbacks in
-attach_task, and parent-dependent value assignment in newly-created
-memcgs.
-
-With this, all the calls to cgroup_lock outside cgroup core are gone.
+With all the value assignment from parent happening in a context where
+our iterators can already be used, we can safely lock against value
+change in some key values like use_hierarchy, without resorting to the
+cgroup core at all.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
- mm/memcontrol.c | 48 ++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 34 insertions(+), 14 deletions(-)
+ mm/memcontrol.c | 52 +++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 35 insertions(+), 17 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b6d352f..fd7b5d3 100644
+index d80b6b5..b6d352f 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3830,6 +3830,17 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
- 	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0);
- }
- 
-+static DEFINE_MUTEX(memcg_lock);
+@@ -5023,12 +5023,40 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 			INIT_WORK(&stock->work, drain_local_stock);
+ 		}
+ 		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+-	} else {
+-		parent = mem_cgroup_from_cont(cont->parent);
+-		memcg->use_hierarchy = parent->use_hierarchy;
+-		memcg->oom_kill_disable = parent->oom_kill_disable;
 +
-+/*
-+ * must be called with memcg_lock held, unless the cgroup is guaranteed to be
-+ * already dead (like in mem_cgroup_force_empty, for instance).
-+ */
-+static inline bool memcg_has_children(struct mem_cgroup *memcg)
-+{
-+	return mem_cgroup_count_children(memcg) != 1;
++		res_counter_init(&memcg->res, NULL);
++		res_counter_init(&memcg->memsw, NULL);
+ 	}
+ 
++	memcg->last_scanned_node = MAX_NUMNODES;
++	INIT_LIST_HEAD(&memcg->oom_notify);
++	atomic_set(&memcg->refcnt, 1);
++	memcg->move_charge_at_immigrate = 0;
++	mutex_init(&memcg->thresholds_lock);
++	spin_lock_init(&memcg->move_lock);
++
++	return &memcg->css;
++
++free_out:
++	__mem_cgroup_free(memcg);
++	return ERR_PTR(error);
 +}
 +
- /*
-  * Reclaims as many pages from the given memcg as possible and moves
-  * the rest to the parent.
-@@ -3842,7 +3853,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
- 	struct cgroup *cgrp = memcg->css.cgroup;
- 
- 	/* returns EBUSY if there is a task or if we come here twice. */
--	if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
-+	if (cgroup_task_count(cgrp) || memcg_has_children(memcg))
- 		return -EBUSY;
- 
- 	/* we call try-to-free pages for make this cgroup empty */
-@@ -3900,7 +3911,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
- 	if (parent)
- 		parent_memcg = mem_cgroup_from_cont(parent);
- 
--	cgroup_lock();
-+	mutex_lock(&memcg_lock);
- 
- 	if (memcg->use_hierarchy == val)
- 		goto out;
-@@ -3915,7 +3926,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
- 	 */
- 	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
- 				(val == 1 || val == 0)) {
--		if (list_empty(&cont->children))
-+		if (!memcg_has_children(memcg))
- 			memcg->use_hierarchy = val;
- 		else
- 			retval = -EBUSY;
-@@ -3923,7 +3934,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
- 		retval = -EINVAL;
- 
- out:
--	cgroup_unlock();
-+	mutex_unlock(&memcg_lock);
- 
- 	return retval;
- }
-@@ -4129,13 +4140,13 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 	 * attach(), so we need cgroup lock to prevent this value from being
- 	 * inconsistent.
- 	 */
--	cgroup_lock();
-+	mutex_lock(&memcg_lock);
- 	if (memcg->attach_in_progress)
- 		goto out;
- 	memcg->move_charge_at_immigrate = val;
- 	ret = 0;
- out:
--	cgroup_unlock();
-+	mutex_unlock(&memcg_lock);
- 	return ret;
- }
- #else
-@@ -4314,18 +4325,18 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
- 
- 	parent = mem_cgroup_from_cont(cgrp->parent);
- 
--	cgroup_lock();
-+	mutex_lock(&memcg_lock);
- 
- 	/* If under hierarchy, only empty-root can set this value */
- 	if ((parent->use_hierarchy) ||
--	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
--		cgroup_unlock();
-+	    (memcg->use_hierarchy && !memcg_has_children(memcg))) {
-+		mutex_unlock(&memcg_lock);
- 		return -EINVAL;
++static int
++mem_cgroup_css_online(struct cgroup *cont)
++{
++	struct mem_cgroup *memcg, *parent;
++	int error = 0;
++
++	if (!cont->parent)
++		return 0;
++
++	memcg = mem_cgroup_from_cont(cont);
++	parent = mem_cgroup_from_cont(cont->parent);
++
++	memcg->use_hierarchy = parent->use_hierarchy;
++	memcg->oom_kill_disable = parent->oom_kill_disable;
++
+ 	if (parent && parent->use_hierarchy) {
+ 		res_counter_init(&memcg->res, &parent->res);
+ 		res_counter_init(&memcg->memsw, &parent->memsw);
+@@ -5050,15 +5078,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 		if (parent && parent != root_mem_cgroup)
+ 			mem_cgroup_subsys.broken_hierarchy = true;
  	}
+-	memcg->last_scanned_node = MAX_NUMNODES;
+-	INIT_LIST_HEAD(&memcg->oom_notify);
  
- 	memcg->swappiness = val;
- 
--	cgroup_unlock();
-+	mutex_unlock(&memcg_lock);
- 
- 	return 0;
- }
-@@ -4651,17 +4662,17 @@ static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
- 
- 	parent = mem_cgroup_from_cont(cgrp->parent);
- 
--	cgroup_lock();
-+	mutex_lock(&memcg_lock);
- 	/* oom-kill-disable is a flag for subhierarchy. */
- 	if ((parent->use_hierarchy) ||
--	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
--		cgroup_unlock();
-+	    (memcg->use_hierarchy && memcg_has_children(memcg))) {
-+		mutex_unlock(&memcg_lock);
- 		return -EINVAL;
- 	}
- 	memcg->oom_kill_disable = val;
- 	if (!val)
- 		memcg_oom_recover(memcg);
--	cgroup_unlock();
-+	mutex_unlock(&memcg_lock);
- 	return 0;
- }
- 
-@@ -5051,6 +5062,7 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	if (!cont->parent)
- 		return 0;
- 
-+	mutex_lock(&memcg_lock);
- 	memcg = mem_cgroup_from_cont(cont);
- 	parent = mem_cgroup_from_cont(cont->parent);
- 
-@@ -5082,6 +5094,7 @@ mem_cgroup_css_online(struct cgroup *cont)
- 	memcg->swappiness = mem_cgroup_swappiness(parent);
+-	if (parent)
+-		memcg->swappiness = mem_cgroup_swappiness(parent);
+-	atomic_set(&memcg->refcnt, 1);
+-	memcg->move_charge_at_immigrate = 0;
+-	mutex_init(&memcg->thresholds_lock);
+-	spin_lock_init(&memcg->move_lock);
++	memcg->swappiness = mem_cgroup_swappiness(parent);
  
  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
-+	mutex_unlock(&memcg_lock);
  	if (error) {
- 		/*
- 		 * We call put now because our (and parent's) refcnts
-@@ -5693,7 +5706,10 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
- 
-+	mutex_lock(&memcg_lock);
- 	memcg->attach_in_progress++;
-+	mutex_unlock(&memcg_lock);
-+
- 	return __mem_cgroup_can_attach(memcg, tset);
+@@ -5068,12 +5089,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 		 * call __mem_cgroup_free, so return directly
+ 		 */
+ 		mem_cgroup_put(memcg);
+-		return ERR_PTR(error);
+ 	}
+-	return &memcg->css;
+-free_out:
+-	__mem_cgroup_free(memcg);
+-	return ERR_PTR(error);
++	return error;
  }
  
-@@ -5703,7 +5719,9 @@ static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
- 
- 	__mem_cgroup_cancel_attach(memcg, tset);
-+	mutex_lock(&memcg_lock);
- 	memcg->attach_in_progress--;
-+	mutex_unlock(&memcg_lock);
- }
- 
- static void mem_cgroup_move_task(struct cgroup *cgroup,
-@@ -5712,7 +5730,9 @@ static void mem_cgroup_move_task(struct cgroup *cgroup,
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
- 
- 	__mem_cgroup_move_task(memcg, tset);
-+	mutex_lock(&memcg_lock);
- 	memcg->attach_in_progress--;
-+	mutex_unlock(&memcg_lock);
- }
- 
- struct cgroup_subsys mem_cgroup_subsys = {
+ static void mem_cgroup_css_offline(struct cgroup *cont)
+@@ -5702,6 +5719,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.name = "memory",
+ 	.subsys_id = mem_cgroup_subsys_id,
+ 	.css_alloc = mem_cgroup_css_alloc,
++	.css_online = mem_cgroup_css_online,
+ 	.css_offline = mem_cgroup_css_offline,
+ 	.css_free = mem_cgroup_css_free,
+ 	.can_attach = mem_cgroup_can_attach,
 -- 
 1.7.11.7
 
