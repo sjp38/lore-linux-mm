@@ -1,39 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id AAEB96B00CC
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 11:09:34 -0500 (EST)
-Message-ID: <50B8DA2D.8030604@redhat.com>
-Date: Fri, 30 Nov 2012 11:09:17 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E32A46B00CE
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 11:19:25 -0500 (EST)
+Date: Fri, 30 Nov 2012 17:19:23 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121130161923.GN29317@dhcp22.suse.cz>
+References: <20121126013855.AF118F5E@pobox.sk>
+ <20121126131837.GC17860@dhcp22.suse.cz>
+ <20121126132149.GD17860@dhcp22.suse.cz>
+ <20121130032918.59B3F780@pobox.sk>
+ <20121130124506.GH29317@dhcp22.suse.cz>
+ <20121130144427.51A09169@pobox.sk>
+ <20121130144431.GI29317@dhcp22.suse.cz>
+ <20121130160811.6BB25BDD@pobox.sk>
+ <20121130153942.GL29317@dhcp22.suse.cz>
+ <20121130165937.F9564EBE@pobox.sk>
 MIME-Version: 1.0
-Subject: Re: Results for balancenuma v8, autonuma-v28fast and numacore-20121126
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de> <20121126145800.GK8218@suse.de> <20121128134930.GB20087@suse.de> <20121130113300.GC20087@suse.de> <20121130114145.GD20087@suse.de>
-In-Reply-To: <20121130114145.GD20087@suse.de>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121130165937.F9564EBE@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 11/30/2012 06:41 AM, Mel Gorman wrote:
-> This is an another insanely long mail. Short summary, based on the results
-> of what is in tip/master right now, I think if we're going to merge
-> anything for v3.8 it should be the "Automatic NUMA Balancing V8". It does
-> reasonably well for many of the workloads and AFAIK there is no reason why
-> numacore or autonuma could not be rebased on top with the view to merging
-> proper scheduling and placement policies in 3.9.
+On Fri 30-11-12 16:59:37, azurIt wrote:
+> >> Here is the full boot log:
+> >> www.watchdog.sk/lkml/kern.log
+> >
+> >The log is not complete. Could you paste the comple dmesg output? Or
+> >even better, do you have logs from the previous run?
+> 
+> 
+> What is missing there? All kernel messages are logging into
+> /var/log/kern.log (it's the same as dmesg), dmesg itself was already
+> rewrited by other messages. I think it's all what that kernel printed.
 
-Given how minimalistic balancenuma is, and how there does not seem
-to be anything significant in the way of performance regressions
-with balancenuma, I have no objections to Linus merging all of
-balancenuma for 3.8.
+Early boot messages are missing - so exactly the BIOS memory map I was
+asking for. As the NUMA has been excluded it is probably not that
+relevant anymore.
+The important question is why you see VM_FAULT_OOM and whether memcg
+charging failure can trigger that. I don not see how this could happen
+right now because __GFP_NORETRY is not used for user pages (except for
+THP which disable memcg OOM already), file backed page faults (aka
+__do_fault) use mem_cgroup_newpage_charge which doesn't disable OOM.
+This is a real head scratcher.
 
-That could significantly reduce the amount of NUMA code we need
-to "fight over" for the 3.9 kernel :)
-
+Could you also post your complete containers configuration, maybe there
+is something strange in there (basically grep . -r YOUR_CGROUP_MNT
+except for tasks files which are of no use right now).
 -- 
-All rights reversed
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
