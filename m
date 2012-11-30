@@ -1,99 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 30 Nov 2012 11:00:59 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [BUG REPORT] [mm-hotplug, aio] aio ring_pages can't be offlined
-Message-ID: <20121130110059.GD8218@suse.de>
-References: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com>
- <20121129153930.477e9709.akpm@linux-foundation.org>
- <50B82B0D.8010206@cn.fujitsu.com>
- <20121129215749.acfd872a.akpm@linux-foundation.org>
- <50B859C6.3020707@cn.fujitsu.com>
- <20121129235502.05223586.akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121129235502.05223586.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 3BBC16B0096
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 06:07:33 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MEA00HK6S8DBU30@mailout3.samsung.com> for
+ linux-mm@kvack.org; Fri, 30 Nov 2012 20:07:31 +0900 (KST)
+Received: from amdc1032.localnet ([106.116.147.136])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MEA004USS8ATP60@mmp2.samsung.com> for linux-mm@kvack.org;
+ Fri, 30 Nov 2012 20:07:31 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH] proc: add /proc/kpagecskip interface
+Date: Fri, 30 Nov 2012 12:06:10 +0100
+MIME-version: 1.0
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Message-id: <201211301206.10545.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, viro@zeniv.linux.org.uk, bcrl@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hughd@google.com, cl@linux.com, minchan@kernel.org, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Matt Mackall <mpm@selenic.com>
 
-On Thu, Nov 29, 2012 at 11:55:02PM -0800, Andrew Morton wrote:
-> On Fri, 30 Nov 2012 15:01:26 +0800 Lin Feng <linfeng@cn.fujitsu.com> wrote:
-> 
-> > 
-> > 
-> > On 11/30/2012 01:57 PM, Andrew Morton wrote:
-> > > On Fri, 30 Nov 2012 11:42:05 +0800 Lin Feng <linfeng@cn.fujitsu.com> wrote:
-> > > 
-> > >> hi Andrew,
-> > >>
-> > >> On 11/30/2012 07:39 AM, Andrew Morton wrote:
-> > >>> Tricky.
-> > >>>
-> > >>> I expect the same problem would occur with pages which are under
-> > >>> O_DIRECT I/O.  Obviously O_DIRECT pages won't be pinned for such long
-> > >>> periods, but the durations could still be lengthy (seconds).
-> > >> the offline retry timeout duration is 2 minutes, so to O_DIRECT pages 
-> > >> seem maybe not a problem for the moment.
-> > >>>
-> > >>> Worse is a futex page, which could easily remain pinned indefinitely.
-> > >>>
-> > >>> The best I can think of is to make changes in or around
-> > >>> get_user_pages(), to steal the pages from userspace and replace them
-> > >>> with non-movable ones before pinning them.  The performance cost of
-> > >>> something like this would surely be unacceptable for direct-io, but
-> > >>> maybe OK for the aio ring and futexes.
-> > >> thanks for your advice.
-> > >> I want to limit the impact as little as possible, as mentioned above,
-> > >> direct-io seems not a problem, we needn't touch them. Maybe we can 
-> > >> just change the use of get_user_pages()(in or around) such as aio 
-> > >> ring pages. I will try to find a way to do this.
-> > > 
-> > > What about futexes?
-> > hi Andrew,
-> > 
-> > Yes, better to find an approach to solve them all.
-> >  
-> > But I'm worried about that if we just confine get_user_pages() to use 
-> > none-movable pages, it will drain the none-movable pages soon. Because
-> > there are many places using get_user_pages() such as some drivers. 
-> 
-> Obviously we shouldn't change get_user_pages() for all callers.
-> 
-> > IMHO in most cases get_user_pages() callers should release the pages soon, 
-> > so pages allocated from movable zone should be OK. But I'm not sure if
-> > we get such rule upon get_user_pages(). 
-> > And in other cases we specify get_user_pages() to allocate pages from
-> > none-movable zone. 
-> > 
-> > So could we add a zone-alloc flags when we call get_user_pages()?
-> 
-> Well, that's a fairly low-level implementation detail.  A more typical
-> approach would be to add a new get_user_pages_non_movable() or such. 
-> That would probably have the same signature as get_user_pages(), with
-> one additional argument.  Then get_user_pages() becomes a one-line
-> wrapper which passes in a particular value of that argument.
-> 
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [PATCH] proc: add /proc/kpagecskip interface
 
-That is going in the direction that all pinned pages become MIGRATE_UNMOVABLE
-allocations.  That will impact THP availability by increasing the number
-of MIGRATE_UNMOVABLE blocks that exist and it would hit every user --
-not just those that care about ZONE_MOVABLE.
+This makes page pageblock skip on compaction information available
+to the user-space.
 
-I'm likely to NAK such a patch if it's only about node hot-remove because
-it's much more of a corner case than wanting to use THP.
+Cc: Matt Mackall <mpm@selenic.com>
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+Based on top of http://www.spinics.net/lists/linux-mm/msg35528.html
+patch.
 
-I would prefer if get_user_pages() checked if the page it was about to
-pin was in ZONE_MOVABLE and if so, migrate it at that point before it's
-pinned. It'll be expensive but will guarantee ZONE_MOVABLE availability
-if that's what they want. The CMA people might also want to take
-advantage of this if the page happened to be in the MIGRATE_CMA
-pageblock.
+Example user-space usage has been added to:
+https://github.com/bzolnier/pagemap-demo-ng
 
--- 
-Mel Gorman
-SUSE Labs
+ fs/proc/page.c |   52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)
+
+Index: b/fs/proc/page.c
+===================================================================
+--- a/fs/proc/page.c	2012-11-29 12:06:10.408621309 +0100
++++ b/fs/proc/page.c	2012-11-29 12:11:19.760621273 +0100
+@@ -339,12 +339,64 @@ static const struct file_operations proc
+ 	.read = kpagetype_read,
+ };
+ 
++#ifdef CONFIG_COMPACTION
++static ssize_t kpagecskip_read(struct file *file, char __user *buf,
++			       size_t count, loff_t *ppos)
++{
++	u64 __user *out = (u64 __user *)buf;
++	struct page *ppage;
++	unsigned long src = *ppos;
++	unsigned long pfn;
++	ssize_t ret = 0;
++	u64 pcskip;
++
++	pfn = src / KPMSIZE;
++	count = min_t(unsigned long, count,
++		      ((ARCH_PFN_OFFSET + max_pfn) * KPMSIZE) - src);
++	if (src & KPMMASK || count & KPMMASK)
++		return -EINVAL;
++
++	while (count > 0) {
++		if (pfn_valid(pfn))
++			ppage = pfn_to_page(pfn);
++		else
++			ppage = NULL;
++		if (!ppage)
++			pcskip = 0;
++		else
++			pcskip = get_pageblock_skip(ppage);
++
++		if (put_user(pcskip, out)) {
++			ret = -EFAULT;
++			break;
++		}
++
++		pfn++;
++		out++;
++		count -= KPMSIZE;
++	}
++
++	*ppos += (char __user *)out - buf;
++	if (!ret)
++		ret = (char __user *)out - buf;
++	return ret;
++}
++
++static const struct file_operations proc_kpagecskip_operations = {
++	.llseek = mem_lseek,
++	.read = kpagecskip_read,
++};
++#endif
++
+ static int __init proc_page_init(void)
+ {
+ 	proc_create("kpagecount", S_IRUSR, NULL, &proc_kpagecount_operations);
+ 	proc_create("kpageflags", S_IRUSR, NULL, &proc_kpageflags_operations);
+ 	proc_create("kpageorder", S_IRUSR, NULL, &proc_kpageorder_operations);
+ 	proc_create("kpagetype", S_IRUSR, NULL, &proc_kpagetype_operations);
++#ifdef CONFIG_COMPACTION
++	proc_create("kpagecskip", S_IRUSR, NULL, &proc_kpagecskip_operations);
++#endif
+ 	return 0;
+ }
+ module_init(proc_page_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
