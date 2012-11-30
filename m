@@ -1,73 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 9ACF26B00D4
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 12:47:36 -0500 (EST)
-Date: Fri, 30 Nov 2012 15:47:25 -0200
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [RFC] Add mempressure cgroup
-Message-ID: <20121130154725.0a81913c@doriath.home>
-In-Reply-To: <20121129012751.GA20525@lizard>
-References: <20121128102908.GA15415@lizard>
-	<20121128151432.3e29d830.akpm@linux-foundation.org>
-	<20121129012751.GA20525@lizard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 26D776B00D6
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 12:56:05 -0500 (EST)
+Message-ID: <50B8F2F4.6000508@parallels.com>
+Date: Fri, 30 Nov 2012 21:55:00 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
+MIME-Version: 1.0
+Subject: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, aquini@redhat.com, riel@redhat.com
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Wed, 28 Nov 2012 17:27:51 -0800
-Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
+Hello,
 
-> On Wed, Nov 28, 2012 at 03:14:32PM -0800, Andrew Morton wrote:
-> [...]
-> > Compare this with the shrink_slab() shrinkers.  With these, the VM can
-> > query and then control the clients.  If something goes wrong or is out
-> > of balance, it's the VM's problem to solve.
-> > 
-> > So I'm thinking that a better design would be one which puts the kernel
-> > VM in control of userspace scanning and freeing.  Presumably with a
-> > query-and-control interface similar to the slab shrinkers.
-> 
-> Thanks for the ideas, Andrew.
-> 
-> Query-and-control scheme looks very attractive, and that's actually
-> resembles my "balance" level idea, when userland tells the kernel how much
-> reclaimable memory it has. Except the your scheme works in the reverse
-> direction, i.e. the kernel becomes in charge.
-> 
-> But there is one, rather major issue: we're crossing kernel-userspace
-> boundary. And with the scheme we'll have to cross the boundary four times:
-> query / reply-available / control / reply-shrunk / (and repeat if
-> necessary, every SHRINK_BATCH pages). Plus, it has to be done somewhat
-> synchronously (all the four stages), and/or we have to make a "userspace
-> shrinker" thread working in parallel with the normal shrinker, and here,
-> I'm afraid, we'll see more strange interactions. :)
+This is an attempt to implement support for memory snapshot for the the
+checkpoint-restore project (http://criu.org).
 
-Wouldn't this be just like kswapd?
+To create a dump of an application(s) we save all the information about it
+to files. No surprise, the biggest part of such dump is the contents of tasks'
+memory. However, in some usage scenarios it's not required to get _all_ the
+task memory while creating a dump. For example, when doing periodical dumps
+it's only required to take full memory dump only at the first step and then
+take incremental changes of memory. Another example is live migration. In the
+simplest form it looks like -- create dump, copy it on the remote node then
+restore tasks from dump files. While all this dump-copy-restore thing goes all
+the process must be stopped. However, if we can monitor how tasks change their
+memory, we can dump and copy it in smaller chunks, periodically updating it 
+and thus freezing tasks only at the very end for the very short time to pick
+up the recent changes.
 
-> But there is a good news: for these kind of fine-grained control we have a
-> better interface, where we don't have to communicate [very often] w/ the
-> kernel. These are "volatile ranges", where userland itself marks chunks of
-> data as "I might need it, but I won't cry if you recycle it; but when I
-> access it next time, let me know if you actually recycled it". Yes,
-> userland no longer able to decide which exact page it permits to recycle,
-> but we don't have use-cases when we actually care that much. And if we do,
-> we'd rather introduce volatile LRUs with different priorities, or
-> something alike.
+That said, some help from kernel to watch how processes modify the contents of
+their memory is required. I'd like to propose one possible solution of this
+task -- with the help of page-faults and trace events.
 
-I'm new to this stuff so please take this with a grain of salt, but I'm
-not sure volatile ranges would be a good fit for our use case: we want to
-make (kvm) guests reduce their memory when the host is getting memory
-pressure.
+Briefly the approach is -- remap some memory regions as read-only, get the #pf
+on task's attempt to modify the memory and issue a trace event of that. Since
+we're only interested in parts of memory of some tasks, make it possible to mark
+the vmas we're interested in and issue events for them only. Also, to be aware
+of tasks unmapping the vma-s being watched, also issue an event when the marked
+vma is removed (and for symmetry -- an event when a vma is marked).
 
-Having a notification seems just fine for this purpose, but I'm not sure
-how this would work with volatile ranges, as we'd have to mark pages volatile
-in advance.
+What do you think about this approach? Is this way of supporting mem snapshot
+OK for you, or should we invent some better one?
 
-Andrew's idea seems to give a lot more freedom to apps, IMHO.
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
