@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 93B836B0081
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 05:19:52 -0500 (EST)
-Message-ID: <50B88835.80805@parallels.com>
-Date: Fri, 30 Nov 2012 14:19:33 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id A9F386B0083
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 05:23:20 -0500 (EST)
+Date: Fri, 30 Nov 2012 11:23:18 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2 5/6] memcg: further simplify mem_cgroup_iter
+Message-ID: <20121130102318.GG29317@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+ <1353955671-14385-6-git-send-email-mhocko@suse.cz>
+ <50B87793.7000104@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 0/5] Add movablecore_map boot option
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <50B5CFAE.80103@huawei.com> <3908561D78D1C84285E8C5FCA982C28F1C95EDCE@ORSMSX108.amr.corp.intel.com> <50B68467.5020008@zytor.com> <20121129110045.GX8218@suse.de> <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C95FF53@ORSMSX108.amr.corp.intel.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50B87793.7000104@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Jiang Liu <jiang.liu@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "rob@landley.net" <rob@landley.net>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "rientjes@google.com" <rientjes@google.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Len Brown <lenb@kernel.org>, "Wang, Frank" <frank.wang@intel.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Li Zefan <lizefan@huawei.com>
 
-On 11/30/2012 06:58 AM, Luck, Tony wrote:
->> If any significant percentage of memory is in ZONE_MOVABLE then the memory
->> hotplug people will have to deal with all the lowmem/highmem problems
->> that used to be faced by 32-bit x86 with PAE enabled. 
+On Fri 30-11-12 13:08:35, Glauber Costa wrote:
+> On 11/26/2012 10:47 PM, Michal Hocko wrote:
+> > The code would be much more easier to follow if we move the iteration
+> > outside of the function (to __mem_cgrou_iter_next) so the distinction
+> > is more clear.
+> totally nit: Why is it call __mem_cgrou ?
 > 
-> While these problems may still exist on large systems - I think it becomes
-> harder to construct workloads that run into problems.  In those bad old days
-> a significant fraction of lowmem was consumed by the kernel ... so it was
-> pretty easy to find meta-data intensive workloads that would push it over
-> a cliff.  Here we  are talking about systems with say 128GB per node divided
-> into 64GB moveable and 64GB non-moveable (and I'd regard this as a rather
-> low-end machine).  Unless the workload consists of zillions of tiny processes
-> all mapping shared memory blocks, the percentage of memory allocated to
-> the kernel is going to be tiny compared with the old 4GB days.
-> 
+> What happened to your p ?
 
-Which is a perfectly common workload for containers, where you can have
-hundreds of machines (per node) being sold out to third parties, a lot
-of them consuming every single bit of metadata they can.
+It was a fight against p as a source of all evil but the fight is over
+and we can put it back :p 
 
-
+Thanks for noticing
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
