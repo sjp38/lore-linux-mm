@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 1F4AD6B0071
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:01:21 -0500 (EST)
-Date: Fri, 30 Nov 2012 15:01:05 +0000
-From: "Richard W.M. Jones" <rjones@redhat.com>
-Subject: Re: O_DIRECT on tmpfs (again)
-Message-ID: <20121130150105.GA4883@rhmail.home.annexia.org>
-References: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
- <alpine.LNX.2.00.1211281248270.14968@eggly.anvils>
- <50B6830A.20308@oracle.com>
- <x498v9kwhzy.fsf@segfault.boston.devel.redhat.com>
- <alpine.LNX.2.00.1211291659260.3510@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1211291659260.3510@eggly.anvils>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id A65046B0095
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:02:41 -0500 (EST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 1/2] thp: fix anononymous page accounting in fallback path for COW of HZP
+Date: Fri, 30 Nov 2012 17:03:40 +0200
+Message-Id: <1354287821-5925-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <50B52E17.8020205@suse.cz>
+ <1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jiri Slaby <jslaby@suse.cz>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Nov 29, 2012 at 05:32:14PM -0800, Hugh Dickins wrote:
-> Like you, I'm really hoping someone will join in and say they'd been
-> disadvantaged by lack of O_DIRECT on tmpfs: no strong feeling myself.
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Not disadvantaged as such, but we have had a workaround in libguestfs
-for a very long time.
+Don't forget to account newly allocated page in fallback path for
+copy-on-write of huge zero page.
 
-If you use certain qemu caching modes, then qemu will open the backing
-disk file using O_DIRECT.  This breaks if the backing file happens to
-be on a tmpfs, which for libguestfs would not be unusual -- we often
-make or use temporary disk images for various reasons, and people
-sometimes have /tmp on a tmpfs.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/huge_memory.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-In 2009 I added code to libguestfs so that if the underlying
-filesystem doesn't support O_DIRECT, then we avoid the troublesome
-qemu caching modes.  The code is here:
-
-  https://github.com/libguestfs/libguestfs/blob/master/src/launch.c#L147
-
-Since the workaround exists and has been in use for years, we don't
-need tmpfs to change.
-
-Rich.
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 57f0024..9d6f521 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1164,6 +1164,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
+ 	pmd_populate(mm, pmd, pgtable);
+ 	spin_unlock(&mm->page_table_lock);
+ 	put_huge_zero_page();
++	inc_mm_counter(mm, MM_ANONPAGES);
+ 
+ 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+ 
 -- 
-Richard Jones, Virtualization Group, Red Hat http://people.redhat.com/~rjones
-libguestfs lets you edit virtual machines.  Supports shell scripting,
-bindings from many languages.  http://libguestfs.org
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
