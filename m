@@ -1,9 +1,9 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 74F1A6B0073
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 04:33:52 -0500 (EST)
-Message-ID: <50B87D79.5090403@parallels.com>
-Date: Fri, 30 Nov 2012 13:33:45 +0400
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 039E26B004D
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 04:42:36 -0500 (EST)
+Message-ID: <50B87F84.7040206@parallels.com>
+Date: Fri, 30 Nov 2012 13:42:28 +0400
 From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
 Subject: Re: [PATCHSET cgroup/for-3.8] cpuset: decouple cpuset locking from
@@ -74,17 +74,9 @@ On 11/30/2012 01:24 PM, Michal Hocko wrote:
 > 
 > This is racy without additional locking, isn't it?
 > 
-Apparently, the way Tejun fixed this for cpuset was by using the
-"attach_in_progress" indicator, that IIUC, is flipped up in
-->can_attach, and down in ->attach.
+Speaking of it: Tejun's tree still lacks the kmem bits. How hard would
+it be for you to merge his branch into a temporary branch of your tree?
 
-A similar scheme would work for us.
-
-And we should also be using a similar scheme for cgroup creation:
-the css is not really connected to the parent until after
-memcg_alloc_css. So if we use the memcg iterator to figure out if
-children exist, we may get a race where we believe no children exist,
-but one appear right after.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
