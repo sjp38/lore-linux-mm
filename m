@@ -1,45 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 3C6D16B00C8
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:59:29 -0500 (EST)
-Message-ID: <50B8D7D9.9010800@parallels.com>
-Date: Fri, 30 Nov 2012 19:59:21 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id E4C996B00C9
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:59:39 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Fri, 30 Nov 2012 16:59:37 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121125120524.GB10623@dhcp22.suse.cz>, <20121125135542.GE10623@dhcp22.suse.cz>, <20121126013855.AF118F5E@pobox.sk>, <20121126131837.GC17860@dhcp22.suse.cz>, <20121126132149.GD17860@dhcp22.suse.cz>, <20121130032918.59B3F780@pobox.sk>, <20121130124506.GH29317@dhcp22.suse.cz>, <20121130144427.51A09169@pobox.sk>, <20121130144431.GI29317@dhcp22.suse.cz>, <20121130160811.6BB25BDD@pobox.sk> <20121130153942.GL29317@dhcp22.suse.cz>
+In-Reply-To: <20121130153942.GL29317@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] replace cgroup_lock with local lock in memcg
-References: <1354282286-32278-1-git-send-email-glommer@parallels.com> <20121130155228.GE3873@htj.dyndns.org>
-In-Reply-To: <20121130155228.GE3873@htj.dyndns.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-Id: <20121130165937.F9564EBE@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On 11/30/2012 07:52 PM, Tejun Heo wrote:
-> Hey, Glauber.
-> 
-> I don't know enough about memcg to be acking this but overall it looks
-> pretty good to me.
-> 
-> On Fri, Nov 30, 2012 at 05:31:22PM +0400, Glauber Costa wrote:
->> For the problem of attaching tasks, I am using something similar to cpusets:
->> when task attaching starts, we will flip a flag "attach_in_progress", that will
->> be flipped down when it finishes. This way, all readers can know that a task is
->> joining the group and take action accordingly. With this, we can guarantee that
->> the behavior of move_charge_at_immigrate continues safe
-> 
-> Yeap, attach_in_progress is useful if there are some conditions which
-> shouldn't change between ->can_attach() and ->attach().  With the
-> immigrate thing gone, this no longer is necessary, right?
-> 
+>> Here is the full boot log:
+>> www.watchdog.sk/lkml/kern.log
+>
+>The log is not complete. Could you paste the comple dmesg output? Or
+>even better, do you have logs from the previous run?
 
-Yes and no. While it can help with immigrate, we still have kmem that
-needs to be protected against tasks joining.
 
-However, kmem is easier. If attach_in_progress is ever positive, it
-means that a task is joining, and it is already unacceptable for kmem -
-so we can fail right away.
+What is missing there? All kernel messages are logging into /var/log/kern.log (it's the same as dmesg), dmesg itself was already rewrited by other messages. I think it's all what that kernel printed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
