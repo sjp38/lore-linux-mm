@@ -1,139 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 1A6D56B009D
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:02:43 -0500 (EST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] thp: avoid race on multiple parallel page faults to the same page
-Date: Fri, 30 Nov 2012 17:03:41 +0200
-Message-Id: <1354287821-5925-3-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <50B52E17.8020205@suse.cz>
- <1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 8F8B06B00A3
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:03:49 -0500 (EST)
+Date: Fri, 30 Nov 2012 16:03:47 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121130150347.GJ29317@dhcp22.suse.cz>
+References: <20121125011047.7477BB5E@pobox.sk>
+ <20121125120524.GB10623@dhcp22.suse.cz>
+ <20121125135542.GE10623@dhcp22.suse.cz>
+ <20121126013855.AF118F5E@pobox.sk>
+ <20121126131837.GC17860@dhcp22.suse.cz>
+ <20121126132149.GD17860@dhcp22.suse.cz>
+ <20121130032918.59B3F780@pobox.sk>
+ <20121130124506.GH29317@dhcp22.suse.cz>
+ <20121130144427.51A09169@pobox.sk>
+ <20121130144431.GI29317@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121130144431.GI29317@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Slaby <jslaby@suse.cz>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Bob Liu <lliubbo@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+On Fri 30-11-12 15:44:31, Michal Hocko wrote:
+> On Fri 30-11-12 14:44:27, azurIt wrote:
+> > >Anyway your system is under both global and local memory pressure. You
+> > >didn't see apache going down previously because it was probably the one
+> > >which was stuck and could be killed.
+> > >Anyway you need to setup your system more carefully.
+> > 
+> > 
+> > There is, also, an evidence that system has enough of memory! :) Just
+> > take column 'rss' from process list in OOM message and sum it - you
+> > will get 2489911. It's probably in KB so it's about 2.4 GB. System has
+> > 14 GB of RAM so this also match data on my graph - 2.4 is about 17% of
+> > 14.
+> 
+> Hmm, that corresponds to the ZONE_DMA32 size pretty nicely but that zone
+> is hardly touched:
+> Nov 30 02:53:56 server01 kernel: [  818.241291] DMA32 free:2523636kB min:2672kB low:3340kB high:4008kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:2542248kB mlocked:0kB dirty:0kB writeback:0kB mapped:4kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> 
+> DMA32 zone is usually fills up first 4G unless your HW remaps the rest
+> of the memory above 4G or you have a numa machine and the rest of the
+> memory is at other node. Could you post your memory map printed during
+> the boot? (e820: BIOS-provided physical RAM map: and following lines)
+> 
+> There is also ZONE_NORMAL which is also not used much
+> Nov 30 02:53:56 server01 kernel: [  818.242163] Normal free:6924716kB min:12512kB low:15640kB high:18768kB active_anon:1463128kB inactive_anon:2072kB active_file:1803964kB inactive_file:1072628kB unevictable:3924kB isolated(anon):0kB isolated(file):0kB present:11893760kB mlocked:3924kB dirty:1000kB writeback:776kB mapped:35656kB shmem:3828kB slab_reclaimable:202560kB slab_unreclaimable:50696kB kernel_stack:2944kB pagetables:158616kB unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+> 
+> You have mentioned that you are comounting with cpuset. If this happens
+> to be a NUMA machine have you made the access to all nodes available?
 
-pmd value is stable only with mm->page_table_lock taken. After taking
-the lock we need to check that nobody modified the pmd before change it.
+And now that I am looking at the oom message more closely I can see
+Nov 30 02:53:56 server01 kernel: [  818.232812] apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
+Nov 30 02:53:56 server01 kernel: [  818.233029] apache2 cpuset=uid mems_allowed=0
+Nov 30 02:53:56 server01 kernel: [  818.233159] Pid: 9247, comm: apache2 Not tainted 3.2.34-grsec #1
+Nov 30 02:53:56 server01 kernel: [  818.233289] Call Trace:
+Nov 30 02:53:56 server01 kernel: [  818.233470]  [<ffffffff810cc90e>] dump_header+0x7e/0x1e0
+Nov 30 02:53:56 server01 kernel: [  818.233600]  [<ffffffff810cc80f>] ? find_lock_task_mm+0x2f/0x70
+Nov 30 02:53:56 server01 kernel: [  818.233721]  [<ffffffff810ccdd5>] oom_kill_process+0x85/0x2a0
+Nov 30 02:53:56 server01 kernel: [  818.233842]  [<ffffffff810cd485>] out_of_memory+0xe5/0x200
+Nov 30 02:53:56 server01 kernel: [  818.233963]  [<ffffffff8102aa8f>] ? pte_alloc_one+0x3f/0x50
+Nov 30 02:53:56 server01 kernel: [  818.234082]  [<ffffffff810cd65d>] pagefault_out_of_memory+0xbd/0x110
+Nov 30 02:53:56 server01 kernel: [  818.234204]  [<ffffffff81026ec6>] mm_fault_error+0xb6/0x1a0
+Nov 30 02:53:56 server01 kernel: [  818.235886]  [<ffffffff8102739e>] do_page_fault+0x3ee/0x460
+Nov 30 02:53:56 server01 kernel: [  818.236006]  [<ffffffff810f3057>] ? vma_merge+0x1f7/0x2c0
+Nov 30 02:53:56 server01 kernel: [  818.236124]  [<ffffffff810f35d7>] ? do_brk+0x267/0x400
+Nov 30 02:53:56 server01 kernel: [  818.236244]  [<ffffffff812c9a92>] ? gr_learn_resource+0x42/0x1e0
+Nov 30 02:53:56 server01 kernel: [  818.236367]  [<ffffffff815b547f>] page_fault+0x1f/0x30
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/huge_memory.c | 29 ++++++++++++++++++++++++-----
- 1 file changed, 24 insertions(+), 5 deletions(-)
+Which is interesting from 2 perspectives. Only the first node (Node-0)
+is allowed which would suggest that the cpuset controller is not
+configured to all nodes. It is still surprising Node 0 wouldn't have any
+memory (I would expect ZONE_DMA32 would be sitting there).
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9d6f521..51cb8fe 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -770,17 +770,20 @@ static inline struct page *alloc_hugepage(int defrag)
- }
- #endif
- 
--static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
-+static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
- 		unsigned long zero_pfn)
- {
- 	pmd_t entry;
-+	if (!pmd_none(*pmd))
-+		return false;
- 	entry = pfn_pmd(zero_pfn, vma->vm_page_prot);
- 	entry = pmd_wrprotect(entry);
- 	entry = pmd_mkhuge(entry);
- 	set_pmd_at(mm, haddr, pmd, entry);
- 	pgtable_trans_huge_deposit(mm, pgtable);
- 	mm->nr_ptes++;
-+	return true;
- }
- 
- int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
-@@ -800,6 +803,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				transparent_hugepage_use_zero_page()) {
- 			pgtable_t pgtable;
- 			unsigned long zero_pfn;
-+			bool set;
- 			pgtable = pte_alloc_one(mm, haddr);
- 			if (unlikely(!pgtable))
- 				return VM_FAULT_OOM;
-@@ -810,9 +814,13 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				goto out;
- 			}
- 			spin_lock(&mm->page_table_lock);
--			set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-+			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
- 					zero_pfn);
- 			spin_unlock(&mm->page_table_lock);
-+			if (!set) {
-+				pte_free(mm, pgtable);
-+				put_huge_zero_page();
-+			}
- 			return 0;
- 		}
- 		page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
-@@ -1046,14 +1054,16 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	 */
- 	if (is_huge_zero_pmd(pmd)) {
- 		unsigned long zero_pfn;
-+		bool set;
- 		/*
- 		 * get_huge_zero_page() will never allocate a new page here,
- 		 * since we already have a zero page to copy. It just takes a
- 		 * reference.
- 		 */
- 		zero_pfn = get_huge_zero_page();
--		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
-+		set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
- 				zero_pfn);
-+		BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
- 		ret = 0;
- 		goto out_unlock;
- 	}
-@@ -1110,7 +1120,7 @@ unlock:
- 
- static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 		struct vm_area_struct *vma, unsigned long address,
--		pmd_t *pmd, unsigned long haddr)
-+		pmd_t *pmd, pmd_t orig_pmd, unsigned long haddr)
- {
- 	pgtable_t pgtable;
- 	pmd_t _pmd;
-@@ -1139,6 +1149,9 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
- 
- 	spin_lock(&mm->page_table_lock);
-+	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-+		goto out_free_page;
-+
- 	pmdp_clear_flush(vma, haddr, pmd);
- 	/* leave pmd empty until pte is filled */
- 
-@@ -1171,6 +1184,12 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	ret |= VM_FAULT_WRITE;
- out:
- 	return ret;
-+out_free_page:
-+	spin_unlock(&mm->page_table_lock);
-+	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-+	mem_cgroup_uncharge_page(page);
-+	put_page(page);
-+	goto out;
- }
- 
- static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
-@@ -1317,7 +1336,7 @@ alloc:
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		if (is_huge_zero_pmd(orig_pmd)) {
- 			ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
--					address, pmd, haddr);
-+					address, pmd, orig_pmd, haddr);
- 		} else {
- 			ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
- 					pmd, orig_pmd, page, haddr);
+Anyway, the more interesting thing is gfp_mask is GFP_NOWAIT allocation
+from the page fault? Huh this shouldn't happen - ever.
+
+> Also what does /proc/sys/vm/zone_reclaim_mode says?
+> -- 
+> Michal Hocko
+> SUSE Labs
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
 -- 
-1.7.11.7
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
