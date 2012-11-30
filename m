@@ -1,59 +1,314 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 9A0946B0044
-	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 20:32:13 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id l8so99820qaq.14
-        for <linux-mm@kvack.org>; Thu, 29 Nov 2012 17:32:12 -0800 (PST)
-Date: Thu, 29 Nov 2012 17:32:14 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: O_DIRECT on tmpfs (again)
-In-Reply-To: <x498v9kwhzy.fsf@segfault.boston.devel.redhat.com>
-Message-ID: <alpine.LNX.2.00.1211291659260.3510@eggly.anvils>
-References: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com> <alpine.LNX.2.00.1211281248270.14968@eggly.anvils> <50B6830A.20308@oracle.com> <x498v9kwhzy.fsf@segfault.boston.devel.redhat.com>
+	by kanga.kvack.org (Postfix) with SMTP id ED5BC6B004D
+	for <linux-mm@kvack.org>; Thu, 29 Nov 2012 20:38:49 -0500 (EST)
+Message-ID: <50B80FB1.6040906@cn.fujitsu.com>
+Date: Fri, 30 Nov 2012 09:45:21 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [Patch v4 08/12] memory-hotplug: remove memmap of sparse-vmemmap
+References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-9-git-send-email-wency@cn.fujitsu.com> <50B5DC00.20103@huawei.com>
+In-Reply-To: <50B5DC00.20103@huawei.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dave Kleikamp <dave.kleikamp@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Thu, 29 Nov 2012, Jeff Moyer wrote:
-> Dave Kleikamp <dave.kleikamp@oracle.com> writes:
+At 11/28/2012 05:40 PM, Jianguo Wu Wrote:
+> Hi Congyang,
 > 
-> >> Whilst I agree with every contradictory word I said back then ;)
-> >> my current position is to wait to see what happens with Shaggy's "loop:
-> >> Issue O_DIRECT aio using bio_vec" https://lkml.org/lkml/2012/11/22/847
-> >
-> > As the patches exist today, the loop driver will only make the aio calls
-> > if the underlying file defines a direct_IO address op since
-> > generic_file_read/write_iter() will call a_ops->direct_IO() when
-> > O_DIRECT is set. For tmpfs or any other filesystem that doesn't support
-> > O_DIRECT, the loop driver will continue to call the read() or write()
-> > method.
+> I think vmemmap's pgtable pages should be freed after all entries are cleared, I have a patch to do this.
+> The code logic is the same as [Patch v4 09/12] memory-hotplug: remove page table of x86_64 architecture.
 > 
-> Hi, Hugh and Shaggy,
+> How do you think about this?
 > 
-> Thanks for your replies--it looks like we're back to square one.  I
-> think it would be trivial to add O_DIRECT support to tmpfs, but I'm not
-> convinced it's necessary.  Should we wait until bug reports start to
-> come in?
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> ---
+>  include/linux/mm.h  |    1 +
+>  mm/sparse-vmemmap.c |  214 +++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/sparse.c         |    5 +-
+>  3 files changed, 218 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 5657670..1f26af5 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1642,6 +1642,7 @@ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+>  void vmemmap_populate_print_last(void);
+>  void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+>  				  unsigned long size);
+> +void vmemmap_free(struct page *memmap, unsigned long nr_pages);
+>  
+>  enum mf_flags {
+>  	MF_COUNT_INCREASED = 1 << 0,
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index 1b7e22a..242cb28 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -29,6 +29,10 @@
+>  #include <asm/pgalloc.h>
+>  #include <asm/pgtable.h>
+>  
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +#include <asm/tlbflush.h>
+> +#endif
+> +
+>  /*
+>   * Allocate a block of memory to be used to back the virtual memory map
+>   * or to back the page tables that are used to create the mapping.
+> @@ -224,3 +228,213 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  		vmemmap_buf_end = NULL;
+>  	}
+>  }
+> +
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +static void vmemmap_free_pages(struct page *page, int order)
+> +{
+> +	struct zone *zone;
+> +	unsigned long magic;
+> +
+> +	magic = (unsigned long) page->lru.next;
+> +	if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
+> +		put_page_bootmem(page);
+> +
+> +		zone = page_zone(page);
+> +		zone_span_writelock(zone);
+> +		zone->present_pages++;
+> +		zone_span_writeunlock(zone);
+> +		totalram_pages++;
+> +	} else {
+> +		if (is_vmalloc_addr(page_address(page)))
+> +			vfree(page_address(page));
 
-It's reassuring to know that tmpfs won't have to rush in direct_IO
-to support loop when Dave's changes go through (thanks); but I'd still
-like to experiment with going that way, to see if it works better.
+Hmm, vmemmap doesn't use vmalloc() to allocate memory.
 
-I've not been entirely convinced that tmpfs needs direct_IO either;
-but your links from back then show a number of people who feel that
-direct_IO had become mainstream enough to deserve the appearance of
-support by tmpfs.
+> +		else
+> +			free_pages((unsigned long)page_address(page), order);
+> +	}
+> +}
+> +
+> +static void free_pte_table(pmd_t *pmd)
+> +{
+> +	pte_t *pte, *pte_start;
+> +	int i;
+> +
+> +	pte_start = (pte_t *)pmd_page_vaddr(*pmd);
+> +	for (i = 0; i < PTRS_PER_PTE; i++) {
+> +		pte = pte_start + i;
+> +		if (pte_val(*pte))
+> +			return;
+> +	}
+> +
+> +	/* free a pte talbe */
+> +	vmemmap_free_pages(pmd_page(*pmd), 0);
+> +	spin_lock(&init_mm.page_table_lock);
+> +	pmd_clear(pmd);
+> +	spin_unlock(&init_mm.page_table_lock);
+> +}
+> +
+> +static void free_pmd_table(pud_t *pud)
+> +{
+> +	pmd_t *pmd, *pmd_start;
+> +	int i;
+> +
+> +	pmd_start = (pmd_t *)pud_page_vaddr(*pud);
+> +	for (i = 0; i < PTRS_PER_PMD; i++) {
+> +		pmd = pmd_start + i;
+> +		if (pmd_val(*pmd))
+> +			return;
+> +	}
+> +
+> +	/* free a pmd talbe */
+> +	vmemmap_free_pages(pud_page(*pud), 0);
+> +	spin_lock(&init_mm.page_table_lock);
+> +	pud_clear(pud);
+> +	spin_unlock(&init_mm.page_table_lock);
+> +}
+> +
+> +static void free_pud_table(pgd_t *pgd)
+> +{
+> +	pud_t *pud, *pud_start;
+> +	int i;
+> +
+> +	pud_start = (pud_t *)pgd_page_vaddr(*pgd);
+> +	for (i = 0; i < PTRS_PER_PUD; i++) {
+> +		pud = pud_start + i;
+> +		if (pud_val(*pud))
+> +			return;
+> +	}
+> +
+> +	/* free a pud table */
+> +	vmemmap_free_pages(pgd_page(*pgd), 0);
+> +	spin_lock(&init_mm.page_table_lock);
+> +	pgd_clear(pgd);
+> +	spin_unlock(&init_mm.page_table_lock);
+> +}
+> +
+> +static int split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
+> +{
+> +	struct page *page = pmd_page(*(pmd_t *)kpte);
+> +	int i = 0;
+> +	unsigned long magic;
+> +	unsigned long section_nr;
+> +
+> +	__split_large_page(kpte, address, pbase);
+> +	__flush_tlb_all();
+> +
+> +	magic = (unsigned long) page->lru.next;
+> +	if (magic == SECTION_INFO) {
+> +		section_nr = pfn_to_section_nr(page_to_pfn(page));
+> +		while (i < PTRS_PER_PMD) {
+> +			page++;
+> +			i++;
+> +			get_page_bootmem(section_nr, page, SECTION_INFO);
+> +		}
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static void vmemmap_pte_remove(pmd_t *pmd, unsigned long addr, unsigned long end)
+> +{
+> +	pte_t *pte;
+> +	unsigned long next;
+> +
+> +	pte = pte_offset_kernel(pmd, addr);
+> +	for (; addr < end; pte++, addr += PAGE_SIZE) {
+> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
+> +		if (next > end)
+> +			next = end;
+> +
+> +		if (pte_none(*pte))
+> +			continue;
+> +		if (IS_ALIGNED(addr, PAGE_SIZE) &&
+> +		    IS_ALIGNED(end, PAGE_SIZE)) {
+> +			vmemmap_free_pages(pte_page(*pte), 0);
+> +			spin_lock(&init_mm.page_table_lock);
+> +			pte_clear(&init_mm, addr, pte);
+> +			spin_unlock(&init_mm.page_table_lock);
 
-And you observe that tmpfs is being used more widely for /tmp nowadays:
-I agree that may increase its desirability.
+If addr or end is not alianed with PAGE_SIZE, you may leak some
+memory.
 
-Like you, I'm really hoping someone will join in and say they'd been
-disadvantaged by lack of O_DIRECT on tmpfs: no strong feeling myself.
+> +		}
+> +	}
+> +
+> +	free_pte_table(pmd);
+> +	__flush_tlb_all();
+> +}
+> +
+> +static void vmemmap_pmd_remove(pud_t *pud, unsigned long addr, unsigned long end)
+> +{
+> +	unsigned long next;
+> +	pmd_t *pmd;
+> +
+> +	pmd = pmd_offset(pud, addr);
+> +	for (; addr < end; addr = next, pmd++) {
+> +		next = pmd_addr_end(addr, end);
+> +		if (pmd_none(*pmd))
+> +			continue;
+> +
+> +		if (cpu_has_pse) {
+> +			unsigned long pte_base;
+> +
+> +			if (IS_ALIGNED(addr, PMD_SIZE) &&
+> +			    IS_ALIGNED(next, PMD_SIZE)) {
+> +				vmemmap_free_pages(pmd_page(*pmd),
+> +						   get_order(PMD_SIZE));
+> +				spin_lock(&init_mm.page_table_lock);
+> +				pmd_clear(pmd);
+> +				spin_unlock(&init_mm.page_table_lock);
+> +				continue;
+> +			}
+> +
+> +			/*
+> +			 * We use 2M page, but we need to remove part of them,
+> +			 * so split 2M page to 4K page.
+> +			 */
+> +			pte_base = get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 
-Hugh
+get_zeored_page() may fail. You should handle this error.
+
+> +			split_large_page((pte_t *)pmd, addr, (pte_t *)pte_base);
+> +			__flush_tlb_all();
+> +
+> +			spin_lock(&init_mm.page_table_lock);
+> +			pmd_populate_kernel(&init_mm, pmd, (pte_t *)pte_base);
+> +			spin_unlock(&init_mm.page_table_lock);
+> +		}
+> +
+> +		vmemmap_pte_remove(pmd, addr, next);
+> +	}
+> +
+> +	free_pmd_table(pud);
+> +	__flush_tlb_all();
+> +}
+> +
+> +static void vmemmap_pud_remove(pgd_t *pgd, unsigned long addr, unsigned long end)
+> +{
+> +	unsigned long next;
+> +	pud_t *pud;
+> +
+> +	pud = pud_offset(pgd, addr);
+> +	for (; addr < end; addr = next, pud++) {
+> +		next = pud_addr_end(addr, end);
+> +		if (pud_none(*pud))
+> +			continue;
+> +
+> +		vmemmap_pmd_remove(pud, addr, next);
+> +	}
+> +
+> +	free_pud_table(pgd);
+> +	__flush_tlb_all();
+> +}
+> +
+> +void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+> +{
+> +	unsigned long addr = (unsigned long)memmap;
+> +	unsigned long end = (unsigned long)(memmap + nr_pages);
+> +	unsigned long next;
+> +
+> +	for (; addr < end; addr = next) {
+> +		pgd_t *pgd = pgd_offset_k(addr);
+> +
+> +		next = pgd_addr_end(addr, end);
+> +		if (!pgd_present(*pgd))
+> +			continue;
+> +
+> +		vmemmap_pud_remove(pgd, addr, next);
+> +		sync_global_pgds(addr, next);
+
+The parameter for sync_global_pgds() is [start, end], not
+[start, end)
+
+> +	}
+> +}
+> +#endif
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index fac95f2..3a16d68 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -613,12 +613,13 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+>  	/* This will make the necessary allocations eventually. */
+>  	return sparse_mem_map_populate(pnum, nid);
+>  }
+> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
+Why do you change this line?
+
+>  {
+> -	return; /* XXX: Not implemented yet */
+> +	vmemmap_free(page, nr_pages);
+>  }
+>  static void free_map_bootmem(struct page *page, unsigned long nr_pages)
+>  {
+> +	vmemmap_free(page, nr_pages);
+>  }
+>  #else
+>  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
