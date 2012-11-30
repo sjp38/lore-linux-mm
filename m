@@ -1,166 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 714B76B00A8
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:31:40 -0500 (EST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 2689F6B00AB
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 08:31:48 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 2/4] memcg: prevent changes to move_charge_at_immigrate during task attach
-Date: Fri, 30 Nov 2012 17:31:24 +0400
-Message-Id: <1354282286-32278-3-git-send-email-glommer@parallels.com>
-In-Reply-To: <1354282286-32278-1-git-send-email-glommer@parallels.com>
-References: <1354282286-32278-1-git-send-email-glommer@parallels.com>
+Subject: [PATCH 0/4] replace cgroup_lock with local lock in memcg
+Date: Fri, 30 Nov 2012 17:31:22 +0400
+Message-Id: <1354282286-32278-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
 
-Currently, we rely on the cgroup_lock() to prevent changes to
-move_charge_at_immigrate during task migration. We can do something
-similar to what cpuset is doing, and flip a flag to tell us if task
-movement is taking place.
+Hi,
 
-In theory, we could busy loop waiting for that value to return to 0 - it
-will eventually. But I am judging that returning EAGAIN is not too much
-of a problem, since file writers already should be checking for error
-codes anyway.
+In memcg, we use the cgroup_lock basically to synchronize against two events:
+attaching tasks and children to a cgroup.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
----
- mm/memcontrol.c | 64 +++++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 51 insertions(+), 13 deletions(-)
+For the problem of attaching tasks, I am using something similar to cpusets:
+when task attaching starts, we will flip a flag "attach_in_progress", that will
+be flipped down when it finishes. This way, all readers can know that a task is
+joining the group and take action accordingly. With this, we can guarantee that
+the behavior of move_charge_at_immigrate continues safe
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index feba87d..d80b6b5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -311,7 +311,13 @@ struct mem_cgroup {
- 	 * Should we move charges of a task when a task is moved into this
- 	 * mem_cgroup ? And what type of charges should we move ?
- 	 */
--	unsigned long 	move_charge_at_immigrate;
-+	unsigned long	move_charge_at_immigrate;
-+        /*
-+	 * Tasks are being attached to this memcg.  Used mostly to prevent
-+	 * changes to move_charge_at_immigrate
-+	 */
-+        int attach_in_progress;
-+
- 	/*
- 	 * set > 0 if pages under this cgroup are moving to other cgroup.
- 	 */
-@@ -4114,6 +4120,7 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 					struct cftype *cft, u64 val)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-+	int ret = -EAGAIN;
- 
- 	if (val >= (1 << NR_MOVE_TYPE))
- 		return -EINVAL;
-@@ -4123,10 +4130,13 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 	 * inconsistent.
- 	 */
- 	cgroup_lock();
-+	if (memcg->attach_in_progress)
-+		goto out;
- 	memcg->move_charge_at_immigrate = val;
-+	ret = 0;
-+out:
- 	cgroup_unlock();
--
--	return 0;
-+	return ret;
- }
- #else
- static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
-@@ -5443,12 +5453,12 @@ static void mem_cgroup_clear_mc(void)
- 	mem_cgroup_end_move(from);
- }
- 
--static int mem_cgroup_can_attach(struct cgroup *cgroup,
--				 struct cgroup_taskset *tset)
-+
-+static int __mem_cgroup_can_attach(struct mem_cgroup *memcg,
-+				   struct cgroup_taskset *tset)
- {
- 	struct task_struct *p = cgroup_taskset_first(tset);
- 	int ret = 0;
--	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
- 
- 	if (memcg->move_charge_at_immigrate) {
- 		struct mm_struct *mm;
-@@ -5482,8 +5492,8 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 	return ret;
- }
- 
--static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
--				     struct cgroup_taskset *tset)
-+static void __mem_cgroup_cancel_attach(struct mem_cgroup *memcg,
-+				       struct cgroup_taskset *tset)
- {
- 	mem_cgroup_clear_mc();
- }
-@@ -5630,8 +5640,8 @@ retry:
- 	up_read(&mm->mmap_sem);
- }
- 
--static void mem_cgroup_move_task(struct cgroup *cont,
--				 struct cgroup_taskset *tset)
-+static void __mem_cgroup_move_task(struct mem_cgroup *memcg,
-+				   struct cgroup_taskset *tset)
- {
- 	struct task_struct *p = cgroup_taskset_first(tset);
- 	struct mm_struct *mm = get_task_mm(p);
-@@ -5645,20 +5655,48 @@ static void mem_cgroup_move_task(struct cgroup *cont,
- 		mem_cgroup_clear_mc();
- }
- #else	/* !CONFIG_MMU */
-+static int __mem_cgroup_can_attach(struct mem_cgroup *memcg,
-+				   struct cgroup_taskset *tset)
-+{
-+	return 0;
-+}
-+
-+static void __mem_cgroup_cancel_attach(struct mem_cgroup *memcg,
-+				       struct cgroup_taskset *tset)
-+{
-+}
-+
-+static void __mem_cgroup_move_task(struct mem_cgroup *memcg,
-+				   struct cgroup_taskset *tset)
-+{
-+}
-+#endif
- static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 				 struct cgroup_taskset *tset)
- {
--	return 0;
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-+
-+	memcg->attach_in_progress++;
-+	return __mem_cgroup_can_attach(memcg, tset);
- }
-+
- static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
- 				     struct cgroup_taskset *tset)
- {
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-+
-+	__mem_cgroup_cancel_attach(memcg, tset);
-+	memcg->attach_in_progress--;
- }
--static void mem_cgroup_move_task(struct cgroup *cont,
-+
-+static void mem_cgroup_move_task(struct cgroup *cgroup,
- 				 struct cgroup_taskset *tset)
- {
-+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-+
-+	__mem_cgroup_move_task(memcg, tset);
-+	memcg->attach_in_progress--;
- }
--#endif
- 
- struct cgroup_subsys mem_cgroup_subsys = {
- 	.name = "memory",
+Protecting against children creation requires a bit more work. For those, the
+calls to cgroup_lock() all live in handlers like mem_cgroup_hierarchy_write(),
+where we change a tunable in the group, that is hierarchy-related. For
+instance, the use_hierarchy flag cannot be changed if the cgroup already have
+children.
+
+Furthermore, those values are propageted from the parent to the child when a
+new child is created. So if we don't lock like this, we can end up with the
+following situation:
+
+A                                   B
+ memcg_css_alloc()                       mem_cgroup_hierarchy_write()
+ copy use hierarchy from parent          change use hierarchy in parent
+ finish creation.
+
+This is mainly because during create, we are still not fully connected to the
+css tree. So all iterators and the such that we could use, will fail to show
+that the group has children.
+
+My observation is that all of creation can proceed in parallel with those
+tasks, except value assignment. So what this patchseries does is to first move
+all value assignment that is dependent on parent values from css_alloc to
+css_online, where the iterators all work, and then we lock only the value
+assignment. This will guarantee that parent and children always have
+consistent values.
+
+Glauber Costa (4):
+  cgroup: warn about broken hierarchies only after css_online
+  memcg: prevent changes to move_charge_at_immigrate during task attach
+  memcg: split part of memcg creation to css_online
+  memcg: replace cgroup_lock with memcg specific memcg_lock
+
+ kernel/cgroup.c |  18 +++----
+ mm/memcontrol.c | 164 +++++++++++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 129 insertions(+), 53 deletions(-)
+
 -- 
 1.7.11.7
 
