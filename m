@@ -1,60 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 19BF76B0088
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 15:55:54 -0500 (EST)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 30 Nov 2012 13:55:53 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1D2AAC40002
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 13:55:46 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qAUKtpDO347940
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 13:55:51 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qAUKtoSH002400
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 13:55:50 -0700
-Message-ID: <50B91D54.2080507@linux.vnet.ibm.com>
-Date: Fri, 30 Nov 2012 12:55:48 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 96B056B0073
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 16:44:25 -0500 (EST)
+Date: Sat, 1 Dec 2012 05:44:18 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [memcg:since-3.6 341/499]
+ drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
+Message-ID: <20121130214418.GA20508@localhost>
+References: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
+ <20121130002848.GA28177@localhost>
+ <20121129164616.6c308ce0.akpm@linux-foundation.org>
+ <20121130020015.GA29687@localhost>
+ <20121130181459.GA20301@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: 32/64-bit NUMA consolidation behavior regresion
-References: <50B6A66E.8030406@linux.vnet.ibm.com> <20121130204237.GH3873@htj.dyndns.org>
-In-Reply-To: <20121130204237.GH3873@htj.dyndns.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121130181459.GA20301@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rafael Aquini <aquini@redhat.com>, kbuild@01.org, Julia Lawall <julia.lawall@lip6.fr>, linux-mm@kvack.org
 
-On 11/30/2012 12:42 PM, Tejun Heo wrote:
-> On Wed, Nov 28, 2012 at 04:03:58PM -0800, Dave Hansen wrote:
->> My system is just qemu booted with:
->>
->> -smp 8 -m 8192 -numa node,nodeid=0,cpus=0-3 -numa node,nodeid=1,cpus=4-7
->>
->> Watch the "PERCPU:" line early in boot, and you can see the "Embedded"
->> come and go with or without your patch:
->>
->> [    0.000000] PERCPU: Embedded 11 pages/cpu @f3000000 s30592 r0 d14464
->> vs
->> [    0.000000] PERCPU: 11 4K pages/cpu @f83fe000 s30592 r0 d14464
-> ...
->> I don't have a fix handy because I'm working on the original problem,
->> but I just happened to run across this during a bisect.
+On Fri, Nov 30, 2012 at 07:14:59PM +0100, Michal Hocko wrote:
+> On Fri 30-11-12 10:00:15, Wu Fengguang wrote:
+> > On Thu, Nov 29, 2012 at 04:46:16PM -0800, Andrew Morton wrote:
+> > > On Fri, 30 Nov 2012 08:28:48 +0800
+> > > Fengguang Wu <fengguang.wu@intel.com> wrote:
+> > > 
+> > > > Hi Rafael,
+> > > > 
+> > > > [Julia and me think that this coccinelle warning is worth reporting.]
+> > > > 
+> > > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> > > > head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
+> > > > commit: 5f1da4063294480b3fabcee554f976565dec54b5 [341/499] virtio_balloon: introduce migration primitives to balloon pages
+> > > > 
+> > > > + drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
+> > > > 
+> > > > vim +157 drivers/virtio/virtio_balloon.c
+> > > > 
+> > > > 6b35e407 Rusty Russell      2008-02-04  130  {
+> > > > 5f1da406 Rafael Aquini      2012-11-09  131  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+> > > > 5f1da406 Rafael Aquini      2012-11-09  132  
+> > > > 6b35e407 Rusty Russell      2008-02-04  133  	/* We can only do one array worth at a time. */
+> > > > 6b35e407 Rusty Russell      2008-02-04  134  	num = min(num, ARRAY_SIZE(vb->pfns));
+> > > > 6b35e407 Rusty Russell      2008-02-04  135  
+> > > > 5f1da406 Rafael Aquini      2012-11-09 @136  	mutex_lock(&vb->balloon_lock);
+> > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  137  	for (vb->num_pfns = 0; vb->num_pfns < num;
+> > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  138  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> > > > 5f1da406 Rafael Aquini      2012-11-09  139  		struct page *page = balloon_page_enqueue(vb_dev_info);
+> > > > 5f1da406 Rafael Aquini      2012-11-09  140  
+> > > > 6b35e407 Rusty Russell      2008-02-04  141  		if (!page) {
+> > > > 6b35e407 Rusty Russell      2008-02-04  142  			if (printk_ratelimit())
+> > > > 6b35e407 Rusty Russell      2008-02-04  143  				dev_printk(KERN_INFO, &vb->vdev->dev,
+> > > > 6b35e407 Rusty Russell      2008-02-04  144  					   "Out of puff! Can't get %zu pages\n",
+> > > > 5f1da406 Rafael Aquini      2012-11-09  145  					   VIRTIO_BALLOON_PAGES_PER_PAGE);
+> > > > 6b35e407 Rusty Russell      2008-02-04  146  			/* Sleep for at least 1/5 of a second before retry. */
+> > > > 6b35e407 Rusty Russell      2008-02-04  147  			msleep(200);
+> > > > 6b35e407 Rusty Russell      2008-02-04  148  			break;
+> > > > 6b35e407 Rusty Russell      2008-02-04  149  		}
+> > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  150  		set_page_pfns(vb->pfns + vb->num_pfns, page);
+> > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  151  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+> > > > 6b35e407 Rusty Russell      2008-02-04  152  		totalram_pages--;
+> > > > 6b35e407 Rusty Russell      2008-02-04  153  	}
+> > > > 6b35e407 Rusty Russell      2008-02-04  154  
+> > > > 6b35e407 Rusty Russell      2008-02-04  155  	/* Didn't get any?  Oh well. */
+> > > > 6b35e407 Rusty Russell      2008-02-04  156  	if (vb->num_pfns == 0)
+> > > > 6b35e407 Rusty Russell      2008-02-04 @157  		return;
+> > > > 6b35e407 Rusty Russell      2008-02-04  158  
+> > > > 6b35e407 Rusty Russell      2008-02-04  159  	tell_host(vb, vb->inflate_vq);
+> > > > 5f1da406 Rafael Aquini      2012-11-09  160  	mutex_unlock(&vb->balloon_lock);
+> > > 
+> > > This bug was fixed by
+> > > 
+> > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages.patch
+> > > this one -> virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix.patch
+> > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix.patch
+> > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix.patch
+> > 
+> > Michal: your since-3.6 branch somehow missed that followup fix...
 > 
-> Just tested 3.7-rc7 w/ qemu and it works as expected here.
+> Hmm strange, I can see all of them in my tree.
+> 72d9876194be9e6f0600ca796b6689a77fce28b7
+> f920c4f67b892a6b41054c5441ab0d481489c6c9
+> 63db42f4243be26efffc32806990349235619bad
+
+Oops.. the fixes are reverted by a later commit 4f2ac849
+
+        -       /* Did we get any? */
+        -       if (vb->num_pfns != 0)
+        -               tell_host(vb, vb->inflate_vq);
+        -       mutex_unlock(&vb->balloon_lock);
+        +       /* Didn't get any?  Oh well. */
+(*)     +       if (vb->num_pfns == 0)
+(*)     +               return;
+        +
+        +       tell_host(vb, vb->inflate_vq);
+
+(*) then we got the coccinelle warning again in the HEAD.
+
+Thanks,
+Fengguang
+
+> merged in mmotm-2012-11-14-17-40
 > 
-> Can you please boot with the following debug patch and report the boot
-> message before and after?
-
-Hi Tejun,
-
-I just tested with 3.7-rc7 and I'm seeing the expected behavior now.
-Looks like it got fixed along the way somewhere.  I was bisecting way
-back in the 2.6.3x's.  Sorry of the noise.
+> and my mis-merge follow-up
+> 83bb61967444e22100f7c6e2a5f79ffa85b9e981
+> 
+> merged in mmotm-2012-11-26-17-32
+> All of them should be 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
