@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id C4D3E6B0068
-	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 09:59:31 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so509591pbc.14
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 06:59:31 -0800 (PST)
-Date: Fri, 30 Nov 2012 06:59:24 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.8] cpuset: decouple cpuset locking from
- cgroup core
-Message-ID: <20121130145924.GA3873@htj.dyndns.org>
-References: <1354138460-19286-1-git-send-email-tj@kernel.org>
- <50B8263C.7060908@jp.fujitsu.com>
- <50B875B4.2020507@parallels.com>
- <20121130092435.GD29317@dhcp22.suse.cz>
- <50B87F84.7040206@parallels.com>
- <20121130094959.GE29317@dhcp22.suse.cz>
- <50B883B5.8020705@parallels.com>
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 1F4AD6B0071
+	for <linux-mm@kvack.org>; Fri, 30 Nov 2012 10:01:21 -0500 (EST)
+Date: Fri, 30 Nov 2012 15:01:05 +0000
+From: "Richard W.M. Jones" <rjones@redhat.com>
+Subject: Re: O_DIRECT on tmpfs (again)
+Message-ID: <20121130150105.GA4883@rhmail.home.annexia.org>
+References: <x49ip8rf2yw.fsf@segfault.boston.devel.redhat.com>
+ <alpine.LNX.2.00.1211281248270.14968@eggly.anvils>
+ <50B6830A.20308@oracle.com>
+ <x498v9kwhzy.fsf@segfault.boston.devel.redhat.com>
+ <alpine.LNX.2.00.1211291659260.3510@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50B883B5.8020705@parallels.com>
+In-Reply-To: <alpine.LNX.2.00.1211291659260.3510@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, lizefan@huawei.com, paul@paulmenage.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, bsingharora@gmail.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, Dave Kleikamp <dave.kleikamp@oracle.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hello,
+On Thu, Nov 29, 2012 at 05:32:14PM -0800, Hugh Dickins wrote:
+> Like you, I'm really hoping someone will join in and say they'd been
+> disadvantaged by lack of O_DIRECT on tmpfs: no strong feeling myself.
 
-On Fri, Nov 30, 2012 at 02:00:21PM +0400, Glauber Costa wrote:
-> Now, what I am actually seeing with cgroup creation, is that the
-> children will copy a lot of the values from the parent, like swappiness,
-> hierarchy, etc. Once the child copies it, we should no longer be able to
-> change those values in the parent: otherwise we'll get funny things like
-> parent.use_hierarchy = 1, child.use_hierarchy = 0.
+Not disadvantaged as such, but we have had a workaround in libguestfs
+for a very long time.
 
-So, the best way to do this is from ->css_online().  If memcg
-synchronizes and inherits from ->css_online(), it can guarantee that
-the new cgroup will be visible in any following iterations.  Just have
-an online flag which is turned on and off from ->css_on/offline() and
-ignore any cgroups w/o online set.
+If you use certain qemu caching modes, then qemu will open the backing
+disk file using O_DIRECT.  This breaks if the backing file happens to
+be on a tmpfs, which for libguestfs would not be unusual -- we often
+make or use temporary disk images for various reasons, and people
+sometimes have /tmp on a tmpfs.
 
-> One option is to take a global lock in memcg_alloc_css(), and keep it
-> locked until we did all the cgroup bookkeeping, and then unlock it in
-> css_online. But I am guessing Tejun won't like it very much.
+In 2009 I added code to libguestfs so that if the underlying
+filesystem doesn't support O_DIRECT, then we avoid the troublesome
+qemu caching modes.  The code is here:
 
-No, please *NEVER* *EVER* do that.  You'll be creating a bunch of
-locking dependencies as cgroup walks through different controllers.
+  https://github.com/libguestfs/libguestfs/blob/master/src/launch.c#L147
 
-memcg should be able to synchornize fully both css on/offlining and
-task attachments in memcg proper.  Let's please be boring about
-locking.
+Since the workaround exists and has been in use for years, we don't
+need tmpfs to change.
 
-Thanks.
+Rich.
 
 -- 
-tejun
+Richard Jones, Virtualization Group, Red Hat http://people.redhat.com/~rjones
+libguestfs lets you edit virtual machines.  Supports shell scripting,
+bindings from many languages.  http://libguestfs.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
