@@ -1,77 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 6EFC16B004D
-	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 03:04:50 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so899078pad.14
-        for <linux-mm@kvack.org>; Sat, 01 Dec 2012 00:04:49 -0800 (PST)
-Date: Sat, 1 Dec 2012 00:01:31 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [RFC] Add mempressure cgroup
-Message-ID: <20121201080131.GB21747@lizard.sbx14280.paloaca.wayport.net>
-References: <20121128102908.GA15415@lizard>
- <20121128151432.3e29d830.akpm@linux-foundation.org>
- <20121129012751.GA20525@lizard>
- <20121130154725.0a81913c@doriath.home>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id E741C6B004D
+	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 04:49:33 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so921879eek.14
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2012 01:49:32 -0800 (PST)
+Date: Sat, 1 Dec 2012 10:49:27 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [RFC PATCH] mm/migration: Don't lock anon vmas in rmap_walk_anon()
+Message-ID: <20121201094927.GA12366@gmail.com>
+References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
+ <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121130154725.0a81913c@doriath.home>
+In-Reply-To: <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, aquini@redhat.com, riel@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Hi Luiz,
 
-Thanks for your email!
+* Linus Torvalds <torvalds@linux-foundation.org> wrote:
 
-On Fri, Nov 30, 2012 at 03:47:25PM -0200, Luiz Capitulino wrote:
-[...]
-> > But there is one, rather major issue: we're crossing kernel-userspace
-> > boundary. And with the scheme we'll have to cross the boundary four times:
-> > query / reply-available / control / reply-shrunk / (and repeat if
-> > necessary, every SHRINK_BATCH pages). Plus, it has to be done somewhat
-> > synchronously (all the four stages), and/or we have to make a "userspace
-> > shrinker" thread working in parallel with the normal shrinker, and here,
-> > I'm afraid, we'll see more strange interactions. :)
+> On Fri, Nov 30, 2012 at 11:58 AM, Ingo Molnar <mingo@kernel.org> wrote:
+> >
+> > When pushed hard enough via threaded workloads (for example 
+> > via the numa02 test) then the upstream page migration code 
+> > in mm/migration.c becomes unscalable, resulting in lot of 
+> > scheduling on the anon vma mutex and a subsequent drop in 
+> > performance.
 > 
-> Wouldn't this be just like kswapd?
-
-Sure, this is similar, but only for indirect reclaim (obviously).
-
-How we'd do this for the direct reclaim I have no idea, honestly, with
-Andrew's idea it must be all synchronous, so playing ping-pong with
-userland during the direct reclaim will be hard.
-
-So, the best thing to do with the direct recaim, IMHO, is just send a
-notification.
-
-> > But there is a good news: for these kind of fine-grained control we have a
-> > better interface, where we don't have to communicate [very often] w/ the
-> > kernel. These are "volatile ranges", where userland itself marks chunks of
-> > data as "I might need it, but I won't cry if you recycle it; but when I
-> > access it next time, let me know if you actually recycled it". Yes,
-> > userland no longer able to decide which exact page it permits to recycle,
-> > but we don't have use-cases when we actually care that much. And if we do,
-> > we'd rather introduce volatile LRUs with different priorities, or
-> > something alike.
+> Ugh.
+>
+> I wonder if migration really needs that thing to be a mutex? I 
+> may be wrong, but the anon_vma lock only protects the actual 
+> rmap chains, and migration only ever changes the pte 
+> *contents*, not the actual chains of pte's themselves, right?
 > 
-> I'm new to this stuff so please take this with a grain of salt, but I'm
-> not sure volatile ranges would be a good fit for our use case: we want to
-> make (kvm) guests reduce their memory when the host is getting memory
-> pressure.
+> So if this is a migration-specific scalability issue, then it 
+> might be possible to solve by making the mutex be a rwsem 
+> instead, and have migration only take it for reading.
+> 
+> Of course, I'm quite possibly wrong, and the code depends on 
+> full mutual exclusion.
+> 
+> Just a thought, in case it makes somebody go "Hmm.."
 
-Yes, for this kind of things you want a simple notification.
+I *think* you are right that for this type of migration that we 
+are using here we indeed don't need to take an exclusive vma 
+lock - in fact I think we don't need to take it at all:
 
-I wasn't saying that volatile ranges must be a substitute for
-notifications, quite the opposite: I was saying that you can do volatile
-ranges in userland by using "userland-shrinker".
+The main goal in the migration code is to unmap the pte from all 
+thread's MMU visibility, before we copy its contents into 
+another page [located on another node] and map that page into 
+the page tables instead of the old page.
 
-It can be even wrapped into a library, with the same mmap() libc
-interface. But it will be inefficient.
+No other thread must have a write reference to the old page when 
+the copying [migrate_page_copy()] is performed, or we corrupt 
+user-space memory subtly via copying a slightly older version of 
+user-space memory.
+
+rmap_walk() OTOH appears to have been written as a general 
+purpose function, to be usable without holding the mmap_sem() as 
+well, so it is written to protect against the disappearance of 
+anon vmas.
+
+But ... in all upstream and NUMA-migration codepaths I could 
+find - and AFAICS in all other page-migration codepaths as well, 
+including sys_move_pages() - anon vmas cannot disappear from 
+under us, because we are already holding the mmap_sem.
+
+[ Initially I assumed that swapout or filesystem code could 
+  somehow call this without holding the mmap sem - but could not 
+  find any such code path. ]
+
+So I think we could get away rather simply, with something like 
+the (entirely and utterly untested!) patch below.
+
+But ... judging from the code my feeling is this can only be the 
+first (and easiest) step:
+
+1)
+
+This patch might solve the remapping (remove_migration_ptes()), 
+but does not solve the anon-vma locking done in the first, 
+unmapping step of pte-migration - which is done via 
+try_to_unmap(): which is a generic VM function used by swapout 
+too, so callers do not necessarily hold the mmap_sem.
+
+A new TTU flag might solve it although I detest flag-driven 
+locking semantics with a passion:
+
+Splitting out unlocked versions of try_to_unmap_anon(), 
+try_to_unmap_ksm(), try_to_unmap_file() and constructing an 
+unlocked try_to_unmap() out of them, to be used by the migration 
+code, would be the cleaner option.
+
+2)
+
+Taking a process-global mutex 1024 times per 2MB was indeed very 
+expensive - and lets assume that we manage to sort that out - 
+but then we are AFAICS exposed to the next layer: the 
+finegrained migrate_pages() model where the migration code 
+flushes the TLB 512 times per 2MB to unmap and remap it again 
+and again at 4K granularity ...
+
+Assuming the simpler patch goes fine I'll try to come up with 
+something intelligent for the TLB flushing sub-problem too: we 
+could in theory batch the migration TLB flushes as well, by 
+first doing an array of 2MB granular unmaps, then copying up to 
+512x 4K pages, then doing the final 2MB granular [but still 
+4K-represented in the page tables] remap.
+
+2MB granular TLB flushing is OK for these workloads, I can see 
+that in +THP tests.
+
+I will keep you updated about how far I manage to get down this 
+road.
 
 Thanks,
-Anton.
+
+	Ingo
+
+---------------------------->
+Subject: mm/migration: Don't lock anon vmas in rmap_walk_anon()
+From: Ingo Molnar <mingo@kernel.org>
+Date: Thu Nov 22 14:16:26 CET 2012
+
+rmap_walk_anon() appears to be too careful about locking the anon
+vma for its own good - since all callers are holding the mmap_sem
+no vma can go away from under us:
+
+ - sys_move_pages() is doing down_read(&mm->mmap_sem) in the
+   sys_move_pages() -> do_pages_move() -> do_move_page_to_node_array()
+   code path, which then calls migrate_pages(pagelist), which then
+   does unmap_and_move() for every page in the list, which does
+   remove_migration_ptes() which calls rmap.c::try_to_unmap().
+
+ - the NUMA migration code's migrate_misplaced_page(), which calls
+   migrate_pages() ... try_to_unmap(), is holding the mm->mmap_sem
+   read-locked by virtue of the low level page fault handler taking
+   it before calling handle_mm_fault().
+
+Removing this lock removes a global mutex from the hot path of
+migration-happy threaded workloads which can cause pathological
+performance like this:
+
+    96.43%        process 0  [kernel.kallsyms]  [k] perf_trace_sched_switch
+                  |
+                  --- perf_trace_sched_switch
+                      __schedule
+                      schedule
+                      schedule_preempt_disabled
+                      __mutex_lock_common.isra.6
+                      __mutex_lock_slowpath
+                      mutex_lock
+                     |
+                     |--50.61%-- rmap_walk
+                     |          move_to_new_page
+                     |          migrate_pages
+                     |          migrate_misplaced_page
+                     |          __do_numa_page.isra.69
+                     |          handle_pte_fault
+                     |          handle_mm_fault
+                     |          __do_page_fault
+                     |          do_page_fault
+                     |          page_fault
+                     |          __memset_sse2
+                     |          |
+                     |           --100.00%-- worker_thread
+                     |                     |
+                     |                      --100.00%-- start_thread
+                     |
+                      --49.39%-- page_lock_anon_vma
+                                try_to_unmap_anon
+                                try_to_unmap
+                                migrate_pages
+                                migrate_misplaced_page
+                                __do_numa_page.isra.69
+                                handle_pte_fault
+                                handle_mm_fault
+                                __do_page_fault
+                                do_page_fault
+                                page_fault
+                                __memset_sse2
+                                |
+                                 --100.00%-- worker_thread
+                                           start_thread
+
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Hugh Dickins <hughd@google.com>
+Not-Yet-Signed-off-by: Ingo Molnar <mingo@kernel.org>
+---
+ mm/rmap.c |   13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
+
+Index: linux/mm/rmap.c
+===================================================================
+--- linux.orig/mm/rmap.c
++++ linux/mm/rmap.c
+@@ -1686,6 +1686,9 @@ void __put_anon_vma(struct anon_vma *ano
+ /*
+  * rmap_walk() and its helpers rmap_walk_anon() and rmap_walk_file():
+  * Called by migrate.c to remove migration ptes, but might be used more later.
++ *
++ * Note: callers are expected to protect against anon vmas disappearing
++ *       under us - by holding the mmap_sem read or write locked.
+  */
+ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
+ 		struct vm_area_struct *, unsigned long, void *), void *arg)
+@@ -1695,16 +1698,10 @@ static int rmap_walk_anon(struct page *p
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+-	/*
+-	 * Note: remove_migration_ptes() cannot use page_lock_anon_vma()
+-	 * because that depends on page_mapped(); but not all its usages
+-	 * are holding mmap_sem. Users without mmap_sem are required to
+-	 * take a reference count to prevent the anon_vma disappearing
+-	 */
+ 	anon_vma = page_anon_vma(page);
+ 	if (!anon_vma)
+ 		return ret;
+-	anon_vma_lock(anon_vma);
++
+ 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
+ 		struct vm_area_struct *vma = avc->vma;
+ 		unsigned long address = vma_address(page, vma);
+@@ -1712,7 +1709,7 @@ static int rmap_walk_anon(struct page *p
+ 		if (ret != SWAP_AGAIN)
+ 			break;
+ 	}
+-	anon_vma_unlock(anon_vma);
++
+ 	return ret;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
