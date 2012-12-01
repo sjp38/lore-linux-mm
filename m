@@ -1,86 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 5C1D46B004D
-	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 01:56:47 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so964411pbc.14
-        for <linux-mm@kvack.org>; Fri, 30 Nov 2012 22:56:46 -0800 (PST)
-From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH] mm: protect against concurrent vma expansion
-Date: Fri, 30 Nov 2012 22:56:27 -0800
-Message-Id: <1354344987-28203-1-git-send-email-walken@google.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 6EFC16B004D
+	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 03:04:50 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so899078pad.14
+        for <linux-mm@kvack.org>; Sat, 01 Dec 2012 00:04:49 -0800 (PST)
+Date: Sat, 1 Dec 2012 00:01:31 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [RFC] Add mempressure cgroup
+Message-ID: <20121201080131.GB21747@lizard.sbx14280.paloaca.wayport.net>
+References: <20121128102908.GA15415@lizard>
+ <20121128151432.3e29d830.akpm@linux-foundation.org>
+ <20121129012751.GA20525@lizard>
+ <20121130154725.0a81913c@doriath.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20121130154725.0a81913c@doriath.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, aquini@redhat.com, riel@redhat.com
 
-expand_stack() runs with a shared mmap_sem lock. Because of this, there
-could be multiple concurrent stack expansions in the same mm, which may
-cause problems in the vma gap update code.
+Hi Luiz,
 
-I propose to solve this by taking the mm->page_table_lock around such vma
-expansions, in order to avoid the concurrency issue. We only have to worry
-about concurrent expand_stack() calls here, since we hold a shared mmap_sem
-lock and all vma modificaitons other than expand_stack() are done under
-an exclusive mmap_sem lock.
+Thanks for your email!
 
-I previously tried to achieve the same effect by making sure all
-growable vmas in a given mm would share the same anon_vma, which we
-already lock here. However this turned out to be difficult - all of the
-schemes I tried for refcounting the growable anon_vma and clearing
-turned out ugly. So, I'm now proposing only the minimal fix.
+On Fri, Nov 30, 2012 at 03:47:25PM -0200, Luiz Capitulino wrote:
+[...]
+> > But there is one, rather major issue: we're crossing kernel-userspace
+> > boundary. And with the scheme we'll have to cross the boundary four times:
+> > query / reply-available / control / reply-shrunk / (and repeat if
+> > necessary, every SHRINK_BATCH pages). Plus, it has to be done somewhat
+> > synchronously (all the four stages), and/or we have to make a "userspace
+> > shrinker" thread working in parallel with the normal shrinker, and here,
+> > I'm afraid, we'll see more strange interactions. :)
+> 
+> Wouldn't this be just like kswapd?
 
-Signed-off-by: Michel Lespinasse <walken@google.com>
+Sure, this is similar, but only for indirect reclaim (obviously).
 
----
- mm/mmap.c |   14 ++++++++++++++
- 1 files changed, 14 insertions(+), 0 deletions(-)
+How we'd do this for the direct reclaim I have no idea, honestly, with
+Andrew's idea it must be all synchronous, so playing ping-pong with
+userland during the direct reclaim will be hard.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9ed3a06242a0..e44fe876a7e3 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2069,6 +2069,11 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 		if (vma->vm_pgoff + (size >> PAGE_SHIFT) >= vma->vm_pgoff) {
- 			error = acct_stack_growth(vma, size, grow);
- 			if (!error) {
-+				/*
-+				 * page_table_lock to protect against
-+				 * concurrent vma expansions
-+				 */
-+				spin_lock(&vma->vm_mm->page_table_lock);
- 				anon_vma_interval_tree_pre_update_vma(vma);
- 				vma->vm_end = address;
- 				anon_vma_interval_tree_post_update_vma(vma);
-@@ -2076,6 +2081,8 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 					vma_gap_update(vma->vm_next);
- 				else
- 					vma->vm_mm->highest_vm_end = address;
-+				spin_unlock(&vma->vm_mm->page_table_lock);
-+
- 				perf_event_mmap(vma);
- 			}
- 		}
-@@ -2126,11 +2133,18 @@ int expand_downwards(struct vm_area_struct *vma,
- 		if (grow <= vma->vm_pgoff) {
- 			error = acct_stack_growth(vma, size, grow);
- 			if (!error) {
-+				/*
-+				 * page_table_lock to protect against
-+				 * concurrent vma expansions
-+				 */
-+				spin_lock(&vma->vm_mm->page_table_lock);
- 				anon_vma_interval_tree_pre_update_vma(vma);
- 				vma->vm_start = address;
- 				vma->vm_pgoff -= grow;
- 				anon_vma_interval_tree_post_update_vma(vma);
- 				vma_gap_update(vma);
-+				spin_unlock(&vma->vm_mm->page_table_lock);
-+
- 				perf_event_mmap(vma);
- 			}
- 		}
--- 
-1.7.7.3
+So, the best thing to do with the direct recaim, IMHO, is just send a
+notification.
+
+> > But there is a good news: for these kind of fine-grained control we have a
+> > better interface, where we don't have to communicate [very often] w/ the
+> > kernel. These are "volatile ranges", where userland itself marks chunks of
+> > data as "I might need it, but I won't cry if you recycle it; but when I
+> > access it next time, let me know if you actually recycled it". Yes,
+> > userland no longer able to decide which exact page it permits to recycle,
+> > but we don't have use-cases when we actually care that much. And if we do,
+> > we'd rather introduce volatile LRUs with different priorities, or
+> > something alike.
+> 
+> I'm new to this stuff so please take this with a grain of salt, but I'm
+> not sure volatile ranges would be a good fit for our use case: we want to
+> make (kvm) guests reduce their memory when the host is getting memory
+> pressure.
+
+Yes, for this kind of things you want a simple notification.
+
+I wasn't saying that volatile ranges must be a substitute for
+notifications, quite the opposite: I was saying that you can do volatile
+ranges in userland by using "userland-shrinker".
+
+It can be even wrapped into a library, with the same mmap() libc
+interface. But it will be inefficient.
+
+Thanks,
+Anton.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
