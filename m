@@ -1,60 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 44D106B0044
-	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 13:51:06 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id t49so649586wey.14
-        for <linux-mm@kvack.org>; Sat, 01 Dec 2012 10:51:04 -0800 (PST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 38CA46B0044
+	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 13:56:12 -0500 (EST)
+Message-ID: <50BA52B6.2010009@redhat.com>
+Date: Sat, 01 Dec 2012 13:55:50 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20121201184135.GA32449@gmail.com>
-References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
- <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
- <20121201094927.GA12366@gmail.com> <20121201122649.GA20322@gmail.com>
- <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com> <20121201184135.GA32449@gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 1 Dec 2012 10:50:44 -0800
-Message-ID: <CA+55aFyq7OaUxcEHXvJhp0T57KN14o-RGxqPmA+ks8ge6zJh5w@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm/migration: Remove anon vma locking from
- try_to_unmap() use
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH] mm/migration: Remove anon vma locking from try_to_unmap()
+ use
+References: <1354305521-11583-1-git-send-email-mingo@kernel.org> <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com> <20121201094927.GA12366@gmail.com> <20121201122649.GA20322@gmail.com> <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com>
+In-Reply-To: <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Sat, Dec 1, 2012 at 10:41 AM, Ingo Molnar <mingo@kernel.org> wrote:
+On 12/01/2012 01:38 PM, Linus Torvalds wrote:
+> On Sat, Dec 1, 2012 at 4:26 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>>
+>>
+>> So as a quick concept hack I wrote the patch attached below.
+>> (It's not signed off, see the patch description text for the
+>> reason.)
 >
-> I'll try the rwsem and see how it goes?
+> Well, it confirms that anon_vma locking is a big problem, but as
+> outlined in my other email it's completely incorrect from an actual
+> behavior standpoint.
+>
+> Btw, I think the anon_vma lock could be made a spinlock
 
-Yeah. That should be an easy conversion (just convert everything to
-use the write-lock first, and then you can make one or two migration
-places use the read version).
+The anon_vma lock used to be a spinlock, and was turned into a
+mutex by Peter, as part of an effort to make more of the VM
+preemptible.
 
-Side note: The mutex code tends to potentially generate slightly
-faster noncontended locks than rwsems, and it does have the
-MUTEX_SPIN_ON_OWNER feature that makes the contention case often
-*much* better, so there are real downsides to rw-semaphores.
-
-But for this load, it does seem like the scalability advantages of an
-rwsem *might* be worth it.
-
-Side note: in contrast, the rwlock spinning reader-writer locks are
-basically never a win - the downsides just about always negate any
-theoretical scalability advantage. rwsem's can work well, we already
-use it for mmap_sem, for example, to allow concurrent page faults, and
-it was a *big* scalabiloity win there. Although then we did the "drop
-mmap_sem over IO and retry", and that might have negated many of the
-advantages of the mmap_sem.
-
-> Hm, indeed. For performance runs I typically disable lock
-> debugging - which might have made me not directly notice some of
-> the performance problems.
-
-Yeah, lock debugging really tends to make anything that is close to
-contended be absolutely *horribly* contended. Doubly so for the
-mutexes because it disables the spinning code, but it's true in
-general too.
-
-                Linus
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
