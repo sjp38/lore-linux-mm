@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id A78A36B009A
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:57 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:57 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id AD7026B009D
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:59 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:59 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 27/52] sched, numa, mm: Count WS scanning against present PTEs, not virtual memory ranges
-Date: Sun,  2 Dec 2012 19:43:19 +0100
-Message-Id: <1354473824-19229-28-git-send-email-mingo@kernel.org>
+Subject: [PATCH 28/52] sched: Implement slow start for working set sampling
+Date: Sun,  2 Dec 2012 19:43:20 +0100
+Message-Id: <1354473824-19229-29-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,10 +17,50 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee S
 
 From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-By accounting against the present PTEs, scanning speed reflects the
-actual present (mapped) memory.
+Add a 1 second delay before starting to scan the working set of
+a task and starting to balance it amongst nodes.
 
-Suggested-by: Ingo Molnar <mingo@kernel.org>
+[ note that before the constant per task WSS sampling rate patch
+  the initial scan would happen much later still, in effect that
+  patch caused this regression. ]
+
+The theory is that short-run tasks benefit very little from NUMA
+placement: they come and go, and they better stick to the node
+they were started on. As tasks mature and rebalance to other CPUs
+and nodes, so does their NUMA placement have to change and so
+does it start to matter more and more.
+
+In practice this change fixes an observable kbuild regression:
+
+   # [ a perf stat --null --repeat 10 test of ten bzImage builds to /dev/shm ]
+
+   !NUMA:
+   45.291088843 seconds time elapsed                                          ( +-  0.40% )
+   45.154231752 seconds time elapsed                                          ( +-  0.36% )
+
+   +NUMA, no slow start:
+   46.172308123 seconds time elapsed                                          ( +-  0.30% )
+   46.343168745 seconds time elapsed                                          ( +-  0.25% )
+
+   +NUMA, 1 sec slow start:
+   45.224189155 seconds time elapsed                                          ( +-  0.25% )
+   45.160866532 seconds time elapsed                                          ( +-  0.17% )
+
+and it also fixes an observable perf bench (hackbench) regression:
+
+   # perf stat --null --repeat 10 perf bench sched messaging
+
+   -NUMA:
+
+   -NUMA:                  0.246225691 seconds time elapsed                   ( +-  1.31% )
+   +NUMA no slow start:    0.252620063 seconds time elapsed                   ( +-  1.13% )
+
+   +NUMA 1sec delay:       0.248076230 seconds time elapsed                   ( +-  1.35% )
+
+The implementation is simple and straightforward, most of the patch
+deals with adding the /proc/sys/kernel/sched_numa_scan_delay_ms tunable
+knob.
+
 Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -28,76 +68,102 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
+[ Various small fixes ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/fair.c | 37 +++++++++++++++++++++----------------
- 1 file changed, 21 insertions(+), 16 deletions(-)
+ include/linux/sched.h |  1 +
+ kernel/sched/core.c   |  1 +
+ kernel/sched/fair.c   | 16 ++++++++++------
+ kernel/sysctl.c       |  7 +++++++
+ 4 files changed, 19 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 7e838b0..c020bc7 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2051,6 +2051,7 @@ enum sched_tunable_scaling {
+ };
+ extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
+ 
++extern unsigned int sysctl_sched_numa_scan_delay;
+ extern unsigned int sysctl_sched_numa_scan_period_min;
+ extern unsigned int sysctl_sched_numa_scan_period_max;
+ extern unsigned int sysctl_sched_numa_scan_size;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 171c126..8ef9a46 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1556,6 +1556,7 @@ static void __sched_fork(struct task_struct *p)
+ 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
+ 	p->numa_migrate_seq = 2;
+ 	p->numa_faults = NULL;
++	p->numa_scan_period = sysctl_sched_numa_scan_delay;
+ 	p->numa_work.next = &p->numa_work;
+ 
+ 	p->shared_buddy = NULL;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 151a3cd..da28315 100644
+index da28315..8f0e6ba 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -914,8 +914,8 @@ void task_numa_work(struct callback_head *work)
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
- 	struct vm_area_struct *vma;
--	unsigned long offset, end;
--	long length;
-+	unsigned long start, end;
-+	long pages;
+@@ -823,11 +823,12 @@ static void account_numa_dequeue(struct rq *rq, struct task_struct *p)
+ }
  
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
+ /*
+- * numa task sample period in ms: 5s
++ * Scan @scan_size MB every @scan_period after an initial @scan_delay.
+  */
+-unsigned int sysctl_sched_numa_scan_period_min = 100;
+-unsigned int sysctl_sched_numa_scan_period_max = 100*16;
+-unsigned int sysctl_sched_numa_scan_size = 256;   /* MB */
++unsigned int sysctl_sched_numa_scan_delay = 1000;	/* ms */
++unsigned int sysctl_sched_numa_scan_period_min = 100;	/* ms */
++unsigned int sysctl_sched_numa_scan_period_max = 100*16;/* ms */
++unsigned int sysctl_sched_numa_scan_size = 256;		/* MB */
  
-@@ -942,30 +942,35 @@ void task_numa_work(struct callback_head *work)
+ /*
+  * Wait for the 2-sample stuff to settle before migrating again
+@@ -938,10 +939,12 @@ void task_numa_work(struct callback_head *work)
+ 	if (time_before(now, migrate))
+ 		return;
+ 
+-	next_scan = now + 2*msecs_to_jiffies(sysctl_sched_numa_scan_period_min);
++	next_scan = now + msecs_to_jiffies(sysctl_sched_numa_scan_period_min);
  	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
  		return;
  
--	offset = mm->numa_scan_offset;
--	length = sysctl_sched_numa_scan_size;
--	length <<= 20;
-+	start = mm->numa_scan_offset;
-+	pages = sysctl_sched_numa_scan_size;
-+	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages)
-+		return;
++	current->numa_scan_period += jiffies_to_msecs(2);
++
+ 	start = mm->numa_scan_offset;
+ 	pages = sysctl_sched_numa_scan_size;
+ 	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
+@@ -998,7 +1001,8 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
+ 	period = (u64)curr->numa_scan_period * NSEC_PER_MSEC;
  
- 	down_write(&mm->mmap_sem);
--	vma = find_vma(mm, offset);
-+	vma = find_vma(mm, start);
- 	if (!vma) {
- 		ACCESS_ONCE(mm->numa_scan_seq)++;
--		offset = 0;
-+		start = 0;
- 		vma = mm->mmap;
- 	}
--	for (; vma && length > 0; vma = vma->vm_next) {
-+	for (; vma; vma = vma->vm_next) {
- 		if (!vma_migratable(vma))
- 			continue;
+ 	if (now - curr->node_stamp > period) {
+-		curr->node_stamp = now;
++		curr->node_stamp += period;
++		curr->numa_scan_period = sysctl_sched_numa_scan_period_min;
  
--		offset = max(offset, vma->vm_start);
--		end = min(ALIGN(offset + length, HPAGE_SIZE), vma->vm_end);
--		length -= end - offset;
--
--		change_prot_numa(vma, offset, end);
--
--		offset = end;
-+		do {
-+			start = max(start, vma->vm_start);
-+			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
-+			end = min(end, vma->vm_end);
-+			pages -= change_prot_numa(vma, start, end);
-+			start = end;
-+			if (pages <= 0)
-+				goto out;
-+		} while (end != vma->vm_end);
- 	}
--	mm->numa_scan_offset = offset;
-+out:
-+	mm->numa_scan_offset = start;
- 	up_write(&mm->mmap_sem);
- }
- 
+ 		/*
+ 		 * We are comparing runtime to wall clock time here, which
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index a14b8a4..6d2fe5b 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -353,6 +353,13 @@ static struct ctl_table kern_table[] = {
+ #endif /* CONFIG_SMP */
+ #ifdef CONFIG_NUMA_BALANCING
+ 	{
++		.procname	= "sched_numa_scan_delay_ms",
++		.data		= &sysctl_sched_numa_scan_delay,
++		.maxlen		= sizeof(unsigned int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec,
++	},
++	{
+ 		.procname	= "sched_numa_scan_period_min_ms",
+ 		.data		= &sysctl_sched_numa_scan_period_min,
+ 		.maxlen		= sizeof(unsigned int),
 -- 
 1.7.11.7
 
