@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 4DA188D0003
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:39 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:38 -0800 (PST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 2357F8D0006
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:41 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1082361eaa.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:40 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 48/52] sched: Refine the 'shared tasks' memory interleaving logic
-Date: Sun,  2 Dec 2012 19:43:40 +0100
-Message-Id: <1354473824-19229-49-git-send-email-mingo@kernel.org>
+Subject: [PATCH 49/52] mm/rmap: Convert the struct anon_vma::mutex to an rwsem
+Date: Sun,  2 Dec 2012 19:43:41 +0100
+Message-Id: <1354473824-19229-50-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,201 +15,243 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Change the adaptive memory policy code to take a majority of buddies
-on a node into account. Previously, since this commit:
+Convert the struct anon_vma::mutex to an rwsem, which will help
+in solving a page-migration scalability problem. (Addressed in
+a separate patch.)
 
-  "sched: Track shared task's node groups and interleave their memory allocations"
+The conversion is simple and straightforward: in every case
+where we mutex_lock()ed we'll now down_write().
 
-We'd include any node that has run a buddy in the past, which was too
-aggressive and spread the allocations of 'mostly converged' workloads
-too much, and prevented their further convergence.
-
-Add a few other variants for testing:
-
-  NUMA_POLICY_ADAPTIVE:		use memory on every node that runs a buddy of this task
-
-  NUMA_POLICY_SYSWIDE:		use a simple, static, system-wide mask
-
-  NUMA_POLICY_MAXNODE:		use memory on this task's 'maximum node'
-
-  NUMA_POLICY_MAXBUDDIES:	use memory on the node with the most buddies
-
-  NUMA_POLICY_MANYBUDDIES:	this is the default, a quorum of buddies
-				determines the allocation mask
-
-The 'many buddies' quorum logic appears to work best in practice,
-but the 'maxnode' and 'syswide' ones are good, robust policies too.
-
-[ Also extend the sched_feat() code from 32 to 64 features because
-  we are hitting that limit on 32-bit CPUs, and address a warning
-  on !CONFIG_BUG kernels. ]
-
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
+Cc: Paul Turner <pjt@google.com>
+Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
+Cc: Christoph Lameter <cl@linux.com>
 Cc: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/core.c     |  6 ++++--
- kernel/sched/fair.c     | 45 ++++++++++++++++++++++++++++++++++++++-------
- kernel/sched/features.h |  6 ++++++
- kernel/sched/sched.h    |  4 ++--
- 4 files changed, 50 insertions(+), 11 deletions(-)
+ include/linux/rmap.h | 16 ++++++++--------
+ mm/huge_memory.c     |  4 ++--
+ mm/mmap.c            |  8 ++++----
+ mm/rmap.c            | 22 +++++++++++-----------
+ 4 files changed, 25 insertions(+), 25 deletions(-)
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 26a2ede..85fd67c 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -132,9 +132,9 @@ void update_rq_clock(struct rq *rq)
+diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+index bfe1f47..f3f41d2 100644
+--- a/include/linux/rmap.h
++++ b/include/linux/rmap.h
+@@ -7,7 +7,7 @@
+ #include <linux/list.h>
+ #include <linux/slab.h>
+ #include <linux/mm.h>
+-#include <linux/mutex.h>
++#include <linux/rwsem.h>
+ #include <linux/memcontrol.h>
+ 
+ /*
+@@ -25,8 +25,8 @@
+  * pointing to this anon_vma once its vma list is empty.
   */
+ struct anon_vma {
+-	struct anon_vma *root;	/* Root of this anon_vma tree */
+-	struct mutex mutex;	/* Serialize access to vma list */
++	struct anon_vma *root;		/* Root of this anon_vma tree */
++	struct rw_semaphore rwsem;	/* W: modification, R: walking the list */
+ 	/*
+ 	 * The refcount is taken on an anon_vma when there is no
+ 	 * guarantee that the vma of page tables will exist for
+@@ -64,7 +64,7 @@ struct anon_vma_chain {
+ 	struct vm_area_struct *vma;
+ 	struct anon_vma *anon_vma;
+ 	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
+-	struct rb_node rb;			/* locked by anon_vma->mutex */
++	struct rb_node rb;			/* locked by anon_vma->rwsem */
+ 	unsigned long rb_subtree_last;
+ #ifdef CONFIG_DEBUG_VM_RB
+ 	unsigned long cached_vma_start, cached_vma_last;
+@@ -108,24 +108,24 @@ static inline void vma_lock_anon_vma(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		mutex_lock(&anon_vma->root->mutex);
++		down_write(&anon_vma->root->rwsem);
+ }
  
- #define SCHED_FEAT(name, enabled)	\
--	(1UL << __SCHED_FEAT_##name) * enabled |
-+	(1ULL << __SCHED_FEAT_##name) * enabled |
+ static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
+ {
+ 	struct anon_vma *anon_vma = vma->anon_vma;
+ 	if (anon_vma)
+-		mutex_unlock(&anon_vma->root->mutex);
++		up_write(&anon_vma->root->rwsem);
+ }
  
--const_debug unsigned int sysctl_sched_features =
-+const_debug u64 sysctl_sched_features =
- #include "features.h"
- 	0;
+ static inline void anon_vma_lock(struct anon_vma *anon_vma)
+ {
+-	mutex_lock(&anon_vma->root->mutex);
++	down_write(&anon_vma->root->rwsem);
+ }
  
-@@ -2833,6 +2833,8 @@ pick_next_task(struct rq *rq)
- 	}
- 
- 	BUG(); /* the idle class will always have a runnable task */
-+
-+	return NULL; /* if BUG() is a NOP then return NULL to crash the scheduler */
+ static inline void anon_vma_unlock(struct anon_vma *anon_vma)
+ {
+-	mutex_unlock(&anon_vma->root->mutex);
++	up_write(&anon_vma->root->rwsem);
  }
  
  /*
-diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 9262692..eaff006 100644
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -1611,6 +1611,9 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
- 	min_node_load = LONG_MAX;
- 	min_node = -1;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 03c3b4b..02ea9ee 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1381,7 +1381,7 @@ static int __split_huge_page_splitting(struct page *page,
+ 		 * We can't temporarily set the pmd to null in order
+ 		 * to split it, the pmd must remain marked huge at all
+ 		 * times or the VM won't take the pmd_trans_huge paths
+-		 * and it won't wait on the anon_vma->root->mutex to
++		 * and it won't wait on the anon_vma->root->rwsem to
+ 		 * serialize against split_huge_page*.
+ 		 */
+ 		pmdp_splitting_flush(vma, address, pmd);
+@@ -1583,7 +1583,7 @@ static int __split_huge_page_map(struct page *page,
+ 	return ret;
+ }
  
-+	if (sched_feat(NUMA_POLICY_MANYBUDDIES))
-+		nodes_clear(p->numa_policy.v.nodes);
-+
- 	/*
- 	 * Map out our maximum buddies layout:
- 	 */
-@@ -1677,16 +1680,28 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
- 			min_node = node;
- 		}
- 
--		if (buddies)
--			node_set(node, p->numa_policy.v.nodes);
--		else
--			node_clear(node, p->numa_policy.v.nodes);
-+		if (sched_feat(NUMA_POLICY_ADAPTIVE)) {
-+			if (buddies)
-+				node_set(node, p->numa_policy.v.nodes);
-+			else
-+				node_clear(node, p->numa_policy.v.nodes);
-+		}
-+
-+		if (!buddies) {
-+			if (sched_feat(NUMA_POLICY_MANYBUDDIES))
-+				node_clear(node, p->numa_policy.v.nodes);
-+			continue;
-+		}
-+
-+		/* A majority of buddies attracts memory: */
-+		if (sched_feat(NUMA_POLICY_MANYBUDDIES)) {
-+			if (buddies >= 3)
-+				node_set(node, p->numa_policy.v.nodes);
-+		}
- 
- 		/* Don't go to a node that is near its capacity limit: */
- 		if (node_load + SCHED_LOAD_SCALE > node_capacity)
- 			continue;
--		if (!buddies)
--			continue;
- 
- 		if (buddies > max_buddies && target_cpu != -1) {
- 			max_buddies = buddies;
-@@ -1696,6 +1711,13 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
- 		}
- 	}
- 
-+	/* Cluster memory around the buddies maximum: */
-+	if (sched_feat(NUMA_POLICY_MAXBUDDIES)) {
-+		if (ideal_node != -1) {
-+			nodes_clear(p->numa_policy.v.nodes);
-+			node_set(ideal_node, p->numa_policy.v.nodes);
-+		}
-+	}
- 	if (WARN_ON_ONCE(ideal_node == -1 && ideal_cpu != -1))
- 		return this_cpu;
- 	if (WARN_ON_ONCE(ideal_node != -1 && ideal_cpu == -1))
-@@ -2079,6 +2101,15 @@ static void task_numa_placement_tick(struct task_struct *p)
- 			p->numa_faults[idx_oldnode] = 0;
- 		}
- 		sched_setnuma(p, ideal_node, shared);
-+
-+		/* Allocate only the maximum node: */
-+		if (sched_feat(NUMA_POLICY_MAXNODE)) {
-+			nodes_clear(p->numa_policy.v.nodes);
-+			node_set(ideal_node, p->numa_policy.v.nodes);
-+		}
-+		/* Allocate system-wide: */
-+		if (sched_feat(NUMA_POLICY_SYSWIDE))
-+			p->numa_policy.v.nodes = node_online_map;
+-/* must be called with anon_vma->root->mutex hold */
++/* must be called with anon_vma->root->rwsem held */
+ static void __split_huge_page(struct page *page,
+ 			      struct anon_vma *anon_vma)
+ {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9a796c4..8840863 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2561,15 +2561,15 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+ 		 * The LSB of head.next can't change from under us
+ 		 * because we hold the mm_all_locks_mutex.
+ 		 */
+-		mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
++		down_write(&anon_vma->root->rwsem);
  		/*
- 		 * We changed a node, start scanning more frequently again
- 		 * to map out the working set:
-@@ -2322,7 +2353,7 @@ void task_numa_scan_work(struct callback_head *work)
+ 		 * We can safely modify head.next after taking the
+-		 * anon_vma->root->mutex. If some other vma in this mm shares
++		 * anon_vma->root->rwsem. If some other vma in this mm shares
+ 		 * the same anon_vma we won't take it again.
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us thanks to the
+-		 * anon_vma->root->mutex.
++		 * anon_vma->root->rwsem.
+ 		 */
+ 		if (__test_and_set_bit(0, (unsigned long *)
+ 				       &anon_vma->root->rb_root.rb_node))
+@@ -2671,7 +2671,7 @@ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+ 		 *
+ 		 * No need of atomic instructions here, head.next
+ 		 * can't change from under us until we release the
+-		 * anon_vma->root->mutex.
++		 * anon_vma->root->rwsem.
+ 		 */
+ 		if (!__test_and_clear_bit(0, (unsigned long *)
+ 					  &anon_vma->root->rb_root.rb_node))
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 2ee1ef0..6e3ee3b 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -24,7 +24,7 @@
+  *   mm->mmap_sem
+  *     page->flags PG_locked (lock_page)
+  *       mapping->i_mmap_mutex
+- *         anon_vma->mutex
++ *         anon_vma->rwsem
+  *           mm->page_table_lock or pte_lock
+  *             zone->lru_lock (in mark_page_accessed, isolate_lru_page)
+  *             swap_lock (in swap_duplicate, swap_info_get)
+@@ -37,7 +37,7 @@
+  *                           in arch-dependent flush_dcache_mmap_lock,
+  *                           within bdi.wb->list_lock in __sync_single_inode)
+  *
+- * anon_vma->mutex,mapping->i_mutex      (memory_failure, collect_procs_anon)
++ * anon_vma->rwsem,mapping->i_mutex      (memory_failure, collect_procs_anon)
+  *   ->tasklist_lock
+  *     pte map lock
+  */
+@@ -103,7 +103,7 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
+ 	 * LOCK should suffice since the actual taking of the lock must
+ 	 * happen _before_ what follows.
+ 	 */
+-	if (mutex_is_locked(&anon_vma->root->mutex)) {
++	if (rwsem_is_locked(&anon_vma->root->rwsem)) {
+ 		anon_vma_lock(anon_vma);
+ 		anon_vma_unlock(anon_vma);
+ 	}
+@@ -219,9 +219,9 @@ static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct
+ 	struct anon_vma *new_root = anon_vma->root;
+ 	if (new_root != root) {
+ 		if (WARN_ON_ONCE(root))
+-			mutex_unlock(&root->mutex);
++			up_write(&root->rwsem);
+ 		root = new_root;
+-		mutex_lock(&root->mutex);
++		down_write(&root->rwsem);
+ 	}
+ 	return root;
+ }
+@@ -229,7 +229,7 @@ static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct
+ static inline void unlock_anon_vma_root(struct anon_vma *root)
+ {
+ 	if (root)
+-		mutex_unlock(&root->mutex);
++		up_write(&root->rwsem);
+ }
+ 
+ /*
+@@ -349,7 +349,7 @@ void unlink_anon_vmas(struct vm_area_struct *vma)
+ 	/*
+ 	 * Iterate the list once more, it now only contains empty and unlinked
+ 	 * anon_vmas, destroy them. Could not do before due to __put_anon_vma()
+-	 * needing to acquire the anon_vma->root->mutex.
++	 * needing to write-acquire the anon_vma->root->rwsem.
+ 	 */
+ 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+ 		struct anon_vma *anon_vma = avc->anon_vma;
+@@ -365,7 +365,7 @@ static void anon_vma_ctor(void *data)
+ {
+ 	struct anon_vma *anon_vma = data;
+ 
+-	mutex_init(&anon_vma->mutex);
++	init_rwsem(&anon_vma->rwsem);
+ 	atomic_set(&anon_vma->refcount, 0);
+ 	anon_vma->rb_root = RB_ROOT;
+ }
+@@ -457,14 +457,14 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
+ 
+ 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
+ 	root_anon_vma = ACCESS_ONCE(anon_vma->root);
+-	if (mutex_trylock(&root_anon_vma->mutex)) {
++	if (down_write_trylock(&root_anon_vma->rwsem)) {
+ 		/*
+ 		 * If the page is still mapped, then this anon_vma is still
+ 		 * its anon_vma, and holding the mutex ensures that it will
+ 		 * not go away, see anon_vma_free().
+ 		 */
+ 		if (!page_mapped(page)) {
+-			mutex_unlock(&root_anon_vma->mutex);
++			up_write(&root_anon_vma->rwsem);
+ 			anon_vma = NULL;
  		}
- 
- 		/* Skip small VMAs. They are not likely to be of relevance */
--		if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) < HPAGE_PMD_NR) {
-+		if (vma->vm_end - vma->vm_start < HPAGE_SIZE) {
- 			end = vma->vm_end;
- 			continue;
- 		}
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index 9075faf..1775b80 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -81,5 +81,11 @@ SCHED_FEAT(NUMA_LB,			false)
- SCHED_FEAT(NUMA_GROUP_LB_COMPRESS,	true)
- SCHED_FEAT(NUMA_GROUP_LB_SPREAD,	true)
- SCHED_FEAT(MIGRATE_FAULT_STATS,		false)
-+SCHED_FEAT(NUMA_POLICY_ADAPTIVE,	false)
-+SCHED_FEAT(NUMA_POLICY_SYSWIDE,		false)
-+SCHED_FEAT(NUMA_POLICY_MAXNODE,		false)
-+SCHED_FEAT(NUMA_POLICY_MAXBUDDIES,	false)
-+SCHED_FEAT(NUMA_POLICY_MANYBUDDIES,	true)
-+
- SCHED_FEAT(NUMA_CONVERGE_MIGRATIONS,	true)
- #endif
-diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 733f646..0fdd304 100644
---- a/kernel/sched/sched.h
-+++ b/kernel/sched/sched.h
-@@ -648,7 +648,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
- # define const_debug const
- #endif
- 
--extern const_debug unsigned int sysctl_sched_features;
-+extern const_debug u64 sysctl_sched_features;
- 
- #define SCHED_FEAT(name, enabled)	\
- 	__SCHED_FEAT_##name ,
-@@ -684,7 +684,7 @@ static __always_inline bool static_branch_##name(struct static_key *key) \
- extern struct static_key sched_feat_keys[__SCHED_FEAT_NR];
- #define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
- #else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
--#define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
-+#define sched_feat(x) (sysctl_sched_features & (1ULL << __SCHED_FEAT_##x))
- #endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
- 
- #ifdef CONFIG_NUMA_BALANCING
+ 		goto out;
+@@ -1299,7 +1299,7 @@ out_mlock:
+ 	/*
+ 	 * We need mmap_sem locking, Otherwise VM_LOCKED check makes
+ 	 * unstable result and race. Plus, We can't wait here because
+-	 * we now hold anon_vma->mutex or mapping->i_mmap_mutex.
++	 * we now hold anon_vma->rwsem or mapping->i_mmap_mutex.
+ 	 * if trylock failed, the page remain in evictable lru and later
+ 	 * vmscan could retry to move the page to unevictable lru if the
+ 	 * page is actually mlocked.
 -- 
 1.7.11.7
 
