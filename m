@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 0461F6B0081
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:31 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:31 -0800 (PST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 08F7B6B0083
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:33 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1082361eaa.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:33 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 16/52] mm/mempolicy: Hide MPOL_NOOP and MPOL_MF_LAZY from userspace for now
-Date: Sun,  2 Dec 2012 19:43:08 +0100
-Message-Id: <1354473824-19229-17-git-send-email-mingo@kernel.org>
+Subject: [PATCH 17/52] mm/numa: Add pte updates, hinting and migration stats
+Date: Sun,  2 Dec 2012 19:43:09 +0100
+Message-Id: <1354473824-19229-18-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,14 +17,57 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee S
 
 From: Mel Gorman <mgorman@suse.de>
 
-The use of MPOL_NOOP and MPOL_MF_LAZY to allow an application to
-explicitly request lazy migration is a good idea but the actual
-API has not been well reviewed and once released we have to
-support it. For now this patch prevents an application using the
-services. This will need to be revisited.
+It is tricky to quantify the basic cost of automatic NUMA
+placement in a meaningful manner. This patch adds some vmstats
+that can be used as part of a basic costing model.
+
+u    = basic unit = sizeof(void *)
+Ca   = cost of struct page access = sizeof(struct page) / u
+Cpte = Cost PTE access = Ca
+Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
+	where Cpte is incurred twice for a read and a write and Wlock
+	is a constant representing the cost of taking or releasing a
+	lock
+Cnumahint = Cost of a minor page fault = some high constant e.g.
+1000 Cpagerw = Cost to read or write a full page = Ca +
+PAGE_SIZE/u Ci = Cost of page isolation = Ca + Wi
+	where Wi is a constant that should reflect the approximate cost
+	of the locking operation
+Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
+	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
+	would imply that remote accesses are 20% more expensive
+
+Balancing cost = Cpte * numa_pte_updates +
+		Cnumahint * numa_hint_faults +
+		Ci * numa_pages_migrated +
+		Cpagecopy * numa_pages_migrated
+
+Note that numa_pages_migrated is used as a measure of how many
+pages were isolated even though it would miss pages that failed
+to migrate. A vmstat counter could have been added for it but
+the isolation cost is pretty marginal in comparison to the
+overall cost so it seemed overkill.
+
+The ideal way to measure automatic placement benefit would be to
+count the number of remote accesses versus local accesses and do
+something like
+
+	benefit = (remote_accesses_before - remove_access_after) * Wnuma
+
+but the information is not readily available. As a workload
+converges, the expection would be that the number of remote numa
+hints would reduce to 0.
+
+	convergence = numa_hint_faults_local / numa_hint_faults
+		where this is measured for the last N number of
+		numa hints recorded. When the workload is fully
+		converged the value is 1.
+
+This can measure if the placement policy is converging and how
+fast it is doing it.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Cc: Rik van Riel <riel@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: Paul Turner <pjt@google.com>
@@ -37,80 +80,156 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/uapi/linux/mempolicy.h | 4 +---
- mm/mempolicy.c                 | 9 ++++-----
- 2 files changed, 5 insertions(+), 8 deletions(-)
+ include/linux/vm_event_item.h |  6 ++++++
+ include/linux/vmstat.h        |  8 ++++++++
+ mm/huge_memory.c              |  1 +
+ mm/memory.c                   | 14 ++++++++++++++
+ mm/mempolicy.c                |  2 ++
+ mm/migrate.c                  |  3 ++-
+ mm/vmstat.c                   |  6 ++++++
+ 7 files changed, 39 insertions(+), 1 deletion(-)
 
-diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index 6a1baae..16fb4e6 100644
---- a/include/uapi/linux/mempolicy.h
-+++ b/include/uapi/linux/mempolicy.h
-@@ -21,7 +21,6 @@ enum {
- 	MPOL_BIND,
- 	MPOL_INTERLEAVE,
- 	MPOL_LOCAL,
--	MPOL_NOOP,		/* retain existing policy for range */
- 	MPOL_MAX,	/* always last member of enum */
- };
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index b94bafd..bf1cb85 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -38,6 +38,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+ 		KSWAPD_SKIP_CONGESTION_WAIT,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
++#ifdef CONFIG_NUMA_BALANCING
++		NUMA_PTE_UPDATES,
++		NUMA_HINT_FAULTS,
++		NUMA_HINT_FAULTS_LOCAL,
++		NUMA_PAGE_MIGRATE,
++#endif
+ #ifdef CONFIG_MIGRATION
+ 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
+ #endif
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 92a86b2..a13291f 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -80,6 +80,14 @@ static inline void vm_events_fold_cpu(int cpu)
  
-@@ -57,8 +56,7 @@ enum mpol_rebind_step {
+ #endif /* CONFIG_VM_EVENT_COUNTERS */
  
- #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
- 			 MPOL_MF_MOVE     | 	\
--			 MPOL_MF_MOVE_ALL |	\
--			 MPOL_MF_LAZY)
-+			 MPOL_MF_MOVE_ALL)
++#ifdef CONFIG_NUMA_BALANCING
++#define count_vm_numa_event(x)     count_vm_event(x)
++#define count_vm_numa_events(x, y) count_vm_events(x, y)
++#else
++#define count_vm_numa_event(x) do {} while (0)
++#define count_vm_numa_events(x, y) do {} while (0)
++#endif /* CONFIG_NUMA_BALANCING */
++
+ #define __count_zone_vm_events(item, zone, delta) \
+ 		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
+ 		zone_idx(zone), delta)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d79f7a5..3566820 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1034,6 +1034,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	page = pmd_page(pmd);
+ 	get_page(page);
+ 	spin_unlock(&mm->page_table_lock);
++	count_vm_numa_event(NUMA_HINT_FAULTS);
  
- /*
-  * Internal flags that share the struct mempolicy flags word with
+ 	target_nid = mpol_misplaced(page, vma, haddr);
+ 	if (target_nid == -1)
+diff --git a/mm/memory.c b/mm/memory.c
+index 174f006..1ff36b1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3476,6 +3476,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	set_pte_at(mm, addr, ptep, pte);
+ 	update_mmu_cache(vma, addr, ptep);
+ 
++	count_vm_numa_event(NUMA_HINT_FAULTS);
+ 	page = vm_normal_page(vma, addr, pte);
+ 	if (!page) {
+ 		pte_unmap_unlock(ptep, ptl);
+@@ -3484,6 +3485,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 
+ 	get_page(page);
+ 	current_nid = page_to_nid(page);
++	if (current_nid == numa_node_id())
++		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
+ 	target_nid = mpol_misplaced(page, vma, addr);
+ 	pte_unmap_unlock(ptep, ptl);
+ 	if (target_nid == -1) {
+@@ -3514,6 +3517,10 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	unsigned long offset;
+ 	spinlock_t *ptl;
+ 	bool numa = false;
++	int local_nid = numa_node_id();
++	int curr_nid;
++	unsigned long nr_faults = 0;
++	unsigned long nr_faults_local = 0;
+ 
+ 	spin_lock(&mm->page_table_lock);
+ 	pmd = *pmdp;
+@@ -3553,9 +3560,16 @@ int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		page = vm_normal_page(vma, addr, pteval);
+ 		if (unlikely(!page))
+ 			continue;
++		curr_nid = page_to_nid(page);
++
++		nr_faults++;
++		if (curr_nid == local_nid)
++			nr_faults_local++;
+ 	}
+ 	pte_unmap_unlock(orig_pte, ptl);
+ 
++	count_vm_numa_events(NUMA_HINT_FAULTS, nr_faults);
++	count_vm_numa_events(NUMA_HINT_FAULTS_LOCAL, nr_faults_local);
+ 	return 0;
+ }
+ 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 75d4600..a7a62fe 100644
+index a7a62fe..516491f 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -252,7 +252,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
- 		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
+@@ -583,6 +583,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
+ 	BUILD_BUG_ON(_PAGE_NUMA != _PAGE_PROTNONE);
  
--	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP) {
-+	if (mode == MPOL_DEFAULT) {
- 		if (nodes && !nodes_empty(*nodes))
- 			return ERR_PTR(-EINVAL);
- 		return NULL;
-@@ -1186,7 +1186,7 @@ static long do_mbind(unsigned long start, unsigned long len,
- 	if (start & ~PAGE_MASK)
- 		return -EINVAL;
+ 	nr_updated = change_protection(vma, addr, end, vma->vm_page_prot, 0, 1);
++	if (nr_updated)
++		count_vm_numa_events(NUMA_PTE_UPDATES, nr_updated);
  
--	if (mode == MPOL_DEFAULT || mode == MPOL_NOOP)
-+	if (mode == MPOL_DEFAULT)
- 		flags &= ~MPOL_MF_STRICT;
- 
- 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
-@@ -1241,7 +1241,7 @@ static long do_mbind(unsigned long start, unsigned long len,
- 			  flags | MPOL_MF_INVERT, &pagelist);
- 
- 	err = PTR_ERR(vma);	/* maybe ... */
--	if (!IS_ERR(vma) && mode != MPOL_NOOP)
-+	if (!IS_ERR(vma))
- 		err = mbind_range(mm, start, end, new);
- 
- 	if (!err) {
-@@ -2530,7 +2530,6 @@ static const char * const policy_modes[] =
- 	[MPOL_BIND]       = "bind",
- 	[MPOL_INTERLEAVE] = "interleave",
- 	[MPOL_LOCAL]      = "local",
--	[MPOL_NOOP]	  = "noop",	/* should not actually be used */
- };
- 
- 
-@@ -2581,7 +2580,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
- 			break;
- 		}
+ 	return nr_updated;
+ }
+diff --git a/mm/migrate.c b/mm/migrate.c
+index d168aec..cdd07c7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1511,7 +1511,8 @@ int migrate_misplaced_page(struct page *page, int node)
+ 		if (nr_remaining) {
+ 			putback_lru_pages(&migratepages);
+ 			isolated = 0;
+-		}
++		} else
++			count_vm_numa_event(NUMA_PAGE_MIGRATE);
  	}
--	if (mode >= MPOL_MAX || mode == MPOL_NOOP)
-+	if (mode >= MPOL_MAX)
- 		goto out;
+ 	BUG_ON(!list_empty(&migratepages));
+ out:
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 3a067fa..c0f1f6d 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -774,6 +774,12 @@ const char * const vmstat_text[] = {
  
- 	switch (mode) {
+ 	"pgrotated",
+ 
++#ifdef CONFIG_NUMA_BALANCING
++	"numa_pte_updates",
++	"numa_hint_faults",
++	"numa_hint_faults_local",
++	"numa_pages_migrated",
++#endif
+ #ifdef CONFIG_MIGRATION
+ 	"pgmigrate_success",
+ 	"pgmigrate_fail",
 -- 
 1.7.11.7
 
