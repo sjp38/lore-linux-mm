@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id C75DC6B00BF
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:19 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:19 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 06F9F6B00C3
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:21 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:21 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 38/52] sched, mm, mempolicy: Add per task mempolicy
-Date: Sun,  2 Dec 2012 19:43:30 +0100
-Message-Id: <1354473824-19229-39-git-send-email-mingo@kernel.org>
+Subject: [PATCH 39/52] sched: Track shared task's node groups and interleave their memory allocations
+Date: Sun,  2 Dec 2012 19:43:31 +0100
+Message-Id: <1354473824-19229-40-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,10 +15,55 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-We are going to make use of it in the NUMA code: each thread will
-converge not just to a group of related tasks, but to a specific
-group of memory nodes as well.
+This patch shows the power of the shared/private distinction: in
+the shared tasks active balancing function (sched_update_ideal_cpu_shared())
+we are able to to build a per (shared) task node mask of the nodes that
+it and its buddies occupy at the moment.
 
+Private tasks on the other hand are not affected and continue to do
+efficient node-local allocations.
+
+There's two important special cases:
+
+ - if a group of shared tasks fits on a single node. In this case
+   the interleaving happens on a single bit, a single node and thus
+   turns into nice node-local allocations.
+
+ - if a large group spans the whole system: in this case the node
+   masks will cover the whole system, and all memory gets evenly
+   interleaved and available RAM bandwidth gets utilized. This is
+   preferable to allocating memory assymetrically and overloading
+   certain CPU links and running into their bandwidth limitations.
+
+This patch, in combination with the private/shared buddies patch,
+optimizes the "4x JVM", "single JVM" and "2x JVM" SPECjbb workloads
+on a 4-node system produce almost completely perfect memory placement.
+
+For example a 4-JVM workload on a 4-node, 32-CPU system has
+this performance (8 SPECjbb warehouses per JVM):
+
+ spec1.txt:           throughput =     177460.44 SPECjbb2005 bops
+ spec2.txt:           throughput =     176175.08 SPECjbb2005 bops
+ spec3.txt:           throughput =     175053.91 SPECjbb2005 bops
+ spec4.txt:           throughput =     171383.52 SPECjbb2005 bops
+
+Which is close to the hard binding performance figures.
+
+while previously it would regress compared to mainline.
+
+Mainline has the following 4x JVM performance:
+
+ spec1.txt:           throughput =     157839.25 SPECjbb2005 bops
+ spec2.txt:           throughput =     156969.15 SPECjbb2005 bops
+ spec3.txt:           throughput =     157571.59 SPECjbb2005 bops
+ spec4.txt:           throughput =     157873.86 SPECjbb2005 bops
+
+So the patch brings a 12% speedup.
+
+This placement idea came while discussing interleaving strategies
+with Christoph Lameter.
+
+Suggested-by: Christoph Lameter <cl@linux.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
@@ -28,206 +73,24 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mempolicy.h | 39 +--------------------------------------
- include/linux/mm_types.h  | 40 ++++++++++++++++++++++++++++++++++++++++
- include/linux/sched.h     |  1 +
- kernel/sched/core.c       |  7 +++++++
- mm/mempolicy.c            | 16 +++-------------
- 5 files changed, 52 insertions(+), 51 deletions(-)
+ kernel/sched/fair.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-index c511e25..f44b7f3 100644
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -6,11 +6,11 @@
- #define _LINUX_MEMPOLICY_H 1
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index f3fb508..79f306c 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -922,6 +922,10 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p)
+ 			buddies++;
+ 		}
+ 		WARN_ON_ONCE(buddies > full_buddies);
++		if (buddies)
++			node_set(node, p->numa_policy.v.nodes);
++		else
++			node_clear(node, p->numa_policy.v.nodes);
  
- 
-+#include <linux/mm_types.h>
- #include <linux/mmzone.h>
- #include <linux/slab.h>
- #include <linux/rbtree.h>
- #include <linux/spinlock.h>
--#include <linux/nodemask.h>
- #include <linux/pagemap.h>
- #include <uapi/linux/mempolicy.h>
- 
-@@ -19,43 +19,6 @@ struct mm_struct;
- #ifdef CONFIG_NUMA
- 
- /*
-- * Describe a memory policy.
-- *
-- * A mempolicy can be either associated with a process or with a VMA.
-- * For VMA related allocations the VMA policy is preferred, otherwise
-- * the process policy is used. Interrupts ignore the memory policy
-- * of the current process.
-- *
-- * Locking policy for interlave:
-- * In process context there is no locking because only the process accesses
-- * its own state. All vma manipulation is somewhat protected by a down_read on
-- * mmap_sem.
-- *
-- * Freeing policy:
-- * Mempolicy objects are reference counted.  A mempolicy will be freed when
-- * mpol_put() decrements the reference count to zero.
-- *
-- * Duplicating policy objects:
-- * mpol_dup() allocates a new mempolicy and copies the specified mempolicy
-- * to the new storage.  The reference count of the new object is initialized
-- * to 1, representing the caller of mpol_dup().
-- */
--struct mempolicy {
--	atomic_t refcnt;
--	unsigned short mode; 	/* See MPOL_* above */
--	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
--	union {
--		short 		 preferred_node; /* preferred */
--		nodemask_t	 nodes;		/* interleave/bind */
--		/* undefined for default */
--	} v;
--	union {
--		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
--		nodemask_t user_nodemask;	/* nodemask passed by user */
--	} w;
--};
--
--/*
-  * Support for managing mempolicy data objects (clone, copy, destroy)
-  * The default fast path of a NULL MPOL_DEFAULT policy is always inlined.
-  */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5995652..cd2be76 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -13,6 +13,7 @@
- #include <linux/page-debug-flags.h>
- #include <linux/uprobes.h>
- #include <linux/page-flags-layout.h>
-+#include <linux/nodemask.h>
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-@@ -203,6 +204,45 @@ struct page_frag {
- 
- typedef unsigned long __nocast vm_flags_t;
- 
-+#ifdef CONFIG_NUMA
-+/*
-+ * Describe a memory policy.
-+ *
-+ * A mempolicy can be either associated with a process or with a VMA.
-+ * For VMA related allocations the VMA policy is preferred, otherwise
-+ * the process policy is used. Interrupts ignore the memory policy
-+ * of the current process.
-+ *
-+ * Locking policy for interlave:
-+ * In process context there is no locking because only the process accesses
-+ * its own state. All vma manipulation is somewhat protected by a down_read on
-+ * mmap_sem.
-+ *
-+ * Freeing policy:
-+ * Mempolicy objects are reference counted.  A mempolicy will be freed when
-+ * mpol_put() decrements the reference count to zero.
-+ *
-+ * Duplicating policy objects:
-+ * mpol_dup() allocates a new mempolicy and copies the specified mempolicy
-+ * to the new storage.  The reference count of the new object is initialized
-+ * to 1, representing the caller of mpol_dup().
-+ */
-+struct mempolicy {
-+	atomic_t refcnt;
-+	unsigned short mode; 	/* See MPOL_* above */
-+	unsigned short flags;	/* See set_mempolicy() MPOL_F_* above */
-+	union {
-+		short 		 preferred_node; /* preferred */
-+		nodemask_t	 nodes;		/* interleave/bind */
-+		/* undefined for default */
-+	} v;
-+	union {
-+		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
-+		nodemask_t user_nodemask;	/* nodemask passed by user */
-+	} w;
-+};
-+#endif
-+
- /*
-  * A region containing a mapping of a non-memory backed file under NOMMU
-  * conditions.  These are held in a global tree and are pinned by the VMAs that
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 6e52e21..8bc3a03 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1517,6 +1517,7 @@ struct task_struct {
- 	struct task_struct *shared_buddy, *shared_buddy_curr;
- 	unsigned long shared_buddy_faults, shared_buddy_faults_curr;
- 	int ideal_cpu, ideal_cpu_curr, ideal_cpu_candidate;
-+	struct mempolicy numa_policy;
- 
- #endif /* CONFIG_NUMA_BALANCING */
- 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 34ce37e..93f2561 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -72,6 +72,7 @@
- #include <linux/slab.h>
- #include <linux/init_task.h>
- #include <linux/binfmts.h>
-+#include <uapi/linux/mempolicy.h>
- 
- #include <asm/switch_to.h>
- #include <asm/tlb.h>
-@@ -1563,6 +1564,12 @@ static void __sched_fork(struct task_struct *p)
- 	p->shared_buddy_faults = 0;
- 	p->ideal_cpu = -1;
- 	p->ideal_cpu_curr = -1;
-+	atomic_set(&p->numa_policy.refcnt, 1);
-+	p->numa_policy.mode = MPOL_INTERLEAVE;
-+	p->numa_policy.flags = 0;
-+	p->numa_policy.v.preferred_node = 0;
-+	p->numa_policy.v.nodes = node_online_map;
-+
- #endif /* CONFIG_NUMA_BALANCING */
- }
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index a847b10..0649679 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -118,20 +118,12 @@ static struct mempolicy default_policy_local = {
- 	.flags		= MPOL_F_LOCAL,
- };
- 
--/*
-- * .v.nodes is set by numa_policy_init():
-- */
--static struct mempolicy default_policy_shared = {
--	.refcnt			= ATOMIC_INIT(1), /* never free it */
--	.mode			= MPOL_INTERLEAVE,
--	.flags			= 0,
--};
--
- static struct mempolicy *default_policy(void)
- {
-+#ifdef CONFIG_NUMA_BALANCING
- 	if (task_numa_shared(current) == 1)
--		return &default_policy_shared;
--
-+		return &current->numa_policy;
-+#endif
- 	return &default_policy_local;
- }
- 
-@@ -2577,8 +2569,6 @@ void __init numa_policy_init(void)
- 		};
- 	}
- 
--	default_policy_shared.v.nodes = node_online_map;
--
- 	/*
- 	 * Set interleaving policy for system init. Interleaving is only
- 	 * enabled across suitably sized nodes (default is >= 16MB), or
+ 		/* Don't go to a node that is already at full capacity: */
+ 		if (buddies == full_buddies)
 -- 
 1.7.11.7
 
