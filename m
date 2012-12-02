@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 9EEAD6B0062
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 10:12:38 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so1026875eaa.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 07:12:37 -0800 (PST)
-Date: Sun, 2 Dec 2012 16:12:32 +0100
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id B723F6B0044
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 11:13:26 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1042874eaa.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 08:13:25 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 2/2, v2] mm/migration: Make rmap_walk_anon() and
- try_to_unmap_anon() more scalable
-Message-ID: <20121202151232.GB12911@gmail.com>
-References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
- <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
- <20121201094927.GA12366@gmail.com>
- <20121201122649.GA20322@gmail.com>
- <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com>
- <20121201184135.GA32449@gmail.com>
- <CA+55aFyq7OaUxcEHXvJhp0T57KN14o-RGxqPmA+ks8ge6zJh5w@mail.gmail.com>
- <20121201201538.GB2704@gmail.com>
- <50BA69B7.30002@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50BA69B7.30002@redhat.com>
+Subject: [PATCH 0/2] numa/core updates
+Date: Sun,  2 Dec 2012 17:13:14 +0100
+Message-Id: <1354464796-14343-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
+I've been testing wider workloads and here's two more small and
+obvious patches rounding up numa/core behavior around the edges.
 
-* Rik van Riel <riel@redhat.com> wrote:
+The NUMA code should now be pretty unintrusive to all but the
+long-running, memory-intense workloads where it's expected to
+make a (positive) difference.
 
-> >+static inline void anon_vma_lock_read(struct anon_vma *anon_vma)
-> >+{
-> >+	down_read(&anon_vma->root->rwsem);
-> >+}
-> 
-> I see you did not rename anon_vma_lock and anon_vma_unlock to 
-> anon_vma_lock_write and anon_vma_unlock_write.
-> 
-> That could get confusing to people touching that code in the 
-> future.
-
-Agreed, doing that rename makes perfect sense - I've done that 
-in the v2 version attached below.
+Short-run workloads like kbuild or hackbench don't trigger the
+NUMA code now. The limits can be reconsidered later on,
+iteratively - the goal now is to not regress.
 
 Thanks,
 
 	Ingo
 
------------------------>
+-------------->
+Ingo Molnar (2):
+  sched: Exclude pinned tasks from the NUMA-balancing logic
+  sched: Add RSS filter to NUMA-balancing
+
+ include/linux/sched.h   |  1 +
+ kernel/sched/core.c     |  6 ++++++
+ kernel/sched/debug.c    |  1 +
+ kernel/sched/fair.c     | 53 +++++++++++++++++++++++++++++++++++++++++++++----
+ kernel/sched/features.h |  1 +
+ kernel/sysctl.c         |  7 +++++++
+ 6 files changed, 65 insertions(+), 4 deletions(-)
+
+-- 
+1.7.11.7
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
