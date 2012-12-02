@@ -1,107 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 17FCA6B0044
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 05:49:06 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1324190eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 02:49:04 -0800 (PST)
-Date: Sun, 2 Dec 2012 11:49:02 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [memcg:since-3.6 341/499]
- drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
-Message-ID: <20121202104902.GA4947@dhcp22.suse.cz>
-References: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
- <20121130002848.GA28177@localhost>
- <20121129164616.6c308ce0.akpm@linux-foundation.org>
- <20121130020015.GA29687@localhost>
- <20121130181459.GA20301@dhcp22.suse.cz>
- <20121130214418.GA20508@localhost>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id E18656B0044
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 09:36:41 -0500 (EST)
+From: Robert Jarzmik <robert.jarzmik@free.fr>
+Subject: Re: [memcg:since-3.6 493/499] include/trace/events/filemap.h:14:1: sparse: incompatible types for operation (<)
+References: <50b7f3c5.kjvAZJjuJNxsqjDZ%fengguang.wu@intel.com>
+Date: Sun, 02 Dec 2012 15:36:26 +0100
+In-Reply-To: <50b7f3c5.kjvAZJjuJNxsqjDZ%fengguang.wu@intel.com> (kbuild test
+	robot's message of "Fri, 30 Nov 2012 07:46:13 +0800")
+Message-ID: <87ehj81pxx.fsf@free.fr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121130214418.GA20508@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rafael Aquini <aquini@redhat.com>, kbuild@01.org, Julia Lawall <julia.lawall@lip6.fr>, linux-mm@kvack.org
+To: Steven Rostedt <rostedt@goodmis.org>, Frederic Weisbecker <fweisbec@gmail.com>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, kbuild test robot <fengguang.wu@intel.com>
 
-On Sat 01-12-12 05:44:18, Wu Fengguang wrote:
-> On Fri, Nov 30, 2012 at 07:14:59PM +0100, Michal Hocko wrote:
-> > On Fri 30-11-12 10:00:15, Wu Fengguang wrote:
-> > > On Thu, Nov 29, 2012 at 04:46:16PM -0800, Andrew Morton wrote:
-> > > > On Fri, 30 Nov 2012 08:28:48 +0800
-> > > > Fengguang Wu <fengguang.wu@intel.com> wrote:
-> > > > 
-> > > > > Hi Rafael,
-> > > > > 
-> > > > > [Julia and me think that this coccinelle warning is worth reporting.]
-> > > > > 
-> > > > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
-> > > > > head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
-> > > > > commit: 5f1da4063294480b3fabcee554f976565dec54b5 [341/499] virtio_balloon: introduce migration primitives to balloon pages
-> > > > > 
-> > > > > + drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
-> > > > > 
-> > > > > vim +157 drivers/virtio/virtio_balloon.c
-> > > > > 
-> > > > > 6b35e407 Rusty Russell      2008-02-04  130  {
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  131  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  132  
-> > > > > 6b35e407 Rusty Russell      2008-02-04  133  	/* We can only do one array worth at a time. */
-> > > > > 6b35e407 Rusty Russell      2008-02-04  134  	num = min(num, ARRAY_SIZE(vb->pfns));
-> > > > > 6b35e407 Rusty Russell      2008-02-04  135  
-> > > > > 5f1da406 Rafael Aquini      2012-11-09 @136  	mutex_lock(&vb->balloon_lock);
-> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  137  	for (vb->num_pfns = 0; vb->num_pfns < num;
-> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  138  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  139  		struct page *page = balloon_page_enqueue(vb_dev_info);
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  140  
-> > > > > 6b35e407 Rusty Russell      2008-02-04  141  		if (!page) {
-> > > > > 6b35e407 Rusty Russell      2008-02-04  142  			if (printk_ratelimit())
-> > > > > 6b35e407 Rusty Russell      2008-02-04  143  				dev_printk(KERN_INFO, &vb->vdev->dev,
-> > > > > 6b35e407 Rusty Russell      2008-02-04  144  					   "Out of puff! Can't get %zu pages\n",
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  145  					   VIRTIO_BALLOON_PAGES_PER_PAGE);
-> > > > > 6b35e407 Rusty Russell      2008-02-04  146  			/* Sleep for at least 1/5 of a second before retry. */
-> > > > > 6b35e407 Rusty Russell      2008-02-04  147  			msleep(200);
-> > > > > 6b35e407 Rusty Russell      2008-02-04  148  			break;
-> > > > > 6b35e407 Rusty Russell      2008-02-04  149  		}
-> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  150  		set_page_pfns(vb->pfns + vb->num_pfns, page);
-> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  151  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
-> > > > > 6b35e407 Rusty Russell      2008-02-04  152  		totalram_pages--;
-> > > > > 6b35e407 Rusty Russell      2008-02-04  153  	}
-> > > > > 6b35e407 Rusty Russell      2008-02-04  154  
-> > > > > 6b35e407 Rusty Russell      2008-02-04  155  	/* Didn't get any?  Oh well. */
-> > > > > 6b35e407 Rusty Russell      2008-02-04  156  	if (vb->num_pfns == 0)
-> > > > > 6b35e407 Rusty Russell      2008-02-04 @157  		return;
-> > > > > 6b35e407 Rusty Russell      2008-02-04  158  
-> > > > > 6b35e407 Rusty Russell      2008-02-04  159  	tell_host(vb, vb->inflate_vq);
-> > > > > 5f1da406 Rafael Aquini      2012-11-09  160  	mutex_unlock(&vb->balloon_lock);
-> > > > 
-> > > > This bug was fixed by
-> > > > 
-> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages.patch
-> > > > this one -> virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix.patch
-> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix.patch
-> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix.patch
-> > > 
-> > > Michal: your since-3.6 branch somehow missed that followup fix...
-> > 
-> > Hmm strange, I can see all of them in my tree.
-> > 72d9876194be9e6f0600ca796b6689a77fce28b7
-> > f920c4f67b892a6b41054c5441ab0d481489c6c9
-> > 63db42f4243be26efffc32806990349235619bad
-> 
-> Oops.. the fixes are reverted by a later commit 4f2ac849
+kbuild test robot <fengguang.wu@intel.com> writes:
 
-Ohh, I really screwed that revert (this is the second issue already).
-Sorry about that and especially sorry that I brought more burden on you.
-I will be more careful next time.
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
+> commit: 07b81da5f80b27543ddbe3164170c64e0941a812 [493/499] mm: trace filemap add and del
+>
+>
+> sparse warnings:
+>
+> + include/trace/events/filemap.h:14:1: sparse: incompatible types for operation (<)
+> include/trace/events/filemap.h:14:1:    left side has type struct page *<noident>
+> include/trace/events/filemap.h:14:1:    right side has type int
+> include/trace/events/filemap.h:45:1: sparse: incompatible types for operation (<)
+> include/trace/events/filemap.h:45:1:    left side has type struct page *<noident>
+> include/trace/events/filemap.h:45:1:    right side has type int
 
-Fixed and pushed
+Hi Steven, Frederic and Ingo,
 
-Thanks a lot!
+I just drop this note to make you aware (as FTRACE maintainers) of the sparse
+warning I received.
+
+This sparse warning will touch all submission to the FTRACE events API AFAIK.
+The node of the problem :
+ - in include/linux/ftrace_event.h, we have :
+   #define is_signed_type(type)	(((type)(-1)) < 0)
+ - this is used by kernel/trace/trace_events.c
+   #define __common_field(type, item)
+   ...
+     is_signed_type(type)
+   ...
+
+Here, if a trace field is a pointer (for example struct page *), we end up with
+this in my case :
+
+static int __attribute__((no_instrument_function))
+ftrace_define_fields_mm_filemap_delete_from_page_cache(struct ftrace_event_call
+*event_call) { struct ftrace_raw_mm_filemap_delete_from_page_cache field; int
+ret; ret = trace_define_field(event_call, "struct page *", "page",
+__builtin_offsetof(typeof(field),page), sizeof(field.page), (((struct page
+*)(-1)) < 0), FILTER_OTHER); if (ret) return ret; ret =
+trace_define_field(event_call, "unsigned long", "i_ino",
+__builtin_offsetof(typeof(field),i_ino), sizeof(field.i_ino), (((unsigned
+long)(-1)) < 0), FILTER_OTHER); if (ret) return ret; ret =
+trace_define_field(event_call, "unsigned long", "index",
+__builtin_offsetof(typeof(field),index), sizeof(field.index), (((unsigned
+long)(-1)) < 0), FILTER_OTHER); if (ret) return ret; ret =
+trace_define_field(event_call, "dev_t", "s_dev",
+__builtin_offsetof(typeof(field),s_dev), sizeof(field.s_dev), (((dev_t)(-1)) <
+0), FILTER_OTHER); if (ret) return ret;; return ret; }; ;;
+
+And I think, (((struct page *)(-1)) < 0) gives the warning. I don't know if
+"is_signed_type()" makes sense on a pointer, but I think you'll get other
+reports of that kind for any new event added to trace API.
+
+Cheers.
 
 -- 
-Michal Hocko
-SUSE Labs
+Robert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
