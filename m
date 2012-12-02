@@ -1,134 +1,404 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 168426B0085
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:36 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:35 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 23BD56B0085
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:39 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:38 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 18/52] mm/numa: Migrate on reference policy
-Date: Sun,  2 Dec 2012 19:43:10 +0100
-Message-Id: <1354473824-19229-19-git-send-email-mingo@kernel.org>
+Subject: [PATCH 19/52] sched, numa, mm: Add last_cpu to page flags
+Date: Sun,  2 Dec 2012 19:43:11 +0100
+Message-Id: <1354473824-19229-20-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-From: Mel Gorman <mgorman@suse.de>
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-This is the simplest possible policy that still does something
-of note. When a pte_numa is faulted, it is moved immediately.
-Any replacement policy must at least do better than this and in
-all likelihood this policy regresses normal workloads.
+Introduce a per-page last_cpu field, fold this into the struct
+page::flags field whenever possible.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Paul Turner <pjt@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Alex Shi <lkml.alex@gmail.com>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+The unlikely/rare 32bit NUMA configs will likely grow the page-frame.
+
+[ Completely dropping 32bit support for CONFIG_NUMA_BALANCING would simplify
+  things, but it would also remove the warning if we grow enough 64bit
+  only page-flags to push the last-cpu out. ]
+
+This patch takes the reset_page_last_nid() equivalent from
+Mel Gorman's patch:
+
+   mm: Numa: Introduce last_nid to the page frame
+
+Suggested-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+[ Heavily modified. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/uapi/linux/mempolicy.h |  1 +
- mm/mempolicy.c                 | 38 ++++++++++++++++++++++++++++++++++++--
- 2 files changed, 37 insertions(+), 2 deletions(-)
+ include/linux/mm.h                | 105 +++++++++++++++++++++++---------------
+ include/linux/mm_types.h          |   5 ++
+ include/linux/mmzone.h            |  14 +----
+ include/linux/page-flags-layout.h |  83 ++++++++++++++++++++++++++++++
+ kernel/bounds.c                   |   4 ++
+ mm/memory.c                       |   4 ++
+ mm/page_alloc.c                   |   2 +
+ 7 files changed, 163 insertions(+), 54 deletions(-)
+ create mode 100644 include/linux/page-flags-layout.h
 
-diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
-index 16fb4e6..0d11c3d 100644
---- a/include/uapi/linux/mempolicy.h
-+++ b/include/uapi/linux/mempolicy.h
-@@ -67,6 +67,7 @@ enum mpol_rebind_step {
- #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
- #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
- #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
-+#define MPOL_F_MORON	(1 << 4) /* Migrate On pte_numa Reference On Node */
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index d04c2f0..a9454ca 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -581,50 +581,11 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+  * sets it, so none of the operations on it need to be atomic.
+  */
  
+-
+-/*
+- * page->flags layout:
+- *
+- * There are three possibilities for how page->flags get
+- * laid out.  The first is for the normal case, without
+- * sparsemem.  The second is for sparsemem when there is
+- * plenty of space for node and section.  The last is when
+- * we have run out of space and have to fall back to an
+- * alternate (slower) way of determining the node.
+- *
+- * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE | ... | FLAGS |
+- * classic sparse with space for node:| SECTION | NODE | ZONE | ... | FLAGS |
+- * classic sparse no space for node:  | SECTION |     ZONE    | ... | FLAGS |
+- */
+-#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
+-#define SECTIONS_WIDTH		SECTIONS_SHIFT
+-#else
+-#define SECTIONS_WIDTH		0
+-#endif
+-
+-#define ZONES_WIDTH		ZONES_SHIFT
+-
+-#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+-#define NODES_WIDTH		NODES_SHIFT
+-#else
+-#ifdef CONFIG_SPARSEMEM_VMEMMAP
+-#error "Vmemmap: No space for nodes field in page flags"
+-#endif
+-#define NODES_WIDTH		0
+-#endif
+-
+-/* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
++/* Page flags: | [SECTION] | [NODE] | ZONE | [LAST_CPU] | ... | FLAGS | */
+ #define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
+ #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+ #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+-
+-/*
+- * We are going to use the flags for the page to node mapping if its in
+- * there.  This includes the case where there is no node, so it is implicit.
+- */
+-#if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
+-#define NODE_NOT_IN_PAGE_FLAGS
+-#endif
++#define LAST_CPU_PGOFF		(ZONES_PGOFF - LAST_CPU_WIDTH)
  
- #endif /* _UAPI_LINUX_MEMPOLICY_H */
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 516491f..4c1c8d8 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -118,6 +118,26 @@ static struct mempolicy default_policy = {
- 	.flags = MPOL_F_LOCAL,
- };
+ /*
+  * Define the bit shifts to access each section.  For non-existent
+@@ -634,6 +595,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ #define SECTIONS_PGSHIFT	(SECTIONS_PGOFF * (SECTIONS_WIDTH != 0))
+ #define NODES_PGSHIFT		(NODES_PGOFF * (NODES_WIDTH != 0))
+ #define ZONES_PGSHIFT		(ZONES_PGOFF * (ZONES_WIDTH != 0))
++#define LAST_CPU_PGSHIFT	(LAST_CPU_PGOFF * (LAST_CPU_WIDTH != 0))
  
-+static struct mempolicy preferred_node_policy[MAX_NUMNODES];
-+
-+static struct mempolicy *get_task_policy(struct task_struct *p)
+ /* NODE:ZONE or SECTION:ZONE is used to ID a zone for the buddy allocator */
+ #ifdef NODE_NOT_IN_PAGE_FLAGS
+@@ -655,6 +617,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ #define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
+ #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
+ #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
++#define LAST_CPU_MASK		((1UL << LAST_CPU_WIDTH) - 1)
+ #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
+ 
+ static inline enum zone_type page_zonenum(const struct page *page)
+@@ -693,6 +656,66 @@ static inline int page_to_nid(const struct page *page)
+ }
+ #endif
+ 
++#ifdef CONFIG_NUMA_BALANCING
++#ifdef LAST_CPU_NOT_IN_PAGE_FLAGS
++static inline int page_xchg_last_cpu(struct page *page, int cpu)
 +{
-+	struct mempolicy *pol = p->mempolicy;
-+	int node;
-+
-+	if (!pol) {
-+		node = numa_node_id();
-+		if (node != -1)
-+			pol = &preferred_node_policy[node];
-+
-+		/* preferred_node_policy is not initialised early in boot */
-+		if (!pol->mode)
-+			pol = NULL;
-+	}
-+
-+	return pol;
++	return xchg(&page->_last_cpu, cpu);
 +}
 +
- static const struct mempolicy_operations {
- 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
- 	/*
-@@ -1598,7 +1618,7 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
- struct mempolicy *get_vma_policy(struct task_struct *task,
- 		struct vm_area_struct *vma, unsigned long addr)
++static inline int page_last_cpu(struct page *page)
++{
++	return page->_last_cpu;
++}
++
++static inline void reset_page_last_cpu(struct page *page)
++{
++	page->_last_cpu = -1;
++}
++#else
++static inline int page_xchg_last_cpu(struct page *page, int cpu)
++{
++	unsigned long old_flags, flags;
++	int last_cpu;
++
++	do {
++		old_flags = flags = page->flags;
++		last_cpu = (flags >> LAST_CPU_PGSHIFT) & LAST_CPU_MASK;
++
++		flags &= ~(LAST_CPU_MASK << LAST_CPU_PGSHIFT);
++		flags |= (cpu & LAST_CPU_MASK) << LAST_CPU_PGSHIFT;
++	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
++
++	return last_cpu;
++}
++
++static inline int page_last_cpu(struct page *page)
++{
++	return (page->flags >> LAST_CPU_PGSHIFT) & LAST_CPU_MASK;
++}
++
++static inline void reset_page_last_cpu(struct page *page)
++{
++}
++
++#endif /* LAST_CPU_NOT_IN_PAGE_FLAGS */
++#else /* CONFIG_NUMA_BALANCING */
++static inline int page_xchg_last_cpu(struct page *page, int cpu)
++{
++	return page_to_nid(page);
++}
++
++static inline int page_last_cpu(struct page *page)
++{
++	return page_to_nid(page);
++}
++
++static inline void reset_page_last_cpu(struct page *page)
++{
++}
++
++#endif /* CONFIG_NUMA_BALANCING */
++
+ static inline struct zone *page_zone(const struct page *page)
  {
--	struct mempolicy *pol = task->mempolicy;
-+	struct mempolicy *pol = get_task_policy(task);
+ 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 31f8a3a..7e9f758 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -12,6 +12,7 @@
+ #include <linux/cpumask.h>
+ #include <linux/page-debug-flags.h>
+ #include <linux/uprobes.h>
++#include <linux/page-flags-layout.h>
+ #include <asm/page.h>
+ #include <asm/mmu.h>
  
- 	if (vma) {
- 		if (vma->vm_ops && vma->vm_ops->get_policy) {
-@@ -2021,7 +2041,7 @@ retry_cpuset:
+@@ -175,6 +176,10 @@ struct page {
+ 	 */
+ 	void *shadow;
+ #endif
++
++#ifdef LAST_CPU_NOT_IN_PAGE_FLAGS
++	int _last_cpu;
++#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index a23923b..63f68c6 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -15,7 +15,7 @@
+ #include <linux/seqlock.h>
+ #include <linux/nodemask.h>
+ #include <linux/pageblock-flags.h>
+-#include <generated/bounds.h>
++#include <linux/page-flags-layout.h>
+ #include <linux/atomic.h>
+ #include <asm/page.h>
+ 
+@@ -318,16 +318,6 @@ enum zone_type {
+  * match the requested limits. See gfp_zone() in include/linux/gfp.h
   */
- struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ 
+-#if MAX_NR_ZONES < 2
+-#define ZONES_SHIFT 0
+-#elif MAX_NR_ZONES <= 2
+-#define ZONES_SHIFT 1
+-#elif MAX_NR_ZONES <= 4
+-#define ZONES_SHIFT 2
+-#else
+-#error ZONES_SHIFT -- too many zones configured adjust calculation
+-#endif
+-
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+ 
+@@ -1030,8 +1020,6 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
+  * PA_SECTION_SHIFT		physical address to/from section number
+  * PFN_SECTION_SHIFT		pfn to/from section number
+  */
+-#define SECTIONS_SHIFT		(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
+-
+ #define PA_SECTION_SHIFT	(SECTION_SIZE_BITS)
+ #define PFN_SECTION_SHIFT	(SECTION_SIZE_BITS - PAGE_SHIFT)
+ 
+diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+new file mode 100644
+index 0000000..b258132
+--- /dev/null
++++ b/include/linux/page-flags-layout.h
+@@ -0,0 +1,83 @@
++#ifndef _LINUX_PAGE_FLAGS_LAYOUT
++#define _LINUX_PAGE_FLAGS_LAYOUT
++
++#include <linux/numa.h>
++#include <generated/bounds.h>
++
++#if MAX_NR_ZONES < 2
++#define ZONES_SHIFT 0
++#elif MAX_NR_ZONES <= 2
++#define ZONES_SHIFT 1
++#elif MAX_NR_ZONES <= 4
++#define ZONES_SHIFT 2
++#else
++#error ZONES_SHIFT -- too many zones configured adjust calculation
++#endif
++
++#ifdef CONFIG_SPARSEMEM
++#include <asm/sparsemem.h>
++
++/* 
++ * SECTION_SHIFT    		#bits space required to store a section #
++ */
++#define SECTIONS_SHIFT         (MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
++#endif
++
++/*
++ * page->flags layout:
++ *
++ * There are five possibilities for how page->flags get laid out.  The first
++ * (and second) is for the normal case, without sparsemem. The third is for
++ * sparsemem when there is plenty of space for node and section. The last is
++ * when we have run out of space and have to fall back to an alternate (slower)
++ * way of determining the node.
++ *
++ * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |            ... | FLAGS |
++ *     "      plus space for last_cpu:|       NODE     | ZONE | LAST_CPU | ... | FLAGS |
++ * classic sparse with space for node:| SECTION | NODE | ZONE |            ... | FLAGS |
++ *     "      plus space for last_cpu:| SECTION | NODE | ZONE | LAST_CPU | ... | FLAGS |
++ * classic sparse no space for node:  | SECTION |     ZONE    |            ... | FLAGS |
++ */
++#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
++
++#define SECTIONS_WIDTH		SECTIONS_SHIFT
++#else
++#define SECTIONS_WIDTH		0
++#endif
++
++#define ZONES_WIDTH		ZONES_SHIFT
++
++#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
++#define NODES_WIDTH		NODES_SHIFT
++#else
++#ifdef CONFIG_SPARSEMEM_VMEMMAP
++#error "Vmemmap: No space for nodes field in page flags"
++#endif
++#define NODES_WIDTH		0
++#endif
++
++#ifdef CONFIG_NUMA_BALANCING
++#define LAST_CPU_SHIFT	NR_CPUS_BITS
++#else
++#define LAST_CPU_SHIFT	0
++#endif
++
++#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPU_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
++#define LAST_CPU_WIDTH	LAST_CPU_SHIFT
++#else
++#define LAST_CPU_WIDTH	0
++#endif
++
++/*
++ * We are going to use the flags for the page to node mapping if its in
++ * there.  This includes the case where there is no node, so it is implicit.
++ */
++#if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
++#define NODE_NOT_IN_PAGE_FLAGS
++#endif
++
++#if defined(CONFIG_NUMA_BALANCING) && LAST_CPU_WIDTH == 0
++#define LAST_CPU_NOT_IN_PAGE_FLAGS
++#endif
++
++#endif /* _LINUX_PAGE_FLAGS_LAYOUT */
+diff --git a/kernel/bounds.c b/kernel/bounds.c
+index 0c9b862..e8ca97b 100644
+--- a/kernel/bounds.c
++++ b/kernel/bounds.c
+@@ -10,6 +10,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/kbuild.h>
+ #include <linux/page_cgroup.h>
++#include <linux/log2.h>
+ 
+ void foo(void)
  {
--	struct mempolicy *pol = current->mempolicy;
-+	struct mempolicy *pol = get_task_policy(current);
- 	struct page *page;
- 	unsigned int cpuset_mems_cookie;
+@@ -17,5 +18,8 @@ void foo(void)
+ 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
+ 	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
+ 	DEFINE(NR_PCG_FLAGS, __NR_PCG_FLAGS);
++#ifdef CONFIG_SMP
++	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
++#endif
+ 	/* End of constants */
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 1ff36b1..0197ca0 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -68,6 +68,10 @@
  
-@@ -2295,6 +2315,11 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
- 	default:
- 		BUG();
+ #include "internal.h"
+ 
++#ifdef LAST_CPU_NOT_IN_PAGE_FLAGS
++#warning Unfortunate NUMA config, growing page-frame for last_cpu.
++#endif
++
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+ unsigned long max_mapnr;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1b9d153..92e88bd 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -608,6 +608,7 @@ static inline int free_pages_check(struct page *page)
+ 		bad_page(page);
+ 		return 1;
  	}
-+
-+	/* Migrate the page towards the node whose CPU is referencing it */
-+	if (pol->flags & MPOL_F_MORON)
-+		polnid = numa_node_id();
-+
- 	if (curnid != polnid)
- 		ret = polnid;
- out:
-@@ -2483,6 +2508,15 @@ void __init numa_policy_init(void)
- 				     sizeof(struct sp_node),
- 				     0, SLAB_PANIC, NULL);
- 
-+	for_each_node(nid) {
-+		preferred_node_policy[nid] = (struct mempolicy) {
-+			.refcnt = ATOMIC_INIT(1),
-+			.mode = MPOL_PREFERRED,
-+			.flags = MPOL_F_MOF | MPOL_F_MORON,
-+			.v = { .preferred_node = nid, },
-+		};
-+	}
-+
- 	/*
- 	 * Set interleaving policy for system init. Interleaving is only
- 	 * enabled across suitably sized nodes (default is >= 16MB), or
++	reset_page_last_cpu(page);
+ 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
+ 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+ 	return 0;
+@@ -3826,6 +3827,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		mminit_verify_page_links(page, zone, nid, pfn);
+ 		init_page_count(page);
+ 		reset_page_mapcount(page);
++		reset_page_last_cpu(page);
+ 		SetPageReserved(page);
+ 		/*
+ 		 * Mark the block movable so that blocks are reserved for
 -- 
 1.7.11.7
 
