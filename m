@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id C632B6B0089
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:43 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:43 -0800 (PST)
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 0DF356B008A
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:45 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1082361eaa.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:45 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 21/52] sched: Make find_busiest_queue() a method
-Date: Sun,  2 Dec 2012 19:43:13 +0100
-Message-Id: <1354473824-19229-22-git-send-email-mingo@kernel.org>
+Subject: [PATCH 22/52] sched, numa, mm: Add credits for NUMA placement
+Date: Sun,  2 Dec 2012 19:43:14 +0100
+Message-Id: <1354473824-19229-23-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,70 +15,72 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+From: Rik van Riel <riel@redhat.com>
 
-Its a bit awkward but it was the least painful means of modifying the
-queue selection. Used in a later patch to conditionally use a random
-queue.
+The NUMA placement code has been rewritten several times, but
+the basic ideas took a lot of work to develop. The people who
+put in the work deserve credit for it. Thanks Andrea & Peter :)
 
-Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Paul Turner <pjt@google.com>
-Cc: Lee Schermerhorn <Lee.Schermerhorn@hp.com>
-Cc: Christoph Lameter <cl@linux.com>
+[ The Documentation/scheduler/numa-problem.txt file should
+  probably be rewritten once we figure out the final details of
+  what the NUMA code needs to do, and why. ]
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Acked-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
+----
+This is against tip.git numa/core
 ---
- kernel/sched/fair.c | 20 ++++++++++++--------
- 1 file changed, 12 insertions(+), 8 deletions(-)
+ CREDITS             | 1 +
+ kernel/sched/fair.c | 3 +++
+ mm/memory.c         | 2 ++
+ 3 files changed, 6 insertions(+)
 
+diff --git a/CREDITS b/CREDITS
+index 2346b09..17899e2 100644
+--- a/CREDITS
++++ b/CREDITS
+@@ -125,6 +125,7 @@ D: Author of pscan that helps to fix lp/parport bugs
+ D: Author of lil (Linux Interrupt Latency benchmark)
+ D: Fixed the shm swap deallocation at swapoff time (try_to_unuse message)
+ D: VM hacker
++D: NUMA task placement
+ D: Various other kernel hacks
+ S: Imola 40026
+ S: Italy
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 59e072b..511fbb8 100644
+index 511fbb8..8af0208 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -3600,6 +3600,9 @@ struct lb_env {
- 	unsigned int		loop;
- 	unsigned int		loop_break;
- 	unsigned int		loop_max;
-+
-+	struct rq *		(*find_busiest_queue)(struct lb_env *,
-+						      struct sched_group *);
- };
+@@ -18,6 +18,9 @@
+  *
+  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
+  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
++ *
++ *  NUMA placement, statistics and algorithm by Andrea Arcangeli,
++ *  CFS balancing changes by Peter Zijlstra. Copyright (C) 2012 Red Hat, Inc.
+  */
  
- /*
-@@ -4779,13 +4782,14 @@ static int load_balance(int this_cpu, struct rq *this_rq,
- 	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
+ #include <linux/latencytop.h>
+diff --git a/mm/memory.c b/mm/memory.c
+index 0cfd26a..1e043d4 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -36,6 +36,8 @@
+  *		(Gerhard.Wichert@pdb.siemens.de)
+  *
+  * Aug/Sep 2004 Changed to four level page tables (Andi Kleen)
++ *
++ * 2012 - NUMA placement page faults (Andrea Arcangeli, Peter Zijlstra)
+  */
  
- 	struct lb_env env = {
--		.sd		= sd,
--		.dst_cpu	= this_cpu,
--		.dst_rq		= this_rq,
--		.dst_grpmask    = sched_group_cpus(sd->groups),
--		.idle		= idle,
--		.loop_break	= sched_nr_migrate_break,
--		.cpus		= cpus,
-+		.sd		    = sd,
-+		.dst_cpu	    = this_cpu,
-+		.dst_rq		    = this_rq,
-+		.dst_grpmask        = sched_group_cpus(sd->groups),
-+		.idle		    = idle,
-+		.loop_break	    = sched_nr_migrate_break,
-+		.cpus		    = cpus,
-+		.find_busiest_queue = find_busiest_queue,
- 	};
- 
- 	cpumask_copy(cpus, cpu_active_mask);
-@@ -4804,7 +4808,7 @@ redo:
- 		goto out_balanced;
- 	}
- 
--	busiest = find_busiest_queue(&env, group);
-+	busiest = env.find_busiest_queue(&env, group);
- 	if (!busiest) {
- 		schedstat_inc(sd, lb_nobusyq[idle]);
- 		goto out_balanced;
+ #include <linux/kernel_stat.h>
 -- 
 1.7.11.7
 
