@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 39B4D6B006E
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:10 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:09 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id 44C486B0071
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:44:12 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:44:11 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 06/52] mm/numa: Support NUMA hinting page faults from gup/gup_fast
-Date: Sun,  2 Dec 2012 19:42:58 +0100
-Message-Id: <1354473824-19229-7-git-send-email-mingo@kernel.org>
+Subject: [PATCH 07/52] mm/numa: split_huge_page: transfer the NUMA type from the pmd to the pte
+Date: Sun,  2 Dec 2012 19:42:59 +0100
+Message-Id: <1354473824-19229-8-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -17,22 +17,11 @@ Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee S
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Introduce FOLL_NUMA to tell follow_page to check
-pte/pmd_numa. get_user_pages must use FOLL_NUMA, and it's safe
-to do so because it always invokes handle_mm_fault and retries
-the follow_page later.
+When we split a transparent hugepage, transfer the NUMA type
+from the pmd to the pte if needed.
 
-KVM secondary MMU page faults will trigger the NUMA hinting page
-faults through gup_fast -> get_user_pages -> follow_page ->
-handle_mm_fault.
-
-Other follow_page callers like KSM should not use FOLL_NUMA, or
-they would fail to get the pages if they use follow_page instead
-of get_user_pages.
-
-[ This patch was picked up from the AutoNUMA tree. ]
-
-Originally-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
 Reviewed-by: Rik van Riel <riel@redhat.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Hugh Dickins <hughd@google.com>
@@ -42,70 +31,25 @@ Cc: Alex Shi <lkml.alex@gmail.com>
 Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-[ ported to this tree. ]
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 17 +++++++++++++++++
- 2 files changed, 18 insertions(+)
+ mm/huge_memory.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1856c62..fa16152 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1572,6 +1572,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
- #define FOLL_MLOCK	0x40	/* mark page as mlocked */
- #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
- #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
-+#define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
- 
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/memory.c b/mm/memory.c
-index e0ebd6c..2daa3a7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1517,6 +1517,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
- 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
- 		goto out;
- 	}
-+	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
-+		goto no_page_table;
- 	if (pmd_trans_huge(*pmd)) {
- 		if (flags & FOLL_SPLIT) {
- 			split_huge_page_pmd(mm, pmd);
-@@ -1546,6 +1548,8 @@ split_fallthrough:
- 	pte = *ptep;
- 	if (!pte_present(pte))
- 		goto no_page;
-+	if ((flags & FOLL_NUMA) && pte_numa(pte))
-+		goto no_page;
- 	if ((flags & FOLL_WRITE) && !pte_write(pte))
- 		goto unlock;
- 
-@@ -1697,6 +1701,19 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
- 	vm_flags &= (gup_flags & FOLL_FORCE) ?
- 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
-+
-+	/*
-+	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
-+	 * would be called on PROT_NONE ranges. We must never invoke
-+	 * handle_mm_fault on PROT_NONE ranges or the NUMA hinting
-+	 * page faults would unprotect the PROT_NONE ranges if
-+	 * _PAGE_NUMA and _PAGE_PROTNONE are sharing the same pte/pmd
-+	 * bitflag. So to avoid that, don't set FOLL_NUMA if
-+	 * FOLL_FORCE is set.
-+	 */
-+	if (!(gup_flags & FOLL_FORCE))
-+		gup_flags |= FOLL_NUMA;
-+
- 	i = 0;
- 
- 	do {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 35c66a2..cd24aa5 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1364,6 +1364,8 @@ static int __split_huge_page_map(struct page *page,
+ 				BUG_ON(page_mapcount(page) != 1);
+ 			if (!pmd_young(*pmd))
+ 				entry = pte_mkold(entry);
++			if (pmd_numa(*pmd))
++				entry = pte_mknuma(entry);
+ 			pte = pte_offset_map(&_pmd, haddr);
+ 			BUG_ON(!pte_none(*pte));
+ 			set_pte_at(mm, haddr, pte, entry);
 -- 
 1.7.11.7
 
