@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id B5D3D6B00A3
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:03 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so1082361eaa.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B647F6B00B2
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:05 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so1082454eaa.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:05 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 30/52] sched: Improve convergence
-Date: Sun,  2 Dec 2012 19:43:22 +0100
-Message-Id: <1354473824-19229-31-git-send-email-mingo@kernel.org>
+Subject: [PATCH 31/52] sched: Introduce staged average NUMA faults
+Date: Sun,  2 Dec 2012 19:43:23 +0100
+Message-Id: <1354473824-19229-32-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,10 +15,34 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
- - break out of can_do_numa_run() earlier if we can make no progress
- - don't flip between siblings that often
- - turn on bidirectional fault balancing
- - improve the flow in task_numa_work()
+The current way of building the p->numa_faults[2][node] faults
+statistics has a sampling artifact:
+
+The continuous and immediate nature of propagating new fault
+stats to the numa_faults array creates a 'pulsating' dynamic,
+that starts at the average value at the beginning of the scan,
+increases monotonically until we finish the scan to about twice
+the average, and then drops back to half of its value due to
+the running average.
+
+Since we rely on these values to balance tasks, the pulsating
+nature resulted in false migrations and general noise in the
+stats.
+
+To solve this, introduce buffering of the current scan via
+p->task_numa_faults_curr[]. The array is co-allocated with the
+p->task_numa[] for efficiency reasons, but it is otherwise an
+ordinary separate array.
+
+At the end of the scan we propagate the latest stats into the
+average stats value. Most of the balancing code stays unmodified.
+
+The cost of this change is that we delay the effects of the latest
+round of faults by 1 scan - but using the partial faults info was
+creating artifacts.
+
+This instantly stabilized the page fault stats and improved
+numa02-alike workloads by making them faster to converge.
 
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
@@ -29,121 +53,43 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/fair.c     | 46 ++++++++++++++++++++++++++++++++--------------
- kernel/sched/features.h |  2 +-
- 2 files changed, 33 insertions(+), 15 deletions(-)
+ kernel/sched/fair.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 59fea2e..9c46b45 100644
+index 9c46b45..1ab11be 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -917,12 +917,12 @@ void task_numa_fault(int node, int last_cpu, int pages)
-  */
- void task_numa_work(struct callback_head *work)
- {
-+	long pages_total, pages_left, pages_changed;
- 	unsigned long migrate, next_scan, now = jiffies;
-+	unsigned long start0, start, end;
- 	struct task_struct *p = current;
- 	struct mm_struct *mm = p->mm;
- 	struct vm_area_struct *vma;
--	unsigned long start, end;
--	long pages;
+@@ -852,12 +852,26 @@ static void task_numa_placement(struct task_struct *p)
  
- 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
+ 	p->numa_scan_seq = seq;
  
-@@ -951,35 +951,42 @@ void task_numa_work(struct callback_head *work)
- 
- 	current->numa_scan_period += jiffies_to_msecs(2);
- 
--	start = mm->numa_scan_offset;
--	pages = sysctl_sched_numa_scan_size;
--	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
--	if (!pages)
-+	start0 = start = end = mm->numa_scan_offset;
-+	pages_total = sysctl_sched_numa_scan_size;
-+	pages_total <<= 20 - PAGE_SHIFT; /* MB in pages */
-+	if (!pages_total)
- 		return;
- 
-+	pages_left	= pages_total;
-+
- 	down_write(&mm->mmap_sem);
- 	vma = find_vma(mm, start);
- 	if (!vma) {
- 		ACCESS_ONCE(mm->numa_scan_seq)++;
--		start = 0;
--		vma = mm->mmap;
-+		end = 0;
-+		vma = find_vma(mm, end);
- 	}
- 	for (; vma; vma = vma->vm_next) {
- 		if (!vma_migratable(vma))
- 			continue;
- 
- 		do {
--			start = max(start, vma->vm_start);
--			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
-+			start = max(end, vma->vm_start);
-+			end = ALIGN(start + (pages_left << PAGE_SHIFT), HPAGE_SIZE);
- 			end = min(end, vma->vm_end);
--			pages -= change_prot_numa(vma, start, end);
--			start = end;
--			if (pages <= 0)
-+			pages_changed = change_prot_numa(vma, start, end);
-+
-+			WARN_ON_ONCE(pages_changed > pages_total);
-+			BUG_ON(pages_changed < 0);
-+
-+			pages_left -= pages_changed;
-+			if (pages_left <= 0)
- 				goto out;
- 		} while (end != vma->vm_end);
- 	}
- out:
--	mm->numa_scan_offset = start;
-+	mm->numa_scan_offset = end;
-+
- 	up_write(&mm->mmap_sem);
- }
- 
-@@ -3306,6 +3313,13 @@ static int select_idle_sibling(struct task_struct *p, int target)
- 	int i;
- 
- 	/*
-+	 * For NUMA tasks constant, reliable placement is more important
-+	 * than flipping tasks between siblings:
-+	 */
-+	if (task_numa_shared(p) >= 0)
-+		return target;
-+
 +	/*
- 	 * If the task is going to be woken-up on this cpu and if it is
- 	 * already idle, then it is the right target.
- 	 */
-@@ -4581,6 +4595,10 @@ static bool can_do_numa_run(struct lb_env *env, struct sd_lb_stats *sds)
- 	 * If we got capacity allow stacking up on shared tasks.
- 	 */
- 	if ((sds->this_shared_running < sds->this_group_capacity) && sds->numa_shared_running) {
-+		/* There's no point in trying to move if all are here already: */
-+		if (sds->numa_shared_running == sds->this_shared_running)
-+			return false;
++	 * Update the fault average with the result of the latest
++	 * scan:
++	 */
+ 	for (node = 0; node < nr_node_ids; node++) {
+ 		faults = 0;
+ 		for (priv = 0; priv < 2; priv++) {
+-			faults += p->numa_faults[2*node + priv];
+-			total[priv] += p->numa_faults[2*node + priv];
+-			p->numa_faults[2*node + priv] /= 2;
++			unsigned int new_faults;
++			unsigned int idx;
 +
- 		env->flags |= LBF_NUMA_SHARED;
- 		return true;
- 	}
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index a432eb8..b75a10d 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -71,6 +71,6 @@ SCHED_FEAT(LB_MIN, false)
- /* Do the working set probing faults: */
- SCHED_FEAT(NUMA,             true)
- SCHED_FEAT(NUMA_FAULTS_UP,   true)
--SCHED_FEAT(NUMA_FAULTS_DOWN, false)
-+SCHED_FEAT(NUMA_FAULTS_DOWN, true)
- SCHED_FEAT(NUMA_SETTLE,      true)
- #endif
++			idx = 2*node + priv;
++			new_faults = p->numa_faults_curr[idx];
++			p->numa_faults_curr[idx] = 0;
++
++			/* Keep a simple running average: */
++			p->numa_faults[idx] += new_faults;
++			p->numa_faults[idx] /= 2;
++
++			faults += p->numa_faults[idx];
++			total[priv] += p->numa_faults[idx];
+ 		}
+ 		if (faults > max_faults) {
+ 			max_faults = faults;
 -- 
 1.7.11.7
 
