@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 06F9F6B00C3
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:21 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:21 -0800 (PST)
+	by kanga.kvack.org (Postfix) with SMTP id EC2766B00C5
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:23 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476612eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:23 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 39/52] sched: Track shared task's node groups and interleave their memory allocations
-Date: Sun,  2 Dec 2012 19:43:31 +0100
-Message-Id: <1354473824-19229-40-git-send-email-mingo@kernel.org>
+Subject: [PATCH 40/52] sched: Add "task flipping" support
+Date: Sun,  2 Dec 2012 19:43:32 +0100
+Message-Id: <1354473824-19229-41-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,55 +15,25 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-This patch shows the power of the shared/private distinction: in
-the shared tasks active balancing function (sched_update_ideal_cpu_shared())
-we are able to to build a per (shared) task node mask of the nodes that
-it and its buddies occupy at the moment.
+NUMA balancing will make use of the new sched_rebalance_to() mode:
+the ability to 'flip' two tasks.
 
-Private tasks on the other hand are not affected and continue to do
-efficient node-local allocations.
+When two tasks have a similar weight but one of them executes on
+the wrong CPU or node, then it's beneficial to do a quick flipping
+operation. This will not change the general load of the source
+and the target CPUs, so it won't disturb the scheduling balance.
 
-There's two important special cases:
+With this we can do NUMA placement while the system is otherwise
+in equilibrium.
 
- - if a group of shared tasks fits on a single node. In this case
-   the interleaving happens on a single bit, a single node and thus
-   turns into nice node-local allocations.
+The code has to be careful about races and whether the source and
+target CPUs are allowed for the tasks in question.
 
- - if a large group spans the whole system: in this case the node
-   masks will cover the whole system, and all memory gets evenly
-   interleaved and available RAM bandwidth gets utilized. This is
-   preferable to allocating memory assymetrically and overloading
-   certain CPU links and running into their bandwidth limitations.
+This method is also faster: it can execute two migrations via one
+migration-thread call in essence - instead of two such calls. The
+thread on the target CPU acts as the 'migration thread' for the
+replaced task.
 
-This patch, in combination with the private/shared buddies patch,
-optimizes the "4x JVM", "single JVM" and "2x JVM" SPECjbb workloads
-on a 4-node system produce almost completely perfect memory placement.
-
-For example a 4-JVM workload on a 4-node, 32-CPU system has
-this performance (8 SPECjbb warehouses per JVM):
-
- spec1.txt:           throughput =     177460.44 SPECjbb2005 bops
- spec2.txt:           throughput =     176175.08 SPECjbb2005 bops
- spec3.txt:           throughput =     175053.91 SPECjbb2005 bops
- spec4.txt:           throughput =     171383.52 SPECjbb2005 bops
-
-Which is close to the hard binding performance figures.
-
-while previously it would regress compared to mainline.
-
-Mainline has the following 4x JVM performance:
-
- spec1.txt:           throughput =     157839.25 SPECjbb2005 bops
- spec2.txt:           throughput =     156969.15 SPECjbb2005 bops
- spec3.txt:           throughput =     157571.59 SPECjbb2005 bops
- spec4.txt:           throughput =     157873.86 SPECjbb2005 bops
-
-So the patch brings a 12% speedup.
-
-This placement idea came while discussing interleaving strategies
-with Christoph Lameter.
-
-Suggested-by: Christoph Lameter <cl@linux.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
@@ -73,24 +43,144 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- kernel/sched/fair.c | 4 ++++
- 1 file changed, 4 insertions(+)
+ include/linux/sched.h |  1 -
+ kernel/sched/core.c   | 68 +++++++++++++++++++++++++++++++++++++--------------
+ kernel/sched/fair.c   |  2 +-
+ kernel/sched/sched.h  |  6 +++++
+ 4 files changed, 57 insertions(+), 20 deletions(-)
 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 8bc3a03..696492e 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2020,7 +2020,6 @@ task_sched_runtime(struct task_struct *task);
+ /* sched_exec is called by processes performing an exec */
+ #ifdef CONFIG_SMP
+ extern void sched_exec(void);
+-extern void sched_rebalance_to(int dest_cpu);
+ #else
+ #define sched_exec()   {}
+ #endif
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 93f2561..cad6c89 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -963,8 +963,8 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
+ }
+ 
+ struct migration_arg {
+-	struct task_struct *task;
+-	int dest_cpu;
++	struct task_struct	*task;
++	int			dest_cpu;
+ };
+ 
+ static int migration_cpu_stop(void *data);
+@@ -2596,22 +2596,6 @@ unlock:
+ 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+ }
+ 
+-/*
+- * sched_rebalance_to()
+- *
+- * Active load-balance to a target CPU.
+- */
+-void sched_rebalance_to(int dest_cpu)
+-{
+-	struct task_struct *p = current;
+-	struct migration_arg arg = { p, dest_cpu };
+-
+-	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
+-		return;
+-
+-	stop_one_cpu(raw_smp_processor_id(), migration_cpu_stop, &arg);
+-}
+-
+ #endif
+ 
+ DEFINE_PER_CPU(struct kernel_stat, kstat);
+@@ -4778,6 +4762,54 @@ fail:
+ }
+ 
+ /*
++ * sched_rebalance_to()
++ *
++ * Active load-balance to a target CPU.
++ */
++void sched_rebalance_to(int dst_cpu, int flip_tasks)
++{
++	struct task_struct *p_src = current;
++	struct task_struct *p_dst;
++	int src_cpu = raw_smp_processor_id();
++	struct migration_arg arg = { p_src, dst_cpu };
++	struct rq *dst_rq;
++
++	if (!cpumask_test_cpu(dst_cpu, tsk_cpus_allowed(p_src)))
++		return;
++
++	if (flip_tasks) {
++		dst_rq = cpu_rq(dst_cpu);
++
++		local_irq_disable();
++		raw_spin_lock(&dst_rq->lock);
++
++		p_dst = dst_rq->curr;
++		get_task_struct(p_dst);
++
++		raw_spin_unlock(&dst_rq->lock);
++		local_irq_enable();
++	}
++
++	stop_one_cpu(src_cpu, migration_cpu_stop, &arg);
++	/*
++	 * Task-flipping.
++	 *
++	 * We are now on the new CPU - check whether we can migrate
++	 * the task we just preempted, to where we came from:
++	 */
++	if (flip_tasks) {
++		local_irq_disable();
++		if (raw_smp_processor_id() == dst_cpu) {
++ 			/* Note that the arguments flip: */
++			__migrate_task(p_dst, dst_cpu, src_cpu);
++		}
++		local_irq_enable();
++
++		put_task_struct(p_dst);
++	}
++}
++
++/*
+  * migration_cpu_stop - this will be executed by a highprio stopper thread
+  * and performs thread migration by bumping thread off CPU then
+  * 'pushing' onto another runqueue.
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index f3fb508..79f306c 100644
+index 79f306c..f0d3876 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -922,6 +922,10 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p)
- 			buddies++;
- 		}
- 		WARN_ON_ONCE(buddies > full_buddies);
-+		if (buddies)
-+			node_set(node, p->numa_policy.v.nodes);
-+		else
-+			node_clear(node, p->numa_policy.v.nodes);
+@@ -1176,7 +1176,7 @@ static void task_numa_placement(struct task_struct *p)
+ 		struct rq *rq = cpu_rq(p->ideal_cpu);
  
- 		/* Don't go to a node that is already at full capacity: */
- 		if (buddies == full_buddies)
+ 		rq->curr_buddy = p;
+-		sched_rebalance_to(p->ideal_cpu);
++		sched_rebalance_to(p->ideal_cpu, 0);
+ 	}
+ }
+ 
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 810a1a0..c4d15fd 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -1260,3 +1260,9 @@ static inline u64 irq_time_read(int cpu)
+ }
+ #endif /* CONFIG_64BIT */
+ #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
++
++#ifdef CONFIG_SMP
++extern void sched_rebalance_to(int dest_cpu, int flip_tasks);
++#else
++static inline void sched_rebalance_to(int dest_cpu, int flip_tasks) { }
++#endif
 -- 
 1.7.11.7
 
