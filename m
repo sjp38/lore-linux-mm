@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 88B508D0002
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:33 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so1082361eaa.14
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:33 -0800 (PST)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 6F1258D0002
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 13:45:35 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1476620eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 10:45:34 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 45/52] sched: Track quality and strength of convergence
-Date: Sun,  2 Dec 2012 19:43:37 +0100
-Message-Id: <1354473824-19229-46-git-send-email-mingo@kernel.org>
+Subject: [PATCH 46/52] sched: Converge NUMA migrations
+Date: Sun,  2 Dec 2012 19:43:38 +0100
+Message-Id: <1354473824-19229-47-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,30 +15,9 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Track strength of convergence, which is a value between 1 and 1024.
-This will be used by the placement logic later on.
-
-A strength value of 1024 means that the workload has fully
-converged, all faults after the last scan period came from a
-single node.
-
-A value of 1024/nr_nodes means a totally spread out working set.
-
-'max_faults' is the number of faults observed on the highest-faulting node.
-'sum_faults' are all faults from the last scan, averaged over ~16 periods.
-
-The goal of the scheduler is to maximize convergence system-wide.
-Once a task has converged, it carries with it a non-trivial amount
-of working set. If such a task is migrated to another node later
-on then its working set will migrate there as well, which is a
-non-trivial cost.
-
-So the ultimate goal of NUMA scheduling is to let as many tasks
-converge as possible, and to run them as close to their memory
-as possible.
-
-( Note: we could also sample migration activities to directly measure
-  how much convergence influx there is. )
+Consolidate the various convergence models and add a new one: when
+a strongly converged NUMA task migrates, prefer to migrate it in
+the direction of its preferred node.
 
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -49,101 +28,147 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/sched.h |  2 ++
- kernel/sched/core.c   |  2 ++
- kernel/sched/fair.c   | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 50 insertions(+)
+ kernel/sched/fair.c     | 59 +++++++++++++++++++++++++++++++++++--------------
+ kernel/sched/features.h |  3 ++-
+ 2 files changed, 44 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 8eeb866..5b2cf2e 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1509,6 +1509,8 @@ struct task_struct {
- 	unsigned long numa_scan_ts_secs;
- 	unsigned int numa_scan_period;
- 	u64 node_stamp;			/* migration stamp  */
-+	unsigned long convergence_strength;
-+	int convergence_node;
- 	unsigned long *numa_faults;
- 	unsigned long *numa_faults_curr;
- 	struct callback_head numa_scan_work;
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 0fac735..26a2ede 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1555,6 +1555,8 @@ static void __sched_fork(struct task_struct *p)
- 
- 	p->numa_shared = -1;
- 	p->node_stamp = 0ULL;
-+	p->convergence_strength		= 0;
-+	p->convergence_node		= -1;
- 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
- 	p->numa_faults = NULL;
- 	p->numa_scan_period = sysctl_sched_numa_scan_delay;
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 7af89b7..1f6104a 100644
+index 1f6104a..10cbfa3 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -1934,6 +1934,50 @@ clear_buddy:
+@@ -4750,6 +4750,35 @@ done:
+ 	return target;
  }
  
- /*
-+ * Update the p->convergence_strength info, which is a value between 1 and 1024.
-+ *
-+ * A strength value of 1024 means that the workload has fully
-+ * converged, all faults after the last scan period came from a
-+ * single node.
-+ *
-+ * A value of 1024/nr_nodes means a totally spread out working set.
-+ *
-+ * 'max_faults' is the number of faults observed on the highest-faulting node.
-+ * 'sum_faults' are all faults from the last scan, averaged over ~8 periods.
-+ *
-+ * The goal of the scheduler is to maximize convergence system-wide.
-+ * Once a task has converged, it carries with it a non-trivial amount
-+ * of working set. If such a task is migrated to another node later
-+ * on then its working set will migrate there as well, which is a
-+ * non-trivial cost.
-+ *
-+ * So the ultimate goal of NUMA scheduling is to let as many tasks
-+ * converge as possible, and to run them as close to their memory
-+ * as possible.
-+ *
-+ * ( Note: we could also sample migration activities to directly measure
-+ *   how much convergence influx there is. )
-+ */
-+static void
-+shared_fault_calc_convergence(struct task_struct *p, int max_node,
-+			      unsigned long max_faults, unsigned long sum_faults)
++static bool numa_allow_migration(struct task_struct *p, int prev_cpu, int new_cpu)
 +{
-+	/*
-+	 * If sum_faults is 0 then leave the convergence alone:
-+	 */
-+	if (sum_faults) {
-+		p->convergence_strength = 1024L * max_faults / sum_faults;
++#ifdef CONFIG_NUMA_BALANCING
++	if (sched_feat(NUMA_CONVERGE_MIGRATIONS)) {
++		/* Help in the direction of expected convergence: */
++		if (p->convergence_node >= 0 && (cpu_to_node(new_cpu) != p->convergence_node))
++			return false;
 +
-+		if (p->convergence_strength >= 921) {
-+			WARN_ON_ONCE(max_node == -1);
-+			p->convergence_node = max_node;
-+		} else {
-+			p->convergence_node = -1;
++		return true;
++	}
++
++	if (sched_feat(NUMA_BALANCE_ALL)) {
++ 		if (task_numa_shared(p) >= 0)
++			return false;
++
++		return true;
++	}
++
++	if (sched_feat(NUMA_BALANCE_INTERNODE)) {
++		if (task_numa_shared(p) >= 0) {
++ 			if (cpu_to_node(prev_cpu) != cpu_to_node(new_cpu))
++				return false;
 +		}
 +	}
++#endif
++	return true;
 +}
 +
-+/*
-  * Called every couple of hundred milliseconds in the task's
-  * execution life-time, this function decides whether to
-  * change placement parameters:
-@@ -1974,6 +2018,8 @@ static void task_numa_placement_tick(struct task_struct *p)
- 		}
- 	}
- 
-+	shared_fault_calc_convergence(p, ideal_node, max_faults, total[0] + total[1]);
 +
- 	shared_fault_full_scan_done(p);
+ /*
+  * sched_balance_self: balance the current task (running on cpu) in domains
+  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
+@@ -4766,7 +4795,8 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
+ {
+ 	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
+ 	int cpu = smp_processor_id();
+-	int prev_cpu = task_cpu(p);
++	int prev0_cpu = task_cpu(p);
++	int prev_cpu = prev0_cpu;
+ 	int new_cpu = cpu;
+ 	int want_affine = 0;
+ 	int sync = wake_flags & WF_SYNC;
+@@ -4775,10 +4805,6 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
+ 		return prev_cpu;
  
- 	/*
+ #ifdef CONFIG_NUMA_BALANCING
+-	/* We do NUMA balancing elsewhere: */
+-	if (sched_feat(NUMA_BALANCE_ALL) && task_numa_shared(p) >= 0)
+-		return prev_cpu;
+-
+ 	if (sched_feat(WAKE_ON_IDEAL_CPU) && p->ideal_cpu >= 0)
+ 		return p->ideal_cpu;
+ #endif
+@@ -4857,8 +4883,8 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
+ unlock:
+ 	rcu_read_unlock();
+ 
+-	if (sched_feat(NUMA_BALANCE_INTERNODE) && task_numa_shared(p) >= 0 && (cpu_to_node(prev_cpu) != cpu_to_node(new_cpu)))
+-		return prev_cpu;
++	if (!numa_allow_migration(p, prev0_cpu, new_cpu))
++		return prev0_cpu;
+ 
+ 	return new_cpu;
+ }
+@@ -5401,8 +5427,11 @@ static bool can_migrate_running_task(struct task_struct *p, struct lb_env *env)
+ static int can_migrate_task(struct task_struct *p, struct lb_env *env)
+ {
+ 	/* We do NUMA balancing elsewhere: */
+-	if (sched_feat(NUMA_BALANCE_ALL) && task_numa_shared(p) > 0 && env->failed <= env->sd->cache_nice_tries)
+-		return false;
++
++	if (env->failed <= env->sd->cache_nice_tries) {
++		if (!numa_allow_migration(p, env->src_rq->cpu, env->dst_cpu))
++			return false;
++	}
+ 
+ 	if (!can_migrate_pinned_task(p, env))
+ 		return false;
+@@ -5461,10 +5490,7 @@ static int move_one_task(struct lb_env *env)
+ 		if (!can_migrate_task(p, env))
+ 			continue;
+ 
+-		if (sched_feat(NUMA_BALANCE_ALL) && task_numa_shared(p) >= 0)
+-			continue;
+-
+-		if (sched_feat(NUMA_BALANCE_INTERNODE) && task_numa_shared(p) >= 0 && (cpu_to_node(env->src_rq->cpu) != cpu_to_node(env->dst_cpu)))
++		if (!numa_allow_migration(p, env->src_rq->cpu, env->dst_cpu))
+ 			continue;
+ 
+ 		move_task(p, env);
+@@ -5527,10 +5553,7 @@ static int move_tasks(struct lb_env *env)
+ 		if (!can_migrate_task(p, env))
+ 			goto next;
+ 
+-		if (sched_feat(NUMA_BALANCE_ALL) && task_numa_shared(p) >= 0)
+-			continue;
+-
+-		if (sched_feat(NUMA_BALANCE_INTERNODE) && task_numa_shared(p) >= 0 && (cpu_to_node(env->src_rq->cpu) != cpu_to_node(env->dst_cpu)))
++		if (!numa_allow_migration(p, env->src_rq->cpu, env->dst_cpu))
+ 			goto next;
+ 
+ 		move_task(p, env);
+@@ -6520,8 +6543,10 @@ static int load_balance(int this_cpu, struct rq *this_rq,
+ 		.iteration          = 0,
+ 	};
+ 
++#ifdef CONFIG_NUMA_BALANCING
+ 	if (sched_feat(NUMA_BALANCE_ALL))
+ 		return 1;
++#endif
+ 
+ 	cpumask_copy(cpus, cpu_active_mask);
+ 	max_lb_iterations = cpumask_weight(env.dst_grpmask);
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index fd9db0b..9075faf 100644
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -76,9 +76,10 @@ SCHED_FEAT(WAKE_ON_IDEAL_CPU,		false)
+ /* Do the working set probing faults: */
+ SCHED_FEAT(NUMA,			true)
+ SCHED_FEAT(NUMA_BALANCE_ALL,		false)
+-SCHED_FEAT(NUMA_BALANCE_INTERNODE,		false)
++SCHED_FEAT(NUMA_BALANCE_INTERNODE,	false)
+ SCHED_FEAT(NUMA_LB,			false)
+ SCHED_FEAT(NUMA_GROUP_LB_COMPRESS,	true)
+ SCHED_FEAT(NUMA_GROUP_LB_SPREAD,	true)
+ SCHED_FEAT(MIGRATE_FAULT_STATS,		false)
++SCHED_FEAT(NUMA_CONVERGE_MIGRATIONS,	true)
+ #endif
 -- 
 1.7.11.7
 
