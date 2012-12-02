@@ -1,47 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 92AD96B0068
-	for <linux-mm@kvack.org>; Sat,  1 Dec 2012 15:34:14 -0500 (EST)
-Message-ID: <50BA69B7.30002@redhat.com>
-Date: Sat, 01 Dec 2012 15:33:59 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 17FCA6B0044
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 05:49:06 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1324190eek.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 02:49:04 -0800 (PST)
+Date: Sun, 2 Dec 2012 11:49:02 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [memcg:since-3.6 341/499]
+ drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
+Message-ID: <20121202104902.GA4947@dhcp22.suse.cz>
+References: <50b79f52.Rxsdi7iwHf+1mkK5%fengguang.wu@intel.com>
+ <20121130002848.GA28177@localhost>
+ <20121129164616.6c308ce0.akpm@linux-foundation.org>
+ <20121130020015.GA29687@localhost>
+ <20121130181459.GA20301@dhcp22.suse.cz>
+ <20121130214418.GA20508@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/migration: Make rmap_walk_anon() and try_to_unmap_anon()
- more scalable
-References: <1354305521-11583-1-git-send-email-mingo@kernel.org> <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com> <20121201094927.GA12366@gmail.com> <20121201122649.GA20322@gmail.com> <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com> <20121201184135.GA32449@gmail.com> <CA+55aFyq7OaUxcEHXvJhp0T57KN14o-RGxqPmA+ks8ge6zJh5w@mail.gmail.com> <20121201201538.GB2704@gmail.com>
-In-Reply-To: <20121201201538.GB2704@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121130214418.GA20508@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rafael Aquini <aquini@redhat.com>, kbuild@01.org, Julia Lawall <julia.lawall@lip6.fr>, linux-mm@kvack.org
 
-On 12/01/2012 03:15 PM, Ingo Molnar wrote:
+On Sat 01-12-12 05:44:18, Wu Fengguang wrote:
+> On Fri, Nov 30, 2012 at 07:14:59PM +0100, Michal Hocko wrote:
+> > On Fri 30-11-12 10:00:15, Wu Fengguang wrote:
+> > > On Thu, Nov 29, 2012 at 04:46:16PM -0800, Andrew Morton wrote:
+> > > > On Fri, 30 Nov 2012 08:28:48 +0800
+> > > > Fengguang Wu <fengguang.wu@intel.com> wrote:
+> > > > 
+> > > > > Hi Rafael,
+> > > > > 
+> > > > > [Julia and me think that this coccinelle warning is worth reporting.]
+> > > > > 
+> > > > > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git since-3.6
+> > > > > head:   422a0f651b5cefa1b6b3ede2e1c9e540a24a6e01
+> > > > > commit: 5f1da4063294480b3fabcee554f976565dec54b5 [341/499] virtio_balloon: introduce migration primitives to balloon pages
+> > > > > 
+> > > > > + drivers/virtio/virtio_balloon.c:157:2-8: preceding lock on line 136
+> > > > > 
+> > > > > vim +157 drivers/virtio/virtio_balloon.c
+> > > > > 
+> > > > > 6b35e407 Rusty Russell      2008-02-04  130  {
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  131  	struct balloon_dev_info *vb_dev_info = vb->vb_dev_info;
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  132  
+> > > > > 6b35e407 Rusty Russell      2008-02-04  133  	/* We can only do one array worth at a time. */
+> > > > > 6b35e407 Rusty Russell      2008-02-04  134  	num = min(num, ARRAY_SIZE(vb->pfns));
+> > > > > 6b35e407 Rusty Russell      2008-02-04  135  
+> > > > > 5f1da406 Rafael Aquini      2012-11-09 @136  	mutex_lock(&vb->balloon_lock);
+> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  137  	for (vb->num_pfns = 0; vb->num_pfns < num;
+> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  138  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  139  		struct page *page = balloon_page_enqueue(vb_dev_info);
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  140  
+> > > > > 6b35e407 Rusty Russell      2008-02-04  141  		if (!page) {
+> > > > > 6b35e407 Rusty Russell      2008-02-04  142  			if (printk_ratelimit())
+> > > > > 6b35e407 Rusty Russell      2008-02-04  143  				dev_printk(KERN_INFO, &vb->vdev->dev,
+> > > > > 6b35e407 Rusty Russell      2008-02-04  144  					   "Out of puff! Can't get %zu pages\n",
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  145  					   VIRTIO_BALLOON_PAGES_PER_PAGE);
+> > > > > 6b35e407 Rusty Russell      2008-02-04  146  			/* Sleep for at least 1/5 of a second before retry. */
+> > > > > 6b35e407 Rusty Russell      2008-02-04  147  			msleep(200);
+> > > > > 6b35e407 Rusty Russell      2008-02-04  148  			break;
+> > > > > 6b35e407 Rusty Russell      2008-02-04  149  		}
+> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  150  		set_page_pfns(vb->pfns + vb->num_pfns, page);
+> > > > > 3ccc9372 Michael S. Tsirkin 2012-04-12  151  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+> > > > > 6b35e407 Rusty Russell      2008-02-04  152  		totalram_pages--;
+> > > > > 6b35e407 Rusty Russell      2008-02-04  153  	}
+> > > > > 6b35e407 Rusty Russell      2008-02-04  154  
+> > > > > 6b35e407 Rusty Russell      2008-02-04  155  	/* Didn't get any?  Oh well. */
+> > > > > 6b35e407 Rusty Russell      2008-02-04  156  	if (vb->num_pfns == 0)
+> > > > > 6b35e407 Rusty Russell      2008-02-04 @157  		return;
+> > > > > 6b35e407 Rusty Russell      2008-02-04  158  
+> > > > > 6b35e407 Rusty Russell      2008-02-04  159  	tell_host(vb, vb->inflate_vq);
+> > > > > 5f1da406 Rafael Aquini      2012-11-09  160  	mutex_unlock(&vb->balloon_lock);
+> > > > 
+> > > > This bug was fixed by
+> > > > 
+> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages.patch
+> > > > this one -> virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix.patch
+> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix.patch
+> > > >             virtio_balloon-introduce-migration-primitives-to-balloon-pages-fix-fix-fix.patch
+> > > 
+> > > Michal: your since-3.6 branch somehow missed that followup fix...
+> > 
+> > Hmm strange, I can see all of them in my tree.
+> > 72d9876194be9e6f0600ca796b6689a77fce28b7
+> > f920c4f67b892a6b41054c5441ab0d481489c6c9
+> > 63db42f4243be26efffc32806990349235619bad
+> 
+> Oops.. the fixes are reverted by a later commit 4f2ac849
 
-> Index: linux/include/linux/rmap.h
-> ===================================================================
-> --- linux.orig/include/linux/rmap.h
-> +++ linux/include/linux/rmap.h
-> @@ -128,6 +128,17 @@ static inline void anon_vma_unlock(struc
->   	up_write(&anon_vma->root->rwsem);
->   }
->
-> +static inline void anon_vma_lock_read(struct anon_vma *anon_vma)
-> +{
-> +	down_read(&anon_vma->root->rwsem);
-> +}
+Ohh, I really screwed that revert (this is the second issue already).
+Sorry about that and especially sorry that I brought more burden on you.
+I will be more careful next time.
 
-I see you did not rename anon_vma_lock and anon_vma_unlock
-to anon_vma_lock_write and anon_vma_unlock_write.
+Fixed and pushed
 
-That could get confusing to people touching that code in
-the future.
-
-The patch looks correct, though.
+Thanks a lot!
 
 -- 
-All rights reversed
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
