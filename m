@@ -1,209 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id B69126B005A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 13:53:43 -0500 (EST)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher threads
-Date: Mon, 03 Dec 2012 13:53:39 -0500
-Message-ID: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 337D36B0062
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:07:18 -0500 (EST)
+Date: Mon, 3 Dec 2012 11:07:15 -0800
+From: Zach Brown <zab@redhat.com>
+Subject: Re: [patch] bdi: add a user-tunable cpu_list for the bdi flusher
+ threads
+Message-ID: <20121203190715.GB1377@lenny.home.zabbo.net>
+References: <x49boehtipu.fsf@segfault.boston.devel.redhat.com>
+ <20121130221542.GM18574@lenny.home.zabbo.net>
+ <x49zk1vnnju.fsf@segfault.boston.devel.redhat.com>
+ <x49vccjnm0o.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49vccjnm0o.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Zach Brown <zab@redhat.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+On Mon, Dec 03, 2012 at 11:22:31AM -0500, Jeff Moyer wrote:
+> Jeff Moyer <jmoyer@redhat.com> writes:
+> 
+> >>> +		bdi->flusher_cpumask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
+> >>> +		if (!bdi->flusher_cpumask)
+> >>> +			return -ENOMEM;
+> >>
+> >> The bare GFP_KERNEL raises an eyebrow.  Some bdi_init() callers like
+> >> blk_alloc_queue_node() look like they'll want to pass in a gfp_t for the
+> >> allocation.
+> >
+> > I'd be surprised if that was necessary, seeing how every single caller
+> > of blk_alloc_queue_node passes in GFP_KERNEL.  I'll make the change,
+> > though, there aren't too many callers of bdi_init out there.
+> 
+> No other callers of bdi_init want anything but GFP_KERNEL.  In the case
+> of blk_alloc_queue_node, even *it* doesn't honor the gfp_t passed in!
+> Have a look at blkcg_init_queue (called from blk_alloc_queue_node) to
+> see what I mean.  Maybe that's a bug?
 
-In realtime environments, it may be desirable to keep the per-bdi
-flusher threads from running on certain cpus.  This patch adds a
-cpu_list file to /sys/class/bdi/* to enable this.  The default is to tie
-the flusher threads to the same numa node as the backing device (though
-I could be convinced to make it a mask of all cpus to avoid a change in
-behaviour).
+Heh, indeed.
 
-Comments, as always, are appreciated.
+> I've written the patch to modify bdi_init to take a gfp_t, but I'm
+> actually not in favor of this change, so I'm not going to post it
+> (unless, of course, you can provide a compelling argument).  :-)
 
-Cheers,
-Jeff
+No argument here,  it just jumped out at me in the code.  I didn't check
+out the callers or history of why it was that way :).
 
-Signed-off-by: Jeff Moyer <jmoyer@redhat.com>
-
---
-changes from v1->v2:
-- fixed missing free in error path of bdi_init
-- fixed up unchecked references to task in the store function
-
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 2a9a9ab..68263e0 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -18,6 +18,7 @@
- #include <linux/writeback.h>
- #include <linux/atomic.h>
- #include <linux/sysctl.h>
-+#include <linux/mutex.h>
- 
- struct page;
- struct device;
-@@ -105,6 +106,9 @@ struct backing_dev_info {
- 
- 	struct timer_list laptop_mode_wb_timer;
- 
-+	cpumask_t *flusher_cpumask; /* used for writeback thread scheduling */
-+	struct mutex flusher_cpumask_mutex;
-+
- #ifdef CONFIG_DEBUG_FS
- 	struct dentry *debug_dir;
- 	struct dentry *debug_stats;
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index d3ca2b3..1cc1ff2 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -10,6 +10,7 @@
- #include <linux/module.h>
- #include <linux/writeback.h>
- #include <linux/device.h>
-+#include <linux/slab.h>
- #include <trace/events/writeback.h>
- 
- static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
-@@ -221,12 +222,61 @@ static ssize_t max_ratio_store(struct device *dev,
- }
- BDI_SHOW(max_ratio, bdi->max_ratio)
- 
-+static ssize_t cpu_list_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t count)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	struct bdi_writeback *wb = &bdi->wb;
-+	cpumask_var_t newmask;
-+	ssize_t ret;
-+	struct task_struct *task;
-+
-+	if (!alloc_cpumask_var(&newmask, GFP_KERNEL))
-+		return -ENOMEM;
-+
-+	ret = cpulist_parse(buf, newmask);
-+	if (!ret) {
-+		spin_lock(&bdi->wb_lock);
-+		task = wb->task;
-+		if (task)
-+			get_task_struct(task);
-+		spin_unlock(&bdi->wb_lock);
-+		if (task) {
-+			ret = set_cpus_allowed_ptr(task, newmask);
-+			put_task_struct(task);
-+		}
-+		if (ret == 0) {
-+			mutex_lock(&bdi->flusher_cpumask_mutex);
-+			cpumask_copy(bdi->flusher_cpumask, newmask);
-+			mutex_unlock(&bdi->flusher_cpumask_mutex);
-+			ret = count;
-+		}
-+	}
-+	free_cpumask_var(newmask);
-+
-+	return ret;
-+}
-+
-+static ssize_t cpu_list_show(struct device *dev,
-+		struct device_attribute *attr, char *page)
-+{
-+	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-+	ssize_t ret;
-+
-+	mutex_lock(&bdi->flusher_cpumask_mutex);
-+	ret = cpulist_scnprintf(page, PAGE_SIZE-1, bdi->flusher_cpumask);
-+	mutex_unlock(&bdi->flusher_cpumask_mutex);
-+
-+	return ret;
-+}
-+
- #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
- 
- static struct device_attribute bdi_dev_attrs[] = {
- 	__ATTR_RW(read_ahead_kb),
- 	__ATTR_RW(min_ratio),
- 	__ATTR_RW(max_ratio),
-+	__ATTR_RW(cpu_list),
- 	__ATTR_NULL,
- };
- 
-@@ -428,6 +478,7 @@ static int bdi_forker_thread(void *ptr)
- 				writeback_inodes_wb(&bdi->wb, 1024,
- 						    WB_REASON_FORKER_THREAD);
- 			} else {
-+				int ret;
- 				/*
- 				 * The spinlock makes sure we do not lose
- 				 * wake-ups when racing with 'bdi_queue_work()'.
-@@ -437,6 +488,14 @@ static int bdi_forker_thread(void *ptr)
- 				spin_lock_bh(&bdi->wb_lock);
- 				bdi->wb.task = task;
- 				spin_unlock_bh(&bdi->wb_lock);
-+				mutex_lock(&bdi->flusher_cpumask_mutex);
-+				ret = set_cpus_allowed_ptr(task,
-+							bdi->flusher_cpumask);
-+				mutex_unlock(&bdi->flusher_cpumask_mutex);
-+				if (ret)
-+					printk_once("%s: failed to bind flusher"
-+						    " thread %s, error %d\n",
-+						    __func__, task->comm, ret);
- 				wake_up_process(task);
- 			}
- 			bdi_clear_pending(bdi);
-@@ -509,6 +568,17 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
- 						dev_name(dev));
- 		if (IS_ERR(wb->task))
- 			return PTR_ERR(wb->task);
-+	} else {
-+		int node;
-+		/*
-+		 * Set up a default cpumask for the flusher threads that
-+		 * includes all cpus on the same numa node as the device.
-+		 * The mask may be overridden via sysfs.
-+		 */
-+		node = dev_to_node(bdi->dev);
-+		if (node != NUMA_NO_NODE)
-+			cpumask_copy(bdi->flusher_cpumask,
-+				     cpumask_of_node(node));
- 	}
- 
- 	bdi_debug_register(bdi, dev_name(dev));
-@@ -634,6 +704,15 @@ int bdi_init(struct backing_dev_info *bdi)
- 
- 	bdi_wb_init(&bdi->wb, bdi);
- 
-+	if (!bdi_cap_flush_forker(bdi)) {
-+		bdi->flusher_cpumask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
-+		if (!bdi->flusher_cpumask)
-+			return -ENOMEM;
-+		cpumask_setall(bdi->flusher_cpumask);
-+		mutex_init(&bdi->flusher_cpumask_mutex);
-+	} else
-+		bdi->flusher_cpumask = NULL;
-+
- 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++) {
- 		err = percpu_counter_init(&bdi->bdi_stat[i], 0);
- 		if (err)
-@@ -656,6 +735,7 @@ int bdi_init(struct backing_dev_info *bdi)
- err:
- 		while (i--)
- 			percpu_counter_destroy(&bdi->bdi_stat[i]);
-+		kfree(bdi->flusher_cpumask);
- 	}
- 
- 	return err;
-@@ -683,6 +763,8 @@ void bdi_destroy(struct backing_dev_info *bdi)
- 
- 	bdi_unregister(bdi);
- 
-+	kfree(bdi->flusher_cpumask);
-+
- 	/*
- 	 * If bdi_unregister() had already been called earlier, the
- 	 * wakeup_timer could still be armed because bdi_prune_sb()
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
