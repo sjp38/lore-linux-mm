@@ -1,95 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 814A46B0062
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:47:49 -0500 (EST)
-Message-ID: <50BD2BB9.7010808@redhat.com>
-Date: Mon, 03 Dec 2012 17:46:17 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 32/52] sched: Track groups of shared tasks
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-33-git-send-email-mingo@kernel.org>
-In-Reply-To: <1354473824-19229-33-git-send-email-mingo@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id CAFD96B006E
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 18:01:11 -0500 (EST)
+Date: Mon, 3 Dec 2012 15:01:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: protect against concurrent vma expansion
+Message-Id: <20121203150110.39c204ff.akpm@linux-foundation.org>
+In-Reply-To: <1354344987-28203-1-git-send-email-walken@google.com>
+References: <1354344987-28203-1-git-send-email-walken@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On 12/02/2012 01:43 PM, Ingo Molnar wrote:
+On Fri, 30 Nov 2012 22:56:27 -0800
+Michel Lespinasse <walken@google.com> wrote:
 
-> This is not entirely correct as this task might have scheduled or
-> migrate ther - but statistically there will be correlation to the
-           ^^^^ there?
+> expand_stack() runs with a shared mmap_sem lock. Because of this, there
+> could be multiple concurrent stack expansions in the same mm, which may
+> cause problems in the vma gap update code.
+> 
+> I propose to solve this by taking the mm->page_table_lock around such vma
+> expansions, in order to avoid the concurrency issue. We only have to worry
+> about concurrent expand_stack() calls here, since we hold a shared mmap_sem
+> lock and all vma modificaitons other than expand_stack() are done under
+> an exclusive mmap_sem lock.
+> 
+> I previously tried to achieve the same effect by making sure all
+> growable vmas in a given mm would share the same anon_vma, which we
+> already lock here. However this turned out to be difficult - all of the
+> schemes I tried for refcounting the growable anon_vma and clearing
+> turned out ugly. So, I'm now proposing only the minimal fix.
+> 
 
-> tasks that we share memory with, and correlation is all we need.
->
-> We map out the relation itself by filtering out the highest address
-> ask that is below our own task address, per working set scan
-   ^^^ task?
-> iteration.
+I think I don't understand the problem fully.  Let me demonstrate:
 
-> @@ -906,23 +945,122 @@ out_backoff:
->   }
->
->   /*
-> + * Track our "memory buddies" the tasks we actively share memory with.
-> + *
-> + * Firstly we establish the identity of some other task that we are
-> + * sharing memory with by looking at rq[page::last_cpu].curr - i.e.
-> + * we check the task that is running on that CPU right now.
-> + *
-> + * This is not entirely correct as this task might have scheduled or
-> + * migrate ther - but statistically there will be correlation to the
-               ^^^^ there
+a) vma_lock_anon_vma() doesn't take a lock which is specific to
+   "this" anon_vma.  It takes anon_vma->root->mutex.  That mutex is
+   shared with vma->vm_next, yes?  If so, we have no problem here? 
+   (which makes me suspect that the races lies other than where I think
+   it lies).
 
-> + * tasks that we share memory with, and correlation is all we need.
-> + *
-> + * We map out the relation itself by filtering out the highest address
-> + * ask that is below our own task address, per working set scan
-       ^^^ task?
-
-If that word is "task", the comment makes sense. If it is
-something else, I'm back to square one on what the code does :)
+b) I can see why a broader lock is needed in expand_upwards(): it
+   plays with a different vma: vma->vm_next.  But expand_downwards()
+   doesn't do that - it only alters "this" vma.  So I'd have thought
+   that vma_lock_anon_vma("this" vma) would be sufficient.
 
 
->   void task_numa_fault(int node, int last_cpu, int pages)
->   {
->   	struct task_struct *p = current;
->   	int priv = (task_cpu(p) == last_cpu);
-> +	int idx = 2*node + priv;
->
->   	if (unlikely(!p->numa_faults)) {
-> -		int size = sizeof(*p->numa_faults) * 2 * nr_node_ids;
-> +		int entries = 2*nr_node_ids;
-> +		int size = sizeof(*p->numa_faults) * entries;
->
-> -		p->numa_faults = kzalloc(size, GFP_KERNEL);
-> +		p->numa_faults = kzalloc(2*size, GFP_KERNEL);
-
-So we multiply nr_node_ids by 2. Twice.
-
-That kind of magic deserves a comment explaining how
-and why.  How about:
-
-	/*
-	 * We track two arrays with private and shared faults
-	 * for each NUMA node. The p->numa_faults_curr array
-	 * is allocated at the same time as the p->numa_faults
-	 * array.
-	 */
-	int size = sizeof(*p->numa_faults) * 4 * nr_node_ids;
-
->   		if (!p->numa_faults)
->   			return;
-> +		/*
-> +		 * For efficiency reasons we allocate ->numa_faults[]
-> +		 * and ->numa_faults_curr[] at once and split the
-> +		 * buffer we get. They are separate otherwise.
-> +		 */
-> +		p->numa_faults_curr = p->numa_faults + entries;
->   	}
-
+What are the performance costs of this change?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
