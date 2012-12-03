@@ -1,77 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 9C4BF6B0072
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 12:30:05 -0500 (EST)
-Date: Mon, 3 Dec 2012 18:30:02 +0100
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 98C236B0074
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 12:32:07 -0500 (EST)
+Date: Mon, 3 Dec 2012 18:32:05 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/4] memcg: replace cgroup_lock with memcg specific
- memcg_lock
-Message-ID: <20121203173002.GH17093@dhcp22.suse.cz>
+Subject: Re: [PATCH 3/4] memcg: split part of memcg creation to css_online
+Message-ID: <20121203173205.GI17093@dhcp22.suse.cz>
 References: <1354282286-32278-1-git-send-email-glommer@parallels.com>
- <1354282286-32278-5-git-send-email-glommer@parallels.com>
- <20121203171532.GG17093@dhcp22.suse.cz>
+ <1354282286-32278-4-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121203171532.GG17093@dhcp22.suse.cz>
+In-Reply-To: <1354282286-32278-4-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon 03-12-12 18:15:32, Michal Hocko wrote:
-[...]
-> > @@ -3915,7 +3926,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
-> >  	 */
-> >  	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
-> >  				(val == 1 || val == 0)) {
-> > -		if (list_empty(&cont->children))
-> > +		if (!memcg_has_children(memcg))
-> >  			memcg->use_hierarchy = val;
-> >  		else
-> >  			retval = -EBUSY;
+On Fri 30-11-12 17:31:25, Glauber Costa wrote:
+> Although there is arguably some value in doing this per se, the main
+> goal of this patch is to make room for the locking changes to come.
 > 
-> Nothing prevents from a race when a task is on the way to be attached to
-> the group. This means that we might miss some charges up the way to the
-> parent.
-> 
-> mem_cgroup_hierarchy_write
->   					cgroup_attach_task
-> 					  ss->can_attach() = mem_cgroup_can_attach
-> 					    mutex_lock(&memcg_lock)
-> 					    memcg->attach_in_progress++
-> 					    mutex_unlock(&memcg_lock)
-> 					    __mem_cgroup_can_attach
-> 					      mem_cgroup_precharge_mc (*)
->   mutex_lock(memcg_lock)
->   memcg_has_children(memcg)==false
+> With all the value assignment from parent happening in a context where
+> our iterators can already be used, we can safely lock against value
+> change in some key values like use_hierarchy, without resorting to the
+> cgroup core at all.
 
-Dohh, retard alert. I obviously mixed tasks and children cgroups here.
-Why I thought we also do check for no tasks in the group? Ahh, because
-we should, at least here otherwise parent could see more uncharges than
-charges.
-But that deserves a separate patch. Sorry, for the confusion.
+I am sorry but I really do not get why online_css callback is more
+appropriate. Quite contrary. With this change iterators can see a group
+which is not fully initialized which calls for a problem (even though it
+is not one yet).
+Could you be more specific why we cannot keep the initialization in
+mem_cgroup_css_alloc? We can lock there as well, no?
 
-> 					  cgroup_task_migrate
->   memcg->use_hierarchy = val;
-> 					  ss->attach()
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> ---
+>  mm/memcontrol.c | 52 +++++++++++++++++++++++++++++++++++-----------------
+>  1 file changed, 35 insertions(+), 17 deletions(-)
 > 
-> (*) All the charches here are not propagated upwards.
-> 
-> Fixable simply by testing attach_in_progress as well. The same applies
-> to all other cases so it would be much better to prepare a common helper
-> which does the whole magic.
-> 
-> [...]
-> 
-> Thanks
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d80b6b5..b6d352f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5023,12 +5023,40 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  			INIT_WORK(&stock->work, drain_local_stock);
+>  		}
+>  		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+> -	} else {
+> -		parent = mem_cgroup_from_cont(cont->parent);
+> -		memcg->use_hierarchy = parent->use_hierarchy;
+> -		memcg->oom_kill_disable = parent->oom_kill_disable;
+> +
+> +		res_counter_init(&memcg->res, NULL);
+> +		res_counter_init(&memcg->memsw, NULL);
+>  	}
+>  
+> +	memcg->last_scanned_node = MAX_NUMNODES;
+> +	INIT_LIST_HEAD(&memcg->oom_notify);
+> +	atomic_set(&memcg->refcnt, 1);
+> +	memcg->move_charge_at_immigrate = 0;
+> +	mutex_init(&memcg->thresholds_lock);
+> +	spin_lock_init(&memcg->move_lock);
+> +
+> +	return &memcg->css;
+> +
+> +free_out:
+> +	__mem_cgroup_free(memcg);
+> +	return ERR_PTR(error);
+> +}
+> +
+> +static int
+> +mem_cgroup_css_online(struct cgroup *cont)
+> +{
+> +	struct mem_cgroup *memcg, *parent;
+> +	int error = 0;
+> +
+> +	if (!cont->parent)
+> +		return 0;
+> +
+> +	memcg = mem_cgroup_from_cont(cont);
+> +	parent = mem_cgroup_from_cont(cont->parent);
+> +
+> +	memcg->use_hierarchy = parent->use_hierarchy;
+> +	memcg->oom_kill_disable = parent->oom_kill_disable;
+> +
+>  	if (parent && parent->use_hierarchy) {
+>  		res_counter_init(&memcg->res, &parent->res);
+>  		res_counter_init(&memcg->memsw, &parent->memsw);
+> @@ -5050,15 +5078,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  		if (parent && parent != root_mem_cgroup)
+>  			mem_cgroup_subsys.broken_hierarchy = true;
+>  	}
+> -	memcg->last_scanned_node = MAX_NUMNODES;
+> -	INIT_LIST_HEAD(&memcg->oom_notify);
+>  
+> -	if (parent)
+> -		memcg->swappiness = mem_cgroup_swappiness(parent);
+> -	atomic_set(&memcg->refcnt, 1);
+> -	memcg->move_charge_at_immigrate = 0;
+> -	mutex_init(&memcg->thresholds_lock);
+> -	spin_lock_init(&memcg->move_lock);
+> +	memcg->swappiness = mem_cgroup_swappiness(parent);
+>  
+>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>  	if (error) {
+> @@ -5068,12 +5089,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  		 * call __mem_cgroup_free, so return directly
+>  		 */
+>  		mem_cgroup_put(memcg);
+> -		return ERR_PTR(error);
+>  	}
+> -	return &memcg->css;
+> -free_out:
+> -	__mem_cgroup_free(memcg);
+> -	return ERR_PTR(error);
+> +	return error;
+>  }
+>  
+>  static void mem_cgroup_css_offline(struct cgroup *cont)
+> @@ -5702,6 +5719,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
+>  	.name = "memory",
+>  	.subsys_id = mem_cgroup_subsys_id,
+>  	.css_alloc = mem_cgroup_css_alloc,
+> +	.css_online = mem_cgroup_css_online,
+>  	.css_offline = mem_cgroup_css_offline,
+>  	.css_free = mem_cgroup_css_free,
+>  	.can_attach = mem_cgroup_can_attach,
 > -- 
-> Michal Hocko
-> SUSE Labs
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 1.7.11.7
+> 
 
 -- 
 Michal Hocko
