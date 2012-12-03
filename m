@@ -1,37 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id CC5186B002B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 10:53:35 -0500 (EST)
-Message-ID: <50BCCAA3.6060604@redhat.com>
-Date: Mon, 03 Dec 2012 10:52:03 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 6ADFA6B0062
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 11:22:35 -0500 (EST)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [patch] bdi: add a user-tunable cpu_list for the bdi flusher threads
+References: <x49boehtipu.fsf@segfault.boston.devel.redhat.com>
+	<20121130221542.GM18574@lenny.home.zabbo.net>
+	<x49zk1vnnju.fsf@segfault.boston.devel.redhat.com>
+Date: Mon, 03 Dec 2012 11:22:31 -0500
+In-Reply-To: <x49zk1vnnju.fsf@segfault.boston.devel.redhat.com> (Jeff Moyer's
+	message of "Mon, 03 Dec 2012 10:49:25 -0500")
+Message-ID: <x49vccjnm0o.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/52] RFC: Unified NUMA balancing tree, v1
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
-In-Reply-To: <1354473824-19229-1-git-send-email-mingo@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Zach Brown <zab@redhat.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 12/02/2012 01:42 PM, Ingo Molnar wrote:
+Jeff Moyer <jmoyer@redhat.com> writes:
 
-> Most of the outstanding objections against numa/core centered around
-> Mel and Rik objecting to the PROT_NONE approach Peter implemented in
-> numa/core. To settle that question objectively I've performed performance
-> testing of those differences, by picking up the minimum number of
-> essentials needed to be able to remove the PROT_NONE approach and use
-> the PTE_NUMA approach Mel took from the AutoNUMA tree and elsewhere.
+>>> +		bdi->flusher_cpumask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
+>>> +		if (!bdi->flusher_cpumask)
+>>> +			return -ENOMEM;
+>>
+>> The bare GFP_KERNEL raises an eyebrow.  Some bdi_init() callers like
+>> blk_alloc_queue_node() look like they'll want to pass in a gfp_t for the
+>> allocation.
+>
+> I'd be surprised if that was necessary, seeing how every single caller
+> of blk_alloc_queue_node passes in GFP_KERNEL.  I'll make the change,
+> though, there aren't too many callers of bdi_init out there.
 
-For the record, I have no objection to either of
-the pte marking approaches.
+No other callers of bdi_init want anything but GFP_KERNEL.  In the case
+of blk_alloc_queue_node, even *it* doesn't honor the gfp_t passed in!
+Have a look at blkcg_init_queue (called from blk_alloc_queue_node) to
+see what I mean.  Maybe that's a bug?
 
-> Rik van Riel (1):
->    sched, numa, mm: Add credits for NUMA placement
+I've written the patch to modify bdi_init to take a gfp_t, but I'm
+actually not in favor of this change, so I'm not going to post it
+(unless, of course, you can provide a compelling argument).  :-)
 
-Where did the TLB flush optimizations go? :)
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
