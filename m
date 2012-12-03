@@ -1,55 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id 337D36B0062
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:07:18 -0500 (EST)
-Date: Mon, 3 Dec 2012 11:07:15 -0800
-From: Zach Brown <zab@redhat.com>
-Subject: Re: [patch] bdi: add a user-tunable cpu_list for the bdi flusher
- threads
-Message-ID: <20121203190715.GB1377@lenny.home.zabbo.net>
-References: <x49boehtipu.fsf@segfault.boston.devel.redhat.com>
- <20121130221542.GM18574@lenny.home.zabbo.net>
- <x49zk1vnnju.fsf@segfault.boston.devel.redhat.com>
- <x49vccjnm0o.fsf@segfault.boston.devel.redhat.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 57F2C6B0070
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:20:04 -0500 (EST)
+Date: Mon, 3 Dec 2012 14:18:58 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: kswapd craziness in 3.7
+Message-ID: <20121203191858.GY24381@cmpxchg.org>
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+ <20121128094511.GS8218@suse.de>
+ <50BCC3E3.40804@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <x49vccjnm0o.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <50BCC3E3.40804@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Zdenek Kabelac <zkabelac@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Thorsten Leemhuis <fedora@leemhuis.info>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis.Kletnieks@vt.edu, Jiri Slaby <jslaby@suse.cz>, Bruno Wolff III <bruno@wolff.to>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 03, 2012 at 11:22:31AM -0500, Jeff Moyer wrote:
-> Jeff Moyer <jmoyer@redhat.com> writes:
+Szia Zdenek,
+
+On Mon, Dec 03, 2012 at 04:23:15PM +0100, Zdenek Kabelac wrote:
+> Ok, bad news - I've been hit by  kswapd0 loop again -
+> my kernel git commit cc19528bd3084c3c2d870b31a3578da8c69952f3 again
+> shown kswapd0 for couple minutes on CPU.
 > 
-> >>> +		bdi->flusher_cpumask = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
-> >>> +		if (!bdi->flusher_cpumask)
-> >>> +			return -ENOMEM;
-> >>
-> >> The bare GFP_KERNEL raises an eyebrow.  Some bdi_init() callers like
-> >> blk_alloc_queue_node() look like they'll want to pass in a gfp_t for the
-> >> allocation.
-> >
-> > I'd be surprised if that was necessary, seeing how every single caller
-> > of blk_alloc_queue_node passes in GFP_KERNEL.  I'll make the change,
-> > though, there aren't too many callers of bdi_init out there.
-> 
-> No other callers of bdi_init want anything but GFP_KERNEL.  In the case
-> of blk_alloc_queue_node, even *it* doesn't honor the gfp_t passed in!
-> Have a look at blkcg_init_queue (called from blk_alloc_queue_node) to
-> see what I mean.  Maybe that's a bug?
+> It seemed to go instantly away when I've drop caches
+> (echo 3 >/proc/sys/vm/drop_cache)
+> (After that I've had over 1G free memory)
 
-Heh, indeed.
+Any chance you could retry with this patch on top?
 
-> I've written the patch to modify bdi_init to take a gfp_t, but I'm
-> actually not in favor of this change, so I'm not going to post it
-> (unless, of course, you can provide a compelling argument).  :-)
+Thanks!
 
-No argument here,  it just jumped out at me in the code.  I didn't check
-out the callers or history of why it was that way :).
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: vmscan: do not keep kswapd looping forever due
+ to individual uncompactable zones
 
-- z
+When a zone meets its high watermark and is compactable in case of
+higher order allocations, it contributes to the percentage of the
+node's memory that is considered balanced.
+
+This requirement, that a node be only partially balanced, came about
+when kswapd was desparately trying to balance tiny zones when all
+bigger zones in the node had plenty of free memory.  Arguably, the
+same should apply to compaction: if a significant part of the node is
+balanced enough to run compaction, do not get hung up on that tiny
+zone that might never get in shape.
+
+When the compaction logic in kswapd is reached, we know that at least
+25% of the node's memory is balanced properly for compaction (see
+zone_balanced and pgdat_balanced).  Remove the individual zone checks
+that restart the kswapd cycle.
+
+Otherwise, we may observe more endless looping in kswapd where the
+compaction code loops back to reclaim because of a single zone and
+reclaim does nothing because the node is considered balanced overall.
+
+Reported-by: Thorsten Leemhuis <fedora@leemhuis.info>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c | 16 ----------------
+ 1 file changed, 16 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3b0aef4..486100f 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2806,22 +2806,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 			if (!populated_zone(zone))
+ 				continue;
+ 
+-			if (zone->all_unreclaimable &&
+-			    sc.priority != DEF_PRIORITY)
+-				continue;
+-
+-			/* Would compaction fail due to lack of free memory? */
+-			if (COMPACTION_BUILD &&
+-			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
+-				goto loop_again;
+-
+-			/* Confirm the zone is balanced for order-0 */
+-			if (!zone_watermark_ok(zone, 0,
+-					high_wmark_pages(zone), 0, 0)) {
+-				order = sc.order = 0;
+-				goto loop_again;
+-			}
+-
+ 			/* Check if the memory needs to be defragmented. */
+ 			if (zone_watermark_ok(zone, order,
+ 				    low_wmark_pages(zone), *classzone_idx, 0))
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
