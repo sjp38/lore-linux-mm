@@ -1,157 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id BB53E6B004D
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 21:29:48 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id dq11so1113304wgb.26
-        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 18:29:47 -0800 (PST)
+Message-ID: <50BC13EB.1050009@cn.fujitsu.com>
+Date: Mon, 03 Dec 2012 10:52:27 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1354287821-5925-3-git-send-email-kirill.shutemov@linux.intel.com>
-References: <50B52E17.8020205@suse.cz>
-	<1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1354287821-5925-3-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Mon, 3 Dec 2012 10:29:47 +0800
-Message-ID: <CAA_GA1cBwQqaO-rj_4+MbmEgSsQ9H2fxAgs1T5X+Fze1shnkXQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] thp: avoid race on multiple parallel page faults to
- the same page
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [BUG REPORT] [mm-hotplug, aio] aio ring_pages can't be offlined
+References: <1354172098-5691-1-git-send-email-linfeng@cn.fujitsu.com> <20121129153930.477e9709.akpm@linux-foundation.org> <50B82B0D.8010206@cn.fujitsu.com> <20121129215749.acfd872a.akpm@linux-foundation.org> <50B859C6.3020707@cn.fujitsu.com> <20121129235502.05223586.akpm@linux-foundation.org> <20121130110059.GD8218@suse.de>
+In-Reply-To: <20121130110059.GD8218@suse.de>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Jiri Slaby <jslaby@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
-
-On Fri, Nov 30, 2012 at 11:03 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
->
-> pmd value is stable only with mm->page_table_lock taken. After taking
-> the lock we need to check that nobody modified the pmd before change it.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-Reviewed-by: Bob Liu <lliubbo@gmail.com>
-
-> ---
->  mm/huge_memory.c | 29 ++++++++++++++++++++++++-----
->  1 file changed, 24 insertions(+), 5 deletions(-)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 9d6f521..51cb8fe 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -770,17 +770,20 @@ static inline struct page *alloc_hugepage(int defrag)
->  }
->  #endif
->
-> -static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
-> +static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
->                 struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
->                 unsigned long zero_pfn)
->  {
->         pmd_t entry;
-> +       if (!pmd_none(*pmd))
-> +               return false;
->         entry = pfn_pmd(zero_pfn, vma->vm_page_prot);
->         entry = pmd_wrprotect(entry);
->         entry = pmd_mkhuge(entry);
->         set_pmd_at(mm, haddr, pmd, entry);
->         pgtable_trans_huge_deposit(mm, pgtable);
->         mm->nr_ptes++;
-> +       return true;
->  }
->
->  int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> @@ -800,6 +803,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->                                 transparent_hugepage_use_zero_page()) {
->                         pgtable_t pgtable;
->                         unsigned long zero_pfn;
-> +                       bool set;
->                         pgtable = pte_alloc_one(mm, haddr);
->                         if (unlikely(!pgtable))
->                                 return VM_FAULT_OOM;
-> @@ -810,9 +814,13 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->                                 goto out;
->                         }
->                         spin_lock(&mm->page_table_lock);
-> -                       set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-> +                       set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
->                                         zero_pfn);
->                         spin_unlock(&mm->page_table_lock);
-> +                       if (!set) {
-> +                               pte_free(mm, pgtable);
-> +                               put_huge_zero_page();
-> +                       }
->                         return 0;
->                 }
->                 page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
-> @@ -1046,14 +1054,16 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->          */
->         if (is_huge_zero_pmd(pmd)) {
->                 unsigned long zero_pfn;
-> +               bool set;
->                 /*
->                  * get_huge_zero_page() will never allocate a new page here,
->                  * since we already have a zero page to copy. It just takes a
->                  * reference.
->                  */
->                 zero_pfn = get_huge_zero_page();
-> -               set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
-> +               set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
->                                 zero_pfn);
-> +               BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
->                 ret = 0;
->                 goto out_unlock;
->         }
-> @@ -1110,7 +1120,7 @@ unlock:
->
->  static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
->                 struct vm_area_struct *vma, unsigned long address,
-> -               pmd_t *pmd, unsigned long haddr)
-> +               pmd_t *pmd, pmd_t orig_pmd, unsigned long haddr)
->  {
->         pgtable_t pgtable;
->         pmd_t _pmd;
-> @@ -1139,6 +1149,9 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
->         mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
->
->         spin_lock(&mm->page_table_lock);
-> +       if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> +               goto out_free_page;
-> +
->         pmdp_clear_flush(vma, haddr, pmd);
->         /* leave pmd empty until pte is filled */
->
-> @@ -1171,6 +1184,12 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
->         ret |= VM_FAULT_WRITE;
->  out:
->         return ret;
-> +out_free_page:
-> +       spin_unlock(&mm->page_table_lock);
-> +       mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-> +       mem_cgroup_uncharge_page(page);
-> +       put_page(page);
-> +       goto out;
->  }
->
->  static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
-> @@ -1317,7 +1336,7 @@ alloc:
->                 count_vm_event(THP_FAULT_FALLBACK);
->                 if (is_huge_zero_pmd(orig_pmd)) {
->                         ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
-> -                                       address, pmd, haddr);
-> +                                       address, pmd, orig_pmd, haddr);
->                 } else {
->                         ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
->                                         pmd, orig_pmd, page, haddr);
-> --
-> 1.7.11.7
->
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, viro@zeniv.linux.org.uk, bcrl@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, hughd@google.com, cl@linux.com, minchan@kernel.org, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
 
--- 
-Regards,
---Bob
+On 11/30/2012 07:00 PM, Mel Gorman wrote:
+>>
+>> Well, that's a fairly low-level implementation detail.  A more typical
+>> approach would be to add a new get_user_pages_non_movable() or such. 
+>> That would probably have the same signature as get_user_pages(), with
+>> one additional argument.  Then get_user_pages() becomes a one-line
+>> wrapper which passes in a particular value of that argument.
+>>
+> 
+> That is going in the direction that all pinned pages become MIGRATE_UNMOVABLE
+> allocations.  That will impact THP availability by increasing the number
+> of MIGRATE_UNMOVABLE blocks that exist and it would hit every user --
+> not just those that care about ZONE_MOVABLE.
+> 
+> I'm likely to NAK such a patch if it's only about node hot-remove because
+> it's much more of a corner case than wanting to use THP.
+> 
+> I would prefer if get_user_pages() checked if the page it was about to
+> pin was in ZONE_MOVABLE and if so, migrate it at that point before it's
+> pinned. It'll be expensive but will guarantee ZONE_MOVABLE availability
+> if that's what they want. The CMA people might also want to take
+> advantage of this if the page happened to be in the MIGRATE_CMA
+> pageblock.
+> 
+hi Mel,
+
+Thanks for your suggestion. 
+My initial idea is also to restrict the impact as little as possible so 
+migrate such pages as we need. 
+But even to such "going to pin pages", most of them are going to be released 
+soon, so deal with them all in the same way is really *expensive*. 
+
+May be we do have to find another way that makes everybody happy :)
+
+Thanks,
+linfeng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
