@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id B93B56B004D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 08:08:37 -0500 (EST)
-Date: Mon, 3 Dec 2012 14:08:34 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Fedora repo (was: Re: kswapd craziness in 3.7)
-Message-ID: <20121203130834.GB32243@liondog.tnic>
-References: <20121127222637.GG2301@cmpxchg.org>
- <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
- <20121128101359.GT8218@suse.de>
- <20121128145215.d23aeb1b.akpm@linux-foundation.org>
- <20121128235412.GW8218@suse.de>
- <50B77F84.1030907@leemhuis.info>
- <20121129170512.GI2301@cmpxchg.org>
- <50B8A8E7.4030108@leemhuis.info>
- <20121201004520.GK2301@cmpxchg.org>
- <50BC6314.7060106@leemhuis.info>
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id ECB496B004D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 08:14:10 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so1928575eek.14
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 05:14:09 -0800 (PST)
+Message-ID: <50BCA59D.6040704@suse.cz>
+Date: Mon, 03 Dec 2012 14:14:05 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <50BC6314.7060106@leemhuis.info>
+Subject: Re: kswapd craziness in 3.7
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis.Kletnieks@vt.edu, Thorsten Leemhuis <fedora@leemhuis.info>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 03, 2012 at 09:30:12AM +0100, Thorsten Leemhuis wrote:
-> Np; BTW, in case anybody here on LKML cares: I started maintaining a
-> side repo (PPA in ubuntu speak) a few weeks ago that offers kernel
-> vanilla builds (mainline and stable) for the Fedora 17 and 18; see
-> https://fedoraproject.org/wiki/Kernel_Vanilla_Repositories
-> for details. It's not as good and up2date yet as I would like it, but
-> one has to start somewhere.
+On 11/27/2012 09:48 PM, Johannes Weiner wrote:
+> I hope I included everybody that participated in the various threads
+> on kswapd getting stuck / exhibiting high CPU usage.  We were looking
+> at at least three root causes as far as I can see, so it's not really
+> clear who observed which problem.  Please correct me if the
+> reported-by, tested-by, bisected-by tags are incomplete.
 
-Once you have this ready, you should send a more official mail with
-"[ANNOUNCE]" in its subject and containing explanations how to use the
-repo to lkml and relevant lists so that more people know about it.
+Hi, I reported the problem for the first time but I got lost in the
+patches flying around very early.
 
-Thanks.
+Whatever is in the current -next, works for me since -next was
+resurrected after the 2 weeks gap last week...
 
+thanks,
 -- 
-Regards/Gruss,
-    Boris.
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
