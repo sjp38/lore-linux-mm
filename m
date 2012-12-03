@@ -1,80 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 2FCA76B005A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 18:17:17 -0500 (EST)
-Date: Mon, 3 Dec 2012 15:17:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of
- pages occupied by memmap
-Message-Id: <20121203151715.8c536a7a.akpm@linux-foundation.org>
-In-Reply-To: <50BBB21D.3070005@googlemail.com>
-References: <20121120111942.c9596d3f.akpm@linux-foundation.org>
-	<1353510586-6393-1-git-send-email-jiang.liu@huawei.com>
-	<20121128155221.df369ce4.akpm@linux-foundation.org>
-	<50B73E56.4050603@googlemail.com>
-	<50BBB21D.3070005@googlemail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id 25D356B0062
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 18:42:27 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Tue, 4 Dec 2012 05:12:17 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id E4971125804A
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 05:12:03 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB3NgIqo4194590
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 05:12:19 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB3NgIt1010915
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 10:42:19 +1100
+Message-ID: <50BD38D6.7060900@linux.vnet.ibm.com>
+Date: Tue, 04 Dec 2012 07:42:14 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm: Generate events when tasks change their memory
+References: <50B8F2F4.6000508@parallels.com> <50B8F327.4030703@parallels.com>
+In-Reply-To: <50B8F327.4030703@parallels.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Clayton <chris2553@googlemail.com>
-Cc: Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Sun, 02 Dec 2012 19:55:09 +0000
-Chris Clayton <chris2553@googlemail.com> wrote:
+On 12/01/2012 01:55 AM, Pavel Emelyanov wrote:
 
-> 
-> 
-> On 11/29/12 10:52, Chris Clayton wrote:
-> > On 11/28/12 23:52, Andrew Morton wrote:
-> >> On Wed, 21 Nov 2012 23:09:46 +0800
-> >> Jiang Liu <liuj97@gmail.com> wrote:
-> >>
-> >>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
-> >>> of pages occupied by memmap
-> >>
-> >> How are people to test this?  "does it boot"?
-> >>
-> >
-> > I've been running kernels with Gerry's 5 patches applied for 11 days
-> > now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
-> > joined the conversation because my laptop would not resume from suspend
-> > to disk - it either froze or rebooted. With the patches applied the
-> > laptop does successfully resume and has been stable.
-> >
-> > Since Monday, I have have been running a kernel with the patches (plus,
-> > from today, the patch you mailed yesterday) applied to 3.7rc7, without
-> > problems.
-> >
-> 
-> I've been running 3.7-rc7 with the patches listed below for a week now 
-> and it has been perfectly stable. In particular, my laptop will now 
-> successfully resume from suspend to disk, which always failed without 
-> the patches.
-> 
->  From Jiang Liu:
-> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct zone
-> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with 
-> zone->managed_pages if appreciated
-> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing 
-> pages in the zone
-> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages 
-> occupied by memmap
-> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages 
-> allocated by bootmem allocator
-> 
->  From Andrew Morton:
-> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
-> 
-> Tested-by: Chris Clayton <chris2553@googlemail.com>
+>  	case MADV_DOTRACE:
+> +		/*
+> +		 * Protect pages to be read-only and force tasks to generate
+> +		 * #PFs on modification.
+> +		 *
+> +		 * It should be done before issuing trace-on event. Otherwise
+> +		 * we're leaving a short window after the 'on' event when tasks
+> +		 * can still modify pages.
+> +		 */
+> +		change_protection(vma, start, end,
+> +				vm_get_page_prot(vma->vm_flags & ~VM_READ),
+> +				vma_wants_writenotify(vma));
 
-Thanks.
-
-I have only two of these five patches queued for 3.8:
-mm-introduce-new-field-managed_pages-to-struct-zone.patch and
-mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch. 
-I don't recall what happened with the other three.
+Should be VM_WRITE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
