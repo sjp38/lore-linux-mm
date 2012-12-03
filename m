@@ -1,51 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 2AE8E6B005A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 12:11:33 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so2116785eek.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 09:11:31 -0800 (PST)
-Date: Mon, 3 Dec 2012 18:11:26 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/52] RFC: Unified NUMA balancing tree, v1
-Message-ID: <20121203171126.GA18394@gmail.com>
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
- <50BCCAA3.6060604@redhat.com>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 15A5A6B0070
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 12:15:36 -0500 (EST)
+Date: Mon, 3 Dec 2012 18:15:32 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 4/4] memcg: replace cgroup_lock with memcg specific
+ memcg_lock
+Message-ID: <20121203171532.GG17093@dhcp22.suse.cz>
+References: <1354282286-32278-1-git-send-email-glommer@parallels.com>
+ <1354282286-32278-5-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50BCCAA3.6060604@redhat.com>
+In-Reply-To: <1354282286-32278-5-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>
 
+On Fri 30-11-12 17:31:26, Glauber Costa wrote:
+[...]
+> +/*
+> + * must be called with memcg_lock held, unless the cgroup is guaranteed to be
+> + * already dead (like in mem_cgroup_force_empty, for instance).
+> + */
+> +static inline bool memcg_has_children(struct mem_cgroup *memcg)
+> +{
+> +	return mem_cgroup_count_children(memcg) != 1;
+> +}
 
-* Rik van Riel <riel@redhat.com> wrote:
+Why not just keep list_empty(&cgrp->children) which is much simpler much
+more effective and correct here as well because cgroup cannot vanish
+while we are at the call because all callers come from cgroup fs?
 
-> >Rik van Riel (1):
-> >   sched, numa, mm: Add credits for NUMA placement
-> 
-> Where did the TLB flush optimizations go? :)
+[...]
+> @@ -3900,7 +3911,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>  	if (parent)
+>  		parent_memcg = mem_cgroup_from_cont(parent);
+>  
+> -	cgroup_lock();
+> +	mutex_lock(&memcg_lock);
+>  
+>  	if (memcg->use_hierarchy == val)
+>  		goto out;
+> @@ -3915,7 +3926,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>  	 */
+>  	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
+>  				(val == 1 || val == 0)) {
+> -		if (list_empty(&cont->children))
+> +		if (!memcg_has_children(memcg))
+>  			memcg->use_hierarchy = val;
+>  		else
+>  			retval = -EBUSY;
 
-They are still very much there, unchanged for a long time and 
-acked by everyone - I thought I'd spare a few electrons by not 
-doing a 60+ patches full resend.
+Nothing prevents from a race when a task is on the way to be attached to
+the group. This means that we might miss some charges up the way to the
+parent.
 
-Here is how it looks like in the full diffstat:
+mem_cgroup_hierarchy_write
+  					cgroup_attach_task
+					  ss->can_attach() = mem_cgroup_can_attach
+					    mutex_lock(&memcg_lock)
+					    memcg->attach_in_progress++
+					    mutex_unlock(&memcg_lock)
+					    __mem_cgroup_can_attach
+					      mem_cgroup_precharge_mc (*)
+  mutex_lock(memcg_lock)
+  memcg_has_children(memcg)==false
+					  cgroup_task_migrate
+  memcg->use_hierarchy = val;
+					  ss->attach()
 
- Rik van Riel (6):
-      mm/generic: Only flush the local TLB in ptep_set_access_flags()
-      x86/mm: Only do a local tlb flush in ptep_set_access_flags()
-      x86/mm: Introduce pte_accessible()
-      mm: Only flush the TLB when clearing an accessible pte
-      x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
-      sched, numa, mm: Add credits for NUMA placement
+(*) All the charches here are not propagated upwards.
 
-I'm really fond of these btw., they make a real difference.
+Fixable simply by testing attach_in_progress as well. The same applies
+to all other cases so it would be much better to prepare a common helper
+which does the whole magic.
 
-Thanks,
+[...]
 
-	Ingo
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
