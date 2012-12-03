@@ -1,72 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 9FE476B005D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:57:21 -0500 (EST)
-Message-ID: <50BD03B7.2070401@redhat.com>
-Date: Mon, 03 Dec 2012 14:55:35 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 3E2D66B0068
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 15:19:39 -0500 (EST)
+Date: Mon, 3 Dec 2012 18:16:35 -0200
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
+Message-ID: <20121203201634.GA3429@amt.cnet>
+References: <50B8F2F4.6000508@parallels.com>
+ <50BC6491.70600@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 29/52] sched: Implement NUMA scanning backoff
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-30-git-send-email-mingo@kernel.org>
-In-Reply-To: <1354473824-19229-30-git-send-email-mingo@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50BC6491.70600@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org
 
-On 12/02/2012 01:43 PM, Ingo Molnar wrote:
-> Back off slowly from scanning, up to sysctl_sched_numa_scan_period_max
-> (1.6 seconds). Scan faster again if we were forced to switch to
-> another node.
+On Mon, Dec 03, 2012 at 12:36:33PM +0400, Glauber Costa wrote:
+> On 11/30/2012 09:55 PM, Pavel Emelyanov wrote:
+> > Hello,
+> > 
+> > This is an attempt to implement support for memory snapshot for the the
+> > checkpoint-restore project (http://criu.org).
+> > 
+> > To create a dump of an application(s) we save all the information about it
+> > to files. No surprise, the biggest part of such dump is the contents of tasks'
+> > memory. However, in some usage scenarios it's not required to get _all_ the
+> > task memory while creating a dump. For example, when doing periodical dumps
+> > it's only required to take full memory dump only at the first step and then
+> > take incremental changes of memory. Another example is live migration. In the
+> > simplest form it looks like -- create dump, copy it on the remote node then
+> > restore tasks from dump files. While all this dump-copy-restore thing goes all
+> > the process must be stopped. However, if we can monitor how tasks change their
+> > memory, we can dump and copy it in smaller chunks, periodically updating it 
+> > and thus freezing tasks only at the very end for the very short time to pick
+> > up the recent changes.
+> > 
+> > That said, some help from kernel to watch how processes modify the contents of
+> > their memory is required. I'd like to propose one possible solution of this
+> > task -- with the help of page-faults and trace events.
+> > 
+> > Briefly the approach is -- remap some memory regions as read-only, get the #pf
+> > on task's attempt to modify the memory and issue a trace event of that. Since
+> > we're only interested in parts of memory of some tasks, make it possible to mark
+> > the vmas we're interested in and issue events for them only. Also, to be aware
+> > of tasks unmapping the vma-s being watched, also issue an event when the marked
+> > vma is removed (and for symmetry -- an event when a vma is marked).
+> > 
+> > What do you think about this approach? Is this way of supporting mem snapshot
+> > OK for you, or should we invent some better one?
+> > 
+> 
+> The page fault mechanism is pretty obvious - anything that deals with
+> dirty pages will end up having to do this. So there is nothing crazy
+> about this.
+> 
+> What concerns me, however, is that should this go in, we'll have two
+> dirty mem loggers in the kernel: one to support CRIU, one to support
+> KVM. And the worst part: They have the exact the same purpose!!
+> 
+> So to begin with, I think one thing to consider, would be to generalize
+> KVM's dirty memory notification so it can work on a normal process
+> memory region. KVM api requires a "memory slot" to be passed, something
+> we are unlikely to have. But KVM can easily keep its API and use an
+> alternate mechanics, that's trivial...
+> 
+> Generally speaking, KVM will do polling with this ioctl. I prefer your
+> tracing mechanism better. The only difference, is that KVM tends to
+> transfer large chunks of memory in some loads - in the high gigs range.
+> So the proposal tracing API should be able to optionally batch requests
+> within a time frame.
+> 
+> It would also be good to hear what does the KVM guys think of it as well
 
-> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-> index 8f0e6ba..59fea2e 100644
-> --- a/kernel/sched/fair.c
-> +++ b/kernel/sched/fair.c
-> @@ -865,8 +865,10 @@ static void task_numa_placement(struct task_struct *p)
->   		}
->   	}
->
-> -	if (max_node != p->numa_max_node)
-> +	if (max_node != p->numa_max_node) {
->   		sched_setnuma(p, max_node, task_numa_shared(p));
-> +		goto out_backoff;
-> +	}
->
->   	p->numa_migrate_seq++;
->   	if (sched_feat(NUMA_SETTLE) &&
+There are significant differences. KVM's dirty logging works for
+guest translations (NPT/shadow) and is optimized for specific use cases.
 
-Is that correct?
-
-It looks like the code only jumps to the out_backoff label
-after resetting p->numa_scan_period to sysctl_sched_numa_scan_period_min
-in sched_setnuma?
-
-Should it not be the other way around, slowly increasing the process's
-numa_scan_period when we do NOT do a sched_setnuma call for the process
-at all?
-
-> @@ -882,7 +884,11 @@ static void task_numa_placement(struct task_struct *p)
->   	if (shared != task_numa_shared(p)) {
->   		sched_setnuma(p, p->numa_max_node, shared);
->   		p->numa_migrate_seq = 0;
-> +		goto out_backoff;
->   	}
-> +	return;
-
-We can never reach the backoff code, except by an explicit goto,
-which is only there after a call to sched_setnuma.
-
-That is the opposite from what the changelog suggests...
-
-> +out_backoff:
-> +	p->numa_scan_period = min(p->numa_scan_period * 2, sysctl_sched_numa_scan_period_max);
->   }
->
->   /*
->
+Above is about dirty logging of userspace memory areas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
