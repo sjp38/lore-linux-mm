@@ -1,617 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 16B8E6B004D
-	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 21:24:07 -0500 (EST)
-Message-ID: <50BC0D2D.8040008@huawei.com>
-Date: Mon, 3 Dec 2012 10:23:41 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id BB53E6B004D
+	for <linux-mm@kvack.org>; Sun,  2 Dec 2012 21:29:48 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id dq11so1113304wgb.26
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 18:29:47 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [Patch v4 08/12] memory-hotplug: remove memmap of sparse-vmemmap
-References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-9-git-send-email-wency@cn.fujitsu.com> <50B5DC00.20103@huawei.com> <50B80FB1.6040906@cn.fujitsu.com>
-In-Reply-To: <50B80FB1.6040906@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1354287821-5925-3-git-send-email-kirill.shutemov@linux.intel.com>
+References: <50B52E17.8020205@suse.cz>
+	<1354287821-5925-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1354287821-5925-3-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Mon, 3 Dec 2012 10:29:47 +0800
+Message-ID: <CAA_GA1cBwQqaO-rj_4+MbmEgSsQ9H2fxAgs1T5X+Fze1shnkXQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] thp: avoid race on multiple parallel page faults to
+ the same page
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Jiri Slaby <jslaby@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 
-Hi Congyang,
+On Fri, Nov 30, 2012 at 11:03 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+>
+> pmd value is stable only with mm->page_table_lock taken. After taking
+> the lock we need to check that nobody modified the pmd before change it.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-This is the new version.
+Reviewed-by: Bob Liu <lliubbo@gmail.com>
 
-Thanks,
-Jianguo Wu.
+> ---
+>  mm/huge_memory.c | 29 ++++++++++++++++++++++++-----
+>  1 file changed, 24 insertions(+), 5 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 9d6f521..51cb8fe 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -770,17 +770,20 @@ static inline struct page *alloc_hugepage(int defrag)
+>  }
+>  #endif
+>
+> -static void set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+> +static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>                 struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
+>                 unsigned long zero_pfn)
+>  {
+>         pmd_t entry;
+> +       if (!pmd_none(*pmd))
+> +               return false;
+>         entry = pfn_pmd(zero_pfn, vma->vm_page_prot);
+>         entry = pmd_wrprotect(entry);
+>         entry = pmd_mkhuge(entry);
+>         set_pmd_at(mm, haddr, pmd, entry);
+>         pgtable_trans_huge_deposit(mm, pgtable);
+>         mm->nr_ptes++;
+> +       return true;
+>  }
+>
+>  int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> @@ -800,6 +803,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>                                 transparent_hugepage_use_zero_page()) {
+>                         pgtable_t pgtable;
+>                         unsigned long zero_pfn;
+> +                       bool set;
+>                         pgtable = pte_alloc_one(mm, haddr);
+>                         if (unlikely(!pgtable))
+>                                 return VM_FAULT_OOM;
+> @@ -810,9 +814,13 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>                                 goto out;
+>                         }
+>                         spin_lock(&mm->page_table_lock);
+> -                       set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
+> +                       set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
+>                                         zero_pfn);
+>                         spin_unlock(&mm->page_table_lock);
+> +                       if (!set) {
+> +                               pte_free(mm, pgtable);
+> +                               put_huge_zero_page();
+> +                       }
+>                         return 0;
+>                 }
+>                 page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+> @@ -1046,14 +1054,16 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>          */
+>         if (is_huge_zero_pmd(pmd)) {
+>                 unsigned long zero_pfn;
+> +               bool set;
+>                 /*
+>                  * get_huge_zero_page() will never allocate a new page here,
+>                  * since we already have a zero page to copy. It just takes a
+>                  * reference.
+>                  */
+>                 zero_pfn = get_huge_zero_page();
+> -               set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
+> +               set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
+>                                 zero_pfn);
+> +               BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
+>                 ret = 0;
+>                 goto out_unlock;
+>         }
+> @@ -1110,7 +1120,7 @@ unlock:
+>
+>  static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
+>                 struct vm_area_struct *vma, unsigned long address,
+> -               pmd_t *pmd, unsigned long haddr)
+> +               pmd_t *pmd, pmd_t orig_pmd, unsigned long haddr)
+>  {
+>         pgtable_t pgtable;
+>         pmd_t _pmd;
+> @@ -1139,6 +1149,9 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
+>         mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end);
+>
+>         spin_lock(&mm->page_table_lock);
+> +       if (unlikely(!pmd_same(*pmd, orig_pmd)))
+> +               goto out_free_page;
+> +
+>         pmdp_clear_flush(vma, haddr, pmd);
+>         /* leave pmd empty until pte is filled */
+>
+> @@ -1171,6 +1184,12 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
+>         ret |= VM_FAULT_WRITE;
+>  out:
+>         return ret;
+> +out_free_page:
+> +       spin_unlock(&mm->page_table_lock);
+> +       mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
+> +       mem_cgroup_uncharge_page(page);
+> +       put_page(page);
+> +       goto out;
+>  }
+>
+>  static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+> @@ -1317,7 +1336,7 @@ alloc:
+>                 count_vm_event(THP_FAULT_FALLBACK);
+>                 if (is_huge_zero_pmd(orig_pmd)) {
+>                         ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
+> -                                       address, pmd, haddr);
+> +                                       address, pmd, orig_pmd, haddr);
+>                 } else {
+>                         ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+>                                         pmd, orig_pmd, page, haddr);
+> --
+> 1.7.11.7
+>
 
 
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- include/linux/mm.h  |    1 +
- mm/sparse-vmemmap.c |  231 +++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/sparse.c         |    3 +-
- 3 files changed, 234 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5657670..1f26af5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1642,6 +1642,7 @@ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
- void vmemmap_populate_print_last(void);
- void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
- 				  unsigned long size);
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages);
- 
- enum mf_flags {
- 	MF_COUNT_INCREASED = 1 << 0,
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index 1b7e22a..748732d 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -29,6 +29,10 @@
- #include <asm/pgalloc.h>
- #include <asm/pgtable.h>
- 
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+#include <asm/tlbflush.h>
-+#endif
-+
- /*
-  * Allocate a block of memory to be used to back the virtual memory map
-  * or to back the page tables that are used to create the mapping.
-@@ -224,3 +228,230 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
- 		vmemmap_buf_end = NULL;
- 	}
- }
-+
-+#ifdef CONFIG_MEMORY_HOTREMOVE
-+
-+#define PAGE_INUSE 0xFD
-+
-+static void vmemmap_free_pages(struct page *page, int order)
-+{
-+	struct zone *zone;
-+	unsigned long magic;
-+
-+	magic = (unsigned long) page->lru.next;
-+	if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
-+		put_page_bootmem(page);
-+
-+		zone = page_zone(page);
-+		zone_span_writelock(zone);
-+		zone->present_pages++;
-+		zone_span_writeunlock(zone);
-+		totalram_pages++;
-+	} else
-+		free_pages((unsigned long)page_address(page), order);
-+}
-+
-+static void free_pte_table(pmd_t *pmd)
-+{
-+	pte_t *pte, *pte_start;
-+	int i;
-+
-+	pte_start = (pte_t *)pmd_page_vaddr(*pmd);
-+	for (i = 0; i < PTRS_PER_PTE; i++) {
-+		pte = pte_start + i;
-+		if (pte_val(*pte))
-+			return;
-+	}
-+
-+	/* free a pte talbe */
-+	vmemmap_free_pages(pmd_page(*pmd), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pmd_clear(pmd);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+
-+static void free_pmd_table(pud_t *pud)
-+{
-+	pmd_t *pmd, *pmd_start;
-+	int i;
-+
-+	pmd_start = (pmd_t *)pud_page_vaddr(*pud);
-+	for (i = 0; i < PTRS_PER_PMD; i++) {
-+		pmd = pmd_start + i;
-+		if (pmd_val(*pmd))
-+			return;
-+	}
-+
-+	/* free a pmd talbe */
-+	vmemmap_free_pages(pud_page(*pud), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pud_clear(pud);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+
-+static void free_pud_table(pgd_t *pgd)
-+{
-+	pud_t *pud, *pud_start;
-+	int i;
-+
-+	pud_start = (pud_t *)pgd_page_vaddr(*pgd);
-+	for (i = 0; i < PTRS_PER_PUD; i++) {
-+		pud = pud_start + i;
-+		if (pud_val(*pud))
-+			return;
-+	}
-+
-+	/* free a pud table */
-+	vmemmap_free_pages(pgd_page(*pgd), 0);
-+	spin_lock(&init_mm.page_table_lock);
-+	pgd_clear(pgd);
-+	spin_unlock(&init_mm.page_table_lock);
-+}
-+
-+static int split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
-+{
-+	struct page *page = pmd_page(*(pmd_t *)kpte);
-+	int i = 0;
-+	unsigned long magic;
-+	unsigned long section_nr;
-+
-+	__split_large_page(kpte, address, pbase);
-+	__flush_tlb_all();
-+
-+	magic = (unsigned long) page->lru.next;
-+	if (magic == SECTION_INFO) {
-+		section_nr = pfn_to_section_nr(page_to_pfn(page));
-+		while (i < PTRS_PER_PMD) {
-+			page++;
-+			i++;
-+			get_page_bootmem(section_nr, page, SECTION_INFO);
-+		}
-+	}
-+
-+	return 0;
-+}
-+
-+static void vmemmap_pte_remove(pmd_t *pmd, unsigned long addr, unsigned long end)
-+{
-+	pte_t *pte;
-+	unsigned long next;
-+	void *page_addr;
-+
-+	pte = pte_offset_kernel(pmd, addr);
-+	for (; addr < end; pte++, addr += PAGE_SIZE) {
-+		next = (addr + PAGE_SIZE) & PAGE_MASK;
-+		if (next > end)
-+			next = end;
-+
-+		if (pte_none(*pte))
-+			continue;
-+		if (IS_ALIGNED(addr, PAGE_SIZE) &&
-+		    IS_ALIGNED(next, PAGE_SIZE)) {
-+			vmemmap_free_pages(pte_page(*pte), 0);
-+			spin_lock(&init_mm.page_table_lock);
-+			pte_clear(&init_mm, addr, pte);
-+			spin_unlock(&init_mm.page_table_lock);
-+		} else {
-+			/*
-+			 * Removed page structs are filled with 0xFD.
-+			 */
-+			memset((void *)addr, PAGE_INUSE, next - addr);
-+			page_addr = page_address(pte_page(*pte));
-+
-+			if (!memchr_inv(page_addr, PAGE_INUSE, PAGE_SIZE)) {
-+				spin_lock(&init_mm.page_table_lock);
-+				pte_clear(&init_mm, addr, pte);
-+				spin_unlock(&init_mm.page_table_lock);
-+			}
-+		}
-+	}
-+
-+	free_pte_table(pmd);
-+	__flush_tlb_all();
-+}
-+
-+static void vmemmap_pmd_remove(pud_t *pud, unsigned long addr, unsigned long end)
-+{
-+	unsigned long next;
-+	pmd_t *pmd;
-+
-+	pmd = pmd_offset(pud, addr);
-+	for (; addr < end; addr = next, pmd++) {
-+		next = pmd_addr_end(addr, end);
-+		if (pmd_none(*pmd))
-+			continue;
-+
-+		if (cpu_has_pse) {
-+			unsigned long pte_base;
-+
-+			if (IS_ALIGNED(addr, PMD_SIZE) &&
-+			    IS_ALIGNED(next, PMD_SIZE)) {
-+				vmemmap_free_pages(pmd_page(*pmd),
-+						   get_order(PMD_SIZE));
-+				spin_lock(&init_mm.page_table_lock);
-+				pmd_clear(pmd);
-+				spin_unlock(&init_mm.page_table_lock);
-+				continue;
-+			}
-+
-+			/*
-+			 * We use 2M page, but we need to remove part of them,
-+			 * so split 2M page to 4K page.
-+			 */
-+			pte_base = get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
-+			if (!pte_base) {
-+				WARN_ON(1);
-+				continue;
-+			}
-+
-+			split_large_page((pte_t *)pmd, addr, (pte_t *)pte_base);
-+			__flush_tlb_all();
-+
-+			spin_lock(&init_mm.page_table_lock);
-+			pmd_populate_kernel(&init_mm, pmd, (pte_t *)pte_base);
-+			spin_unlock(&init_mm.page_table_lock);
-+		}
-+
-+		vmemmap_pte_remove(pmd, addr, next);
-+	}
-+
-+	free_pmd_table(pud);
-+	__flush_tlb_all();
-+}
-+
-+static void vmemmap_pud_remove(pgd_t *pgd, unsigned long addr, unsigned long end)
-+{
-+	unsigned long next;
-+	pud_t *pud;
-+
-+	pud = pud_offset(pgd, addr);
-+	for (; addr < end; addr = next, pud++) {
-+		next = pud_addr_end(addr, end);
-+		if (pud_none(*pud))
-+			continue;
-+
-+		vmemmap_pmd_remove(pud, addr, next);
-+	}
-+
-+	free_pud_table(pgd);
-+	__flush_tlb_all();
-+}
-+
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+	unsigned long addr = (unsigned long)memmap;
-+	unsigned long end = (unsigned long)(memmap + nr_pages);
-+	unsigned long next;
-+
-+	for (; addr < end; addr = next) {
-+		pgd_t *pgd = pgd_offset_k(addr);
-+
-+		next = pgd_addr_end(addr, end);
-+		if (!pgd_present(*pgd))
-+			continue;
-+
-+		vmemmap_pud_remove(pgd, addr, next);
-+		sync_global_pgds(addr, next - 1);
-+	}
-+}
-+#endif
-diff --git a/mm/sparse.c b/mm/sparse.c
-index fac95f2..4060229 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -615,10 +615,11 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
- }
- static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
- {
--	return; /* XXX: Not implemented yet */
-+	vmemmap_free(memmap, nr_pages);
- }
- static void free_map_bootmem(struct page *page, unsigned long nr_pages)
- {
-+	vmemmap_free(page, nr_pages);
- }
- #else
- static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 -- 
-1.7.6.1
-
-
-On 2012/11/30 9:45, Wen Congyang wrote:
-
-> At 11/28/2012 05:40 PM, Jianguo Wu Wrote:
->> Hi Congyang,
->>
->> I think vmemmap's pgtable pages should be freed after all entries are cleared, I have a patch to do this.
->> The code logic is the same as [Patch v4 09/12] memory-hotplug: remove page table of x86_64 architecture.
->>
->> How do you think about this?
->>
->> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
->> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> ---
->>  include/linux/mm.h  |    1 +
->>  mm/sparse-vmemmap.c |  214 +++++++++++++++++++++++++++++++++++++++++++++++++++
->>  mm/sparse.c         |    5 +-
->>  3 files changed, 218 insertions(+), 2 deletions(-)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 5657670..1f26af5 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1642,6 +1642,7 @@ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
->>  void vmemmap_populate_print_last(void);
->>  void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->>  				  unsigned long size);
->> +void vmemmap_free(struct page *memmap, unsigned long nr_pages);
->>  
->>  enum mf_flags {
->>  	MF_COUNT_INCREASED = 1 << 0,
->> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
->> index 1b7e22a..242cb28 100644
->> --- a/mm/sparse-vmemmap.c
->> +++ b/mm/sparse-vmemmap.c
->> @@ -29,6 +29,10 @@
->>  #include <asm/pgalloc.h>
->>  #include <asm/pgtable.h>
->>  
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +#include <asm/tlbflush.h>
->> +#endif
->> +
->>  /*
->>   * Allocate a block of memory to be used to back the virtual memory map
->>   * or to back the page tables that are used to create the mapping.
->> @@ -224,3 +228,213 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->>  		vmemmap_buf_end = NULL;
->>  	}
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTREMOVE
->> +static void vmemmap_free_pages(struct page *page, int order)
->> +{
->> +	struct zone *zone;
->> +	unsigned long magic;
->> +
->> +	magic = (unsigned long) page->lru.next;
->> +	if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
->> +		put_page_bootmem(page);
->> +
->> +		zone = page_zone(page);
->> +		zone_span_writelock(zone);
->> +		zone->present_pages++;
->> +		zone_span_writeunlock(zone);
->> +		totalram_pages++;
->> +	} else {
->> +		if (is_vmalloc_addr(page_address(page)))
->> +			vfree(page_address(page));
-> 
-> Hmm, vmemmap doesn't use vmalloc() to allocate memory.
-> 
->> +		else
->> +			free_pages((unsigned long)page_address(page), order);
->> +	}
->> +}
->> +
->> +static void free_pte_table(pmd_t *pmd)
->> +{
->> +	pte_t *pte, *pte_start;
->> +	int i;
->> +
->> +	pte_start = (pte_t *)pmd_page_vaddr(*pmd);
->> +	for (i = 0; i < PTRS_PER_PTE; i++) {
->> +		pte = pte_start + i;
->> +		if (pte_val(*pte))
->> +			return;
->> +	}
->> +
->> +	/* free a pte talbe */
->> +	vmemmap_free_pages(pmd_page(*pmd), 0);
->> +	spin_lock(&init_mm.page_table_lock);
->> +	pmd_clear(pmd);
->> +	spin_unlock(&init_mm.page_table_lock);
->> +}
->> +
->> +static void free_pmd_table(pud_t *pud)
->> +{
->> +	pmd_t *pmd, *pmd_start;
->> +	int i;
->> +
->> +	pmd_start = (pmd_t *)pud_page_vaddr(*pud);
->> +	for (i = 0; i < PTRS_PER_PMD; i++) {
->> +		pmd = pmd_start + i;
->> +		if (pmd_val(*pmd))
->> +			return;
->> +	}
->> +
->> +	/* free a pmd talbe */
->> +	vmemmap_free_pages(pud_page(*pud), 0);
->> +	spin_lock(&init_mm.page_table_lock);
->> +	pud_clear(pud);
->> +	spin_unlock(&init_mm.page_table_lock);
->> +}
->> +
->> +static void free_pud_table(pgd_t *pgd)
->> +{
->> +	pud_t *pud, *pud_start;
->> +	int i;
->> +
->> +	pud_start = (pud_t *)pgd_page_vaddr(*pgd);
->> +	for (i = 0; i < PTRS_PER_PUD; i++) {
->> +		pud = pud_start + i;
->> +		if (pud_val(*pud))
->> +			return;
->> +	}
->> +
->> +	/* free a pud table */
->> +	vmemmap_free_pages(pgd_page(*pgd), 0);
->> +	spin_lock(&init_mm.page_table_lock);
->> +	pgd_clear(pgd);
->> +	spin_unlock(&init_mm.page_table_lock);
->> +}
->> +
->> +static int split_large_page(pte_t *kpte, unsigned long address, pte_t *pbase)
->> +{
->> +	struct page *page = pmd_page(*(pmd_t *)kpte);
->> +	int i = 0;
->> +	unsigned long magic;
->> +	unsigned long section_nr;
->> +
->> +	__split_large_page(kpte, address, pbase);
->> +	__flush_tlb_all();
->> +
->> +	magic = (unsigned long) page->lru.next;
->> +	if (magic == SECTION_INFO) {
->> +		section_nr = pfn_to_section_nr(page_to_pfn(page));
->> +		while (i < PTRS_PER_PMD) {
->> +			page++;
->> +			i++;
->> +			get_page_bootmem(section_nr, page, SECTION_INFO);
->> +		}
->> +	}
->> +
->> +	return 0;
->> +}
->> +
->> +static void vmemmap_pte_remove(pmd_t *pmd, unsigned long addr, unsigned long end)
->> +{
->> +	pte_t *pte;
->> +	unsigned long next;
->> +
->> +	pte = pte_offset_kernel(pmd, addr);
->> +	for (; addr < end; pte++, addr += PAGE_SIZE) {
->> +		next = (addr + PAGE_SIZE) & PAGE_MASK;
->> +		if (next > end)
->> +			next = end;
->> +
->> +		if (pte_none(*pte))
->> +			continue;
->> +		if (IS_ALIGNED(addr, PAGE_SIZE) &&
->> +		    IS_ALIGNED(end, PAGE_SIZE)) {
->> +			vmemmap_free_pages(pte_page(*pte), 0);
->> +			spin_lock(&init_mm.page_table_lock);
->> +			pte_clear(&init_mm, addr, pte);
->> +			spin_unlock(&init_mm.page_table_lock);
-> 
-> If addr or end is not alianed with PAGE_SIZE, you may leak some
-> memory.
-> 
->> +		}
->> +	}
->> +
->> +	free_pte_table(pmd);
->> +	__flush_tlb_all();
->> +}
->> +
->> +static void vmemmap_pmd_remove(pud_t *pud, unsigned long addr, unsigned long end)
->> +{
->> +	unsigned long next;
->> +	pmd_t *pmd;
->> +
->> +	pmd = pmd_offset(pud, addr);
->> +	for (; addr < end; addr = next, pmd++) {
->> +		next = pmd_addr_end(addr, end);
->> +		if (pmd_none(*pmd))
->> +			continue;
->> +
->> +		if (cpu_has_pse) {
->> +			unsigned long pte_base;
->> +
->> +			if (IS_ALIGNED(addr, PMD_SIZE) &&
->> +			    IS_ALIGNED(next, PMD_SIZE)) {
->> +				vmemmap_free_pages(pmd_page(*pmd),
->> +						   get_order(PMD_SIZE));
->> +				spin_lock(&init_mm.page_table_lock);
->> +				pmd_clear(pmd);
->> +				spin_unlock(&init_mm.page_table_lock);
->> +				continue;
->> +			}
->> +
->> +			/*
->> +			 * We use 2M page, but we need to remove part of them,
->> +			 * so split 2M page to 4K page.
->> +			 */
->> +			pte_base = get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
-> 
-> get_zeored_page() may fail. You should handle this error.
-> 
->> +			split_large_page((pte_t *)pmd, addr, (pte_t *)pte_base);
->> +			__flush_tlb_all();
->> +
->> +			spin_lock(&init_mm.page_table_lock);
->> +			pmd_populate_kernel(&init_mm, pmd, (pte_t *)pte_base);
->> +			spin_unlock(&init_mm.page_table_lock);
->> +		}
->> +
->> +		vmemmap_pte_remove(pmd, addr, next);
->> +	}
->> +
->> +	free_pmd_table(pud);
->> +	__flush_tlb_all();
->> +}
->> +
->> +static void vmemmap_pud_remove(pgd_t *pgd, unsigned long addr, unsigned long end)
->> +{
->> +	unsigned long next;
->> +	pud_t *pud;
->> +
->> +	pud = pud_offset(pgd, addr);
->> +	for (; addr < end; addr = next, pud++) {
->> +		next = pud_addr_end(addr, end);
->> +		if (pud_none(*pud))
->> +			continue;
->> +
->> +		vmemmap_pmd_remove(pud, addr, next);
->> +	}
->> +
->> +	free_pud_table(pgd);
->> +	__flush_tlb_all();
->> +}
->> +
->> +void vmemmap_free(struct page *memmap, unsigned long nr_pages)
->> +{
->> +	unsigned long addr = (unsigned long)memmap;
->> +	unsigned long end = (unsigned long)(memmap + nr_pages);
->> +	unsigned long next;
->> +
->> +	for (; addr < end; addr = next) {
->> +		pgd_t *pgd = pgd_offset_k(addr);
->> +
->> +		next = pgd_addr_end(addr, end);
->> +		if (!pgd_present(*pgd))
->> +			continue;
->> +
->> +		vmemmap_pud_remove(pgd, addr, next);
->> +		sync_global_pgds(addr, next);
-> 
-> The parameter for sync_global_pgds() is [start, end], not
-> [start, end)
-> 
->> +	}
->> +}
->> +#endif
->> diff --git a/mm/sparse.c b/mm/sparse.c
->> index fac95f2..3a16d68 100644
->> --- a/mm/sparse.c
->> +++ b/mm/sparse.c
->> @@ -613,12 +613,13 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
->>  	/* This will make the necessary allocations eventually. */
->>  	return sparse_mem_map_populate(pnum, nid);
->>  }
->> -static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
->> +static void __kfree_section_memmap(struct page *page, unsigned long nr_pages)
-> Why do you change this line?
-> 
->>  {
->> -	return; /* XXX: Not implemented yet */
->> +	vmemmap_free(page, nr_pages);
->>  }
->>  static void free_map_bootmem(struct page *page, unsigned long nr_pages)
->>  {
->> +	vmemmap_free(page, nr_pages);
->>  }
->>  #else
->>  static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
-> 
-> 
-> .
-> 
-
-
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
