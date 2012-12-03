@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 3E2D66B0068
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 15:19:39 -0500 (EST)
-Date: Mon, 3 Dec 2012 18:16:35 -0200
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
-Message-ID: <20121203201634.GA3429@amt.cnet>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E2BA46B005A
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:43:11 -0500 (EST)
+Date: Mon, 3 Dec 2012 14:43:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory
+ changes
+Message-Id: <20121203144310.7ccdbeb4.akpm@linux-foundation.org>
+In-Reply-To: <50B8F2F4.6000508@parallels.com>
 References: <50B8F2F4.6000508@parallels.com>
- <50BC6491.70600@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50BC6491.70600@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Dec 03, 2012 at 12:36:33PM +0400, Glauber Costa wrote:
-> On 11/30/2012 09:55 PM, Pavel Emelyanov wrote:
-> > Hello,
-> > 
-> > This is an attempt to implement support for memory snapshot for the the
-> > checkpoint-restore project (http://criu.org).
-> > 
-> > To create a dump of an application(s) we save all the information about it
-> > to files. No surprise, the biggest part of such dump is the contents of tasks'
-> > memory. However, in some usage scenarios it's not required to get _all_ the
-> > task memory while creating a dump. For example, when doing periodical dumps
-> > it's only required to take full memory dump only at the first step and then
-> > take incremental changes of memory. Another example is live migration. In the
-> > simplest form it looks like -- create dump, copy it on the remote node then
-> > restore tasks from dump files. While all this dump-copy-restore thing goes all
-> > the process must be stopped. However, if we can monitor how tasks change their
-> > memory, we can dump and copy it in smaller chunks, periodically updating it 
-> > and thus freezing tasks only at the very end for the very short time to pick
-> > up the recent changes.
-> > 
-> > That said, some help from kernel to watch how processes modify the contents of
-> > their memory is required. I'd like to propose one possible solution of this
-> > task -- with the help of page-faults and trace events.
-> > 
-> > Briefly the approach is -- remap some memory regions as read-only, get the #pf
-> > on task's attempt to modify the memory and issue a trace event of that. Since
-> > we're only interested in parts of memory of some tasks, make it possible to mark
-> > the vmas we're interested in and issue events for them only. Also, to be aware
-> > of tasks unmapping the vma-s being watched, also issue an event when the marked
-> > vma is removed (and for symmetry -- an event when a vma is marked).
-> > 
-> > What do you think about this approach? Is this way of supporting mem snapshot
-> > OK for you, or should we invent some better one?
-> > 
-> 
-> The page fault mechanism is pretty obvious - anything that deals with
-> dirty pages will end up having to do this. So there is nothing crazy
-> about this.
-> 
-> What concerns me, however, is that should this go in, we'll have two
-> dirty mem loggers in the kernel: one to support CRIU, one to support
-> KVM. And the worst part: They have the exact the same purpose!!
-> 
-> So to begin with, I think one thing to consider, would be to generalize
-> KVM's dirty memory notification so it can work on a normal process
-> memory region. KVM api requires a "memory slot" to be passed, something
-> we are unlikely to have. But KVM can easily keep its API and use an
-> alternate mechanics, that's trivial...
-> 
-> Generally speaking, KVM will do polling with this ioctl. I prefer your
-> tracing mechanism better. The only difference, is that KVM tends to
-> transfer large chunks of memory in some loads - in the high gigs range.
-> So the proposal tracing API should be able to optionally batch requests
-> within a time frame.
-> 
-> It would also be good to hear what does the KVM guys think of it as well
+On Fri, 30 Nov 2012 21:55:00 +0400
+Pavel Emelyanov <xemul@parallels.com> wrote:
 
-There are significant differences. KVM's dirty logging works for
-guest translations (NPT/shadow) and is optimized for specific use cases.
+> This is an attempt to implement support for memory snapshot for the the
+> checkpoint-restore project (http://criu.org).
+> 
+> To create a dump of an application(s) we save all the information about it
+> to files. No surprise, the biggest part of such dump is the contents of tasks'
+> memory. However, in some usage scenarios it's not required to get _all_ the
+> task memory while creating a dump. For example, when doing periodical dumps
+> it's only required to take full memory dump only at the first step and then
+> take incremental changes of memory. Another example is live migration. In the
+> simplest form it looks like -- create dump, copy it on the remote node then
+> restore tasks from dump files. While all this dump-copy-restore thing goes all
+> the process must be stopped. However, if we can monitor how tasks change their
+> memory, we can dump and copy it in smaller chunks, periodically updating it 
+> and thus freezing tasks only at the very end for the very short time to pick
+> up the recent changes.
+> 
+> That said, some help from kernel to watch how processes modify the contents of
+> their memory is required. I'd like to propose one possible solution of this
+> task -- with the help of page-faults and trace events.
+> 
+> Briefly the approach is -- remap some memory regions as read-only, get the #pf
+> on task's attempt to modify the memory and issue a trace event of that. Since
+> we're only interested in parts of memory of some tasks, make it possible to mark
+> the vmas we're interested in and issue events for them only. Also, to be aware
+> of tasks unmapping the vma-s being watched, also issue an event when the marked
+> vma is removed (and for symmetry -- an event when a vma is marked).
+> 
+> What do you think about this approach? Is this way of supporting mem snapshot
+> OK for you, or should we invent some better one?
 
-Above is about dirty logging of userspace memory areas.
+The patches look pretty simple.
+
+Some performance numbers would be useful.
+
+Is it reliable?  Under what circumstances will the trace system drop
+events?
+
+Please cc Steven Rostedt on tracing stuff - he is a diligent reviewer.
+
+The proposed interface might be useful to things other than c/r.  But
+it hasn't actually been described.  Please include a full description
+of the proposed kernel/usersapce interface.
+
+Two alternatives come to mind:
+
+1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
+    fashion to determine which pages have been touched.
+
+2)  At pagefault time, don't send an event: just mark the vma as
+    "touched".  Then add a userspace interface to sweep the vma tree
+    testing, clearing and reporting the touched flags.
+
+2a) Avoid the full linear search by propagating the "touched" flag
+    up the rbtree and do the sweep in a fashion similar to
+    radix_tree_for_each_tagged().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
