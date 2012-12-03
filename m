@@ -1,56 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id CAFD96B006E
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 18:01:11 -0500 (EST)
-Date: Mon, 3 Dec 2012 15:01:10 -0800
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 2FCA76B005A
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 18:17:17 -0500 (EST)
+Date: Mon, 3 Dec 2012 15:17:15 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: protect against concurrent vma expansion
-Message-Id: <20121203150110.39c204ff.akpm@linux-foundation.org>
-In-Reply-To: <1354344987-28203-1-git-send-email-walken@google.com>
-References: <1354344987-28203-1-git-send-email-walken@google.com>
+Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of
+ pages occupied by memmap
+Message-Id: <20121203151715.8c536a7a.akpm@linux-foundation.org>
+In-Reply-To: <50BBB21D.3070005@googlemail.com>
+References: <20121120111942.c9596d3f.akpm@linux-foundation.org>
+	<1353510586-6393-1-git-send-email-jiang.liu@huawei.com>
+	<20121128155221.df369ce4.akpm@linux-foundation.org>
+	<50B73E56.4050603@googlemail.com>
+	<50BBB21D.3070005@googlemail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Chris Clayton <chris2553@googlemail.com>
+Cc: Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 30 Nov 2012 22:56:27 -0800
-Michel Lespinasse <walken@google.com> wrote:
+On Sun, 02 Dec 2012 19:55:09 +0000
+Chris Clayton <chris2553@googlemail.com> wrote:
 
-> expand_stack() runs with a shared mmap_sem lock. Because of this, there
-> could be multiple concurrent stack expansions in the same mm, which may
-> cause problems in the vma gap update code.
 > 
-> I propose to solve this by taking the mm->page_table_lock around such vma
-> expansions, in order to avoid the concurrency issue. We only have to worry
-> about concurrent expand_stack() calls here, since we hold a shared mmap_sem
-> lock and all vma modificaitons other than expand_stack() are done under
-> an exclusive mmap_sem lock.
 > 
-> I previously tried to achieve the same effect by making sure all
-> growable vmas in a given mm would share the same anon_vma, which we
-> already lock here. However this turned out to be difficult - all of the
-> schemes I tried for refcounting the growable anon_vma and clearing
-> turned out ugly. So, I'm now proposing only the minimal fix.
+> On 11/29/12 10:52, Chris Clayton wrote:
+> > On 11/28/12 23:52, Andrew Morton wrote:
+> >> On Wed, 21 Nov 2012 23:09:46 +0800
+> >> Jiang Liu <liuj97@gmail.com> wrote:
+> >>
+> >>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
+> >>> of pages occupied by memmap
+> >>
+> >> How are people to test this?  "does it boot"?
+> >>
+> >
+> > I've been running kernels with Gerry's 5 patches applied for 11 days
+> > now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
+> > joined the conversation because my laptop would not resume from suspend
+> > to disk - it either froze or rebooted. With the patches applied the
+> > laptop does successfully resume and has been stable.
+> >
+> > Since Monday, I have have been running a kernel with the patches (plus,
+> > from today, the patch you mailed yesterday) applied to 3.7rc7, without
+> > problems.
+> >
 > 
+> I've been running 3.7-rc7 with the patches listed below for a week now 
+> and it has been perfectly stable. In particular, my laptop will now 
+> successfully resume from suspend to disk, which always failed without 
+> the patches.
+> 
+>  From Jiang Liu:
+> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct zone
+> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with 
+> zone->managed_pages if appreciated
+> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing 
+> pages in the zone
+> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages 
+> occupied by memmap
+> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages 
+> allocated by bootmem allocator
+> 
+>  From Andrew Morton:
+> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
+> 
+> Tested-by: Chris Clayton <chris2553@googlemail.com>
 
-I think I don't understand the problem fully.  Let me demonstrate:
+Thanks.
 
-a) vma_lock_anon_vma() doesn't take a lock which is specific to
-   "this" anon_vma.  It takes anon_vma->root->mutex.  That mutex is
-   shared with vma->vm_next, yes?  If so, we have no problem here? 
-   (which makes me suspect that the races lies other than where I think
-   it lies).
-
-b) I can see why a broader lock is needed in expand_upwards(): it
-   plays with a different vma: vma->vm_next.  But expand_downwards()
-   doesn't do that - it only alters "this" vma.  So I'd have thought
-   that vma_lock_anon_vma("this" vma) would be sufficient.
-
-
-What are the performance costs of this change?
+I have only two of these five patches queued for 3.8:
+mm-introduce-new-field-managed_pages-to-struct-zone.patch and
+mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch. 
+I don't recall what happened with the other three.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
