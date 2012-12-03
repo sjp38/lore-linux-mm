@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 6D8736B004D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 05:44:00 -0500 (EST)
-Date: Mon, 3 Dec 2012 10:43:50 +0000
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 39BCF6B002B
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 06:33:03 -0500 (EST)
+Date: Mon, 3 Dec 2012 11:32:54 +0000
 From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH 00/10] Latest numa/core release, v18
-Message-ID: <20121203104350.GH8218@suse.de>
+Message-ID: <20121203113254.GI8218@suse.de>
 References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
@@ -16,279 +16,1026 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-I was away for the weekend so did not see this until Sunday night. I
-queued up tip/master as it looked at that time and ran it overnight. In
-general, I have not looked closely at any of the patches.
-
-As a heads-up, I'm also flying very early tomorrow morning and will be
-travelling for the week. I'll have intermittent access to email and *should*
-be able to access my test machine remotely but my responsiveness will vary.
-
 On Fri, Nov 30, 2012 at 08:58:31PM +0100, Ingo Molnar wrote:
 > I'm pleased to announce the latest, -v18 numa/core release.
 > 
-> This release fixes regressions and improves NUMA performance.
-> It has the following main changes:
-> 
->   - Introduce directed NUMA convergence, which is based on
->     the 'task buddy' relation introduced in -v17, and make
->     use of the new "task flipping" facility.
-> 
->   - Add "related task group" balancing notion to the scheduler, to
->     be able to 'compress' and 'spread' NUMA workloads
->     based on which tasks relate to each other via their
->     working set (i.e. which tasks access the same memory areas).
-> 
->   - Track the quality and strength of NUMA convergence and
->     create a feedback loop with the scheduler:
-> 
->      - use it to direct migrations
-> 
->      - use it to slow down and speed up the rate of the
->        NUMA hinting page faults
-> 
->   - Turn 4K pte NUMA faults into effective hugepage ones
-> 
 
-This one spiked my interest and I took a closer look.
+This is very similar report to the previous report for V8 of my own tree
+and v17 of numacore. There are two differences. One, I've added tip/master
+as of the night of December 2nd 2012. The second is that unlike earlier
+reports there was no monitoring active this time to avoid any possible
+interference due to reading numa_maps. I did not change any of the defaults
+for numacore.
 
-It does multiple things including a cleanup but at a glance it looks like it
-has similar problems to the earlier version of this patch when I reviewed
-it here https://lkml.org/lkml/2012/11/21/238.  It looks like you'll still
-incur a PMDs-worth of work even if the workload has not converged within
-that PMD boundary. The trylock, lock, unlock, put, refault is new as well
-and it's not clear what it's for.  It's neither clear why you need the page
-lock in this path or why you decide to always refault if it's contended
-instead of rechecking the PTE.
+AUTONUMA BENCH
+                                      3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                                     stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+User    NUMA01               65230.85 (  0.00%)    24835.22 ( 61.93%)    69344.37 ( -6.31%)    30410.22 ( 53.38%)    54614.75 ( 16.27%)
+User    NUMA01_THEADLOCAL    60794.67 (  0.00%)    17856.17 ( 70.63%)    53416.06 ( 12.14%)    17185.34 ( 71.73%)    17389.52 ( 71.40%)
+User    NUMA02                7031.50 (  0.00%)     2084.38 ( 70.36%)     6726.17 (  4.34%)     2238.73 ( 68.16%)     2088.37 ( 70.30%)
+User    NUMA02_SMT            2916.19 (  0.00%)     1009.28 ( 65.39%)     3207.30 ( -9.98%)     1037.07 ( 64.44%)      987.84 ( 66.13%)
+System  NUMA01                  39.66 (  0.00%)      926.55 (-2236.23%)      333.49 (-740.87%)      236.83 (-497.15%)      272.38 (-586.79%)
+System  NUMA01_THEADLOCAL       42.33 (  0.00%)      513.99 (-1114.25%)       40.59 (  4.11%)       70.90 (-67.49%)       97.20 (-129.62%)
+System  NUMA02                   1.25 (  0.00%)       18.57 (-1385.60%)        1.04 ( 16.80%)        6.39 (-411.20%)        9.27 (-641.60%)
+System  NUMA02_SMT              16.66 (  0.00%)       12.32 ( 26.05%)        0.95 ( 94.30%)        3.17 ( 80.97%)        3.44 ( 79.35%)
+Elapsed NUMA01                1511.76 (  0.00%)      575.93 ( 61.90%)     1644.63 ( -8.79%)      701.62 ( 53.59%)     1229.74 ( 18.66%)
+Elapsed NUMA01_THEADLOCAL     1387.17 (  0.00%)      398.55 ( 71.27%)     1260.92 (  9.10%)      378.47 ( 72.72%)      390.62 ( 71.84%)
+Elapsed NUMA02                 176.81 (  0.00%)       51.14 ( 71.08%)      180.80 ( -2.26%)       53.45 ( 69.77%)       50.25 ( 71.58%)
+Elapsed NUMA02_SMT             163.96 (  0.00%)       48.92 ( 70.16%)      166.96 ( -1.83%)       48.17 ( 70.62%)       45.99 ( 71.95%)
+CPU     NUMA01                4317.00 (  0.00%)     4473.00 ( -3.61%)     4236.00 (  1.88%)     4368.00 ( -1.18%)     4463.00 ( -3.38%)
+CPU     NUMA01_THEADLOCAL     4385.00 (  0.00%)     4609.00 ( -5.11%)     4239.00 (  3.33%)     4559.00 ( -3.97%)     4476.00 ( -2.08%)
+CPU     NUMA02                3977.00 (  0.00%)     4111.00 ( -3.37%)     3720.00 (  6.46%)     4200.00 ( -5.61%)     4173.00 ( -4.93%)
+CPU     NUMA02_SMT            1788.00 (  0.00%)     2087.00 (-16.72%)     1921.00 ( -7.44%)     2159.00 (-20.75%)     2155.00 (-20.53%)
 
-I know the page lock is taken in the transhuge patch but it's a massive hack
-and not required here as such. migration does take the page lock but
-it's done later.
+I'm seeing very different results than Ingo for some
+reason. numacore-20121130 was pretty good in terms of elapsed time for
+numa01 but numacore-20121202 is a little worse than mainline and much worse
+than v17. All the other tests suffered too which is a major surprise. If
+you were looking at just elapsed time you might conclude that numacore
+was not enabled but I just checked
 
-This was based on just a quick glance and I likely missed a bunch of
-obvious things that may have alleviated my concerns after the last
-review.
+compass:/usr/src/linux-3.7-rc7-numacore-20121202 # grep BALANC .config
+CONFIG_ARCH_SUPPORTS_NUMA_BALANCING=y
+CONFIG_NUMA_BALANCING=y
+CONFIG_NUMA_BALANCING_HUGEPAGE=y
+# CONFIG_NET_TEAM_MODE_LOADBALANCE is not set
 
->   - Refine the 'shared tasks' memory interleaving logic
-> 
->   - Improve CONFIG_NUMA_BALANCING=y OOM behavior
-> 
-> One key practical area of improvement are enhancements to
-> the NUMA convergence of "multiple JVM" kind of workloads.
-> 
-> As a recap, this was -v17 performance with 4x SPECjbb instances
-> on a 4-node system (32 CPUs, 4 instances, 8 warehouses each, 240
-> seconds runtime, +THP):
-> 
->      spec1.txt:           throughput =     177460.44 SPECjbb2005 bops
->      spec2.txt:           throughput =     176175.08 SPECjbb2005 bops
->      spec3.txt:           throughput =     175053.91 SPECjbb2005 bops
->      spec4.txt:           throughput =     171383.52 SPECjbb2005 bops
->                                       --------------------------
->            SUM:           throughput =     700072.95 SPECjbb2005 bops
-> 
-> The new -v18 figures are:
-> 
->      spec1.txt:           throughput =     191415.52 SPECjbb2005 bops 
->      spec2.txt:           throughput =     193481.96 SPECjbb2005 bops 
->      spec3.txt:           throughput =     192865.30 SPECjbb2005 bops 
->      spec4.txt:           throughput =     191627.40 SPECjbb2005 bops 
->                                            --------------------------
->            SUM:           throughput =     769390.18 SPECjbb2005 bops
-> 
-> Which is 10% faster than -v17, 22% faster than mainline and it is
-> within 1% of the hard-binding results (where each JVM is explicitly
-> memory and CPU-bound to a single node each).
-> 
-> Occording to my measurements the -v18 NUMA kernel is also faster than
-> AutoNUMA (+THP-fix):
-> 
->      spec1.txt:           throughput =     184327.49 SPECjbb2005 bops
->      spec2.txt:           throughput =     187508.83 SPECjbb2005 bops
->      spec3.txt:           throughput =     186206.44 SPECjbb2005 bops
->      spec4.txt:           throughput =     188739.22 SPECjbb2005 bops
->                                            --------------------------
->            SUM:           throughput =     746781.98 SPECjbb2005 bops
-> 
-> Mainline has the following 4x JVM performance:
-> 
->      spec1.txt:           throughput =     157839.25 SPECjbb2005 bops
->      spec2.txt:           throughput =     156969.15 SPECjbb2005 bops
->      spec3.txt:           throughput =     157571.59 SPECjbb2005 bops
->      spec4.txt:           throughput =     157873.86 SPECjbb2005 bops
->                                       --------------------------
->            SUM:           throughput =     630253.85 SPECjbb2005 bops
-> 
-> Another key area of improvement is !THP (4K pages) performance.
-> 
-> Mainline 4x SPECjbb !THP JVM results:
-> 
->      spec1.txt:           throughput =     128575.47 SPECjbb2005 bops 
->      spec2.txt:           throughput =     125767.24 SPECjbb2005 bops 
->      spec3.txt:           throughput =     130042.30 SPECjbb2005 bops 
->      spec4.txt:           throughput =     128155.32 SPECjbb2005 bops 
->                                        --------------------------
->            SUM:           throughput =     512540.33 SPECjbb2005 bops
-> 
-> 
-> numa/core -v18 4x SPECjbb JVM !THP results:
-> 
->      spec1.txt:           throughput =     158023.05 SPECjbb2005 bops 
->      spec2.txt:           throughput =     156895.51 SPECjbb2005 bops 
->      spec3.txt:           throughput =     156158.11 SPECjbb2005 bops 
->      spec4.txt:           throughput =     157414.52 SPECjbb2005 bops 
->                                       --------------------------
->            SUM:           throughput =     628491.19 SPECjbb2005 bops
-> 
-> That too is roughly 22% faster than mainline - the !THP regression
-> that was reported by Mel Gorman appears to be fixed.
-> 
+And besides you can see differences in the system CPU usage. I see there are
+a bunch of new knobs available for the scheduler. Did you tweak any of them?
+Was perf profiling during your tests?
 
-Ok, luckily I had queued a full set of tests over the weekend and adding
-tip/master as of last night was not an issue. It looks like it completed
-an hour ago so I'll go through it shortly and report what I see.
+FWIW, the System CPU usage of numacore has improved a *lot* according to
+this test.  I note one of the patch subjects moves a bunch of work into a
+task worklet. How is this accounted? Is it reflected in System CPU usage or
+it included in the User CPU usage because of when the worklets are executed?
+Is the cost hidden entirely and not accounted anywhere?
 
-> AutoNUMA-benchmark comparison to the mainline kernel:
-> 
->  ##############
->  # res-v3.6-vanilla.log vs res-numacore-v18b.log:
->  #------------------------------------------------------------------------------------>
->    autonuma benchmark                run time (lower is better)         speedup %
->  ------------------------------------------------------------------------------------->
->    numa01                           :   337.29  vs.  177.64   |           +89.8 %
->    numa01_THREAD_ALLOC              :   428.79  vs.  127.07   |          +237.4 %
->    numa02                           :    56.32  vs.   18.08   |          +211.5 %
->    ------------------------------------------------------------
-> 
-> (this is similar to -v17, within noise.)
-> 
-> Comparison to AutoNUMA-v28 (+THP-fix):
-> 
->  ##############
->  # res-autonuma-v28-THP.log vs res-numacore-v18b.log:
->  #------------------------------------------------------------------------------------>
->    autonuma benchmark                run time (lower is better)         speedup %
->  ------------------------------------------------------------------------------------->
->    numa01                           :   235.77  vs.  177.64   |           +32.7 %
->    numa01_THREAD_ALLOC              :   134.53  vs.  127.07   |            +5.8 %
->    numa02                           :    19.49  vs.   18.08   |            +7.7 %
->    ------------------------------------------------------------
-> 
-> A few caveats: I'm still seeing problems on !THP.
-> 
-> Here's the analysis of one of the last regression sources I'm still
-> seeing with it on larger systems. I have identified the source
-> of the regression, and I see how the AutoNUMA and 'balancenuma' trees
-> solved this problem - but I disagree with the solution.
-> 
-> When pushed hard enough via threaded workloads (for example via the
-> numa02 test) then the upstream page migration code in mm/migration.c
-> becomes unscalable, resulting in lot of scheduling on the anon vma
-> mutex and a subsequent drop in performance.
-> 
-> When the points of scheduling are call-graph profiled, the
-> unscalability appears to be due to interaction between the
-> following page migration code paths:
-> 
->     96.43%        process 0  [kernel.kallsyms]  [k] perf_trace_sched_switch
->                   |
->                   --- perf_trace_sched_switch
->                       __schedule
->                       schedule
->                       schedule_preempt_disabled
->                       __mutex_lock_common.isra.6
->                       __mutex_lock_slowpath
->                       mutex_lock
->                      |
->                      |--50.61%-- rmap_walk
->                      |          move_to_new_page
->                      |          migrate_pages
->                      |          migrate_misplaced_page
->                      |          __do_numa_page.isra.69
->                      |          handle_pte_fault
->                      |          handle_mm_fault
->                      |          __do_page_fault
->                      |          do_page_fault
->                      |          page_fault
->                      |          __memset_sse2
->                      |          |
->                      |           --100.00%-- worker_thread
->                      |                     |
->                      |                      --100.00%-- start_thread
->                      |
->                       --49.39%-- page_lock_anon_vma
->                                 try_to_unmap_anon
->                                 try_to_unmap
->                                 migrate_pages
->                                 migrate_misplaced_page
->                                 __do_numa_page.isra.69
->                                 handle_pte_fault
->                                 handle_mm_fault
->                                 __do_page_fault
->                                 do_page_fault
->                                 page_fault
->                                 __memset_sse2
->                                 |
->                                  --100.00%-- worker_thread
->                                            start_thread
-> 
-> From what I can see theAutoNUMA and 'balancenuma' kernels works
-> around this !THP scalability issue by rate-limiting migrations.
-> For example balancenuma rate-limits migrations to about 1.2 GB/sec
-> bandwidth.
-> 
+In general, balancenuma does very well in comparison to numacore-20121202
+and both kernels were using identical configurations and scripts.
 
-This is not what rate limiting was concerned with. Rate limiting addressed
-two concerns.
+MMTests Statistics: duration
+           3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+          stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+User       135980.38    45792.55   132701.13    50878.50    75087.34
+System        100.53     1472.19      376.74      317.89      382.96
+Elapsed      3248.36     1084.63     3262.62     1191.85     1726.87
 
-1. NUMA balancing should not consume a high percentage of memory
-   bandwidth
-2. If the policy encounters an adverse workload, the machine should not
-   drastically slow down due to spending all its time migrating.
+numacore-20121202 adds some system CPU overhead but as you can see it's
+much better than it was before.
 
-The two concerns are related. The first one is basically saying that
-perfect balancing is pointless if the actual workload is not able to
-access memory because the bus is congested. The second is more important
-as I was basically assuming that no matter how smart a policy is that it
-would eventually encounter a workload it simply could not handle properly
-and broke down. When that happens, we do not want the users machine to
-fall apart. Rate limiting is a backstop as to how *bad* we can get.
 
-Consider a deliberately adverse workload that creates a process per node
-and allocates an amount of memory per process. Every scan interval, it
-binds its CPUs to the next node. The intention of this workload would
-be to maximise the amount of migration NUMA balancing does. Without rate
-limiting, a few instances of this workload could keep the memory bus filled
-with migration traffic and potentially be a local DOS.
+MMTests Statistics: vmstat
+                             3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+                            stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+Page Ins                         42320       41628       40624       41592       42100
+Page Outs                        16516        8032       17064        8596       10432
+Swap Ins                             0           0           0           0           0
+Swap Outs                            0           0           0           0           0
+Direct pages scanned                 0           0           0           0           0
+Kswapd pages scanned                 0           0           0           0           0
+Kswapd pages reclaimed               0           0           0           0           0
+Direct pages reclaimed               0           0           0           0           0
+Kswapd efficiency                 100%        100%        100%        100%        100%
+Kswapd velocity                  0.000       0.000       0.000       0.000       0.000
+Direct efficiency                 100%        100%        100%        100%        100%
+Direct velocity                  0.000       0.000       0.000       0.000       0.000
+Percentage direct scans             0%          0%          0%          0%          0%
+Page writes by reclaim               0           0           0           0           0
+Page writes file                     0           0           0           0           0
+Page writes anon                     0           0           0           0           0
+Page reclaim immediate               0           0           0           0           0
+Page rescued immediate               0           0           0           0           0
+Slabs scanned                        0           0           0           0           0
+Direct inode steals                  0           0           0           0           0
+Kswapd inode steals                  0           0           0           0           0
+Kswapd skipped wait                  0           0           0           0           0
+THP fault alloc                  17801       13484       19107       20032       17152
+THP collapse alloc                  14           0           6          54           7
+THP splits                           5           0           5           7           2
+THP fault fallback                   0           0           0           0           0
+THP collapse fail                    0           0           0           0           0
+Compaction stalls                    0           0           0           0           0
+Compaction success                   0           0           0           0           0
+Compaction failures                  0           0           0           0           0
+Page migrate success                 0           0           0           0     9398512
+Page migrate failure                 0           0           0           0           0
+Compaction pages isolated            0           0           0           0           0
+Compaction migrate scanned           0           0           0           0           0
+Compaction free scanned              0           0           0           0           0
+Compaction cost                      0           0           0           0        9755
+NUMA PTE updates                     0           0           0           0   140192190
+NUMA hint faults                     0           0           0           0      748819
+NUMA hint local faults               0           0           0           0      570031
+NUMA pages migrated                  0           0           0           0     9398512
+AutoNUMA cost                        0           0           0           0        4904
 
-That said, I agree that getting bottlenecked here is unfortunate and
-should be addressed but it does not obviate the need for rate limiting.
+THP was certainly in use, you can see the fault allocs.
 
-> Rate-limiting to solve scalability limits is not the right
-> solution IMO, because it hurts cases where migration is justified.
-> The migration of the working set itself is not a problem, it would
-> in fact be beneficial - but our implementation of it does not scale
-> beyond a certain rate.
-> 
+Next is the specjbb. There are 4 separate configurations
 
-Which would be logical if scalability was the problem it was addressing
-but it's not. It's to stop the machine going to pot if there is a hostile
-user of a shared machine or the policy breaks down.
+multiple JVMs, THP
+multiple JVMs, no THP
+single JVM, THP
+single JVM, no THP
 
-> ( THP, which has a 512 times lower natural rate of migration page
->   faults, does not run into this scalability limit. )
-> 
-> So this issue is still open and testers are encouraged to use THP
-> if they can.
-> 
+SPECJBB: Multiple JVMs (one per node, 4 nodes), THP is enabled
+                      3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                     stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+Mean   1      31311.75 (  0.00%)     27938.00 (-10.77%)     29681.25 ( -5.21%)     31474.25 (  0.52%)     29616.25 ( -5.41%)
+Mean   2      62972.75 (  0.00%)     51899.00 (-17.58%)     60403.00 ( -4.08%)     66654.00 (  5.85%)     61311.25 ( -2.64%)
+Mean   3      91292.00 (  0.00%)     80908.00 (-11.37%)     86570.25 ( -5.17%)     97177.50 (  6.45%)     89499.00 ( -1.96%)
+Mean   4     115768.75 (  0.00%)     99497.25 (-14.06%)    105982.25 ( -8.45%)    125596.00 (  8.49%)    115788.75 (  0.02%)
+Mean   5     137248.50 (  0.00%)     92837.75 (-32.36%)    115640.50 (-15.74%)    152795.25 ( 11.33%)    139499.25 (  1.64%)
+Mean   6     155528.50 (  0.00%)    105554.50 (-32.13%)    124614.75 (-19.88%)    177455.25 ( 14.10%)    159322.25 (  2.44%)
+Mean   7     156747.50 (  0.00%)    122582.25 (-21.80%)    133205.00 (-15.02%)    184578.75 ( 17.76%)    161256.75 (  2.88%)
+Mean   8     152069.50 (  0.00%)    122439.00 (-19.48%)    132939.25 (-12.58%)    186619.25 ( 22.72%)    163891.50 (  7.77%)
+Mean   9     146609.75 (  0.00%)    112410.00 (-23.33%)    123667.25 (-15.65%)    186165.00 ( 26.98%)    160291.00 (  9.33%)
+Mean   10    142819.00 (  0.00%)    111456.00 (-21.96%)    117609.00 (-17.65%)    182569.75 ( 27.83%)    155353.50 (  8.78%)
+Mean   11    128292.25 (  0.00%)     98027.00 (-23.59%)    112410.25 (-12.38%)    176104.75 ( 37.27%)    146795.00 ( 14.42%)
+Mean   12    128769.75 (  0.00%)    129469.50 (  0.54%)    106629.50 (-17.19%)    169003.00 ( 31.24%)    140294.75 (  8.95%)
+Mean   13    126488.50 (  0.00%)    110133.75 (-12.93%)    106878.25 (-15.50%)    162725.75 ( 28.65%)    138068.75 (  9.16%)
+Mean   14    123400.00 (  0.00%)    117929.75 ( -4.43%)    105558.25 (-14.46%)    163781.25 ( 32.72%)    138708.25 ( 12.41%)
+Mean   15    122139.50 (  0.00%)    122404.25 (  0.22%)    102829.25 (-15.81%)    160800.25 ( 31.65%)    136569.25 ( 11.81%)
+Mean   16    116413.50 (  0.00%)    124573.50 (  7.01%)    100475.75 (-13.69%)    160882.75 ( 38.20%)    134798.75 ( 15.79%)
+Mean   17    117263.25 (  0.00%)    121937.25 (  3.99%)     97237.75 (-17.08%)    159069.75 ( 35.65%)    124516.25 (  6.19%)
+Mean   18    117277.00 (  0.00%)    116633.75 ( -0.55%)     96547.00 (-17.68%)    158694.75 ( 35.32%)    127399.50 (  8.63%)
+Mean   19    113231.00 (  0.00%)    111035.75 ( -1.94%)     97683.00 (-13.73%)    155563.25 ( 37.39%)    124921.00 ( 10.32%)
+Mean   20    113628.75 (  0.00%)    113451.25 ( -0.16%)     96311.75 (-15.24%)    154779.75 ( 36.22%)    123689.25 (  8.85%)
+Mean   21    110982.50 (  0.00%)    107660.50 ( -2.99%)     93732.50 (-15.54%)    151147.25 ( 36.19%)    124793.25 ( 12.44%)
+Mean   22    107660.25 (  0.00%)    104771.50 ( -2.68%)     91888.75 (-14.65%)    151180.50 ( 40.42%)    122143.50 ( 13.45%)
+Mean   23    105320.50 (  0.00%)     88275.25 (-16.18%)     91594.75 (-13.03%)    147032.00 ( 39.60%)    118244.25 ( 12.27%)
+Mean   24    110900.50 (  0.00%)     85169.00 (-23.20%)     87782.75 (-20.85%)    147407.00 ( 32.92%)    119124.75 (  7.42%)
+Stddev 1        720.83 (  0.00%)       982.31 (-36.28%)      1738.11 (-141.13%)       942.80 (-30.79%)       281.42 ( 60.96%)
+Stddev 2        466.00 (  0.00%)      1770.75 (-279.99%)       437.94 (  6.02%)      1327.32 (-184.83%)       935.13 (-100.67%)
+Stddev 3        509.61 (  0.00%)      4849.62 (-851.63%)      1892.19 (-271.30%)      1803.72 (-253.94%)      1464.93 (-187.46%)
+Stddev 4       1750.10 (  0.00%)     10708.16 (-511.86%)      5762.55 (-229.27%)      2010.11 (-14.86%)       989.59 ( 43.45%)
+Stddev 5        700.05 (  0.00%)     16497.79 (-2256.66%)      4658.04 (-565.39%)      2354.70 (-236.36%)      2983.62 (-326.20%)
+Stddev 6       2259.33 (  0.00%)     24221.98 (-972.09%)      6618.94 (-192.96%)      1516.32 ( 32.89%)      1268.19 ( 43.87%)
+Stddev 7       3390.99 (  0.00%)      4721.80 (-39.25%)      7337.14 (-116.37%)      2398.34 ( 29.27%)      2522.91 ( 25.60%)
+Stddev 8       7533.18 (  0.00%)      8609.90 (-14.29%)      9431.33 (-25.20%)      2895.55 ( 61.56%)      4162.07 ( 44.75%)
+Stddev 9       9223.98 (  0.00%)     10731.70 (-16.35%)     10681.30 (-15.80%)      4726.23 ( 48.76%)      3866.54 ( 58.08%)
+Stddev 10      4578.09 (  0.00%)     11136.27 (-143.25%)     12513.13 (-173.33%)      6705.48 (-46.47%)      4869.86 ( -6.37%)
+Stddev 11      8201.30 (  0.00%)      3580.27 ( 56.35%)     18390.50 (-124.24%)     10915.90 (-33.10%)      6316.98 ( 22.98%)
+Stddev 12      5713.70 (  0.00%)     13923.12 (-143.68%)     15228.05 (-166.52%)     16555.64 (-189.75%)      3540.96 ( 38.03%)
+Stddev 13      5878.95 (  0.00%)     10471.09 (-78.11%)     14014.88 (-138.39%)     18628.01 (-216.86%)      3024.19 ( 48.56%)
+Stddev 14      4783.95 (  0.00%)      4051.35 ( 15.31%)     13764.72 (-187.73%)     18324.63 (-283.04%)      1203.75 ( 74.84%)
+Stddev 15      6281.48 (  0.00%)      3357.07 ( 46.56%)     11925.69 (-89.85%)     17654.58 (-181.06%)      1014.51 ( 83.85%)
+Stddev 16      6948.12 (  0.00%)      3763.32 ( 45.84%)     13658.66 (-96.58%)     18280.52 (-163.10%)      2171.19 ( 68.75%)
+Stddev 17      5603.77 (  0.00%)      1452.04 ( 74.09%)     12618.33 (-125.18%)     18230.53 (-225.33%)      1228.38 ( 78.08%)
+Stddev 18      6200.90 (  0.00%)      1870.12 ( 69.84%)     11261.01 (-81.60%)     18486.73 (-198.13%)      1143.03 ( 81.57%)
+Stddev 19      6726.31 (  0.00%)      1045.21 ( 84.46%)     10748.09 (-59.79%)     18465.25 (-174.52%)      1281.55 ( 80.95%)
+Stddev 20      5713.58 (  0.00%)      2066.90 ( 63.82%)     12195.08 (-113.44%)     19947.77 (-249.13%)      1076.69 ( 81.16%)
+Stddev 21      4566.92 (  0.00%)      2460.40 ( 46.13%)     14089.14 (-208.50%)     21189.08 (-363.97%)      2861.40 ( 37.35%)
+Stddev 22      6168.05 (  0.00%)      2770.81 ( 55.08%)     10037.19 (-62.73%)     20033.82 (-224.80%)      3628.02 ( 41.18%)
+Stddev 23      6295.45 (  0.00%)      1337.32 ( 78.76%)     13290.13 (-111.11%)     22610.91 (-259.16%)      2651.23 ( 57.89%)
+Stddev 24      3108.17 (  0.00%)      1381.20 ( 55.56%)     12637.15 (-306.58%)     21243.56 (-583.47%)      1156.63 ( 62.79%)
+TPut   1     125247.00 (  0.00%)    111752.00 (-10.77%)    118725.00 ( -5.21%)    125897.00 (  0.52%)    118465.00 ( -5.41%)
+TPut   2     251891.00 (  0.00%)    207596.00 (-17.58%)    241612.00 ( -4.08%)    266616.00 (  5.85%)    245245.00 ( -2.64%)
+TPut   3     365168.00 (  0.00%)    323632.00 (-11.37%)    346281.00 ( -5.17%)    388710.00 (  6.45%)    357996.00 ( -1.96%)
+TPut   4     463075.00 (  0.00%)    397989.00 (-14.06%)    423929.00 ( -8.45%)    502384.00 (  8.49%)    463155.00 (  0.02%)
+TPut   5     548994.00 (  0.00%)    371351.00 (-32.36%)    462562.00 (-15.74%)    611181.00 ( 11.33%)    557997.00 (  1.64%)
+TPut   6     622114.00 (  0.00%)    422218.00 (-32.13%)    498459.00 (-19.88%)    709821.00 ( 14.10%)    637289.00 (  2.44%)
+TPut   7     626990.00 (  0.00%)    490329.00 (-21.80%)    532820.00 (-15.02%)    738315.00 ( 17.76%)    645027.00 (  2.88%)
+TPut   8     608278.00 (  0.00%)    489756.00 (-19.48%)    531757.00 (-12.58%)    746477.00 ( 22.72%)    655566.00 (  7.77%)
+TPut   9     586439.00 (  0.00%)    449640.00 (-23.33%)    494669.00 (-15.65%)    744660.00 ( 26.98%)    641164.00 (  9.33%)
+TPut   10    571276.00 (  0.00%)    445824.00 (-21.96%)    470436.00 (-17.65%)    730279.00 ( 27.83%)    621414.00 (  8.78%)
+TPut   11    513169.00 (  0.00%)    392108.00 (-23.59%)    449641.00 (-12.38%)    704419.00 ( 37.27%)    587180.00 ( 14.42%)
+TPut   12    515079.00 (  0.00%)    517878.00 (  0.54%)    426518.00 (-17.19%)    676012.00 ( 31.24%)    561179.00 (  8.95%)
+TPut   13    505954.00 (  0.00%)    440535.00 (-12.93%)    427513.00 (-15.50%)    650903.00 ( 28.65%)    552275.00 (  9.16%)
+TPut   14    493600.00 (  0.00%)    471719.00 ( -4.43%)    422233.00 (-14.46%)    655125.00 ( 32.72%)    554833.00 ( 12.41%)
+TPut   15    488558.00 (  0.00%)    489617.00 (  0.22%)    411317.00 (-15.81%)    643201.00 ( 31.65%)    546277.00 ( 11.81%)
+TPut   16    465654.00 (  0.00%)    498294.00 (  7.01%)    401903.00 (-13.69%)    643531.00 ( 38.20%)    539195.00 ( 15.79%)
+TPut   17    469053.00 (  0.00%)    487749.00 (  3.99%)    388951.00 (-17.08%)    636279.00 ( 35.65%)    498065.00 (  6.19%)
+TPut   18    469108.00 (  0.00%)    466535.00 ( -0.55%)    386188.00 (-17.68%)    634779.00 ( 35.32%)    509598.00 (  8.63%)
+TPut   19    452924.00 (  0.00%)    444143.00 ( -1.94%)    390732.00 (-13.73%)    622253.00 ( 37.39%)    499684.00 ( 10.32%)
+TPut   20    454515.00 (  0.00%)    453805.00 ( -0.16%)    385247.00 (-15.24%)    619119.00 ( 36.22%)    494757.00 (  8.85%)
+TPut   21    443930.00 (  0.00%)    430642.00 ( -2.99%)    374930.00 (-15.54%)    604589.00 ( 36.19%)    499173.00 ( 12.44%)
+TPut   22    430641.00 (  0.00%)    419086.00 ( -2.68%)    367555.00 (-14.65%)    604722.00 ( 40.42%)    488574.00 ( 13.45%)
+TPut   23    421282.00 (  0.00%)    353101.00 (-16.18%)    366379.00 (-13.03%)    588128.00 ( 39.60%)    472977.00 ( 12.27%)
+TPut   24    443602.00 (  0.00%)    340676.00 (-23.20%)    351131.00 (-20.85%)    589628.00 ( 32.92%)    476499.00 (  7.42%)
 
-As before not everything can use THP. For example, openMPI by default on
-local machine communicates with shared mappings in /tmp/. Granted, this
-is only important during communication so one would hope it's only a
-factor during the initial setup and during the final reduction. Also
-remember that THP is not always available due to fragmentation or
-because the watermarks are not met if the NUMA node has most of its
-memory allocated.
+I'm not seeing the same benefit at all. Ingo reported for one warehouse
+set which was 8 warehouses per JVM and 32 warehouses overall. This is the
+maximum loaded configuration for his machine. The equivalent on my machine
+would be 12 warehouses per JVM (TPut 12 above) which would be 48 warehouses
+overall but I'm not seeing a large gains, I'm seeing a 17.19% regression
+for latest numacore.
+
+autonuma does fairly well.
+
+balancenuma does all right.
+
+SPECJBB PEAKS
+                                   3.7.0-rc7                  3.7.0-rc6                  3.7.0-rc7                  3.7.0-rc7                  3.7.0-rc7
+                                  stats-v8r6          numacore-20121130          numacore-20121202         autonuma-v28fastr4            thpmigrate-v8r6
+ Expctd Warehouse            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)
+ Expctd Peak Bops        515079.00 (  0.00%)        517878.00 (  0.54%)        426518.00 (-17.19%)        676012.00 ( 31.24%)        561179.00 (  8.95%)
+ Actual Warehouse             7.00 (  0.00%)            12.00 ( 71.43%)             7.00 (  0.00%)             8.00 ( 14.29%)             8.00 ( 14.29%)
+ Actual Peak Bops        626990.00 (  0.00%)        517878.00 (-17.40%)        532820.00 (-15.02%)        746477.00 ( 19.06%)        655566.00 (  4.56%)
+ SpecJBB Bops            465685.00 (  0.00%)        447214.00 ( -3.97%)        392353.00 (-15.75%)        628328.00 ( 34.93%)        514853.00 ( 10.56%)
+ SpecJBB Bops/JVM        116421.00 (  0.00%)        111804.00 ( -3.97%)         98088.00 (-15.75%)        157082.00 ( 34.93%)        128713.00 ( 10.56%)
+
+Latest numacore is showing 15.02% regression at the peak and a 15.75%
+regression on the overall specjbb score.
+
+MMTests Statistics: duration
+           3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+          stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+User       177835.94   171938.81   177810.87   177457.20   177439.06
+System        166.79     5814.00      168.00      207.74      515.54
+Elapsed      4037.12     4038.74     4030.32     4037.22     4027.60
+
+Once again, the system CPU usage is far better. Again, is that worklet
+accounting at work or is the improvement just that good?
+
+MMTests Statistics: vmstat
+                             3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+                            stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+Page Ins                         37116       36404       36064       36740       44440
+Page Outs                        30340       33624       30256       29428       29540
+Swap Ins                             0           0           0           0           0
+Swap Outs                            0           0           0           0           0
+Direct pages scanned                 0           0           0           0           0
+Kswapd pages scanned                 0           0           0           0           0
+Kswapd pages reclaimed               0           0           0           0           0
+Direct pages reclaimed               0           0           0           0           0
+Kswapd efficiency                 100%        100%        100%        100%        100%
+Kswapd velocity                  0.000       0.000       0.000       0.000       0.000
+Direct efficiency                 100%        100%        100%        100%        100%
+Direct velocity                  0.000       0.000       0.000       0.000       0.000
+Percentage direct scans             0%          0%          0%          0%          0%
+Page writes by reclaim               0           0           0           0           0
+Page writes file                     0           0           0           0           0
+Page writes anon                     0           0           0           0           0
+Page reclaim immediate               0           0           0           0           0
+Page rescued immediate               0           0           0           0           0
+Slabs scanned                        0           0           0           0           0
+Direct inode steals                  0           0           0           0           0
+Kswapd inode steals                  0           0           0           0           0
+Kswapd skipped wait                  0           0           0           0           0
+THP fault alloc                  63322       49889       65564       52514       67970
+THP collapse alloc                 130          53         130         463         122
+THP splits                         355         192         344         376         372
+THP fault fallback                   0           0           0           0           0
+THP collapse fail                    0           0           0           0           0
+Compaction stalls                    0           0           0           0           0
+Compaction success                   0           0           0           0           0
+Compaction failures                  0           0           0           0           0
+Page migrate success                 0           0           0           0    52980376
+Page migrate failure                 0           0           0           0           0
+Compaction pages isolated            0           0           0           0           0
+Compaction migrate scanned           0           0           0           0           0
+Compaction free scanned              0           0           0           0           0
+Compaction cost                      0           0           0           0       54993
+NUMA PTE updates                     0           0           0           0   418971067
+NUMA hint faults                     0           0           0           0     3179614
+NUMA hint local faults               0           0           0           0     1030391
+NUMA pages migrated                  0           0           0           0    52980376
+AutoNUMA cost                        0           0           0           0       19837
+
+THP was in use, we all split at roughly the same rates.
+
+SPECJBB: Multiple JVMs (one per node, 4 nodes), THP is disabled
+                      3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                     stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+Mean   1      26036.50 (  0.00%)     19595.00 (-24.74%)     24601.50 ( -5.51%)     24738.25 ( -4.99%)     25782.75 ( -0.97%)
+Mean   2      53629.75 (  0.00%)     38481.50 (-28.25%)     52351.25 ( -2.38%)     55646.75 (  3.76%)     53155.50 ( -0.88%)
+Mean   3      77385.00 (  0.00%)     53685.50 (-30.63%)     75993.00 ( -1.80%)     82714.75 (  6.89%)     76386.00 ( -1.29%)
+Mean   4     100097.75 (  0.00%)     68253.50 (-31.81%)     92149.50 ( -7.94%)    107883.25 (  7.78%)     98124.00 ( -1.97%)
+Mean   5     119012.75 (  0.00%)     74164.50 (-37.68%)    112056.00 ( -5.85%)    130260.25 (  9.45%)    119199.75 (  0.16%)
+Mean   6     137419.25 (  0.00%)     86158.50 (-37.30%)    133604.50 ( -2.78%)    154244.50 ( 12.24%)    136583.25 ( -0.61%)
+Mean   7     138018.25 (  0.00%)     96059.25 (-30.40%)    136477.50 ( -1.12%)    159501.00 ( 15.57%)    139283.50 (  0.92%)
+Mean   8     136774.00 (  0.00%)     97003.50 (-29.08%)    137033.75 (  0.19%)    162868.00 ( 19.08%)    139270.75 (  1.83%)
+Mean   9     127966.50 (  0.00%)     95261.00 (-25.56%)    135496.00 (  5.88%)    163008.00 ( 27.38%)    136763.25 (  6.87%)
+Mean   10    124628.75 (  0.00%)     96202.25 (-22.81%)    128704.25 (  3.27%)    159696.50 ( 28.14%)    132052.75 (  5.96%)
+Mean   11    117269.00 (  0.00%)     95924.25 (-18.20%)    119718.50 (  2.09%)    154701.50 ( 31.92%)    127392.75 (  8.63%)
+Mean   12    111962.25 (  0.00%)     94247.25 (-15.82%)    115400.75 (  3.07%)    150936.50 ( 34.81%)    120972.25 (  8.05%)
+Mean   13    111595.50 (  0.00%)    106538.50 ( -4.53%)    110988.50 ( -0.54%)    147193.25 ( 31.90%)    120090.25 (  7.61%)
+Mean   14    110881.00 (  0.00%)    103549.00 ( -6.61%)    111549.00 (  0.60%)    144584.00 ( 30.40%)    112823.50 (  1.75%)
+Mean   15    109337.50 (  0.00%)    101729.00 ( -6.96%)    108927.25 ( -0.38%)    143333.00 ( 31.09%)    116505.25 (  6.56%)
+Mean   16    107031.75 (  0.00%)    101983.75 ( -4.72%)    106160.75 ( -0.81%)    141907.75 ( 32.58%)    112731.25 (  5.33%)
+Mean   17    105491.25 (  0.00%)    100205.75 ( -5.01%)    104268.75 ( -1.16%)    140691.00 ( 33.37%)    113183.00 (  7.29%)
+Mean   18    101102.75 (  0.00%)     96635.50 ( -4.42%)    104045.75 (  2.91%)    137784.25 ( 36.28%)    113993.50 ( 12.75%)
+Mean   19    103907.25 (  0.00%)     94578.25 ( -8.98%)    102897.50 ( -0.97%)    135719.25 ( 30.62%)    113725.00 (  9.45%)
+Mean   20    100496.00 (  0.00%)     92683.75 ( -7.77%)     98143.50 ( -2.34%)    135264.25 ( 34.60%)    110990.25 ( 10.44%)
+Mean   21     99570.00 (  0.00%)     92955.75 ( -6.64%)     97375.00 ( -2.20%)    133891.00 ( 34.47%)    108527.75 (  9.00%)
+Mean   22     98611.75 (  0.00%)     89781.75 ( -8.95%)     98287.00 ( -0.33%)    132399.75 ( 34.26%)    107813.75 (  9.33%)
+Mean   23     98173.00 (  0.00%)     88846.00 ( -9.50%)     98131.00 ( -0.04%)    130726.00 ( 33.16%)    106859.25 (  8.85%)
+Mean   24     92074.75 (  0.00%)     88581.00 ( -3.79%)     96459.75 (  4.76%)    127552.25 ( 38.53%)    109180.75 ( 18.58%)
+Stddev 1        735.13 (  0.00%)       538.24 ( 26.78%)       973.28 (-32.40%)       121.08 ( 83.53%)       850.05 (-15.63%)
+Stddev 2        406.26 (  0.00%)      3458.87 (-751.39%)      1082.66 (-166.49%)       477.32 (-17.49%)      1070.30 (-163.45%)
+Stddev 3        644.20 (  0.00%)      1360.89 (-111.25%)      1334.10 (-107.09%)       922.47 (-43.20%)      1668.38 (-158.98%)
+Stddev 4        743.93 (  0.00%)      2149.34 (-188.92%)      2267.12 (-204.75%)      1385.42 (-86.23%)      1244.82 (-67.33%)
+Stddev 5        898.53 (  0.00%)      2521.01 (-180.57%)      1948.30 (-116.83%)       763.24 ( 15.06%)      1021.24 (-13.66%)
+Stddev 6       1126.61 (  0.00%)      3818.22 (-238.91%)       917.32 ( 18.58%)      1527.03 (-35.54%)      1405.79 (-24.78%)
+Stddev 7       2907.61 (  0.00%)      4419.29 (-51.99%)      2486.28 ( 14.49%)      1536.66 ( 47.15%)      4825.30 (-65.95%)
+Stddev 8       3200.64 (  0.00%)       382.01 ( 88.06%)      5978.31 (-86.78%)      1228.09 ( 61.63%)      5415.14 (-69.19%)
+Stddev 9       2907.92 (  0.00%)      1813.39 ( 37.64%)      4583.53 (-57.62%)      1502.61 ( 48.33%)      4569.07 (-57.12%)
+Stddev 10      5093.23 (  0.00%)      1313.58 ( 74.21%)      8194.93 (-60.90%)      2763.19 ( 45.75%)      2876.58 ( 43.52%)
+Stddev 11      4982.41 (  0.00%)      1163.02 ( 76.66%)      1899.45 ( 61.88%)      4776.28 (  4.14%)      2729.19 ( 45.22%)
+Stddev 12      3051.38 (  0.00%)      2117.59 ( 30.60%)      2404.89 ( 21.19%)      9252.59 (-203.23%)      1797.38 ( 41.10%)
+Stddev 13      2918.03 (  0.00%)      2252.11 ( 22.82%)      3889.75 (-33.30%)      9384.83 (-221.62%)      2832.98 (  2.91%)
+Stddev 14      3178.97 (  0.00%)      2337.49 ( 26.47%)      3612.00 (-13.62%)      9353.03 (-194.22%)      3499.23 (-10.07%)
+Stddev 15      2438.31 (  0.00%)      1707.72 ( 29.96%)      2925.87 (-20.00%)     10494.03 (-330.38%)      2752.56 (-12.89%)
+Stddev 16      2682.25 (  0.00%)       840.47 ( 68.67%)      3118.36 (-16.26%)     10343.25 (-285.62%)      2685.02 ( -0.10%)
+Stddev 17      2807.66 (  0.00%)      1546.16 ( 44.93%)      3750.42 (-33.58%)     11446.15 (-307.68%)      2421.25 ( 13.76%)
+Stddev 18      3049.27 (  0.00%)       934.11 ( 69.37%)      3382.16 (-10.92%)     11779.80 (-286.31%)      2488.60 ( 18.39%)
+Stddev 19      2782.65 (  0.00%)       735.28 ( 73.58%)      2853.22 ( -2.54%)     11416.35 (-310.27%)       298.00 ( 89.29%)
+Stddev 20      2379.12 (  0.00%)       956.25 ( 59.81%)      2876.85 (-20.92%)     10511.63 (-341.83%)      2077.10 ( 12.69%)
+Stddev 21      2975.22 (  0.00%)       438.31 ( 85.27%)      2627.61 ( 11.68%)     11292.91 (-279.57%)      1369.17 ( 53.98%)
+Stddev 22      2260.61 (  0.00%)       718.23 ( 68.23%)      2706.69 (-19.73%)     11993.84 (-430.56%)      1584.55 ( 29.91%)
+Stddev 23      2900.85 (  0.00%)       275.47 ( 90.50%)      2348.16 ( 19.05%)     12234.80 (-321.77%)       878.53 ( 69.71%)
+Stddev 24      2578.98 (  0.00%)       481.68 ( 81.32%)      3346.30 (-29.75%)     12769.61 (-395.14%)      1037.50 ( 59.77%)
+TPut   1     104146.00 (  0.00%)     78380.00 (-24.74%)     98406.00 ( -5.51%)     98953.00 ( -4.99%)    103131.00 ( -0.97%)
+TPut   2     214519.00 (  0.00%)    153926.00 (-28.25%)    209405.00 ( -2.38%)    222587.00 (  3.76%)    212622.00 ( -0.88%)
+TPut   3     309540.00 (  0.00%)    214742.00 (-30.63%)    303972.00 ( -1.80%)    330859.00 (  6.89%)    305544.00 ( -1.29%)
+TPut   4     400391.00 (  0.00%)    273014.00 (-31.81%)    368598.00 ( -7.94%)    431533.00 (  7.78%)    392496.00 ( -1.97%)
+TPut   5     476051.00 (  0.00%)    296658.00 (-37.68%)    448224.00 ( -5.85%)    521041.00 (  9.45%)    476799.00 (  0.16%)
+TPut   6     549677.00 (  0.00%)    344634.00 (-37.30%)    534418.00 ( -2.78%)    616978.00 ( 12.24%)    546333.00 ( -0.61%)
+TPut   7     552073.00 (  0.00%)    384237.00 (-30.40%)    545910.00 ( -1.12%)    638004.00 ( 15.57%)    557134.00 (  0.92%)
+TPut   8     547096.00 (  0.00%)    388014.00 (-29.08%)    548135.00 (  0.19%)    651472.00 ( 19.08%)    557083.00 (  1.83%)
+TPut   9     511866.00 (  0.00%)    381044.00 (-25.56%)    541984.00 (  5.88%)    652032.00 ( 27.38%)    547053.00 (  6.87%)
+TPut   10    498515.00 (  0.00%)    384809.00 (-22.81%)    514817.00 (  3.27%)    638786.00 ( 28.14%)    528211.00 (  5.96%)
+TPut   11    469076.00 (  0.00%)    383697.00 (-18.20%)    478874.00 (  2.09%)    618806.00 ( 31.92%)    509571.00 (  8.63%)
+TPut   12    447849.00 (  0.00%)    376989.00 (-15.82%)    461603.00 (  3.07%)    603746.00 ( 34.81%)    483889.00 (  8.05%)
+TPut   13    446382.00 (  0.00%)    426154.00 ( -4.53%)    443954.00 ( -0.54%)    588773.00 ( 31.90%)    480361.00 (  7.61%)
+TPut   14    443524.00 (  0.00%)    414196.00 ( -6.61%)    446196.00 (  0.60%)    578336.00 ( 30.40%)    451294.00 (  1.75%)
+TPut   15    437350.00 (  0.00%)    406916.00 ( -6.96%)    435709.00 ( -0.38%)    573332.00 ( 31.09%)    466021.00 (  6.56%)
+TPut   16    428127.00 (  0.00%)    407935.00 ( -4.72%)    424643.00 ( -0.81%)    567631.00 ( 32.58%)    450925.00 (  5.33%)
+TPut   17    421965.00 (  0.00%)    400823.00 ( -5.01%)    417075.00 ( -1.16%)    562764.00 ( 33.37%)    452732.00 (  7.29%)
+TPut   18    404411.00 (  0.00%)    386542.00 ( -4.42%)    416183.00 (  2.91%)    551137.00 ( 36.28%)    455974.00 ( 12.75%)
+TPut   19    415629.00 (  0.00%)    378313.00 ( -8.98%)    411590.00 ( -0.97%)    542877.00 ( 30.62%)    454900.00 (  9.45%)
+TPut   20    401984.00 (  0.00%)    370735.00 ( -7.77%)    392574.00 ( -2.34%)    541057.00 ( 34.60%)    443961.00 ( 10.44%)
+TPut   21    398280.00 (  0.00%)    371823.00 ( -6.64%)    389500.00 ( -2.20%)    535564.00 ( 34.47%)    434111.00 (  9.00%)
+TPut   22    394447.00 (  0.00%)    359127.00 ( -8.95%)    393148.00 ( -0.33%)    529599.00 ( 34.26%)    431255.00 (  9.33%)
+TPut   23    392692.00 (  0.00%)    355384.00 ( -9.50%)    392524.00 ( -0.04%)    522904.00 ( 33.16%)    427437.00 (  8.85%)
+TPut   24    368299.00 (  0.00%)    354324.00 ( -3.79%)    385839.00 (  4.76%)    510209.00 ( 38.53%)    436723.00 ( 18.58%)
+
+The !THP case has indeed improved for numacore -- it's now in line with
+the mainline kernel but still worse than autonuma or balancenuma :(
+
+SPECJBB PEAKS
+                                   3.7.0-rc7                  3.7.0-rc6                  3.7.0-rc7                  3.7.0-rc7                  3.7.0-rc7
+                                  stats-v8r6          numacore-20121130          numacore-20121202         autonuma-v28fastr4            thpmigrate-v8r6
+ Expctd Warehouse            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)            12.00 (  0.00%)
+ Expctd Peak Bops        447849.00 (  0.00%)        376989.00 (-15.82%)        461603.00 (  3.07%)        603746.00 ( 34.81%)        483889.00 (  8.05%)
+ Actual Warehouse             7.00 (  0.00%)            13.00 ( 85.71%)             8.00 ( 14.29%)             9.00 ( 28.57%)             7.00 (  0.00%)
+ Actual Peak Bops        552073.00 (  0.00%)        426154.00 (-22.81%)        548135.00 ( -0.71%)        652032.00 ( 18.11%)        557134.00 (  0.92%)
+ SpecJBB Bops            415458.00 (  0.00%)        385328.00 ( -7.25%)        416195.00 (  0.18%)        554456.00 ( 33.46%)        451505.00 (  8.68%)
+ SpecJBB Bops/JVM        103865.00 (  0.00%)         96332.00 ( -7.25%)        104049.00 (  0.18%)        138614.00 ( 33.46%)        112876.00 (  8.68%)
+
+Same as above really - peaks and specjbb scores are in line with mainline
+but no improvement.
+
+MMTests Statistics: duration
+           3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+          stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+User       177832.71   148340.09   177834.85   177337.90   176423.81
+System         89.07    28052.02       86.81      287.31     1468.74
+Elapsed      4035.81     4041.26     4041.24     4028.05     4041.25
+
+But the same massive improvement on system CPU usage.
+
+
+MMTests Statistics: vmstat
+                             3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+                            stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+Page Ins                         37380       66040       35792       36416       33076
+Page Outs                        29224       46900       30544       29584       24048
+Swap Ins                             0           0           0           0           0
+Swap Outs                            0           0           0           0           0
+Direct pages scanned                 0           0           0           0           0
+Kswapd pages scanned                 0           0           0           0           0
+Kswapd pages reclaimed               0           0           0           0           0
+Direct pages reclaimed               0           0           0           0           0
+Kswapd efficiency                 100%        100%        100%        100%        100%
+Kswapd velocity                  0.000       0.000       0.000       0.000       0.000
+Direct efficiency                 100%        100%        100%        100%        100%
+Direct velocity                  0.000       0.000       0.000       0.000       0.000
+Percentage direct scans             0%          0%          0%          0%          0%
+Page writes by reclaim               0           0           0           0           0
+Page writes file                     0           0           0           0           0
+Page writes anon                     0           0           0           0           0
+Page reclaim immediate               0           0           0           0           0
+Page rescued immediate               0           0           0           0           0
+Slabs scanned                        0           0           0           0           0
+Direct inode steals                  0           0           0           0           0
+Kswapd inode steals                  0           0           0           0           0
+Kswapd skipped wait                  0           0           0           0           0
+THP fault alloc                      2           3           2           2           3
+THP collapse alloc                   0           0           0           0           0
+THP splits                           0           0           0           0           0
+THP fault fallback                   0           0           0           0           0
+THP collapse fail                    0           0           0           0           0
+Compaction stalls                    0           0           0           0           0
+Compaction success                   0           0           0           0           0
+Compaction failures                  0           0           0           0           0
+Page migrate success                 0           0           0           0    37081585
+Page migrate failure                 0           0           0           0           0
+Compaction pages isolated            0           0           0           0           0
+Compaction migrate scanned           0           0           0           0           0
+Compaction free scanned              0           0           0           0           0
+Compaction cost                      0           0           0           0       38490
+NUMA PTE updates                     0           0           0           0   286584227
+NUMA hint faults                     0           0           0           0   268498687
+NUMA hint local faults               0           0           0           0    69756047
+NUMA pages migrated                  0           0           0           0    37081585
+AutoNUMA cost                        0           0           0           0     1345204
+
+THP was not in use for sure.
+
+SPECJBB: Single JVM, THP is enabled
+                    3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                   stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+TPut 1      25550.00 (  0.00%)     25491.00 ( -0.23%)     26438.00 (  3.48%)     24233.00 ( -5.15%)     25223.00 ( -1.28%)
+TPut 2      55943.00 (  0.00%)     51630.00 ( -7.71%)     57004.00 (  1.90%)     55312.00 ( -1.13%)     55168.00 ( -1.39%)
+TPut 3      87707.00 (  0.00%)     74497.00 (-15.06%)     88852.00 (  1.31%)     88569.00 (  0.98%)     85852.00 ( -2.11%)
+TPut 4     117911.00 (  0.00%)     98435.00 (-16.52%)    104955.00 (-10.99%)    118561.00 (  0.55%)    115467.00 ( -2.07%)
+TPut 5     143285.00 (  0.00%)    133964.00 ( -6.51%)    126238.00 (-11.90%)    145703.00 (  1.69%)    144859.00 (  1.10%)
+TPut 6     171208.00 (  0.00%)    152795.00 (-10.75%)    160028.00 ( -6.53%)    171006.00 ( -0.12%)    170328.00 ( -0.51%)
+TPut 7     195635.00 (  0.00%)    162517.00 (-16.93%)    172973.00 (-11.58%)    198699.00 (  1.57%)    194656.00 ( -0.50%)
+TPut 8     222655.00 (  0.00%)    168679.00 (-24.24%)    179260.00 (-19.49%)    224903.00 (  1.01%)    227247.00 (  2.06%)
+TPut 9     244787.00 (  0.00%)    193394.00 (-20.99%)    238823.00 ( -2.44%)    248313.00 (  1.44%)    248613.00 (  1.56%)
+TPut 10    271565.00 (  0.00%)    237987.00 (-12.36%)    247724.00 ( -8.78%)    272148.00 (  0.21%)    274387.00 (  1.04%)
+TPut 11    298270.00 (  0.00%)    207908.00 (-30.30%)    277513.00 ( -6.96%)    303749.00 (  1.84%)    301764.00 (  1.17%)
+TPut 12    320867.00 (  0.00%)    257937.00 (-19.61%)    281723.00 (-12.20%)    327808.00 (  2.16%)    329886.00 (  2.81%)
+TPut 13    343514.00 (  0.00%)    248474.00 (-27.67%)    301710.00 (-12.17%)    349080.00 (  1.62%)    350488.00 (  2.03%)
+TPut 14    365321.00 (  0.00%)    298876.00 (-18.19%)    314066.00 (-14.03%)    370026.00 (  1.29%)    362375.00 ( -0.81%)
+TPut 15    377071.00 (  0.00%)    296562.00 (-21.35%)    334810.00 (-11.21%)    329847.00 (-12.52%)    396381.00 (  5.12%)
+TPut 16    404979.00 (  0.00%)    287964.00 (-28.89%)    347142.00 (-14.28%)    411066.00 (  1.50%)    400409.00 ( -1.13%)
+TPut 17    420593.00 (  0.00%)    342590.00 (-18.55%)    352738.00 (-16.13%)    428242.00 (  1.82%)    431148.00 (  2.51%)
+TPut 18    440178.00 (  0.00%)    377508.00 (-14.24%)    344421.00 (-21.75%)    440392.00 (  0.05%)    453333.00 (  2.99%)
+TPut 19    448876.00 (  0.00%)    397727.00 (-11.39%)    367002.00 (-18.24%)    462036.00 (  2.93%)    464066.00 (  3.38%)
+TPut 20    460513.00 (  0.00%)    411831.00 (-10.57%)    370870.00 (-19.47%)    476437.00 (  3.46%)    468465.00 (  1.73%)
+TPut 21    474161.00 (  0.00%)    442153.00 ( -6.75%)    374835.00 (-20.95%)    487513.00 (  2.82%)    469695.00 ( -0.94%)
+TPut 22    474493.00 (  0.00%)    429921.00 ( -9.39%)    371022.00 (-21.81%)    487920.00 (  2.83%)    493468.00 (  4.00%)
+TPut 23    489559.00 (  0.00%)    460354.00 ( -5.97%)    377444.00 (-22.90%)    508298.00 (  3.83%)    496034.00 (  1.32%)
+TPut 24    495378.00 (  0.00%)    486826.00 ( -1.73%)    376551.00 (-23.99%)    514403.00 (  3.84%)    499233.00 (  0.78%)
+TPut 25    491795.00 (  0.00%)    520474.00 (  5.83%)    370872.00 (-24.59%)    507373.00 (  3.17%)    487478.00 ( -0.88%)
+TPut 26    490038.00 (  0.00%)    465587.00 ( -4.99%)    370093.00 (-24.48%)    376322.00 (-23.21%)    475886.00 ( -2.89%)
+TPut 27    491233.00 (  0.00%)    469764.00 ( -4.37%)    371915.00 (-24.29%)    366225.00 (-25.45%)    472389.00 ( -3.84%)
+TPut 28    489058.00 (  0.00%)    489561.00 (  0.10%)    364465.00 (-25.48%)    414027.00 (-15.34%)    440279.00 ( -9.97%)
+TPut 29    471539.00 (  0.00%)    492496.00 (  4.44%)    353470.00 (-25.04%)    400529.00 (-15.06%)    444113.00 ( -5.82%)
+TPut 30    480343.00 (  0.00%)    488349.00 (  1.67%)    355023.00 (-26.09%)    405612.00 (-15.56%)    439365.00 ( -8.53%)
+TPut 31    478109.00 (  0.00%)    460043.00 ( -3.78%)    352440.00 (-26.28%)    401471.00 (-16.03%)    438124.00 ( -8.36%)
+TPut 32    475736.00 (  0.00%)    472007.00 ( -0.78%)    341509.00 (-28.21%)    401075.00 (-15.69%)    424440.00 (-10.78%)
+TPut 33    470758.00 (  0.00%)    474348.00 (  0.76%)    337127.00 (-28.39%)    399592.00 (-15.12%)    426780.00 ( -9.34%)
+TPut 34    467304.00 (  0.00%)    475878.00 (  1.83%)    332477.00 (-28.85%)    394589.00 (-15.56%)    415856.00 (-11.01%)
+TPut 35    466391.00 (  0.00%)    487411.00 (  4.51%)    335639.00 (-28.03%)    382799.00 (-17.92%)    419039.00 (-10.15%)
+TPut 36    452722.00 (  0.00%)    478050.00 (  5.59%)    316889.00 (-30.00%)    381120.00 (-15.82%)    412743.00 ( -8.83%)
+TPut 37    447878.00 (  0.00%)    478467.00 (  6.83%)    326939.00 (-27.00%)    382803.00 (-14.53%)    408997.00 ( -8.68%)
+TPut 38    447907.00 (  0.00%)    455542.00 (  1.70%)    315719.00 (-29.51%)    341693.00 (-23.71%)    397839.00 (-11.18%)
+TPut 39    428322.00 (  0.00%)    367921.00 (-14.10%)    310519.00 (-27.50%)    404210.00 ( -5.63%)    397204.00 ( -7.27%)
+TPut 40    429157.00 (  0.00%)    394277.00 ( -8.13%)    302742.00 (-29.46%)    378554.00 (-11.79%)    369994.00 (-13.79%)
+TPut 41    424339.00 (  0.00%)    415413.00 ( -2.10%)    304680.00 (-28.20%)    399220.00 ( -5.92%)    390125.00 ( -8.06%)
+TPut 42    397440.00 (  0.00%)    421027.00 (  5.93%)    298298.00 (-24.95%)    372161.00 ( -6.36%)    383341.00 ( -3.55%)
+TPut 43    405391.00 (  0.00%)    433900.00 (  7.03%)    286294.00 (-29.38%)    383936.00 ( -5.29%)    375542.00 ( -7.36%)
+TPut 44    400692.00 (  0.00%)    427504.00 (  6.69%)    282819.00 (-29.42%)    374757.00 ( -6.47%)    370109.00 ( -7.63%)
+TPut 45    399623.00 (  0.00%)    372622.00 ( -6.76%)    273593.00 (-31.54%)    379797.00 ( -4.96%)    367059.00 ( -8.15%)
+TPut 46    391920.00 (  0.00%)    351205.00 (-10.39%)    277380.00 (-29.23%)    368042.00 ( -6.09%)    359599.00 ( -8.25%)
+TPut 47    378199.00 (  0.00%)    358150.00 ( -5.30%)    273560.00 (-27.67%)    368744.00 ( -2.50%)    345383.00 ( -8.68%)
+TPut 48    379346.00 (  0.00%)    387287.00 (  2.09%)    274168.00 (-27.73%)    373581.00 ( -1.52%)    370346.00 ( -2.37%)
+TPut 49    373614.00 (  0.00%)    395793.00 (  5.94%)    270794.00 (-27.52%)    372621.00 ( -0.27%)    369080.00 ( -1.21%)
+TPut 50    372494.00 (  0.00%)    366488.00 ( -1.61%)    271465.00 (-27.12%)    388778.00 (  4.37%)    378187.00 (  1.53%)
+TPut 51    382195.00 (  0.00%)    381771.00 ( -0.11%)    272796.00 (-28.62%)    387687.00 (  1.44%)    380752.00 ( -0.38%)
+TPut 52    369118.00 (  0.00%)    429441.00 ( 16.34%)    272019.00 (-26.31%)    390226.00 (  5.72%)    369854.00 (  0.20%)
+TPut 53    366453.00 (  0.00%)    445744.00 ( 21.64%)    267952.00 (-26.88%)    399257.00 (  8.95%)    377122.00 (  2.91%)
+TPut 54    366571.00 (  0.00%)    375762.00 (  2.51%)    268229.00 (-26.83%)    395098.00 (  7.78%)    364819.00 ( -0.48%)
+TPut 55    367580.00 (  0.00%)    336113.00 ( -8.56%)    267474.00 (-27.23%)    400550.00 (  8.97%)    357908.00 ( -2.63%)
+TPut 56    367056.00 (  0.00%)    375635.00 (  2.34%)    263577.00 (-28.19%)    385743.00 (  5.09%)    345996.00 ( -5.74%)
+TPut 57    359163.00 (  0.00%)    354001.00 ( -1.44%)    261130.00 (-27.29%)    389827.00 (  8.54%)    362023.00 (  0.80%)
+TPut 58    360552.00 (  0.00%)    353312.00 ( -2.01%)    261140.00 (-27.57%)    394099.00 (  9.30%)    373974.00 (  3.72%)
+TPut 59    354967.00 (  0.00%)    368534.00 (  3.82%)    262418.00 (-26.07%)    390746.00 ( 10.08%)    378369.00 (  6.59%)
+TPut 60    362976.00 (  0.00%)    388472.00 (  7.02%)    267468.00 (-26.31%)    383073.00 (  5.54%)    344892.00 ( -4.98%)
+TPut 61    368072.00 (  0.00%)    399476.00 (  8.53%)    265659.00 (-27.82%)    380807.00 (  3.46%)    353035.00 ( -4.09%)
+TPut 62    356938.00 (  0.00%)    385648.00 (  8.04%)    253107.00 (-29.09%)    387736.00 (  8.63%)    372224.00 (  4.28%)
+TPut 63    357491.00 (  0.00%)    404325.00 ( 13.10%)    259404.00 (-27.44%)    396672.00 ( 10.96%)    375653.00 (  5.08%)
+TPut 64    357322.00 (  0.00%)    389552.00 (  9.02%)    260333.00 (-27.14%)    386826.00 (  8.26%)    366878.00 (  2.67%)
+TPut 65    341262.00 (  0.00%)    394964.00 ( 15.74%)    258149.00 (-24.35%)    380271.00 ( 11.43%)    353347.00 (  3.54%)
+TPut 66    357807.00 (  0.00%)    384846.00 (  7.56%)    259279.00 (-27.54%)    362723.00 (  1.37%)    375644.00 (  4.99%)
+TPut 67    345092.00 (  0.00%)    376842.00 (  9.20%)    259350.00 (-24.85%)    364193.00 (  5.54%)    372053.00 (  7.81%)
+TPut 68    350334.00 (  0.00%)    358330.00 (  2.28%)    259332.00 (-25.98%)    359368.00 (  2.58%)    378979.00 (  8.18%)
+TPut 69    348372.00 (  0.00%)    356188.00 (  2.24%)    263076.00 (-24.48%)    364449.00 (  4.61%)    369852.00 (  6.17%)
+TPut 70    335077.00 (  0.00%)    359313.00 (  7.23%)    259983.00 (-22.41%)    356418.00 (  6.37%)    353911.00 (  5.62%)
+TPut 71    341197.00 (  0.00%)    364168.00 (  6.73%)    254622.00 (-25.37%)    343847.00 (  0.78%)    358404.00 (  5.04%)
+TPut 72    345032.00 (  0.00%)    356934.00 (  3.45%)    261060.00 (-24.34%)    345007.00 ( -0.01%)    349968.00 (  1.43%)
+
+Latest numacore is way worse than the previous release according to this.
+
+SPECJBB PEAKS
+                                   3.7.0-rc7                  3.7.0-rc6                  3.7.0-rc7                  3.7.0-rc7                  3.7.0-rc7
+                                  stats-v8r6          numacore-20121130          numacore-20121202         autonuma-v28fastr4            thpmigrate-v8r6
+ Expctd Warehouse                   48.00 (  0.00%)                   48.00 (  0.00%)                   48.00 (  0.00%)                   48.00 (  0.00%)                   48.00 (  0.00%)
+ Expctd Peak Bops               379346.00 (  0.00%)               387287.00 (  2.09%)               274168.00 (-27.73%)               373581.00 ( -1.52%)               370346.00 ( -2.37%)
+ Actual Warehouse                   24.00 (  0.00%)                   25.00 (  4.17%)                   23.00 ( -4.17%)                   24.00 (  0.00%)                   24.00 (  0.00%)
+ Actual Peak Bops               495378.00 (  0.00%)               520474.00 (  5.07%)               377444.00 (-23.81%)               514403.00 (  3.84%)               499233.00 (  0.78%)
+ SpecJBB Bops                   183389.00 (  0.00%)               193652.00 (  5.60%)               134571.00 (-26.62%)               193461.00 (  5.49%)               186801.00 (  1.86%)
+ SpecJBB Bops/JVM               183389.00 (  0.00%)               193652.00 (  5.60%)               134571.00 (-26.62%)               193461.00 (  5.49%)               186801.00 (  1.86%)
+
+numacore is now showing a 23.81% regression at the peak and a 26.62% regression in its overall speccpu score.
+
+MMTests Statistics: duration
+           3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+          stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+User       316340.52   311420.23   317791.75   314589.64   315737.97
+System        102.08     3067.27      102.89      352.70      455.15
+Elapsed      7433.22     7436.63     7434.49     7434.74     7434.42
+
+System CPU usage has improved.
+
+MMTests Statistics: vmstat
+                             3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+                            stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+Page Ins                         66212       36180       35476       36152       36572
+Page Outs                        31248       35544       29372       28388       29096
+Swap Ins                             0           0           0           0           0
+Swap Outs                            0           0           0           0           0
+Direct pages scanned                 0           0           0           0           0
+Kswapd pages scanned                 0           0           0           0           0
+Kswapd pages reclaimed               0           0           0           0           0
+Direct pages reclaimed               0           0           0           0           0
+Kswapd efficiency                 100%        100%        100%        100%        100%
+Kswapd velocity                  0.000       0.000       0.000       0.000       0.000
+Direct efficiency                 100%        100%        100%        100%        100%
+Direct velocity                  0.000       0.000       0.000       0.000       0.000
+Percentage direct scans             0%          0%          0%          0%          0%
+Page writes by reclaim               0           0           0           0           0
+Page writes file                     0           0           0           0           0
+Page writes anon                     0           0           0           0           0
+Page reclaim immediate               0           0           0           0           0
+Page rescued immediate               0           0           0           0           0
+Slabs scanned                        0           0           0           0           0
+Direct inode steals                  0           0           0           0           0
+Kswapd inode steals                  0           0           0           0           0
+Kswapd skipped wait                  0           0           0           0           0
+THP fault alloc                  48874       45657       54164       48296       52738
+THP collapse alloc                  51           2          50         157          47
+THP splits                          70          37          83          83          77
+THP fault fallback                   0           0           0           0           0
+THP collapse fail                    0           0           0           0           0
+Compaction stalls                    0           0           0           0           0
+Compaction success                   0           0           0           0           0
+Compaction failures                  0           0           0           0           0
+Page migrate success                 0           0           0           0    46460155
+Page migrate failure                 0           0           0           0           0
+Compaction pages isolated            0           0           0           0           0
+Compaction migrate scanned           0           0           0           0           0
+Compaction free scanned              0           0           0           0           0
+Compaction cost                      0           0           0           0       48225
+NUMA PTE updates                     0           0           0           0   354564017
+NUMA hint faults                     0           0           0           0     1861516
+NUMA hint local faults               0           0           0           0      594273
+NUMA pages migrated                  0           0           0           0    46460155
+AutoNUMA cost                        0           0           0           0       12672
+
+THP was in use
+
+SPECJBB: Single JVM, THP is disabled
+                    3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                   stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+TPut 1      19861.00 (  0.00%)     18255.00 ( -8.09%)     21307.00 (  7.28%)     19636.00 ( -1.13%)     20429.00 (  2.86%)
+TPut 2      47613.00 (  0.00%)     37136.00 (-22.00%)     47861.00 (  0.52%)     47153.00 ( -0.97%)     48608.00 (  2.09%)
+TPut 3      72438.00 (  0.00%)     55692.00 (-23.12%)     72271.00 ( -0.23%)     69394.00 ( -4.20%)     73723.00 (  1.77%)
+TPut 4      98455.00 (  0.00%)     81301.00 (-17.42%)     91079.00 ( -7.49%)     98577.00 (  0.12%)     98563.00 (  0.11%)
+TPut 5     120831.00 (  0.00%)     89067.00 (-26.29%)    118381.00 ( -2.03%)    120805.00 ( -0.02%)    121179.00 (  0.29%)
+TPut 6     140013.00 (  0.00%)    108349.00 (-22.62%)    141994.00 (  1.41%)    125079.00 (-10.67%)    145750.00 (  4.10%)
+TPut 7     163553.00 (  0.00%)    116192.00 (-28.96%)    133084.00 (-18.63%)    164368.00 (  0.50%)    162133.00 ( -0.87%)
+TPut 8     190148.00 (  0.00%)    125955.00 (-33.76%)    177239.00 ( -6.79%)    188906.00 ( -0.65%)    188252.00 ( -1.00%)
+TPut 9     211343.00 (  0.00%)    144068.00 (-31.83%)    180903.00 (-14.40%)    206645.00 ( -2.22%)    214450.00 (  1.47%)
+TPut 10    233190.00 (  0.00%)    148098.00 (-36.49%)    215595.00 ( -7.55%)    234533.00 (  0.58%)    224369.00 ( -3.78%)
+TPut 11    253333.00 (  0.00%)    146043.00 (-42.35%)    224514.00 (-11.38%)    254167.00 (  0.33%)    260926.00 (  3.00%)
+TPut 12    270661.00 (  0.00%)    131739.00 (-51.33%)    245812.00 ( -9.18%)    271490.00 (  0.31%)    258382.00 ( -4.54%)
+TPut 13    299807.00 (  0.00%)    169396.00 (-43.50%)    253075.00 (-15.59%)    299758.00 ( -0.02%)    294586.00 ( -1.74%)
+TPut 14    319243.00 (  0.00%)    150705.00 (-52.79%)    256078.00 (-19.79%)    318481.00 ( -0.24%)    327111.00 (  2.46%)
+TPut 15    339054.00 (  0.00%)    116872.00 (-65.53%)    268646.00 (-20.77%)    331534.00 ( -2.22%)    301219.00 (-11.16%)
+TPut 16    354315.00 (  0.00%)    124346.00 (-64.91%)    291148.00 (-17.83%)    352600.00 ( -0.48%)    309066.00 (-12.77%)
+TPut 17    371306.00 (  0.00%)    118493.00 (-68.09%)    299399.00 (-19.37%)    368260.00 ( -0.82%)    353726.00 ( -4.73%)
+TPut 18    386361.00 (  0.00%)    138571.00 (-64.13%)    303185.00 (-21.53%)    374358.00 ( -3.11%)    361347.00 ( -6.47%)
+TPut 19    401827.00 (  0.00%)    118855.00 (-70.42%)    320630.00 (-20.21%)    399476.00 ( -0.59%)    389834.00 ( -2.98%)
+TPut 20    411130.00 (  0.00%)    144024.00 (-64.97%)    315391.00 (-23.29%)    407799.00 ( -0.81%)    401569.00 ( -2.33%)
+TPut 21    425352.00 (  0.00%)    154264.00 (-63.73%)    326734.00 (-23.19%)    429226.00 (  0.91%)    410586.00 ( -3.47%)
+TPut 22    438150.00 (  0.00%)    153892.00 (-64.88%)    329531.00 (-24.79%)    385827.00 (-11.94%)    426994.00 ( -2.55%)
+TPut 23    438425.00 (  0.00%)    146506.00 (-66.58%)    336454.00 (-23.26%)    433963.00 ( -1.02%)    425391.00 ( -2.97%)
+TPut 24    461598.00 (  0.00%)    138869.00 (-69.92%)    330113.00 (-28.48%)    439691.00 ( -4.75%)    449185.00 ( -2.69%)
+TPut 25    459475.00 (  0.00%)    141698.00 (-69.16%)    333545.00 (-27.41%)    431373.00 ( -6.12%)    461066.00 (  0.35%)
+TPut 26    452651.00 (  0.00%)    142844.00 (-68.44%)    325634.00 (-28.06%)    447517.00 ( -1.13%)    458937.00 (  1.39%)
+TPut 27    450436.00 (  0.00%)    140870.00 (-68.73%)    324881.00 (-27.87%)    430805.00 ( -4.36%)    453923.00 (  0.77%)
+TPut 28    459770.00 (  0.00%)    143078.00 (-68.88%)    312547.00 (-32.02%)    432260.00 ( -5.98%)    440465.00 ( -4.20%)
+TPut 29    450347.00 (  0.00%)    142076.00 (-68.45%)    318785.00 (-29.21%)    440423.00 ( -2.20%)    444150.00 ( -1.38%)
+TPut 30    449252.00 (  0.00%)    146900.00 (-67.30%)    310301.00 (-30.93%)    435082.00 ( -3.15%)    460002.00 (  2.39%)
+TPut 31    446802.00 (  0.00%)    148008.00 (-66.87%)    304119.00 (-31.93%)    418684.00 ( -6.29%)    412117.00 ( -7.76%)
+TPut 32    439701.00 (  0.00%)    149591.00 (-65.98%)    297625.00 (-32.31%)    421866.00 ( -4.06%)    446009.00 (  1.43%)
+TPut 33    434477.00 (  0.00%)    142801.00 (-67.13%)    293405.00 (-32.47%)    420631.00 ( -3.19%)    392769.00 ( -9.60%)
+TPut 34    423014.00 (  0.00%)    152308.00 (-63.99%)    288639.00 (-31.77%)    415202.00 ( -1.85%)    443175.00 (  4.77%)
+TPut 35    429012.00 (  0.00%)    154116.00 (-64.08%)    283797.00 (-33.85%)    402395.00 ( -6.20%)    409016.00 ( -4.66%)
+TPut 36    421097.00 (  0.00%)    157571.00 (-62.58%)    276038.00 (-34.45%)    404770.00 ( -3.88%)    427704.00 (  1.57%)
+TPut 37    414815.00 (  0.00%)    150771.00 (-63.65%)    272498.00 (-34.31%)    388842.00 ( -6.26%)    443787.00 (  6.98%)
+TPut 38    412361.00 (  0.00%)    157070.00 (-61.91%)    270972.00 (-34.29%)    398947.00 ( -3.25%)    426349.00 (  3.39%)
+TPut 39    402234.00 (  0.00%)    161487.00 (-59.85%)    258636.00 (-35.70%)    382645.00 ( -4.87%)    393389.00 ( -2.20%)
+TPut 40    380278.00 (  0.00%)    165947.00 (-56.36%)    256492.00 (-32.55%)    394039.00 (  3.62%)    439362.00 ( 15.54%)
+TPut 41    393204.00 (  0.00%)    160540.00 (-59.17%)    254896.00 (-35.17%)    385605.00 ( -1.93%)    416757.00 (  5.99%)
+TPut 42    380622.00 (  0.00%)    151946.00 (-60.08%)    248167.00 (-34.80%)    374843.00 ( -1.52%)    360885.00 ( -5.19%)
+TPut 43    371566.00 (  0.00%)    162369.00 (-56.30%)    238268.00 (-35.87%)    347951.00 ( -6.36%)    410625.00 ( 10.51%)
+TPut 44    365538.00 (  0.00%)    161127.00 (-55.92%)    239926.00 (-34.36%)    355070.00 ( -2.86%)    399653.00 (  9.33%)
+TPut 45    359305.00 (  0.00%)    159062.00 (-55.73%)    237676.00 (-33.85%)    350973.00 ( -2.32%)    358310.00 ( -0.28%)
+TPut 46    343160.00 (  0.00%)    163889.00 (-52.24%)    231272.00 (-32.61%)    347960.00 (  1.40%)    354509.00 (  3.31%)
+TPut 47    346983.00 (  0.00%)    168666.00 (-51.39%)    228060.00 (-34.27%)    313612.00 ( -9.62%)    362578.00 (  4.49%)
+TPut 48    338143.00 (  0.00%)    153448.00 (-54.62%)    224598.00 (-33.58%)    341809.00 (  1.08%)    356291.00 (  5.37%)
+TPut 49    333941.00 (  0.00%)    142784.00 (-57.24%)    224568.00 (-32.75%)    336174.00 (  0.67%)    374367.00 ( 12.11%)
+TPut 50    334001.00 (  0.00%)    135713.00 (-59.37%)    221381.00 (-33.72%)    322489.00 ( -3.45%)    364590.00 (  9.16%)
+TPut 51    338310.00 (  0.00%)    133402.00 (-60.57%)    219870.00 (-35.01%)    354805.00 (  4.88%)    377493.00 ( 11.58%)
+TPut 52    322897.00 (  0.00%)    150293.00 (-53.45%)    217427.00 (-32.66%)    353169.00 (  9.38%)    368626.00 ( 14.16%)
+TPut 53    329801.00 (  0.00%)    160792.00 (-51.25%)    224019.00 (-32.07%)    353588.00 (  7.21%)    369336.00 ( 11.99%)
+TPut 54    336610.00 (  0.00%)    164696.00 (-51.07%)    214752.00 (-36.20%)    361189.00 (  7.30%)    375852.00 ( 11.66%)
+TPut 55    325920.00 (  0.00%)    172380.00 (-47.11%)    219529.00 (-32.64%)    365678.00 ( 12.20%)    382457.00 ( 17.35%)
+TPut 56    318997.00 (  0.00%)    176071.00 (-44.80%)    218120.00 (-31.62%)    367048.00 ( 15.06%)    367083.00 ( 15.07%)
+TPut 57    321776.00 (  0.00%)    174531.00 (-45.76%)    214685.00 (-33.28%)    341874.00 (  6.25%)    359388.00 ( 11.69%)
+TPut 58    308532.00 (  0.00%)    174202.00 (-43.54%)    208226.00 (-32.51%)    348156.00 ( 12.84%)    371239.00 ( 20.32%)
+TPut 59    318974.00 (  0.00%)    175343.00 (-45.03%)    214260.00 (-32.83%)    358252.00 ( 12.31%)    370477.00 ( 16.15%)
+TPut 60    325465.00 (  0.00%)    173694.00 (-46.63%)    213290.00 (-34.47%)    360808.00 ( 10.86%)    365093.00 ( 12.18%)
+TPut 61    319151.00 (  0.00%)    172320.00 (-46.01%)    206197.00 (-35.39%)    350597.00 (  9.85%)    361934.00 ( 13.41%)
+TPut 62    320837.00 (  0.00%)    172312.00 (-46.29%)    211186.00 (-34.18%)    359062.00 ( 11.91%)    356332.00 ( 11.06%)
+TPut 63    318198.00 (  0.00%)    172297.00 (-45.85%)    215174.00 (-32.38%)    356137.00 ( 11.92%)    352316.00 ( 10.72%)
+TPut 64    321438.00 (  0.00%)    171894.00 (-46.52%)    212493.00 (-33.89%)    347376.00 (  8.07%)    350834.00 (  9.15%)
+TPut 65    314482.00 (  0.00%)    169147.00 (-46.21%)    204809.00 (-34.87%)    351726.00 ( 11.84%)    348002.00 ( 10.66%)
+TPut 66    316802.00 (  0.00%)    170234.00 (-46.26%)    199708.00 (-36.96%)    344548.00 (  8.76%)    343706.00 (  8.49%)
+TPut 67    312139.00 (  0.00%)    168180.00 (-46.12%)    208644.00 (-33.16%)    329030.00 (  5.41%)    347701.00 ( 11.39%)
+TPut 68    323918.00 (  0.00%)    168392.00 (-48.01%)    206120.00 (-36.37%)    319985.00 ( -1.21%)    342289.00 (  5.67%)
+TPut 69    307506.00 (  0.00%)    167082.00 (-45.67%)    204703.00 (-33.43%)    340673.00 ( 10.79%)    344829.00 ( 12.14%)
+TPut 70    306799.00 (  0.00%)    165764.00 (-45.97%)    201529.00 (-34.31%)    331678.00 (  8.11%)    324939.00 (  5.91%)
+TPut 71    304232.00 (  0.00%)    165289.00 (-45.67%)    203291.00 (-33.18%)    319824.00 (  5.13%)    336540.00 ( 10.62%)
+TPut 72    301619.00 (  0.00%)    163909.00 (-45.66%)    203306.00 (-32.60%)    326875.00 (  8.37%)    342014.00 ( 13.39%)
+
+numacore has improved in the !THP case but it's still worse than the
+baseline kernel, autonuma or balancenuma.
+
+SPECJBB PEAKS
+                                   3.7.0-rc7                  3.7.0-rc6                  3.7.0-rc7                  3.7.0-rc7                  3.7.0-rc7
+                                  stats-v8r6          numacore-20121130          numacore-20121202         autonuma-v28fastr4            thpmigrate-v8r6
+ Expctd Warehouse            48.00 (  0.00%)            48.00 (  0.00%)            48.00 (  0.00%)            48.00 (  0.00%)            48.00 (  0.00%)
+ Expctd Peak Bops        338143.00 (  0.00%)        153448.00 (-54.62%)        224598.00 (-33.58%)        341809.00 (  1.08%)        356291.00 (  5.37%)
+ Actual Warehouse            24.00 (  0.00%)            56.00 (133.33%)            23.00 ( -4.17%)            26.00 (  8.33%)            25.00 (  4.17%)
+ Actual Peak Bops        461598.00 (  0.00%)        176071.00 (-61.86%)        336454.00 (-27.11%)        447517.00 ( -3.05%)        461066.00 ( -0.12%)
+ SpecJBB Bops            163683.00 (  0.00%)         83963.00 (-48.70%)        108406.00 (-33.77%)        176379.00 (  7.76%)        182729.00 ( 11.64%)
+ SpecJBB Bops/JVM        163683.00 (  0.00%)         83963.00 (-48.70%)        108406.00 (-33.77%)        176379.00 (  7.76%)        182729.00 ( 11.64%)
+
+Again, the improvement to the peak and specjbb scores is impressive compared
+to v17 but it's still worse than the baseline kernel.
+
+
+MMTests Statistics: duration
+           3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+          stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+User       316751.91   167098.56   318360.63   307598.67   308390.57
+System         60.28   122511.08       59.60     4411.81     1809.94
+Elapsed      7434.08     7451.36     7436.99     7437.52     7438.60
+
+Smacks the face off system CPU usage though.
+
+MMTests Statistics: vmstat
+                             3.7.0-rc7   3.7.0-rc6   3.7.0-rc7   3.7.0-rc7   3.7.0-rc7
+                            stats-v8r6numacore-20121130numacore-20121202autonuma-v28fastr4thpmigrate-v8r6
+Page Ins                         37112       36416       37492       37436       36744
+Page Outs                        29252       35664       29636       28120       29080
+Swap Ins                             0           0           0           0           0
+Swap Outs                            0           0           0           0           0
+Direct pages scanned                 0           0           0           0           0
+Kswapd pages scanned                 0           0           0           0           0
+Kswapd pages reclaimed               0           0           0           0           0
+Direct pages reclaimed               0           0           0           0           0
+Kswapd efficiency                 100%        100%        100%        100%        100%
+Kswapd velocity                  0.000       0.000       0.000       0.000       0.000
+Direct efficiency                 100%        100%        100%        100%        100%
+Direct velocity                  0.000       0.000       0.000       0.000       0.000
+Percentage direct scans             0%          0%          0%          0%          0%
+Page writes by reclaim               0           0           0           0           0
+Page writes file                     0           0           0           0           0
+Page writes anon                     0           0           0           0           0
+Page reclaim immediate               0           0           0           0           0
+Page rescued immediate               0           0           0           0           0
+Slabs scanned                        0           0           0           0           0
+Direct inode steals                  0           0           0           0           0
+Kswapd inode steals                  0           0           0           0           0
+Kswapd skipped wait                  0           0           0           0           0
+THP fault alloc                      3           2           2           2           3
+THP collapse alloc                   0           0           0           4           0
+THP splits                           0           0           0           1           0
+THP fault fallback                   0           0           0           0           0
+THP collapse fail                    0           0           0           0           0
+Compaction stalls                    0           0           0           0           0
+Compaction success                   0           0           0           0           0
+Compaction failures                  0           0           0           0           0
+Page migrate success                 0           0           0           0    25125765
+Page migrate failure                 0           0           0           0           0
+Compaction pages isolated            0           0           0           0           0
+Compaction migrate scanned           0           0           0           0           0
+Compaction free scanned              0           0           0           0           0
+Compaction cost                      0           0           0           0       26080
+NUMA PTE updates                     0           0           0           0   207309372
+NUMA hint faults                     0           0           0           0   201463304
+NUMA hint local faults               0           0           0           0    52170319
+NUMA pages migrated                  0           0           0           0    25125765
+AutoNUMA cost                        0           0           0           0     1009245
+
+No THP
+
+Ordinary benchmarks follow.
+
+KERNBENCH
+                           3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                          stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+User    min        1306.06 (  0.00%)     1319.85 ( -1.06%)     1306.15 ( -0.01%)     1303.15 (  0.22%)     1304.14 (  0.15%)
+User    mean       1308.87 (  0.00%)     1321.89 ( -0.99%)     1311.67 ( -0.21%)     1305.35 (  0.27%)     1309.67 ( -0.06%)
+User    stddev        2.24 (  0.00%)        1.71 ( 23.89%)        3.32 (-48.18%)        1.80 ( 19.79%)        3.75 (-67.16%)
+User    max        1312.45 (  0.00%)     1324.45 ( -0.91%)     1315.52 ( -0.23%)     1308.40 (  0.31%)     1314.85 ( -0.18%)
+System  min         120.47 (  0.00%)      132.77 (-10.21%)      123.36 ( -2.40%)      124.01 ( -2.94%)      121.08 ( -0.51%)
+System  mean        121.17 (  0.00%)      133.28 ( -9.99%)      124.13 ( -2.45%)      124.81 ( -3.00%)      121.89 ( -0.59%)
+System  stddev        0.40 (  0.00%)        0.62 (-55.98%)        0.55 (-37.03%)        0.63 (-57.36%)        0.56 (-40.59%)
+System  max         121.64 (  0.00%)      134.49 (-10.56%)      124.85 ( -2.64%)      125.61 ( -3.26%)      122.46 ( -0.67%)
+Elapsed min          40.42 (  0.00%)       41.19 ( -1.90%)       41.01 ( -1.46%)       41.59 ( -2.89%)       40.61 ( -0.47%)
+Elapsed mean         41.35 (  0.00%)       43.00 ( -4.00%)       41.84 ( -1.20%)       42.76 ( -3.43%)       41.77 ( -1.03%)
+Elapsed stddev        0.56 (  0.00%)        1.59 (-184.71%)        0.84 (-50.26%)        0.67 (-20.64%)        1.17 (-109.48%)
+Elapsed max          42.11 (  0.00%)       45.30 ( -7.58%)       43.43 ( -3.13%)       43.43 ( -3.13%)       43.43 ( -3.13%)
+CPU     min        3391.00 (  0.00%)     3208.00 (  5.40%)     3302.00 (  2.62%)     3295.00 (  2.83%)     3288.00 (  3.04%)
+CPU     mean       3458.60 (  0.00%)     3387.80 (  2.05%)     3432.00 (  0.77%)     3344.20 (  3.31%)     3429.40 (  0.84%)
+CPU     stddev       52.09 (  0.00%)      126.66 (-143.17%)       71.31 (-36.91%)       49.90 (  4.20%)      103.82 (-99.32%)
+CPU     max        3546.00 (  0.00%)     3528.00 (  0.51%)     3511.00 (  0.99%)     3433.00 (  3.19%)     3537.00 (  0.25%)
+
+Nothing intresting here
+
+AIM9
+                             3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                            stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+Min    page_test   419560.00 (  0.00%)   277028.65 (-33.97%)   277821.45 (-33.78%)   323793.33 (-22.83%)   295716.19 (-29.52%)
+Min    brk_test   3277600.00 (  0.00%)  3210859.43 ( -2.04%)  3279866.67 (  0.07%)  3146302.47 ( -4.01%)  3147266.67 ( -3.98%)
+Min    exec_test      245.00 (  0.00%)      248.17 (  1.29%)      242.01 ( -1.22%)      257.33 (  5.03%)      243.34 ( -0.68%)
+Min    fork_test     1514.95 (  0.00%)     1540.00 (  1.65%)     1527.22 (  0.81%)     1793.33 ( 18.38%)     1512.33 ( -0.17%)
+Mean   page_test   427488.29 (  0.00%)   284838.06 (-33.37%)   316690.82 (-25.92%)   400555.24 ( -6.30%)   355496.92 (-16.84%)
+Mean   brk_test   3313599.82 (  0.00%)  3237952.27 ( -2.28%)  3321144.18 (  0.23%)  3255156.20 ( -1.76%)  3215398.23 ( -2.96%)
+Mean   exec_test      249.28 (  0.00%)      249.25 ( -0.01%)      248.09 ( -0.48%)      263.10 (  5.55%)      245.32 ( -1.59%)
+Mean   fork_test     1535.85 (  0.00%)     1566.98 (  2.03%)     1563.50 (  1.80%)     1870.91 ( 21.82%)     1524.94 ( -0.71%)
+Stddev page_test     4544.68 (  0.00%)     3785.28 (-16.71%)    44187.93 (872.30%)    26460.03 (482.22%)    35256.95 (675.79%)
+Stddev brk_test     19204.63 (  0.00%)    12268.84 (-36.12%)    28452.66 ( 48.16%)    58909.97 (206.75%)    27591.49 ( 43.67%)
+Stddev exec_test        2.45 (  0.00%)        0.80 (-67.49%)        2.14 (-12.54%)        3.21 ( 31.07%)        1.30 (-47.13%)
+Stddev fork_test       12.76 (  0.00%)       12.66 ( -0.83%)       20.65 ( 61.80%)       51.77 (305.73%)        7.68 (-39.79%)
+Max    page_test   432820.00 (  0.00%)   289226.67 (-33.18%)   411740.00 ( -4.87%)   433097.93 (  0.06%)   409653.56 ( -5.35%)
+Max    brk_test   3339933.33 (  0.00%)  3257200.00 ( -2.48%)  3366000.00 (  0.78%)  3335400.00 ( -0.14%)  3248234.51 ( -2.75%)
+Max    exec_test      253.33 (  0.00%)      250.50 ( -1.12%)      250.00 ( -1.31%)      268.15 (  5.85%)      247.83 ( -2.17%)
+Max    fork_test     1561.46 (  0.00%)     1589.10 (  1.77%)     1593.33 (  2.04%)     1952.03 ( 25.01%)     1534.88 ( -1.70%)
+
+page_test is badly damaged by a few of the trees but the deviations are
+really high and would need 30+ runs to be sure.
+
+HACKBENCH PIPES
+                     3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                    stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+Procs 1       0.0250 (  0.00%)      0.0260 ( -4.00%)      0.0237 (  5.07%)      0.0261 ( -4.27%)      0.0247 (  1.14%)
+Procs 4       0.0696 (  0.00%)      0.0702 ( -0.84%)      0.0588 ( 15.54%)      0.0707 ( -1.65%)      0.0729 ( -4.77%)
+Procs 8       0.0836 (  0.00%)      0.0973 (-16.43%)      0.0931 (-11.39%)      0.1030 (-23.21%)      0.0906 ( -8.40%)
+Procs 12      0.0971 (  0.00%)      0.0969 (  0.21%)      0.1536 (-58.16%)      0.1235 (-27.19%)      0.0890 (  8.34%)
+Procs 16      0.1218 (  0.00%)      0.1286 ( -5.52%)      0.1892 (-55.31%)      0.1775 (-45.69%)      0.1168 (  4.10%)
+Procs 20      0.1472 (  0.00%)      0.1508 ( -2.48%)      0.2827 (-92.05%)      0.1584 ( -7.64%)      0.1415 (  3.88%)
+Procs 24      0.1684 (  0.00%)      0.1823 ( -8.20%)      0.3418 (-102.93%)      0.4648 (-175.96%)      0.1654 (  1.82%)
+Procs 28      0.1919 (  0.00%)      0.1969 ( -2.61%)      0.4519 (-135.50%)      0.5287 (-175.57%)      0.1763 (  8.10%)
+Procs 32      0.2256 (  0.00%)      0.2163 (  4.12%)      0.5399 (-139.30%)      0.4607 (-104.23%)      0.2148 (  4.81%)
+Procs 36      0.2228 (  0.00%)      0.2658 (-19.29%)      0.5221 (-134.34%)      0.6190 (-177.83%)      0.2320 ( -4.13%)
+Procs 40      0.2811 (  0.00%)      0.2906 ( -3.37%)      0.6629 (-135.83%)      0.2595 (  7.69%)      0.2587 (  7.98%)
+
+numacore now really hurts hackbench-pipes scores. Is this worklets again?
+
+HACKBENCH SOCKETS
+                     3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                    stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+Procs 1       0.0220 (  0.00%)      0.0220 (  0.00%)      0.0226 ( -2.89%)      0.0283 (-28.66%)      0.0222 ( -1.05%)
+Procs 4       0.0456 (  0.00%)      0.0513 (-12.51%)      0.0600 (-31.51%)      0.0820 (-79.73%)      0.0457 ( -0.20%)
+Procs 8       0.0679 (  0.00%)      0.0714 ( -5.20%)      0.1499 (-120.78%)      0.2772 (-308.32%)      0.0707 ( -4.18%)
+Procs 12      0.0940 (  0.00%)      0.0973 ( -3.56%)      0.2183 (-132.18%)      0.1155 (-22.87%)      0.0977 ( -3.93%)
+Procs 16      0.1181 (  0.00%)      0.1263 ( -6.96%)      0.2586 (-118.90%)      0.4467 (-278.19%)      0.1242 ( -5.10%)
+Procs 20      0.1504 (  0.00%)      0.1531 ( -1.83%)      0.4029 (-167.90%)      0.4917 (-226.94%)      0.1530 ( -1.71%)
+Procs 24      0.1757 (  0.00%)      0.1826 ( -3.92%)      0.4248 (-141.69%)      0.5142 (-192.57%)      0.1841 ( -4.75%)
+Procs 28      0.2044 (  0.00%)      0.2166 ( -5.93%)      0.5702 (-178.91%)      0.6600 (-222.85%)      0.2150 ( -5.17%)
+Procs 32      0.2456 (  0.00%)      0.2501 ( -1.86%)      0.6433 (-161.93%)      0.6391 (-160.22%)      0.2500 ( -1.79%)
+Procs 36      0.2649 (  0.00%)      0.2747 ( -3.70%)      0.7377 (-178.45%)      0.5775 (-117.97%)      0.2772 ( -4.63%)
+Procs 40      0.3067 (  0.00%)      0.3114 ( -1.56%)      0.8349 (-172.25%)      0.7517 (-145.12%)      0.3091 ( -0.80%)
+
+Same. The impact is really high.
+
+PAGE FAULT TEST
+                          3.7.0-rc7             3.7.0-rc6             3.7.0-rc7             3.7.0-rc7             3.7.0-rc7
+                         stats-v8r6     numacore-20121130     numacore-20121202    autonuma-v28fastr4       thpmigrate-v8r6
+System     1        7.8930 (  0.00%)       8.2460 ( -4.47%)       8.0560 ( -2.07%)       7.9015 ( -0.11%)       8.0490 ( -1.98%)
+System     2        7.8590 (  0.00%)       8.1550 ( -3.77%)       8.0285 ( -2.16%)       8.2245 ( -4.65%)       7.9990 ( -1.78%)
+System     3        8.0960 (  0.00%)       8.1905 ( -1.17%)       8.1670 ( -0.88%)       8.5495 ( -5.60%)       8.1030 ( -0.09%)
+System     4        8.1915 (  0.00%)       8.3430 ( -1.85%)       8.2715 ( -0.98%)       9.7845 (-19.45%)       8.1745 (  0.21%)
+System     5        8.4780 (  0.00%)       8.6035 ( -1.48%)       8.5840 ( -1.25%)      10.1610 (-19.85%)       8.5015 ( -0.28%)
+System     6        8.8070 (  0.00%)       8.8245 ( -0.20%)       8.8915 ( -0.96%)      10.1365 (-15.10%)       8.7475 (  0.68%)
+System     7        8.8075 (  0.00%)       8.8410 ( -0.38%)       8.8820 ( -0.85%)      10.5590 (-19.89%)       8.8330 ( -0.29%)
+System     8        8.8155 (  0.00%)       8.8680 ( -0.60%)       8.8885 ( -0.83%)      10.6645 (-20.97%)       8.7550 (  0.69%)
+System     9        9.1815 (  0.00%)       9.2985 ( -1.27%)       9.2560 ( -0.81%)      11.1265 (-21.18%)       9.3000 ( -1.29%)
+System     10       9.6165 (  0.00%)       9.4230 (  2.01%)       9.5640 (  0.55%)      13.3825 (-39.16%)       9.4725 (  1.50%)
+System     11       9.6765 (  0.00%)       9.6625 (  0.14%)       9.6245 (  0.54%)      12.9340 (-33.66%)       9.5180 (  1.64%)
+System     12       9.4720 (  0.00%)       9.7155 ( -2.57%)       9.8235 ( -3.71%)      14.4390 (-52.44%)       9.6475 ( -1.85%)
+System     13      10.2250 (  0.00%)      10.2560 ( -0.30%)      10.2690 ( -0.43%)      15.0545 (-47.23%)      10.1920 (  0.32%)
+System     14      10.6750 (  0.00%)      10.6535 (  0.20%)      10.5300 (  1.36%)      14.1645 (-32.69%)      10.6290 (  0.43%)
+System     15      10.7360 (  0.00%)      10.7430 ( -0.07%)      10.8550 ( -1.11%)      16.0740 (-49.72%)      10.6950 (  0.38%)
+System     16      11.2250 (  0.00%)      11.0270 (  1.76%)      11.2555 ( -0.27%)      14.7390 (-31.31%)      11.2240 (  0.01%)
+System     17      11.7730 (  0.00%)      11.9705 ( -1.68%)      11.9325 ( -1.35%)      15.8845 (-34.92%)      11.8345 ( -0.52%)
+System     18      12.3605 (  0.00%)      12.4940 ( -1.08%)      12.5050 ( -1.17%)      17.5500 (-41.98%)      12.3875 ( -0.22%)
+System     19      12.8335 (  0.00%)      12.9170 ( -0.65%)      12.8095 (  0.19%)      16.3220 (-27.18%)      12.8060 (  0.21%)
+System     20      13.3895 (  0.00%)      13.2975 (  0.69%)      13.1655 (  1.67%)      17.2120 (-28.55%)      13.1775 (  1.58%)
+System     21      13.8665 (  0.00%)      13.9600 ( -0.67%)      13.9265 ( -0.43%)      17.0055 (-22.64%)      13.8585 (  0.06%)
+System     22      14.6870 (  0.00%)      14.5585 (  0.87%)      14.5055 (  1.24%)      18.0800 (-23.10%)      14.7035 ( -0.11%)
+System     23      15.0375 (  0.00%)      15.1435 ( -0.70%)      15.0815 ( -0.29%)      21.8590 (-45.36%)      15.0750 ( -0.25%)
+System     24      15.5720 (  0.00%)      15.6860 ( -0.73%)      15.6425 ( -0.45%)      20.0280 (-28.62%)      15.5605 (  0.07%)
+System     25      16.1850 (  0.00%)      16.2990 ( -0.70%)      16.2380 ( -0.33%)      19.7815 (-22.22%)      16.1590 (  0.16%)
+System     26      16.7550 (  0.00%)      16.8390 ( -0.50%)      16.8285 ( -0.44%)      20.5915 (-22.90%)      16.7820 ( -0.16%)
+System     27      17.3460 (  0.00%)      17.4390 ( -0.54%)      17.3790 ( -0.19%)      20.8030 (-19.93%)      17.3155 (  0.18%)
+System     28      17.8385 (  0.00%)      17.9415 ( -0.58%)      17.9220 ( -0.47%)      20.1675 (-13.06%)      17.9130 ( -0.42%)
+System     29      18.4795 (  0.00%)      18.6130 ( -0.72%)      18.5240 ( -0.24%)      20.9970 (-13.62%)      18.4685 (  0.06%)
+System     30      19.1615 (  0.00%)      19.1630 ( -0.01%)      19.1145 (  0.25%)      21.4265 (-11.82%)      19.3905 ( -1.20%)
+System     31      19.6885 (  0.00%)      20.0420 ( -1.80%)      19.6155 (  0.37%)      22.0990 (-12.24%)      19.6275 (  0.31%)
+System     32      20.2815 (  0.00%)      20.2560 (  0.13%)      20.3200 ( -0.19%)      23.4670 (-15.71%)      20.2700 (  0.06%)
+System     33      20.9190 (  0.00%)      20.9980 ( -0.38%)      20.9795 ( -0.29%)      22.6925 ( -8.48%)      21.0735 ( -0.74%)
+System     34      21.6390 (  0.00%)      21.6170 (  0.10%)      21.5710 (  0.31%)      23.4910 ( -8.56%)      21.5180 (  0.56%)
+System     35      22.5430 (  0.00%)      22.2740 (  1.19%)      22.2290 (  1.39%)      23.6340 ( -4.84%)      22.6760 ( -0.59%)
+System     36      23.2625 (  0.00%)      22.8940 (  1.58%)      22.8545 (  1.75%)      25.6300 (-10.18%)      22.9365 (  1.40%)
+System     37      23.6060 (  0.00%)      23.6410 ( -0.15%)      23.5440 (  0.26%)      25.1180 ( -6.41%)      23.6345 ( -0.12%)
+System     38      24.4005 (  0.00%)      24.4825 ( -0.34%)      24.3875 (  0.05%)      25.9235 ( -6.24%)      24.3450 (  0.23%)
+System     39      25.2360 (  0.00%)      25.0845 (  0.60%)      24.9805 (  1.01%)      27.0445 ( -7.17%)      25.0550 (  0.72%)
+System     40      25.8580 (  0.00%)      25.8060 (  0.20%)      25.6715 (  0.72%)      26.6250 ( -2.97%)      25.8710 ( -0.05%)
+System     41      26.4400 (  0.00%)      26.5940 ( -0.58%)      26.5045 ( -0.24%)      27.0575 ( -2.34%)      26.5910 ( -0.57%)
+System     42      27.3705 (  0.00%)      27.3795 ( -0.03%)      27.2985 (  0.26%)      26.9820 (  1.42%)      27.3340 (  0.13%)
+System     43      28.0780 (  0.00%)      28.1835 ( -0.38%)      28.0395 (  0.14%)      27.4950 (  2.08%)      28.0755 (  0.01%)
+System     44      28.7705 (  0.00%)      29.0155 ( -0.85%)      28.7800 ( -0.03%)      28.2340 (  1.86%)      28.7445 (  0.09%)
+System     45      29.5025 (  0.00%)      29.7590 ( -0.87%)      29.6000 ( -0.33%)      28.9635 (  1.83%)      29.4805 (  0.07%)
+System     46      30.2505 (  0.00%)      30.5680 ( -1.05%)      30.2940 ( -0.14%)      29.5335 (  2.37%)      30.3190 ( -0.23%)
+System     47      31.0195 (  0.00%)      31.3730 ( -1.14%)      31.1710 ( -0.49%)      29.2280 (  5.78%)      31.0505 ( -0.10%)
+System     48      31.5845 (  0.00%)      32.0685 ( -1.53%)      31.8725 ( -0.91%)      29.6715 (  6.06%)      31.7560 ( -0.54%)
+Elapsed    1        8.5845 (  0.00%)       8.9555 ( -4.32%)       8.7530 ( -1.96%)       8.5860 ( -0.02%)       8.7500 ( -1.93%)
+Elapsed    2        4.3255 (  0.00%)       4.5035 ( -4.12%)       4.4180 ( -2.14%)       4.5275 ( -4.67%)       4.4025 ( -1.78%)
+Elapsed    3        2.9835 (  0.00%)       3.0050 ( -0.72%)       3.0095 ( -0.87%)       3.1375 ( -5.16%)       2.9880 ( -0.15%)
+Elapsed    4        2.2810 (  0.00%)       2.3130 ( -1.40%)       2.2915 ( -0.46%)       2.6595 (-16.59%)       2.2605 (  0.90%)
+Elapsed    5        1.9100 (  0.00%)       1.9340 ( -1.26%)       1.9220 ( -0.63%)       2.2235 (-16.41%)       1.9145 ( -0.24%)
+Elapsed    6        1.6625 (  0.00%)       1.6625 (  0.00%)       1.6700 ( -0.45%)       1.8840 (-13.32%)       1.6425 (  1.20%)
+Elapsed    7        1.4180 (  0.00%)       1.4330 ( -1.06%)       1.4330 ( -1.06%)       1.7080 (-20.45%)       1.4235 ( -0.39%)
+Elapsed    8        1.2550 (  0.00%)       1.2490 (  0.48%)       1.2525 (  0.20%)       1.5030 (-19.76%)       1.2280 (  2.15%)
+Elapsed    9        1.1765 (  0.00%)       1.2040 ( -2.34%)       1.2000 ( -2.00%)       1.3990 (-18.91%)       1.1960 ( -1.66%)
+Elapsed    10       1.1145 (  0.00%)       1.0905 (  2.15%)       1.1240 ( -0.85%)       1.5260 (-36.92%)       1.0990 (  1.39%)
+Elapsed    11       1.0260 (  0.00%)       1.0095 (  1.61%)       1.0085 (  1.71%)       1.3505 (-31.63%)       1.0025 (  2.29%)
+Elapsed    12       0.8830 (  0.00%)       0.9200 ( -4.19%)       0.9495 ( -7.53%)       1.4225 (-61.10%)       0.9290 ( -5.21%)
+Elapsed    13       0.9360 (  0.00%)       0.9325 (  0.37%)       0.9320 (  0.43%)       1.4145 (-51.12%)       0.9225 (  1.44%)
+Elapsed    14       0.8840 (  0.00%)       0.8975 ( -1.53%)       0.8725 (  1.30%)       1.3215 (-49.49%)       0.8900 ( -0.68%)
+Elapsed    15       0.8210 (  0.00%)       0.8215 ( -0.06%)       0.8315 ( -1.28%)       1.4400 (-75.40%)       0.8205 (  0.06%)
+Elapsed    16       0.8110 (  0.00%)       0.7710 (  4.93%)       0.8070 (  0.49%)       1.2700 (-56.60%)       0.8090 (  0.25%)
+Elapsed    17       0.8340 (  0.00%)       0.8470 ( -1.56%)       0.8350 ( -0.12%)       1.3785 (-65.29%)       0.8330 (  0.12%)
+Elapsed    18       0.8045 (  0.00%)       0.8140 ( -1.18%)       0.8015 (  0.37%)       1.5235 (-89.37%)       0.8065 ( -0.25%)
+Elapsed    19       0.7600 (  0.00%)       0.7650 ( -0.66%)       0.7525 (  0.99%)       1.3085 (-72.17%)       0.7690 ( -1.18%)
+Elapsed    20       0.7495 (  0.00%)       0.7435 (  0.80%)       0.7140 (  4.74%)       1.3520 (-80.39%)       0.7255 (  3.20%)
+Elapsed    21       0.8010 (  0.00%)       0.8050 ( -0.50%)       0.7940 (  0.87%)       1.3145 (-64.11%)       0.8040 ( -0.37%)
+Elapsed    22       0.7910 (  0.00%)       0.7790 (  1.52%)       0.7625 (  3.60%)       1.3560 (-71.43%)       0.7960 ( -0.63%)
+Elapsed    23       0.7630 (  0.00%)       0.7700 ( -0.92%)       0.7470 (  2.10%)       1.7525 (-129.69%)       0.7640 ( -0.13%)
+Elapsed    24       0.7470 (  0.00%)       0.7385 (  1.14%)       0.7165 (  4.08%)       1.4650 (-96.12%)       0.7625 ( -2.07%)
+Elapsed    25       0.8470 (  0.00%)       0.8760 ( -3.42%)       0.8620 ( -1.77%)       1.4205 (-67.71%)       0.8420 (  0.59%)
+Elapsed    26       0.8235 (  0.00%)       0.8295 ( -0.73%)       0.8275 ( -0.49%)       1.4475 (-75.77%)       0.8325 ( -1.09%)
+Elapsed    27       0.8130 (  0.00%)       0.8110 (  0.25%)       0.8085 (  0.55%)       1.4050 (-72.82%)       0.8090 (  0.49%)
+Elapsed    28       0.7815 (  0.00%)       0.7815 (  0.00%)       0.7790 (  0.32%)       1.2610 (-61.36%)       0.8040 ( -2.88%)
+Elapsed    29       0.7955 (  0.00%)       0.7930 (  0.31%)       0.7830 (  1.57%)       1.3340 (-67.69%)       0.7960 ( -0.06%)
+Elapsed    30       0.7930 (  0.00%)       0.7820 (  1.39%)       0.7750 (  2.27%)       1.2825 (-61.73%)       0.8050 ( -1.51%)
+Elapsed    31       0.7790 (  0.00%)       0.7895 ( -1.35%)       0.7670 (  1.54%)       1.3090 (-68.04%)       0.7865 ( -0.96%)
+Elapsed    32       0.7800 (  0.00%)       0.7590 (  2.69%)       0.7665 (  1.73%)       1.4570 (-86.79%)       0.7905 ( -1.35%)
+Elapsed    33       0.7690 (  0.00%)       0.7690 (  0.00%)       0.7795 ( -1.37%)       1.2140 (-57.87%)       0.7975 ( -3.71%)
+Elapsed    34       0.7840 (  0.00%)       0.7695 (  1.85%)       0.7580 (  3.32%)       1.2925 (-64.86%)       0.7715 (  1.59%)
+Elapsed    35       0.7890 (  0.00%)       0.7635 (  3.23%)       0.7600 (  3.68%)       1.1940 (-51.33%)       0.7915 ( -0.32%)
+Elapsed    36       0.7995 (  0.00%)       0.7515 (  6.00%)       0.7560 (  5.44%)       1.5095 (-88.81%)       0.7685 (  3.88%)
+Elapsed    37       0.7720 (  0.00%)       0.7560 (  2.07%)       0.7390 (  4.27%)       1.2695 (-64.44%)       0.7690 (  0.39%)
+Elapsed    38       0.7775 (  0.00%)       0.7735 (  0.51%)       0.7835 ( -0.77%)       1.3650 (-75.56%)       0.7755 (  0.26%)
+Elapsed    39       0.7790 (  0.00%)       0.7645 (  1.86%)       0.7660 (  1.67%)       1.4875 (-90.95%)       0.7710 (  1.03%)
+Elapsed    40       0.7710 (  0.00%)       0.7515 (  2.53%)       0.7495 (  2.79%)       1.3105 (-69.97%)       0.7865 ( -2.01%)
+Elapsed    41       0.7730 (  0.00%)       0.7650 (  1.03%)       0.7560 (  2.20%)       1.1790 (-52.52%)       0.7785 ( -0.71%)
+Elapsed    42       0.7725 (  0.00%)       0.7725 ( -0.00%)       0.7695 (  0.39%)       1.0820 (-40.06%)       0.7875 ( -1.94%)
+Elapsed    43       0.7760 (  0.00%)       0.7625 (  1.74%)       0.7705 (  0.71%)       1.0720 (-38.14%)       0.7755 (  0.06%)
+Elapsed    44       0.7595 (  0.00%)       0.7570 (  0.33%)       0.7470 (  1.65%)       1.1220 (-47.73%)       0.7565 (  0.39%)
+Elapsed    45       0.7600 (  0.00%)       0.7485 (  1.51%)       0.7440 (  2.11%)       1.2230 (-60.92%)       0.7520 (  1.05%)
+Elapsed    46       0.7600 (  0.00%)       0.7620 ( -0.26%)       0.7680 ( -1.05%)       1.1900 (-56.58%)       0.7650 ( -0.66%)
+Elapsed    47       0.7620 (  0.00%)       0.7690 ( -0.92%)       0.7645 ( -0.33%)       1.0135 (-33.01%)       0.7755 ( -1.77%)
+Elapsed    48       0.7565 (  0.00%)       0.7645 ( -1.06%)       0.7500 (  0.86%)       1.0880 (-43.82%)       0.7560 (  0.07%)
+Faults/cpu 1   385797.2651 (  0.00%)  370009.1820 ( -4.09%)  378447.2470 ( -1.91%)  385558.9224 ( -0.06%)  377688.6771 ( -2.10%)
+Faults/cpu 2   386867.0633 (  0.00%)  372835.1850 ( -3.63%)  378839.1779 ( -2.08%)  370354.5700 ( -4.27%)  379344.3060 ( -1.94%)
+Faults/cpu 3   374747.5776 (  0.00%)  371157.5386 ( -0.96%)  371260.9744 ( -0.93%)  356079.5284 ( -4.98%)  373118.1340 ( -0.43%)
+Faults/cpu 4   369360.9848 (  0.00%)  363677.6646 ( -1.54%)  366267.6219 ( -0.84%)  317331.0922 (-14.09%)  369773.6799 (  0.11%)
+Faults/cpu 5   357210.2234 (  0.00%)  352037.7022 ( -1.45%)  353371.1702 ( -1.07%)  310278.3499 (-13.14%)  355518.4149 ( -0.47%)
+Faults/cpu 6   343452.0730 (  0.00%)  343300.6903 ( -0.04%)  340794.7856 ( -0.77%)  307986.8198 (-10.33%)  345375.2079 (  0.56%)
+Faults/cpu 7   344267.5779 (  0.00%)  343135.2329 ( -0.33%)  341333.2393 ( -0.85%)  294837.4550 (-14.36%)  342875.7646 ( -0.40%)
+Faults/cpu 8   344729.2311 (  0.00%)  342392.7834 ( -0.68%)  342100.6461 ( -0.76%)  292681.8453 (-15.10%)  346478.0993 (  0.51%)
+Faults/cpu 9   331315.0698 (  0.00%)  326679.1633 ( -1.40%)  328379.3401 ( -0.89%)  277153.4340 (-16.35%)  325584.9047 ( -1.73%)
+Faults/cpu 10  315686.3870 (  0.00%)  323588.4396 (  2.50%)  318443.3297 (  0.87%)  248109.7147 (-21.41%)  320327.6421 (  1.47%)
+Faults/cpu 11  314434.9205 (  0.00%)  314943.7061 (  0.16%)  316982.1353 (  0.81%)  252301.2616 (-19.76%)  319064.9472 (  1.47%)
+Faults/cpu 12  323781.3933 (  0.00%)  314494.0025 ( -2.87%)  310998.5164 ( -3.95%)  223380.8262 (-31.01%)  315265.1156 ( -2.63%)
+Faults/cpu 13  298348.7601 (  0.00%)  298278.7461 ( -0.02%)  298425.8366 (  0.03%)  222713.6991 (-25.35%)  299557.7287 (  0.41%)
+Faults/cpu 14  286932.6713 (  0.00%)  287489.8255 (  0.19%)  291403.3643 (  1.56%)  221548.5814 (-22.79%)  288096.1843 (  0.41%)
+Faults/cpu 15  286722.6127 (  0.00%)  287065.1515 (  0.12%)  283720.5742 ( -1.05%)  207401.8106 (-27.66%)  287383.0602 (  0.23%)
+Faults/cpu 16  273295.6746 (  0.00%)  280964.9626 (  2.81%)  272915.0388 ( -0.14%)  211096.7291 (-22.76%)  272681.3514 ( -0.22%)
+Faults/cpu 17  260911.0336 (  0.00%)  256209.7475 ( -1.80%)  257178.1940 ( -1.43%)  197018.3121 (-24.49%)  258463.4380 ( -0.94%)
+Faults/cpu 18  248932.2863 (  0.00%)  246396.4580 ( -1.02%)  244519.0507 ( -1.77%)  186688.3694 (-25.00%)  247319.4065 ( -0.65%)
+Faults/cpu 19  240209.9640 (  0.00%)  239694.9962 ( -0.21%)  241668.2142 (  0.61%)  196175.4561 (-18.33%)  241274.5498 (  0.44%)
+Faults/cpu 20  233606.9640 (  0.00%)  234567.9983 (  0.41%)  237101.6767 (  1.50%)  183173.7872 (-21.59%)  236261.5842 (  1.14%)
+Faults/cpu 21  222450.9746 (  0.00%)  222763.7028 (  0.14%)  222768.7097 (  0.14%)  184378.4972 (-17.11%)  222502.3479 (  0.02%)
+Faults/cpu 22  212470.6526 (  0.00%)  213873.2886 (  0.66%)  214961.4201 (  1.17%)  174322.1760 (-17.95%)  211664.6775 ( -0.38%)
+Faults/cpu 23  208049.7330 (  0.00%)  206332.3011 ( -0.83%)  207950.2886 ( -0.05%)  153090.7052 (-26.42%)  207247.1747 ( -0.39%)
+Faults/cpu 24  201679.6538 (  0.00%)  199995.7393 ( -0.83%)  201550.5940 ( -0.06%)  160410.2463 (-20.46%)  200847.7533 ( -0.41%)
+Faults/cpu 25  192498.2867 (  0.00%)  190214.9558 ( -1.19%)  191517.8214 ( -0.51%)  161893.8849 (-15.90%)  192452.0624 ( -0.02%)
+Faults/cpu 26  186665.4593 (  0.00%)  185379.9941 ( -0.69%)  186275.6707 ( -0.21%)  157300.4300 (-15.73%)  185979.4752 ( -0.37%)
+Faults/cpu 27  181066.1031 (  0.00%)  179912.4533 ( -0.64%)  181050.8398 ( -0.01%)  154603.8416 (-14.61%)  180950.5179 ( -0.06%)
+Faults/cpu 28  176715.0459 (  0.00%)  175829.3044 ( -0.50%)  176349.1828 ( -0.21%)  156364.7159 (-11.52%)  175741.4427 ( -0.55%)
+Faults/cpu 29  170851.0284 (  0.00%)  169571.4289 ( -0.75%)  170335.5602 ( -0.30%)  150767.5486 (-11.75%)  169718.5679 ( -0.66%)
+Faults/cpu 30  164787.7507 (  0.00%)  164617.4073 ( -0.10%)  165217.0889 (  0.26%)  147529.2740 (-10.47%)  162722.1423 ( -1.25%)
+Faults/cpu 31  160430.2907 (  0.00%)  158345.5797 ( -1.30%)  161176.8077 (  0.47%)  144067.5971 (-10.20%)  160040.1744 ( -0.24%)
+Faults/cpu 32  155790.5891 (  0.00%)  156267.8212 (  0.31%)  156027.3350 (  0.15%)  137157.8782 (-11.96%)  155208.7521 ( -0.37%)
+Faults/cpu 33  151635.0920 (  0.00%)  150804.1899 ( -0.55%)  150660.8347 ( -0.64%)  139846.4798 ( -7.77%)  149742.2915 ( -1.25%)
+Faults/cpu 34  146038.4974 (  0.00%)  146271.6506 (  0.16%)  146751.1769 (  0.49%)  135764.9435 ( -7.03%)  146394.1750 (  0.24%)
+Faults/cpu 35  140732.3535 (  0.00%)  141685.1152 (  0.68%)  142430.2661 (  1.21%)  133655.4438 ( -5.03%)  139784.6519 ( -0.67%)
+Faults/cpu 36  136166.1072 (  0.00%)  138214.4111 (  1.50%)  138620.7831 (  1.80%)  125246.5874 ( -8.02%)  137717.0072 (  1.14%)
+Faults/cpu 37  133937.2426 (  0.00%)  133987.5859 (  0.04%)  134867.5627 (  0.69%)  126717.8556 ( -5.39%)  133528.6312 ( -0.31%)
+Faults/cpu 38  129806.2879 (  0.00%)  129484.1027 ( -0.25%)  129867.2448 (  0.05%)  123151.6348 ( -5.13%)  129684.0139 ( -0.09%)
+Faults/cpu 39  125884.7197 (  0.00%)  126292.1515 (  0.32%)  126882.4466 (  0.79%)  118738.0142 ( -5.68%)  126367.3210 (  0.38%)
+Faults/cpu 40  122900.8619 (  0.00%)  123025.8443 (  0.10%)  123587.2927 (  0.56%)  119741.7381 ( -2.57%)  122339.5679 ( -0.46%)
+Faults/cpu 41  119576.6679 (  0.00%)  119415.0157 ( -0.14%)  120053.6669 (  0.40%)  117525.4248 ( -1.72%)  119084.8607 ( -0.41%)
+Faults/cpu 42  115959.5010 (  0.00%)  115737.9229 ( -0.19%)  116300.5934 (  0.29%)  117496.2246 (  1.33%)  115714.2527 ( -0.21%)
+Faults/cpu 43  113100.2406 (  0.00%)  112783.1393 ( -0.28%)  113218.7913 (  0.10%)  115384.3053 (  2.02%)  112956.7744 ( -0.13%)
+Faults/cpu 44  110685.8811 (  0.00%)  109868.9324 ( -0.74%)  110723.3392 (  0.03%)  112456.8917 (  1.60%)  110614.4621 ( -0.06%)
+Faults/cpu 45  108052.3179 (  0.00%)  107211.6811 ( -0.78%)  107942.8820 ( -0.10%)  109776.3508 (  1.60%)  107751.8875 ( -0.28%)
+Faults/cpu 46  105486.0553 (  0.00%)  104438.6404 ( -0.99%)  105227.3887 ( -0.25%)  107794.7237 (  2.19%)  105004.5390 ( -0.46%)
+Faults/cpu 47  102974.9203 (  0.00%)  101941.3971 ( -1.00%)  102383.4542 ( -0.57%)  108478.5733 (  5.34%)  102722.9070 ( -0.24%)
+Faults/cpu 48  101380.6453 (  0.00%)   99779.1561 ( -1.58%)  100509.2559 ( -0.86%)  107012.5013 (  5.56%)  100575.1345 ( -0.79%)
+Faults/sec 1   385061.9036 (  0.00%)  369180.6824 ( -4.12%)  377729.1950 ( -1.90%)  384819.2327 ( -0.06%)  376970.8477 ( -2.10%)
+Faults/sec 2   764226.0132 (  0.00%)  734211.0512 ( -3.93%)  748384.7009 ( -2.07%)  730072.8971 ( -4.47%)  749269.4182 ( -1.96%)
+Faults/sec 3  1107501.3719 (  0.00%) 1100252.0430 ( -0.65%) 1097892.0288 ( -0.87%) 1053883.6349 ( -4.84%) 1104152.6367 ( -0.30%)
+Faults/sec 4  1449626.8352 (  0.00%) 1429699.7936 ( -1.37%) 1442112.3242 ( -0.52%) 1256242.1498 (-13.34%) 1459113.6594 (  0.65%)
+Faults/sec 5  1732002.4008 (  0.00%) 1709515.9035 ( -1.30%) 1720035.6650 ( -0.69%) 1520601.0948 (-12.21%) 1723793.1758 ( -0.47%)
+Faults/sec 6  1987676.5357 (  0.00%) 1988958.7810 (  0.06%) 1978458.8821 ( -0.46%) 1787818.8176 (-10.05%) 2008881.3247 (  1.07%)
+Faults/sec 7  2333954.1295 (  0.00%) 2306792.1741 ( -1.16%) 2308590.2310 ( -1.09%) 1981176.0202 (-15.12%) 2321139.7761 ( -0.55%)
+Faults/sec 8  2634079.1969 (  0.00%) 2648701.1517 (  0.56%) 2639066.6993 (  0.19%) 2262332.1874 (-14.11%) 2688602.1301 (  2.07%)
+Faults/sec 9  2812978.3108 (  0.00%) 2750677.5523 ( -2.21%) 2758799.5992 ( -1.93%) 2369151.0162 (-15.78%) 2764307.6039 ( -1.73%)
+Faults/sec 10 2972098.8912 (  0.00%) 3040290.9285 (  2.29%) 2947819.8726 ( -0.82%) 2326833.4239 (-21.71%) 3004154.6467 (  1.08%)
+Faults/sec 11 3229763.9751 (  0.00%) 3276271.4629 (  1.44%) 3284407.0479 (  1.69%) 2589504.6882 (-19.82%) 3292091.4135 (  1.93%)
+Faults/sec 12 3750563.1088 (  0.00%) 3610624.8943 ( -3.73%) 3485259.8243 ( -7.07%) 2427789.3718 (-35.27%) 3558548.4222 ( -5.12%)
+Faults/sec 13 3527986.1494 (  0.00%) 3547764.9300 (  0.56%) 3554466.5848 (  0.75%) 2545322.0856 (-27.85%) 3578525.4813 (  1.43%)
+Faults/sec 14 3744462.9757 (  0.00%) 3695499.8728 ( -1.31%) 3792594.5449 (  1.29%) 2554380.1216 (-31.78%) 3710059.3946 ( -0.92%)
+Faults/sec 15 4035725.6748 (  0.00%) 4028300.7944 ( -0.18%) 3977239.8857 ( -1.45%) 2512491.8119 (-37.74%) 4024326.1784 ( -0.28%)
+Faults/sec 16 4082775.7769 (  0.00%) 4305014.9042 (  5.44%) 4087407.6182 (  0.11%) 2611306.0114 (-36.04%) 4089621.8672 (  0.17%)
+Faults/sec 17 3961506.5231 (  0.00%) 3911699.0614 ( -1.26%) 3955307.9095 ( -0.16%) 2435984.2387 (-38.51%) 3954971.6225 ( -0.16%)
+Faults/sec 18 4109294.2629 (  0.00%) 4063567.0776 ( -1.11%) 4122394.7311 (  0.32%) 2324571.5799 (-43.43%) 4100267.0651 ( -0.22%)
+Faults/sec 19 4352529.7769 (  0.00%) 4320169.3481 ( -0.74%) 4390034.0874 (  0.86%) 2652463.0170 (-39.06%) 4299145.4846 ( -1.23%)
+Faults/sec 20 4445682.4720 (  0.00%) 4460703.5633 (  0.34%) 4619212.3458 (  3.90%) 2498266.4820 (-43.80%) 4545455.4580 (  2.24%)
+Faults/sec 21 4131984.5843 (  0.00%) 4118395.9252 ( -0.33%) 4162005.7007 (  0.73%) 2540251.8566 (-38.52%) 4111807.9229 ( -0.49%)
+Faults/sec 22 4188729.2437 (  0.00%) 4251815.6793 (  1.51%) 4344514.0758 (  3.72%) 2470008.1414 (-41.03%) 4176667.1190 ( -0.29%)
+Faults/sec 23 4350539.7029 (  0.00%) 4305851.5811 ( -1.03%) 4445627.9803 (  2.19%) 2100441.5050 (-51.72%) 4315733.9925 ( -0.80%)
+Faults/sec 24 4432124.0788 (  0.00%) 4486121.1678 (  1.22%) 4617892.4194 (  4.19%) 2334966.8294 (-47.32%) 4341933.4781 ( -2.03%)
+Faults/sec 25 3905711.5675 (  0.00%) 3780279.3884 ( -3.21%) 3835315.4941 ( -1.80%) 2450342.7439 (-37.26%) 3919793.7148 (  0.36%)
+Faults/sec 26 4014336.5674 (  0.00%) 3983206.8788 ( -0.78%) 4001945.8549 ( -0.31%) 2473461.2355 (-38.38%) 3964715.6542 ( -1.24%)
+Faults/sec 27 4065466.2002 (  0.00%) 4072036.9033 (  0.16%) 4091477.7799 (  0.64%) 2486770.5426 (-38.83%) 4079939.4587 (  0.36%)
+Faults/sec 28 4228877.7902 (  0.00%) 4221680.2792 ( -0.17%) 4249396.4296 (  0.49%) 2637206.2964 (-37.64%) 4115256.3394 ( -2.69%)
+Faults/sec 29 4165815.5539 (  0.00%) 4181083.7955 (  0.37%) 4219026.9458 (  1.28%) 2541629.2498 (-38.99%) 4143539.5645 ( -0.53%)
+Faults/sec 30 4172433.9028 (  0.00%) 4232788.6280 (  1.45%) 4273745.8569 (  2.43%) 2602412.4120 (-37.63%) 4111186.6312 ( -1.47%)
+Faults/sec 31 4240172.5042 (  0.00%) 4202647.6180 ( -0.88%) 4307691.5000 (  1.59%) 2628430.8761 (-38.01%) 4198363.3015 ( -0.99%)
+Faults/sec 32 4252574.8449 (  0.00%) 4368813.9111 (  2.73%) 4311615.6983 (  1.39%) 2508987.6152 (-41.00%) 4180702.4236 ( -1.69%)
+Faults/sec 33 4314834.5142 (  0.00%) 4300479.9148 ( -0.33%) 4253617.4375 ( -1.42%) 2768165.8763 (-35.85%) 4149830.2426 ( -3.82%)
+Faults/sec 34 4221722.1201 (  0.00%) 4305669.7970 (  1.99%) 4370779.7502 (  3.53%) 2664936.7912 (-36.88%) 4281006.2531 (  1.40%)
+Faults/sec 35 4202390.0406 (  0.00%) 4329839.4498 (  3.03%) 4347794.6136 (  3.46%) 2778155.9528 (-33.89%) 4173135.9166 ( -0.70%)
+Faults/sec 36 4165128.7518 (  0.00%) 4401592.8642 (  5.68%) 4380704.7567 (  5.18%) 2457370.2456 (-41.00%) 4299049.1481 (  3.22%)
+Faults/sec 37 4292251.7710 (  0.00%) 4366957.1507 (  1.74%) 4486600.4386 (  4.53%) 2734551.4751 (-36.29%) 4299181.8790 (  0.16%)
+Faults/sec 38 4260325.3309 (  0.00%) 4284727.5988 (  0.57%) 4239258.8528 ( -0.49%) 2778317.8830 (-34.79%) 4259795.0447 ( -0.01%)
+Faults/sec 39 4247599.0136 (  0.00%) 4327326.6158 (  1.88%) 4318635.2121 (  1.67%) 2583097.0121 (-39.19%) 4289769.9908 (  0.99%)
+Faults/sec 40 4291155.1100 (  0.00%) 4396284.3000 (  2.45%) 4407292.9279 (  2.71%) 2777111.1971 (-35.28%) 4206468.2232 ( -1.97%)
+Faults/sec 41 4292508.3942 (  0.00%) 4330351.2177 (  0.88%) 4370343.8776 (  1.81%) 2957005.3922 (-31.11%) 4248354.1350 ( -1.03%)
+Faults/sec 42 4287561.7374 (  0.00%) 4289134.7484 (  0.04%) 4306375.5332 (  0.44%) 3066909.7047 (-28.47%) 4188926.4606 ( -2.30%)
+Faults/sec 43 4265879.9967 (  0.00%) 4333505.6536 (  1.59%) 4299079.1884 (  0.78%) 3100949.2312 (-27.31%) 4262288.5979 ( -0.08%)
+Faults/sec 44 4356451.0096 (  0.00%) 4365045.2799 (  0.20%) 4433069.0671 (  1.76%) 3140365.7636 (-27.91%) 4363013.1609 (  0.15%)
+Faults/sec 45 4348783.2119 (  0.00%) 4414799.2678 (  1.52%) 4449419.1956 (  2.31%) 2980161.5064 (-31.47%) 4402440.2661 (  1.23%)
+Faults/sec 46 4351251.6124 (  0.00%) 4347660.5404 ( -0.08%) 4305854.6178 ( -1.04%) 3065424.1546 (-29.55%) 4316402.4842 ( -0.80%)
+Faults/sec 47 4339586.8853 (  0.00%) 4303221.9106 ( -0.84%) 4324971.9936 ( -0.34%) 3270057.9687 (-24.65%) 4264177.3478 ( -1.74%)
+Faults/sec 48 4370579.8512 (  0.00%) 4328591.3197 ( -0.96%) 4392533.0247 (  0.50%) 3237854.7263 (-25.92%) 4367322.6197 ( -0.07%)
+
+Nothing new to report here.
+
+
+So overall the system CPU usage is much improved and the !THP case is also
+better. It would be very interesting to know how worklets are accounted
+for to make sure the system CPU usage is not just being hidden.
+
+While the !THP case has improved, there are still a number of cases where
+numacore is doing worse against mainline where as balancenuma does "all
+right" for the most part.
+
+I have no explanation as to why I see such different results. specjbb I
+an sortof understand because I'm running for ranges of warehouses instead
+of just the peak but even the peak results are different which is harder
+to explain. The autonumabench scores are harder to reconcile.
+
+As before all the scripts used are mmtests and I released 0.08 to be sure
+it was up to date.  I can post the configs used if you want to check if
+there is something complely screwed in the scripts but even if there is,
+all the tested kernels got screwed in the same way.
 
 -- 
 Mel Gorman
