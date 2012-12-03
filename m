@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 37AA86B005D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 11:53:44 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so1416157dak.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 08:53:43 -0800 (PST)
-Date: Mon, 3 Dec 2012 08:53:38 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCHSET cgroup/for-3.8] cpuset: decouple cpuset locking from
- cgroup core
-Message-ID: <20121203165338.GF19802@htj.dyndns.org>
-References: <1354138460-19286-1-git-send-email-tj@kernel.org>
- <20121203152205.GB17093@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 2AE8E6B005A
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 12:11:33 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so2116785eek.14
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 09:11:31 -0800 (PST)
+Date: Mon, 3 Dec 2012 18:11:26 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/52] RFC: Unified NUMA balancing tree, v1
+Message-ID: <20121203171126.GA18394@gmail.com>
+References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
+ <50BCCAA3.6060604@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121203152205.GB17093@dhcp22.suse.cz>
+In-Reply-To: <50BCCAA3.6060604@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: lizefan@huawei.com, paul@paulmenage.org, glommer@parallels.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Hello, Michal.
 
-On Mon, Dec 03, 2012 at 04:22:05PM +0100, Michal Hocko wrote:
-> I have glanced through the series and spotten nothing obviously wrong. I
-> do not feel I could give my r-b because I am not familiar with cpusets
-> internals enough and some patches looks quite scary (like #8).
-> Anyway the resulting outcome seems nice.
+* Rik van Riel <riel@redhat.com> wrote:
 
-Thanks a lot for looking at it and, yeah, it's a bit scary.  Li, Paul,
-can you guys please review the series?
+> >Rik van Riel (1):
+> >   sched, numa, mm: Add credits for NUMA placement
+> 
+> Where did the TLB flush optimizations go? :)
 
-Thanks!
+They are still very much there, unchanged for a long time and 
+acked by everyone - I thought I'd spare a few electrons by not 
+doing a 60+ patches full resend.
 
--- 
-tejun
+Here is how it looks like in the full diffstat:
+
+ Rik van Riel (6):
+      mm/generic: Only flush the local TLB in ptep_set_access_flags()
+      x86/mm: Only do a local tlb flush in ptep_set_access_flags()
+      x86/mm: Introduce pte_accessible()
+      mm: Only flush the TLB when clearing an accessible pte
+      x86/mm: Completely drop the TLB flush from ptep_set_access_flags()
+      sched, numa, mm: Add credits for NUMA placement
+
+I'm really fond of these btw., they make a real difference.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
