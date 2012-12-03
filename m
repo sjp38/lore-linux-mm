@@ -1,255 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 5A3DF6B005D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 01:42:15 -0500 (EST)
-Date: Mon, 3 Dec 2012 15:42:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram, OOM, and speed of allocation
-Message-ID: <20121203064212.GA4569@blaptop>
-References: <CAA25o9S5zpH_No+xgYuFSAKSRkQ=19Vf_aLgO1UWiajQxtjrpg@mail.gmail.com>
- <CAA25o9TnmSqBe48EN+9E6E8EiSzKf275AUaAijdk3wxg6QV2kQ@mail.gmail.com>
- <CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 690166B005D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 02:26:20 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so1041814bkc.14
+        for <linux-mm@kvack.org>; Sun, 02 Dec 2012 23:26:18 -0800 (PST)
+Message-ID: <50BC5419.6020903@googlemail.com>
+Date: Mon, 03 Dec 2012 07:26:17 +0000
+From: Chris Clayton <chris2553@googlemail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA25o9RiNfwtoeMBk=PLg-X_2wPSHuYLztONw1KToeOx9pUHGw@mail.gmail.com>
+Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
+ occupied by memmap
+References: <20121120111942.c9596d3f.akpm@linux-foundation.org> <1353510586-6393-1-git-send-email-jiang.liu@huawei.com> <20121128155221.df369ce4.akpm@linux-foundation.org> <50B73E56.4050603@googlemail.com> <50BBB21D.3070005@googlemail.com>
+In-Reply-To: <50BBB21D.3070005@googlemail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luigi Semenzato <semenzato@google.com>
-Cc: linux-mm@kvack.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Luigi,
 
-On Thu, Nov 29, 2012 at 11:31:46AM -0800, Luigi Semenzato wrote:
-> Oh well, I found the problem, it's laptop_mode.  We keep it on by
-> default.  When I turn it off, I can allocate as fast as I can, and no
-> OOMs happen until swap is exhausted.
-> 
-> I don't think this is a desirable behavior even for laptop_mode, so if
-> anybody wants to help me debug it (or wants my help in debugging it)
-> do let me know.
 
-Interesting.
+On 12/02/12 19:55, Chris Clayton wrote:
+>
+>
+> On 11/29/12 10:52, Chris Clayton wrote:
+>> On 11/28/12 23:52, Andrew Morton wrote:
+>>> On Wed, 21 Nov 2012 23:09:46 +0800
+>>> Jiang Liu <liuj97@gmail.com> wrote:
+>>>
+>>>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
+>>>> of pages occupied by memmap
+>>>
+>>> How are people to test this?  "does it boot"?
+>>>
+>>
+>> I've been running kernels with Gerry's 5 patches applied for 11 days
+>> now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
+>> joined the conversation because my laptop would not resume from suspend
+>> to disk - it either froze or rebooted. With the patches applied the
+>> laptop does successfully resume and has been stable.
+>>
+>> Since Monday, I have have been running a kernel with the patches (plus,
+>> from today, the patch you mailed yesterday) applied to 3.7rc7, without
+>> problems.
+>>
+>
+> I've been running 3.7-rc7 with the patches listed below for a week now
+> and it has been perfectly stable. In particular, my laptop will now
+> successfully resume from suspend to disk, which always failed without
+> the patches.
+>
 
-Just a quick trial.
-Could you try this patch based on your kernel without my previous patch "
-wakeup kswapd in direct reclaim path"?
-If you still has a trouble about stopped kswapd, plz apply both patches.
+I should have said, of course, that it was -rc6 and earlier that would 
+not boot without Jiang Liu's patches. I applied those patches to rc-6 
+and my resume after suspend to disk problem was fixed. For a subsequent 
+week I have been running with the patches applied to -rc7, with Andrew's 
+patch also applied for the last 3 days. -rc7 was not subject to the 
+resume problem because the patch which broke it had been reverted.
+All this has been on a 64bit laptop, but running a 32bit kernel with 
+HIGHMEM.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 32bc955..4a7fe5d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -725,6 +725,7 @@ typedef struct pglist_data {
- 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
- 	int kswapd_max_order;
- 	enum zone_type classzone_idx;
-+	bool may_writepage;
- } pg_data_t;
- 
- #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 53dcde9..1952420 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -68,6 +68,11 @@ struct scan_control {
- 	/* This context's GFP mask */
- 	gfp_t gfp_mask;
- 
-+	/*
-+	 * If laptop_mode is true, you don't need to set may_writepage.
-+	 * Otherwise, you should set may_writepage explicitly.
-+	 */
-+	bool laptop_mode;
- 	int may_writepage;
- 
- 	/* Can mapped pages be reclaimed? */
-@@ -1846,6 +1851,15 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 	unsigned long nr_reclaimed, nr_scanned;
- 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
- 	struct blk_plug plug;
-+	struct zone *zone = lruvec_zone(lruvec);
-+	pg_data_t *pgdat = zone->zone_pgdat;
-+
-+	if (sc->laptop_mode) {
-+		if (pgdat->may_writepage)
-+			sc->may_writepage = 1;
-+		else
-+			sc->may_writepage = 0;
-+	}
- 
- restart:
- 	nr_reclaimed = 0;
-@@ -2145,11 +2159,9 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 		 * writeout.  So in laptop mode, write out the whole world.
- 		 */
- 		writeback_threshold = sc->nr_to_reclaim + sc->nr_to_reclaim / 2;
--		if (total_scanned > writeback_threshold) {
--			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
-+		if (total_scanned > writeback_threshold)
-+			wakeup_flusher_threads(sc->laptop_mode ? 0 : total_scanned,
- 						WB_REASON_TRY_TO_FREE_PAGES);
--			sc->may_writepage = 1;
--		}
- 
- 		/* Take a nap, wait for some writeback to complete */
- 		if (!sc->hibernation_mode && sc->nr_scanned &&
-@@ -2289,7 +2301,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 	unsigned long nr_reclaimed;
- 	struct scan_control sc = {
- 		.gfp_mask = gfp_mask,
--		.may_writepage = !laptop_mode,
-+		.laptop_mode = laptop_mode,
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
- 		.may_unmap = 1,
- 		.may_swap = 1,
-@@ -2331,7 +2343,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
- 	struct scan_control sc = {
- 		.nr_scanned = 0,
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
--		.may_writepage = !laptop_mode,
-+		.laptop_mode = laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = !noswap,
- 		.order = 0,
-@@ -2370,7 +2382,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	unsigned long nr_reclaimed;
- 	int nid;
- 	struct scan_control sc = {
--		.may_writepage = !laptop_mode,
-+		.laptop_mode = laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = !noswap,
- 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-@@ -2585,7 +2597,7 @@ loop_again:
- 	total_scanned = 0;
- 	sc.priority = DEF_PRIORITY;
- 	sc.nr_reclaimed = 0;
--	sc.may_writepage = !laptop_mode;
-+	sc.laptop_mode = laptop_mode;
- 	count_vm_event(PAGEOUTRUN);
- 
- 	do {
-@@ -2722,7 +2734,7 @@ loop_again:
- 			 */
- 			if (total_scanned > SWAP_CLUSTER_MAX * 2 &&
- 			    total_scanned > sc.nr_reclaimed + sc.nr_reclaimed / 2)
--				sc.may_writepage = 1;
-+				zone->zone_pgdat->may_writepage = true;
- 
- 			if (zone->all_unreclaimable) {
- 				if (end_zone && end_zone == i)
-@@ -2749,6 +2761,7 @@ loop_again:
- 				 * speculatively avoid congestion waits
- 				 */
- 				zone_clear_flag(zone, ZONE_CONGESTED);
-+				zone->zone_pgdat->may_writepage = false;
- 				if (i <= *classzone_idx)
- 					balanced += zone->present_pages;
- 			}
-@@ -3112,6 +3125,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
- 		.may_swap = 1,
- 		.may_unmap = 1,
-+		.laptop_mode = false,
- 		.may_writepage = 1,
- 		.nr_to_reclaim = nr_to_reclaim,
- 		.hibernation_mode = 1,
-@@ -3299,6 +3313,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
- 	struct task_struct *p = current;
- 	struct reclaim_state reclaim_state;
- 	struct scan_control sc = {
-+		.laptop_mode = false,
- 		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
- 		.may_swap = 1,
+Apologies for yesterday's inaccuracy. I shouldn't send testing reports 
+when I'm in a hurry.
 
-> 
-> Thanks!
-> Luigi
-> 
-> On Thu, Nov 29, 2012 at 10:46 AM, Luigi Semenzato <semenzato@google.com> wrote:
-> > Minchan:
-> >
-> > I tried your suggestion to move the call to wake_all_kswapd from after
-> > "restart:" to after "rebalance:".  The behavior is still similar, but
-> > slightly improved.  Here's what I see.
-> >
-> > Allocating as fast as I can: 1.5 GB of the 3 GB of zram swap are used,
-> > then OOM kills happen, and the system ends up with 1 GB swap used, 2
-> > unused.
-> >
-> > Allocating 10 MB/s: some kills happen when only 1 to 1.5 GB are used,
-> > and continue happening while swap fills up.  Eventually swap fills up
-> > completely.  This is better than before (could not go past about 1 GB
-> > of swap used), but there are too many kills too early.  I would like
-> > to see no OOM kills until swap is full or almost full.
-> >
-> > Allocating 20 MB/s: almost as good as with 10 MB/s, but more kills
-> > happen earlier, and not all swap space is used (400 MB free at the
-> > end).
-> >
-> > This is with 200 processes using 20 MB each, and 2:1 compression ratio.
-> >
-> > So it looks like kswapd is still not aggressive enough in pushing
-> > pages out.  What's the best way of changing that?  Play around with
-> > the watermarks?
-> >
-> > Incidentally, I also tried removing the min_filelist_kbytes hacky
-> > patch, but, as usual, the system thrashes so badly that it's
-> > impossible to complete any experiment.  I set it to a lower minimum
-> > amount of free file pages, 10 MB instead of the 50 MB which we use
-> > normally, and I could run with some thrashing, but I got the same
-> > results.
-> >
-> > Thanks!
-> > Luigi
-> >
-> >
-> > On Wed, Nov 28, 2012 at 4:31 PM, Luigi Semenzato <semenzato@google.com> wrote:
-> >> I am beginning to understand why zram appears to work fine on our x86
-> >> systems but not on our ARM systems.  The bottom line is that swapping
-> >> doesn't work as I would expect when allocation is "too fast".
-> >>
-> >> In one of my tests, opening 50 tabs simultaneously in a Chrome browser
-> >> on devices with 2 GB of RAM and a zram-disk of 3 GB (uncompressed), I
-> >> was observing that on the x86 device all of the zram swap space was
-> >> used before OOM kills happened, but on the ARM device I would see OOM
-> >> kills when only about 1 GB (out of 3) was swapped out.
-> >>
-> >> I wrote a simple program to understand this behavior.  The program
-> >> (called "hog") allocates memory and fills it with a mix of
-> >> incompressible data (from /dev/urandom) and highly compressible data
-> >> (1's, just to avoid zero pages) in a given ratio.  The memory is never
-> >> touched again.
-> >>
-> >> It turns out that if I don't limit the allocation speed, I see
-> >> premature OOM kills also on the x86 device.  If I limit the allocation
-> >> to 10 MB/s, the premature OOM kills stop happening on the x86 device,
-> >> but still happen on the ARM device.  If I further limit the allocation
-> >> speed to 5 Mb/s, the premature OOM kills disappear also from the ARM
-> >> device.
-> >>
-> >> I have noticed a few time constants in the MM whose value is not well
-> >> explained, and I am wondering if the code is tuned for some ideal
-> >> system that doesn't behave like ours (considering, for instance, that
-> >> zram is much faster than swapping to a disk device, but it also uses
-> >> more CPU).  If this is plausible, I am wondering if anybody has
-> >> suggestions for changes that I could try out to obtain a better
-> >> behavior with a higher allocation speed.
-> >>
-> >> Thanks!
-> >> Luigi
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+>  From Jiang Liu:
+> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct
+> zone
+> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with
+> zone->managed_pages if appreciated
+> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing
+> pages in the zone
+> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
+> occupied by memmap
+> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages
+> allocated by bootmem allocator
+>
+>  From Andrew Morton:
+> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
+>
+> Tested-by: Chris Clayton <chris2553@googlemail.com>
+>
+>> Thanks,
+>> Chris
+>>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
