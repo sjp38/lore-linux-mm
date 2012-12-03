@@ -1,81 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 88F0A6B002B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 03:26:42 -0500 (EST)
-Message-ID: <50BC6314.7060106@leemhuis.info>
-Date: Mon, 03 Dec 2012 09:30:12 +0100
-From: Thorsten Leemhuis <fedora@leemhuis.info>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 7C6086B002B
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 03:36:42 -0500 (EST)
+Message-ID: <50BC6491.70600@parallels.com>
+Date: Mon, 3 Dec 2012 12:36:33 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: kswapd craziness in 3.7
-References: <20121127214928.GA20253@cmpxchg.org> <50B5387C.1030005@redhat.com> <20121127222637.GG2301@cmpxchg.org> <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com> <20121128101359.GT8218@suse.de> <20121128145215.d23aeb1b.akpm@linux-foundation.org> <20121128235412.GW8218@suse.de> <50B77F84.1030907@leemhuis.info> <20121129170512.GI2301@cmpxchg.org> <50B8A8E7.4030108@leemhuis.info> <20121201004520.GK2301@cmpxchg.org>
-In-Reply-To: <20121201004520.GK2301@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
+References: <50B8F2F4.6000508@parallels.com>
+In-Reply-To: <50B8F2F4.6000508@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Marcelo Tosatti <mtosatti@redhat.com>, Gleb Natapov <gleb@redhat.com>, kvm@vger.kernel.org
 
-Hi!
-
-Johannes Weiner wrote on 01.12.2012 01:45:
-> On Fri, Nov 30, 2012 at 01:39:03PM +0100, Thorsten Leemhuis wrote:
->> /me wonders how to elegantly get out of his man-in-the-middle position
-> You control the mighty koji :-)
-
-Something even a journalist can ;-)
-
-> But seriously, this is very helpful, thank you!
-
-Np; BTW, in case anybody here on LKML cares: I started maintaining a
-side repo (PPA in ubuntu speak) a few weeks ago that offers kernel
-vanilla builds (mainline and stable) for the Fedora 17 and 18; see
-https://fedoraproject.org/wiki/Kernel_Vanilla_Repositories
-for details. It's not as good and up2date yet as I would like it, but
-one has to start somewhere.
-
-Back to topic:
-
-> John now also Cc'd directly.
+On 11/30/2012 09:55 PM, Pavel Emelyanov wrote:
+> Hello,
 > 
->> John was able to reproduce the problem quickly with a kernel that 
->> contained the patch from your mail. For details see
->
-> [stripped: all the glory details of what likely went wrong and lead
-> to the problem john sees or saw]
->
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: vmscan: do not keep kswapd looping forever due
->  to individual uncompactable zones
+> This is an attempt to implement support for memory snapshot for the the
+> checkpoint-restore project (http://criu.org).
 > 
-> When a zone meets its high watermark and is compactable in case of
-> higher order allocations, it contributes to the percentage of the
-> node's memory that is considered balanced.
-> [...]
+> To create a dump of an application(s) we save all the information about it
+> to files. No surprise, the biggest part of such dump is the contents of tasks'
+> memory. However, in some usage scenarios it's not required to get _all_ the
+> task memory while creating a dump. For example, when doing periodical dumps
+> it's only required to take full memory dump only at the first step and then
+> take incremental changes of memory. Another example is live migration. In the
+> simplest form it looks like -- create dump, copy it on the remote node then
+> restore tasks from dump files. While all this dump-copy-restore thing goes all
+> the process must be stopped. However, if we can monitor how tasks change their
+> memory, we can dump and copy it in smaller chunks, periodically updating it 
+> and thus freezing tasks only at the very end for the very short time to pick
+> up the recent changes.
+> 
+> That said, some help from kernel to watch how processes modify the contents of
+> their memory is required. I'd like to propose one possible solution of this
+> task -- with the help of page-faults and trace events.
+> 
+> Briefly the approach is -- remap some memory regions as read-only, get the #pf
+> on task's attempt to modify the memory and issue a trace event of that. Since
+> we're only interested in parts of memory of some tasks, make it possible to mark
+> the vmas we're interested in and issue events for them only. Also, to be aware
+> of tasks unmapping the vma-s being watched, also issue an event when the marked
+> vma is removed (and for symmetry -- an event when a vma is marked).
+> 
+> What do you think about this approach? Is this way of supporting mem snapshot
+> OK for you, or should we invent some better one?
+> 
 
-FYI: I built a kernel with that patch. I've been running on my x86_64
-machine at home over the weekend and everything was working fine (just
-as without the patch). John gave it a quick try and in
-https://bugzilla.redhat.com/show_bug.cgi?id=866988#c57 reported:
+The page fault mechanism is pretty obvious - anything that deals with
+dirty pages will end up having to do this. So there is nothing crazy
+about this.
 
-"""
-I just installed
-kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686 and ran my
-usual load that triggers the problem.  OK so far.  I'll check again in
-24hours, but looking good so far.
-"""
+What concerns me, however, is that should this go in, we'll have two
+dirty mem loggers in the kernel: one to support CRIU, one to support
+KVM. And the worst part: They have the exact the same purpose!!
 
-BTW, I built that kernel without the patch you mentioned in
-http://thread.gmane.org/gmane.linux.kernel.mm/90911/focus=91153
-("buffer_heads_over_limit can put kswapd into reclaim, but it's ignored
-[...]) It looked to me like that patch was only meant for debugging. Let
-me know if that was wrong. Ohh, and I didn't update to a fresher
-mainline checkout yet to make sure the base for John's testing didn't
-change.
+So to begin with, I think one thing to consider, would be to generalize
+KVM's dirty memory notification so it can work on a normal process
+memory region. KVM api requires a "memory slot" to be passed, something
+we are unlikely to have. But KVM can easily keep its API and use an
+alternate mechanics, that's trivial...
 
-CU
- Thorsten
+Generally speaking, KVM will do polling with this ioctl. I prefer your
+tracing mechanism better. The only difference, is that KVM tends to
+transfer large chunks of memory in some loads - in the high gigs range.
+So the proposal tracing API should be able to optionally batch requests
+within a time frame.
+
+It would also be good to hear what does the KVM guys think of it as well
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
