@@ -1,80 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id E2BA46B005A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:43:11 -0500 (EST)
-Date: Mon, 3 Dec 2012 14:43:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory
- changes
-Message-Id: <20121203144310.7ccdbeb4.akpm@linux-foundation.org>
-In-Reply-To: <50B8F2F4.6000508@parallels.com>
-References: <50B8F2F4.6000508@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 814A46B0062
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:47:49 -0500 (EST)
+Message-ID: <50BD2BB9.7010808@redhat.com>
+Date: Mon, 03 Dec 2012 17:46:17 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 32/52] sched: Track groups of shared tasks
+References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-33-git-send-email-mingo@kernel.org>
+In-Reply-To: <1354473824-19229-33-git-send-email-mingo@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Fri, 30 Nov 2012 21:55:00 +0400
-Pavel Emelyanov <xemul@parallels.com> wrote:
+On 12/02/2012 01:43 PM, Ingo Molnar wrote:
 
-> This is an attempt to implement support for memory snapshot for the the
-> checkpoint-restore project (http://criu.org).
-> 
-> To create a dump of an application(s) we save all the information about it
-> to files. No surprise, the biggest part of such dump is the contents of tasks'
-> memory. However, in some usage scenarios it's not required to get _all_ the
-> task memory while creating a dump. For example, when doing periodical dumps
-> it's only required to take full memory dump only at the first step and then
-> take incremental changes of memory. Another example is live migration. In the
-> simplest form it looks like -- create dump, copy it on the remote node then
-> restore tasks from dump files. While all this dump-copy-restore thing goes all
-> the process must be stopped. However, if we can monitor how tasks change their
-> memory, we can dump and copy it in smaller chunks, periodically updating it 
-> and thus freezing tasks only at the very end for the very short time to pick
-> up the recent changes.
-> 
-> That said, some help from kernel to watch how processes modify the contents of
-> their memory is required. I'd like to propose one possible solution of this
-> task -- with the help of page-faults and trace events.
-> 
-> Briefly the approach is -- remap some memory regions as read-only, get the #pf
-> on task's attempt to modify the memory and issue a trace event of that. Since
-> we're only interested in parts of memory of some tasks, make it possible to mark
-> the vmas we're interested in and issue events for them only. Also, to be aware
-> of tasks unmapping the vma-s being watched, also issue an event when the marked
-> vma is removed (and for symmetry -- an event when a vma is marked).
-> 
-> What do you think about this approach? Is this way of supporting mem snapshot
-> OK for you, or should we invent some better one?
+> This is not entirely correct as this task might have scheduled or
+> migrate ther - but statistically there will be correlation to the
+           ^^^^ there?
 
-The patches look pretty simple.
+> tasks that we share memory with, and correlation is all we need.
+>
+> We map out the relation itself by filtering out the highest address
+> ask that is below our own task address, per working set scan
+   ^^^ task?
+> iteration.
 
-Some performance numbers would be useful.
+> @@ -906,23 +945,122 @@ out_backoff:
+>   }
+>
+>   /*
+> + * Track our "memory buddies" the tasks we actively share memory with.
+> + *
+> + * Firstly we establish the identity of some other task that we are
+> + * sharing memory with by looking at rq[page::last_cpu].curr - i.e.
+> + * we check the task that is running on that CPU right now.
+> + *
+> + * This is not entirely correct as this task might have scheduled or
+> + * migrate ther - but statistically there will be correlation to the
+               ^^^^ there
 
-Is it reliable?  Under what circumstances will the trace system drop
-events?
+> + * tasks that we share memory with, and correlation is all we need.
+> + *
+> + * We map out the relation itself by filtering out the highest address
+> + * ask that is below our own task address, per working set scan
+       ^^^ task?
 
-Please cc Steven Rostedt on tracing stuff - he is a diligent reviewer.
+If that word is "task", the comment makes sense. If it is
+something else, I'm back to square one on what the code does :)
 
-The proposed interface might be useful to things other than c/r.  But
-it hasn't actually been described.  Please include a full description
-of the proposed kernel/usersapce interface.
 
-Two alternatives come to mind:
+>   void task_numa_fault(int node, int last_cpu, int pages)
+>   {
+>   	struct task_struct *p = current;
+>   	int priv = (task_cpu(p) == last_cpu);
+> +	int idx = 2*node + priv;
+>
+>   	if (unlikely(!p->numa_faults)) {
+> -		int size = sizeof(*p->numa_faults) * 2 * nr_node_ids;
+> +		int entries = 2*nr_node_ids;
+> +		int size = sizeof(*p->numa_faults) * entries;
+>
+> -		p->numa_faults = kzalloc(size, GFP_KERNEL);
+> +		p->numa_faults = kzalloc(2*size, GFP_KERNEL);
 
-1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
-    fashion to determine which pages have been touched.
+So we multiply nr_node_ids by 2. Twice.
 
-2)  At pagefault time, don't send an event: just mark the vma as
-    "touched".  Then add a userspace interface to sweep the vma tree
-    testing, clearing and reporting the touched flags.
+That kind of magic deserves a comment explaining how
+and why.  How about:
 
-2a) Avoid the full linear search by propagating the "touched" flag
-    up the rbtree and do the sweep in a fashion similar to
-    radix_tree_for_each_tagged().
+	/*
+	 * We track two arrays with private and shared faults
+	 * for each NUMA node. The p->numa_faults_curr array
+	 * is allocated at the same time as the p->numa_faults
+	 * array.
+	 */
+	int size = sizeof(*p->numa_faults) * 4 * nr_node_ids;
+
+>   		if (!p->numa_faults)
+>   			return;
+> +		/*
+> +		 * For efficiency reasons we allocate ->numa_faults[]
+> +		 * and ->numa_faults_curr[] at once and split the
+> +		 * buffer we get. They are separate otherwise.
+> +		 */
+> +		p->numa_faults_curr = p->numa_faults + entries;
+>   	}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
