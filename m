@@ -1,79 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id EF1C56B004D
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:43:05 -0500 (EST)
-Date: Mon, 3 Dec 2012 14:42:08 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: kswapd craziness in 3.7
-Message-ID: <20121203194208.GZ24381@cmpxchg.org>
-References: <20121127222637.GG2301@cmpxchg.org>
- <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
- <20121128101359.GT8218@suse.de>
- <20121128145215.d23aeb1b.akpm@linux-foundation.org>
- <20121128235412.GW8218@suse.de>
- <50B77F84.1030907@leemhuis.info>
- <20121129170512.GI2301@cmpxchg.org>
- <50B8A8E7.4030108@leemhuis.info>
- <20121201004520.GK2301@cmpxchg.org>
- <50BC6314.7060106@leemhuis.info>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 9FE476B005D
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 14:57:21 -0500 (EST)
+Message-ID: <50BD03B7.2070401@redhat.com>
+Date: Mon, 03 Dec 2012 14:55:35 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50BC6314.7060106@leemhuis.info>
+Subject: Re: [PATCH 29/52] sched: Implement NUMA scanning backoff
+References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-30-git-send-email-mingo@kernel.org>
+In-Reply-To: <1354473824-19229-30-git-send-email-mingo@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Mon, Dec 03, 2012 at 09:30:12AM +0100, Thorsten Leemhuis wrote:
-> >> John was able to reproduce the problem quickly with a kernel that 
-> >> contained the patch from your mail. For details see
-> >
-> > [stripped: all the glory details of what likely went wrong and lead
-> > to the problem john sees or saw]
-> >
-> > ---
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Subject: [patch] mm: vmscan: do not keep kswapd looping forever due
-> >  to individual uncompactable zones
-> > 
-> > When a zone meets its high watermark and is compactable in case of
-> > higher order allocations, it contributes to the percentage of the
-> > node's memory that is considered balanced.
-> > [...]
-> 
-> FYI: I built a kernel with that patch. I've been running on my x86_64
-> machine at home over the weekend and everything was working fine (just
-> as without the patch). John gave it a quick try and in
-> https://bugzilla.redhat.com/show_bug.cgi?id=866988#c57 reported:
-> 
-> """
-> I just installed
-> kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686 and ran my
-> usual load that triggers the problem.  OK so far.  I'll check again in
-> 24hours, but looking good so far.
-> """
+On 12/02/2012 01:43 PM, Ingo Molnar wrote:
+> Back off slowly from scanning, up to sysctl_sched_numa_scan_period_max
+> (1.6 seconds). Scan faster again if we were forced to switch to
+> another node.
 
-w00t!
+> diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+> index 8f0e6ba..59fea2e 100644
+> --- a/kernel/sched/fair.c
+> +++ b/kernel/sched/fair.c
+> @@ -865,8 +865,10 @@ static void task_numa_placement(struct task_struct *p)
+>   		}
+>   	}
+>
+> -	if (max_node != p->numa_max_node)
+> +	if (max_node != p->numa_max_node) {
+>   		sched_setnuma(p, max_node, task_numa_shared(p));
+> +		goto out_backoff;
+> +	}
+>
+>   	p->numa_migrate_seq++;
+>   	if (sched_feat(NUMA_SETTLE) &&
 
-> BTW, I built that kernel without the patch you mentioned in
-> http://thread.gmane.org/gmane.linux.kernel.mm/90911/focus=91153
-> ("buffer_heads_over_limit can put kswapd into reclaim, but it's ignored
-> [...]) It looked to me like that patch was only meant for debugging. Let
-> me know if that was wrong. Ohh, and I didn't update to a fresher
-> mainline checkout yet to make sure the base for John's testing didn't
-> change.
+Is that correct?
 
-Ah, yes, the ApplyPatch is commented out.
+It looks like the code only jumps to the out_backoff label
+after resetting p->numa_scan_period to sysctl_sched_numa_scan_period_min
+in sched_setnuma?
 
-I think we want that upstream as well, but it's not critical.  It'll
-reduce kswapd CPU usage marginally on highmem systems in certain
-situations, but I don't think any of the 100% CPU usage problems are
-fixed by it.
+Should it not be the other way around, slowly increasing the process's
+numa_scan_period when we do NOT do a sched_setnuma call for the process
+at all?
 
-Not rebasing sounds reasonable to me to verify the patch.  It might be
-worth testing that the final version that will be 3.8 still works for
-John, however, once that is done.  Just to be sure.
+> @@ -882,7 +884,11 @@ static void task_numa_placement(struct task_struct *p)
+>   	if (shared != task_numa_shared(p)) {
+>   		sched_setnuma(p, p->numa_max_node, shared);
+>   		p->numa_migrate_seq = 0;
+> +		goto out_backoff;
+>   	}
+> +	return;
+
+We can never reach the backoff code, except by an explicit goto,
+which is only there after a call to sched_setnuma.
+
+That is the opposite from what the changelog suggests...
+
+> +out_backoff:
+> +	p->numa_scan_period = min(p->numa_scan_period * 2, sysctl_sched_numa_scan_period_max);
+>   }
+>
+>   /*
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
