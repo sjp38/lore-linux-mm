@@ -1,150 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
-	by kanga.kvack.org (Postfix) with SMTP id AD3506B0044
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 19:56:11 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so2403068pad.14
-        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 16:56:11 -0800 (PST)
-Date: Mon, 3 Dec 2012 16:56:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, mempolicy: Introduce spinlock to read shared policy
- tree
-In-Reply-To: <1353624594-1118-19-git-send-email-mingo@kernel.org>
-Message-ID: <alpine.DEB.2.00.1212031644440.32354@chino.kir.corp.google.com>
-References: <1353624594-1118-1-git-send-email-mingo@kernel.org> <1353624594-1118-19-git-send-email-mingo@kernel.org>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id CF2316B005A
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 19:57:34 -0500 (EST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
+	Mon, 3 Dec 2012 17:57:33 -0700
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id C152AC40015
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:57:23 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB40vSL0293260
+	for <linux-mm@kvack.org>; Mon, 3 Dec 2012 17:57:29 -0700
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB40xOjn016479
+	for <linux-mm@kvack.org>; Mon, 3 Dec 2012 17:59:26 -0700
+Message-ID: <50BD4A70.9060506@linaro.org>
+Date: Mon, 03 Dec 2012 16:57:20 -0800
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC v2] Support volatile range for anon vma
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org> <50AD739A.30804@linaro.org> <50B6E1F9.5010301@linaro.org> <20121204000042.GB20395@bbox>
+In-Reply-To: <20121204000042.GB20395@bbox>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <levinsasha928@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-From: Peter Zijlstra <a.p.zijlstra@chello.nl>
+On 12/03/2012 04:00 PM, Minchan Kim wrote:
+> On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
+>> On 11/21/2012 04:36 PM, John Stultz wrote:
+>>> 2) Being able to use this with tmpfs files. I'm currently trying
+>>> to better understand the rmap code, looking to see if there's a
+>>> way to have try_to_unmap_file() work similarly to
+>>> try_to_unmap_anon(), to allow allow users to madvise() on mmapped
+>>> tmpfs files. This would provide a very similar interface as to
+>>> what I've been proposing with fadvise/fallocate, but just using
+>>> process virtual addresses instead of (fd, offset) pairs.   The
+>>> benefit with (fd,offset) pairs for Android is that its easier to
+>>> manage shared volatile ranges between two processes that are
+>>> sharing data via an mmapped tmpfs file (although this actual use
+>>> case may be fairly rare).  I believe we should still be able to
+>>> rework the ashmem internals to use madvise (which would provide
+>>> legacy support for existing android apps), so then its just a
+>>> question of if we could then eventually convince Android apps to
+>>> use the madvise interface directly, rather then the ashmem unpin
+>>> ioctl.
+>> Hey Minchan,
+>>      I've been playing around with your patch trying to better
+>> understand your approach and to extend it to support tmpfs files. In
+>> doing so I've found a few bugs, and have some rough fixes I wanted
+>> to share. There's still a few edge cases I need to deal with (the
+>> vma-purged flag isn't being properly handled through vma merge/split
+>> operations), but its starting to come along.
+> Hmm, my patch doesn't allow to merge volatile with another one by
+> inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
+> In case of split, __split_vma copy old vma to new vma like this
+>
+>          *new = *vma;
+>
+> So the problem shouldn't happen, I guess.
+> Did you see the real problem about that?
+Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE is 
+applied, we can get a result where data is purged, but we aren't 
+notified of it.  Also, since madvise returns early if it encounters an 
+error, in the case where you have checkerboard volatile regions (say 
+every other page is volatile), which you mark non-volatile with one 
+large MADV_NOVOLATILE call, the first volatile vma will be marked 
+non-volatile, but since it returns purged, the madvise loop will stop 
+and the following volatile regions will be left volatile.
 
-Sasha was fuzzing with trinity and reported the following problem:
+The patches in the git tree below which handle the perged state better 
+seem to work for my tests, as far as resolving any overlapping calls. Of 
+course there may yet still be problems I've not found.
 
-BUG: sleeping function called from invalid context at kernel/mutex.c:269
-in_atomic(): 1, irqs_disabled(): 0, pid: 6361, name: trinity-main
-2 locks held by trinity-main/6361:
- #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff810aa314>] __do_page_fault+0x1e4/0x4f0
- #1:  (&(&mm->page_table_lock)->rlock){+.+...}, at: [<ffffffff8122f017>] handle_pte_fault+0x3f7/0x6a0
-Pid: 6361, comm: trinity-main Tainted: G        W 3.7.0-rc2-next-20121024-sasha-00001-gd95ef01-dirty #74
-Call Trace:
- [<ffffffff8114e393>] __might_sleep+0x1c3/0x1e0
- [<ffffffff83ae5209>] mutex_lock_nested+0x29/0x50
- [<ffffffff8124fc3e>] mpol_shared_policy_lookup+0x2e/0x90
- [<ffffffff81219ebe>] shmem_get_policy+0x2e/0x30
- [<ffffffff8124e99a>] get_vma_policy+0x5a/0xa0
- [<ffffffff8124fce1>] mpol_misplaced+0x41/0x1d0
- [<ffffffff8122f085>] handle_pte_fault+0x465/0x6a0
+>> Anyway, take a look at the tree here and let me know what you think.
+>> http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
 
-do_numa_page() calls the new mpol_misplaced() function introduced by 
-"sched, numa, mm: Add the scanning page fault machinery" in the page fault 
-patch while holding mm->page_table_lock and then 
-mpol_shared_policy_lookup() ends up trying to take the shared policy 
-mutex.
+Eager to hear what you think!
 
-The fix is to protect the shared policy tree with both a spinlock and 
-mutex; both must be held to modify the tree, but only one is required to 
-read the tree.  This allows sp_lookup() to grab the spinlock for read.
-
-[rientjes@google.com: wrote changelog]
-Reported-by: Sasha Levin <levinsasha928@gmail.com>
-Tested-by: Sasha Levin <levinsasha928@gmail.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/mempolicy.h |    1 +
- mm/mempolicy.c            |   23 ++++++++++++++++++-----
- 2 files changed, 19 insertions(+), 5 deletions(-)
-
-diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
---- a/include/linux/mempolicy.h
-+++ b/include/linux/mempolicy.h
-@@ -133,6 +133,7 @@ struct sp_node {
- 
- struct shared_policy {
- 	struct rb_root root;
-+	spinlock_t lock;
- 	struct mutex mutex;
- };
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2090,12 +2090,20 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
-  *
-  * Remember policies even when nobody has shared memory mapped.
-  * The policies are kept in Red-Black tree linked from the inode.
-- * They are protected by the sp->lock spinlock, which should be held
-- * for any accesses to the tree.
-+ *
-+ * The rb-tree is locked using both a mutex and a spinlock. Every modification
-+ * to the tree must hold both the mutex and the spinlock, lookups can hold
-+ * either to observe a stable tree.
-+ *
-+ * In particular, sp_insert() and sp_delete() take the spinlock, whereas
-+ * sp_lookup() doesn't, this so users have choice.
-+ *
-+ * shared_policy_replace() and mpol_free_shared_policy() take the mutex
-+ * and call sp_insert(), sp_delete().
-  */
- 
- /* lookup first element intersecting start-end */
--/* Caller holds sp->mutex */
-+/* Caller holds either sp->lock and/or sp->mutex */
- static struct sp_node *
- sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
- {
-@@ -2134,6 +2142,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
- 	struct rb_node *parent = NULL;
- 	struct sp_node *nd;
- 
-+	spin_lock(&sp->lock);
- 	while (*p) {
- 		parent = *p;
- 		nd = rb_entry(parent, struct sp_node, nd);
-@@ -2146,6 +2155,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
- 	}
- 	rb_link_node(&new->nd, parent, p);
- 	rb_insert_color(&new->nd, &sp->root);
-+	spin_unlock(&sp->lock);
- 	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
- 		 new->policy ? new->policy->mode : 0);
- }
-@@ -2159,13 +2169,13 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
- 
- 	if (!sp->root.rb_node)
- 		return NULL;
--	mutex_lock(&sp->mutex);
-+	spin_lock(&sp->lock);
- 	sn = sp_lookup(sp, idx, idx+1);
- 	if (sn) {
- 		mpol_get(sn->policy);
- 		pol = sn->policy;
- 	}
--	mutex_unlock(&sp->mutex);
-+	spin_unlock(&sp->lock);
- 	return pol;
- }
- 
-@@ -2178,8 +2188,10 @@ static void sp_free(struct sp_node *n)
- static void sp_delete(struct shared_policy *sp, struct sp_node *n)
- {
- 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
-+	spin_lock(&sp->lock);
- 	rb_erase(&n->nd, &sp->root);
- 	sp_free(n);
-+	spin_unlock(&sp->lock);
- }
- 
- static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
-@@ -2264,6 +2276,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
- 	int ret;
- 
- 	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
-+	spin_lock_init(&sp->lock);
- 	mutex_init(&sp->mutex);
- 
- 	if (mpol) {
+Thanks again!
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
