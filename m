@@ -1,86 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 6AD2C6B002B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 21:34:09 -0500 (EST)
-Date: Tue, 4 Dec 2012 13:34:05 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
- threads
-Message-ID: <20121204023405.GE32450@dastard>
-References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id B2A2D6B002B
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 00:05:42 -0500 (EST)
+Message-ID: <50BD8464.3060709@parallels.com>
+Date: Tue, 04 Dec 2012 09:04:36 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
+Subject: Re: [PATCH 2/2] mm: Generate events when tasks change their memory
+References: <50B8F2F4.6000508@parallels.com> <50B8F327.4030703@parallels.com> <50BD38D6.7060900@linux.vnet.ibm.com>
+In-Reply-To: <50BD38D6.7060900@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zach Brown <zab@redhat.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Mon, Dec 03, 2012 at 01:53:39PM -0500, Jeff Moyer wrote:
-> Hi,
+On 12/04/2012 03:42 AM, Xiao Guangrong wrote:
+> On 12/01/2012 01:55 AM, Pavel Emelyanov wrote:
 > 
-> In realtime environments, it may be desirable to keep the per-bdi
-> flusher threads from running on certain cpus.  This patch adds a
-> cpu_list file to /sys/class/bdi/* to enable this.  The default is to tie
-> the flusher threads to the same numa node as the backing device (though
-> I could be convinced to make it a mask of all cpus to avoid a change in
-> behaviour).
+>>  	case MADV_DOTRACE:
+>> +		/*
+>> +		 * Protect pages to be read-only and force tasks to generate
+>> +		 * #PFs on modification.
+>> +		 *
+>> +		 * It should be done before issuing trace-on event. Otherwise
+>> +		 * we're leaving a short window after the 'on' event when tasks
+>> +		 * can still modify pages.
+>> +		 */
+>> +		change_protection(vma, start, end,
+>> +				vm_get_page_prot(vma->vm_flags & ~VM_READ),
+>> +				vma_wants_writenotify(vma));
+> 
+> Should be VM_WRITE?
 
-The default seems reasonable to me.
-
-> Comments, as always, are appreciated.
-.....
-
-> +static ssize_t cpu_list_store(struct device *dev,
-> +		struct device_attribute *attr, const char *buf, size_t count)
-> +{
-> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
-> +	struct bdi_writeback *wb = &bdi->wb;
-> +	cpumask_var_t newmask;
-> +	ssize_t ret;
-> +	struct task_struct *task;
-> +
-> +	if (!alloc_cpumask_var(&newmask, GFP_KERNEL))
-> +		return -ENOMEM;
-> +
-> +	ret = cpulist_parse(buf, newmask);
-> +	if (!ret) {
-> +		spin_lock(&bdi->wb_lock);
-> +		task = wb->task;
-> +		if (task)
-> +			get_task_struct(task);
-> +		spin_unlock(&bdi->wb_lock);
-> +		if (task) {
-> +			ret = set_cpus_allowed_ptr(task, newmask);
-> +			put_task_struct(task);
-> +		}
-
-Why is this set here outside the bdi->flusher_cpumask_mutex?
-
-Also, I'd prefer it named "..._lock" as that is the normal
-convention for such variables. You can tell the type of lock from
-the declaration or the use...
-
-....
-
-> @@ -437,6 +488,14 @@ static int bdi_forker_thread(void *ptr)
->  				spin_lock_bh(&bdi->wb_lock);
->  				bdi->wb.task = task;
->  				spin_unlock_bh(&bdi->wb_lock);
-> +				mutex_lock(&bdi->flusher_cpumask_mutex);
-> +				ret = set_cpus_allowed_ptr(task,
-> +							bdi->flusher_cpumask);
-> +				mutex_unlock(&bdi->flusher_cpumask_mutex);
-
-As it is set under the lock here....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Ooops! Yes, sure. I guess I accidentally broke it while cleaning/splitting patch :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
