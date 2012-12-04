@@ -1,88 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id CF2316B005A
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 19:57:34 -0500 (EST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
-	Mon, 3 Dec 2012 17:57:33 -0700
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id C152AC40015
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 17:57:23 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB40vSL0293260
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2012 17:57:29 -0700
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB40xOjn016479
-	for <linux-mm@kvack.org>; Mon, 3 Dec 2012 17:59:26 -0700
-Message-ID: <50BD4A70.9060506@linaro.org>
-Date: Mon, 03 Dec 2012 16:57:20 -0800
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 41E0A6B002B
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 20:21:39 -0500 (EST)
+Message-ID: <50BD5001.9000203@huawei.com>
+Date: Tue, 4 Dec 2012 09:21:05 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v2] Support volatile range for anon vma
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org> <50AD739A.30804@linaro.org> <50B6E1F9.5010301@linaro.org> <20121204000042.GB20395@bbox>
-In-Reply-To: <20121204000042.GB20395@bbox>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
+ occupied by memmap
+References: <20121120111942.c9596d3f.akpm@linux-foundation.org> <1353510586-6393-1-git-send-email-jiang.liu@huawei.com> <20121128155221.df369ce4.akpm@linux-foundation.org> <50B73E56.4050603@googlemail.com> <50BBB21D.3070005@googlemail.com> <20121203151715.8c536a7a.akpm@linux-foundation.org>
+In-Reply-To: <20121203151715.8c536a7a.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Chris Clayton <chris2553@googlemail.com>, Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/03/2012 04:00 PM, Minchan Kim wrote:
-> On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
->> On 11/21/2012 04:36 PM, John Stultz wrote:
->>> 2) Being able to use this with tmpfs files. I'm currently trying
->>> to better understand the rmap code, looking to see if there's a
->>> way to have try_to_unmap_file() work similarly to
->>> try_to_unmap_anon(), to allow allow users to madvise() on mmapped
->>> tmpfs files. This would provide a very similar interface as to
->>> what I've been proposing with fadvise/fallocate, but just using
->>> process virtual addresses instead of (fd, offset) pairs.   The
->>> benefit with (fd,offset) pairs for Android is that its easier to
->>> manage shared volatile ranges between two processes that are
->>> sharing data via an mmapped tmpfs file (although this actual use
->>> case may be fairly rare).  I believe we should still be able to
->>> rework the ashmem internals to use madvise (which would provide
->>> legacy support for existing android apps), so then its just a
->>> question of if we could then eventually convince Android apps to
->>> use the madvise interface directly, rather then the ashmem unpin
->>> ioctl.
->> Hey Minchan,
->>      I've been playing around with your patch trying to better
->> understand your approach and to extend it to support tmpfs files. In
->> doing so I've found a few bugs, and have some rough fixes I wanted
->> to share. There's still a few edge cases I need to deal with (the
->> vma-purged flag isn't being properly handled through vma merge/split
->> operations), but its starting to come along.
-> Hmm, my patch doesn't allow to merge volatile with another one by
-> inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
-> In case of split, __split_vma copy old vma to new vma like this
->
->          *new = *vma;
->
-> So the problem shouldn't happen, I guess.
-> Did you see the real problem about that?
-Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE is 
-applied, we can get a result where data is purged, but we aren't 
-notified of it.  Also, since madvise returns early if it encounters an 
-error, in the case where you have checkerboard volatile regions (say 
-every other page is volatile), which you mark non-volatile with one 
-large MADV_NOVOLATILE call, the first volatile vma will be marked 
-non-volatile, but since it returns purged, the madvise loop will stop 
-and the following volatile regions will be left volatile.
+On 2012-12-4 7:17, Andrew Morton wrote:
+> On Sun, 02 Dec 2012 19:55:09 +0000
+> Chris Clayton <chris2553@googlemail.com> wrote:
+> 
+>>
+>>
+>> On 11/29/12 10:52, Chris Clayton wrote:
+>>> On 11/28/12 23:52, Andrew Morton wrote:
+>>>> On Wed, 21 Nov 2012 23:09:46 +0800
+>>>> Jiang Liu <liuj97@gmail.com> wrote:
+>>>>
+>>>>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
+>>>>> of pages occupied by memmap
+>>>>
+>>>> How are people to test this?  "does it boot"?
+>>>>
+>>>
+>>> I've been running kernels with Gerry's 5 patches applied for 11 days
+>>> now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
+>>> joined the conversation because my laptop would not resume from suspend
+>>> to disk - it either froze or rebooted. With the patches applied the
+>>> laptop does successfully resume and has been stable.
+>>>
+>>> Since Monday, I have have been running a kernel with the patches (plus,
+>>> from today, the patch you mailed yesterday) applied to 3.7rc7, without
+>>> problems.
+>>>
+>>
+>> I've been running 3.7-rc7 with the patches listed below for a week now 
+>> and it has been perfectly stable. In particular, my laptop will now 
+>> successfully resume from suspend to disk, which always failed without 
+>> the patches.
+>>
+>>  From Jiang Liu:
+>> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct zone
+>> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with 
+>> zone->managed_pages if appreciated
+>> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing 
+>> pages in the zone
+>> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages 
+>> occupied by memmap
+>> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages 
+>> allocated by bootmem allocator
+>>
+>>  From Andrew Morton:
+>> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
+>>
+>> Tested-by: Chris Clayton <chris2553@googlemail.com>
+> 
+> Thanks.
+> 
+> I have only two of these five patches queued for 3.8:
+> mm-introduce-new-field-managed_pages-to-struct-zone.patch and
+> mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch. 
+> I don't recall what happened with the other three.
 
-The patches in the git tree below which handle the perged state better 
-seem to work for my tests, as far as resolving any overlapping calls. Of 
-course there may yet still be problems I've not found.
-
->> Anyway, take a look at the tree here and let me know what you think.
->> http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
-
-Eager to hear what you think!
-
-Thanks again!
--john
+Hi Andrew,
+	I think the story that,
+1) I sent out all five patches for the first version.
+2) Later updated and resend the first and forth patches according to 
+   review comments without touching the other three patches.
+	So you may just get the updated two without noticing the other
+three from the initial patchset.
+	Sorry for the trouble.
+Regards!
+Gerry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
