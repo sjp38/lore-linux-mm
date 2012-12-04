@@ -1,63 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 9AE426B004D
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 13:26:18 -0500 (EST)
-Date: Tue, 4 Dec 2012 18:17:56 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] mm/migration: Make rmap_walk_anon() and
- try_to_unmap_anon() more scalable
-Message-ID: <20121204143714.GB2797@suse.de>
-References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
- <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
- <20121201094927.GA12366@gmail.com>
- <20121201122649.GA20322@gmail.com>
- <CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com>
- <20121201184135.GA32449@gmail.com>
- <CA+55aFyq7OaUxcEHXvJhp0T57KN14o-RGxqPmA+ks8ge6zJh5w@mail.gmail.com>
- <20121201201538.GB2704@gmail.com>
- <20121203141701.GN8218@suse.de>
- <CANN689Hm=g+PhJrVZ8mngPL58k45GfmwL_19F27WtwJC0G-=6g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 234146B004D
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 14:15:12 -0500 (EST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <john.stultz@linaro.org>;
+	Tue, 4 Dec 2012 12:15:10 -0700
+Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 100591FF0043
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 12:15:01 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB4JEvZ6206540
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 12:14:58 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB4JDnLR023551
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 12:13:55 -0700
+Message-ID: <50BE4B64.6000003@linaro.org>
+Date: Tue, 04 Dec 2012 11:13:40 -0800
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CANN689Hm=g+PhJrVZ8mngPL58k45GfmwL_19F27WtwJC0G-=6g@mail.gmail.com>
+Subject: Re: [RFC v2] Support volatile range for anon vma
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org> <50AD739A.30804@linaro.org> <50B6E1F9.5010301@linaro.org> <20121204000042.GB20395@bbox> <50BD4A70.9060506@linaro.org> <20121204072207.GA9782@blaptop>
+In-Reply-To: <20121204072207.GA9782@blaptop>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Dec 04, 2012 at 06:37:41AM -0800, Michel Lespinasse wrote:
-> On Mon, Dec 3, 2012 at 6:17 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Sat, Dec 01, 2012 at 09:15:38PM +0100, Ingo Molnar wrote:
-> >> @@ -732,7 +732,7 @@ static int page_referenced_anon(struct p
-> >>       struct anon_vma_chain *avc;
-> >>       int referenced = 0;
-> >>
-> >> -     anon_vma = page_lock_anon_vma(page);
-> >> +     anon_vma = page_lock_anon_vma_read(page);
-> >>       if (!anon_vma)
-> >>               return referenced;
-> >
-> > This is a slightly trickier one as this path is called from reclaim. It does
-> > open the possibility that reclaim can stall something like a parallel fork
-> > or anything that requires the anon_vma rwsem for a period of time. I very
-> > severely doubt it'll really be a problem but keep an eye out for bug reports
-> > related to delayed mmap/fork/anything_needing_write_lock during page reclaim.
-> 
-> I don't see why this would be a problem - rwsem does implement
-> reader/writer fairness, so having some sites do a read lock instead of
-> a write lock shouldn't cause the write lock sites to starve. Is this
-> what you were worried about ?
-> 
+On 12/03/2012 11:22 PM, Minchan Kim wrote:
+> On Mon, Dec 03, 2012 at 04:57:20PM -0800, John Stultz wrote:
+>> On 12/03/2012 04:00 PM, Minchan Kim wrote:
+>>> On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
+>>>> On 11/21/2012 04:36 PM, John Stultz wrote:
+>>>>> 2) Being able to use this with tmpfs files. I'm currently trying
+>>>>> to better understand the rmap code, looking to see if there's a
+>>>>> way to have try_to_unmap_file() work similarly to
+>>>>> try_to_unmap_anon(), to allow allow users to madvise() on mmapped
+>>>>> tmpfs files. This would provide a very similar interface as to
+>>>>> what I've been proposing with fadvise/fallocate, but just using
+>>>>> process virtual addresses instead of (fd, offset) pairs.   The
+>>>>> benefit with (fd,offset) pairs for Android is that its easier to
+>>>>> manage shared volatile ranges between two processes that are
+>>>>> sharing data via an mmapped tmpfs file (although this actual use
+>>>>> case may be fairly rare).  I believe we should still be able to
+>>>>> rework the ashmem internals to use madvise (which would provide
+>>>>> legacy support for existing android apps), so then its just a
+>>>>> question of if we could then eventually convince Android apps to
+>>>>> use the madvise interface directly, rather then the ashmem unpin
+>>>>> ioctl.
+>>>> Hey Minchan,
+>>>>      I've been playing around with your patch trying to better
+>>>> understand your approach and to extend it to support tmpfs files. In
+>>>> doing so I've found a few bugs, and have some rough fixes I wanted
+>>>> to share. There's still a few edge cases I need to deal with (the
+>>>> vma-purged flag isn't being properly handled through vma merge/split
+>>>> operations), but its starting to come along.
+>>> Hmm, my patch doesn't allow to merge volatile with another one by
+>>> inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
+>>> In case of split, __split_vma copy old vma to new vma like this
+>>>
+>>>          *new = *vma;
+>>>
+>>> So the problem shouldn't happen, I guess.
+>>> Did you see the real problem about that?
+>> Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE
+>> is applied, we can get a result where data is purged, but we aren't
+>> notified of it.  Also, since madvise returns early if it encounters
+>> an error, in the case where you have checkerboard volatile regions
+>> (say every other page is volatile), which you mark non-volatile with
+>> one large MADV_NOVOLATILE call, the first volatile vma will be
+>> marked non-volatile, but since it returns purged, the madvise loop
+>> will stop and the following volatile regions will be left volatile.
+>>
+>> The patches in the git tree below which handle the perged state
+>> better seem to work for my tests, as far as resolving any
+>> overlapping calls. Of course there may yet still be problems I've
+>> not found.
+>>
+>>>> Anyway, take a look at the tree here and let me know what you think.
+>>>> http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
+>> Eager to hear what you think!
+> Below two patches look good to me.
+>
+> [rmap: Simplify volatility checking by moving it out of try_to_unmap_one]
+> [rmap: ClearPageDirty() when returning SWAP_DISCARD]
+>
+> [madvise: Fix NOVOLATILE bug]
+> I can't understand description of the patch.
+> Could you elaborate it with example?
+The case I ran into here is if you have a range where you mark every 
+other page as volatile. Then mark all the pages in that range as 
+non-volatile in one madvise call.
 
-Yes. I did not expect they would be starved forever, just delayed longer
-than they might have been before. I would be very surprised if there is
-anything other than a synthetic case that will really care but I've been
-"very surprised" before :)
+sys_madvise() will then find the first vma in the range, and call 
+madvise_vma(), which marks the first vma non-volatile and return the 
+purged state.  If the page has been purged, sys_madvise code will note 
+that as an error, and break out of the vma iteration loop, leaving the 
+following vmas in the range volatile.
 
--- 
-Mel Gorman
-SUSE Labs
+> [madvise: Fixup vma->purged handling]
+> I included VM_VOLATILE into VM_SPECIAL intentionally.
+> If comment of VM_SPECIAL is right, merge with volatile vmas shouldn't happen.
+> So I guess you see other problem. When I see my source code today, locking
+> scheme/purge handling is totally broken. I will look at it. Maybe you are seeing
+> bug related that. Part of patch is needed. It could be separate patch.
+> I will merge it.
+I don't think the problem is when vmas being marked VM_VOLATILE are 
+being merged, its that when we mark the vma as *non-volatile*, and 
+remove the VM_VOLATILE flag we merge the non-volatile vmas with 
+neighboring vmas. So preserving the purged flag during that merge is 
+important. Again, the example I used to trigger this was an alternating 
+pattern of volatile and non volatile vmas, then marking the entire range 
+non-volatile (though sometimes in two overlapping passes).
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
