@@ -1,15 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 11A326B0074
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 04:23:01 -0500 (EST)
-Message-ID: <50BDC0B9.50007@cn.fujitsu.com>
-Date: Tue, 04 Dec 2012 17:22:01 +0800
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 846406B0078
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 04:23:37 -0500 (EST)
+Message-ID: <50BDC0DE.4010103@cn.fujitsu.com>
+Date: Tue, 04 Dec 2012 17:22:38 +0800
 From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [Patch v4 02/12] memory-hotplug: check whether all memory blocks
- are offlined or not when removing memory
-References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-3-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1354010422-19648-3-git-send-email-wency@cn.fujitsu.com>
+Subject: Re: [Patch v4 03/12] memory-hotplug: remove redundant codes
+References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-4-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1354010422-19648-4-git-send-email-wency@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
@@ -18,20 +17,9 @@ To: Wen Congyang <wency@cn.fujitsu.com>
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
 On 11/27/2012 06:00 PM, Wen Congyang wrote:
-> From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
->
-> We remove the memory like this:
-> 1. lock memory hotplug
-> 2. offline a memory block
-> 3. unlock memory hotplug
-> 4. repeat 1-3 to offline all memory blocks
-> 5. lock memory hotplug
-> 6. remove memory(TODO)
-> 7. unlock memory hotplug
->
-> All memory blocks must be offlined before removing memory. But we don't hold
-> the lock in the whole operation. So we should check whether all memory blocks
-> are offlined before step6. Otherwise, kernel maybe panicked.
+> offlining memory blocks and checking whether memory blocks are offlined
+> are very similar. This patch introduces a new function to remove
+> redundant codes.
 >
 > CC: David Rientjes<rientjes@google.com>
 > CC: Jiang Liu<liuj97@gmail.com>
@@ -40,104 +28,158 @@ On 11/27/2012 06:00 PM, Wen Congyang wrote:
 > Cc: Minchan Kim<minchan.kim@gmail.com>
 > CC: Andrew Morton<akpm@linux-foundation.org>
 > CC: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> CC: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
 > Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
-> Signed-off-by: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+
+Can we merge this patch with [PATCH 03/12] ?
 
 Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
 
 > ---
->   drivers/base/memory.c          |  6 ++++++
->   include/linux/memory_hotplug.h |  1 +
->   mm/memory_hotplug.c            | 47 ++++++++++++++++++++++++++++++++++++++++++
->   3 files changed, 54 insertions(+)
+>   mm/memory_hotplug.c | 101 ++++++++++++++++++++++++++++------------------------
+>   1 file changed, 55 insertions(+), 46 deletions(-)
 >
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 86c8821..badb025 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -675,6 +675,12 @@ int offline_memory_block(struct memory_block *mem)
->   	return ret;
->   }
->
-> +/* return true if the memory block is offlined, otherwise, return false */
-> +bool is_memblock_offlined(struct memory_block *mem)
-> +{
-> +	return mem->state == MEM_OFFLINE;
-> +}
-> +
->   /*
->    * Initialize the sysfs support for memory devices...
->    */
-> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-> index 95573ec..38675e9 100644
-> --- a/include/linux/memory_hotplug.h
-> +++ b/include/linux/memory_hotplug.h
-> @@ -236,6 +236,7 @@ extern int add_memory(int nid, u64 start, u64 size);
->   extern int arch_add_memory(int nid, u64 start, u64 size);
->   extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
->   extern int offline_memory_block(struct memory_block *mem);
-> +extern bool is_memblock_offlined(struct memory_block *mem);
->   extern int remove_memory(u64 start, u64 size);
->   extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
->   								int nr_pages);
 > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b825dbc..b6d1101 100644
+> index b6d1101..6d06488 100644
 > --- a/mm/memory_hotplug.c
 > +++ b/mm/memory_hotplug.c
-> @@ -1054,6 +1054,53 @@ repeat:
+> @@ -1005,20 +1005,14 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+>   	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
+>   }
+>
+> -int remove_memory(u64 start, u64 size)
+> +static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+> +		void *arg, int (*func)(struct memory_block *, void *))
+>   {
+>   	struct memory_block *mem = NULL;
+>   	struct mem_section *section;
+> -	unsigned long start_pfn, end_pfn;
+>   	unsigned long pfn, section_nr;
+>   	int ret;
+> -	int return_on_error = 0;
+> -	int retry = 0;
+> -
+> -	start_pfn = PFN_DOWN(start);
+> -	end_pfn = start_pfn + PFN_DOWN(size);
+>
+> -repeat:
+>   	for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
+>   		section_nr = pfn_to_section_nr(pfn);
+>   		if (!present_section_nr(section_nr))
+> @@ -1035,22 +1029,61 @@ repeat:
+>   		if (!mem)
+>   			continue;
+>
+> -		ret = offline_memory_block(mem);
+> +		ret = func(mem, arg);
+>   		if (ret) {
+> -			if (return_on_error) {
+> -				kobject_put(&mem->dev.kobj);
+> -				return ret;
+> -			} else {
+> -				retry = 1;
+> -			}
+> +			kobject_put(&mem->dev.kobj);
+> +			return ret;
+>   		}
+>   	}
+>
+>   	if (mem)
+>   		kobject_put(&mem->dev.kobj);
+>
+> -	if (retry) {
+> -		return_on_error = 1;
+> +	return 0;
+> +}
+> +
+> +static int offline_memory_block_cb(struct memory_block *mem, void *arg)
+> +{
+> +	int *ret = arg;
+> +	int error = offline_memory_block(mem);
+> +
+> +	if (error != 0&&  *ret == 0)
+> +		*ret = error;
+> +
+> +	return 0;
+> +}
+> +
+> +static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+> +{
+> +	int ret = !is_memblock_offlined(mem);
+> +
+> +	if (unlikely(ret))
+> +		pr_warn("removing memory fails, because memory "
+> +			"[%#010llx-%#010llx] is onlined\n",
+> +			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
+> +			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
+> +
+> +	return ret;
+> +}
+> +
+> +int remove_memory(u64 start, u64 size)
+> +{
+> +	unsigned long start_pfn, end_pfn;
+> +	int ret = 0;
+> +	int retry = 1;
+> +
+> +	start_pfn = PFN_DOWN(start);
+> +	end_pfn = start_pfn + PFN_DOWN(size);
+> +
+> +repeat:
+> +	walk_memory_range(start_pfn, end_pfn,&ret,
+> +			  offline_memory_block_cb);
+> +	if (ret) {
+> +		if (!retry)
+> +			return ret;
+> +
+> +		retry = 0;
+> +		ret = 0;
 >   		goto repeat;
 >   	}
 >
-> +	lock_memory_hotplug();
-> +
-> +	/*
-> +	 * we have offlined all memory blocks like this:
-> +	 *   1. lock memory hotplug
-> +	 *   2. offline a memory block
-> +	 *   3. unlock memory hotplug
-> +	 *
-> +	 * repeat step1-3 to offline the memory block. All memory blocks
-> +	 * must be offlined before removing memory. But we don't hold the
-> +	 * lock in the whole operation. So we should check whether all
-> +	 * memory blocks are offlined.
-> +	 */
-> +
-> +	for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
-> +		section_nr = pfn_to_section_nr(pfn);
-> +		if (!present_section_nr(section_nr))
-> +			continue;
-> +
-> +		section = __nr_to_section(section_nr);
-> +		/* same memblock? */
-> +		if (mem)
-> +			if ((section_nr>= mem->start_section_nr)&&
-> +			    (section_nr<= mem->end_section_nr))
-> +				continue;
-> +
-> +		mem = find_memory_block_hinted(section, mem);
-> +		if (!mem)
-> +			continue;
-> +
-> +		ret = is_memblock_offlined(mem);
-> +		if (!ret) {
-> +			pr_warn("removing memory fails, because memory "
-> +				"[%#010llx-%#010llx] is onlined\n",
-> +				PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-> +				PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1)) - 1);
-> +
-> +			kobject_put(&mem->dev.kobj);
-> +			unlock_memory_hotplug();
-> +			return ret;
-> +		}
-> +	}
-> +
-> +	if (mem)
-> +		kobject_put(&mem->dev.kobj);
-> +	unlock_memory_hotplug();
-> +
+> @@ -1068,37 +1101,13 @@ repeat:
+>   	 * memory blocks are offlined.
+>   	 */
+>
+> -	for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
+> -		section_nr = pfn_to_section_nr(pfn);
+> -		if (!present_section_nr(section_nr))
+> -			continue;
+> -
+> -		section = __nr_to_section(section_nr);
+> -		/* same memblock? */
+> -		if (mem)
+> -			if ((section_nr>= mem->start_section_nr)&&
+> -			    (section_nr<= mem->end_section_nr))
+> -				continue;
+> -
+> -		mem = find_memory_block_hinted(section, mem);
+> -		if (!mem)
+> -			continue;
+> -
+> -		ret = is_memblock_offlined(mem);
+> -		if (!ret) {
+> -			pr_warn("removing memory fails, because memory "
+> -				"[%#010llx-%#010llx] is onlined\n",
+> -				PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
+> -				PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1)) - 1);
+> -
+> -			kobject_put(&mem->dev.kobj);
+> -			unlock_memory_hotplug();
+> -			return ret;
+> -		}
+> +	ret = walk_memory_range(start_pfn, end_pfn, NULL,
+> +				is_memblock_offlined_cb);
+> +	if (ret) {
+> +		unlock_memory_hotplug();
+> +		return ret;
+>   	}
+>
+> -	if (mem)
+> -		kobject_put(&mem->dev.kobj);
+>   	unlock_memory_hotplug();
+>
 >   	return 0;
->   }
->   #else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
