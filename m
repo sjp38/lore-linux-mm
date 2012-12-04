@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id D2B456B006C
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 11:22:43 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id d41so2882699eek.14
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 08:22:42 -0800 (PST)
-Message-ID: <50BE234E.7000603@suse.cz>
-Date: Tue, 04 Dec 2012 17:22:38 +0100
-From: Jiri Slaby <jslaby@suse.cz>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 9A82D6B004D
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 12:30:32 -0500 (EST)
+Date: Tue, 4 Dec 2012 18:30:17 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 00/10] Latest numa/core release, v18
+In-Reply-To: <20121203134110.GL8218@suse.de>
+Message-ID: <alpine.LFD.2.02.1212041825140.2701@ionos>
+References: <1354305521-11583-1-git-send-email-mingo@kernel.org> <CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com> <20121203134110.GL8218@suse.de>
 MIME-Version: 1.0
-Subject: Re: kswapd craziness in 3.7
-References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org> <20121128094511.GS8218@suse.de> <50BCC3E3.40804@redhat.com> <20121203191858.GY24381@cmpxchg.org> <50BDBCD9.9060509@redhat.com> <50BDBF1D.60105@suse.cz> <20121204161131.GB24381@cmpxchg.org>
-In-Reply-To: <20121204161131.GB24381@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Zdenek Kabelac <zkabelac@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Thorsten Leemhuis <fedora@leemhuis.info>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis.Kletnieks@vt.edu, Bruno Wolff III <bruno@wolff.to>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On 12/04/2012 05:11 PM, Johannes Weiner wrote:
->>>> Any chance you could retry with this patch on top?
->>
->> It does not apply to -next :/. Should I try anything else?
+On Mon, 3 Dec 2012, Mel Gorman wrote:
+> On Fri, Nov 30, 2012 at 12:37:49PM -0800, Linus Torvalds wrote:
+> > So if this is a migration-specific scalability issue, then it might be
+> > possible to solve by making the mutex be a rwsem instead, and have
+> > migration only take it for reading.
+> > 
+> > Of course, I'm quite possibly wrong, and the code depends on full
+> > mutual exclusion.
+> > 
+> > Just a thought, in case it makes somebody go "Hmm.."
+> > 
 > 
-> The COMPACTION_BUILD changed to IS_ENABLED(CONFIG_COMPACTION), below
-> is a -next patch.  I hope you don't run into other problems that come
-> out of -next craziness, because Linus is kinda waiting for this to be
-> resolved to release 3.8.  If you've always tested against -next so far
-> and it worked otherwise, don't change the environment now, please.  If
-> you just started, it would make more sense to test based on 3.7-rc8.
+> Offhand, I cannot think of a reason why a rwsem would not work. This
+> thing originally became a mutex because the RT people (Peter in
+> particular) cared about being able to preempt faster. It'd be nice if
+> they confirmed that rwsem is not be a problem for them.
 
-I reported the issue as soon as it appeared in -next for the first time
-on Oct 12. Since then I'm constantly hitting the issue (well, there were
-more than one I suppose, but not all of them were fixed by now) until
-now. I run only -next...
+rwsems are preemptable as well. So I don't think this was Peter's main
+concern. If it works with an rwsem, then go ahead.
 
-Going to apply the patch now.
+rwsems degrade on RT because we cannot do multiple reader boosting, so
+they allow only a single reader which can take it recursive. But
+that's an RT specific issue and nothing you should worry about.
 
--- 
-js
-suse labs
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
