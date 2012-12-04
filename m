@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 41E0A6B002B
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 20:21:39 -0500 (EST)
-Message-ID: <50BD5001.9000203@huawei.com>
-Date: Tue, 4 Dec 2012 09:21:05 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 6AD2C6B002B
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 21:34:09 -0500 (EST)
+Date: Tue, 4 Dec 2012 13:34:05 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
+ threads
+Message-ID: <20121204023405.GE32450@dastard>
+References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
- occupied by memmap
-References: <20121120111942.c9596d3f.akpm@linux-foundation.org> <1353510586-6393-1-git-send-email-jiang.liu@huawei.com> <20121128155221.df369ce4.akpm@linux-foundation.org> <50B73E56.4050603@googlemail.com> <50BBB21D.3070005@googlemail.com> <20121203151715.8c536a7a.akpm@linux-foundation.org>
-In-Reply-To: <20121203151715.8c536a7a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chris Clayton <chris2553@googlemail.com>, Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zach Brown <zab@redhat.com>
 
-On 2012-12-4 7:17, Andrew Morton wrote:
-> On Sun, 02 Dec 2012 19:55:09 +0000
-> Chris Clayton <chris2553@googlemail.com> wrote:
+On Mon, Dec 03, 2012 at 01:53:39PM -0500, Jeff Moyer wrote:
+> Hi,
 > 
->>
->>
->> On 11/29/12 10:52, Chris Clayton wrote:
->>> On 11/28/12 23:52, Andrew Morton wrote:
->>>> On Wed, 21 Nov 2012 23:09:46 +0800
->>>> Jiang Liu <liuj97@gmail.com> wrote:
->>>>
->>>>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
->>>>> of pages occupied by memmap
->>>>
->>>> How are people to test this?  "does it boot"?
->>>>
->>>
->>> I've been running kernels with Gerry's 5 patches applied for 11 days
->>> now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
->>> joined the conversation because my laptop would not resume from suspend
->>> to disk - it either froze or rebooted. With the patches applied the
->>> laptop does successfully resume and has been stable.
->>>
->>> Since Monday, I have have been running a kernel with the patches (plus,
->>> from today, the patch you mailed yesterday) applied to 3.7rc7, without
->>> problems.
->>>
->>
->> I've been running 3.7-rc7 with the patches listed below for a week now 
->> and it has been perfectly stable. In particular, my laptop will now 
->> successfully resume from suspend to disk, which always failed without 
->> the patches.
->>
->>  From Jiang Liu:
->> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct zone
->> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with 
->> zone->managed_pages if appreciated
->> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing 
->> pages in the zone
->> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages 
->> occupied by memmap
->> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages 
->> allocated by bootmem allocator
->>
->>  From Andrew Morton:
->> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
->>
->> Tested-by: Chris Clayton <chris2553@googlemail.com>
-> 
-> Thanks.
-> 
-> I have only two of these five patches queued for 3.8:
-> mm-introduce-new-field-managed_pages-to-struct-zone.patch and
-> mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch. 
-> I don't recall what happened with the other three.
+> In realtime environments, it may be desirable to keep the per-bdi
+> flusher threads from running on certain cpus.  This patch adds a
+> cpu_list file to /sys/class/bdi/* to enable this.  The default is to tie
+> the flusher threads to the same numa node as the backing device (though
+> I could be convinced to make it a mask of all cpus to avoid a change in
+> behaviour).
 
-Hi Andrew,
-	I think the story that,
-1) I sent out all five patches for the first version.
-2) Later updated and resend the first and forth patches according to 
-   review comments without touching the other three patches.
-	So you may just get the updated two without noticing the other
-three from the initial patchset.
-	Sorry for the trouble.
-Regards!
-Gerry
+The default seems reasonable to me.
+
+> Comments, as always, are appreciated.
+.....
+
+> +static ssize_t cpu_list_store(struct device *dev,
+> +		struct device_attribute *attr, const char *buf, size_t count)
+> +{
+> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> +	struct bdi_writeback *wb = &bdi->wb;
+> +	cpumask_var_t newmask;
+> +	ssize_t ret;
+> +	struct task_struct *task;
+> +
+> +	if (!alloc_cpumask_var(&newmask, GFP_KERNEL))
+> +		return -ENOMEM;
+> +
+> +	ret = cpulist_parse(buf, newmask);
+> +	if (!ret) {
+> +		spin_lock(&bdi->wb_lock);
+> +		task = wb->task;
+> +		if (task)
+> +			get_task_struct(task);
+> +		spin_unlock(&bdi->wb_lock);
+> +		if (task) {
+> +			ret = set_cpus_allowed_ptr(task, newmask);
+> +			put_task_struct(task);
+> +		}
+
+Why is this set here outside the bdi->flusher_cpumask_mutex?
+
+Also, I'd prefer it named "..._lock" as that is the normal
+convention for such variables. You can tell the type of lock from
+the declaration or the use...
+
+....
+
+> @@ -437,6 +488,14 @@ static int bdi_forker_thread(void *ptr)
+>  				spin_lock_bh(&bdi->wb_lock);
+>  				bdi->wb.task = task;
+>  				spin_unlock_bh(&bdi->wb_lock);
+> +				mutex_lock(&bdi->flusher_cpumask_mutex);
+> +				ret = set_cpus_allowed_ptr(task,
+> +							bdi->flusher_cpumask);
+> +				mutex_unlock(&bdi->flusher_cpumask_mutex);
+
+As it is set under the lock here....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
