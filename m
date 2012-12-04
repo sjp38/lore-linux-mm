@@ -1,185 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 846406B0078
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 04:23:37 -0500 (EST)
-Message-ID: <50BDC0DE.4010103@cn.fujitsu.com>
-Date: Tue, 04 Dec 2012 17:22:38 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 482456B007D
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 04:29:46 -0500 (EST)
+Date: Tue, 4 Dec 2012 10:29:41 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/4] memcg: prevent changes to move_charge_at_immigrate
+ during task attach
+Message-ID: <20121204092941.GH31319@dhcp22.suse.cz>
+References: <1354282286-32278-1-git-send-email-glommer@parallels.com>
+ <1354282286-32278-3-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [Patch v4 03/12] memory-hotplug: remove redundant codes
-References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-4-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1354010422-19648-4-git-send-email-wency@cn.fujitsu.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1354282286-32278-3-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>
 
-On 11/27/2012 06:00 PM, Wen Congyang wrote:
-> offlining memory blocks and checking whether memory blocks are offlined
-> are very similar. This patch introduces a new function to remove
-> redundant codes.
->
-> CC: David Rientjes<rientjes@google.com>
-> CC: Jiang Liu<liuj97@gmail.com>
-> CC: Len Brown<len.brown@intel.com>
-> CC: Christoph Lameter<cl@linux.com>
-> Cc: Minchan Kim<minchan.kim@gmail.com>
-> CC: Andrew Morton<akpm@linux-foundation.org>
-> CC: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> CC: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
-> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+On Fri 30-11-12 17:31:24, Glauber Costa wrote:
+> Currently, we rely on the cgroup_lock() to prevent changes to
+> move_charge_at_immigrate during task migration. We can do something
+> similar to what cpuset is doing, and flip a flag to tell us if task
+> movement is taking place.
+> 
+> In theory, we could busy loop waiting for that value to return to 0 - it
+> will eventually. But I am judging that returning EAGAIN is not too much
+> of a problem, since file writers already should be checking for error
+> codes anyway.
 
-Can we merge this patch with [PATCH 03/12] ?
+I think we should prevent from EAGAIN because this is a behavior change.
+Why not just loop with signal_pending test for breaking out and a small
+sleep after attach_in_progress > 0 && unlock?
 
-Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
-
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
 > ---
->   mm/memory_hotplug.c | 101 ++++++++++++++++++++++++++++------------------------
->   1 file changed, 55 insertions(+), 46 deletions(-)
->
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index b6d1101..6d06488 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1005,20 +1005,14 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
->   	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
->   }
->
-> -int remove_memory(u64 start, u64 size)
-> +static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
-> +		void *arg, int (*func)(struct memory_block *, void *))
->   {
->   	struct memory_block *mem = NULL;
->   	struct mem_section *section;
-> -	unsigned long start_pfn, end_pfn;
->   	unsigned long pfn, section_nr;
->   	int ret;
-> -	int return_on_error = 0;
-> -	int retry = 0;
+>  mm/memcontrol.c | 64 +++++++++++++++++++++++++++++++++++++++++++++------------
+>  1 file changed, 51 insertions(+), 13 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index feba87d..d80b6b5 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -311,7 +311,13 @@ struct mem_cgroup {
+>  	 * Should we move charges of a task when a task is moved into this
+>  	 * mem_cgroup ? And what type of charges should we move ?
+>  	 */
+> -	unsigned long 	move_charge_at_immigrate;
+> +	unsigned long	move_charge_at_immigrate;
+> +        /*
+> +	 * Tasks are being attached to this memcg.  Used mostly to prevent
+> +	 * changes to move_charge_at_immigrate
+> +	 */
+> +        int attach_in_progress;
+> +
+>  	/*
+>  	 * set > 0 if pages under this cgroup are moving to other cgroup.
+>  	 */
+> @@ -4114,6 +4120,7 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+>  					struct cftype *cft, u64 val)
+>  {
+>  	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+> +	int ret = -EAGAIN;
+>  
+>  	if (val >= (1 << NR_MOVE_TYPE))
+>  		return -EINVAL;
+> @@ -4123,10 +4130,13 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+>  	 * inconsistent.
+>  	 */
+>  	cgroup_lock();
+> +	if (memcg->attach_in_progress)
+> +		goto out;
+>  	memcg->move_charge_at_immigrate = val;
+> +	ret = 0;
+> +out:
+>  	cgroup_unlock();
 > -
-> -	start_pfn = PFN_DOWN(start);
-> -	end_pfn = start_pfn + PFN_DOWN(size);
->
-> -repeat:
->   	for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
->   		section_nr = pfn_to_section_nr(pfn);
->   		if (!present_section_nr(section_nr))
-> @@ -1035,22 +1029,61 @@ repeat:
->   		if (!mem)
->   			continue;
->
-> -		ret = offline_memory_block(mem);
-> +		ret = func(mem, arg);
->   		if (ret) {
-> -			if (return_on_error) {
-> -				kobject_put(&mem->dev.kobj);
-> -				return ret;
-> -			} else {
-> -				retry = 1;
-> -			}
-> +			kobject_put(&mem->dev.kobj);
-> +			return ret;
->   		}
->   	}
->
->   	if (mem)
->   		kobject_put(&mem->dev.kobj);
->
-> -	if (retry) {
-> -		return_on_error = 1;
-> +	return 0;
-> +}
-> +
-> +static int offline_memory_block_cb(struct memory_block *mem, void *arg)
-> +{
-> +	int *ret = arg;
-> +	int error = offline_memory_block(mem);
-> +
-> +	if (error != 0&&  *ret == 0)
-> +		*ret = error;
-> +
-> +	return 0;
-> +}
-> +
-> +static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
-> +{
-> +	int ret = !is_memblock_offlined(mem);
-> +
-> +	if (unlikely(ret))
-> +		pr_warn("removing memory fails, because memory "
-> +			"[%#010llx-%#010llx] is onlined\n",
-> +			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-> +			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
-> +
+> -	return 0;
 > +	return ret;
+>  }
+>  #else
+>  static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+> @@ -5443,12 +5453,12 @@ static void mem_cgroup_clear_mc(void)
+>  	mem_cgroup_end_move(from);
+>  }
+>  
+> -static int mem_cgroup_can_attach(struct cgroup *cgroup,
+> -				 struct cgroup_taskset *tset)
+> +
+> +static int __mem_cgroup_can_attach(struct mem_cgroup *memcg,
+> +				   struct cgroup_taskset *tset)
+>  {
+>  	struct task_struct *p = cgroup_taskset_first(tset);
+>  	int ret = 0;
+> -	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
+>  
+>  	if (memcg->move_charge_at_immigrate) {
+>  		struct mm_struct *mm;
+> @@ -5482,8 +5492,8 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
+>  	return ret;
+>  }
+>  
+> -static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
+> -				     struct cgroup_taskset *tset)
+> +static void __mem_cgroup_cancel_attach(struct mem_cgroup *memcg,
+> +				       struct cgroup_taskset *tset)
+>  {
+>  	mem_cgroup_clear_mc();
+>  }
+> @@ -5630,8 +5640,8 @@ retry:
+>  	up_read(&mm->mmap_sem);
+>  }
+>  
+> -static void mem_cgroup_move_task(struct cgroup *cont,
+> -				 struct cgroup_taskset *tset)
+> +static void __mem_cgroup_move_task(struct mem_cgroup *memcg,
+> +				   struct cgroup_taskset *tset)
+>  {
+>  	struct task_struct *p = cgroup_taskset_first(tset);
+>  	struct mm_struct *mm = get_task_mm(p);
+> @@ -5645,20 +5655,48 @@ static void mem_cgroup_move_task(struct cgroup *cont,
+>  		mem_cgroup_clear_mc();
+>  }
+>  #else	/* !CONFIG_MMU */
+> +static int __mem_cgroup_can_attach(struct mem_cgroup *memcg,
+> +				   struct cgroup_taskset *tset)
+> +{
+> +	return 0;
 > +}
 > +
-> +int remove_memory(u64 start, u64 size)
+> +static void __mem_cgroup_cancel_attach(struct mem_cgroup *memcg,
+> +				       struct cgroup_taskset *tset)
 > +{
-> +	unsigned long start_pfn, end_pfn;
-> +	int ret = 0;
-> +	int retry = 1;
+> +}
 > +
-> +	start_pfn = PFN_DOWN(start);
-> +	end_pfn = start_pfn + PFN_DOWN(size);
+> +static void __mem_cgroup_move_task(struct mem_cgroup *memcg,
+> +				   struct cgroup_taskset *tset)
+> +{
+> +}
+> +#endif
+>  static int mem_cgroup_can_attach(struct cgroup *cgroup,
+>  				 struct cgroup_taskset *tset)
+>  {
+> -	return 0;
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
 > +
-> +repeat:
-> +	walk_memory_range(start_pfn, end_pfn,&ret,
-> +			  offline_memory_block_cb);
-> +	if (ret) {
-> +		if (!retry)
-> +			return ret;
+> +	memcg->attach_in_progress++;
+> +	return __mem_cgroup_can_attach(memcg, tset);
+>  }
 > +
-> +		retry = 0;
-> +		ret = 0;
->   		goto repeat;
->   	}
->
-> @@ -1068,37 +1101,13 @@ repeat:
->   	 * memory blocks are offlined.
->   	 */
->
-> -	for (pfn = start_pfn; pfn<  end_pfn; pfn += PAGES_PER_SECTION) {
-> -		section_nr = pfn_to_section_nr(pfn);
-> -		if (!present_section_nr(section_nr))
-> -			continue;
-> -
-> -		section = __nr_to_section(section_nr);
-> -		/* same memblock? */
-> -		if (mem)
-> -			if ((section_nr>= mem->start_section_nr)&&
-> -			    (section_nr<= mem->end_section_nr))
-> -				continue;
-> -
-> -		mem = find_memory_block_hinted(section, mem);
-> -		if (!mem)
-> -			continue;
-> -
-> -		ret = is_memblock_offlined(mem);
-> -		if (!ret) {
-> -			pr_warn("removing memory fails, because memory "
-> -				"[%#010llx-%#010llx] is onlined\n",
-> -				PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-> -				PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1)) - 1);
-> -
-> -			kobject_put(&mem->dev.kobj);
-> -			unlock_memory_hotplug();
-> -			return ret;
-> -		}
-> +	ret = walk_memory_range(start_pfn, end_pfn, NULL,
-> +				is_memblock_offlined_cb);
-> +	if (ret) {
-> +		unlock_memory_hotplug();
-> +		return ret;
->   	}
->
-> -	if (mem)
-> -		kobject_put(&mem->dev.kobj);
->   	unlock_memory_hotplug();
->
->   	return 0;
+>  static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
+>  				     struct cgroup_taskset *tset)
+>  {
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
+> +
+> +	__mem_cgroup_cancel_attach(memcg, tset);
+> +	memcg->attach_in_progress--;
+>  }
+> -static void mem_cgroup_move_task(struct cgroup *cont,
+> +
+> +static void mem_cgroup_move_task(struct cgroup *cgroup,
+>  				 struct cgroup_taskset *tset)
+>  {
+> +	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
+> +
+> +	__mem_cgroup_move_task(memcg, tset);
+> +	memcg->attach_in_progress--;
+>  }
+> -#endif
+>  
+>  struct cgroup_subsys mem_cgroup_subsys = {
+>  	.name = "memory",
+> -- 
+> 1.7.11.7
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
