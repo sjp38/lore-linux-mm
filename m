@@ -1,73 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id CD8E06B0070
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 15:27:09 -0500 (EST)
-Message-ID: <50BE5C99.6070703@fusionio.com>
-Date: Tue, 4 Dec 2012 21:27:05 +0100
-From: Jens Axboe <jaxboe@fusionio.com>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id C5B566B0072
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 15:35:43 -0500 (EST)
+Date: Wed, 5 Dec 2012 07:35:39 +1100
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
  threads
-References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com> <50BE5988.3050501@fusionio.com> <x498v9dpnwu.fsf@segfault.boston.devel.redhat.com>
-In-Reply-To: <x498v9dpnwu.fsf@segfault.boston.devel.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20121204203539.GA16353@dastard>
+References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
+ <20121204023405.GE32450@dastard>
+ <x49liddq3o0.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49liddq3o0.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jeff Moyer <jmoyer@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zach Brown <zab@redhat.com>
+Cc: Jens Axboe <jaxboe@fusionio.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zach Brown <zab@redhat.com>
 
-On 2012-12-04 21:23, Jeff Moyer wrote:
-> Jens Axboe <jaxboe@fusionio.com> writes:
+On Tue, Dec 04, 2012 at 09:42:55AM -0500, Jeff Moyer wrote:
+> Dave Chinner <david@fromorbit.com> writes:
 > 
->> On 2012-12-03 19:53, Jeff Moyer wrote:
->>> Hi,
->>>
->>> In realtime environments, it may be desirable to keep the per-bdi
->>> flusher threads from running on certain cpus.  This patch adds a
->>> cpu_list file to /sys/class/bdi/* to enable this.  The default is to tie
->>> the flusher threads to the same numa node as the backing device (though
->>> I could be convinced to make it a mask of all cpus to avoid a change in
->>> behaviour).
->>
->> Looks sane, and I think defaulting to the home node is a sane default.
->> One comment:
->>
->>> +	ret = cpulist_parse(buf, newmask);
->>> +	if (!ret) {
->>> +		spin_lock(&bdi->wb_lock);
->>> +		task = wb->task;
->>> +		if (task)
->>> +			get_task_struct(task);
->>> +		spin_unlock(&bdi->wb_lock);
->>
->> bdi->wb_lock needs to be bh safe. The above should have caused lockdep
->> warnings for you.
+> > On Mon, Dec 03, 2012 at 01:53:39PM -0500, Jeff Moyer wrote:
+> >> +static ssize_t cpu_list_store(struct device *dev,
+> >> +		struct device_attribute *attr, const char *buf, size_t count)
+> >> +{
+> >> +	struct backing_dev_info *bdi = dev_get_drvdata(dev);
+> >> +	struct bdi_writeback *wb = &bdi->wb;
+> >> +	cpumask_var_t newmask;
+> >> +	ssize_t ret;
+> >> +	struct task_struct *task;
+> >> +
+> >> +	if (!alloc_cpumask_var(&newmask, GFP_KERNEL))
+> >> +		return -ENOMEM;
+> >> +
+> >> +	ret = cpulist_parse(buf, newmask);
+> >> +	if (!ret) {
+> >> +		spin_lock(&bdi->wb_lock);
+> >> +		task = wb->task;
+> >> +		if (task)
+> >> +			get_task_struct(task);
+> >> +		spin_unlock(&bdi->wb_lock);
+> >> +		if (task) {
+> >> +			ret = set_cpus_allowed_ptr(task, newmask);
+> >> +			put_task_struct(task);
+> >> +		}
+> >
+> > Why is this set here outside the bdi->flusher_cpumask_mutex?
 > 
-> No lockdep complaints.  I'll double check that's enabled (but I usually
-> have it enabled...).
-> 
->>> @@ -437,6 +488,14 @@ static int bdi_forker_thread(void *ptr)
->>>  				spin_lock_bh(&bdi->wb_lock);
->>>  				bdi->wb.task = task;
->>>  				spin_unlock_bh(&bdi->wb_lock);
->>> +				mutex_lock(&bdi->flusher_cpumask_mutex);
->>> +				ret = set_cpus_allowed_ptr(task,
->>> +							bdi->flusher_cpumask);
->>> +				mutex_unlock(&bdi->flusher_cpumask_mutex);
->>
->> It'd be very useful if we had a kthread_create_cpu_on_cpumask() instead
->> of a _node() variant, since the latter could easily be implemented on
->> top of the former. But not really a show stopper for the patch...
-> 
-> Hmm, if it isn't too scary, I might give this a try.
+> The cpumask mutex protects updates to bdi->flusher_cpumask, it has
+> nothing to do with the call to set_cpus_allowed.  We are protected from
+> concurrent calls to cpu_list_store by the sysfs mutex that is taken on
+> entry.  I understand that this is non-obvious, and it wouldn't be wrong
+> to hold the mutex here.  If you'd like me to do that for clarity, that
+> would be ok with me.
 
-Should not be, pretty much just removing the node part of the create
-struct passed in and making it a cpumask. And for the on_node() case,
-cpumask_of_ndoe() will do the trick.
+At minimum it needs a comment like this otherwise someone is going
+to come along and ask "why is that safe?" like I just did. I'd
+prefer the code to be obviously consistent to avoid the need for
+commenting about the special case, especially when the obviously
+correct code is simpler ;)
 
+Cheers,
+
+Dave.
 -- 
-Jens Axboe
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
