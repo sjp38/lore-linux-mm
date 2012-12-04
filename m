@@ -1,101 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id D21B96B002B
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 00:16:05 -0500 (EST)
-Message-ID: <50BD86DE.6050700@parallels.com>
-Date: Tue, 04 Dec 2012 09:15:10 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 2A4046B0044
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 02:22:09 -0500 (EST)
+Date: Tue, 4 Dec 2012 16:22:07 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v2] Support volatile range for anon vma
+Message-ID: <20121204072207.GA9782@blaptop>
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
+ <50AD739A.30804@linaro.org>
+ <50B6E1F9.5010301@linaro.org>
+ <20121204000042.GB20395@bbox>
+ <50BD4A70.9060506@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
-References: <50B8F2F4.6000508@parallels.com> <20121203144310.7ccdbeb4.akpm@linux-foundation.org>
-In-Reply-To: <20121203144310.7ccdbeb4.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50BD4A70.9060506@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 12/04/2012 02:43 AM, Andrew Morton wrote:
-> On Fri, 30 Nov 2012 21:55:00 +0400
-> Pavel Emelyanov <xemul@parallels.com> wrote:
+On Mon, Dec 03, 2012 at 04:57:20PM -0800, John Stultz wrote:
+> On 12/03/2012 04:00 PM, Minchan Kim wrote:
+> >On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
+> >>On 11/21/2012 04:36 PM, John Stultz wrote:
+> >>>2) Being able to use this with tmpfs files. I'm currently trying
+> >>>to better understand the rmap code, looking to see if there's a
+> >>>way to have try_to_unmap_file() work similarly to
+> >>>try_to_unmap_anon(), to allow allow users to madvise() on mmapped
+> >>>tmpfs files. This would provide a very similar interface as to
+> >>>what I've been proposing with fadvise/fallocate, but just using
+> >>>process virtual addresses instead of (fd, offset) pairs.   The
+> >>>benefit with (fd,offset) pairs for Android is that its easier to
+> >>>manage shared volatile ranges between two processes that are
+> >>>sharing data via an mmapped tmpfs file (although this actual use
+> >>>case may be fairly rare).  I believe we should still be able to
+> >>>rework the ashmem internals to use madvise (which would provide
+> >>>legacy support for existing android apps), so then its just a
+> >>>question of if we could then eventually convince Android apps to
+> >>>use the madvise interface directly, rather then the ashmem unpin
+> >>>ioctl.
+> >>Hey Minchan,
+> >>     I've been playing around with your patch trying to better
+> >>understand your approach and to extend it to support tmpfs files. In
+> >>doing so I've found a few bugs, and have some rough fixes I wanted
+> >>to share. There's still a few edge cases I need to deal with (the
+> >>vma-purged flag isn't being properly handled through vma merge/split
+> >>operations), but its starting to come along.
+> >Hmm, my patch doesn't allow to merge volatile with another one by
+> >inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
+> >In case of split, __split_vma copy old vma to new vma like this
+> >
+> >         *new = *vma;
+> >
+> >So the problem shouldn't happen, I guess.
+> >Did you see the real problem about that?
+> Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE
+> is applied, we can get a result where data is purged, but we aren't
+> notified of it.  Also, since madvise returns early if it encounters
+> an error, in the case where you have checkerboard volatile regions
+> (say every other page is volatile), which you mark non-volatile with
+> one large MADV_NOVOLATILE call, the first volatile vma will be
+> marked non-volatile, but since it returns purged, the madvise loop
+> will stop and the following volatile regions will be left volatile.
 > 
->> This is an attempt to implement support for memory snapshot for the the
->> checkpoint-restore project (http://criu.org).
->>
->> To create a dump of an application(s) we save all the information about it
->> to files. No surprise, the biggest part of such dump is the contents of tasks'
->> memory. However, in some usage scenarios it's not required to get _all_ the
->> task memory while creating a dump. For example, when doing periodical dumps
->> it's only required to take full memory dump only at the first step and then
->> take incremental changes of memory. Another example is live migration. In the
->> simplest form it looks like -- create dump, copy it on the remote node then
->> restore tasks from dump files. While all this dump-copy-restore thing goes all
->> the process must be stopped. However, if we can monitor how tasks change their
->> memory, we can dump and copy it in smaller chunks, periodically updating it 
->> and thus freezing tasks only at the very end for the very short time to pick
->> up the recent changes.
->>
->> That said, some help from kernel to watch how processes modify the contents of
->> their memory is required. I'd like to propose one possible solution of this
->> task -- with the help of page-faults and trace events.
->>
->> Briefly the approach is -- remap some memory regions as read-only, get the #pf
->> on task's attempt to modify the memory and issue a trace event of that. Since
->> we're only interested in parts of memory of some tasks, make it possible to mark
->> the vmas we're interested in and issue events for them only. Also, to be aware
->> of tasks unmapping the vma-s being watched, also issue an event when the marked
->> vma is removed (and for symmetry -- an event when a vma is marked).
->>
->> What do you think about this approach? Is this way of supporting mem snapshot
->> OK for you, or should we invent some better one?
+> The patches in the git tree below which handle the perged state
+> better seem to work for my tests, as far as resolving any
+> overlapping calls. Of course there may yet still be problems I've
+> not found.
 > 
-> The patches look pretty simple.
+> >>Anyway, take a look at the tree here and let me know what you think.
+> >>http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
 > 
-> Some performance numbers would be useful.
+> Eager to hear what you think!
+
+Below two patches look good to me.
+
+[rmap: Simplify volatility checking by moving it out of try_to_unmap_one]
+[rmap: ClearPageDirty() when returning SWAP_DISCARD]
+
+[madvise: Fix NOVOLATILE bug]
+I can't understand description of the patch.
+Could you elaborate it with example?
+
+[madvise: Fixup vma->purged handling]
+I included VM_VOLATILE into VM_SPECIAL intentionally.
+If comment of VM_SPECIAL is right, merge with volatile vmas shouldn't happen.
+So I guess you see other problem. When I see my source code today, locking
+scheme/purge handling is totally broken. I will look at it. Maybe you are seeing
+bug related that. Part of patch is needed. It could be separate patch.
+I will merge it.
+
+ff --git a/mm/madvise.c b/mm/madvise.c
+index 65af0b5..5469d76 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -139,8 +139,10 @@ success:
+        if (behavior == MADV_NOVOLATILE || behavior == MADV_VOLATILE)
+                volatile_lock(vma);
+        vma->vm_flags = new_flags;
+-       if (behavior == MADV_NOVOLATILE)
++       if (behavior == MADV_NOVOLATILE) {
+                error = vma->purged;
++               vma->purged = 0;
++       }
+        if (behavior == MADV_NOVOLATILE || behavior == MADV_VOLATILE)
+                volatile_unlock(vma);
+ out:
+
+First of all, after I resolve above issue, let's talk about tmpfs volatile.
+Thanks for the fix, John!
+
 > 
-> Is it reliable?  Under what circumstances will the trace system drop
-> events?
-
-AFAIS when the buffer for events overflows, but the buffer size can be
-tuned. I will write some mode descriptive text about it if the tracing
-approach will be considered to be the way to go.
-
-> Please cc Steven Rostedt on tracing stuff - he is a diligent reviewer.
-
-OK.
-
-> The proposed interface might be useful to things other than c/r.  But
-> it hasn't actually been described.  Please include a full description
-> of the proposed kernel/usersapce interface.
-
-OK, will try to address that.
-
-> Two alternatives come to mind:
+> Thanks again!
+> -john
 > 
-> 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
->     fashion to determine which pages have been touched.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-I thought about this. Unfortunately there's no free bits left in the pagemap
-entry. What can we do about it (other than introducing the pagemap2 file)?
-
-> 2)  At pagefault time, don't send an event: just mark the vma as
->     "touched".  Then add a userspace interface to sweep the vma tree
->     testing, clearing and reporting the touched flags.
-
-Per-vma granularity is not enough. In OpenVZ we've observed Oracle touching
-several pages in a hundred-megs anon mapping. Marking _part_ of the vma with
-the "node write-faults" bit would help, but there's currently no APIs that
-modifies vma and report some info back at the same time. Can you propose how
-it could look like?
-
-> 2a) Avoid the full linear search by propagating the "touched" flag
->     up the rbtree and do the sweep in a fashion similar to
->     radix_tree_for_each_tagged().
-> .
-
-Thanks,
-Pavel
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
