@@ -1,134 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 46ED96B0044
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 03:26:16 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so2754233pbc.14
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 00:26:15 -0800 (PST)
-Message-ID: <50BDB372.50106@gmail.com>
-Date: Tue, 04 Dec 2012 16:25:22 +0800
-From: wujianguo <wujianguo106@gmail.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 543FB6B0044
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 03:31:37 -0500 (EST)
+Message-ID: <50BDB4E3.4040107@parallels.com>
+Date: Tue, 4 Dec 2012 12:31:31 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 2/8] mm: Initialize node memory regions during boot
-References: <20121106195026.6941.24662.stgit@srivatsabhat.in.ibm.com> <20121106195241.6941.43309.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20121106195241.6941.43309.stgit@srivatsabhat.in.ibm.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 4/4] memcg: replace cgroup_lock with memcg specific memcg_lock
+References: <1354282286-32278-1-git-send-email-glommer@parallels.com> <1354282286-32278-5-git-send-email-glommer@parallels.com> <20121203171532.GG17093@dhcp22.suse.cz> <50BDAD38.6030200@parallels.com> <20121204082316.GB31319@dhcp22.suse.cz>
+In-Reply-To: <20121204082316.GB31319@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, mjg59@srcf.ucam.org, paulmck@linux.vnet.ibm.com, dave@linux.vnet.ibm.com, maxime.coquelin@stericsson.com, loic.pallardy@stericsson.com, arjan@linux.intel.com, kmpark@infradead.org, kamezawa.hiroyu@jp.fujitsu.com, lenb@kernel.org, rjw@sisk.pl, gargankita@gmail.com, amit.kachhap@linaro.org, svaidy@linux.vnet.ibm.com, thomas.abraham@linaro.org, santosh.shilimkar@ti.com, linux-pm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Srivatsa,
-
-I got following compile waring:
-
-WARNING: vmlinux.o(.text+0x10b320): Section mismatch in reference from the function init_zone_memory_regions() to the function .meminit.text:__absent_pages_in_range()
-The function init_zone_memory_regions() references
-the function __meminit __absent_pages_in_range().
-This is often because init_zone_memory_regions lacks a __meminit
-annotation or the annotation of __absent_pages_in_range is wrong.
-
-WARNING: vmlinux.o(.text+0x10b457): Section mismatch in reference from the function init_node_memory_regions() to the function .meminit.text:__absent_pages_in_range()
-The function init_node_memory_regions() references
-the function __meminit __absent_pages_in_range().
-This is often because init_node_memory_regions lacks a __meminit
-annotation or the annotation of __absent_pages_in_range is wrong.
-
-I think should add *__paginginit* to the following three functions:
-init_memory_regions()
-init_node_memory_regions()
-init_zone_memory_regions()
-
-Thanks,
-Jianguo wu
-
-On 2012-11-7 3:52, Srivatsa S. Bhat wrote:
-> Initialize the node's memory regions structures with the information about
-> the region-boundaries, at boot time.
+On 12/04/2012 12:23 PM, Michal Hocko wrote:
+> On Tue 04-12-12 11:58:48, Glauber Costa wrote:
+>> On 12/03/2012 09:15 PM, Michal Hocko wrote:
+>>> On Fri 30-11-12 17:31:26, Glauber Costa wrote:
+>>> [...]
+>>>> +/*
+>>>> + * must be called with memcg_lock held, unless the cgroup is guaranteed to be
+>>>> + * already dead (like in mem_cgroup_force_empty, for instance).
+>>>> + */
+>>>> +static inline bool memcg_has_children(struct mem_cgroup *memcg)
+>>>> +{
+>>>> +	return mem_cgroup_count_children(memcg) != 1;
+>>>> +}
+>>>
+>>> Why not just keep list_empty(&cgrp->children) which is much simpler much
+>>> more effective and correct here as well because cgroup cannot vanish
+>>> while we are at the call because all callers come from cgroup fs?
+>>>
+>> Because it depends on cgroup's internal representation, which I think
+>> we're better off not depending upon, even if this is not as serious a
+>> case as the locking stuff. But also, technically, cgrp->children is
+>> protected by the cgroup_lock(), while since we'll hold the memcg_lock
+>> during creation and also around the iterators, we cover everything with
+>> the same lock.
 > 
-> Based-on-patch-by: Ankita Garg <gargankita@gmail.com>
-> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
-> ---
+> The list is RCU safe so we do not have to use cgroup_lock there for this
+> kind of test.
 > 
->  include/linux/mm.h |    4 ++++
->  mm/page_alloc.c    |   35 +++++++++++++++++++++++++++++++++++
->  2 files changed, 39 insertions(+)
+>> That said, of course we don't need to do the full iteration here, and
+>> mem_cgroup_count_children is indeed overkill. We could just as easily
+>> verify if any child exist - it is just an emptiness test after all. But
+>> it is not living in any fast path, though, and I just assumed code reuse
+>> to win over efficiency in this particular case -
+>> mem_cgroup_count_children already existed...
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index fa06804..19c4fb0 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -657,6 +657,10 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
->  #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
->  #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
->  
-> +/* Hard-code memory regions size to be 512 MB for now. */
-> +#define MEM_REGION_SHIFT	(29 - PAGE_SHIFT)
-> +#define MEM_REGION_SIZE		(1UL << MEM_REGION_SHIFT)
-> +
->  static inline enum zone_type page_zonenum(const struct page *page)
->  {
->  	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index bb90971..709e3c1 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4560,6 +4560,40 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
->  #endif /* CONFIG_FLAT_NODE_MEM_MAP */
->  }
->  
-> +void init_node_memory_regions(struct pglist_data *pgdat)
-> +{
-> +	int nid = pgdat->node_id;
-> +	unsigned long start_pfn = pgdat->node_start_pfn;
-> +	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
-> +	unsigned long i, absent;
-> +	int idx;
-> +	struct node_mem_region *region;
-> +
-> +	for (i = start_pfn, idx = 0; i < end_pfn;
-> +				i += region->spanned_pages, idx++) {
-> +
-> +		region = &pgdat->node_regions[idx];
-> +
-> +		if (i + MEM_REGION_SIZE <= end_pfn) {
-> +			region->start_pfn = i;
-> +			region->spanned_pages = MEM_REGION_SIZE;
-> +		} else {
-> +			region->start_pfn = i;
-> +			region->spanned_pages = end_pfn - i;
-> +		}
-> +
-> +		absent = __absent_pages_in_range(nid, region->start_pfn,
-> +						 region->start_pfn +
-> +						 region->spanned_pages);
-> +
-> +		region->present_pages = region->spanned_pages - absent;
-> +		region->idx = idx;
-> +		region->node = nid;
-> +		region->pgdat = pgdat;
-> +		pgdat->nr_node_regions++;
-> +	}
-> +}
-> +
->  void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  		unsigned long node_start_pfn, unsigned long *zholes_size)
->  {
-> @@ -4581,6 +4615,7 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  #endif
->  
->  	free_area_init_core(pgdat, zones_size, zholes_size);
-> +	init_node_memory_regions(pgdat);
->  }
->  
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> Yes but the function name suggests a more generic usage and the test is
+> really an overkill. Maybe we can get a cgroup generic helper
+> cgroup_as_children which would do the thing without exhibiting cgroup
+> internals. What do you think?
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I will give it another round of thinking, but I still don't see the
+reason for calling to cgroup core with this. If you really dislike doing
+a children count (I don't like as well, I just don't dislike), maybe we
+can do something like:
+
+i = 0;
+for_each_mem_cgroup_tree(iter, memcg) {
+	if (i++ == 1)
+		return false;
+}
+return true;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
