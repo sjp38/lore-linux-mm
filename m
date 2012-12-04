@@ -1,106 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id 11DD06B0044
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 09:24:06 -0500 (EST)
-Date: Tue, 4 Dec 2012 14:15:43 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/5] mempolicy: fix a memory corruption by refcount
- imbalance in alloc_pages_vma()
-Message-ID: <20121204141501.GA2797@suse.de>
-References: <1349801921-16598-1-git-send-email-mgorman@suse.de>
- <1349801921-16598-6-git-send-email-mgorman@suse.de>
- <CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
+	by kanga.kvack.org (Postfix) with SMTP id 5BA076B0068
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 09:37:42 -0500 (EST)
+Received: by mail-vb0-f50.google.com with SMTP id fr13so2931920vbb.9
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 06:37:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com>
+In-Reply-To: <20121203141701.GN8218@suse.de>
+References: <1354305521-11583-1-git-send-email-mingo@kernel.org>
+	<CA+55aFwjxm7OYuucHeE2WFr4p+jwr63t=kSdHndta_QkyFbyBQ@mail.gmail.com>
+	<20121201094927.GA12366@gmail.com>
+	<20121201122649.GA20322@gmail.com>
+	<CA+55aFx8QtP0hg8qxn__4vHQuzH7QkhTN-4fwgOpM-A=KuBBjA@mail.gmail.com>
+	<20121201184135.GA32449@gmail.com>
+	<CA+55aFyq7OaUxcEHXvJhp0T57KN14o-RGxqPmA+ks8ge6zJh5w@mail.gmail.com>
+	<20121201201538.GB2704@gmail.com>
+	<20121203141701.GN8218@suse.de>
+Date: Tue, 4 Dec 2012 06:37:41 -0800
+Message-ID: <CANN689Hm=g+PhJrVZ8mngPL58k45GfmwL_19F27WtwJC0G-=6g@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm/migration: Make rmap_walk_anon() and
+ try_to_unmap_anon() more scalable
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tommi Rantala <tt.rantala@gmail.com>
-Cc: Stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, Dec 04, 2012 at 02:54:08PM +0200, Tommi Rantala wrote:
-> 2012/10/9 Mel Gorman <mgorman@suse.de>:
-> > commit 00442ad04a5eac08a98255697c510e708f6082e2 upstream.
-> >
-> > Commit cc9a6c877661 ("cpuset: mm: reduce large amounts of memory barrier
-> > related damage v3") introduced a potential memory corruption.
-> > shmem_alloc_page() uses a pseudo vma and it has one significant unique
-> > combination, vma->vm_ops=NULL and vma->policy->flags & MPOL_F_SHARED.
-> >
-> > get_vma_policy() does NOT increase a policy ref when vma->vm_ops=NULL
-> > and mpol_cond_put() DOES decrease a policy ref when a policy has
-> > MPOL_F_SHARED.  Therefore, when a cpuset update race occurs,
-> > alloc_pages_vma() falls in 'goto retry_cpuset' path, decrements the
-> > reference count and frees the policy prematurely.
-> 
-> Hello,
-> 
-> kmemleak is complaining about memory leaks that point to the mbind()
-> syscall. I've seen this only in v3.7-rcX, so I bisected this, and
-> found that this patch is the first mainline commit where I'm able to
-> reproduce it with Trinity.
-> 
+On Mon, Dec 3, 2012 at 6:17 AM, Mel Gorman <mgorman@suse.de> wrote:
+> On Sat, Dec 01, 2012 at 09:15:38PM +0100, Ingo Molnar wrote:
+>> @@ -732,7 +732,7 @@ static int page_referenced_anon(struct p
+>>       struct anon_vma_chain *avc;
+>>       int referenced = 0;
+>>
+>> -     anon_vma = page_lock_anon_vma(page);
+>> +     anon_vma = page_lock_anon_vma_read(page);
+>>       if (!anon_vma)
+>>               return referenced;
+>
+> This is a slightly trickier one as this path is called from reclaim. It does
+> open the possibility that reclaim can stall something like a parallel fork
+> or anything that requires the anon_vma rwsem for a period of time. I very
+> severely doubt it'll really be a problem but keep an eye out for bug reports
+> related to delayed mmap/fork/anything_needing_write_lock during page reclaim.
 
-Uncool.
+I don't see why this would be a problem - rwsem does implement
+reader/writer fairness, so having some sites do a read lock instead of
+a write lock shouldn't cause the write lock sites to starve. Is this
+what you were worried about ?
 
-I'm writing this from an airport so am not in the position to test properly
-but at a glance I'm not seeing what drops the reference count taken by
-mpol_shared_policy_lookup() in all cases.  vm_ops->get_policy() probably
-gets it right but what about shmem_alloc_page() and shmem_swapin()?
-
-This patch is only compile tested. If the reference counts are dropped
-somewhere I did not spot quickly then it'll cause a use-after-free bug
-instead but is worth trying anyway.
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 89341b6..6229a43 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -912,6 +912,7 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
- {
- 	struct mempolicy mpol, *spol;
- 	struct vm_area_struct pvma;
-+	struct page *page;
- 
- 	spol = mpol_cond_copy(&mpol,
- 			mpol_shared_policy_lookup(&info->policy, index));
-@@ -922,13 +923,19 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
- 	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
- 	pvma.vm_ops = NULL;
- 	pvma.vm_policy = spol;
--	return swapin_readahead(swap, gfp, &pvma, 0);
-+	page = swapin_readahead(swap, gfp, &pvma, 0);
-+
-+	/* Drop reference taken by mpol_shared_policy_lookup() */
-+	mpol_cond_put(pvma.vm_policy);
-+
-+	return page;
- }
- 
- static struct page *shmem_alloc_page(gfp_t gfp,
- 			struct shmem_inode_info *info, pgoff_t index)
- {
- 	struct vm_area_struct pvma;
-+	struct page *page;
- 
- 	/* Create a pseudo vma that just contains the policy */
- 	pvma.vm_start = 0;
-@@ -940,7 +947,12 @@ static struct page *shmem_alloc_page(gfp_t gfp,
- 	/*
- 	 * alloc_page_vma() will drop the shared policy reference
- 	 */
--	return alloc_page_vma(gfp, &pvma, 0);
-+	page = alloc_page_vma(gfp, &pvma, 0);
-+
-+	/* Drop reference taken by mpol_shared_policy_lookup() */
-+	mpol_cond_put(pvma.vm_policy);
-+
-+	return page;
- }
- #else /* !CONFIG_NUMA */
- #ifdef CONFIG_TMPFS
-
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
