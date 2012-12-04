@@ -1,80 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id 8E72F6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 18:21:23 -0500 (EST)
-Date: Tue, 4 Dec 2012 15:21:21 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory
- changes
-Message-Id: <20121204152121.e5c33938.akpm@linux-foundation.org>
-In-Reply-To: <50BD86DE.6050700@parallels.com>
-References: <50B8F2F4.6000508@parallels.com>
-	<20121203144310.7ccdbeb4.akpm@linux-foundation.org>
-	<50BD86DE.6050700@parallels.com>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id E3ED16B0068
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 18:32:04 -0500 (EST)
+Message-ID: <1354663411.21585.135.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
+ operation
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 04 Dec 2012 16:23:31 -0700
+In-Reply-To: <50BDBF5A.8040407@huawei.com>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	    <50B5EFE9.3040206@huawei.com>
+	   <1354128096.26955.276.camel@misato.fc.hp.com>
+	  <50B6E936.2080308@huawei.com> <1354228028.7776.56.camel@misato.fc.hp.com>
+	  <50BC29C6.6050706@huawei.com> <1354579848.21585.54.camel@misato.fc.hp.com>
+	 <50BDBF5A.8040407@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Matt Mackall <mpm@selenic.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Hanjun Guo <guohanjun@huawei.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
 
-On Tue, 04 Dec 2012 09:15:10 +0400
-Pavel Emelyanov <xemul@parallels.com> wrote:
-
-> 
-> > Two alternatives come to mind:
+On Tue, 2012-12-04 at 17:16 +0800, Hanjun Guo wrote:
+> On 2012/12/4 8:10, Toshi Kani wrote:
+> > On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
+> >> On 2012/11/30 6:27, Toshi Kani wrote:
+> >>> On Thu, 2012-11-29 at 12:48 +0800, Hanjun Guo wrote:
+> >>>> On 2012/11/29 2:41, Toshi Kani wrote:
+> >>>>> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+> >>>>>> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
+> >>>>>> As you may know, the ACPI based hotplug framework we are working on already addressed
+> >>>>>> this problem, and the way we slove this problem is a bit like yours.
+> >>>>>>
+> >>>>>> We introduce hp_ops in struct acpi_device_ops:
+> >>>>>> struct acpi_device_ops {
+> >>>>>> 	acpi_op_add add;
+> >>>>>> 	acpi_op_remove remove;
+> >>>>>> 	acpi_op_start start;
+> >>>>>> 	acpi_op_bind bind;
+> >>>>>> 	acpi_op_unbind unbind;
+> >>>>>> 	acpi_op_notify notify;
+> >>>>>> #ifdef	CONFIG_ACPI_HOTPLUG
+> >>>>>> 	struct acpihp_dev_ops *hp_ops;
+> >>>>>> #endif	/* CONFIG_ACPI_HOTPLUG */
+> >>>>>> };
+> >>>>>>
+> >>>>>> in hp_ops, we divide the prepare_remove into six small steps, that is:
+> >>>>>> 1) pre_release(): optional step to mark device going to be removed/busy
+> >>>>>> 2) release(): reclaim device from running system
+> >>>>>> 3) post_release(): rollback if cancelled by user or error happened
+> >>>>>> 4) pre_unconfigure(): optional step to solve possible dependency issue
+> >>>>>> 5) unconfigure(): remove devices from running system
+> >>>>>> 6) post_unconfigure(): free resources used by devices
+> >>>>>>
+> >>>>>> In this way, we can easily rollback if error happens.
+> >>>>>> How do you think of this solution, any suggestion ? I think we can achieve
+> >>>>>> a better way for sharing ideas. :)
+> >>>>>
+> >>>>> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+> >>>>> have not looked at all your changes yet..), but in my mind, a hot-plug
+> >>>>> operation should be composed with the following 3 phases.
+> >>>>
+> >>>> Good idea ! we also implement a hot-plug operation in 3 phases:
+> >>>> 1) acpihp_drv_pre_execute
+> >>>> 2) acpihp_drv_execute
+> >>>> 3) acpihp_drv_post_execute
+> >>>> you may refer to :
+> >>>> https://lkml.org/lkml/2012/11/4/79
+> >>>
+> >>> Great.  Yes, I will take a look.
+> >>
+> >> Thanks, any comments are welcomed :)
 > > 
-> > 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
-> >     fashion to determine which pages have been touched.
+> > If I read the code right, the framework calls ACPI drivers differently
+> > at boot-time and hot-add as follows.  That is, the new entry points are
+> > called at hot-add only, but .add() is called at both cases.  This
+> > requires .add() to work differently.
 > 
-> I thought about this. Unfortunately there's no free bits left in the pagemap
-> entry. What can we do about it (other than introducing the pagemap2 file)?
-
-urgh, we were pretty careless in laying out the /proc/pid/pagemap
-entries.
-
-Probably the 55 bits for pfn/swap were excessive.
-
-The page shift didn't need six bits!  Simply predividing the page shift
-by 1k would have saved a few bits, and permitting expansion to a 1^63
-byte page size is nuts.
-
-Sigh.  I wonder how traumatic it would be to put the pagemap record on
-a diet and make up some free space.
-
-
-Anyway, do you actually need to add another bit?  /proc/pid/pagemap
-gives you the pfn which can then be used to look up the page's flags in
-/proc/pageflags.  You can add a "touched" flag to /proc/kpageflags? 
-But that would require grabbing another bit in struct page.flags, I
-assume.
-
-And it would be very expensive.  An in-kernel loop which searches the
-MM spitting out a string of touched-pages would be faster, but still
-slow.
-
-hm.
-
-> > 2)  At pagefault time, don't send an event: just mark the vma as
-> >     "touched".  Then add a userspace interface to sweep the vma tree
-> >     testing, clearing and reporting the touched flags.
+> Hi Toshi,
+> Thanks for your comments!
 > 
-> Per-vma granularity is not enough. In OpenVZ we've observed Oracle touching
-> several pages in a hundred-megs anon mapping. Marking _part_ of the vma with
-> the "node write-faults" bit would help, but there's currently no APIs that
-> modifies vma and report some info back at the same time. Can you propose how
-> it could look like?
+> > 
+> > Boot    : .add()
+> 
+> Actually, at boot time: .add(), .start()
 
-I don't see a need to report the info back at the same time?  You want
-to *record* that information but only report it when someone does a
-query?
+Right.
 
-Dunno.  One could add a radix-tree to the vma and store 32 or 64
-per-page bits in each slots[] entry.  Worst case that would consume
-approx one bit of kernel memory for each 4k of instantiated user pages
-- an increase of 1/32768.  Not too bad.  Use the tagged-lookup facility
-to efficiently query that bitmap at query-time.
+> > Hot-Add : .add(), .pre_configure(), configure(), etc.
+> 
+> Yes, we did it as you said in the framework. We use .pre_configure(), configure(),
+> and post_configure() to instead of .start() for better error handling and recovery.
+
+I think we should have hot-plug interfaces at the module level, not at
+the ACPI-internal level.  In this way, the interfaces can be
+platform-neutral and allow any modules to register, which makes it more
+consistent with the boot-up sequence.  It can also allow ordering of the
+sequence among the registered modules.  Right now, we initiate all
+procedures from ACPI during hot-plug, which I think is inflexible and
+steps into other module's role.
+
+I am also concerned about the slot handling, which is the core piece of
+the infrastructure and only allows hot-plug operations on ACPI objects
+where slot objects are previously created by checking _EJ0.  The
+infrastructure should allow hot-plug operations on any objects, and it
+should not be dependent on the slot design.
+
+I have some rough idea, and it may be easier to review / explain if I
+make some code changes.  So, let me prototype it, and send it you all if
+that works out.  Hopefully, it won't take too long.
+
+> > I think the boot-time and hot-add initialization should be done
+> > consistently.  While there is difficulty with the current boot sequence,
+> > the framework should be designed to allow them consistent, not make them
+> > diverged.
+> > 
+> >>>>> 1. Validate phase - Verify if the request is a supported operation.  All
+> >>>>> known restrictions are verified at this phase.  For instance, if a
+> >>>>> hot-remove request involves kernel memory, it is failed in this phase.
+> >>>>> Since this phase makes no change, no rollback is necessary to fail. 
+> >>>>
+> >>>> Yes, we have done this in acpihp_drv_pre_execute, and check following things:
+> >>>>
+> >>>> 1) Hot-plugble or not. the instance kernel memory you mentioned is also checked
+> >>>>    when memory device remove;
+> >>>
+> >>> Agreed.
+> >>>
+> >>>> 2) Dependency check involved. For instance, if hot-add a memory device,
+> >>>>    processor should be added first, otherwise it's not valid to this operation.
+> >>>
+> >>> I think FW should be the one that assures such dependency.  That is,
+> >>> when a memory device object is marked as present/enabled/functioning, it
+> >>> should be ready for the OS to use.
+> >>
+> >> Yes, BIOS should do something for the dependency, because BIOS knows the
+> >> actual hardware topology. 
+> > 
+> > Right.
+> > 
+> >> The ACPI specification provides _EDL method to
+> >> tell OS the eject device list, but still has no method to tell OS the add device
+> >> list now.
+> > 
+> > Yes, but I do not think the OS needs special handling for add...
+> 
+> Hmm, how about trigger a hot add operation by OS ? we have eject interface for OS, but
+> have no add interface now, do you think this feature is useful? If it is, I think OS
+> should analyze the dependency first and tell the user.
+
+The OS can eject an ACPI device because a target device is owned by the
+OS (i.e. enabled).  For hot-add, a target ACPI device is not owned by
+the OS (i.e. disabled).  Therefore, the OS is not supposed to change its
+state.  So, I do not think we should support a hot-add operation by the
+OS.
+ 
+> >> For some cases, OS should analyze the dependency in the validate phase. For example,
+> >> when hot remove a node (container device), OS should analyze the dependency to get
+> >> the remove order as following:
+> >> 1) Host bridge;
+> >> 2) Memory devices;
+> >> 3) Processor devices;
+> >> 4) Container device itself;
+> > 
+> > This may be off-topic, but how do you plan to delete I/O devices under a
+> > node?  Are you planning to delete all I/O devices along with the node?
+> 
+> Yes, we delete all I/O devices under the node. we delete I/O devices as
+> following steps:
+> 1) Offline PCI devices;
+> 2) Offline IOAPIC and IOMMU;
+> and offline I/O devices no matter in use or not.
+
+Oh, off-lining no matter what would be problematic for enterprise
+customers... 
+ 
+> > On other OS, we made a separate step called I/O chassis delete, which
+> > off-lines all I/O devices under the node, and is required before a node
+> > hot-remove.  It basically triggers PCIe hot-remove to detach drivers
+> > from all devices.  It does not eject the devices so that they do not
+> > have to be on hot-plug slots.  This step runs user-space scripts to
+> > verify if the devices can be off-lined without disrupting user's
+> > applications, and provides comprehensive reports if any of them are in
+> 
+> Great! we also have a plan to implement this feature.
+
+That's great!
+
+> > use.  Not sure if Linux's PCI hot-remove has such check, but I thought
+> > I'd mention it. :)
+> 
+> Have no such check, I'm sure :)
+> 
+> > 
+> >> In this way, we can check that all the devices are hot-plugble or not under the
+> >> container device before execute phase, and further more, we can remove devices
+> >> in order to avoid some crash problems.
+> > 
+> > Yes, we should check if all the resources under the node can be
+> > off-lined at validate phase.  (note, all the devices do not have to have
+> > _EJ0 if that's what you meant by hot-pluggable.)
+> 
+> Yes, agreed. For node hotplug, no need for all the devices have _EJ0 method.
+
+Right.
+
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
