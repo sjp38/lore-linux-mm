@@ -1,74 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id D772B6B0044
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 16:43:13 -0500 (EST)
-Date: Tue, 4 Dec 2012 16:42:10 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: kswapd craziness in 3.7
-Message-ID: <20121204214210.GB20253@cmpxchg.org>
-References: <CA+55aFyrNRF8nWyozDPi4O1bdjzO189YAgMukyhTOZ9fwKqOpA@mail.gmail.com>
- <20121128101359.GT8218@suse.de>
- <20121128145215.d23aeb1b.akpm@linux-foundation.org>
- <20121128235412.GW8218@suse.de>
- <50B77F84.1030907@leemhuis.info>
- <20121129170512.GI2301@cmpxchg.org>
- <50B8A8E7.4030108@leemhuis.info>
- <20121201004520.GK2301@cmpxchg.org>
- <50BC6314.7060106@leemhuis.info>
- <20121203194208.GZ24381@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121203194208.GZ24381@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 47A356B0068
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 17:10:06 -0500 (EST)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCH] mm: Use aligned zone start for pfn_to_bitidx calculation
+Date: Tue,  4 Dec 2012 14:10:01 -0800
+Message-Id: <1354659001-13673-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thorsten Leemhuis <fedora@leemhuis.info>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, Bruno Wolff III <bruno@wolff.to>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Laura Abbott <lauraa@codeaurora.org>
 
-On Mon, Dec 03, 2012 at 02:42:08PM -0500, Johannes Weiner wrote:
-> On Mon, Dec 03, 2012 at 09:30:12AM +0100, Thorsten Leemhuis wrote:
-> > >> John was able to reproduce the problem quickly with a kernel that 
-> > >> contained the patch from your mail. For details see
-> > >
-> > > [stripped: all the glory details of what likely went wrong and lead
-> > > to the problem john sees or saw]
-> > >
-> > > ---
-> > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > Subject: [patch] mm: vmscan: do not keep kswapd looping forever due
-> > >  to individual uncompactable zones
-> > > 
-> > > When a zone meets its high watermark and is compactable in case of
-> > > higher order allocations, it contributes to the percentage of the
-> > > node's memory that is considered balanced.
-> > > [...]
-> > 
-> > FYI: I built a kernel with that patch. I've been running on my x86_64
-> > machine at home over the weekend and everything was working fine (just
-> > as without the patch). John gave it a quick try and in
-> > https://bugzilla.redhat.com/show_bug.cgi?id=866988#c57 reported:
-> > 
-> > """
-> > I just installed
-> > kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686 and ran my
-> > usual load that triggers the problem.  OK so far.  I'll check again in
-> > 24hours, but looking good so far.
-> > """
-> 
-> w00t!
+The current calculation in pfn_to_bitidx assumes that
+(pfn - zone->zone_start_pfn) >> pageblock_order will return the
+same bit for all pfn in a pageblock. If zone_start_pfn is not
+aligned to pageblock_nr_pages, this may not always be correct.
 
-Update from John in the BZ
-(https://bugzilla.redhat.com/show_bug.cgi?id=866988#c62):
+Consider the following with pageblock order = 10, zone start 2MB:
 
-"Good news.
+pfn     | pfn - zone start | (pfn - zone start) >> page block order
+----------------------------------------------------------------
+0x26000 | 0x25e00	   |  0x97
+0x26100 | 0x25f00	   |  0x97
+0x26200 | 0x26000	   |  0x98
+0x26300 | 0x26100	   |  0x98
 
-I've now been running both
-  kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686
-and
-  kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.x86_64
-for over 24hours with no evidence of problems with kswapd"
+This means that calling {get,set}_pageblock_migratetype on a single
+page will not set the migratetype for the full block. The correct
+fix is to round down zone_start_pfn for the bit index calculation.
+Rather than do this calculation everytime, store this precalcualted
+algined start in the zone structure to allow the actual start_pfn to
+be used elsewhere.
 
-Now waiting for results from Jiri, Zdenek and Bruno...
+Change-Id: I13e2f53f50db294f38ec86138c17c6fe29f0ee82
+Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+---
+ include/linux/mmzone.h |    6 ++++++
+ mm/page_alloc.c        |    4 +++-
+ 2 files changed, 9 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 08f74e6..0a5471b 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -467,6 +467,12 @@ struct zone {
+ 	struct pglist_data	*zone_pgdat;
+ 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
+ 	unsigned long		zone_start_pfn;
++	/*
++	 * the starting pfn of the zone may not be aligned to the pageblock
++	 * size which can throw off calculation of the pageblock flags.
++	 * This is the precomputed aligned start of the zone
++	 */
++	unsigned long		aligned_start_pfn;
+ 
+ 	/*
+ 	 * zone_start_pfn, spanned_pages and present_pages are all
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c3142e8..d78e1d6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3968,6 +3968,8 @@ __meminit int init_currently_empty_zone(struct zone *zone,
+ 	pgdat->nr_zones = zone_idx(zone) + 1;
+ 
+ 	zone->zone_start_pfn = zone_start_pfn;
++	zone->aligned_start_pfn = round_down(zone_start_pfn,
++						pageblock_nr_pages);
+ 
+ 	mminit_dprintk(MMINIT_TRACE, "memmap_init",
+ 			"Initialising map node %d zone %lu pfns %lu -> %lu\n",
+@@ -5424,7 +5426,7 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+ 	pfn &= (PAGES_PER_SECTION-1);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #else
+-	pfn = pfn - zone->zone_start_pfn;
++	pfn = pfn - zone->aligned_start_pfn;
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #endif /* CONFIG_SPARSEMEM */
+ }
+-- 
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
