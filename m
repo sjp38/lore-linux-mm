@@ -1,92 +1,276 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 2566B6B0044
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 05:05:55 -0500 (EST)
-Received: by mail-la0-f41.google.com with SMTP id m15so3579835lah.14
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 02:05:53 -0800 (PST)
-Message-ID: <50BDCAFE.1070004@googlemail.com>
-Date: Tue, 04 Dec 2012 10:05:50 +0000
-From: Chris Clayton <chris2553@googlemail.com>
+Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
+	by kanga.kvack.org (Postfix) with SMTP id 8657D6B0044
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 05:10:37 -0500 (EST)
+Message-ID: <50BDCBE1.7030001@cn.fujitsu.com>
+Date: Tue, 04 Dec 2012 18:09:37 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
- occupied by memmap
-References: <20121120111942.c9596d3f.akpm@linux-foundation.org> <1353510586-6393-1-git-send-email-jiang.liu@huawei.com> <20121128155221.df369ce4.akpm@linux-foundation.org> <50B73E56.4050603@googlemail.com> <50BBB21D.3070005@googlemail.com> <20121203151715.8c536a7a.akpm@linux-foundation.org>
-In-Reply-To: <20121203151715.8c536a7a.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [Patch v4 10/12] memory-hotplug: memory_hotplug: clear zone when
+ removing the memory
+References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-11-git-send-email-wency@cn.fujitsu.com>
+In-Reply-To: <1354010422-19648-11-git-send-email-wency@cn.fujitsu.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jiang Liu <liuj97@gmail.com>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>, Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>
 
-
-
-On 12/03/12 23:17, Andrew Morton wrote:
-> On Sun, 02 Dec 2012 19:55:09 +0000
-> Chris Clayton <chris2553@googlemail.com> wrote:
+On 11/27/2012 06:00 PM, Wen Congyang wrote:
+> From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
 >
->>
->>
->> On 11/29/12 10:52, Chris Clayton wrote:
->>> On 11/28/12 23:52, Andrew Morton wrote:
->>>> On Wed, 21 Nov 2012 23:09:46 +0800
->>>> Jiang Liu <liuj97@gmail.com> wrote:
->>>>
->>>>> Subject: Re: [RFT PATCH v2 4/5] mm: provide more accurate estimation
->>>>> of pages occupied by memmap
->>>>
->>>> How are people to test this?  "does it boot"?
->>>>
->>>
->>> I've been running kernels with Gerry's 5 patches applied for 11 days
->>> now. This is on a 64bit laptop but with a 32bit kernel + HIGHMEM. I
->>> joined the conversation because my laptop would not resume from suspend
->>> to disk - it either froze or rebooted. With the patches applied the
->>> laptop does successfully resume and has been stable.
->>>
->>> Since Monday, I have have been running a kernel with the patches (plus,
->>> from today, the patch you mailed yesterday) applied to 3.7rc7, without
->>> problems.
->>>
->>
->> I've been running 3.7-rc7 with the patches listed below for a week now
->> and it has been perfectly stable. In particular, my laptop will now
->> successfully resume from suspend to disk, which always failed without
->> the patches.
->>
->>   From Jiang Liu:
->> 1. [RFT PATCH v2 1/5] mm: introduce new field "managed_pages" to struct zone
->> 2. [RFT PATCH v1 2/5] mm: replace zone->present_pages with
->> zone->managed_pages if appreciated
->> 3. [RFT PATCH v1 3/5] mm: set zone->present_pages to number of existing
->> pages in the zone
->> 4. [RFT PATCH v2 4/5] mm: provide more accurate estimation of pages
->> occupied by memmap
->> 5. [RFT PATCH v1 5/5] mm: increase totalram_pages when free pages
->> allocated by bootmem allocator
->>
->>   From Andrew Morton:
->> 6. mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch
->>
->> Tested-by: Chris Clayton <chris2553@googlemail.com>
+> When a memory is added, we update zone's and pgdat's start_pfn and
+> spanned_pages in the function __add_zone(). So we should revert them
+> when the memory is removed.
 >
-> Thanks.
+> The patch adds a new function __remove_zone() to do this.
 >
-> I have only two of these five patches queued for 3.8:
-> mm-introduce-new-field-managed_pages-to-struct-zone.patch and
-> mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap.patch.
-> I don't recall what happened with the other three.
+> CC: David Rientjes<rientjes@google.com>
+> CC: Jiang Liu<liuj97@gmail.com>
+> CC: Len Brown<len.brown@intel.com>
+> CC: Christoph Lameter<cl@linux.com>
+> Cc: Minchan Kim<minchan.kim@gmail.com>
+> CC: Andrew Morton<akpm@linux-foundation.org>
+> CC: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Signed-off-by: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+
+Reviewed-by: Tang Chen <tangchen@cn.fujitsu.com>
+
+> ---
+>   mm/memory_hotplug.c | 207 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+>   1 file changed, 207 insertions(+)
 >
-
-Gerry posted version 1 of the five patches on 18 November. Version 2 of 
-the first and fourth patches were posted on 21 November.
-
-BTW, the title of Andrew's patch that I applied is wrong above. It 
-should be 
-mm-provide-more-accurate-estimation-of-pages-occupied-by-memmap-fix.
-
-Chris
-
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 7797e91..aa97d56 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -301,10 +301,213 @@ static int __meminit __add_section(int nid, struct zone *zone,
+>   	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
+>   }
+>
+> +/* find the smallest valid pfn in the range [start_pfn, end_pfn) */
+> +static int find_smallest_section_pfn(int nid, struct zone *zone,
+> +				     unsigned long start_pfn,
+> +				     unsigned long end_pfn)
+> +{
+> +	struct mem_section *ms;
+> +
+> +	for (; start_pfn<  end_pfn; start_pfn += PAGES_PER_SECTION) {
+> +		ms = __pfn_to_section(start_pfn);
+> +
+> +		if (unlikely(!valid_section(ms)))
+> +			continue;
+> +
+> +		if (unlikely(pfn_to_nid(start_pfn) != nid))
+> +			continue;
+> +
+> +		if (zone&&  zone != page_zone(pfn_to_page(start_pfn)))
+> +			continue;
+> +
+> +		return start_pfn;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +/* find the biggest valid pfn in the range [start_pfn, end_pfn). */
+> +static int find_biggest_section_pfn(int nid, struct zone *zone,
+> +				    unsigned long start_pfn,
+> +				    unsigned long end_pfn)
+> +{
+> +	struct mem_section *ms;
+> +	unsigned long pfn;
+> +
+> +	/* pfn is the end pfn of a memory section. */
+> +	pfn = end_pfn - 1;
+> +	for (; pfn>= start_pfn; pfn -= PAGES_PER_SECTION) {
+> +		ms = __pfn_to_section(pfn);
+> +
+> +		if (unlikely(!valid_section(ms)))
+> +			continue;
+> +
+> +		if (unlikely(pfn_to_nid(pfn) != nid))
+> +			continue;
+> +
+> +		if (zone&&  zone != page_zone(pfn_to_page(pfn)))
+> +			continue;
+> +
+> +		return pfn;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static void shrink_zone_span(struct zone *zone, unsigned long start_pfn,
+> +			     unsigned long end_pfn)
+> +{
+> +	unsigned long zone_start_pfn =  zone->zone_start_pfn;
+> +	unsigned long zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
+> +	unsigned long pfn;
+> +	struct mem_section *ms;
+> +	int nid = zone_to_nid(zone);
+> +
+> +	zone_span_writelock(zone);
+> +	if (zone_start_pfn == start_pfn) {
+> +		/*
+> +		 * If the section is smallest section in the zone, it need
+> +		 * shrink zone->zone_start_pfn and zone->zone_spanned_pages.
+> +		 * In this case, we find second smallest valid mem_section
+> +		 * for shrinking zone.
+> +		 */
+> +		pfn = find_smallest_section_pfn(nid, zone, end_pfn,
+> +						zone_end_pfn);
+> +		if (pfn) {
+> +			zone->zone_start_pfn = pfn;
+> +			zone->spanned_pages = zone_end_pfn - pfn;
+> +		}
+> +	} else if (zone_end_pfn == end_pfn) {
+> +		/*
+> +		 * If the section is biggest section in the zone, it need
+> +		 * shrink zone->spanned_pages.
+> +		 * In this case, we find second biggest valid mem_section for
+> +		 * shrinking zone.
+> +		 */
+> +		pfn = find_biggest_section_pfn(nid, zone, zone_start_pfn,
+> +					       start_pfn);
+> +		if (pfn)
+> +			zone->spanned_pages = pfn - zone_start_pfn + 1;
+> +	}
+> +
+> +	/*
+> +	 * The section is not biggest or smallest mem_section in the zone, it
+> +	 * only creates a hole in the zone. So in this case, we need not
+> +	 * change the zone. But perhaps, the zone has only hole data. Thus
+> +	 * it check the zone has only hole or not.
+> +	 */
+> +	pfn = zone_start_pfn;
+> +	for (; pfn<  zone_end_pfn; pfn += PAGES_PER_SECTION) {
+> +		ms = __pfn_to_section(pfn);
+> +
+> +		if (unlikely(!valid_section(ms)))
+> +			continue;
+> +
+> +		if (page_zone(pfn_to_page(pfn)) != zone)
+> +			continue;
+> +
+> +		 /* If the section is current section, it continues the loop */
+> +		if (start_pfn == pfn)
+> +			continue;
+> +
+> +		/* If we find valid section, we have nothing to do */
+> +		zone_span_writeunlock(zone);
+> +		return;
+> +	}
+> +
+> +	/* The zone has no valid section */
+> +	zone->zone_start_pfn = 0;
+> +	zone->spanned_pages = 0;
+> +	zone_span_writeunlock(zone);
+> +}
+> +
+> +static void shrink_pgdat_span(struct pglist_data *pgdat,
+> +			      unsigned long start_pfn, unsigned long end_pfn)
+> +{
+> +	unsigned long pgdat_start_pfn =  pgdat->node_start_pfn;
+> +	unsigned long pgdat_end_pfn =
+> +		pgdat->node_start_pfn + pgdat->node_spanned_pages;
+> +	unsigned long pfn;
+> +	struct mem_section *ms;
+> +	int nid = pgdat->node_id;
+> +
+> +	if (pgdat_start_pfn == start_pfn) {
+> +		/*
+> +		 * If the section is smallest section in the pgdat, it need
+> +		 * shrink pgdat->node_start_pfn and pgdat->node_spanned_pages.
+> +		 * In this case, we find second smallest valid mem_section
+> +		 * for shrinking zone.
+> +		 */
+> +		pfn = find_smallest_section_pfn(nid, NULL, end_pfn,
+> +						pgdat_end_pfn);
+> +		if (pfn) {
+> +			pgdat->node_start_pfn = pfn;
+> +			pgdat->node_spanned_pages = pgdat_end_pfn - pfn;
+> +		}
+> +	} else if (pgdat_end_pfn == end_pfn) {
+> +		/*
+> +		 * If the section is biggest section in the pgdat, it need
+> +		 * shrink pgdat->node_spanned_pages.
+> +		 * In this case, we find second biggest valid mem_section for
+> +		 * shrinking zone.
+> +		 */
+> +		pfn = find_biggest_section_pfn(nid, NULL, pgdat_start_pfn,
+> +					       start_pfn);
+> +		if (pfn)
+> +			pgdat->node_spanned_pages = pfn - pgdat_start_pfn + 1;
+> +	}
+> +
+> +	/*
+> +	 * If the section is not biggest or smallest mem_section in the pgdat,
+> +	 * it only creates a hole in the pgdat. So in this case, we need not
+> +	 * change the pgdat.
+> +	 * But perhaps, the pgdat has only hole data. Thus it check the pgdat
+> +	 * has only hole or not.
+> +	 */
+> +	pfn = pgdat_start_pfn;
+> +	for (; pfn<  pgdat_end_pfn; pfn += PAGES_PER_SECTION) {
+> +		ms = __pfn_to_section(pfn);
+> +
+> +		if (unlikely(!valid_section(ms)))
+> +			continue;
+> +
+> +		if (pfn_to_nid(pfn) != nid)
+> +			continue;
+> +
+> +		 /* If the section is current section, it continues the loop */
+> +		if (start_pfn == pfn)
+> +			continue;
+> +
+> +		/* If we find valid section, we have nothing to do */
+> +		return;
+> +	}
+> +
+> +	/* The pgdat has no valid section */
+> +	pgdat->node_start_pfn = 0;
+> +	pgdat->node_spanned_pages = 0;
+> +}
+> +
+> +static void __remove_zone(struct zone *zone, unsigned long start_pfn)
+> +{
+> +	struct pglist_data *pgdat = zone->zone_pgdat;
+> +	int nr_pages = PAGES_PER_SECTION;
+> +	int zone_type;
+> +	unsigned long flags;
+> +
+> +	zone_type = zone - pgdat->node_zones;
+> +
+> +	pgdat_resize_lock(zone->zone_pgdat,&flags);
+> +	shrink_zone_span(zone, start_pfn, start_pfn + nr_pages);
+> +	shrink_pgdat_span(pgdat, start_pfn, start_pfn + nr_pages);
+> +	pgdat_resize_unlock(zone->zone_pgdat,&flags);
+> +}
+> +
+>   static int __remove_section(struct zone *zone, struct mem_section *ms)
+>   {
+>   	unsigned long flags;
+>   	struct pglist_data *pgdat = zone->zone_pgdat;
+> +	unsigned long start_pfn;
+> +	int scn_nr;
+>   	int ret = -EINVAL;
+>
+>   	if (!valid_section(ms))
+> @@ -314,6 +517,10 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
+>   	if (ret)
+>   		return ret;
+>
+> +	scn_nr = __section_nr(ms);
+> +	start_pfn = section_nr_to_pfn(scn_nr);
+> +	__remove_zone(zone, start_pfn);
+> +
+>   	pgdat_resize_lock(pgdat,&flags);
+>   	sparse_remove_one_section(zone, ms);
+>   	pgdat_resize_unlock(pgdat,&flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
