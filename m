@@ -1,97 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 61F806B0044
-	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 19:43:24 -0500 (EST)
-Date: Mon, 3 Dec 2012 16:43:22 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: protect against concurrent vma expansion
-Message-Id: <20121203164322.b967d461.akpm@linux-foundation.org>
-In-Reply-To: <CANN689FfWVV4MyTUPKZQgQAWW9Dfdw9f0fqx98kc+USKj9g7TA@mail.gmail.com>
-References: <1354344987-28203-1-git-send-email-walken@google.com>
-	<20121203150110.39c204ff.akpm@linux-foundation.org>
-	<CANN689FfWVV4MyTUPKZQgQAWW9Dfdw9f0fqx98kc+USKj9g7TA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id AD3506B0044
+	for <linux-mm@kvack.org>; Mon,  3 Dec 2012 19:56:11 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so2403068pad.14
+        for <linux-mm@kvack.org>; Mon, 03 Dec 2012 16:56:11 -0800 (PST)
+Date: Mon, 3 Dec 2012 16:56:08 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, mempolicy: Introduce spinlock to read shared policy
+ tree
+In-Reply-To: <1353624594-1118-19-git-send-email-mingo@kernel.org>
+Message-ID: <alpine.DEB.2.00.1212031644440.32354@chino.kir.corp.google.com>
+References: <1353624594-1118-1-git-send-email-mingo@kernel.org> <1353624594-1118-19-git-send-email-mingo@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <levinsasha928@gmail.com>
 
-On Mon, 3 Dec 2012 16:35:01 -0800
-Michel Lespinasse <walken@google.com> wrote:
+From: Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-> On Mon, Dec 3, 2012 at 3:01 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > On Fri, 30 Nov 2012 22:56:27 -0800
-> > Michel Lespinasse <walken@google.com> wrote:
-> >
-> >> expand_stack() runs with a shared mmap_sem lock. Because of this, there
-> >> could be multiple concurrent stack expansions in the same mm, which may
-> >> cause problems in the vma gap update code.
-> >>
-> >> I propose to solve this by taking the mm->page_table_lock around such vma
-> >> expansions, in order to avoid the concurrency issue. We only have to worry
-> >> about concurrent expand_stack() calls here, since we hold a shared mmap_sem
-> >> lock and all vma modificaitons other than expand_stack() are done under
-> >> an exclusive mmap_sem lock.
-> >>
-> >> I previously tried to achieve the same effect by making sure all
-> >> growable vmas in a given mm would share the same anon_vma, which we
-> >> already lock here. However this turned out to be difficult - all of the
-> >> schemes I tried for refcounting the growable anon_vma and clearing
-> >> turned out ugly. So, I'm now proposing only the minimal fix.
-> >
-> > I think I don't understand the problem fully.  Let me demonstrate:
-> >
-> > a) vma_lock_anon_vma() doesn't take a lock which is specific to
-> >    "this" anon_vma.  It takes anon_vma->root->mutex.  That mutex is
-> >    shared with vma->vm_next, yes?  If so, we have no problem here?
-> >    (which makes me suspect that the races lies other than where I think
-> >    it lies).
-> 
-> So, the first thing I need to mention is that this fix is NOT for any
-> problem that has been reported (and in particular, not for Sasha's
-> trinity fuzzing issue). It's just me looking at the code and noticing
-> I haven't gotten locking right for the case of concurrent stack
-> expansion.
-> 
-> Regarding vma and vma->vm_next sharing the same root anon_vma mutex -
-> this will often be the case, but not always. find_mergeable_anon_vma()
-> will try to make it so, but it could fail if there was another vma
-> in-between at the time the stack's anon_vmas got assigned (either a
-> non-stack vma that later gets unmapped, or another stack vma that
-> didn't get its own anon_vma assigned yet).
-> 
-> > b) I can see why a broader lock is needed in expand_upwards(): it
-> >    plays with a different vma: vma->vm_next.  But expand_downwards()
-> >    doesn't do that - it only alters "this" vma.  So I'd have thought
-> >    that vma_lock_anon_vma("this" vma) would be sufficient.
-> 
-> The issue there is that vma_gap_update() accesses vma->vm_prev, so the
-> issue is actually symetrical with expand_upwards().
-> 
-> > What are the performance costs of this change?
-> 
-> It's expected to be small. glibc doesn't use expandable stacks for the
-> threads it creates, so having multiple growable stacks is actually
-> uncommon (another reason why the problem hasn't been observed in
-> practice). Because of this, I don't expect the page table lock to get
-> bounced between threads, so the cost of taking it should be small
-> (compared to the cost of delivering the #PF, let alone handling it in
-> software).
-> 
-> But yes, the initial idea of forcing all growable vmas in an mm to
-> share the same root anon_vma sounded much more appealing at first.
-> Unfortunately I haven't been able to make that work in a simple enough
-> way to be comfortable submitting it this late in the release cycle :/
+Sasha was fuzzing with trinity and reported the following problem:
 
-hm, OK.  Could you please cook up a new changelog which explains these
-things to the next puzzled reader and send it along?
+BUG: sleeping function called from invalid context at kernel/mutex.c:269
+in_atomic(): 1, irqs_disabled(): 0, pid: 6361, name: trinity-main
+2 locks held by trinity-main/6361:
+ #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff810aa314>] __do_page_fault+0x1e4/0x4f0
+ #1:  (&(&mm->page_table_lock)->rlock){+.+...}, at: [<ffffffff8122f017>] handle_pte_fault+0x3f7/0x6a0
+Pid: 6361, comm: trinity-main Tainted: G        W 3.7.0-rc2-next-20121024-sasha-00001-gd95ef01-dirty #74
+Call Trace:
+ [<ffffffff8114e393>] __might_sleep+0x1c3/0x1e0
+ [<ffffffff83ae5209>] mutex_lock_nested+0x29/0x50
+ [<ffffffff8124fc3e>] mpol_shared_policy_lookup+0x2e/0x90
+ [<ffffffff81219ebe>] shmem_get_policy+0x2e/0x30
+ [<ffffffff8124e99a>] get_vma_policy+0x5a/0xa0
+ [<ffffffff8124fce1>] mpol_misplaced+0x41/0x1d0
+ [<ffffffff8122f085>] handle_pte_fault+0x465/0x6a0
 
-Ingo is playing in the same area with "mm/rmap: Convert the struct
-anon_vma::mutex to an rwsem", but as that patch changes
-vma_lock_anon_vma() to use down_write(), I expect it won't affect
-anything.  But please check it over.
+do_numa_page() calls the new mpol_misplaced() function introduced by 
+"sched, numa, mm: Add the scanning page fault machinery" in the page fault 
+patch while holding mm->page_table_lock and then 
+mpol_shared_policy_lookup() ends up trying to take the shared policy 
+mutex.
+
+The fix is to protect the shared policy tree with both a spinlock and 
+mutex; both must be held to modify the tree, but only one is required to 
+read the tree.  This allows sp_lookup() to grab the spinlock for read.
+
+[rientjes@google.com: wrote changelog]
+Reported-by: Sasha Levin <levinsasha928@gmail.com>
+Tested-by: Sasha Levin <levinsasha928@gmail.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/mempolicy.h |    1 +
+ mm/mempolicy.c            |   23 ++++++++++++++++++-----
+ 2 files changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -133,6 +133,7 @@ struct sp_node {
+ 
+ struct shared_policy {
+ 	struct rb_root root;
++	spinlock_t lock;
+ 	struct mutex mutex;
+ };
+ 
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2090,12 +2090,20 @@ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
+  *
+  * Remember policies even when nobody has shared memory mapped.
+  * The policies are kept in Red-Black tree linked from the inode.
+- * They are protected by the sp->lock spinlock, which should be held
+- * for any accesses to the tree.
++ *
++ * The rb-tree is locked using both a mutex and a spinlock. Every modification
++ * to the tree must hold both the mutex and the spinlock, lookups can hold
++ * either to observe a stable tree.
++ *
++ * In particular, sp_insert() and sp_delete() take the spinlock, whereas
++ * sp_lookup() doesn't, this so users have choice.
++ *
++ * shared_policy_replace() and mpol_free_shared_policy() take the mutex
++ * and call sp_insert(), sp_delete().
+  */
+ 
+ /* lookup first element intersecting start-end */
+-/* Caller holds sp->mutex */
++/* Caller holds either sp->lock and/or sp->mutex */
+ static struct sp_node *
+ sp_lookup(struct shared_policy *sp, unsigned long start, unsigned long end)
+ {
+@@ -2134,6 +2142,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
+ 	struct rb_node *parent = NULL;
+ 	struct sp_node *nd;
+ 
++	spin_lock(&sp->lock);
+ 	while (*p) {
+ 		parent = *p;
+ 		nd = rb_entry(parent, struct sp_node, nd);
+@@ -2146,6 +2155,7 @@ static void sp_insert(struct shared_policy *sp, struct sp_node *new)
+ 	}
+ 	rb_link_node(&new->nd, parent, p);
+ 	rb_insert_color(&new->nd, &sp->root);
++	spin_unlock(&sp->lock);
+ 	pr_debug("inserting %lx-%lx: %d\n", new->start, new->end,
+ 		 new->policy ? new->policy->mode : 0);
+ }
+@@ -2159,13 +2169,13 @@ mpol_shared_policy_lookup(struct shared_policy *sp, unsigned long idx)
+ 
+ 	if (!sp->root.rb_node)
+ 		return NULL;
+-	mutex_lock(&sp->mutex);
++	spin_lock(&sp->lock);
+ 	sn = sp_lookup(sp, idx, idx+1);
+ 	if (sn) {
+ 		mpol_get(sn->policy);
+ 		pol = sn->policy;
+ 	}
+-	mutex_unlock(&sp->mutex);
++	spin_unlock(&sp->lock);
+ 	return pol;
+ }
+ 
+@@ -2178,8 +2188,10 @@ static void sp_free(struct sp_node *n)
+ static void sp_delete(struct shared_policy *sp, struct sp_node *n)
+ {
+ 	pr_debug("deleting %lx-l%lx\n", n->start, n->end);
++	spin_lock(&sp->lock);
+ 	rb_erase(&n->nd, &sp->root);
+ 	sp_free(n);
++	spin_unlock(&sp->lock);
+ }
+ 
+ static struct sp_node *sp_alloc(unsigned long start, unsigned long end,
+@@ -2264,6 +2276,7 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
+ 	int ret;
+ 
+ 	sp->root = RB_ROOT;		/* empty tree == default mempolicy */
++	spin_lock_init(&sp->lock);
+ 	mutex_init(&sp->mutex);
+ 
+ 	if (mpol) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
