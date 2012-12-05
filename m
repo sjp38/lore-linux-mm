@@ -1,107 +1,744 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 951076B0044
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 19:55:16 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so3280985pad.14
-        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 16:55:15 -0800 (PST)
-Date: Tue, 4 Dec 2012 16:55:13 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 20/52] mm, numa: Implement migrate-on-fault lazy NUMA
- strategy for regular and THP pages
-In-Reply-To: <1354473824-19229-21-git-send-email-mingo@kernel.org>
-Message-ID: <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-21-git-send-email-mingo@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id C79786B006C
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 20:12:47 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Tue, 4 Dec 2012 20:12:46 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id C5AAEC90045
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 20:12:43 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB51ChJv302818
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 20:12:43 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB51Cge1013383
+	for <linux-mm@kvack.org>; Tue, 4 Dec 2012 20:12:43 -0500
+Subject: [PATCH] Debugging: Keep track of page owners
+From: Dave Hansen <dave@linux.vnet.ibm.com>
+Date: Tue, 04 Dec 2012 20:12:42 -0500
+Message-Id: <20121205011242.09C8667F@kernel.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-Commit "mm, numa: Implement migrate-on-fault lazy NUMA strategy for 
-regular and THP pages" breaks the build because HPAGE_PMD_SHIFT and 
-HPAGE_PMD_MASK defined to explode without CONFIG_TRANSPARENT_HUGEPAGE:
+From: mel@skynet.ie (Mel Gorman)
 
-mm/migrate.c: In function 'migrate_misplaced_transhuge_page_put':
-mm/migrate.c:1549: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-mm/migrate.c:1564: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-mm/migrate.c:1566: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-mm/migrate.c:1573: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-mm/migrate.c:1606: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-mm/migrate.c:1648: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+PAGE_OWNER tracks free pages by setting page->order to -1.  However, it is
+set during __free_pages() which is not the only free path as
+__pagevec_free() and free_compound_page() do not go through __free_pages().
+ This leads to a situation where free pages are visible in page_owner
+which is confusing and might be interpreted as a memory leak.
 
-CONFIG_NUMA_BALANCING allows compilation without enabling transparent 
-hugepages, so define the dummy function for such a configuration and only 
-define migrate_misplaced_transhuge_page_put() when transparent hugepages 
-are enabled.
+This patch sets page->owner when PageBuddy is set.  It also prints a
+warning to the kernel log if a free page is found that does not appear free
+to PAGE_OWNER.  This should be considered a fix to
+page-owner-tracking-leak-detector.patch.
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+This only applies to -mm as PAGE_OWNER is not in mainline.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+DESC
+Print out PAGE_OWNER statistics in relation to fragmentation avoidance
+EDESC
+From: Mel Gorman <mel@csn.ul.ie>
+
+When PAGE_OWNER is set, more information is available of relevance to
+fragmentation avoidance.  A second line is added to 'page_owner' showing
+the PFN, the pageblock number, the mobility type of the page based on its
+allocation flags, whether the allocation is improperly placed and the flags. 
+A sample entry looks like
+
+Page allocated via order 0, mask 0x1280d2
+PFN 7355 Block 7 type 3 Fallback Flags      LA
+[0xc01528c6] __handle_mm_fault+598
+[0xc0320427] do_page_fault+279
+[0xc031ed9a] error_code+114
+
+This information can be used to identify pages that are improperly placed.  As
+the format of PAGE_OWNER data is now different, the comment at the top of
+Documentation/page_owner.c is updated with new instructions.
+
+As PAGE_OWNER tracks the GFP flags used to allocate the pages,
+/proc/pagetypeinfo is enhanced to contain how many mixed blocks exist.  The
+additional output looks like
+
+Number of mixed blocks    Unmovable  Reclaimable      Movable      Reserve
+Node 0, zone      DMA            0            1            2            1
+Node 0, zone   Normal            2           11           33            0
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+Acked-by: Christoph Lameter <cl@linux-foundation.org>
+DESC
+Allow PAGE_OWNER to be set on any architecture
+EDESC
+From: Mel Gorman <mel@csn.ul.ie>
+
+Currently PAGE_OWNER depends on CONFIG_X86.  This appears to be due to
+pfn_to_page() being called in an inappropriate for many memory models and
+the presense of memory holes.  This patch ensures that pfn_valid() and
+pfn_valid_within() is called at the appropriate places and the offsets
+correctly updated so that PAGE_OWNER is safe on any architecture.
+
+In situations where CONFIG_HOLES_IN_ZONES is set (IA64 with
+VIRTUAL_MEM_MAP), there may be cases where pages allocated within a
+MAX_ORDER_NR_PAGES block of pages may not be displayed in 'page_owner'
+if the hole is at the start of the block.  Addressing this would be quite
+complex, perform slowly and is of no clear benefit.
+
+Once PAGE_OWNER is allowed on all architectures, the statistics for
+grouping pages by mobility that declare how many pageblocks contain mixed
+page types becomes optionally available on all arches.
+
+This patch was tested successfully on x86, x86_64, ppc64 and IA64 machines.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Acked-by: Andy Whitcroft <apw@shadowen.org>
+DESC
+allow-page_owner-to-be-set-on-any-architecture-fix
+EDESC
+From: Andrew Morton <akpm@linux-foundation.org>
+
+Cc: Andy Whitcroft <apw@shadowen.org>
+Cc: Mel Gorman <mel@csn.ul.ie>
+DESC
+allow-page_owner-to-be-set-on-any-architecture-fix fix
+EDESC
+From: mel@skynet.ie (Mel Gorman)
+
+Page-owner-tracking stores the a backtrace of an allocation in the struct
+page.  How the stack trace is generated depends on whether
+CONFIG_FRAME_POINTER is set or not.  If CONFIG_FRAME_POINTER is set, the
+frame pointer must be read using some inline assembler which is not
+available for all architectures.
+
+This patch uses the frame pointer where it is available but has a fallback
+where it is not.
+
+Signed-off-by: Mel Gorman <mel@csn.ul.ie>
+Cc: Andy Whitcroft <apw@shadowen.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/migrate.h |   18 +++++++++++-------
- mm/migrate.c            |    3 +++
- 2 files changed, 14 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -78,12 +78,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
- #ifdef CONFIG_NUMA_BALANCING
- extern bool migrate_balanced_pgdat(struct pglist_data *pgdat, int nr_migrate_pages);
- extern int migrate_misplaced_page_put(struct page *page, int node);
--extern int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
--			struct vm_area_struct *vma,
--			pmd_t *pmd, pmd_t entry,
--			unsigned long address,
--			struct page *page, int node);
--
- #else
- static inline bool migrate_balanced_pgdat(struct pglist_data *pgdat, int nr_migrate_pages)
- {
-@@ -93,6 +87,16 @@ static inline int migrate_misplaced_page_put(struct page *page, int node)
- {
- 	return -EAGAIN; /* can't migrate now */
- }
-+#endif /* CONFIG_NUMA_BALANCING */
+ linux-2.6.git-dave/Documentation/page_owner.c |  141 +++++++++++++++++++++
+ linux-2.6.git-dave/include/linux/mm_types.h   |    5 
+ linux-2.6.git-dave/lib/Kconfig.debug          |   11 +
+ linux-2.6.git-dave/mm/Makefile                |    1 
+ linux-2.6.git-dave/mm/page_alloc.c            |   76 +++++++++++
+ linux-2.6.git-dave/mm/pageowner.c             |  174 ++++++++++++++++++++++++++
+ linux-2.6.git-dave/mm/vmstat.c                |   93 +++++++++++++
+ 7 files changed, 501 insertions(+)
+
+diff -puN /dev/null Documentation/page_owner.c
+--- /dev/null	2012-06-13 15:09:09.708529931 -0400
++++ linux-2.6.git-dave/Documentation/page_owner.c	2012-12-04 20:07:28.580380696 -0500
+@@ -0,0 +1,141 @@
++/*
++ * User-space helper to sort the output of /sys/kernel/debug/page_owner
++ *
++ * Example use:
++ * cat /sys/kernel/debug/page_owner > page_owner_full.txt
++ * grep -v ^PFN page_owner_full.txt > page_owner.txt
++ * ./sort page_owner.txt sorted_page_owner.txt
++*/
 +
-+#if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
-+extern int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
-+			struct vm_area_struct *vma,
-+			pmd_t *pmd, pmd_t entry,
-+			unsigned long address,
-+			struct page *page, int node);
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <string.h>
 +
-+#else
- static inline int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd, pmd_t entry,
-@@ -101,6 +105,6 @@ static inline int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
++struct block_list {
++	char *txt;
++	int len;
++	int num;
++};
++
++
++static struct block_list *list;
++static int list_size;
++static int max_size;
++
++struct block_list *block_head;
++
++int read_block(char *buf, FILE *fin)
++{
++	int ret = 0;
++	int hit = 0;
++	char *curr = buf;
++
++	for (;;) {
++		*curr = getc(fin);
++		if (*curr == EOF) return -1;
++
++		ret++;
++		if (*curr == '\n' && hit == 1)
++			return ret - 1;
++		else if (*curr == '\n')
++			hit = 1;
++		else
++			hit = 0;
++		curr++;
++	}
++}
++
++static int compare_txt(struct block_list *l1, struct block_list *l2)
++{
++	return strcmp(l1->txt, l2->txt);
++}
++
++static int compare_num(struct block_list *l1, struct block_list *l2)
++{
++	return l2->num - l1->num;
++}
++
++static void add_list(char *buf, int len)
++{
++	if (list_size != 0 &&
++	    len == list[list_size-1].len &&
++	    memcmp(buf, list[list_size-1].txt, len) == 0) {
++		list[list_size-1].num++;
++		return;
++	}
++	if (list_size == max_size) {
++		printf("max_size too small??\n");
++		exit(1);
++	}
++	list[list_size].txt = malloc(len+1);
++	list[list_size].len = len;
++	list[list_size].num = 1;
++	memcpy(list[list_size].txt, buf, len);
++	list[list_size].txt[len] = 0;
++	list_size++;
++	if (list_size % 1000 == 0) {
++		printf("loaded %d\r", list_size);
++		fflush(stdout);
++	}
++}
++
++int main(int argc, char **argv)
++{
++	FILE *fin, *fout;
++	char buf[1024];
++	int ret, i, count;
++	struct block_list *list2;
++	struct stat st;
++
++	fin = fopen(argv[1], "r");
++	fout = fopen(argv[2], "w");
++	if (!fin || !fout) {
++		printf("Usage: ./program <input> <output>\n");
++		perror("open: ");
++		exit(2);
++	}
++
++	fstat(fileno(fin), &st);
++	max_size = st.st_size / 100; /* hack ... */
++
++	list = malloc(max_size * sizeof(*list));
++
++	for(;;) {
++		ret = read_block(buf, fin);
++		if (ret < 0)
++			break;
++
++		buf[ret] = '\0';
++		add_list(buf, ret);
++	}
++
++	printf("loaded %d\n", list_size);
++
++	printf("sorting ....\n");
++
++	qsort(list, list_size, sizeof(list[0]), compare_txt);
++
++	list2 = malloc(sizeof(*list) * list_size);
++
++	printf("culling\n");
++
++	for (i=count=0;i<list_size;i++) {
++		if (count == 0 ||
++		    strcmp(list2[count-1].txt, list[i].txt) != 0) {
++			list2[count++] = list[i];
++		} else {
++			list2[count-1].num += list[i].num;
++		}
++	}
++
++	qsort(list2, count, sizeof(list[0]), compare_num);
++
++	for (i=0;i<count;i++) {
++		fprintf(fout, "%d times:\n%s\n", list2[i].num, list2[i].txt);
++	}
++	return 0;
++}
+diff -puN include/linux/mm_types.h~pageowner include/linux/mm_types.h
+--- linux-2.6.git/include/linux/mm_types.h~pageowner	2012-12-04 20:06:36.795943398 -0500
++++ linux-2.6.git-dave/include/linux/mm_types.h	2012-12-04 20:06:36.807943499 -0500
+@@ -175,6 +175,11 @@ struct page {
+ 	 */
+ 	void *shadow;
+ #endif
++#ifdef CONFIG_PAGE_OWNER
++	int order;
++	unsigned int gfp_mask;
++	unsigned long trace[8];
++#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
+diff -puN lib/Kconfig.debug~pageowner lib/Kconfig.debug
+--- linux-2.6.git/lib/Kconfig.debug~pageowner	2012-12-04 20:06:36.795943398 -0500
++++ linux-2.6.git-dave/lib/Kconfig.debug	2012-12-04 20:06:36.811943533 -0500
+@@ -99,6 +99,17 @@ config UNUSED_SYMBOLS
+ 	  you really need it, and what the merge plan to the mainline kernel for
+ 	  your module is.
+ 
++config PAGE_OWNER
++	bool "Track page owner"
++	depends on DEBUG_KERNEL
++	select DEBUG_FS
++	help
++	  This keeps track of what call chain is the owner of a page, may
++	  help to find bare alloc_page(s) leaks. Eats a fair amount of memory.
++	  See Documentation/page_owner.c for user-space helper.
++
++	  If unsure, say N.
++
+ config DEBUG_FS
+ 	bool "Debug Filesystem"
+ 	help
+diff -puN mm/Makefile~pageowner mm/Makefile
+--- linux-2.6.git/mm/Makefile~pageowner	2012-12-04 20:06:36.799943431 -0500
++++ linux-2.6.git-dave/mm/Makefile	2012-12-04 20:06:36.811943533 -0500
+@@ -57,3 +57,4 @@ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
++obj-$(CONFIG_PAGE_OWNER) += pageowner.o
+diff -puN mm/page_alloc.c~pageowner mm/page_alloc.c
+--- linux-2.6.git/mm/page_alloc.c~pageowner	2012-12-04 20:06:36.803943465 -0500
++++ linux-2.6.git-dave/mm/page_alloc.c	2012-12-04 20:06:36.811943533 -0500
+@@ -437,6 +437,9 @@ static inline void set_page_order(struct
  {
- 	return -EAGAIN;
- }
--#endif /* CONFIG_NUMA_BALANCING */
-+#endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #endif /* _LINUX_MIGRATE_H */
-diff --git a/mm/migrate.c b/mm/migrate.c
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1540,6 +1540,7 @@ out:
- 	return isolated;
+ 	set_page_private(page, order);
+ 	__SetPageBuddy(page);
++#ifdef CONFIG_PAGE_OWNER
++	page->order = -1;
++#endif
  }
  
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
- int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
- 				struct vm_area_struct *vma,
- 				pmd_t *pmd, pmd_t entry,
-@@ -1653,6 +1654,8 @@ out_dropref:
- out_keep_locked:
+ static inline void rmv_page_order(struct page *page)
+@@ -2250,6 +2253,63 @@ __perform_reclaim(gfp_t gfp_mask, unsign
+ 	return progress;
+ }
+ 
++#ifdef CONFIG_PAGE_OWNER
++static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
++{
++	return	p > (void *)tinfo &&
++		p < (void *)tinfo + THREAD_SIZE - 3;
++}
++
++static inline void __stack_trace(struct page *page, unsigned long *stack,
++			unsigned long bp)
++{
++	int i = 0;
++	unsigned long addr;
++	struct thread_info *tinfo = (struct thread_info *)
++		((unsigned long)stack & (~(THREAD_SIZE - 1)));
++
++	memset(page->trace, 0, sizeof(long) * 8);
++
++#ifdef CONFIG_FRAME_POINTER
++	if (bp) {
++		while (valid_stack_ptr(tinfo, (void *)bp)) {
++			addr = *(unsigned long *)(bp + sizeof(long));
++			page->trace[i] = addr;
++			if (++i >= 8)
++				break;
++			bp = *(unsigned long *)bp;
++		}
++		return;
++	}
++#endif /* CONFIG_FRAME_POINTER */
++	while (valid_stack_ptr(tinfo, stack)) {
++		addr = *stack++;
++		if (__kernel_text_address(addr)) {
++			page->trace[i] = addr;
++			if (++i >= 8)
++				break;
++		}
++	}
++}
++
++static void set_page_owner(struct page *page, unsigned int order,
++			unsigned int gfp_mask)
++{
++	unsigned long address;
++	unsigned long bp = 0;
++#ifdef CONFIG_X86_64
++	asm ("movq %%rbp, %0" : "=r" (bp) : );
++#endif
++#ifdef CONFIG_X86_32
++	asm ("movl %%ebp, %0" : "=r" (bp) : );
++#endif
++	page->order = (int) order;
++	page->gfp_mask = gfp_mask;
++	__stack_trace(page, &address, bp);
++}
++#endif /* CONFIG_PAGE_OWNER */
++
++
+ /* The really slow allocator path where we enter direct reclaim */
+ static inline struct page *
+ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+@@ -2285,6 +2345,10 @@ retry:
+ 		goto retry;
+ 	}
+ 
++#ifdef CONFIG_PAGE_OWNER
++	if (page)
++		set_page_owner(page, order, gfp_mask);
++#endif
+ 	return page;
+ }
+ 
+@@ -2593,6 +2657,10 @@ nopage:
+ 	warn_alloc_failed(gfp_mask, order, NULL);
+ 	return page;
+ got_pg:
++#ifdef CONFIG_PAGE_OWNER
++	if (page)
++		set_page_owner(page, order, gfp_mask);
++#endif
+ 	if (kmemcheck_enabled)
+ 		kmemcheck_pagealloc_alloc(page, order, gfp_mask);
+ 
+@@ -2665,6 +2733,11 @@ out:
+ 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+ 		goto retry_cpuset;
+ 
++#ifdef CONFIG_PAGE_OWNER
++	if (page)
++		set_page_owner(page, order, gfp_mask);
++#endif
++
+ 	return page;
+ }
+ EXPORT_SYMBOL(__alloc_pages_nodemask);
+@@ -3869,6 +3942,9 @@ void __meminit memmap_init_zone(unsigned
+ 		if (!is_highmem_idx(zone))
+ 			set_page_address(page, __va(pfn << PAGE_SHIFT));
+ #endif
++#ifdef CONFIG_PAGE_OWNER
++		page->order = -1;
++#endif
+ 	}
+ }
+ 
+diff -puN /dev/null mm/pageowner.c
+--- /dev/null	2012-06-13 15:09:09.708529931 -0400
++++ linux-2.6.git-dave/mm/pageowner.c	2012-12-04 20:06:36.811943533 -0500
+@@ -0,0 +1,174 @@
++#include <linux/debugfs.h>
++#include <linux/mm.h>
++#include <linux/hugetlb.h>
++#include <linux/huge_mm.h>
++#include <linux/mount.h>
++#include <linux/seq_file.h>
++#include <linux/highmem.h>
++#include <linux/ptrace.h>
++#include <linux/slab.h>
++#include <linux/pagemap.h>
++#include <linux/mempolicy.h>
++#include <linux/rmap.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++
++#include <asm/elf.h>
++#include <asm/uaccess.h>
++#include <asm/tlbflush.h>
++#include "internal.h"
++
++#include <linux/bootmem.h>
++#include <linux/kallsyms.h>
++
++static ssize_t
++read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
++{
++	unsigned long pfn;
++	struct page *page;
++	char *kbuf, *modname;
++	const char *symname;
++	int ret = 0;
++	char namebuf[128];
++	unsigned long offset = 0, symsize;
++	int i;
++	ssize_t num_written = 0;
++	int blocktype = 0, pagetype = 0;
++
++	page = NULL;
++	pfn = min_low_pfn + *ppos;
++
++	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
++	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
++		pfn++;
++
++	//printk("pfn: %ld max_pfn: %ld\n", pfn, max_pfn);
++	/* Find an allocated page */
++	for (; pfn < max_pfn; pfn++) {
++		/*
++		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
++		 * validate the area as existing, skip it if not
++		 */
++		if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0 && !pfn_valid(pfn)) {
++			pfn += MAX_ORDER_NR_PAGES - 1;
++			continue;
++		}
++
++		/* Check for holes within a MAX_ORDER area */
++		if (!pfn_valid_within(pfn))
++			continue;
++
++		page = pfn_to_page(pfn);
++
++		/* Catch situations where free pages have a bad ->order  */
++		if (page->order >= 0 && PageBuddy(page))
++			printk(KERN_WARNING
++				"PageOwner info inaccurate for PFN %lu\n",
++				pfn);
++
++		/* Stop search if page is allocated and has trace info */
++		if (page->order >= 0 && page->trace[0]) {
++			//intk("stopped search at pfn: %ld\n", pfn);
++			break;
++		}
++	}
++
++	if (!pfn_valid(pfn))
++		return 0;
++	/*
++	 * If memory does not end at a SECTION_SIZE boundary, then
++	 * we might have a pfn_valid() above max_pfn
++	 */
++	if (pfn >= max_pfn)
++		return 0;
++
++	/* Record the next PFN to read in the file offset */
++	*ppos = (pfn - min_low_pfn) + 1;
++
++	kbuf = kmalloc(count, GFP_KERNEL);
++	if (!kbuf)
++		return -ENOMEM;
++
++	//printk("page: %p\n", page);
++	ret = snprintf(kbuf, count, "Page allocated via order %d, mask 0x%x\n",
++			page->order, page->gfp_mask);
++	if (ret >= count) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	/* Print information relevant to grouping pages by mobility */
++	blocktype = get_pageblock_migratetype(page);
++	pagetype  = allocflags_to_migratetype(page->gfp_mask);
++	ret += snprintf(kbuf+ret, count-ret,
++			"PFN %lu Block %lu type %d %s "
++			"Flags %s%s%s%s%s%s%s%s%s%s%s%s\n",
++			pfn,
++			pfn >> pageblock_order,
++			blocktype,
++			blocktype != pagetype ? "Fallback" : "        ",
++			PageLocked(page)	? "K" : " ",
++			PageError(page)		? "E" : " ",
++			PageReferenced(page)	? "R" : " ",
++			PageUptodate(page)	? "U" : " ",
++			PageDirty(page)		? "D" : " ",
++			PageLRU(page)		? "L" : " ",
++			PageActive(page)	? "A" : " ",
++			PageSlab(page)		? "S" : " ",
++			PageWriteback(page)	? "W" : " ",
++			PageCompound(page)	? "C" : " ",
++			PageSwapCache(page)	? "B" : " ",
++			PageMappedToDisk(page)	? "M" : " ");
++	if (ret >= count) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	num_written = ret;
++
++	for (i = 0; i < 8; i++) {
++		if (!page->trace[i])
++			break;
++		symname = kallsyms_lookup(page->trace[i], &symsize, &offset,
++					&modname, namebuf);
++		ret = snprintf(kbuf + num_written, count - num_written,
++				"[0x%lx] %s+%lu\n",
++				page->trace[i], namebuf, offset);
++		if (ret >= count - num_written) {
++			ret = -ENOMEM;
++			goto out;
++		}
++		num_written += ret;
++	}
++
++	ret = snprintf(kbuf + num_written, count - num_written, "\n");
++	if (ret >= count - num_written) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	num_written += ret;
++	ret = num_written;
++
++	if (copy_to_user(buf, kbuf, ret))
++		ret = -EFAULT;
++out:
++	kfree(kbuf);
++	return ret;
++}
++
++static struct file_operations proc_page_owner_operations = {
++	.read		= read_page_owner,
++};
++
++static int __init pageowner_init(void)
++{
++	struct dentry *dentry;
++
++	dentry = debugfs_create_file("page_owner", S_IRUSR, NULL,
++			NULL, &proc_page_owner_operations);
++	if (IS_ERR(dentry))
++		return PTR_ERR(dentry);
++	return 0;
++}
++module_init(pageowner_init)
+diff -puN mm/vmstat.c~pageowner mm/vmstat.c
+--- linux-2.6.git/mm/vmstat.c~pageowner	2012-12-04 20:06:36.803943465 -0500
++++ linux-2.6.git-dave/mm/vmstat.c	2012-12-04 20:06:36.815943566 -0500
+@@ -19,6 +19,7 @@
+ #include <linux/math64.h>
+ #include <linux/writeback.h>
+ #include <linux/compaction.h>
++#include "internal.h"
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+ DEFINE_PER_CPU(struct vm_event_state, vm_event_states) = {{0}};
+@@ -921,6 +922,97 @@ static int pagetypeinfo_showblockcount(s
  	return 0;
  }
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+
- #endif /* CONFIG_NUMA_BALANCING */
  
- #endif /* CONFIG_NUMA */
++#ifdef CONFIG_PAGE_OWNER
++static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
++							pg_data_t *pgdat,
++							struct zone *zone)
++{
++	int mtype, pagetype;
++	unsigned long pfn;
++	unsigned long start_pfn = zone->zone_start_pfn;
++	unsigned long end_pfn = start_pfn + zone->spanned_pages;
++	unsigned long count[MIGRATE_TYPES] = { 0, };
++
++	/* Align PFNs to pageblock_nr_pages boundary */
++	pfn = start_pfn & ~(pageblock_nr_pages-1);
++
++	/*
++	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
++	 * a zone boundary, it will be double counted between zones. This does
++	 * not matter as the mixed block count will still be correct
++	 */
++	for (; pfn < end_pfn; pfn += pageblock_nr_pages) {
++		struct page *page;
++		unsigned long offset = 0;
++
++		/* Do not read before the zone start, use a valid page */
++		if (pfn < start_pfn)
++			offset = start_pfn - pfn;
++
++		if (!pfn_valid(pfn + offset))
++			continue;
++
++		page = pfn_to_page(pfn + offset);
++		mtype = get_pageblock_migratetype(page);
++
++		/* Check the block for bad migrate types */
++		for (; offset < pageblock_nr_pages; offset++) {
++			/* Do not past the end of the zone */
++			if (pfn + offset >= end_pfn)
++				break;
++
++			if (!pfn_valid_within(pfn + offset))
++				continue;
++
++			page = pfn_to_page(pfn + offset);
++
++			/* Skip free pages */
++			if (PageBuddy(page)) {
++				offset += (1UL << page_order(page)) - 1UL;
++				continue;
++			}
++			if (page->order < 0)
++				continue;
++
++			pagetype = allocflags_to_migratetype(page->gfp_mask);
++			if (pagetype != mtype) {
++				count[mtype]++;
++				break;
++			}
++
++			/* Move to end of this allocation */
++			offset += (1 << page->order) - 1;
++		}
++	}
++
++	/* Print counts */
++	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
++	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
++		seq_printf(m, "%12lu ", count[mtype]);
++	seq_putc(m, '\n');
++}
++#endif /* CONFIG_PAGE_OWNER */
++
++/*
++ * Print out the number of pageblocks for each migratetype that contain pages
++ * of other types. This gives an indication of how well fallbacks are being
++ * contained by rmqueue_fallback(). It requires information from PAGE_OWNER
++ * to determine what is going on
++ */
++static void pagetypeinfo_showmixedcount(struct seq_file *m, pg_data_t *pgdat)
++{
++#ifdef CONFIG_PAGE_OWNER
++	int mtype;
++
++	seq_printf(m, "\n%-23s", "Number of mixed blocks ");
++	for (mtype = 0; mtype < MIGRATE_TYPES; mtype++)
++		seq_printf(m, "%12s ", migratetype_names[mtype]);
++	seq_putc(m, '\n');
++
++	walk_zones_in_node(m, pgdat, pagetypeinfo_showmixedcount_print);
++#endif /* CONFIG_PAGE_OWNER */
++}
++
+ /*
+  * This prints out statistics in relation to grouping pages by mobility.
+  * It is expensive to collect so do not constantly read the file.
+@@ -938,6 +1030,7 @@ static int pagetypeinfo_show(struct seq_
+ 	seq_putc(m, '\n');
+ 	pagetypeinfo_showfree(m, pgdat);
+ 	pagetypeinfo_showblockcount(m, pgdat);
++	pagetypeinfo_showmixedcount(m, pgdat);
+ 
+ 	return 0;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
