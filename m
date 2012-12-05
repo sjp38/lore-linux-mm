@@ -1,68 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
-	by kanga.kvack.org (Postfix) with SMTP id 963066B006C
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 02:43:51 -0500 (EST)
-Message-ID: <50BEFB2D.2000008@fusionio.com>
-Date: Wed, 5 Dec 2012 08:43:41 +0100
-From: Jens Axboe <jaxboe@fusionio.com>
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id C28016B0044
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 04:52:21 -0500 (EST)
+Date: Wed, 5 Dec 2012 09:43:58 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 20/52] mm, numa: Implement migrate-on-fault lazy NUMA
+ strategy for regular and THP pages
+Message-ID: <20121205094332.GA2489@suse.de>
+References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
+ <1354473824-19229-21-git-send-email-mingo@kernel.org>
+ <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
- threads
-References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com> <50BE5988.3050501@fusionio.com> <x498v9dpnwu.fsf@segfault.boston.devel.redhat.com> <50BE5C99.6070703@fusionio.com> <x494nk1pi7h.fsf@segfault.boston.devel.redhat.com>
-In-Reply-To: <x494nk1pi7h.fsf@segfault.boston.devel.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zach Brown <zab@redhat.com>, "tj@kernel.org" <tj@kernel.org>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo <mingo@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On 2012-12-04 23:26, Jeff Moyer wrote:
-> Jens Axboe <jaxboe@fusionio.com> writes:
+On Tue, Dec 04, 2012 at 04:55:13PM -0800, David Rientjes wrote:
+> Commit "mm, numa: Implement migrate-on-fault lazy NUMA strategy for 
+> regular and THP pages" breaks the build because HPAGE_PMD_SHIFT and 
+> HPAGE_PMD_MASK defined to explode without CONFIG_TRANSPARENT_HUGEPAGE:
 > 
->>>>> @@ -437,6 +488,14 @@ static int bdi_forker_thread(void *ptr)
->>>>>  				spin_lock_bh(&bdi->wb_lock);
->>>>>  				bdi->wb.task = task;
->>>>>  				spin_unlock_bh(&bdi->wb_lock);
->>>>> +				mutex_lock(&bdi->flusher_cpumask_mutex);
->>>>> +				ret = set_cpus_allowed_ptr(task,
->>>>> +							bdi->flusher_cpumask);
->>>>> +				mutex_unlock(&bdi->flusher_cpumask_mutex);
->>>>
->>>> It'd be very useful if we had a kthread_create_cpu_on_cpumask() instead
->>>> of a _node() variant, since the latter could easily be implemented on
->>>> top of the former. But not really a show stopper for the patch...
->>>
->>> Hmm, if it isn't too scary, I might give this a try.
->>
->> Should not be, pretty much just removing the node part of the create
->> struct passed in and making it a cpumask. And for the on_node() case,
->> cpumask_of_ndoe() will do the trick.
+> mm/migrate.c: In function 'migrate_misplaced_transhuge_page_put':
+> mm/migrate.c:1549: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> mm/migrate.c:1564: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> mm/migrate.c:1566: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> mm/migrate.c:1573: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> mm/migrate.c:1606: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+> mm/migrate.c:1648: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
 > 
-> I think it's a bit more involved than that.  If you look at
-> kthread_create_on_node, the node portion only applies to where the
-> memory comes from, it says nothing of scheduling.  To whit:
+> CONFIG_NUMA_BALANCING allows compilation without enabling transparent 
+> hugepages, so define the dummy function for such a configuration and only 
+> define migrate_misplaced_transhuge_page_put() when transparent hugepages 
+> are enabled.
 > 
->                 /*                                                              
->                  * root may have changed our (kthreadd's) priority or CPU mask.
->                  * The kernel thread should not inherit these properties.       
->                  */
->                 sched_setscheduler_nocheck(create.result, SCHED_NORMAL, &param);
->                 set_cpus_allowed_ptr(create.result, cpu_all_mask);
-> 
-> So, if I were to make the change you suggested, I would be modifying the
-> existing behaviour.  The way things stand, I think
-> kthread_create_on_node violates the principal of least surprise.  ;-)  I
-> would prefer a variant that affected scheduling behaviour as well as
-> memory placement.  Tejun, Peter, Ingo, what are your opinions?
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Huh you are right, I completely missed that set_cpus_allowed_ptr() uses
-cpu_all_mask and not mask_of_node(node). Doesn't make a lot of sense to
-me... And yes, in any case, it definitely is a bad API, not very
-logical.
+Thanks David. I pushed the equivalent for the balancenuma tree and
+should be included in the balancenuma-v10 tag or mm-balancenuma-v10r3
+branch at
+git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
 
 -- 
-Jens Axboe
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
