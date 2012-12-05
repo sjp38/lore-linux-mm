@@ -1,61 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id BA3AF6B0072
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 19:39:01 -0500 (EST)
-Message-ID: <1354667937.6733.233.camel@calx>
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
-From: Matt Mackall <mpm@selenic.com>
-Date: Tue, 04 Dec 2012 18:38:57 -0600
-In-Reply-To: <20121204162411.700d4954.akpm@linux-foundation.org>
-References: <50B8F2F4.6000508@parallels.com>
-	 <20121203144310.7ccdbeb4.akpm@linux-foundation.org>
-	 <50BD86DE.6050700@parallels.com>
-	 <20121204152121.e5c33938.akpm@linux-foundation.org>
-	 <1354666628.6733.227.camel@calx>
-	 <20121204162411.700d4954.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 951076B0044
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 19:55:16 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so3280985pad.14
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 16:55:15 -0800 (PST)
+Date: Tue, 4 Dec 2012 16:55:13 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 20/52] mm, numa: Implement migrate-on-fault lazy NUMA
+ strategy for regular and THP pages
+In-Reply-To: <1354473824-19229-21-git-send-email-mingo@kernel.org>
+Message-ID: <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
+References: <1354473824-19229-1-git-send-email-mingo@kernel.org> <1354473824-19229-21-git-send-email-mingo@kernel.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-On Tue, 2012-12-04 at 16:24 -0800, Andrew Morton wrote:
-> On Tue, 04 Dec 2012 18:17:08 -0600
-> Matt Mackall <mpm@selenic.com> wrote:
-> 
-> > On Tue, 2012-12-04 at 15:21 -0800, Andrew Morton wrote:
-> > > On Tue, 04 Dec 2012 09:15:10 +0400
-> > > Pavel Emelyanov <xemul@parallels.com> wrote:
-> > > 
-> > > > 
-> > > > > Two alternatives come to mind:
-> > > > > 
-> > > > > 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
-> > > > >     fashion to determine which pages have been touched.
-> > 
-> > [momentarily coming out of kernel retirement for old man rant]
-> > 
-> > This is a popular interface anti-pattern.
-> > 
-> > You shouldn't use an interface that gives you huge amount of STATE to
-> > detect small amounts of CHANGE via manual differentiation.
-> 
-> I'm not sure that's what checkpoint-restart will be doing.  If we want
-> to determine "which pages have been touched since the last checkpoint
-> ten minutes ago" then that set of touched pages *is* state.  And it's
-> not "small"!
+Commit "mm, numa: Implement migrate-on-fault lazy NUMA strategy for 
+regular and THP pages" breaks the build because HPAGE_PMD_SHIFT and 
+HPAGE_PMD_MASK defined to explode without CONFIG_TRANSPARENT_HUGEPAGE:
 
-Yeah, there is definitely a middle-ground here between "I want
-high-frequency updates" and "I want to see the whole picture". 
-The filesystem analogy is backups: we don't have any good way to say
-"find me all files changed since yesterday" short of "find all files".
-The closest thing is explicit snapshotting.
+mm/migrate.c: In function 'migrate_misplaced_transhuge_page_put':
+mm/migrate.c:1549: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+mm/migrate.c:1564: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+mm/migrate.c:1566: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+mm/migrate.c:1573: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+mm/migrate.c:1606: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
+mm/migrate.c:1648: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
 
--- 
-Mathematics is the supreme nostalgia of our time.
+CONFIG_NUMA_BALANCING allows compilation without enabling transparent 
+hugepages, so define the dummy function for such a configuration and only 
+define migrate_misplaced_transhuge_page_put() when transparent hugepages 
+are enabled.
 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/migrate.h |   18 +++++++++++-------
+ mm/migrate.c            |    3 +++
+ 2 files changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -78,12 +78,6 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
+ #ifdef CONFIG_NUMA_BALANCING
+ extern bool migrate_balanced_pgdat(struct pglist_data *pgdat, int nr_migrate_pages);
+ extern int migrate_misplaced_page_put(struct page *page, int node);
+-extern int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
+-			struct vm_area_struct *vma,
+-			pmd_t *pmd, pmd_t entry,
+-			unsigned long address,
+-			struct page *page, int node);
+-
+ #else
+ static inline bool migrate_balanced_pgdat(struct pglist_data *pgdat, int nr_migrate_pages)
+ {
+@@ -93,6 +87,16 @@ static inline int migrate_misplaced_page_put(struct page *page, int node)
+ {
+ 	return -EAGAIN; /* can't migrate now */
+ }
++#endif /* CONFIG_NUMA_BALANCING */
++
++#if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
++extern int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
++			struct vm_area_struct *vma,
++			pmd_t *pmd, pmd_t entry,
++			unsigned long address,
++			struct page *page, int node);
++
++#else
+ static inline int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
+ 			struct vm_area_struct *vma,
+ 			pmd_t *pmd, pmd_t entry,
+@@ -101,6 +105,6 @@ static inline int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
+ {
+ 	return -EAGAIN;
+ }
+-#endif /* CONFIG_NUMA_BALANCING */
++#endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #endif /* _LINUX_MIGRATE_H */
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1540,6 +1540,7 @@ out:
+ 	return isolated;
+ }
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ int migrate_misplaced_transhuge_page_put(struct mm_struct *mm,
+ 				struct vm_area_struct *vma,
+ 				pmd_t *pmd, pmd_t entry,
+@@ -1653,6 +1654,8 @@ out_dropref:
+ out_keep_locked:
+ 	return 0;
+ }
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
++
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+ #endif /* CONFIG_NUMA */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
