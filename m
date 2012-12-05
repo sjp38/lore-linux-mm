@@ -1,48 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id CB9786B006C
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 22:02:48 -0500 (EST)
-Date: Tue, 4 Dec 2012 21:01:33 -0600
-From: Bruno Wolff III <bruno@wolff.to>
-Subject: Re: kswapd craziness in 3.7
-Message-ID: <20121205030133.GA17438@wolff.to>
-References: <20121128101359.GT8218@suse.de>
- <20121128145215.d23aeb1b.akpm@linux-foundation.org>
- <20121128235412.GW8218@suse.de>
- <50B77F84.1030907@leemhuis.info>
- <20121129170512.GI2301@cmpxchg.org>
- <50B8A8E7.4030108@leemhuis.info>
- <20121201004520.GK2301@cmpxchg.org>
- <50BC6314.7060106@leemhuis.info>
- <20121203194208.GZ24381@cmpxchg.org>
- <20121204214210.GB20253@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id A1DDE6B0070
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 22:25:04 -0500 (EST)
+Message-ID: <50BEBE35.4040807@huawei.com>
+Date: Wed, 5 Dec 2012 11:23:33 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20121204214210.GB20253@cmpxchg.org>
+Subject: Re: [Patch v4 08/12] memory-hotplug: remove memmap of sparse-vmemmap
+References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-9-git-send-email-wency@cn.fujitsu.com> <50B5DC00.20103@huawei.com> <50B80FB1.6040906@cn.fujitsu.com> <50BC0D2D.8040008@huawei.com> <50BDBEB7.3070807@cn.fujitsu.com> <50BDEA82.4050809@huawei.com> <50BEAC66.8020500@cn.fujitsu.com>
+In-Reply-To: <50BEAC66.8020500@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Thorsten Leemhuis <fedora@leemhuis.info>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-On Tue, Dec 04, 2012 at 16:42:10 -0500,
-   Johannes Weiner <hannes@cmpxchg.org> wrote:
->  kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686
->and
->  kernel-3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.x86_64
->for over 24hours with no evidence of problems with kswapd"
+Hi Tang,
+
+On 2012/12/5 10:07, Tang Chen wrote:
+
+> Hi Wu,
+> 
+> On 12/04/2012 08:20 PM, Jianguo Wu wrote:
+> (snip)
+>>>
+>>> Seems that we have different ways to handle pages allocated by bootmem
+>>> or by regular allocator. Is the checking way in [PATCH 09/12] available
+>>> here ?
+>>>
+>>> +    /* bootmem page has reserved flag */
+>>> +    if (PageReserved(page)) {
+>>> ......
+>>> +    }
+>>>
+>>> If so, I think we can just merge these two functions.
+>>
+>> Hmm, direct mapping table isn't allocated by bootmem allocator such as memblock, can't be free by put_page_bootmem().
+>> But I will try to merge these two functions.
+>>
+> 
+> Oh, I didn't notice this, thanks. :)
+> 
+> (snip)
+> 
+>>>> +
+>>>> +    __split_large_page(kpte, address, pbase);
+>>>
+>>> Is this patch going to replace [PATCH 08/12] ?
+>>>
+>>
+>> I wish to replace [PATCH 08/12], but need Congyang and Yasuaki to confirm first:)
+>>
+>>> If so, __split_large_page() was added and exported in [PATCH 09/12],
+>>> then we should move it here, right ?
+>>
+>> yes.
+>>
+>> and what do you think about moving vmemmap_pud[pmd/pte]_remove() to arch/x86/mm/init_64.c,
+>> to be consistent with vmemmap_populate() ?
+> 
+> It is a good idea since pud/pmd/pte related code could be platform
+> dependent. And I'm also trying to move vmemmap_free() to
+> arch/x86/mm/init_64.c too. I want to have a common interface just
+> like vmemmap_populate(). :)
+> 
+
+Great.
+
+>>
+>> I will rework [PATCH 08/12] and [PATCH 09/12] soon.
+> 
+> I am rebasing the whole patch set now. And I think I chould finish part
+> of your work too. A new patch-set is coming soon, and your rework is
+> also welcome. :)
 >
->Now waiting for results from Jiri, Zdenek and Bruno...
 
-I have been running 3.7.0-0.rc7.git1.2.van.main.knurd.kswap.4.fc18.i686.PAE 
-a bit over 23 hours and kswapd has accumalated one minute 8 seconds of 
-CPU time. I did several yum operations during that time and didn't see 
-kswapd spike to 90+% CPU usage as I had seen in the past. With some kernels 
-I wasn't reliably triggering the kswapd issue, so it may not be long enough 
-to know for sure that the problem is fixed.
+Since you are rebasing now, I will wait for your new patche-set :).
 
-I also should note that when I tried 3.7.0-0.rc7.git3.2.fc19.i686.PAE I 
-did see problems with kswapd hitting 90+% usage of a CPU.
+Thanks.
+Jianguo Wu
+
+> Thanks. :)
+> 
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
