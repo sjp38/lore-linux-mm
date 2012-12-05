@@ -1,44 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 1FB346B005D
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 17:36:59 -0500 (EST)
-Date: Wed, 5 Dec 2012 14:36:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] Debugging: Keep track of page owners
-Message-Id: <20121205143657.cad5baa5.akpm@linux-foundation.org>
-In-Reply-To: <50BF88D0.9050209@linux.vnet.ibm.com>
-References: <20121205011242.09C8667F@kernel.stglabs.ibm.com>
-	<50BF61E0.1060307@codeaurora.org>
-	<50BF88D0.9050209@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id D6B256B0068
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 17:39:43 -0500 (EST)
+Message-ID: <1354746668.21585.147.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
+ operation
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Wed, 05 Dec 2012 15:31:08 -0700
+In-Reply-To: <50BF399B.7010404@huawei.com>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	     <50B5EFE9.3040206@huawei.com>
+	    <1354128096.26955.276.camel@misato.fc.hp.com>
+	   <50B6E936.2080308@huawei.com> <1354228028.7776.56.camel@misato.fc.hp.com>
+	   <50BC29C6.6050706@huawei.com>
+	 <1354579848.21585.54.camel@misato.fc.hp.com>  <50BDBF5A.8040407@huawei.com>
+	 <1354663411.21585.135.camel@misato.fc.hp.com> <50BF399B.7010404@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org
+To: Hanjun Guo <guohanjun@huawei.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
 
-On Wed, 05 Dec 2012 09:48:00 -0800
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
-
-> On 12/05/2012 07:01 AM, Laura Abbott wrote:\
-> > Any reason you are using custom stack saving code instead of using the
-> > save_stack_trace API? (include/linux/stacktrace.h) . This is implemented
-> > on all architectures and takes care of special considerations for
-> > architectures such as ARM.
+On Wed, 2012-12-05 at 20:10 +0800, Hanjun Guo wrote:
+> On 2012/12/5 7:23, Toshi Kani wrote:
+> > On Tue, 2012-12-04 at 17:16 +0800, Hanjun Guo wrote:
+> >> On 2012/12/4 8:10, Toshi Kani wrote:
+> >>> On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
+> >>>> On 2012/11/30 6:27, Toshi Kani wrote:
+> >>>
+> >>> If I read the code right, the framework calls ACPI drivers differently
+> >>> at boot-time and hot-add as follows.  That is, the new entry points are
+> >>> called at hot-add only, but .add() is called at both cases.  This
+> >>> requires .add() to work differently.
+> >>
+> >> Hi Toshi,
+> >> Thanks for your comments!
+> >>
+> >>>
+> >>> Boot    : .add()
+> >>
+> >> Actually, at boot time: .add(), .start()
+> > 
+> > Right.
+> > 
+> >>> Hot-Add : .add(), .pre_configure(), configure(), etc.
+> >>
+> >> Yes, we did it as you said in the framework. We use .pre_configure(), configure(),
+> >> and post_configure() to instead of .start() for better error handling and recovery.
+> > 
+> > I think we should have hot-plug interfaces at the module level, not at
+> > the ACPI-internal level.  In this way, the interfaces can be
+> > platform-neutral and allow any modules to register, which makes it more
+> > consistent with the boot-up sequence.  It can also allow ordering of the
+> > sequence among the registered modules.  Right now, we initiate all
+> > procedures from ACPI during hot-plug, which I think is inflexible and
+> > steps into other module's role.
+> > 
+> > I am also concerned about the slot handling, which is the core piece of
+> > the infrastructure and only allows hot-plug operations on ACPI objects
+> > where slot objects are previously created by checking _EJ0.  The
+> > infrastructure should allow hot-plug operations on any objects, and it
+> > should not be dependent on the slot design.
+> > 
+> > I have some rough idea, and it may be easier to review / explain if I
+> > make some code changes.  So, let me prototype it, and send it you all if
+> > that works out.  Hopefully, it won't take too long.
 > 
-> This is actually an ancient patch that Andrew's been carrying around and
-> updating periodically.  I didn't duck fast enough and got stuck updating
-> it. :)
+> Great! If any thing I can do, please let me know it.
 
-Yes, it's a sweet little patch and has saved our ass a few times.  It
-would be nice if someone were to, umm, productize it and get it merged.
-
-However, do see https://lkml.org/lkml/2009/4/1/137 where Ingo discusses
-conversion to using the tracing infrastructure.
-
-btw, the original patch was from the lost-lost and dearly missed
-Alexander Nyberg <alexn@dsv.su.se>.
+Cool.  Yes, if the prototype turns out to be a good one, we can work
+together to improve it. :)
+ 
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
