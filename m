@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id 0512F6B0069
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 15:25:54 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so2680388eaa.14
-        for <linux-mm@kvack.org>; Wed, 05 Dec 2012 12:25:53 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121205095221.GB2489@suse.de>
-References: <1349801921-16598-1-git-send-email-mgorman@suse.de>
-	<1349801921-16598-6-git-send-email-mgorman@suse.de>
-	<CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com>
-	<20121204141501.GA2797@suse.de>
-	<alpine.LNX.2.00.1212042042130.13895@eggly.anvils>
-	<alpine.LNX.2.00.1212042211340.892@eggly.anvils>
-	<alpine.LNX.2.00.1212042320050.19453@eggly.anvils>
-	<20121205095221.GB2489@suse.de>
-Date: Wed, 5 Dec 2012 22:25:53 +0200
-Message-ID: <CA+ydwtoduPVnkzL4cgRdaNjhTYa1HV2KUi6CjXsap_qOuu_SQQ@mail.gmail.com>
-Subject: Re: [PATCH] tmpfs: fix shared mempolicy leak
-From: Tommi Rantala <tt.rantala@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id C6DF56B0044
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 16:47:54 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 2/3] HWPOISON, hugetlbfs: fix "bad pmd" warning in unmapping hwpoisoned hugepage
+Date: Wed,  5 Dec 2012 16:47:37 -0500
+Message-Id: <1354744058-26373-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1354744058-26373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1354744058-26373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>, Stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>
+Cc: Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-2012/12/5 Mel Gorman <mgorman@suse.de>:
-> On Tue, Dec 04, 2012 at 11:24:30PM -0800, Hugh Dickins wrote:
->> From: Mel Gorman <mgorman@suse.de>
->>
->> Commit 00442ad04a5e ("mempolicy: fix a memory corruption by refcount
->> imbalance in alloc_pages_vma()") changed get_vma_policy() to raise the
->> refcount on a shmem shared mempolicy; whereas shmem_alloc_page() went
->> on expecting alloc_page_vma() to drop the refcount it had acquired.
->> This deserves a rework: but for now fix the leak in shmem_alloc_page().
->
-> Thanks Hugh for turning gibber into a patch!
->
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
->
-> Tommi, just in case, can you confirm this fixes the problem for you please?
+When a process which used a hwpoisoned hugepage tries to exit() or
+munmap(), the kernel can print out "bad pmd" message because page
+table walker in free_pgtables() encounters 'hwpoisoned entry' on pmd.
 
-Confirmed! No more complaints from kmemleak.
+This is because currently we fail to clear the hwpoisoned entry in
+__unmap_hugepage_range(), so this patch simply does it.
 
-Thanks,
-Tommi
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/hugetlb.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git v3.7-rc8.orig/mm/hugetlb.c v3.7-rc8/mm/hugetlb.c
+index e61a749..fe7c2a7 100644
+--- v3.7-rc8.orig/mm/hugetlb.c
++++ v3.7-rc8/mm/hugetlb.c
+@@ -2387,8 +2387,10 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		/*
+ 		 * HWPoisoned hugepage is already unmapped and dropped reference
+ 		 */
+-		if (unlikely(is_hugetlb_entry_hwpoisoned(pte)))
++		if (unlikely(is_hugetlb_entry_hwpoisoned(pte))) {
++			pte_clear(mm, address, ptep);
+ 			continue;
++		}
+ 
+ 		page = pte_page(pte);
+ 		/*
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
