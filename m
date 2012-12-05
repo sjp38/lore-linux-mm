@@ -1,455 +1,271 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 6FEBE6B006C
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2012 23:41:57 -0500 (EST)
-Received: by mail-da0-f44.google.com with SMTP id z20so5995118dae.17
-        for <linux-mm@kvack.org>; Mon, 31 Dec 2012 20:41:56 -0800 (PST)
-Message-ID: <1357015310.1379.2.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH v7 1/2] KSM: numa awareness sysfs knob
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Mon, 31 Dec 2012 22:41:50 -0600
-In-Reply-To: <1356658337-12540-1-git-send-email-pholasek@redhat.com>
-References: <20121224050817.GA25749@kroah.com>
-	 <1356658337-12540-1-git-send-email-pholasek@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi
+ variable
+Date: Wed, 5 Dec 2012 11:51:00 +0800
+Message-ID: <45374.3986240172$1354679490@news.gmane.org>
+References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
+ <20120920084422.GA5697@localhost>
+ <20120925013658.GC23520@dastard>
+ <CAKYAXd975U_n2SSFXz0VfEs6GrVCoc2S=3kQbfw_2uOtGXbGxA@mail.gmail.com>
+ <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
+ <20121022012555.GB2739@dastard>
+ <CAKYAXd-BzgVvhbGE=OcSeXSMFe+5NdTt3L1A6Synds4vZ9vc2A@mail.gmail.com>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Tg619-0004e8-5U
+	for glkm-linux-mm-2@m.gmane.org; Wed, 05 Dec 2012 04:51:27 +0100
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 6E8916B005D
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 22:51:12 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 5 Dec 2012 09:20:59 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6F456394004B
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 09:21:03 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB53p2bg27459714
+	for <linux-mm@kvack.org>; Wed, 5 Dec 2012 09:21:02 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB53p2dU025519
+	for <linux-mm@kvack.org>; Wed, 5 Dec 2012 14:51:02 +1100
+Content-Disposition: inline
+In-Reply-To: <CAKYAXd-BzgVvhbGE=OcSeXSMFe+5NdTt3L1A6Synds4vZ9vc2A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Namjae Jeon <linkinjeon@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
 
-On Fri, 2012-12-28 at 02:32 +0100, Petr Holasek wrote:
-> Introduces new sysfs boolean knob /sys/kernel/mm/ksm/merge_across_nodes
-> which control merging pages across different numa nodes.
-> When it is set to zero only pages from the same node are merged,
-> otherwise pages from all nodes can be merged together (default behavior).
-> 
-> Typical use-case could be a lot of KVM guests on NUMA machine
-> and cpus from more distant nodes would have significant increase
-> of access latency to the merged ksm page. Sysfs knob was choosen
-> for higher variability when some users still prefers higher amount
-> of saved physical memory regardless of access latency.
-> 
-> Every numa node has its own stable & unstable trees because of faster
-> searching and inserting. Changing of merge_across_nodes value is possible
-> only when there are not any ksm shared pages in system.
-> 
-> I've tested this patch on numa machines with 2, 4 and 8 nodes and
-> measured speed of memory access inside of KVM guests with memory pinned
-> to one of nodes with this benchmark:
-> 
-> http://pholasek.fedorapeople.org/alloc_pg.c
-> 
-> Population standard deviations of access times in percentage of average
-> were following:
-> 
-> merge_across_nodes=1
-> 2 nodes 1.4%
-> 4 nodes 1.6%
-> 8 nodes	1.7%
-> 
-> merge_across_nodes=0
-> 2 nodes	1%
-> 4 nodes	0.32%
-> 8 nodes	0.018%
-> 
-> RFC: https://lkml.org/lkml/2011/11/30/91
-> v1: https://lkml.org/lkml/2012/1/23/46
-> v2: https://lkml.org/lkml/2012/6/29/105
-> v3: https://lkml.org/lkml/2012/9/14/550
-> v4: https://lkml.org/lkml/2012/9/23/137
-> v5: https://lkml.org/lkml/2012/12/10/540
-> v6: https://lkml.org/lkml/2012/12/23/154
-> 
-> Changelog:
-> 
-> v2: Andrew's objections were reflected:
-> 	- value of merge_nodes can't be changed while there are some ksm
-> 	pages in system
-> 	- merge_nodes sysfs entry appearance depends on CONFIG_NUMA
-> 	- more verbose documentation
-> 	- added some performance testing results
-> 
-> v3:	- more verbose documentation
-> 	- fixed race in merge_nodes store function
-> 	- introduced share_all debugging knob proposed by Andrew
-> 	- minor cleanups
-> 
-> v4:	- merge_nodes was renamed to merge_across_nodes
-> 	- share_all debug knob was dropped
-> 	- get_kpfn_nid helper
-> 	- fixed page migration behaviour
-> 
-> v5:	- unstable node's nid presence depends on CONFIG_NUMA
-> 	- fixed oops appearing when stable nodes were removed from tree
-> 	- roots of stable trees are initialized properly
-> 	- fixed unstable page migration issue
-> 
-> v6:	- fixed oops caused by stable_nodes appended to wrong tree
-> 	- KSM_RUN_MERGE test removed
-> 
-> v7:	- added sysfs ABI documentation for KSM
+Hi Namjae,
 
-Hi Petr,
+How about set bdi->dirty_background_bytes according to bdi_thresh? I found 
+an issue during background flush process when review codes, if over background 
+flush threshold, wb_check_background_flush will kick a work to current per-bdi 
+flusher, but maybe it is other heavy dirties written in other bdis who heavily 
+dirty pages instead of current bdi, the worst case is current bdi has many 
+frequently used data and flush lead to cache thresh. How about add a check 
+in wb_check_background_flush if it is not current bdi who contributes large 
+number of dirty pages to background flush threshold(over bdi->dirty_background_bytes), 
+then don't bother it.
 
-How you handle "memory corruption because the ksm page still points to
-the stable_node that has been freed" mentioned by Andrea this time?
+Regards,
+Wanpeng Li
 
-> 
-> Signed-off-by: Petr Holasek <pholasek@redhat.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Acked-by: Rik van Riel <riel@redhat.com>
-> ---
->  Documentation/vm/ksm.txt |   7 +++
->  mm/ksm.c                 | 151 +++++++++++++++++++++++++++++++++++++++++------
->  2 files changed, 139 insertions(+), 19 deletions(-)
-> 
-> diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
-> index b392e49..25cc89b 100644
-> --- a/Documentation/vm/ksm.txt
-> +++ b/Documentation/vm/ksm.txt
-> @@ -58,6 +58,13 @@ sleep_millisecs  - how many milliseconds ksmd should sleep before next scan
->                     e.g. "echo 20 > /sys/kernel/mm/ksm/sleep_millisecs"
->                     Default: 20 (chosen for demonstration purposes)
->  
-> +merge_across_nodes - specifies if pages from different numa nodes can be merged.
-> +                   When set to 0, ksm merges only pages which physically
-> +                   reside in the memory area of same NUMA node. It brings
-> +                   lower latency to access to shared page. Value can be
-> +                   changed only when there is no ksm shared pages in system.
-> +                   Default: 1
-> +
->  run              - set 0 to stop ksmd from running but keep merged pages,
->                     set 1 to run ksmd e.g. "echo 1 > /sys/kernel/mm/ksm/run",
->                     set 2 to stop ksmd and unmerge all pages currently merged,
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index 5157385..d1e1041 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -36,6 +36,7 @@
->  #include <linux/hash.h>
->  #include <linux/freezer.h>
->  #include <linux/oom.h>
-> +#include <linux/numa.h>
->  
->  #include <asm/tlbflush.h>
->  #include "internal.h"
-> @@ -139,6 +140,9 @@ struct rmap_item {
->  	struct mm_struct *mm;
->  	unsigned long address;		/* + low bits used for flags below */
->  	unsigned int oldchecksum;	/* when unstable */
-> +#ifdef CONFIG_NUMA
-> +	unsigned int nid;
-> +#endif
->  	union {
->  		struct rb_node node;	/* when node of unstable tree */
->  		struct {		/* when listed from stable tree */
-> @@ -153,8 +157,8 @@ struct rmap_item {
->  #define STABLE_FLAG	0x200	/* is listed from the stable tree */
->  
->  /* The stable and unstable tree heads */
-> -static struct rb_root root_stable_tree = RB_ROOT;
-> -static struct rb_root root_unstable_tree = RB_ROOT;
-> +static struct rb_root root_unstable_tree[MAX_NUMNODES];
-> +static struct rb_root root_stable_tree[MAX_NUMNODES];
->  
->  #define MM_SLOTS_HASH_SHIFT 10
->  #define MM_SLOTS_HASH_HEADS (1 << MM_SLOTS_HASH_SHIFT)
-> @@ -189,6 +193,9 @@ static unsigned int ksm_thread_pages_to_scan = 100;
->  /* Milliseconds ksmd should sleep between batches */
->  static unsigned int ksm_thread_sleep_millisecs = 20;
->  
-> +/* Zeroed when merging across nodes is not allowed */
-> +static unsigned int ksm_merge_across_nodes = 1;
-> +
->  #define KSM_RUN_STOP	0
->  #define KSM_RUN_MERGE	1
->  #define KSM_RUN_UNMERGE	2
-> @@ -447,10 +454,25 @@ out:		page = NULL;
->  	return page;
->  }
->  
-> +/*
-> + * This helper is used for getting right index into array of tree roots.
-> + * When merge_across_nodes knob is set to 1, there are only two rb-trees for
-> + * stable and unstable pages from all nodes with roots in index 0. Otherwise,
-> + * every node has its own stable and unstable tree.
-> + */
-> +static inline int get_kpfn_nid(unsigned long kpfn)
-> +{
-> +	if (ksm_merge_across_nodes)
-> +		return 0;
-> +	else
-> +		return pfn_to_nid(kpfn);
-> +}
-> +
->  static void remove_node_from_stable_tree(struct stable_node *stable_node)
->  {
->  	struct rmap_item *rmap_item;
->  	struct hlist_node *hlist;
-> +	int nid;
->  
->  	hlist_for_each_entry(rmap_item, hlist, &stable_node->hlist, hlist) {
->  		if (rmap_item->hlist.next)
-> @@ -462,7 +484,9 @@ static void remove_node_from_stable_tree(struct stable_node *stable_node)
->  		cond_resched();
->  	}
->  
-> -	rb_erase(&stable_node->node, &root_stable_tree);
-> +	nid = get_kpfn_nid(stable_node->kpfn);
-> +
-> +	rb_erase(&stable_node->node, &root_stable_tree[nid]);
->  	free_stable_node(stable_node);
->  }
->  
-> @@ -560,7 +584,12 @@ static void remove_rmap_item_from_tree(struct rmap_item *rmap_item)
->  		age = (unsigned char)(ksm_scan.seqnr - rmap_item->address);
->  		BUG_ON(age > 1);
->  		if (!age)
-> -			rb_erase(&rmap_item->node, &root_unstable_tree);
-> +#ifdef CONFIG_NUMA
-> +			rb_erase(&rmap_item->node,
-> +					&root_unstable_tree[rmap_item->nid]);
-> +#else
-> +			rb_erase(&rmap_item->node, &root_unstable_tree[0]);
-> +#endif
->  
->  		ksm_pages_unshared--;
->  		rmap_item->address &= PAGE_MASK;
-> @@ -996,8 +1025,9 @@ static struct page *try_to_merge_two_pages(struct rmap_item *rmap_item,
->   */
->  static struct page *stable_tree_search(struct page *page)
->  {
-> -	struct rb_node *node = root_stable_tree.rb_node;
-> +	struct rb_node *node;
->  	struct stable_node *stable_node;
-> +	int nid;
->  
->  	stable_node = page_stable_node(page);
->  	if (stable_node) {			/* ksm page forked */
-> @@ -1005,6 +1035,9 @@ static struct page *stable_tree_search(struct page *page)
->  		return page;
->  	}
->  
-> +	nid = get_kpfn_nid(page_to_pfn(page));
-> +	node = root_stable_tree[nid].rb_node;
-> +
->  	while (node) {
->  		struct page *tree_page;
->  		int ret;
-> @@ -1039,10 +1072,16 @@ static struct page *stable_tree_search(struct page *page)
->   */
->  static struct stable_node *stable_tree_insert(struct page *kpage)
->  {
-> -	struct rb_node **new = &root_stable_tree.rb_node;
-> +	int nid;
-> +	unsigned long kpfn;
-> +	struct rb_node **new;
->  	struct rb_node *parent = NULL;
->  	struct stable_node *stable_node;
->  
-> +	kpfn = page_to_pfn(kpage);
-> +	nid = get_kpfn_nid(kpfn);
-> +	new = &root_stable_tree[nid].rb_node;
-> +
->  	while (*new) {
->  		struct page *tree_page;
->  		int ret;
-> @@ -1076,11 +1115,11 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
->  		return NULL;
->  
->  	rb_link_node(&stable_node->node, parent, new);
-> -	rb_insert_color(&stable_node->node, &root_stable_tree);
-> +	rb_insert_color(&stable_node->node, &root_stable_tree[nid]);
->  
->  	INIT_HLIST_HEAD(&stable_node->hlist);
->  
-> -	stable_node->kpfn = page_to_pfn(kpage);
-> +	stable_node->kpfn = kpfn;
->  	set_page_stable_node(kpage, stable_node);
->  
->  	return stable_node;
-> @@ -1104,10 +1143,15 @@ static
->  struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
->  					      struct page *page,
->  					      struct page **tree_pagep)
-> -
->  {
-> -	struct rb_node **new = &root_unstable_tree.rb_node;
-> +	struct rb_node **new;
-> +	struct rb_root *root;
->  	struct rb_node *parent = NULL;
-> +	int nid;
-> +
-> +	nid = get_kpfn_nid(page_to_pfn(page));
-> +	root = &root_unstable_tree[nid];
-> +	new = &root->rb_node;
->  
->  	while (*new) {
->  		struct rmap_item *tree_rmap_item;
-> @@ -1128,6 +1172,18 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
->  			return NULL;
->  		}
->  
-> +		/*
-> +		 * If tree_page has been migrated to another NUMA node, it
-> +		 * will be flushed out and put into the right unstable tree
-> +		 * next time: only merge with it if merge_across_nodes.
-
-Why? Do you mean swap based migration? Or where I miss ....?
-
-> +		 * Just notice, we don't have similar problem for PageKsm
-> +		 * because their migration is disabled now. (62b61f611e)
-> +		 */
-> +		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
-> +			put_page(tree_page);
-> +			return NULL;
-> +		}
-> +
->  		ret = memcmp_pages(page, tree_page);
->  
->  		parent = *new;
-> @@ -1145,8 +1201,11 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
->  
->  	rmap_item->address |= UNSTABLE_FLAG;
->  	rmap_item->address |= (ksm_scan.seqnr & SEQNR_MASK);
-> +#ifdef CONFIG_NUMA
-> +	rmap_item->nid = nid;
-> +#endif
->  	rb_link_node(&rmap_item->node, parent, new);
-> -	rb_insert_color(&rmap_item->node, &root_unstable_tree);
-> +	rb_insert_color(&rmap_item->node, root);
->  
->  	ksm_pages_unshared++;
->  	return NULL;
-> @@ -1160,6 +1219,13 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
->  static void stable_tree_append(struct rmap_item *rmap_item,
->  			       struct stable_node *stable_node)
->  {
-> +#ifdef CONFIG_NUMA
-> +	/*
-> +	 * Usually rmap_item->nid is already set correctly,
-> +	 * but it may be wrong after switching merge_across_nodes.
-> +	 */
-> +	rmap_item->nid = get_kpfn_nid(stable_node->kpfn);
-> +#endif
->  	rmap_item->head = stable_node;
->  	rmap_item->address |= STABLE_FLAG;
->  	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
-> @@ -1289,6 +1355,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
->  	struct mm_slot *slot;
->  	struct vm_area_struct *vma;
->  	struct rmap_item *rmap_item;
-> +	int nid;
->  
->  	if (list_empty(&ksm_mm_head.mm_list))
->  		return NULL;
-> @@ -1307,7 +1374,8 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
->  		 */
->  		lru_add_drain_all();
->  
-> -		root_unstable_tree = RB_ROOT;
-> +		for (nid = 0; nid < nr_node_ids; nid++)
-> +			root_unstable_tree[nid] = RB_ROOT;
->  
->  		spin_lock(&ksm_mmlist_lock);
->  		slot = list_entry(slot->mm_list.next, struct mm_slot, mm_list);
-> @@ -1782,15 +1850,19 @@ static struct stable_node *ksm_check_stable_tree(unsigned long start_pfn,
->  						 unsigned long end_pfn)
->  {
->  	struct rb_node *node;
-> +	int nid;
->  
-> -	for (node = rb_first(&root_stable_tree); node; node = rb_next(node)) {
-> -		struct stable_node *stable_node;
-> +	for (nid = 0; nid < nr_node_ids; nid++)
-> +		for (node = rb_first(&root_stable_tree[nid]); node;
-> +				node = rb_next(node)) {
-> +			struct stable_node *stable_node;
-> +
-> +			stable_node = rb_entry(node, struct stable_node, node);
-> +			if (stable_node->kpfn >= start_pfn &&
-> +			    stable_node->kpfn < end_pfn)
-> +				return stable_node;
-> +		}
->  
-> -		stable_node = rb_entry(node, struct stable_node, node);
-> -		if (stable_node->kpfn >= start_pfn &&
-> -		    stable_node->kpfn < end_pfn)
-> -			return stable_node;
-> -	}
->  	return NULL;
->  }
->  
-> @@ -1937,6 +2009,40 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
->  }
->  KSM_ATTR(run);
->  
-> +#ifdef CONFIG_NUMA
-> +static ssize_t merge_across_nodes_show(struct kobject *kobj,
-> +				struct kobj_attribute *attr, char *buf)
-> +{
-> +	return sprintf(buf, "%u\n", ksm_merge_across_nodes);
-> +}
-> +
-> +static ssize_t merge_across_nodes_store(struct kobject *kobj,
-> +				   struct kobj_attribute *attr,
-> +				   const char *buf, size_t count)
-> +{
-> +	int err;
-> +	unsigned long knob;
-> +
-> +	err = kstrtoul(buf, 10, &knob);
-> +	if (err)
-> +		return err;
-> +	if (knob > 1)
-> +		return -EINVAL;
-> +
-> +	mutex_lock(&ksm_thread_mutex);
-> +	if (ksm_merge_across_nodes != knob) {
-> +		if (ksm_pages_shared)
-> +			err = -EBUSY;
-> +		else
-> +			ksm_merge_across_nodes = knob;
-> +	}
-> +	mutex_unlock(&ksm_thread_mutex);
-> +
-> +	return err ? err : count;
-> +}
-> +KSM_ATTR(merge_across_nodes);
-> +#endif
-> +
->  static ssize_t pages_shared_show(struct kobject *kobj,
->  				 struct kobj_attribute *attr, char *buf)
->  {
-> @@ -1991,6 +2097,9 @@ static struct attribute *ksm_attrs[] = {
->  	&pages_unshared_attr.attr,
->  	&pages_volatile_attr.attr,
->  	&full_scans_attr.attr,
-> +#ifdef CONFIG_NUMA
-> +	&merge_across_nodes_attr.attr,
-> +#endif
->  	NULL,
->  };
->  
-> @@ -2004,11 +2113,15 @@ static int __init ksm_init(void)
->  {
->  	struct task_struct *ksm_thread;
->  	int err;
-> +	int nid;
->  
->  	err = ksm_slab_init();
->  	if (err)
->  		goto out;
->  
-> +	for (nid = 0; nid < nr_node_ids; nid++)
-> +		root_stable_tree[nid] = RB_ROOT;
-> +
->  	ksm_thread = kthread_run(ksm_scan_thread, NULL, "ksmd");
->  	if (IS_ERR(ksm_thread)) {
->  		printk(KERN_ERR "ksm: creating kthread failed\n");
-
+On Tue, Nov 20, 2012 at 08:18:59AM +0900, Namjae Jeon wrote:
+>2012/10/22, Dave Chinner <david@fromorbit.com>:
+>> On Fri, Oct 19, 2012 at 04:51:05PM +0900, Namjae Jeon wrote:
+>>> Hi Dave.
+>>>
+>>> Test Procedure:
+>>>
+>>> 1) Local USB disk WRITE speed on NFS server is ~25 MB/s
+>>>
+>>> 2) Run WRITE test(create 1 GB file) on NFS Client with default
+>>> writeback settings on NFS Server. By default
+>>> bdi->dirty_background_bytes = 0, that means no change in default
+>>> writeback behaviour
+>>>
+>>> 3) Next we change bdi->dirty_background_bytes = 25 MB (almost equal to
+>>> local USB disk write speed on NFS Server)
+>>> *** only on NFS Server - not on NFS Client ***
+>>
+>> Ok, so the results look good, but it's not really addressing what I
+>> was asking, though.  A typical desktop PC has a disk that can do
+>> 100MB/s and GbE, so I was expecting a test that showed throughput
+>> close to GbE maximums at least (ie. around that 100MB/s). I have 3
+>> year old, low end, low power hardware (atom) that hanles twice the
+>> throughput you are testing here, and most current consumer NAS
+>> devices are more powerful than this. IOWs, I think the rates you are
+>> testing at are probably too low even for the consumer NAS market to
+>> consider relevant...
+>>
+>>> ----------------------------------------------------------------------------------
+>>> Multiple NFS Client test:
+>>> -----------------------------------------------------------------------------------
+>>> Sorry - We could not arrange multiple PCs to verify this.
+>>> So, we tried 1 NFS Server + 2 NFS Clients using 3 target boards:
+>>> ARM Target + 512 MB RAM + ethernet - 100 Mbits/s, create 1 GB File
+>>
+>> But this really doesn't tells us anything - it's still only 100Mb/s,
+>> which we'd expect is already getting very close to line rate even
+>> with low powered client hardware.
+>>
+>> What I'm concerned about the NFS server "sweet spot" - a $10k server
+>> that exports 20TB of storage and can sustain close to a GB/s of NFS
+>> traffic over a single 10GbE link with tens to hundreds of clients.
+>> 100MB/s and 10 clients is about the minimum needed to be able to
+>> extrapolate a litle and make an informed guess of how it will scale
+>> up....
+>>
+>>> > 1. what's the comparison in performance to typical NFS
+>>> > server writeback parameter tuning? i.e. dirty_background_ratio=5,
+>>> > dirty_ratio=10, dirty_expire_centiseconds=1000,
+>>> > dirty_writeback_centisecs=1? i.e. does this give change give any
+>>> > benefit over the current common practice for configuring NFS
+>>> > servers?
+>>>
+>>> Agreed, that above improvement in write speed can be achieved by
+>>> tuning above write-back parameters.
+>>> But if we change these settings, it will change write-back behavior
+>>> system wide.
+>>> On the other hand, if we change proposed per bdi setting,
+>>> bdi->dirty_background_bytes it will change write-back behavior for the
+>>> block device exported on NFS server.
+>>
+>> I already know what the difference between global vs per-bdi tuning
+>> means.  What I want to know is how your results compare
+>> *numerically* to just having a tweaked global setting on a vanilla
+>> kernel.  i.e. is there really any performance benefit to per-bdi
+>> configuration that cannot be gained by existing methods?
+>>
+>>> > 2. what happens when you have 10 clients all writing to the server
+>>> > at once? Or a 100? NFS servers rarely have a single writer to a
+>>> > single file at a time, so what impact does this change have on
+>>> > multiple concurrent file write performance from multiple clients
+>>>
+>>> Sorry, we could not arrange more than 2 PCs for verifying this.
+>>
+>> Really? Well, perhaps there's some tools that might be useful for
+>> you here:
+>>
+>> http://oss.sgi.com/projects/nfs/testtools/
+>>
+>> "Weber
+>>
+>> Test load generator for NFS. Uses multiple threads, multiple
+>> sockets and multiple IP addresses to simulate loads from many
+>> machines, thus enabling testing of NFS server setups with larger
+>> client counts than can be tested with physical infrastructure (or
+>> Virtual Machine clients). Has been useful in automated NFS testing
+>> and as a pinpoint NFS load generator tool for performance
+>> development."
+>>
+>
+>Hi Dave,
+>We ran "weber" test on below setup:
+>1) SATA HDD - Local WRITE speed ~120 MB/s, NFS WRITE speed ~90 MB/s
+>2) Used 10GbE - network interface to mount NFS
+>
+>We ran "weber" test with  NFS clients ranging from 1 to 100,
+>below is the % GAIN in NFS WRITE speed with
+>bdi->dirty_background_bytes = 100 MB at NFS server
+>
+>-------------------------------------------------
+>| Number of NFS Clients |% GAIN in WRITE Speed  |
+>|-----------------------------------------------|
+>|         1             |     19.83 %           |
+>|-----------------------------------------------|
+>|         2             |      2.97 %           |
+>|-----------------------------------------------|
+>|         3             |      2.01 %           |
+>|-----------------------------------------------|
+>|        10             |      0.25 %           |
+>|-----------------------------------------------|
+>|        20             |      0.23 %           |
+>|-----------------------------------------------|
+>|        30             |      0.13 %           |
+>|-----------------------------------------------|
+>|       100             |    - 0.60 %           |
+>-------------------------------------------------
+>
+>with bdi->dirty_background_bytes setting at NFS server, we observed
+>that NFS WRITE speed improvement is maximum with single NFS client.
+>But WRITE speed improvement drops when Number of NFS clients increase
+>from 1 to 100.
+>
+>So, bdi->dirty_background_bytes setting might be useful where we have
+>only one NFS client(scenario like ours).
+>But this is not useful for big NFS Servers which host hundreads of NFS clients.
+>
+>Let me know your opinion.
+>
+>Thanks.
+>
+>>> > 3. Following on from the multiple client test, what difference does it
+>>> > make to file fragmentation rates? Writing more frequently means
+>>> > smaller allocations and writes, and that tends to lead to higher
+>>> > fragmentation rates, especially when multiple files are being
+>>> > written concurrently. Higher fragmentation also means lower
+>>> > performance over time as fragmentation accelerates filesystem aging
+>>> > effects on performance.  IOWs, it may be faster when new, but it
+>>> > will be slower 3 months down the track and that's a bad tradeoff to
+>>> > make.
+>>>
+>>> We agree that there could be bit more framentation. But as you know,
+>>> we are not changing writeback settings at NFS clients.
+>>> So, write-back behavior on NFS client will not change - IO requests
+>>> will be buffered at NFS client as per existing write-back behavior.
+>>
+>> I think you misunderstand - writeback settings on the server greatly
+>> impact the way the server writes data and therefore the way files
+>> are fragmented. It has nothing to do with client side tuning.
+>>
+>> Effectively, what you are presenting is best case numbers - empty
+>> filesystem, single client, streaming write, no fragmentation, no
+>> allocation contention, no competing IO load that causes write
+>> latency occurring.  Testing with lots of clients introduces all of
+>> these things, and that will greatly impact server behaviour.
+>> Aggregation in memory isolates a lot of this variation from
+>> writeback and hence smooths out a lot of the variability that leads
+>> to fragmentation, seeks, latency spikes and preamture filesystem
+>> aging.
+>>
+>> That is, if you set a 100MB dirty_bytes limit on a bdi it will give
+>> really good buffering for a single client doing a streaming write.
+>> If you've got 10 clients, then assuming fair distribution of server
+>> resources, then that is 10MB per client per writeback trigger.
+>> That's line ball as to whether it will cause fragmentation severe
+>> enough to impact server throughput. If you've got 100 clients,then
+>> that's only 1MB per client per writeback trigger, and that's
+>> definitely too low to maintain decent writeback behaviour.  i.e.
+>> you're now writing 100 files 1MB at a time, and that tends towards
+>> random IO patterns rather than sequential IO patterns. Seek time
+>> dertermines throughput, not IO bandwidth limits.
+>>
+>> IOWs, as the client count goes up, the writeback patterns will tends
+>> more towards random IO than sequential IO unless the amount of
+>> buffering allowed before writeback triggers also grows. That's
+>> important, because random IO is much slower than sequential IO.
+>> What I'd like to have is some insight into whether this patch
+>> changes that inflection point, for better or for worse. The only way
+>> to find that is to run multi-client testing....
+>>
+>>> > 5. Are the improvements consistent across different filesystem
+>>> > types?  We've had writeback changes in the past cause improvements
+>>> > on one filesystem but significant regressions on others.  I'd
+>>> > suggest that you need to present results for ext4, XFS and btrfs so
+>>> > that we have a decent idea of what we can expect from the change to
+>>> > the generic code.
+>>>
+>>> As mentioned in the above Table 1 & 2, performance gain in WRITE speed
+>>> is different on different file systems i.e. different on NFS client
+>>> over XFS & EXT4.
+>>> We also tried BTRFS over NFS, but we could not see any WRITE speed
+>>> performance gain/degrade on BTRFS over NFS, so we are not posting
+>>> BTRFS results here.
+>>
+>> You should post btrfs numbers even if they show no change. It wasn't
+>> until I got this far that I even realised that you'd even tested
+>> BTRFS. I don't know what to make of this, because I don't know what
+>> the throughput rates compared to XFS and EXT4 are....
+>>
+>> Cheers,
+>>
+>> Dave.
+>> --
+>> Dave Chinner
+>> david@fromorbit.com
+>>
+>--
+>To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+>the body of a message to majordomo@vger.kernel.org
+>More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
