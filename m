@@ -1,159 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 798386B0044
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 02:01:12 -0500 (EST)
-Date: Wed, 5 Dec 2012 16:01:10 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v2] Support volatile range for anon vma
-Message-ID: <20121205070110.GC9782@blaptop>
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
- <50AD739A.30804@linaro.org>
- <50B6E1F9.5010301@linaro.org>
- <20121204000042.GB20395@bbox>
- <50BD4A70.9060506@linaro.org>
- <20121204072207.GA9782@blaptop>
- <50BE4B64.6000003@linaro.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 2CBC86B005D
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 02:24:33 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so3512381pad.14
+        for <linux-mm@kvack.org>; Tue, 04 Dec 2012 23:24:32 -0800 (PST)
+Date: Tue, 4 Dec 2012 23:24:30 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: fix shared mempolicy leak
+In-Reply-To: <alpine.LNX.2.00.1212042211340.892@eggly.anvils>
+Message-ID: <alpine.LNX.2.00.1212042320050.19453@eggly.anvils>
+References: <1349801921-16598-1-git-send-email-mgorman@suse.de> <1349801921-16598-6-git-send-email-mgorman@suse.de> <CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com> <20121204141501.GA2797@suse.de> <alpine.LNX.2.00.1212042042130.13895@eggly.anvils>
+ <alpine.LNX.2.00.1212042211340.892@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50BE4B64.6000003@linaro.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Tommi Rantala <tt.rantala@gmail.com>, Stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-Hi John,
+From: Mel Gorman <mgorman@suse.de>
 
-On Tue, Dec 04, 2012 at 11:13:40AM -0800, John Stultz wrote:
-> On 12/03/2012 11:22 PM, Minchan Kim wrote:
-> >On Mon, Dec 03, 2012 at 04:57:20PM -0800, John Stultz wrote:
-> >>On 12/03/2012 04:00 PM, Minchan Kim wrote:
-> >>>On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
-> >>>>On 11/21/2012 04:36 PM, John Stultz wrote:
-> >>>>>2) Being able to use this with tmpfs files. I'm currently trying
-> >>>>>to better understand the rmap code, looking to see if there's a
-> >>>>>way to have try_to_unmap_file() work similarly to
-> >>>>>try_to_unmap_anon(), to allow allow users to madvise() on mmapped
-> >>>>>tmpfs files. This would provide a very similar interface as to
-> >>>>>what I've been proposing with fadvise/fallocate, but just using
-> >>>>>process virtual addresses instead of (fd, offset) pairs.   The
-> >>>>>benefit with (fd,offset) pairs for Android is that its easier to
-> >>>>>manage shared volatile ranges between two processes that are
-> >>>>>sharing data via an mmapped tmpfs file (although this actual use
-> >>>>>case may be fairly rare).  I believe we should still be able to
-> >>>>>rework the ashmem internals to use madvise (which would provide
-> >>>>>legacy support for existing android apps), so then its just a
-> >>>>>question of if we could then eventually convince Android apps to
-> >>>>>use the madvise interface directly, rather then the ashmem unpin
-> >>>>>ioctl.
-> >>>>Hey Minchan,
-> >>>>     I've been playing around with your patch trying to better
-> >>>>understand your approach and to extend it to support tmpfs files. In
-> >>>>doing so I've found a few bugs, and have some rough fixes I wanted
-> >>>>to share. There's still a few edge cases I need to deal with (the
-> >>>>vma-purged flag isn't being properly handled through vma merge/split
-> >>>>operations), but its starting to come along.
-> >>>Hmm, my patch doesn't allow to merge volatile with another one by
-> >>>inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
-> >>>In case of split, __split_vma copy old vma to new vma like this
-> >>>
-> >>>         *new = *vma;
-> >>>
-> >>>So the problem shouldn't happen, I guess.
-> >>>Did you see the real problem about that?
-> >>Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE
-> >>is applied, we can get a result where data is purged, but we aren't
-> >>notified of it.  Also, since madvise returns early if it encounters
-> >>an error, in the case where you have checkerboard volatile regions
-> >>(say every other page is volatile), which you mark non-volatile with
-> >>one large MADV_NOVOLATILE call, the first volatile vma will be
-> >>marked non-volatile, but since it returns purged, the madvise loop
-> >>will stop and the following volatile regions will be left volatile.
-> >>
-> >>The patches in the git tree below which handle the perged state
-> >>better seem to work for my tests, as far as resolving any
-> >>overlapping calls. Of course there may yet still be problems I've
-> >>not found.
-> >>
-> >>>>Anyway, take a look at the tree here and let me know what you think.
-> >>>>http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
-> >>Eager to hear what you think!
-> >Below two patches look good to me.
-> >
-> >[rmap: Simplify volatility checking by moving it out of try_to_unmap_one]
-> >[rmap: ClearPageDirty() when returning SWAP_DISCARD]
-> >
-> >[madvise: Fix NOVOLATILE bug]
-> >I can't understand description of the patch.
-> >Could you elaborate it with example?
-> The case I ran into here is if you have a range where you mark every
-> other page as volatile. Then mark all the pages in that range as
-> non-volatile in one madvise call.
-> 
-> sys_madvise() will then find the first vma in the range, and call
-> madvise_vma(), which marks the first vma non-volatile and return the
-> purged state.  If the page has been purged, sys_madvise code will
-> note that as an error, and break out of the vma iteration loop,
-> leaving the following vmas in the range volatile.
-> 
-> >[madvise: Fixup vma->purged handling]
-> >I included VM_VOLATILE into VM_SPECIAL intentionally.
-> >If comment of VM_SPECIAL is right, merge with volatile vmas shouldn't happen.
-> >So I guess you see other problem. When I see my source code today, locking
-> >scheme/purge handling is totally broken. I will look at it. Maybe you are seeing
-> >bug related that. Part of patch is needed. It could be separate patch.
-> >I will merge it.
-> I don't think the problem is when vmas being marked VM_VOLATILE are
-> being merged, its that when we mark the vma as *non-volatile*, and
-> remove the VM_VOLATILE flag we merge the non-volatile vmas with
-> neighboring vmas. So preserving the purged flag during that merge is
-> important. Again, the example I used to trigger this was an
-> alternating pattern of volatile and non volatile vmas, then marking
-> the entire range non-volatile (though sometimes in two overlapping
-> passes).
+Commit 00442ad04a5e ("mempolicy: fix a memory corruption by refcount
+imbalance in alloc_pages_vma()") changed get_vma_policy() to raise the
+refcount on a shmem shared mempolicy; whereas shmem_alloc_page() went
+on expecting alloc_page_vma() to drop the refcount it had acquired.
+This deserves a rework: but for now fix the leak in shmem_alloc_page().
 
-If I understand correctly, you mean following as.
+Hugh: shmem_swapin() did not need a fix, but surely it's clearer to use
+the same refcounting there as in shmem_alloc_page(), delete its onstack
+mempolicy, and the strange mpol_cond_copy() and __mpol_cond_copy() -
+those were invented to let swapin_readahead() make an unknown number of
+calls to alloc_pages_vma() with one mempolicy; but since 00442ad04a5e,
+alloc_pages_vma() has kept refcount in balance, so now no problem.
 
-chunk1 = mmap(8M)
-chunk2 = chunk1 + 2M;
-chunk3 = chunk2 + 2M
-chunk4 = chunk3 + 2M
+Reported-by: Tommi Rantala <tt.rantala@gmail.com>
+Awaiting-signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
+---
 
-madvise(chunk1, 2M, VOLATILE);
-madvise(chunk4, 2M, VOLATILE);
+ include/linux/mempolicy.h |   16 ----------------
+ mm/mempolicy.c            |   22 ----------------------
+ mm/shmem.c                |   26 ++++++++++++++++----------
+ 3 files changed, 16 insertions(+), 48 deletions(-)
 
-/*
- * V : volatile vma
- * N : non volatile vma
- * So Now vma is VNVN.
- */
-And chunk4 is purged.
-
-int ret = madvise(chunk1, 8M, NOVOLATILE);
-ASSERT(ret == 1);
-/* And you expect VNVN->N ?*/
-
-Right?
-If so, why should non-volatile function semantic allow it which cross over
-non-volatile areas in a range? I would like to fail such case because
-in case of MADV_REMOVE, it fails in the middle of operation if it encounter
-VM_LOCKED.
-
-What do you think about it?
-
-> 
-> thanks
-> -john
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+--- 3.7-rc8/include/linux/mempolicy.h	2012-10-14 16:16:57.637308925 -0700
++++ linux/include/linux/mempolicy.h	2012-12-04 22:38:21.812178829 -0800
+@@ -82,16 +82,6 @@ static inline void mpol_cond_put(struct
+ 		__mpol_put(pol);
+ }
+ 
+-extern struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
+-					  struct mempolicy *frompol);
+-static inline struct mempolicy *mpol_cond_copy(struct mempolicy *tompol,
+-						struct mempolicy *frompol)
+-{
+-	if (!frompol)
+-		return frompol;
+-	return __mpol_cond_copy(tompol, frompol);
+-}
+-
+ extern struct mempolicy *__mpol_dup(struct mempolicy *pol);
+ static inline struct mempolicy *mpol_dup(struct mempolicy *pol)
+ {
+@@ -215,12 +205,6 @@ static inline void mpol_cond_put(struct
+ {
+ }
+ 
+-static inline struct mempolicy *mpol_cond_copy(struct mempolicy *to,
+-						struct mempolicy *from)
+-{
+-	return from;
+-}
+-
+ static inline void mpol_get(struct mempolicy *pol)
+ {
+ }
+--- 3078/mm/mempolicy.c	2012-10-20 20:56:24.675917367 -0700
++++ 3078X/mm/mempolicy.c	2012-12-04 22:33:31.516171929 -0800
+@@ -2037,28 +2037,6 @@ struct mempolicy *__mpol_dup(struct memp
+ 	return new;
+ }
+ 
+-/*
+- * If *frompol needs [has] an extra ref, copy *frompol to *tompol ,
+- * eliminate the * MPOL_F_* flags that require conditional ref and
+- * [NOTE!!!] drop the extra ref.  Not safe to reference *frompol directly
+- * after return.  Use the returned value.
+- *
+- * Allows use of a mempolicy for, e.g., multiple allocations with a single
+- * policy lookup, even if the policy needs/has extra ref on lookup.
+- * shmem_readahead needs this.
+- */
+-struct mempolicy *__mpol_cond_copy(struct mempolicy *tompol,
+-						struct mempolicy *frompol)
+-{
+-	if (!mpol_needs_cond_ref(frompol))
+-		return frompol;
+-
+-	*tompol = *frompol;
+-	tompol->flags &= ~MPOL_F_SHARED;	/* copy doesn't need unref */
+-	__mpol_put(frompol);
+-	return tompol;
+-}
+-
+ /* Slow path of a mempolicy comparison */
+ bool __mpol_equal(struct mempolicy *a, struct mempolicy *b)
+ {
+--- 3078/mm/shmem.c	2012-11-16 19:26:56.388459961 -0800
++++ 3078X/mm/shmem.c	2012-12-04 22:32:35.328170594 -0800
+@@ -910,25 +910,29 @@ static struct mempolicy *shmem_get_sbmpo
+ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+ 			struct shmem_inode_info *info, pgoff_t index)
+ {
+-	struct mempolicy mpol, *spol;
+ 	struct vm_area_struct pvma;
+-
+-	spol = mpol_cond_copy(&mpol,
+-			mpol_shared_policy_lookup(&info->policy, index));
++	struct page *page;
+ 
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+ 	/* Bias interleave by inode number to distribute better across nodes */
+ 	pvma.vm_pgoff = index + info->vfs_inode.i_ino;
+ 	pvma.vm_ops = NULL;
+-	pvma.vm_policy = spol;
+-	return swapin_readahead(swap, gfp, &pvma, 0);
++	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
++
++	page = swapin_readahead(swap, gfp, &pvma, 0);
++
++	/* Drop reference taken by mpol_shared_policy_lookup() */
++	mpol_cond_put(pvma.vm_policy);
++
++	return page;
+ }
+ 
+ static struct page *shmem_alloc_page(gfp_t gfp,
+ 			struct shmem_inode_info *info, pgoff_t index)
+ {
+ 	struct vm_area_struct pvma;
++	struct page *page;
+ 
+ 	/* Create a pseudo vma that just contains the policy */
+ 	pvma.vm_start = 0;
+@@ -937,10 +941,12 @@ static struct page *shmem_alloc_page(gfp
+ 	pvma.vm_ops = NULL;
+ 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, index);
+ 
+-	/*
+-	 * alloc_page_vma() will drop the shared policy reference
+-	 */
+-	return alloc_page_vma(gfp, &pvma, 0);
++	page = alloc_page_vma(gfp, &pvma, 0);
++
++	/* Drop reference taken by mpol_shared_policy_lookup() */
++	mpol_cond_put(pvma.vm_policy);
++
++	return page;
+ }
+ #else /* !CONFIG_NUMA */
+ #ifdef CONFIG_TMPFS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
