@@ -1,39 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 948726B0044
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 17:05:17 -0500 (EST)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [PATCH 3/3] HWPOISON, hugetlbfs: fix RSS-counter warning
-Date: Wed, 5 Dec 2012 22:04:50 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F1C963B15@ORSMSX108.amr.corp.intel.com>
-References: <1354744058-26373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1354744058-26373-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1354744058-26373-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 51FA96B0044
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 17:06:05 -0500 (EST)
+Date: Wed, 5 Dec 2012 14:06:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory
+ changes
+Message-Id: <20121205140602.1d8340a8.akpm@linux-foundation.org>
+In-Reply-To: <50BF198D.3030509@parallels.com>
+References: <50B8F2F4.6000508@parallels.com>
+	<20121203144310.7ccdbeb4.akpm@linux-foundation.org>
+	<50BD86DE.6050700@parallels.com>
+	<20121204152121.e5c33938.akpm@linux-foundation.org>
+	<1354666628.6733.227.camel@calx>
+	<20121204162411.700d4954.akpm@linux-foundation.org>
+	<1354667937.6733.233.camel@calx>
+	<50BF198D.3030509@parallels.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, "Kleen, Andi" <andi.kleen@intel.com>
-Cc: "Wu, Fengguang" <fengguang.wu@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Matt Mackall <mpm@selenic.com>, Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
 
-	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
--		if (PageAnon(page))
-+		if (PageHuge(page))
-+			;
-+		else if (PageAnon(page))
- 			dec_mm_counter(mm, MM_ANONPAGES);
- 		else
- 			dec_mm_counter(mm, MM_FILEPAGES);
+On Wed, 05 Dec 2012 13:53:17 +0400
+Pavel Emelyanov <xemul@parallels.com> wrote:
 
-This style minimizes the "diff" ... but wouldn't it be nicer to say:
+> On 12/05/2012 04:38 AM, Matt Mackall wrote:
+> > On Tue, 2012-12-04 at 16:24 -0800, Andrew Morton wrote:
+> >> On Tue, 04 Dec 2012 18:17:08 -0600
+> >> Matt Mackall <mpm@selenic.com> wrote:
+> >>
+> >>> On Tue, 2012-12-04 at 15:21 -0800, Andrew Morton wrote:
+> >>>> On Tue, 04 Dec 2012 09:15:10 +0400
+> >>>> Pavel Emelyanov <xemul@parallels.com> wrote:
+> >>>>
+> >>>>>
+> >>>>>> Two alternatives come to mind:
+> >>>>>>
+> >>>>>> 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
+> >>>>>>     fashion to determine which pages have been touched.
+> >>>
+> >>> [momentarily coming out of kernel retirement for old man rant]
+> >>>
+> >>> This is a popular interface anti-pattern.
+> >>>
+> >>> You shouldn't use an interface that gives you huge amount of STATE to
+> >>> detect small amounts of CHANGE via manual differentiation.
+> >>
+> >> I'm not sure that's what checkpoint-restart will be doing.  If we want
+> >> to determine "which pages have been touched since the last checkpoint
+> >> ten minutes ago" then that set of touched pages *is* state.  And it's
+> >> not "small"!
+> > 
+> > Yeah, there is definitely a middle-ground here between "I want
+> > high-frequency updates" and "I want to see the whole picture". 
+> > The filesystem analogy is backups: we don't have any good way to say
+> > "find me all files changed since yesterday" short of "find all files".
+> > The closest thing is explicit snapshotting.
+> 
+> For what is required for checkpoint-restore is -- we want to query the kernel
+> for "what pages has been written to since moment X". But this "moment X" is
+> a little bit more tricky than just "mark all pages r/o". Consider we're doing
+> this periodically. So when defining the moment X for the 2nd time we should
+> query the "changed" state and remap the respective page r/o atomically. Full
+> snapshot is actually not required, since we don't need to keep the old copy
+> of a page that is written to. Just a sign, that this page was modified is OK.
 
-		if (!PageHuge(page)) {
-			old code in here
-		}
-
--Tony
+How is all this going to work, btw?  What is the interface to query
+page states and set them read-only?  How will dirty pagecache and dirty
+swapcache be handled?  And anonymous memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
