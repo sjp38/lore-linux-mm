@@ -1,266 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 6E8916B005D
-	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 22:51:12 -0500 (EST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Wed, 5 Dec 2012 09:20:59 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 6F456394004B
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 09:21:03 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB53p2bg27459714
-	for <linux-mm@kvack.org>; Wed, 5 Dec 2012 09:21:02 +0530
-Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB53p2dU025519
-	for <linux-mm@kvack.org>; Wed, 5 Dec 2012 14:51:02 +1100
-Date: Wed, 5 Dec 2012 11:51:00 +0800
-From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 1/2] writeback: add dirty_background_centisecs per bdi
- variable
-Message-ID: <20121205035100.GA20359@hacker.(null)>
-Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-References: <1347798342-2830-1-git-send-email-linkinjeon@gmail.com>
- <20120920084422.GA5697@localhost>
- <20120925013658.GC23520@dastard>
- <CAKYAXd975U_n2SSFXz0VfEs6GrVCoc2S=3kQbfw_2uOtGXbGxA@mail.gmail.com>
- <CAKYAXd-BXOrXJDMo5_ANACn2qo3J5oM3vMJD-LXnEacegxHgTA@mail.gmail.com>
- <20121022012555.GB2739@dastard>
- <CAKYAXd-BzgVvhbGE=OcSeXSMFe+5NdTt3L1A6Synds4vZ9vc2A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id EFD516B0044
+	for <linux-mm@kvack.org>; Tue,  4 Dec 2012 23:18:58 -0500 (EST)
+Date: Wed, 5 Dec 2012 13:18:55 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v2] Support volatile range for anon vma
+Message-ID: <20121205041855.GB9782@blaptop>
+References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
+ <50AD739A.30804@linaro.org>
+ <50B6E1F9.5010301@linaro.org>
+ <20121204000042.GB20395@bbox>
+ <50BD4A70.9060506@linaro.org>
+ <20121204072207.GA9782@blaptop>
+ <50BE4B64.6000003@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAKYAXd-BzgVvhbGE=OcSeXSMFe+5NdTt3L1A6Synds4vZ9vc2A@mail.gmail.com>
+In-Reply-To: <50BE4B64.6000003@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namjae Jeon <linkinjeon@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org
+To: John Stultz <john.stultz@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hi Namjae,
+On Tue, Dec 04, 2012 at 11:13:40AM -0800, John Stultz wrote:
+> On 12/03/2012 11:22 PM, Minchan Kim wrote:
+> >On Mon, Dec 03, 2012 at 04:57:20PM -0800, John Stultz wrote:
+> >>On 12/03/2012 04:00 PM, Minchan Kim wrote:
+> >>>On Wed, Nov 28, 2012 at 08:18:01PM -0800, John Stultz wrote:
+> >>>>On 11/21/2012 04:36 PM, John Stultz wrote:
+> >>>>>2) Being able to use this with tmpfs files. I'm currently trying
+> >>>>>to better understand the rmap code, looking to see if there's a
+> >>>>>way to have try_to_unmap_file() work similarly to
+> >>>>>try_to_unmap_anon(), to allow allow users to madvise() on mmapped
+> >>>>>tmpfs files. This would provide a very similar interface as to
+> >>>>>what I've been proposing with fadvise/fallocate, but just using
+> >>>>>process virtual addresses instead of (fd, offset) pairs.   The
+> >>>>>benefit with (fd,offset) pairs for Android is that its easier to
+> >>>>>manage shared volatile ranges between two processes that are
+> >>>>>sharing data via an mmapped tmpfs file (although this actual use
+> >>>>>case may be fairly rare).  I believe we should still be able to
+> >>>>>rework the ashmem internals to use madvise (which would provide
+> >>>>>legacy support for existing android apps), so then its just a
+> >>>>>question of if we could then eventually convince Android apps to
+> >>>>>use the madvise interface directly, rather then the ashmem unpin
+> >>>>>ioctl.
+> >>>>Hey Minchan,
+> >>>>     I've been playing around with your patch trying to better
+> >>>>understand your approach and to extend it to support tmpfs files. In
+> >>>>doing so I've found a few bugs, and have some rough fixes I wanted
+> >>>>to share. There's still a few edge cases I need to deal with (the
+> >>>>vma-purged flag isn't being properly handled through vma merge/split
+> >>>>operations), but its starting to come along.
+> >>>Hmm, my patch doesn't allow to merge volatile with another one by
+> >>>inserting VM_VOLATILE into VM_SPECIAL so I guess merge isn't problem.
+> >>>In case of split, __split_vma copy old vma to new vma like this
+> >>>
+> >>>         *new = *vma;
+> >>>
+> >>>So the problem shouldn't happen, I guess.
+> >>>Did you see the real problem about that?
+> >>Yes, depending on the pattern that MADV_VOLATILE and MADV_NOVOLATILE
+> >>is applied, we can get a result where data is purged, but we aren't
+> >>notified of it.  Also, since madvise returns early if it encounters
+> >>an error, in the case where you have checkerboard volatile regions
+> >>(say every other page is volatile), which you mark non-volatile with
+> >>one large MADV_NOVOLATILE call, the first volatile vma will be
+> >>marked non-volatile, but since it returns purged, the madvise loop
+> >>will stop and the following volatile regions will be left volatile.
+> >>
+> >>The patches in the git tree below which handle the perged state
+> >>better seem to work for my tests, as far as resolving any
+> >>overlapping calls. Of course there may yet still be problems I've
+> >>not found.
+> >>
+> >>>>Anyway, take a look at the tree here and let me know what you think.
+> >>>>http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
+> >>Eager to hear what you think!
+> >Below two patches look good to me.
+> >
+> >[rmap: Simplify volatility checking by moving it out of try_to_unmap_one]
+> >[rmap: ClearPageDirty() when returning SWAP_DISCARD]
+> >
+> >[madvise: Fix NOVOLATILE bug]
+> >I can't understand description of the patch.
+> >Could you elaborate it with example?
+> The case I ran into here is if you have a range where you mark every
+> other page as volatile. Then mark all the pages in that range as
+> non-volatile in one madvise call.
+> 
+> sys_madvise() will then find the first vma in the range, and call
+> madvise_vma(), which marks the first vma non-volatile and return the
+> purged state.  If the page has been purged, sys_madvise code will
+> note that as an error, and break out of the vma iteration loop,
+> leaving the following vmas in the range volatile.
+> 
+> >[madvise: Fixup vma->purged handling]
+> >I included VM_VOLATILE into VM_SPECIAL intentionally.
+> >If comment of VM_SPECIAL is right, merge with volatile vmas shouldn't happen.
+> >So I guess you see other problem. When I see my source code today, locking
+> >scheme/purge handling is totally broken. I will look at it. Maybe you are seeing
+> >bug related that. Part of patch is needed. It could be separate patch.
+> >I will merge it.
+> I don't think the problem is when vmas being marked VM_VOLATILE are
+> being merged, its that when we mark the vma as *non-volatile*, and
+> remove the VM_VOLATILE flag we merge the non-volatile vmas with
+> neighboring vmas. So preserving the purged flag during that merge is
+> important. Again, the example I used to trigger this was an
+> alternating pattern of volatile and non volatile vmas, then marking
+> the entire range non-volatile (though sometimes in two overlapping
+> passes).
 
-How about set bdi->dirty_background_bytes according to bdi_thresh? I found 
-an issue during background flush process when review codes, if over background 
-flush threshold, wb_check_background_flush will kick a work to current per-bdi 
-flusher, but maybe it is other heavy dirties written in other bdis who heavily 
-dirty pages instead of current bdi, the worst case is current bdi has many 
-frequently used data and flush lead to cache thresh. How about add a check 
-in wb_check_background_flush if it is not current bdi who contributes large 
-number of dirty pages to background flush threshold(over bdi->dirty_background_bytes), 
-then don't bother it.
+Understood. Thanks.
+Below patch solves your problems? It's simple than yours.
+Anyway, both yours and mine are not right fix.
+As I mentioned, locking scheme is broken.
+We need anon_vma_lock to handle purged and we should consider fork
+case, too.
 
-Regards,
-Wanpeng Li
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 965a53d..5fa3254 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -41,7 +41,8 @@ static int madvise_need_mmap_write(int behavior)
+  */
+ static long madvise_behavior(struct vm_area_struct * vma,
+ 		     struct vm_area_struct **prev,
+-		     unsigned long start, unsigned long end, int behavior)
++		     unsigned long start, unsigned long end,
++		     int behavior, bool *purged)
+ {
+ 	struct mm_struct * mm = vma->vm_mm;
+ 	int error = 0;
+@@ -151,7 +152,7 @@ success:
+ 		volatile_lock(vma);
+ 	vma->vm_flags = new_flags;
+ 	if (behavior == MADV_NOVOLATILE) {
+-		error = vma->purged;
++		*purged |= vma->purged;
+ 		vma->purged = false;
+ 	}
+ 	if (behavior == MADV_NOVOLATILE || behavior == MADV_VOLATILE)
+@@ -309,7 +310,7 @@ static int madvise_hwpoison(int bhv, unsigned long start, unsigned long end)
+ 
+ static long
+ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+-		unsigned long start, unsigned long end, int behavior)
++	unsigned long start, unsigned long end, int behavior, bool *purged)
+ {
+ 	switch (behavior) {
+ 	case MADV_REMOVE:
+@@ -319,7 +320,7 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 	case MADV_DONTNEED:
+ 		return madvise_dontneed(vma, prev, start, end);
+ 	default:
+-		return madvise_behavior(vma, prev, start, end, behavior);
++		return madvise_behavior(vma, prev, start, end, behavior, purged);
+ 	}
+ }
+ 
+@@ -405,6 +406,7 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	int error = -EINVAL;
+ 	int write;
+ 	size_t len;
++	bool purged = false;
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+@@ -468,7 +470,7 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 			tmp = end;
+ 
+ 		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
+-		error = madvise_vma(vma, &prev, start, tmp, behavior);
++		error = madvise_vma(vma, &prev, start, tmp, behavior, &purged);
+ 		if (error)
+ 			goto out;
+ 		start = tmp;
+@@ -488,5 +490,7 @@ out:
+ 	else
+ 		up_read(&current->mm->mmap_sem);
+ 
++	if (!error & purged)
++		error = 1;
+ 	return error;
+ }
+> 
+> thanks
+> -john
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-On Tue, Nov 20, 2012 at 08:18:59AM +0900, Namjae Jeon wrote:
->2012/10/22, Dave Chinner <david@fromorbit.com>:
->> On Fri, Oct 19, 2012 at 04:51:05PM +0900, Namjae Jeon wrote:
->>> Hi Dave.
->>>
->>> Test Procedure:
->>>
->>> 1) Local USB disk WRITE speed on NFS server is ~25 MB/s
->>>
->>> 2) Run WRITE test(create 1 GB file) on NFS Client with default
->>> writeback settings on NFS Server. By default
->>> bdi->dirty_background_bytes = 0, that means no change in default
->>> writeback behaviour
->>>
->>> 3) Next we change bdi->dirty_background_bytes = 25 MB (almost equal to
->>> local USB disk write speed on NFS Server)
->>> *** only on NFS Server - not on NFS Client ***
->>
->> Ok, so the results look good, but it's not really addressing what I
->> was asking, though.  A typical desktop PC has a disk that can do
->> 100MB/s and GbE, so I was expecting a test that showed throughput
->> close to GbE maximums at least (ie. around that 100MB/s). I have 3
->> year old, low end, low power hardware (atom) that hanles twice the
->> throughput you are testing here, and most current consumer NAS
->> devices are more powerful than this. IOWs, I think the rates you are
->> testing at are probably too low even for the consumer NAS market to
->> consider relevant...
->>
->>> ----------------------------------------------------------------------------------
->>> Multiple NFS Client test:
->>> -----------------------------------------------------------------------------------
->>> Sorry - We could not arrange multiple PCs to verify this.
->>> So, we tried 1 NFS Server + 2 NFS Clients using 3 target boards:
->>> ARM Target + 512 MB RAM + ethernet - 100 Mbits/s, create 1 GB File
->>
->> But this really doesn't tells us anything - it's still only 100Mb/s,
->> which we'd expect is already getting very close to line rate even
->> with low powered client hardware.
->>
->> What I'm concerned about the NFS server "sweet spot" - a $10k server
->> that exports 20TB of storage and can sustain close to a GB/s of NFS
->> traffic over a single 10GbE link with tens to hundreds of clients.
->> 100MB/s and 10 clients is about the minimum needed to be able to
->> extrapolate a litle and make an informed guess of how it will scale
->> up....
->>
->>> > 1. what's the comparison in performance to typical NFS
->>> > server writeback parameter tuning? i.e. dirty_background_ratio=5,
->>> > dirty_ratio=10, dirty_expire_centiseconds=1000,
->>> > dirty_writeback_centisecs=1? i.e. does this give change give any
->>> > benefit over the current common practice for configuring NFS
->>> > servers?
->>>
->>> Agreed, that above improvement in write speed can be achieved by
->>> tuning above write-back parameters.
->>> But if we change these settings, it will change write-back behavior
->>> system wide.
->>> On the other hand, if we change proposed per bdi setting,
->>> bdi->dirty_background_bytes it will change write-back behavior for the
->>> block device exported on NFS server.
->>
->> I already know what the difference between global vs per-bdi tuning
->> means.  What I want to know is how your results compare
->> *numerically* to just having a tweaked global setting on a vanilla
->> kernel.  i.e. is there really any performance benefit to per-bdi
->> configuration that cannot be gained by existing methods?
->>
->>> > 2. what happens when you have 10 clients all writing to the server
->>> > at once? Or a 100? NFS servers rarely have a single writer to a
->>> > single file at a time, so what impact does this change have on
->>> > multiple concurrent file write performance from multiple clients
->>>
->>> Sorry, we could not arrange more than 2 PCs for verifying this.
->>
->> Really? Well, perhaps there's some tools that might be useful for
->> you here:
->>
->> http://oss.sgi.com/projects/nfs/testtools/
->>
->> "Weber
->>
->> Test load generator for NFS. Uses multiple threads, multiple
->> sockets and multiple IP addresses to simulate loads from many
->> machines, thus enabling testing of NFS server setups with larger
->> client counts than can be tested with physical infrastructure (or
->> Virtual Machine clients). Has been useful in automated NFS testing
->> and as a pinpoint NFS load generator tool for performance
->> development."
->>
->
->Hi Dave,
->We ran "weber" test on below setup:
->1) SATA HDD - Local WRITE speed ~120 MB/s, NFS WRITE speed ~90 MB/s
->2) Used 10GbE - network interface to mount NFS
->
->We ran "weber" test with  NFS clients ranging from 1 to 100,
->below is the % GAIN in NFS WRITE speed with
->bdi->dirty_background_bytes = 100 MB at NFS server
->
->-------------------------------------------------
->| Number of NFS Clients |% GAIN in WRITE Speed  |
->|-----------------------------------------------|
->|         1             |     19.83 %           |
->|-----------------------------------------------|
->|         2             |      2.97 %           |
->|-----------------------------------------------|
->|         3             |      2.01 %           |
->|-----------------------------------------------|
->|        10             |      0.25 %           |
->|-----------------------------------------------|
->|        20             |      0.23 %           |
->|-----------------------------------------------|
->|        30             |      0.13 %           |
->|-----------------------------------------------|
->|       100             |    - 0.60 %           |
->-------------------------------------------------
->
->with bdi->dirty_background_bytes setting at NFS server, we observed
->that NFS WRITE speed improvement is maximum with single NFS client.
->But WRITE speed improvement drops when Number of NFS clients increase
->from 1 to 100.
->
->So, bdi->dirty_background_bytes setting might be useful where we have
->only one NFS client(scenario like ours).
->But this is not useful for big NFS Servers which host hundreads of NFS clients.
->
->Let me know your opinion.
->
->Thanks.
->
->>> > 3. Following on from the multiple client test, what difference does it
->>> > make to file fragmentation rates? Writing more frequently means
->>> > smaller allocations and writes, and that tends to lead to higher
->>> > fragmentation rates, especially when multiple files are being
->>> > written concurrently. Higher fragmentation also means lower
->>> > performance over time as fragmentation accelerates filesystem aging
->>> > effects on performance.  IOWs, it may be faster when new, but it
->>> > will be slower 3 months down the track and that's a bad tradeoff to
->>> > make.
->>>
->>> We agree that there could be bit more framentation. But as you know,
->>> we are not changing writeback settings at NFS clients.
->>> So, write-back behavior on NFS client will not change - IO requests
->>> will be buffered at NFS client as per existing write-back behavior.
->>
->> I think you misunderstand - writeback settings on the server greatly
->> impact the way the server writes data and therefore the way files
->> are fragmented. It has nothing to do with client side tuning.
->>
->> Effectively, what you are presenting is best case numbers - empty
->> filesystem, single client, streaming write, no fragmentation, no
->> allocation contention, no competing IO load that causes write
->> latency occurring.  Testing with lots of clients introduces all of
->> these things, and that will greatly impact server behaviour.
->> Aggregation in memory isolates a lot of this variation from
->> writeback and hence smooths out a lot of the variability that leads
->> to fragmentation, seeks, latency spikes and preamture filesystem
->> aging.
->>
->> That is, if you set a 100MB dirty_bytes limit on a bdi it will give
->> really good buffering for a single client doing a streaming write.
->> If you've got 10 clients, then assuming fair distribution of server
->> resources, then that is 10MB per client per writeback trigger.
->> That's line ball as to whether it will cause fragmentation severe
->> enough to impact server throughput. If you've got 100 clients,then
->> that's only 1MB per client per writeback trigger, and that's
->> definitely too low to maintain decent writeback behaviour.  i.e.
->> you're now writing 100 files 1MB at a time, and that tends towards
->> random IO patterns rather than sequential IO patterns. Seek time
->> dertermines throughput, not IO bandwidth limits.
->>
->> IOWs, as the client count goes up, the writeback patterns will tends
->> more towards random IO than sequential IO unless the amount of
->> buffering allowed before writeback triggers also grows. That's
->> important, because random IO is much slower than sequential IO.
->> What I'd like to have is some insight into whether this patch
->> changes that inflection point, for better or for worse. The only way
->> to find that is to run multi-client testing....
->>
->>> > 5. Are the improvements consistent across different filesystem
->>> > types?  We've had writeback changes in the past cause improvements
->>> > on one filesystem but significant regressions on others.  I'd
->>> > suggest that you need to present results for ext4, XFS and btrfs so
->>> > that we have a decent idea of what we can expect from the change to
->>> > the generic code.
->>>
->>> As mentioned in the above Table 1 & 2, performance gain in WRITE speed
->>> is different on different file systems i.e. different on NFS client
->>> over XFS & EXT4.
->>> We also tried BTRFS over NFS, but we could not see any WRITE speed
->>> performance gain/degrade on BTRFS over NFS, so we are not posting
->>> BTRFS results here.
->>
->> You should post btrfs numbers even if they show no change. It wasn't
->> until I got this far that I even realised that you'd even tested
->> BTRFS. I don't know what to make of this, because I don't know what
->> the throughput rates compared to XFS and EXT4 are....
->>
->> Cheers,
->>
->> Dave.
->> --
->> Dave Chinner
->> david@fromorbit.com
->>
->--
->To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
->the body of a message to majordomo@vger.kernel.org
->More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
