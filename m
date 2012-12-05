@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 7B2706B0068
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 04:54:25 -0500 (EST)
-Message-ID: <50BF198D.3030509@parallels.com>
-Date: Wed, 05 Dec 2012 13:53:17 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 0C8406B006C
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 05:00:43 -0500 (EST)
+Date: Wed, 5 Dec 2012 09:52:21 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] tmpfs: fix shared mempolicy leak
+Message-ID: <20121205095221.GB2489@suse.de>
+References: <1349801921-16598-1-git-send-email-mgorman@suse.de>
+ <1349801921-16598-6-git-send-email-mgorman@suse.de>
+ <CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com>
+ <20121204141501.GA2797@suse.de>
+ <alpine.LNX.2.00.1212042042130.13895@eggly.anvils>
+ <alpine.LNX.2.00.1212042211340.892@eggly.anvils>
+ <alpine.LNX.2.00.1212042320050.19453@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
-References: <50B8F2F4.6000508@parallels.com>  <20121203144310.7ccdbeb4.akpm@linux-foundation.org>  <50BD86DE.6050700@parallels.com>  <20121204152121.e5c33938.akpm@linux-foundation.org>  <1354666628.6733.227.camel@calx>  <20121204162411.700d4954.akpm@linux-foundation.org> <1354667937.6733.233.camel@calx>
-In-Reply-To: <1354667937.6733.233.camel@calx>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1212042320050.19453@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Tommi Rantala <tt.rantala@gmail.com>, Stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 12/05/2012 04:38 AM, Matt Mackall wrote:
-> On Tue, 2012-12-04 at 16:24 -0800, Andrew Morton wrote:
->> On Tue, 04 Dec 2012 18:17:08 -0600
->> Matt Mackall <mpm@selenic.com> wrote:
->>
->>> On Tue, 2012-12-04 at 15:21 -0800, Andrew Morton wrote:
->>>> On Tue, 04 Dec 2012 09:15:10 +0400
->>>> Pavel Emelyanov <xemul@parallels.com> wrote:
->>>>
->>>>>
->>>>>> Two alternatives come to mind:
->>>>>>
->>>>>> 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
->>>>>>     fashion to determine which pages have been touched.
->>>
->>> [momentarily coming out of kernel retirement for old man rant]
->>>
->>> This is a popular interface anti-pattern.
->>>
->>> You shouldn't use an interface that gives you huge amount of STATE to
->>> detect small amounts of CHANGE via manual differentiation.
->>
->> I'm not sure that's what checkpoint-restart will be doing.  If we want
->> to determine "which pages have been touched since the last checkpoint
->> ten minutes ago" then that set of touched pages *is* state.  And it's
->> not "small"!
+On Tue, Dec 04, 2012 at 11:24:30PM -0800, Hugh Dickins wrote:
+> From: Mel Gorman <mgorman@suse.de>
 > 
-> Yeah, there is definitely a middle-ground here between "I want
-> high-frequency updates" and "I want to see the whole picture". 
-> The filesystem analogy is backups: we don't have any good way to say
-> "find me all files changed since yesterday" short of "find all files".
-> The closest thing is explicit snapshotting.
+> Commit 00442ad04a5e ("mempolicy: fix a memory corruption by refcount
+> imbalance in alloc_pages_vma()") changed get_vma_policy() to raise the
+> refcount on a shmem shared mempolicy; whereas shmem_alloc_page() went
+> on expecting alloc_page_vma() to drop the refcount it had acquired.
+> This deserves a rework: but for now fix the leak in shmem_alloc_page().
+> 
+> Hugh: shmem_swapin() did not need a fix, but surely it's clearer to use
+> the same refcounting there as in shmem_alloc_page(), delete its onstack
+> mempolicy, and the strange mpol_cond_copy() and __mpol_cond_copy() -
+> those were invented to let swapin_readahead() make an unknown number of
+> calls to alloc_pages_vma() with one mempolicy; but since 00442ad04a5e,
+> alloc_pages_vma() has kept refcount in balance, so now no problem.
+> 
 
-For what is required for checkpoint-restore is -- we want to query the kernel
-for "what pages has been written to since moment X". But this "moment X" is
-a little bit more tricky than just "mark all pages r/o". Consider we're doing
-this periodically. So when defining the moment X for the 2nd time we should
-query the "changed" state and remap the respective page r/o atomically. Full
-snapshot is actually not required, since we don't need to keep the old copy
-of a page that is written to. Just a sign, that this page was modified is OK.
+Agreed. Anything that reduces the complexity of the mempolicy ref counting
+is worthwhile even if it's only by a small bit.
 
+> Reported-by: Tommi Rantala <tt.rantala@gmail.com>
+> Awaiting-signed-off-by: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: stable@vger.kernel.org
 
-Thanks,
-Pavel
+Thanks Hugh for turning gibber into a patch!
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Tommi, just in case, can you confirm this fixes the problem for you please?
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
