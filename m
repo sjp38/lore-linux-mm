@@ -1,71 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6051F6B0068
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 16:47:55 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 1/3] HWPOISON, hugetlbfs: fix warning on freeing hwpoisoned hugepage
-Date: Wed,  5 Dec 2012 16:47:36 -0500
-Message-Id: <1354744058-26373-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1354744058-26373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1354744058-26373-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 5F39E6B0062
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 16:59:22 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so4101082pad.14
+        for <linux-mm@kvack.org>; Wed, 05 Dec 2012 13:59:21 -0800 (PST)
+Date: Wed, 5 Dec 2012 13:59:20 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] tmpfs: fix shared mempolicy leak
+In-Reply-To: <CA+ydwtoduPVnkzL4cgRdaNjhTYa1HV2KUi6CjXsap_qOuu_SQQ@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1212051357140.4383@eggly.anvils>
+References: <1349801921-16598-1-git-send-email-mgorman@suse.de> <1349801921-16598-6-git-send-email-mgorman@suse.de> <CA+ydwtqQ7iK_1E+7ctLxYe8JZY+SzMfuRagjyHJ12OYsxbMcaA@mail.gmail.com> <20121204141501.GA2797@suse.de> <alpine.LNX.2.00.1212042042130.13895@eggly.anvils>
+ <alpine.LNX.2.00.1212042211340.892@eggly.anvils> <alpine.LNX.2.00.1212042320050.19453@eggly.anvils> <20121205095221.GB2489@suse.de> <CA+ydwtoduPVnkzL4cgRdaNjhTYa1HV2KUi6CjXsap_qOuu_SQQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>
-Cc: Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Tommi Rantala <tt.rantala@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andi Kleen <ak@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-This patch fixes the warning from __list_del_entry() which is triggered
-when a process tries to do free_huge_page() for a hwpoisoned hugepage.
+On Wed, 5 Dec 2012, Tommi Rantala wrote:
+> 2012/12/5 Mel Gorman <mgorman@suse.de>:
+> > On Tue, Dec 04, 2012 at 11:24:30PM -0800, Hugh Dickins wrote:
+> >> From: Mel Gorman <mgorman@suse.de>
+> >>
+> >> Commit 00442ad04a5e ("mempolicy: fix a memory corruption by refcount
+> >> imbalance in alloc_pages_vma()") changed get_vma_policy() to raise the
+> >> refcount on a shmem shared mempolicy; whereas shmem_alloc_page() went
+> >> on expecting alloc_page_vma() to drop the refcount it had acquired.
+> >> This deserves a rework: but for now fix the leak in shmem_alloc_page().
+> >
+> > Thanks Hugh for turning gibber into a patch!
+> >
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> >
+> > Tommi, just in case, can you confirm this fixes the problem for you please?
+> 
+> Confirmed! No more complaints from kmemleak.
 
-Originally, page->lru of hugetlbfs head page was dangling when the
-hugepage was in use. This behavior has changed by commit 0edaecfab218d7
-("hugetlb: add a list for tracking in-use HugeTLB pages"), where hugepages
-in use are linked to hugepage_activelist. HWpoisoned hugepages should not
-be charged to any process, so we introduce another list to link hwpoisoned
-hugepages.
+Great, thanks.  I'll update the tags and send straight to Linus now.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- include/linux/hugetlb.h | 3 +++
- mm/hugetlb.c            | 3 ++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
-
-diff --git v3.7-rc8.orig/include/linux/hugetlb.h v3.7-rc8/include/linux/hugetlb.h
-index 2251648..13858ba 100644
---- v3.7-rc8.orig/include/linux/hugetlb.h
-+++ v3.7-rc8/include/linux/hugetlb.h
-@@ -230,6 +230,9 @@ struct hstate {
- 	unsigned long nr_overcommit_huge_pages;
- 	struct list_head hugepage_activelist;
- 	struct list_head hugepage_freelists[MAX_NUMNODES];
-+#ifdef CONFIG_MEMORY_FAILURE
-+	struct list_head hugepage_hwpoisonedlist;
-+#endif
- 	unsigned int nr_huge_pages_node[MAX_NUMNODES];
- 	unsigned int free_huge_pages_node[MAX_NUMNODES];
- 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
-diff --git v3.7-rc8.orig/mm/hugetlb.c v3.7-rc8/mm/hugetlb.c
-index 59a0059..e61a749 100644
---- v3.7-rc8.orig/mm/hugetlb.c
-+++ v3.7-rc8/mm/hugetlb.c
-@@ -1939,6 +1939,7 @@ void __init hugetlb_add_hstate(unsigned order)
- 	for (i = 0; i < MAX_NUMNODES; ++i)
- 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
- 	INIT_LIST_HEAD(&h->hugepage_activelist);
-+	INIT_LIST_HEAD(&h->hugepage_hwpoisonedlist);
- 	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
- 	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
- 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
-@@ -3170,7 +3171,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
- 
- 	spin_lock(&hugetlb_lock);
- 	if (is_hugepage_on_freelist(hpage)) {
--		list_del(&hpage->lru);
-+		list_move(&hpage->lru, &h->hugepage_hwpoisonedlist);
- 		set_page_refcounted(hpage);
- 		h->free_huge_pages--;
- 		h->free_huge_pages_node[nid]--;
--- 
-1.7.11.7
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
