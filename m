@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id C28016B0044
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 04:52:21 -0500 (EST)
-Date: Wed, 5 Dec 2012 09:43:58 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 20/52] mm, numa: Implement migrate-on-fault lazy NUMA
- strategy for regular and THP pages
-Message-ID: <20121205094332.GA2489@suse.de>
-References: <1354473824-19229-1-git-send-email-mingo@kernel.org>
- <1354473824-19229-21-git-send-email-mingo@kernel.org>
- <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 7B2706B0068
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 04:54:25 -0500 (EST)
+Message-ID: <50BF198D.3030509@parallels.com>
+Date: Wed, 05 Dec 2012 13:53:17 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.00.1212041652240.13029@chino.kir.corp.google.com>
+Subject: Re: [RFC PATCH 0/2] mm: Add ability to monitor task's memory changes
+References: <50B8F2F4.6000508@parallels.com>  <20121203144310.7ccdbeb4.akpm@linux-foundation.org>  <50BD86DE.6050700@parallels.com>  <20121204152121.e5c33938.akpm@linux-foundation.org>  <1354666628.6733.227.camel@calx>  <20121204162411.700d4954.akpm@linux-foundation.org> <1354667937.6733.233.camel@calx>
+In-Reply-To: <1354667937.6733.233.camel@calx>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Wu Fengguang <fengguang.wu@intel.com>
 
-On Tue, Dec 04, 2012 at 04:55:13PM -0800, David Rientjes wrote:
-> Commit "mm, numa: Implement migrate-on-fault lazy NUMA strategy for 
-> regular and THP pages" breaks the build because HPAGE_PMD_SHIFT and 
-> HPAGE_PMD_MASK defined to explode without CONFIG_TRANSPARENT_HUGEPAGE:
+On 12/05/2012 04:38 AM, Matt Mackall wrote:
+> On Tue, 2012-12-04 at 16:24 -0800, Andrew Morton wrote:
+>> On Tue, 04 Dec 2012 18:17:08 -0600
+>> Matt Mackall <mpm@selenic.com> wrote:
+>>
+>>> On Tue, 2012-12-04 at 15:21 -0800, Andrew Morton wrote:
+>>>> On Tue, 04 Dec 2012 09:15:10 +0400
+>>>> Pavel Emelyanov <xemul@parallels.com> wrote:
+>>>>
+>>>>>
+>>>>>> Two alternatives come to mind:
+>>>>>>
+>>>>>> 1)  Use /proc/pid/pagemap (Documentation/vm/pagemap.txt) in some
+>>>>>>     fashion to determine which pages have been touched.
+>>>
+>>> [momentarily coming out of kernel retirement for old man rant]
+>>>
+>>> This is a popular interface anti-pattern.
+>>>
+>>> You shouldn't use an interface that gives you huge amount of STATE to
+>>> detect small amounts of CHANGE via manual differentiation.
+>>
+>> I'm not sure that's what checkpoint-restart will be doing.  If we want
+>> to determine "which pages have been touched since the last checkpoint
+>> ten minutes ago" then that set of touched pages *is* state.  And it's
+>> not "small"!
 > 
-> mm/migrate.c: In function 'migrate_misplaced_transhuge_page_put':
-> mm/migrate.c:1549: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> mm/migrate.c:1564: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> mm/migrate.c:1566: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> mm/migrate.c:1573: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> mm/migrate.c:1606: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> mm/migrate.c:1648: error: call to '__build_bug_failed' declared with attribute error: BUILD_BUG failed
-> 
-> CONFIG_NUMA_BALANCING allows compilation without enabling transparent 
-> hugepages, so define the dummy function for such a configuration and only 
-> define migrate_misplaced_transhuge_page_put() when transparent hugepages 
-> are enabled.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Yeah, there is definitely a middle-ground here between "I want
+> high-frequency updates" and "I want to see the whole picture". 
+> The filesystem analogy is backups: we don't have any good way to say
+> "find me all files changed since yesterday" short of "find all files".
+> The closest thing is explicit snapshotting.
 
-Thanks David. I pushed the equivalent for the balancenuma tree and
-should be included in the balancenuma-v10 tag or mm-balancenuma-v10r3
-branch at
-git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
+For what is required for checkpoint-restore is -- we want to query the kernel
+for "what pages has been written to since moment X". But this "moment X" is
+a little bit more tricky than just "mark all pages r/o". Consider we're doing
+this periodically. So when defining the moment X for the 2nd time we should
+query the "changed" state and remap the respective page r/o atomically. Full
+snapshot is actually not required, since we don't need to keep the old copy
+of a page that is written to. Just a sign, that this page was modified is OK.
 
--- 
-Mel Gorman
-SUSE Labs
+
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
