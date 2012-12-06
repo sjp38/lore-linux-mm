@@ -1,79 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 037136B006C
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:10:35 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id dq11so3248118wgb.26
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:10:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121206152234.GA5309@polaris.bitmath.org>
-References: <20121206091744.GA1397@polaris.bitmath.org> <20121206144821.GC18547@quack.suse.cz>
- <20121206152234.GA5309@polaris.bitmath.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 6 Dec 2012 08:10:13 -0800
-Message-ID: <CA+55aFwuuAQdoBx_R4CaHJp1ZdRTAwG8n1ZfiKmpZUwwZ9iUkw@mail.gmail.com>
-Subject: Re: Oops in 3.7-rc8 isolate_free_pages_block()
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id CFDB06B0070
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:11:52 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so4763156pad.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:11:52 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [RFC PATCH 0/8] remove vm_struct list management
+Date: Fri,  7 Dec 2012 01:09:27 +0900
+Message-Id: <1354810175-4338-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Henrik Rydberg <rydberg@euromail.se>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-Ok, so it's isolate_freepages_block+0x88, and as Jan Kara already
-guessed from just the offset, that is indeed likely the PageBuddy()
-test.
+This patchset remove vm_struct list management after initializing vmalloc.
+Adding and removing an entry to vmlist is linear time complexity, so
+it is inefficient. If we maintain this list, overall time complexity of
+adding and removing area to vmalloc space is O(N), although we use
+rbtree for finding vacant place and it's time complexity is just O(logN).
 
-On Thu, Dec 6, 2012 at 7:22 AM, Henrik Rydberg <rydberg@euromail.se> wrote:
->
->  http://bitmath.org/test/oops-3.7-rc8.jpg
->
-> ffffffff810a6d6a:       eb 1c                   jmp    ffffffff810a6d88 <isolate_freepages_block+0x88>
-> ffffffff810a6d6c:       0f 1f 40 00             nopl   0x0(%rax)
+And vmlist and vmlist_lock is used many places of outside of vmalloc.c.
+It is preferable that we hide this raw data structure and provide
+well-defined function for supporting them, because it makes that they
+cannot mistake when manipulating theses structure and it makes us easily
+maintain vmalloc layer.
 
-On the first entry to the loop, we jump *into* the loop, over the end
-condition (the compiler has basically turned. And we jump directly to
-the faulting instruction. Looking at the register state, though, we're
-not at the first iteration of the loop, so we don't have to worry
-about that case. The loop itself then starts with:
+I'm not sure that "7/8: makes vmlist only for kexec" is fine.
+Because it is related to userspace program.
+As far as I know, makedumpfile use kexec's output information and it only
+need first address of vmalloc layer. So my implementation reflect this
+fact, but I'm not sure. And now, I don't fully test this patchset.
+Basic operation work well, but I don't test kexec. So I send this
+patchset with 'RFC'.
 
-> ffffffff810a6d70:       48 83 c5 01             add    $0x1,%rbp
-> ffffffff810a6d74:       48 83 c3 40             add    $0x40,%rbx
+Please let me know what I am missing.
 
-The above is the "blockpfn++, cursor++" part of the loop, while the
-test below is the loop condition ("blockpfn < end_pfn"):
+This series based on v3.7-rc7 and on top of submitted patchset for ARM.
+'introduce static_vm for ARM-specific static mapped area'
+https://lkml.org/lkml/2012/11/27/356
+But, running properly on x86 without ARM patchset.
 
-> ffffffff810a6d78:       49 39 ed                cmp    %rbp,%r13
-> ffffffff810a6d7b:       0f 86 cf 00 00 00       jbe    ffffffff810a6e50 <isolate_freepages_block+0x150>
+Joonsoo Kim (8):
+  mm, vmalloc: change iterating a vmlist to find_vm_area()
+  mm, vmalloc: move get_vmalloc_info() to vmalloc.c
+  mm, vmalloc: protect va->vm by vmap_area_lock
+  mm, vmalloc: iterate vmap_area_list, instead of vmlist in
+    vread/vwrite()
+  mm, vmalloc: iterate vmap_area_list in get_vmalloc_info()
+  mm, vmalloc: iterate vmap_area_list, instead of vmlist, in
+    vmallocinfo()
+  mm, vmalloc: makes vmlist only for kexec
+  mm, vmalloc: remove list management operation after initializing
+    vmalloc
 
->From your image, %rbp is 0x070000 and %r13 is 0x0702f9.
+ arch/tile/mm/pgtable.c      |    7 +-
+ arch/unicore32/mm/ioremap.c |   17 +--
+ arch/x86/mm/ioremap.c       |    7 +-
+ fs/proc/Makefile            |    2 +-
+ fs/proc/internal.h          |   18 ---
+ fs/proc/meminfo.c           |    1 +
+ fs/proc/mmu.c               |   60 ----------
+ include/linux/vmalloc.h     |   19 +++-
+ mm/vmalloc.c                |  258 +++++++++++++++++++++++++++++--------------
+ 9 files changed, 204 insertions(+), 185 deletions(-)
+ delete mode 100644 fs/proc/mmu.c
 
-The "pfn_valid_within()" test is a no-op because we don't have holes
-in zones on x86, so then we have
-
-                if (!valid_page)
-                        valid_page = page;
-
-which generates a test+cmove:
-
-> ffffffff810a6d81:       4d 85 e4                test   %r12,%r12
-> ffffffff810a6d84:       4c 0f 44 e3             cmove  %rbx,%r12
-
-(which is how we can tell we're not at the beginning: 'valid_page' is
-0xffffea0001bfbe40, while the current page is 0xffffea0001c00000).
-
-.. and finally the oopsing instruction from PageBuddy(), which is the
-read of the 'page->_mapcount'
-
-> ffffffff810a6d88:       8b 43 18                mov    0x18(%rbx),%eax
-> ffffffff810a6d8b:       83 f8 80                cmp    $0xffffff80,%eax
-> ffffffff810a6d8e:       75 e0                   jne    ffffffff810a6d70 <isolate_freepages_block+0x70>
-
-So yeah, that loop has apparently wandered into la-la-land. end_pfn
-must be somehow wrong.
-
-Mel, does any of this ring a bell (Andrew also added to the cc, since
-the patches came through him).
-
-                  Linus
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
