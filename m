@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 3E31A6B00C4
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 13:19:57 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id dq11so3313934wgb.26
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 10:19:55 -0800 (PST)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id D92446B00C6
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 13:22:45 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so4891697pbc.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 10:22:45 -0800 (PST)
+Date: Thu, 6 Dec 2012 10:22:39 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
+ threads
+Message-ID: <20121206182239.GS19802@htj.dyndns.org>
+References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com>
+ <50BE5988.3050501@fusionio.com>
+ <x498v9dpnwu.fsf@segfault.boston.devel.redhat.com>
+ <50BE5C99.6070703@fusionio.com>
+ <x494nk1pi7h.fsf@segfault.boston.devel.redhat.com>
+ <20121206180150.GQ19802@htj.dyndns.org>
+ <50C0E1B6.5060602@fusionio.com>
 MIME-Version: 1.0
-In-Reply-To: <20121206175451.GC17258@suse.de>
-References: <20121206091744.GA1397@polaris.bitmath.org> <20121206144821.GC18547@quack.suse.cz>
- <20121206161934.GA17258@suse.de> <CA+55aFw9WQN-MYFKzoGXF9Z70h1XsMu5X4hLy0GPJopBVuE=Yg@mail.gmail.com>
- <20121206175451.GC17258@suse.de>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 6 Dec 2012 10:19:35 -0800
-Message-ID: <CA+55aFwDZHXf2FkWugCy4DF+mPTjxvjZH87ydhE5cuFFcJ-dJg@mail.gmail.com>
-Subject: Re: Oops in 3.7-rc8 isolate_free_pages_block()
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50C0E1B6.5060602@fusionio.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Jan Kara <jack@suse.cz>, Henrik Rydberg <rydberg@euromail.se>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Jens Axboe <jaxboe@fusionio.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zach Brown <zab@redhat.com>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo <mingo@redhat.com>
 
-On Thu, Dec 6, 2012 at 9:55 AM, Mel Gorman <mgorman@suse.de> wrote:
->
-> Yeah. I was listening to a talk while I was writing it, a bit cranky and
-> didn't see why I should suffer alone.
+Hello, Jens.
 
-Makes sense.
+On Thu, Dec 06, 2012 at 07:19:34PM +0100, Jens Axboe wrote:
+> We need to expose it. Once the binding is set from the kernel side on a
+> kernel thread, it can't be modified.
 
-> Quasimoto strikes again
+That's only if kthread_bind() is used.  Caling set_cpus_allowed_ptr()
+doesn't set PF_THREAD_BOUND and userland can adjust affinity like any
+other tasks.
 
-Is that Quasimodo's Japanese cousin?
+> Binding either for performance reasons or for ensuring that we
+> explicitly don't run in some places is a very useful feature.
 
-> -               end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
-> +
-> +               /*
-> +                * As pfn may not start aligned, pfn+pageblock_nr_page
-> +                * may cross a MAX_ORDER_NR_PAGES boundary and miss
-> +                * a pfn_valid check. Ensure isolate_freepages_block()
-> +                * only scans within a pageblock.
-> +                */
-> +               end_pfn = ALIGN(pfn + pageblock_nr_pages, pageblock_nr_pages);
-> +               end_pfn = min(end_pfn, end_pfn);
+Sure, but I think this is too specific.  Something more generic would
+be much better.  It can be as simple as generating a uevent.
 
-Ok, this looks much nicer, except it's obviously buggy. The
-min(end_pfn, end_pfn) thing is insane, and I'm sure you meant for that
-line to be
+Thanks.
 
-+               end_pfn = min(end_pfn, zone_end_pfn);
-
-Henrik, does that - corrected - patch (*instead* of the previous one,
-not in addition to) also fix your issue?
-
-                  Linus
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
