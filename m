@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 18EE16B0095
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:12:06 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so4804276pbc.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:12:05 -0800 (PST)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id E1DDE6B0096
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:12:08 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so4763156pad.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:12:08 -0800 (PST)
 From: Joonsoo Kim <js1304@gmail.com>
-Subject: [RFC PATCH 4/8] mm, vmalloc: iterate vmap_area_list, instead of vmlist in vread/vwrite()
-Date: Fri,  7 Dec 2012 01:09:31 +0900
-Message-Id: <1354810175-4338-5-git-send-email-js1304@gmail.com>
+Subject: [RFC PATCH 5/8] mm, vmalloc: iterate vmap_area_list in get_vmalloc_info()
+Date: Fri,  7 Dec 2012 01:09:32 +0900
+Message-Id: <1354810175-4338-6-git-send-email-js1304@gmail.com>
 In-Reply-To: <1354810175-4338-1-git-send-email-js1304@gmail.com>
 References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,130 +15,98 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-Now, when we hold a vmap_area_lock, va->vm can't be discarded. So we can
-safely access to va->vm when iterating a vmap_area_list with holding a
-vmap_area_lock. With this property, change iterating vmlist codes in
-vread/vwrite() to iterating vmap_area_list.
+This patch is preparing step for removing vmlist entirely.
+For above purpose, we change iterating a vmap_list codes to iterating a
+vmap_area_list. It is somewhat trivial change, but just one thing
+should be noticed.
 
-There is a little difference relate to lock, because vmlist_lock is mutex,
-but, vmap_area_lock is spin_lock. It may introduce a spinning overhead
-during vread/vwrite() is executing. But, these are debug-oriented
-functions, so this overhead is not real problem for common case.
+vmlist is lack of information about some areas in vmalloc address space.
+For example, vm_map_ram() allocate area in vmalloc address space,
+but it doesn't make a link with vmlist. To provide full information about
+vmalloc address space is better idea, so we don't use va->vm and use
+vmap_area directly.
+This makes get_vmalloc_info() more precise.
 
 Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a0b85a6..d21167f 100644
+index d21167f..f7f4a35 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -2009,7 +2009,8 @@ static int aligned_vwrite(char *buf, char *addr, unsigned long count)
+@@ -2668,46 +2668,47 @@ module_init(proc_vmalloc_init);
  
- long vread(char *buf, char *addr, unsigned long count)
+ void get_vmalloc_info(struct vmalloc_info *vmi)
  {
--	struct vm_struct *tmp;
+-	struct vm_struct *vma;
 +	struct vmap_area *va;
-+	struct vm_struct *vm;
- 	char *vaddr, *buf_start = buf;
- 	unsigned long buflen = count;
- 	unsigned long n;
-@@ -2018,10 +2019,17 @@ long vread(char *buf, char *addr, unsigned long count)
- 	if ((unsigned long) addr + count < count)
- 		count = -(unsigned long) addr;
+ 	unsigned long free_area_size;
+ 	unsigned long prev_end;
  
--	read_lock(&vmlist_lock);
--	for (tmp = vmlist; count && tmp; tmp = tmp->next) {
--		vaddr = (char *) tmp->addr;
--		if (addr >= vaddr + tmp->size - PAGE_SIZE)
+ 	vmi->used = 0;
++	vmi->largest_chunk = 0;
+ 
+-	if (!vmlist) {
+-		vmi->largest_chunk = VMALLOC_TOTAL;
+-	} else {
+-		vmi->largest_chunk = 0;
++	prev_end = VMALLOC_START;
+ 
+-		prev_end = VMALLOC_START;
 +	spin_lock(&vmap_area_lock);
+ 
+-		read_lock(&vmlist_lock);
++	if (list_empty(&vmap_area_list)) {
++		vmi->largest_chunk = VMALLOC_TOTAL;
++		goto out;
++	}
+ 
+-		for (vma = vmlist; vma; vma = vma->next) {
+-			unsigned long addr = (unsigned long) vma->addr;
 +	list_for_each_entry(va, &vmap_area_list, list) {
-+		if (!count)
-+			break;
-+
-+		if (!(va->flags & VM_VM_AREA))
++		unsigned long addr = va->va_start;
+ 
+-			/*
+-			 * Some archs keep another range for modules in vmlist
+-			 */
+-			if (addr < VMALLOC_START)
+-				continue;
+-			if (addr >= VMALLOC_END)
+-				break;
++		/*
++		 * Some archs keep another range for modules in vmalloc space
++		 */
++		if (addr < VMALLOC_START)
 +			continue;
-+
-+		vm = va->vm;
-+		vaddr = (char *) vm->addr;
-+		if (addr >= vaddr + vm->size - PAGE_SIZE)
- 			continue;
- 		while (addr < vaddr) {
- 			if (count == 0)
-@@ -2031,10 +2039,10 @@ long vread(char *buf, char *addr, unsigned long count)
- 			addr++;
- 			count--;
- 		}
--		n = vaddr + tmp->size - PAGE_SIZE - addr;
-+		n = vaddr + vm->size - PAGE_SIZE - addr;
- 		if (n > count)
- 			n = count;
--		if (!(tmp->flags & VM_IOREMAP))
-+		if (!(vm->flags & VM_IOREMAP))
- 			aligned_vread(buf, addr, n);
- 		else /* IOREMAP area is treated as memory hole */
- 			memset(buf, 0, n);
-@@ -2043,7 +2051,7 @@ long vread(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	read_unlock(&vmlist_lock);
-+	spin_unlock(&vmap_area_lock);
- 
- 	if (buf == buf_start)
- 		return 0;
-@@ -2082,7 +2090,8 @@ finished:
- 
- long vwrite(char *buf, char *addr, unsigned long count)
- {
--	struct vm_struct *tmp;
-+	struct vmap_area *va;
-+	struct vm_struct *vm;
- 	char *vaddr;
- 	unsigned long n, buflen;
- 	int copied = 0;
-@@ -2092,10 +2101,17 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		count = -(unsigned long) addr;
- 	buflen = count;
- 
--	read_lock(&vmlist_lock);
--	for (tmp = vmlist; count && tmp; tmp = tmp->next) {
--		vaddr = (char *) tmp->addr;
--		if (addr >= vaddr + tmp->size - PAGE_SIZE)
-+	spin_lock(&vmap_area_lock);
-+	list_for_each_entry(va, &vmap_area_list, list) {
-+		if (!count)
++		if (addr >= VMALLOC_END)
 +			break;
-+
-+		if (!(va->flags & VM_VM_AREA))
-+			continue;
-+
-+		vm = va->vm;
-+		vaddr = (char *) vm->addr;
-+		if (addr >= vaddr + vm->size - PAGE_SIZE)
- 			continue;
- 		while (addr < vaddr) {
- 			if (count == 0)
-@@ -2104,10 +2120,10 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 			addr++;
- 			count--;
- 		}
--		n = vaddr + tmp->size - PAGE_SIZE - addr;
-+		n = vaddr + vm->size - PAGE_SIZE - addr;
- 		if (n > count)
- 			n = count;
--		if (!(tmp->flags & VM_IOREMAP)) {
-+		if (!(vm->flags & VM_IOREMAP)) {
- 			aligned_vwrite(buf, addr, n);
- 			copied++;
- 		}
-@@ -2116,7 +2132,7 @@ long vwrite(char *buf, char *addr, unsigned long count)
- 		count -= n;
- 	}
- finished:
--	read_unlock(&vmlist_lock);
+ 
+-			vmi->used += vma->size;
++		vmi->used += (va->va_end - va->va_start);
+ 
+-			free_area_size = addr - prev_end;
+-			if (vmi->largest_chunk < free_area_size)
+-				vmi->largest_chunk = free_area_size;
++		free_area_size = addr - prev_end;
++		if (vmi->largest_chunk < free_area_size)
++			vmi->largest_chunk = free_area_size;
+ 
+-			prev_end = vma->size + addr;
+-		}
++		prev_end = va->va_end;
++	}
+ 
+-		if (VMALLOC_END - prev_end > vmi->largest_chunk)
+-			vmi->largest_chunk = VMALLOC_END - prev_end;
++	if (VMALLOC_END - prev_end > vmi->largest_chunk)
++		vmi->largest_chunk = VMALLOC_END - prev_end;
+ 
+-		read_unlock(&vmlist_lock);
+-	}
++out:
 +	spin_unlock(&vmap_area_lock);
- 	if (!copied)
- 		return 0;
- 	return buflen;
+ }
+ #endif
+ 
 -- 
 1.7.9.5
 
