@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 1894E6B006E
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 05:12:52 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Thu, 06 Dec 2012 11:12:49 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121130144427.51A09169@pobox.sk>, <20121130144431.GI29317@dhcp22.suse.cz>, <20121130160811.6BB25BDD@pobox.sk>, <20121130153942.GL29317@dhcp22.suse.cz>, <20121130165937.F9564EBE@pobox.sk>, <20121130161923.GN29317@dhcp22.suse.cz>, <20121203151601.GA17093@dhcp22.suse.cz>, <20121205023644.18C3006B@pobox.sk>, <20121205141722.GA9714@dhcp22.suse.cz>, <20121206012924.FE077FD7@pobox.sk> <20121206095423.GB10931@dhcp22.suse.cz>
-In-Reply-To: <20121206095423.GB10931@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id DD0C26B0071
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 05:20:43 -0500 (EST)
+Date: Thu, 6 Dec 2012 10:12:20 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Use aligned zone start for pfn_to_bitidx calculation
+Message-ID: <20121206101220.GB2580@suse.de>
+References: <1354659001-13673-1-git-send-email-lauraa@codeaurora.org>
 MIME-Version: 1.0
-Message-Id: <20121206111249.58F013EA@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1354659001-13673-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
 
->Dohh. The very same stack mem_cgroup_newpage_charge called from the page
->fault. The heavy inlining is not particularly helping here... So there
->must be some other THP charge leaking out.
->[/me is diving into the code again]
->
->* do_huge_pmd_anonymous_page falls back to handle_pte_fault
->* do_huge_pmd_wp_page_fallback falls back to simple pages so it doesn't
->  charge the huge page
->* do_huge_pmd_wp_page splits the huge page and retries with fallback to
->  handle_pte_fault
->* collapse_huge_page is not called in the page fault path
->* do_wp_page, do_anonymous_page and __do_fault  operate on a single page
->  so the memcg charging cannot return ENOMEM
->
->There are no other callers AFAICS so I am getting clueless. Maybe more
->debugging will tell us something (the inlining has been reduced for thp
->paths which can reduce performance in thp page fault heavy workloads but
->this will give us better traces - I hope).
+On Tue, Dec 04, 2012 at 02:10:01PM -0800, Laura Abbott wrote:
+> The current calculation in pfn_to_bitidx assumes that
+> (pfn - zone->zone_start_pfn) >> pageblock_order will return the
+> same bit for all pfn in a pageblock. If zone_start_pfn is not
+> aligned to pageblock_nr_pages, this may not always be correct.
+> 
+> Consider the following with pageblock order = 10, zone start 2MB:
+> 
+> pfn     | pfn - zone start | (pfn - zone start) >> page block order
+> ----------------------------------------------------------------
+> 0x26000 | 0x25e00	   |  0x97
+> 0x26100 | 0x25f00	   |  0x97
+> 0x26200 | 0x26000	   |  0x98
+> 0x26300 | 0x26100	   |  0x98
+> 
+> This means that calling {get,set}_pageblock_migratetype on a single
+> page will not set the migratetype for the full block. The correct
+> fix is to round down zone_start_pfn for the bit index calculation.
+> Rather than do this calculation everytime, store this precalcualted
+> algined start in the zone structure to allow the actual start_pfn to
+> be used elsewhere.
+> 
+> Change-Id: I13e2f53f50db294f38ec86138c17c6fe29f0ee82
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 
+Hi Laura,
 
-Should i apply all patches togather? (fix for this bug, more log messages, backported fix from 3.5 and this new one)
+There should be no need to add a new zone field. It's probably ok in terms
+of functionality but it does mean that we have to worry about things like
+hotplug (FWIW, should be fine) and the memory overhead is added even on
+CONFIG_SPARSEMEM where it is not needed. Instead, mask out the lower bits
+in pfn_to_bitidx() using the same round_down trick you already do. The
+cost is negligible.
 
+Thanks.
 
->Anyway do you see the same problem if transparent huge pages are
->disabled?
->echo never > /sys/kernel/mm/transparent_hugepage/enabled)
-
-
-# cat /sys/kernel/mm/transparent_hugepage/enabled
-cat: /sys/kernel/mm/transparent_hugepage/enabled: No such file or directory
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
