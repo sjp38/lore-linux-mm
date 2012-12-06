@@ -1,58 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 9241F6B00BE
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 12:28:45 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so2978743dak.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 09:28:44 -0800 (PST)
-Message-ID: <50C0D5C6.1050305@gmail.com>
-Date: Fri, 07 Dec 2012 01:28:38 +0800
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id C29FE6B00C0
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 12:30:40 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so4820480pad.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 09:30:40 -0800 (PST)
+Message-ID: <50C0D63B.10504@gmail.com>
+Date: Fri, 07 Dec 2012 01:30:35 +0800
 From: Jiang Liu <liuj97@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <1353667445-7593-6-git-send-email-tangchen@cn.fujitsu.com> <50B36354.7040501@gmail.com> <50B36B54.7050506@cn.fujitsu.com> <50B38F69.6020902@zytor.com> <50B4304F.4070302@cn.fujitsu.com> <50B45021.2000009@zytor.com>
-In-Reply-To: <50B45021.2000009@zytor.com>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>     <50B5EFE9.3040206@huawei.com>    <1354128096.26955.276.camel@misato.fc.hp.com>  <50C0C13A.1040905@gmail.com>  <1354809803.21116.4.camel@misato.fc.hp.com>  <50C0C6E1.4000102@gmail.com> <1354811493.21116.10.camel@misato.fc.hp.com>  <50C0CD4A.90101@gmail.com> <1354813754.21116.16.camel@misato.fc.hp.com>
+In-Reply-To: <1354813754.21116.16.camel@misato.fc.hp.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, wujianguo <wujianguo106@gmail.com>, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, wujianguo@huawei.com, qiuxishi@huawei.com
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
 
-Hi hpa and Tang,
-	How do you think about the attached patches, which reserves memory
-for hotplug from memblock/bootmem allocator at early booting stages?
-	Logically we split the task into three parts:
-1) Provide a mechanism to specify zone_movable[] by kernel parameter.
-   Patch 1-4 from Tang achieves this goal by adding "movablecore_map" kernel
-   parameter.
-2) Reserve memory for hotplug by reusing information provided by "movablecore_map".
-   Patch 5 from Tang achieve this goal. And the attached patches provides
-   another way to achieve the same goal by calling memblock_reserve() and newly
-   introduced memblock interfaces.
-3) Automatically reserve memory for hotplug according to firmware provided
-   information based on the attached patches.
-
-Regards!
-Gerry
-
-On 11/27/2012 01:31 PM, H. Peter Anvin wrote:
-> On 11/26/2012 07:15 PM, Wen Congyang wrote:
+On 12/07/2012 01:09 AM, Toshi Kani wrote:
+> On Fri, 2012-12-07 at 00:52 +0800, Jiang Liu wrote:
+>> On 12/07/2012 12:31 AM, Toshi Kani wrote:
+>>> On Fri, 2012-12-07 at 00:25 +0800, Jiang Liu wrote:
+>>>> On 12/07/2012 12:03 AM, Toshi Kani wrote:
+>>>>> On Fri, 2012-12-07 at 00:00 +0800, Jiang Liu wrote:
+>>>>>> On 11/29/2012 02:41 AM, Toshi Kani wrote:
+>>>>>>> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+>>>  : 
+>>>>>>> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+>>>>>>> have not looked at all your changes yet..), but in my mind, a hot-plug
+>>>>>>> operation should be composed with the following 3 phases.
+>>>>>>>
+>>>>>>> 1. Validate phase - Verify if the request is a supported operation.  All
+>>>>>>> known restrictions are verified at this phase.  For instance, if a
+>>>>>>> hot-remove request involves kernel memory, it is failed in this phase.
+>>>>>>> Since this phase makes no change, no rollback is necessary to fail.  
+>>>>>>>
+>>>>>>> 2. Execute phase - Perform hot-add / hot-remove operation that can be
+>>>>>>> rolled-back in case of error or cancel.
+>>>>>>>
+>>>>>>> 3. Commit phase - Perform the final hot-add / hot-remove operation that
+>>>>>>> cannot be rolled-back.  No error / cancel is allowed in this phase.  For
+>>>>>>> instance, eject operation is performed at this phase.  
+>>>>>> Hi Toshi,
+>>>>>> 	There are one more step needed. Linux provides sysfs interfaces to
+>>>>>> online/offline CPU/memory sections, so we need to protect from concurrent
+>>>>>> operations from those interfaces when doing physical hotplug. Think about
+>>>>>> following sequence:
+>>>>>> Thread 1
+>>>>>> 1. validate conditions for hot-removal
+>>>>>> 2. offline memory section A
+>>>>>> 3.						online memory section A			
+>>>>>> 4. offline memory section B
+>>>>>> 5 hot-remove memory device hosting A and B.
+>>>>>
+>>>>> Hi Gerry,
+>>>>>
+>>>>> I agree.  And I am working on a proposal that tries to address this
+>>>>> issue by integrating both sysfs and hotplug operations into a framework.
+>>>> Hi Toshi,
+>>>> 	But the sysfs for CPU and memory online/offline are platform independent
+>>>> interfaces, and the ACPI based hotplug is platform dependent interfaces. I'm not
+>>>> sure whether it's feasible to merge them. For example we still need offline interface
+>>>> to stop using faulty CPUs on platform without physical hotplug capabilities.
+>>>> 	We have solved this by adding a "busy" flag to the device, so the sysfs
+>>>> will just return -EBUSY if the busy flag is set.
+>>>
+>>> I am making the framework code platform-independent so that it can
+>>> handle both cases.  Well, I am still prototyping, so hopefully it will
+>>> work. :)
+>> Do you mean implementing a framework to manage hotplug of any type of devices?
+>> That sounds like a huge plan:)
 >>
->> Hi, hpa
->>
->> The problem is that:
->> node1 address rang: [18G, 34G), and the user specifies movable map is [8G, 24G).
->> We don't know node1's address range before numa init. So we can't prevent
->> allocating boot memory in the range [24G, 34G).
->>
->> The movable memory should be classified as a non-RAM type in memblock. What
->> do you want to say? We don't save type in memblock because we only
->> add E820_RAM and E820_RESERVED_KERN to memblock.
->>
+>> Otherwise there may be a gap. CPU online/offline interface deals with logical
+>> CPU, and hotplug driver deals with physical devices(processor). They may be different
+>> by related objects.
 > 
-> We either need to keep the type or not add it to the memblocks.
+> Actually it is not a huge plan.  The framework I am thinking of is to
+> enable a hotplug sequencer something analogous to do_initcalls() at the
+> boot sequence.  I am not doing any huge re-work.  That said, I am
+> currently testing my theory, so I won't promise anything, either. :)
+Please do give us an update when you get any progress:)
+
 > 
->     -hpa
+> Thanks,
+> -Toshi
+> 
 > 
 
 --
