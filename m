@@ -1,46 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
-	by kanga.kvack.org (Postfix) with SMTP id 389C18D0011
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 15:32:36 -0500 (EST)
-Message-ID: <50C100D2.4010103@redhat.com>
-Date: Thu, 06 Dec 2012 15:32:18 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id A3BB38D0011
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 16:09:44 -0500 (EST)
+Message-ID: <50C10997.8090801@codeaurora.org>
+Date: Thu, 06 Dec 2012 13:09:43 -0800
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: kswapd craziness in 3.7
-References: <50B77F84.1030907@leemhuis.info> <20121129170512.GI2301@cmpxchg.org> <50B8A8E7.4030108@leemhuis.info> <20121201004520.GK2301@cmpxchg.org> <50BC6314.7060106@leemhuis.info> <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com> <20121206202325.GA1498@cmpxchg.org>
-In-Reply-To: <20121206202325.GA1498@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH v2] mm: Use aligned zone start for pfn_to_bitidx calculation
+References: <1354824324-21993-1-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1354824324-21993-1-git-send-email-lauraa@codeaurora.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Bruno Wolff III <bruno@wolff.to>, Thorsten Leemhuis <fedora@leemhuis.info>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
 
-On 12/06/2012 03:23 PM, Johannes Weiner wrote:
+On 12/6/2012 12:05 PM, Laura Abbott wrote:
+> The current calculation in pfn_to_bitidx assumes that
+> (pfn - zone->zone_start_pfn) >> pageblock_order will return the
+> same bit for all pfn in a pageblock. If zone_start_pfn is not
+> aligned to pageblock_nr_pages, this may not always be correct.
+>
+> Consider the following with pageblock order = 10, zone start 2MB:
+>
+> pfn     | pfn - zone start | (pfn - zone start) >> page block order
+> ----------------------------------------------------------------
+> 0x26000 | 0x25e00	   |  0x97
+> 0x26100 | 0x25f00	   |  0x97
+> 0x26200 | 0x26000	   |  0x98
+> 0x26300 | 0x26100	   |  0x98
+>
+> This means that calling {get,set}_pageblock_migratetype on a single
+> page will not set the migratetype for the full block. Fix this by
+> rounding down zone_start_pfn when doing the bitidx calculation.
+>
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> ---
+>   mm/page_alloc.c |    2 +-
+>   1 files changed, 1 insertions(+), 1 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 92dd060..2e06abd 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5422,7 +5422,7 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+>   	pfn &= (PAGES_PER_SECTION-1);
+>   	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+>   #else
+> -	pfn = pfn - zone->zone_start_pfn;
+> +	pfn = pfn - round_down(zone->start_pfn, pageblock_nr_pages);
+>   	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+>   #endif /* CONFIG_SPARSEMEM */
+>   }
+>
 
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: vmscan: fix inappropriate zone congestion clearing
->
-> c702418 ("mm: vmscan: do not keep kswapd looping forever due to
-> individual uncompactable zones") removed zone watermark checks from
-> the compaction code in kswapd but left in the zone congestion
-> clearing, which now happens unconditionally on higher order reclaim.
->
-> This messes up the reclaim throttling logic for zones with
-> dirty/writeback pages, where zones should only lose their congestion
-> status when their watermarks have been restored.
->
-> Remove the clearing from the zone compaction section entirely.  The
-> preliminary zone check and the reclaim loop in kswapd will clear it if
-> the zone is considered balanced.
->
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
+Sorry for the spam, please ignore this one. This has a typo. Third times 
+the charm.
 
 -- 
-All rights reversed
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
