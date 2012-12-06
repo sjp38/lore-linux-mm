@@ -1,105 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 3C4316B0073
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:11:57 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so4804276pbc.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:11:56 -0800 (PST)
-From: Joonsoo Kim <js1304@gmail.com>
-Subject: [RFC PATCH 1/8] mm, vmalloc: change iterating a vmlist to find_vm_area()
-Date: Fri,  7 Dec 2012 01:09:28 +0900
-Message-Id: <1354810175-4338-2-git-send-email-js1304@gmail.com>
-In-Reply-To: <1354810175-4338-1-git-send-email-js1304@gmail.com>
-References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 8C4BE6B0089
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:11:58 -0500 (EST)
+Message-ID: <1354809803.21116.4.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
+ operation
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 06 Dec 2012 09:03:23 -0700
+In-Reply-To: <50C0C13A.1040905@gmail.com>
+References: 
+	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
+	  <50B5EFE9.3040206@huawei.com>
+	 <1354128096.26955.276.camel@misato.fc.hp.com> <50C0C13A.1040905@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>, Chris Metcalf <cmetcalf@tilera.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
 
-The purpose of iterating a vmlist is finding vm area with specific
-virtual address. find_vm_area() is provided for this purpose
-and more efficient, because it uses a rbtree.
-So change it.
+On Fri, 2012-12-07 at 00:00 +0800, Jiang Liu wrote:
+> On 11/29/2012 02:41 AM, Toshi Kani wrote:
+> > On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+> >> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
+> >>> As discussed in https://patchwork.kernel.org/patch/1581581/
+> >>> the driver core remove function needs to always succeed. This means we need
+> >>> to know that the device can be successfully removed before acpi_bus_trim / 
+> >>> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
+> >>> or SCI-initiated eject of memory devices fail e.g with:
+> >>> echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
+> >>>
+> >>> since the ACPI core goes ahead and ejects the device regardless of whether the
+> >>> the memory is still in use or not.
+> >>>
+> >>> For this reason a new acpi_device operation called prepare_remove is introduced.
+> >>> This operation should be registered for acpi devices whose removal (from kernel
+> >>> perspective) can fail.  Memory devices fall in this category.
+> >>>
+> >>> acpi_bus_remove() is changed to handle removal in 2 steps:
+> >>> - preparation for removal i.e. perform part of removal that can fail. Should
+> >>>   succeed for device and all its children.
+> >>> - if above step was successfull, proceed to actual device removal
+> >>
+> >> Hi Vasilis,
+> >> We met the same problem when we doing computer node hotplug, It is a good idea
+> >> to introduce prepare_remove before actual device removal.
+> >>
+> >> I think we could do more in prepare_remove, such as rollback. In most cases, we can
+> >> offline most of memory sections except kernel used pages now, should we rollback
+> >> and online the memory sections when prepare_remove failed ?
+> > 
+> > I think hot-plug operation should have all-or-nothing semantics.  That
+> > is, an operation should either complete successfully, or rollback to the
+> > original state.
+> > 
+> >> As you may know, the ACPI based hotplug framework we are working on already addressed
+> >> this problem, and the way we slove this problem is a bit like yours.
+> >>
+> >> We introduce hp_ops in struct acpi_device_ops:
+> >> struct acpi_device_ops {
+> >> 	acpi_op_add add;
+> >> 	acpi_op_remove remove;
+> >> 	acpi_op_start start;
+> >> 	acpi_op_bind bind;
+> >> 	acpi_op_unbind unbind;
+> >> 	acpi_op_notify notify;
+> >> #ifdef	CONFIG_ACPI_HOTPLUG
+> >> 	struct acpihp_dev_ops *hp_ops;
+> >> #endif	/* CONFIG_ACPI_HOTPLUG */
+> >> };
+> >>
+> >> in hp_ops, we divide the prepare_remove into six small steps, that is:
+> >> 1) pre_release(): optional step to mark device going to be removed/busy
+> >> 2) release(): reclaim device from running system
+> >> 3) post_release(): rollback if cancelled by user or error happened
+> >> 4) pre_unconfigure(): optional step to solve possible dependency issue
+> >> 5) unconfigure(): remove devices from running system
+> >> 6) post_unconfigure(): free resources used by devices
+> >>
+> >> In this way, we can easily rollback if error happens.
+> >> How do you think of this solution, any suggestion ? I think we can achieve
+> >> a better way for sharing ideas. :)
+> > 
+> > Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+> > have not looked at all your changes yet..), but in my mind, a hot-plug
+> > operation should be composed with the following 3 phases.
+> > 
+> > 1. Validate phase - Verify if the request is a supported operation.  All
+> > known restrictions are verified at this phase.  For instance, if a
+> > hot-remove request involves kernel memory, it is failed in this phase.
+> > Since this phase makes no change, no rollback is necessary to fail.  
+> > 
+> > 2. Execute phase - Perform hot-add / hot-remove operation that can be
+> > rolled-back in case of error or cancel.
+> > 
+> > 3. Commit phase - Perform the final hot-add / hot-remove operation that
+> > cannot be rolled-back.  No error / cancel is allowed in this phase.  For
+> > instance, eject operation is performed at this phase.  
+> Hi Toshi,
+> 	There are one more step needed. Linux provides sysfs interfaces to
+> online/offline CPU/memory sections, so we need to protect from concurrent
+> operations from those interfaces when doing physical hotplug. Think about
+> following sequence:
+> Thread 1
+> 1. validate conditions for hot-removal
+> 2. offline memory section A
+> 3.						online memory section A			
+> 4. offline memory section B
+> 5 hot-remove memory device hosting A and B.
 
-Cc: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+Hi Gerry,
 
-diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
-index de0de0c..862782d 100644
---- a/arch/tile/mm/pgtable.c
-+++ b/arch/tile/mm/pgtable.c
-@@ -592,12 +592,7 @@ void iounmap(volatile void __iomem *addr_in)
- 	   in parallel. Reuse of the virtual address is prevented by
- 	   leaving it in the global lists until we're done with it.
- 	   cpa takes care of the direct mappings. */
--	read_lock(&vmlist_lock);
--	for (p = vmlist; p; p = p->next) {
--		if (p->addr == addr)
--			break;
--	}
--	read_unlock(&vmlist_lock);
-+	p = find_vm_area((void *)addr);
- 
- 	if (!p) {
- 		pr_err("iounmap: bad address %p\n", addr);
-diff --git a/arch/unicore32/mm/ioremap.c b/arch/unicore32/mm/ioremap.c
-index b7a6055..13068ee 100644
---- a/arch/unicore32/mm/ioremap.c
-+++ b/arch/unicore32/mm/ioremap.c
-@@ -235,7 +235,7 @@ EXPORT_SYMBOL(__uc32_ioremap_cached);
- void __uc32_iounmap(volatile void __iomem *io_addr)
- {
- 	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
--	struct vm_struct **p, *tmp;
-+	struct vm_struct *vm;
- 
- 	/*
- 	 * If this is a section based mapping we need to handle it
-@@ -244,17 +244,10 @@ void __uc32_iounmap(volatile void __iomem *io_addr)
- 	 * all the mappings before the area can be reclaimed
- 	 * by someone else.
- 	 */
--	write_lock(&vmlist_lock);
--	for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
--		if ((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
--			if (tmp->flags & VM_UNICORE_SECTION_MAPPING) {
--				unmap_area_sections((unsigned long)tmp->addr,
--						    tmp->size);
--			}
--			break;
--		}
--	}
--	write_unlock(&vmlist_lock);
-+	vm = find_vm_area(addr);
-+	if (vm && (vm->flags & VM_IOREMAP) &&
-+		(vm->flags & VM_UNICORE_SECTION_MAPPING))
-+		unmap_area_sections((unsigned long)vm->addr, vm->size);
- 
- 	vunmap(addr);
- }
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index 78fe3f1..9a1e658 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -282,12 +282,7 @@ void iounmap(volatile void __iomem *addr)
- 	   in parallel. Reuse of the virtual address is prevented by
- 	   leaving it in the global lists until we're done with it.
- 	   cpa takes care of the direct mappings. */
--	read_lock(&vmlist_lock);
--	for (p = vmlist; p; p = p->next) {
--		if (p->addr == (void __force *)addr)
--			break;
--	}
--	read_unlock(&vmlist_lock);
-+	p = find_vm_area((void __force *)addr);
- 
- 	if (!p) {
- 		printk(KERN_ERR "iounmap: bad address %p\n", addr);
--- 
-1.7.9.5
+I agree.  And I am working on a proposal that tries to address this
+issue by integrating both sysfs and hotplug operations into a framework.
+
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
