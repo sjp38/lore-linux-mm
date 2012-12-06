@@ -1,77 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 3D2D86B00CF
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 17:40:10 -0500 (EST)
-Date: Thu, 6 Dec 2012 14:40:08 -0800
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id B6A406B00D3
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 17:45:40 -0500 (EST)
+Date: Thu, 6 Dec 2012 14:45:34 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] HWPOISON, hugetlbfs: fix RSS-counter warning
-Message-Id: <20121206144008.9b376ec7.akpm@linux-foundation.org>
-In-Reply-To: <1354745673-31035-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <3908561D78D1C84285E8C5FCA982C28F1C963B15@ORSMSX108.amr.corp.intel.com>
-	<1354745673-31035-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
+Message-Id: <20121206144534.23d26318.akpm@linux-foundation.org>
+In-Reply-To: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
-On Wed,  5 Dec 2012 17:14:33 -0500
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Fri,  7 Dec 2012 01:09:27 +0900
+Joonsoo Kim <js1304@gmail.com> wrote:
 
-> Hi Tony,
+> This patchset remove vm_struct list management after initializing vmalloc.
+> Adding and removing an entry to vmlist is linear time complexity, so
+> it is inefficient. If we maintain this list, overall time complexity of
+> adding and removing area to vmalloc space is O(N), although we use
+> rbtree for finding vacant place and it's time complexity is just O(logN).
 > 
-> On Wed, Dec 05, 2012 at 10:04:50PM +0000, Luck, Tony wrote:
-> > 	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-> > -		if (PageAnon(page))
-> > +		if (PageHuge(page))
-> > +			;
-> > +		else if (PageAnon(page))
-> >  			dec_mm_counter(mm, MM_ANONPAGES);
-> >  		else
-> >  			dec_mm_counter(mm, MM_FILEPAGES);
-> > 
-> > This style minimizes the "diff" ... but wouldn't it be nicer to say:
-> > 
-> > 		if (!PageHuge(page)) {
-> > 			old code in here
-> > 		}
-> > 
+> And vmlist and vmlist_lock is used many places of outside of vmalloc.c.
+> It is preferable that we hide this raw data structure and provide
+> well-defined function for supporting them, because it makes that they
+> cannot mistake when manipulating theses structure and it makes us easily
+> maintain vmalloc layer.
 > 
-> I think this need more lines in diff because old code should be
-> indented without any logical change.
+> I'm not sure that "7/8: makes vmlist only for kexec" is fine.
+> Because it is related to userspace program.
+> As far as I know, makedumpfile use kexec's output information and it only
+> need first address of vmalloc layer. So my implementation reflect this
+> fact, but I'm not sure. And now, I don't fully test this patchset.
+> Basic operation work well, but I don't test kexec. So I send this
+> patchset with 'RFC'.
+> 
+> Please let me know what I am missing.
+> 
+> This series based on v3.7-rc7 and on top of submitted patchset for ARM.
+> 'introduce static_vm for ARM-specific static mapped area'
+> https://lkml.org/lkml/2012/11/27/356
+> But, running properly on x86 without ARM patchset.
 
-I do agree with Tony on this.  While it is nice to keep the diff
-looking simple, it is more important that the resulting code be clean
-and idiomatic.
+This all looks rather nice, but not mergeable into anything at this
+stage in the release cycle.
 
---- a/mm/rmap.c~hwpoison-hugetlbfs-fix-rss-counter-warning-fix
-+++ a/mm/rmap.c
-@@ -1249,14 +1249,14 @@ int try_to_unmap_one(struct page *page, 
- 	update_hiwater_rss(mm);
- 
- 	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
--		if (PageHuge(page))
--			;
--		else if (PageAnon(page))
--			dec_mm_counter(mm, MM_ANONPAGES);
--		else
--			dec_mm_counter(mm, MM_FILEPAGES);
--		set_pte_at(mm, address, pte,
--				swp_entry_to_pte(make_hwpoison_entry(page)));
-+		if (!PageHuge(page)) {
-+			if (PageAnon(page))
-+				dec_mm_counter(mm, MM_ANONPAGES);
-+			else
-+				dec_mm_counter(mm, MM_FILEPAGES);
-+			set_pte_at(mm, address, pte,
-+				   swp_entry_to_pte(make_hwpoison_entry(page)));
-+		}
- 	} else if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 
-_
+What are the implications of "on top of submitted patchset for ARM"? 
+Does it depens on the ARM patches in any way, or it it independently
+mergeable and testable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
