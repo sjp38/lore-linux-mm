@@ -1,73 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 1849B6B005D
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 04:30:26 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so3053960bkc.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 01:30:24 -0800 (PST)
-Date: Thu, 6 Dec 2012 10:30:19 +0100
-From: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
-Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on
- rebind scenario
-Message-ID: <20121206093019.GA4584@dhcp-192-168-178-175.profitbricks.localdomain>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
- <9212118.3s2xH6uJDI@vostro.rjw.lan>
- <1354136568.26955.312.camel@misato.fc.hp.com>
- <4042591.gpFk7OYmph@vostro.rjw.lan>
- <1354150952.26955.377.camel@misato.fc.hp.com>
- <1354151742.26955.385.camel@misato.fc.hp.com>
- <20121129110451.GA639@dhcp-192-168-178-175.profitbricks.localdomain>
- <1354211051.26955.435.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 608FF6B0068
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 04:54:26 -0500 (EST)
+Date: Thu, 6 Dec 2012 10:54:23 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121206095423.GB10931@dhcp22.suse.cz>
+References: <20121130144427.51A09169@pobox.sk>
+ <20121130144431.GI29317@dhcp22.suse.cz>
+ <20121130160811.6BB25BDD@pobox.sk>
+ <20121130153942.GL29317@dhcp22.suse.cz>
+ <20121130165937.F9564EBE@pobox.sk>
+ <20121130161923.GN29317@dhcp22.suse.cz>
+ <20121203151601.GA17093@dhcp22.suse.cz>
+ <20121205023644.18C3006B@pobox.sk>
+ <20121205141722.GA9714@dhcp22.suse.cz>
+ <20121206012924.FE077FD7@pobox.sk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1354211051.26955.435.camel@misato.fc.hp.com>
+In-Reply-To: <20121206012924.FE077FD7@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: "Rafael J. Wysocki" <rjw@sisk.pl>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi,
-On Thu, Nov 29, 2012 at 10:44:11AM -0700, Toshi Kani wrote:
-> On Thu, 2012-11-29 at 12:04 +0100, Vasilis Liaskovitis wrote:
+On Thu 06-12-12 01:29:24, azurIt wrote:
+> >OK, so the ENOMEM seems to be leaking from mem_cgroup_newpage_charge.
+> >This can only happen if this was an atomic allocation request
+> >(!__GFP_WAIT) or if oom is not allowed which is the case only for
+> >transparent huge page allocation.
+> >The first case can be excluded (in the clean 3.2 stable kernel) because
+> >all callers of mem_cgroup_newpage_charge use GFP_KERNEL. The later one
+> >should be OK because the page fault should fallback to a regular page if
+> >THP allocation/charge fails.
+> >[/me goes to double check]
+> >Hmm do_huge_pmd_wp_page seems to charge a huge page and fails with
+> >VM_FAULT_OOM without any fallback. We should do_huge_pmd_wp_page_fallback
+> >instead. This has been fixed in 3.5-rc1 by 1f1d06c3 (thp, memcg: split
+> >hugepage for memcg oom on cow) but it hasn't been backported to 3.2. The
+> >patch applies to 3.2 without any further modifications. I didn't have
+> >time to test it but if it helps you we should push this to the stable
+> >tree.
 > 
-> Yes, that's what I had in mind along with device_lock().  I think the
-> lock is necessary to close the window.
-> http://www.spinics.net/lists/linux-mm/msg46973.html
 > 
-> But as I mentioned in other email, I prefer option 3 with
-> suppress_bind_attrs.  So, yes, please take a look to see how it works
-> out.
+> This, unfortunately, didn't fix the problem :(
+> http://www.watchdog.sk/lkml/oom_mysqld3
 
-I tested the suppress_bind_attrs and it works by simply setting it to true
-before driver registration e.g. 
+Dohh. The very same stack mem_cgroup_newpage_charge called from the page
+fault. The heavy inlining is not particularly helping here... So there
+must be some other THP charge leaking out.
+[/me is diving into the code again]
 
---- a/drivers/acpi/scan.c
-+++ b/drivers/acpi/scan.c
-@@ -783,7 +783,8 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
- 	driver->drv.name = driver->name;
- 	driver->drv.bus = &acpi_bus_type;
- 	driver->drv.owner = driver->owner;
--
-+    if (!strcmp(driver->class, "memory"))
-+        driver->drv.suppress_bind_attrs = true;
- 	ret = driver_register(&driver->drv);
- 	return ret;
- }
+* do_huge_pmd_anonymous_page falls back to handle_pte_fault
+* do_huge_pmd_wp_page_fallback falls back to simple pages so it doesn't
+  charge the huge page
+* do_huge_pmd_wp_page splits the huge page and retries with fallback to
+  handle_pte_fault
+* collapse_huge_page is not called in the page fault path
+* do_wp_page, do_anonymous_page and __do_fault  operate on a single page
+  so the memcg charging cannot return ENOMEM
 
-No bind/unbind sysfs files are created when using this, as expected.
-I assume we only want to suppress for acpi_memhotplug
-(class=ACPI_MEMORY_DEVICE_CLASS i.e. "memory") devices.
+There are no other callers AFAICS so I am getting clueless. Maybe more
+debugging will tell us something (the inlining has been reduced for thp
+paths which can reduce performance in thp page fault heavy workloads but
+this will give us better traces - I hope).
 
-Is there agreement on what acpi_bus_trim behaviour and rollback (if any) we
-want to have for the current ACPI framework (partial trim or full trim on
-failure)?
-
-thanks,
-
-- Vasilis
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Anyway do you see the same problem if transparent huge pages are
+disabled?
+echo never > /sys/kernel/mm/transparent_hugepage/enabled)
+---
