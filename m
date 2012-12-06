@@ -1,91 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 7BCD98D0011
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 15:24:28 -0500 (EST)
-Date: Thu, 6 Dec 2012 15:23:25 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: kswapd craziness in 3.7
-Message-ID: <20121206202325.GA1498@cmpxchg.org>
-References: <50B77F84.1030907@leemhuis.info>
- <20121129170512.GI2301@cmpxchg.org>
- <50B8A8E7.4030108@leemhuis.info>
- <20121201004520.GK2301@cmpxchg.org>
- <50BC6314.7060106@leemhuis.info>
- <20121203194208.GZ24381@cmpxchg.org>
- <20121204214210.GB20253@cmpxchg.org>
- <20121205030133.GA17438@wolff.to>
- <20121206173742.GA27297@wolff.to>
- <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 2E1808D0011
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 15:25:13 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
+Date: Thu, 06 Dec 2012 21:30:06 +0100
+Message-ID: <1759496.HMVHC2ECHC@vostro.rjw.lan>
+In-Reply-To: <50C0CA90.7010608@gmail.com>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1354579848.21585.54.camel@misato.fc.hp.com> <50C0CA90.7010608@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Bruno Wolff III <bruno@wolff.to>, Thorsten Leemhuis <fedora@leemhuis.info>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
+To: Jiang Liu <liuj97@gmail.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
 
-On Thu, Dec 06, 2012 at 11:31:21AM -0800, Linus Torvalds wrote:
-> Ok, people seem to be reporting success.
+On Friday, December 07, 2012 12:40:48 AM Jiang Liu wrote:
+> On 12/04/2012 08:10 AM, Toshi Kani wrote:
+> > On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
+> >> On 2012/11/30 6:27, Toshi Kani wrote:
+> >>> On Thu, 2012-11-29 at 12:48 +0800, Hanjun Guo wrote:
+> >>>> On 2012/11/29 2:41, Toshi Kani wrote:
+> >>>>> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
+> >>>>>> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
+> >>>>>> As you may know, the ACPI based hotplug framework we are working on already addressed
+> >>>>>> this problem, and the way we slove this problem is a bit like yours.
+> >>>>>>
+> >>>>>> We introduce hp_ops in struct acpi_device_ops:
+> >>>>>> struct acpi_device_ops {
+> >>>>>> 	acpi_op_add add;
+> >>>>>> 	acpi_op_remove remove;
+> >>>>>> 	acpi_op_start start;
+> >>>>>> 	acpi_op_bind bind;
+> >>>>>> 	acpi_op_unbind unbind;
+> >>>>>> 	acpi_op_notify notify;
+> >>>>>> #ifdef	CONFIG_ACPI_HOTPLUG
+> >>>>>> 	struct acpihp_dev_ops *hp_ops;
+> >>>>>> #endif	/* CONFIG_ACPI_HOTPLUG */
+> >>>>>> };
+> >>>>>>
+> >>>>>> in hp_ops, we divide the prepare_remove into six small steps, that is:
+> >>>>>> 1) pre_release(): optional step to mark device going to be removed/busy
+> >>>>>> 2) release(): reclaim device from running system
+> >>>>>> 3) post_release(): rollback if cancelled by user or error happened
+> >>>>>> 4) pre_unconfigure(): optional step to solve possible dependency issue
+> >>>>>> 5) unconfigure(): remove devices from running system
+> >>>>>> 6) post_unconfigure(): free resources used by devices
+> >>>>>>
+> >>>>>> In this way, we can easily rollback if error happens.
+> >>>>>> How do you think of this solution, any suggestion ? I think we can achieve
+> >>>>>> a better way for sharing ideas. :)
+> >>>>>
+> >>>>> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
+> >>>>> have not looked at all your changes yet..), but in my mind, a hot-plug
+> >>>>> operation should be composed with the following 3 phases.
+> >>>>
+> >>>> Good idea ! we also implement a hot-plug operation in 3 phases:
+> >>>> 1) acpihp_drv_pre_execute
+> >>>> 2) acpihp_drv_execute
+> >>>> 3) acpihp_drv_post_execute
+> >>>> you may refer to :
+> >>>> https://lkml.org/lkml/2012/11/4/79
+> >>>
+> >>> Great.  Yes, I will take a look.
+> >>
+> >> Thanks, any comments are welcomed :)
+> > 
+> > If I read the code right, the framework calls ACPI drivers differently
+> > at boot-time and hot-add as follows.  That is, the new entry points are
+> > called at hot-add only, but .add() is called at both cases.  This
+> > requires .add() to work differently.
+> > 
+> > Boot    : .add()
+> > Hot-Add : .add(), .pre_configure(), configure(), etc.
+> > 
+> > I think the boot-time and hot-add initialization should be done
+> > consistently.  While there is difficulty with the current boot sequence,
+> > the framework should be designed to allow them consistent, not make them
+> > diverged.
+> Hi Toshi,
+> 	We have separated hotplug operations from driver binding/unbinding interface
+> due to following considerations.
+> 1) Physical CPU and memory devices are initialized/used before the ACPI subsystem
+>    is initialized. So under normal case, .add() of processor and acpi_memhotplug only
+>    figures out information about device already in working state instead of starting
+>    the device.
+> 2) It's impossible to rmmod the processor and acpi_memhotplug driver at runtime 
+>    if .remove() of CPU and memory drivers do really remove the CPU/memory device
+>    from the system. And the ACPI processor driver also implements CPU PM funcitonality
+>    other than hotplug.
 > 
-> I've applied Johannes' last patch with the new tested-by tags.
+> And recently Rafael has mentioned that he has a long term view to get rid of the
+> concept of "ACPI device". If that happens, we could easily move the hotplug
+> logic from ACPI device drivers into the hotplug framework if the hotplug logic
+> is separated from the .add()/.remove() callbacks. Actually we could even move all
+> hotplug only logic into the hotplug framework and don't rely on any ACPI device
+> driver any more. So we could get rid of all these messy things. We could achieve
+> that by:
+> 1) moving code shared by ACPI device drivers and the hotplug framework into the core.
+> 2) moving hotplug only code to the framework.
 > 
-> Johannes (or anybody else, for that matter), please holler LOUDLY if
-> you disagreed.. (or if I used the wrong version of the patch, there's
-> been several, afaik).
+> Hi Rafael, what's your thoughts here?
 
-I just went back one more time and of course that's when I spot that I
-forgot to remove the zone congestion clearing that depended on the now
-removed checks to ensure the zone is balanced.  It's not too big of a
-deal, just the /risk/ of increased CPU use from reclaim because we go
-back to scanning zones that we previously deemed congested and slept a
-little bit before continuing reclaim.
+I think that sounds good at the high level, but we need to get there
+incrementally.  This way it will be easier to maintain backwards
+compatibility and follow the changes.  Also, it will be easier for all of
+the interested people from different companies to participate in the
+development and make sure that everyones needs are going to be met this
+way.
 
-Sorry, I should have seen that earlier.
+At this point, I'd like to see where the Toshi Kani's proposal is going to
+take us.
 
-Removing it is a low risk fix, the clearing was kinda redundant anyway
-(the preliminary zone check clears it for OK zones, so does the
-reclaim loop under the same criteria), letting it stay is probably
-more problematic for 3.8 than just dropping it...
+Thanks,
+Rafael
 
----
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: vmscan: fix inappropriate zone congestion clearing
 
-c702418 ("mm: vmscan: do not keep kswapd looping forever due to
-individual uncompactable zones") removed zone watermark checks from
-the compaction code in kswapd but left in the zone congestion
-clearing, which now happens unconditionally on higher order reclaim.
-
-This messes up the reclaim throttling logic for zones with
-dirty/writeback pages, where zones should only lose their congestion
-status when their watermarks have been restored.
-
-Remove the clearing from the zone compaction section entirely.  The
-preliminary zone check and the reclaim loop in kswapd will clear it if
-the zone is considered balanced.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/vmscan.c | 3 ---
- 1 file changed, 3 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 124bbfe..b7ed376 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2827,9 +2827,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 			if (zone_watermark_ok(zone, order,
- 				    low_wmark_pages(zone), *classzone_idx, 0))
- 				zones_need_compaction = 0;
--
--			/* If balanced, clear the congested flag */
--			zone_clear_flag(zone, ZONE_CONGESTED);
- 		}
- 
- 		if (zones_need_compaction)
 -- 
-1.7.11.7
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
