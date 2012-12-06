@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id F07DC6B00D1
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 14:39:08 -0500 (EST)
-Received: by mail-wg0-f47.google.com with SMTP id dq11so3350767wgb.26
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 11:39:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id B693C6B00D2
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 14:43:55 -0500 (EST)
+Message-ID: <50C0F55F.6030405@redhat.com>
+Date: Thu, 06 Dec 2012 14:43:27 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20121206192845.GA599@polaris.bitmath.org>
-References: <20121206091744.GA1397@polaris.bitmath.org> <20121206144821.GC18547@quack.suse.cz>
- <20121206161934.GA17258@suse.de> <CA+55aFw9WQN-MYFKzoGXF9Z70h1XsMu5X4hLy0GPJopBVuE=Yg@mail.gmail.com>
- <20121206175451.GC17258@suse.de> <CA+55aFwDZHXf2FkWugCy4DF+mPTjxvjZH87ydhE5cuFFcJ-dJg@mail.gmail.com>
- <20121206183259.GA591@polaris.bitmath.org> <CA+55aFzievpA_b5p-bXwW11a89eC-ucpzKUuSqb2PNQOLrqaPg@mail.gmail.com>
- <20121206192845.GA599@polaris.bitmath.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 6 Dec 2012 11:38:47 -0800
-Message-ID: <CA+55aFy4Lv+_aPEakOJNR2F9PR=09jviT6Z70_NkWV5bSH5ABw@mail.gmail.com>
-Subject: Re: Oops in 3.7-rc8 isolate_free_pages_block()
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: kswapd craziness in 3.7
+References: <20121128145215.d23aeb1b.akpm@linux-foundation.org> <20121128235412.GW8218@suse.de> <50B77F84.1030907@leemhuis.info> <20121129170512.GI2301@cmpxchg.org> <50B8A8E7.4030108@leemhuis.info> <20121201004520.GK2301@cmpxchg.org> <50BC6314.7060106@leemhuis.info> <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
+In-Reply-To: <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Henrik Rydberg <rydberg@euromail.se>
-Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Bruno Wolff III <bruno@wolff.to>, Johannes Weiner <hannes@cmpxchg.org>, Thorsten Leemhuis <fedora@leemhuis.info>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis Kletnieks <Valdis.Kletnieks@vt.edu>, Jiri Slaby <jslaby@suse.cz>, Zdenek Kabelac <zkabelac@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Ellson <john.ellson@comcast.net>
 
-Ok, I've applied the patch.
+On 12/06/2012 02:31 PM, Linus Torvalds wrote:
+> Ok, people seem to be reporting success.
+>
+> I've applied Johannes' last patch with the new tested-by tags.
+>
+> Johannes (or anybody else, for that matter), please holler LOUDLY if
+> you disagreed.. (or if I used the wrong version of the patch, there's
+> been several, afaik).
 
-Mel, some grepping shows that there is an old line that does
+Johannes's patch is a fairly big hammer, with kswapd not looping
+back to the start when zones are still unbalanced.
 
-    end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
+However, the next allocation will wake up kswapd again, and
+having kswapd stop early beats having it in an infinite loop.
 
-which looks bogus. That should probably also use "+ 1" instead. But
-I'll consider that an independent issue, so I applied the one patch
-regardless.
+I believe Johannes's patch will be fine for 3.7.
 
-There is also a
-
-    low_pfn += pageblock_nr_pages;
-    low_pfn = ALIGN(low_pfn, pageblock_nr_pages) - 1;
-
-that looks suspicious for similar reasons. Maybe
-
-    low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
-
-instead? Although that *can* result in the same low_pfn in the end, so
-maybe that one was correct after all? I just did some grepping, no
-actual semantic analysis...
-
-                  Linus
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
