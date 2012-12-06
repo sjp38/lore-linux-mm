@@ -1,117 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 2E1808D0011
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 15:25:13 -0500 (EST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 16A838D0011
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 15:27:44 -0500 (EST)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
-Date: Thu, 06 Dec 2012 21:30:06 +0100
-Message-ID: <1759496.HMVHC2ECHC@vostro.rjw.lan>
-In-Reply-To: <50C0CA90.7010608@gmail.com>
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1354579848.21585.54.camel@misato.fc.hp.com> <50C0CA90.7010608@gmail.com>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Thu, 06 Dec 2012 21:32:39 +0100
+Message-ID: <3500918.ab8V1kPRPP@vostro.rjw.lan>
+In-Reply-To: <1354808489.20543.31.camel@misato.fc.hp.com>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <14429189.LmXxfguqbu@vostro.rjw.lan> <1354808489.20543.31.camel@misato.fc.hp.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Friday, December 07, 2012 12:40:48 AM Jiang Liu wrote:
-> On 12/04/2012 08:10 AM, Toshi Kani wrote:
-> > On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
-> >> On 2012/11/30 6:27, Toshi Kani wrote:
-> >>> On Thu, 2012-11-29 at 12:48 +0800, Hanjun Guo wrote:
-> >>>> On 2012/11/29 2:41, Toshi Kani wrote:
-> >>>>> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
-> >>>>>> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
-> >>>>>> As you may know, the ACPI based hotplug framework we are working on already addressed
-> >>>>>> this problem, and the way we slove this problem is a bit like yours.
-> >>>>>>
-> >>>>>> We introduce hp_ops in struct acpi_device_ops:
-> >>>>>> struct acpi_device_ops {
-> >>>>>> 	acpi_op_add add;
-> >>>>>> 	acpi_op_remove remove;
-> >>>>>> 	acpi_op_start start;
-> >>>>>> 	acpi_op_bind bind;
-> >>>>>> 	acpi_op_unbind unbind;
-> >>>>>> 	acpi_op_notify notify;
-> >>>>>> #ifdef	CONFIG_ACPI_HOTPLUG
-> >>>>>> 	struct acpihp_dev_ops *hp_ops;
-> >>>>>> #endif	/* CONFIG_ACPI_HOTPLUG */
-> >>>>>> };
-> >>>>>>
-> >>>>>> in hp_ops, we divide the prepare_remove into six small steps, that is:
-> >>>>>> 1) pre_release(): optional step to mark device going to be removed/busy
-> >>>>>> 2) release(): reclaim device from running system
-> >>>>>> 3) post_release(): rollback if cancelled by user or error happened
-> >>>>>> 4) pre_unconfigure(): optional step to solve possible dependency issue
-> >>>>>> 5) unconfigure(): remove devices from running system
-> >>>>>> 6) post_unconfigure(): free resources used by devices
-> >>>>>>
-> >>>>>> In this way, we can easily rollback if error happens.
-> >>>>>> How do you think of this solution, any suggestion ? I think we can achieve
-> >>>>>> a better way for sharing ideas. :)
-> >>>>>
-> >>>>> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
-> >>>>> have not looked at all your changes yet..), but in my mind, a hot-plug
-> >>>>> operation should be composed with the following 3 phases.
-> >>>>
-> >>>> Good idea ! we also implement a hot-plug operation in 3 phases:
-> >>>> 1) acpihp_drv_pre_execute
-> >>>> 2) acpihp_drv_execute
-> >>>> 3) acpihp_drv_post_execute
-> >>>> you may refer to :
-> >>>> https://lkml.org/lkml/2012/11/4/79
-> >>>
-> >>> Great.  Yes, I will take a look.
-> >>
-> >> Thanks, any comments are welcomed :)
+On Thursday, December 06, 2012 08:41:29 AM Toshi Kani wrote:
+> On Thu, 2012-12-06 at 13:50 +0100, Rafael J. Wysocki wrote:
+> > On Thursday, December 06, 2012 10:30:19 AM Vasilis Liaskovitis wrote:
+> > > Hi,
+> > > On Thu, Nov 29, 2012 at 10:44:11AM -0700, Toshi Kani wrote:
+> > > > On Thu, 2012-11-29 at 12:04 +0100, Vasilis Liaskovitis wrote:
+> > > > 
+> > > > Yes, that's what I had in mind along with device_lock().  I think the
+> > > > lock is necessary to close the window.
+> > > > http://www.spinics.net/lists/linux-mm/msg46973.html
+> > > > 
+> > > > But as I mentioned in other email, I prefer option 3 with
+> > > > suppress_bind_attrs.  So, yes, please take a look to see how it works
+> > > > out.
+> > > 
+> > > I tested the suppress_bind_attrs and it works by simply setting it to true
+> > > before driver registration e.g. 
+> > > 
+> > > --- a/drivers/acpi/scan.c
+> > > +++ b/drivers/acpi/scan.c
+> > > @@ -783,7 +783,8 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
+> > >  	driver->drv.name = driver->name;
+> > >  	driver->drv.bus = &acpi_bus_type;
+> > >  	driver->drv.owner = driver->owner;
+> > > -
+> > > +    if (!strcmp(driver->class, "memory"))
+> > > +        driver->drv.suppress_bind_attrs = true;
+> > >  	ret = driver_register(&driver->drv);
+> > >  	return ret;
+> > >  }
+> > > 
+> > > No bind/unbind sysfs files are created when using this, as expected.
+> > > I assume we only want to suppress for acpi_memhotplug
+> > > (class=ACPI_MEMORY_DEVICE_CLASS i.e. "memory") devices.
+> > > 
+> > > Is there agreement on what acpi_bus_trim behaviour and rollback (if any) we
+> > > want to have for the current ACPI framework (partial trim or full trim on
+> > > failure)?
 > > 
-> > If I read the code right, the framework calls ACPI drivers differently
-> > at boot-time and hot-add as follows.  That is, the new entry points are
-> > called at hot-add only, but .add() is called at both cases.  This
-> > requires .add() to work differently.
+> > Last time I suggested to split the trimming so that first we only unbind
+> > drivers (and roll back that part, ie. rebind the drivers on errors) and
+> > next we remove the struct acpi_device objects, just before doing the actual
+> > eject.  So there would be two walks of the hierarchy below the device we want
+> > to eject, one for driver unbinding (that can be rolled back) and one for the
+> > actual removal.
 > > 
-> > Boot    : .add()
-> > Hot-Add : .add(), .pre_configure(), configure(), etc.
-> > 
-> > I think the boot-time and hot-add initialization should be done
-> > consistently.  While there is difficulty with the current boot sequence,
-> > the framework should be designed to allow them consistent, not make them
-> > diverged.
-> Hi Toshi,
-> 	We have separated hotplug operations from driver binding/unbinding interface
-> due to following considerations.
-> 1) Physical CPU and memory devices are initialized/used before the ACPI subsystem
->    is initialized. So under normal case, .add() of processor and acpi_memhotplug only
->    figures out information about device already in working state instead of starting
->    the device.
-> 2) It's impossible to rmmod the processor and acpi_memhotplug driver at runtime 
->    if .remove() of CPU and memory drivers do really remove the CPU/memory device
->    from the system. And the ACPI processor driver also implements CPU PM funcitonality
->    other than hotplug.
+> > Toshi Kani seemed to agree with that and there were no follow-ups.
 > 
-> And recently Rafael has mentioned that he has a long term view to get rid of the
-> concept of "ACPI device". If that happens, we could easily move the hotplug
-> logic from ACPI device drivers into the hotplug framework if the hotplug logic
-> is separated from the .add()/.remove() callbacks. Actually we could even move all
-> hotplug only logic into the hotplug framework and don't rely on any ACPI device
-> driver any more. So we could get rid of all these messy things. We could achieve
-> that by:
-> 1) moving code shared by ACPI device drivers and the hotplug framework into the core.
-> 2) moving hotplug only code to the framework.
+> I was hoping to have a short term solution to fix the panic on
+> attempting to delete a kernel memory range, assuming that the memory
+> hot-plug feature is going to make into 3.8.  It's a blocker issue for
+> testing the feature.  Now that the VM patchset does not seem to make
+> into 3.8, I think we can step back and focus on a long term solution
+> toward 3.9.
 > 
-> Hi Rafael, what's your thoughts here?
+> I agree that we should separate resource online/offlining step and
+> acpi_device creation/deletion step.  It can address the panic and make
+> rollback easier to handle.  For 3.9, we should have a better framework
+> in place to handle it in general.  So, I am currently working on a
+> framework proposal, and hopefully able to send it out in a week or so.
 
-I think that sounds good at the high level, but we need to get there
-incrementally.  This way it will be easier to maintain backwards
-compatibility and follow the changes.  Also, it will be easier for all of
-the interested people from different companies to participate in the
-development and make sure that everyones needs are going to be met this
-way.
+Cool, thanks for doing this!
 
-At this point, I'd like to see where the Toshi Kani's proposal is going to
-take us.
+> Lastly, thanks Vasilis for testing the suppress_bind_attrs change.  I
+> think we may still need it for 3.9.
+
+Well, we'll see. :-)
 
 Thanks,
 Rafael
