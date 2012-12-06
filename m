@@ -1,60 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id DD0C26B0071
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 05:20:43 -0500 (EST)
-Date: Thu, 6 Dec 2012 10:12:20 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: Use aligned zone start for pfn_to_bitidx calculation
-Message-ID: <20121206101220.GB2580@suse.de>
-References: <1354659001-13673-1-git-send-email-lauraa@codeaurora.org>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 2BB3C6B0073
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 07:45:55 -0500 (EST)
+From: "Rafael J. Wysocki" <rjw@sisk.pl>
+Subject: Re: [RFC PATCH v3 3/3] acpi_memhotplug: Allow eject to proceed on rebind scenario
+Date: Thu, 06 Dec 2012 13:50:47 +0100
+Message-ID: <14429189.LmXxfguqbu@vostro.rjw.lan>
+In-Reply-To: <20121206093019.GA4584@dhcp-192-168-178-175.profitbricks.localdomain>
+References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com> <1354211051.26955.435.camel@misato.fc.hp.com> <20121206093019.GA4584@dhcp-192-168-178-175.profitbricks.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1354659001-13673-1-git-send-email-lauraa@codeaurora.org>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
+To: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, linux-acpi@vger.kernel.org, Wen Congyang <wency@cn.fujitsu.com>, Wen Congyang <wencongyang@gmail.com>, isimatu.yasuaki@jp.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Dec 04, 2012 at 02:10:01PM -0800, Laura Abbott wrote:
-> The current calculation in pfn_to_bitidx assumes that
-> (pfn - zone->zone_start_pfn) >> pageblock_order will return the
-> same bit for all pfn in a pageblock. If zone_start_pfn is not
-> aligned to pageblock_nr_pages, this may not always be correct.
+On Thursday, December 06, 2012 10:30:19 AM Vasilis Liaskovitis wrote:
+> Hi,
+> On Thu, Nov 29, 2012 at 10:44:11AM -0700, Toshi Kani wrote:
+> > On Thu, 2012-11-29 at 12:04 +0100, Vasilis Liaskovitis wrote:
+> > 
+> > Yes, that's what I had in mind along with device_lock().  I think the
+> > lock is necessary to close the window.
+> > http://www.spinics.net/lists/linux-mm/msg46973.html
+> > 
+> > But as I mentioned in other email, I prefer option 3 with
+> > suppress_bind_attrs.  So, yes, please take a look to see how it works
+> > out.
 > 
-> Consider the following with pageblock order = 10, zone start 2MB:
+> I tested the suppress_bind_attrs and it works by simply setting it to true
+> before driver registration e.g. 
 > 
-> pfn     | pfn - zone start | (pfn - zone start) >> page block order
-> ----------------------------------------------------------------
-> 0x26000 | 0x25e00	   |  0x97
-> 0x26100 | 0x25f00	   |  0x97
-> 0x26200 | 0x26000	   |  0x98
-> 0x26300 | 0x26100	   |  0x98
+> --- a/drivers/acpi/scan.c
+> +++ b/drivers/acpi/scan.c
+> @@ -783,7 +783,8 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
+>  	driver->drv.name = driver->name;
+>  	driver->drv.bus = &acpi_bus_type;
+>  	driver->drv.owner = driver->owner;
+> -
+> +    if (!strcmp(driver->class, "memory"))
+> +        driver->drv.suppress_bind_attrs = true;
+>  	ret = driver_register(&driver->drv);
+>  	return ret;
+>  }
 > 
-> This means that calling {get,set}_pageblock_migratetype on a single
-> page will not set the migratetype for the full block. The correct
-> fix is to round down zone_start_pfn for the bit index calculation.
-> Rather than do this calculation everytime, store this precalcualted
-> algined start in the zone structure to allow the actual start_pfn to
-> be used elsewhere.
+> No bind/unbind sysfs files are created when using this, as expected.
+> I assume we only want to suppress for acpi_memhotplug
+> (class=ACPI_MEMORY_DEVICE_CLASS i.e. "memory") devices.
 > 
-> Change-Id: I13e2f53f50db294f38ec86138c17c6fe29f0ee82
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> Is there agreement on what acpi_bus_trim behaviour and rollback (if any) we
+> want to have for the current ACPI framework (partial trim or full trim on
+> failure)?
 
-Hi Laura,
+Last time I suggested to split the trimming so that first we only unbind
+drivers (and roll back that part, ie. rebind the drivers on errors) and
+next we remove the struct acpi_device objects, just before doing the actual
+eject.  So there would be two walks of the hierarchy below the device we want
+to eject, one for driver unbinding (that can be rolled back) and one for the
+actual removal.
 
-There should be no need to add a new zone field. It's probably ok in terms
-of functionality but it does mean that we have to worry about things like
-hotplug (FWIW, should be fine) and the memory overhead is added even on
-CONFIG_SPARSEMEM where it is not needed. Instead, mask out the lower bits
-in pfn_to_bitidx() using the same round_down trick you already do. The
-cost is negligible.
+Toshi Kani seemed to agree with that and there were no follow-ups.
 
-Thanks.
+Thanks,
+Rafael
+
 
 -- 
-Mel Gorman
-SUSE Labs
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
