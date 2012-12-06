@@ -1,81 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id D6B256B0068
-	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 17:39:43 -0500 (EST)
-Message-ID: <1354746668.21585.147.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 05 Dec 2012 15:31:08 -0700
-In-Reply-To: <50BF399B.7010404@huawei.com>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	     <50B5EFE9.3040206@huawei.com>
-	    <1354128096.26955.276.camel@misato.fc.hp.com>
-	   <50B6E936.2080308@huawei.com> <1354228028.7776.56.camel@misato.fc.hp.com>
-	   <50BC29C6.6050706@huawei.com>
-	 <1354579848.21585.54.camel@misato.fc.hp.com>  <50BDBF5A.8040407@huawei.com>
-	 <1354663411.21585.135.camel@misato.fc.hp.com> <50BF399B.7010404@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id BCDE16B005D
+	for <linux-mm@kvack.org>; Wed,  5 Dec 2012 19:29:26 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Thu, 06 Dec 2012 01:29:24 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121130032918.59B3F780@pobox.sk>, <20121130124506.GH29317@dhcp22.suse.cz>, <20121130144427.51A09169@pobox.sk>, <20121130144431.GI29317@dhcp22.suse.cz>, <20121130160811.6BB25BDD@pobox.sk>, <20121130153942.GL29317@dhcp22.suse.cz>, <20121130165937.F9564EBE@pobox.sk>, <20121130161923.GN29317@dhcp22.suse.cz>, <20121203151601.GA17093@dhcp22.suse.cz>, <20121205023644.18C3006B@pobox.sk> <20121205141722.GA9714@dhcp22.suse.cz>
+In-Reply-To: <20121205141722.GA9714@dhcp22.suse.cz>
+MIME-Version: 1.0
+Message-Id: <20121206012924.FE077FD7@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hanjun Guo <guohanjun@huawei.com>
-Cc: Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, Huxinwei <huxinwei@huawei.com>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On Wed, 2012-12-05 at 20:10 +0800, Hanjun Guo wrote:
-> On 2012/12/5 7:23, Toshi Kani wrote:
-> > On Tue, 2012-12-04 at 17:16 +0800, Hanjun Guo wrote:
-> >> On 2012/12/4 8:10, Toshi Kani wrote:
-> >>> On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
-> >>>> On 2012/11/30 6:27, Toshi Kani wrote:
-> >>>
-> >>> If I read the code right, the framework calls ACPI drivers differently
-> >>> at boot-time and hot-add as follows.  That is, the new entry points are
-> >>> called at hot-add only, but .add() is called at both cases.  This
-> >>> requires .add() to work differently.
-> >>
-> >> Hi Toshi,
-> >> Thanks for your comments!
-> >>
-> >>>
-> >>> Boot    : .add()
-> >>
-> >> Actually, at boot time: .add(), .start()
-> > 
-> > Right.
-> > 
-> >>> Hot-Add : .add(), .pre_configure(), configure(), etc.
-> >>
-> >> Yes, we did it as you said in the framework. We use .pre_configure(), configure(),
-> >> and post_configure() to instead of .start() for better error handling and recovery.
-> > 
-> > I think we should have hot-plug interfaces at the module level, not at
-> > the ACPI-internal level.  In this way, the interfaces can be
-> > platform-neutral and allow any modules to register, which makes it more
-> > consistent with the boot-up sequence.  It can also allow ordering of the
-> > sequence among the registered modules.  Right now, we initiate all
-> > procedures from ACPI during hot-plug, which I think is inflexible and
-> > steps into other module's role.
-> > 
-> > I am also concerned about the slot handling, which is the core piece of
-> > the infrastructure and only allows hot-plug operations on ACPI objects
-> > where slot objects are previously created by checking _EJ0.  The
-> > infrastructure should allow hot-plug operations on any objects, and it
-> > should not be dependent on the slot design.
-> > 
-> > I have some rough idea, and it may be easier to review / explain if I
-> > make some code changes.  So, let me prototype it, and send it you all if
-> > that works out.  Hopefully, it won't take too long.
-> 
-> Great! If any thing I can do, please let me know it.
+>OK, so the ENOMEM seems to be leaking from mem_cgroup_newpage_charge.
+>This can only happen if this was an atomic allocation request
+>(!__GFP_WAIT) or if oom is not allowed which is the case only for
+>transparent huge page allocation.
+>The first case can be excluded (in the clean 3.2 stable kernel) because
+>all callers of mem_cgroup_newpage_charge use GFP_KERNEL. The later one
+>should be OK because the page fault should fallback to a regular page if
+>THP allocation/charge fails.
+>[/me goes to double check]
+>Hmm do_huge_pmd_wp_page seems to charge a huge page and fails with
+>VM_FAULT_OOM without any fallback. We should do_huge_pmd_wp_page_fallback
+>instead. This has been fixed in 3.5-rc1 by 1f1d06c3 (thp, memcg: split
+>hugepage for memcg oom on cow) but it hasn't been backported to 3.2. The
+>patch applies to 3.2 without any further modifications. I didn't have
+>time to test it but if it helps you we should push this to the stable
+>tree.
 
-Cool.  Yes, if the prototype turns out to be a good one, we can work
-together to improve it. :)
- 
-Thanks,
--Toshi
+
+This, unfortunately, didn't fix the problem :(
+http://www.watchdog.sk/lkml/oom_mysqld3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
