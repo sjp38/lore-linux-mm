@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0926B00C1
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 13:19:39 -0500 (EST)
-Message-ID: <50C0E1B6.5060602@fusionio.com>
-Date: Thu, 6 Dec 2012 19:19:34 +0100
-From: Jens Axboe <jaxboe@fusionio.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 3E31A6B00C4
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 13:19:57 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id dq11so3313934wgb.26
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 10:19:55 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [patch,v2] bdi: add a user-tunable cpu_list for the bdi flusher
- threads
-References: <x49lidfnf0s.fsf@segfault.boston.devel.redhat.com> <50BE5988.3050501@fusionio.com> <x498v9dpnwu.fsf@segfault.boston.devel.redhat.com> <50BE5C99.6070703@fusionio.com> <x494nk1pi7h.fsf@segfault.boston.devel.redhat.com> <20121206180150.GQ19802@htj.dyndns.org>
-In-Reply-To: <20121206180150.GQ19802@htj.dyndns.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121206175451.GC17258@suse.de>
+References: <20121206091744.GA1397@polaris.bitmath.org> <20121206144821.GC18547@quack.suse.cz>
+ <20121206161934.GA17258@suse.de> <CA+55aFw9WQN-MYFKzoGXF9Z70h1XsMu5X4hLy0GPJopBVuE=Yg@mail.gmail.com>
+ <20121206175451.GC17258@suse.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 6 Dec 2012 10:19:35 -0800
+Message-ID: <CA+55aFwDZHXf2FkWugCy4DF+mPTjxvjZH87ydhE5cuFFcJ-dJg@mail.gmail.com>
+Subject: Re: Oops in 3.7-rc8 isolate_free_pages_block()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Jeff Moyer <jmoyer@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zach Brown <zab@redhat.com>, Peter Zijlstra <pzijlstr@redhat.com>, Ingo <mingo@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Jan Kara <jack@suse.cz>, Henrik Rydberg <rydberg@euromail.se>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 2012-12-06 19:01, Tejun Heo wrote:
-> As for the original patch, I think it's a bit too much to expose to
-> userland.  It's probably a good idea to bind the flusher to the local
-> node but do we really need to expose an interface to let userland
-> control the affinity directly?  Do we actually have a use case at
-> hand?
+On Thu, Dec 6, 2012 at 9:55 AM, Mel Gorman <mgorman@suse.de> wrote:
+>
+> Yeah. I was listening to a talk while I was writing it, a bit cranky and
+> didn't see why I should suffer alone.
 
-We need to expose it. Once the binding is set from the kernel side on a
-kernel thread, it can't be modified.
+Makes sense.
 
-Binding either for performance reasons or for ensuring that we
-explicitly don't run in some places is a very useful feature.
+> Quasimoto strikes again
 
--- 
-Jens Axboe
+Is that Quasimodo's Japanese cousin?
+
+> -               end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
+> +
+> +               /*
+> +                * As pfn may not start aligned, pfn+pageblock_nr_page
+> +                * may cross a MAX_ORDER_NR_PAGES boundary and miss
+> +                * a pfn_valid check. Ensure isolate_freepages_block()
+> +                * only scans within a pageblock.
+> +                */
+> +               end_pfn = ALIGN(pfn + pageblock_nr_pages, pageblock_nr_pages);
+> +               end_pfn = min(end_pfn, end_pfn);
+
+Ok, this looks much nicer, except it's obviously buggy. The
+min(end_pfn, end_pfn) thing is insane, and I'm sure you meant for that
+line to be
+
++               end_pfn = min(end_pfn, zone_end_pfn);
+
+Henrik, does that - corrected - patch (*instead* of the previous one,
+not in addition to) also fix your issue?
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
