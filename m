@@ -1,123 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 8C4BE6B0089
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:11:58 -0500 (EST)
-Message-ID: <1354809803.21116.4.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 06 Dec 2012 09:03:23 -0700
-In-Reply-To: <50C0C13A.1040905@gmail.com>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	  <50B5EFE9.3040206@huawei.com>
-	 <1354128096.26955.276.camel@misato.fc.hp.com> <50C0C13A.1040905@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 27F436B0089
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:12:00 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so4804276pbc.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:11:59 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [RFC PATCH 2/8] mm, vmalloc: move get_vmalloc_info() to vmalloc.c
+Date: Fri,  7 Dec 2012 01:09:29 +0900
+Message-Id: <1354810175-4338-3-git-send-email-js1304@gmail.com>
+In-Reply-To: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-On Fri, 2012-12-07 at 00:00 +0800, Jiang Liu wrote:
-> On 11/29/2012 02:41 AM, Toshi Kani wrote:
-> > On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
-> >> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
-> >>> As discussed in https://patchwork.kernel.org/patch/1581581/
-> >>> the driver core remove function needs to always succeed. This means we need
-> >>> to know that the device can be successfully removed before acpi_bus_trim / 
-> >>> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
-> >>> or SCI-initiated eject of memory devices fail e.g with:
-> >>> echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
-> >>>
-> >>> since the ACPI core goes ahead and ejects the device regardless of whether the
-> >>> the memory is still in use or not.
-> >>>
-> >>> For this reason a new acpi_device operation called prepare_remove is introduced.
-> >>> This operation should be registered for acpi devices whose removal (from kernel
-> >>> perspective) can fail.  Memory devices fall in this category.
-> >>>
-> >>> acpi_bus_remove() is changed to handle removal in 2 steps:
-> >>> - preparation for removal i.e. perform part of removal that can fail. Should
-> >>>   succeed for device and all its children.
-> >>> - if above step was successfull, proceed to actual device removal
-> >>
-> >> Hi Vasilis,
-> >> We met the same problem when we doing computer node hotplug, It is a good idea
-> >> to introduce prepare_remove before actual device removal.
-> >>
-> >> I think we could do more in prepare_remove, such as rollback. In most cases, we can
-> >> offline most of memory sections except kernel used pages now, should we rollback
-> >> and online the memory sections when prepare_remove failed ?
-> > 
-> > I think hot-plug operation should have all-or-nothing semantics.  That
-> > is, an operation should either complete successfully, or rollback to the
-> > original state.
-> > 
-> >> As you may know, the ACPI based hotplug framework we are working on already addressed
-> >> this problem, and the way we slove this problem is a bit like yours.
-> >>
-> >> We introduce hp_ops in struct acpi_device_ops:
-> >> struct acpi_device_ops {
-> >> 	acpi_op_add add;
-> >> 	acpi_op_remove remove;
-> >> 	acpi_op_start start;
-> >> 	acpi_op_bind bind;
-> >> 	acpi_op_unbind unbind;
-> >> 	acpi_op_notify notify;
-> >> #ifdef	CONFIG_ACPI_HOTPLUG
-> >> 	struct acpihp_dev_ops *hp_ops;
-> >> #endif	/* CONFIG_ACPI_HOTPLUG */
-> >> };
-> >>
-> >> in hp_ops, we divide the prepare_remove into six small steps, that is:
-> >> 1) pre_release(): optional step to mark device going to be removed/busy
-> >> 2) release(): reclaim device from running system
-> >> 3) post_release(): rollback if cancelled by user or error happened
-> >> 4) pre_unconfigure(): optional step to solve possible dependency issue
-> >> 5) unconfigure(): remove devices from running system
-> >> 6) post_unconfigure(): free resources used by devices
-> >>
-> >> In this way, we can easily rollback if error happens.
-> >> How do you think of this solution, any suggestion ? I think we can achieve
-> >> a better way for sharing ideas. :)
-> > 
-> > Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
-> > have not looked at all your changes yet..), but in my mind, a hot-plug
-> > operation should be composed with the following 3 phases.
-> > 
-> > 1. Validate phase - Verify if the request is a supported operation.  All
-> > known restrictions are verified at this phase.  For instance, if a
-> > hot-remove request involves kernel memory, it is failed in this phase.
-> > Since this phase makes no change, no rollback is necessary to fail.  
-> > 
-> > 2. Execute phase - Perform hot-add / hot-remove operation that can be
-> > rolled-back in case of error or cancel.
-> > 
-> > 3. Commit phase - Perform the final hot-add / hot-remove operation that
-> > cannot be rolled-back.  No error / cancel is allowed in this phase.  For
-> > instance, eject operation is performed at this phase.  
-> Hi Toshi,
-> 	There are one more step needed. Linux provides sysfs interfaces to
-> online/offline CPU/memory sections, so we need to protect from concurrent
-> operations from those interfaces when doing physical hotplug. Think about
-> following sequence:
-> Thread 1
-> 1. validate conditions for hot-removal
-> 2. offline memory section A
-> 3.						online memory section A			
-> 4. offline memory section B
-> 5 hot-remove memory device hosting A and B.
+Now get_vmalloc_info() is in fs/proc/mmu.c. There is no reason
+that this code must be here and it's implementation needs vmlist_lock
+and it iterate a vmlist which may be internal data structure for vmalloc.
 
-Hi Gerry,
+It is preferable that vmlist_lock and vmlist is only used in vmalloc.c
+for maintainability. So move the code to vmalloc.c
 
-I agree.  And I am working on a proposal that tries to address this
-issue by integrating both sysfs and hotplug operations into a framework.
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-
-Thanks,
--Toshi
+diff --git a/fs/proc/Makefile b/fs/proc/Makefile
+index 99349ef..88092c1 100644
+--- a/fs/proc/Makefile
++++ b/fs/proc/Makefile
+@@ -5,7 +5,7 @@
+ obj-y   += proc.o
+ 
+ proc-y			:= nommu.o task_nommu.o
+-proc-$(CONFIG_MMU)	:= mmu.o task_mmu.o
++proc-$(CONFIG_MMU)	:= task_mmu.o
+ 
+ proc-y       += inode.o root.o base.o generic.o array.o \
+ 		proc_tty.o fd.o
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index 43973b0..5a1eda2 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -28,24 +28,6 @@ extern int proc_net_init(void);
+ static inline int proc_net_init(void) { return 0; }
+ #endif
+ 
+-struct vmalloc_info {
+-	unsigned long	used;
+-	unsigned long	largest_chunk;
+-};
+-
+-#ifdef CONFIG_MMU
+-#define VMALLOC_TOTAL (VMALLOC_END - VMALLOC_START)
+-extern void get_vmalloc_info(struct vmalloc_info *vmi);
+-#else
+-
+-#define VMALLOC_TOTAL 0UL
+-#define get_vmalloc_info(vmi)			\
+-do {						\
+-	(vmi)->used = 0;			\
+-	(vmi)->largest_chunk = 0;		\
+-} while(0)
+-#endif
+-
+ extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,
+ 				struct pid *pid, struct task_struct *task);
+ extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 80e4645..c594dfb 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -11,6 +11,7 @@
+ #include <linux/swap.h>
+ #include <linux/vmstat.h>
+ #include <linux/atomic.h>
++#include <linux/vmalloc.h>
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+ #include "internal.h"
+diff --git a/fs/proc/mmu.c b/fs/proc/mmu.c
+deleted file mode 100644
+index 8ae221d..0000000
+--- a/fs/proc/mmu.c
++++ /dev/null
+@@ -1,60 +0,0 @@
+-/* mmu.c: mmu memory info files
+- *
+- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+- * Written by David Howells (dhowells@redhat.com)
+- *
+- * This program is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU General Public License
+- * as published by the Free Software Foundation; either version
+- * 2 of the License, or (at your option) any later version.
+- */
+-#include <linux/spinlock.h>
+-#include <linux/vmalloc.h>
+-#include <linux/highmem.h>
+-#include <asm/pgtable.h>
+-#include "internal.h"
+-
+-void get_vmalloc_info(struct vmalloc_info *vmi)
+-{
+-	struct vm_struct *vma;
+-	unsigned long free_area_size;
+-	unsigned long prev_end;
+-
+-	vmi->used = 0;
+-
+-	if (!vmlist) {
+-		vmi->largest_chunk = VMALLOC_TOTAL;
+-	}
+-	else {
+-		vmi->largest_chunk = 0;
+-
+-		prev_end = VMALLOC_START;
+-
+-		read_lock(&vmlist_lock);
+-
+-		for (vma = vmlist; vma; vma = vma->next) {
+-			unsigned long addr = (unsigned long) vma->addr;
+-
+-			/*
+-			 * Some archs keep another range for modules in vmlist
+-			 */
+-			if (addr < VMALLOC_START)
+-				continue;
+-			if (addr >= VMALLOC_END)
+-				break;
+-
+-			vmi->used += vma->size;
+-
+-			free_area_size = addr - prev_end;
+-			if (vmi->largest_chunk < free_area_size)
+-				vmi->largest_chunk = free_area_size;
+-
+-			prev_end = vma->size + addr;
+-		}
+-
+-		if (VMALLOC_END - prev_end > vmi->largest_chunk)
+-			vmi->largest_chunk = VMALLOC_END - prev_end;
+-
+-		read_unlock(&vmlist_lock);
+-	}
+-}
+diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+index 6071e91..698b1e5 100644
+--- a/include/linux/vmalloc.h
++++ b/include/linux/vmalloc.h
+@@ -158,4 +158,22 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
+ # endif
+ #endif
+ 
++struct vmalloc_info {
++	unsigned long   used;
++	unsigned long   largest_chunk;
++};
++
++#ifdef CONFIG_MMU
++#define VMALLOC_TOTAL (VMALLOC_END - VMALLOC_START)
++extern void get_vmalloc_info(struct vmalloc_info *vmi);
++#else
++
++#define VMALLOC_TOTAL 0UL
++#define get_vmalloc_info(vmi)			\
++do {						\
++	(vmi)->used = 0;			\
++	(vmi)->largest_chunk = 0;		\
++} while (0)
++#endif
++
+ #endif /* _LINUX_VMALLOC_H */
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 78e0830..16147bc 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2642,5 +2642,49 @@ static int __init proc_vmalloc_init(void)
+ 	return 0;
+ }
+ module_init(proc_vmalloc_init);
++
++void get_vmalloc_info(struct vmalloc_info *vmi)
++{
++	struct vm_struct *vma;
++	unsigned long free_area_size;
++	unsigned long prev_end;
++
++	vmi->used = 0;
++
++	if (!vmlist) {
++		vmi->largest_chunk = VMALLOC_TOTAL;
++	} else {
++		vmi->largest_chunk = 0;
++
++		prev_end = VMALLOC_START;
++
++		read_lock(&vmlist_lock);
++
++		for (vma = vmlist; vma; vma = vma->next) {
++			unsigned long addr = (unsigned long) vma->addr;
++
++			/*
++			 * Some archs keep another range for modules in vmlist
++			 */
++			if (addr < VMALLOC_START)
++				continue;
++			if (addr >= VMALLOC_END)
++				break;
++
++			vmi->used += vma->size;
++
++			free_area_size = addr - prev_end;
++			if (vmi->largest_chunk < free_area_size)
++				vmi->largest_chunk = free_area_size;
++
++			prev_end = vma->size + addr;
++		}
++
++		if (VMALLOC_END - prev_end > vmi->largest_chunk)
++			vmi->largest_chunk = VMALLOC_END - prev_end;
++
++		read_unlock(&vmlist_lock);
++	}
++}
+ #endif
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
