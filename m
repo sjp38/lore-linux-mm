@@ -1,134 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 681DF6B00A3
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:25:12 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so2955418dak.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 08:25:11 -0800 (PST)
-Message-ID: <50C0C6E1.4000102@gmail.com>
-Date: Fri, 07 Dec 2012 00:25:05 +0800
-From: Jiang Liu <liuj97@gmail.com>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id D78046B00A5
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 11:27:56 -0500 (EST)
+Date: Thu, 6 Dec 2012 16:19:34 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Oops in 3.7-rc8 isolate_free_pages_block()
+Message-ID: <20121206161934.GA17258@suse.de>
+References: <20121206091744.GA1397@polaris.bitmath.org>
+ <20121206144821.GC18547@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device operation
-References: <1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>   <50B5EFE9.3040206@huawei.com>  <1354128096.26955.276.camel@misato.fc.hp.com> <50C0C13A.1040905@gmail.com> <1354809803.21116.4.camel@misato.fc.hp.com>
-In-Reply-To: <1354809803.21116.4.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121206144821.GC18547@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Henrik Rydberg <rydberg@euromail.se>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 12/07/2012 12:03 AM, Toshi Kani wrote:
-> On Fri, 2012-12-07 at 00:00 +0800, Jiang Liu wrote:
->> On 11/29/2012 02:41 AM, Toshi Kani wrote:
->>> On Wed, 2012-11-28 at 19:05 +0800, Hanjun Guo wrote:
->>>> On 2012/11/24 1:50, Vasilis Liaskovitis wrote:
->>>>> As discussed in https://patchwork.kernel.org/patch/1581581/
->>>>> the driver core remove function needs to always succeed. This means we need
->>>>> to know that the device can be successfully removed before acpi_bus_trim / 
->>>>> acpi_bus_hot_remove_device are called. This can cause panics when OSPM-initiated
->>>>> or SCI-initiated eject of memory devices fail e.g with:
->>>>> echo 1 >/sys/bus/pci/devices/PNP0C80:XX/eject
->>>>>
->>>>> since the ACPI core goes ahead and ejects the device regardless of whether the
->>>>> the memory is still in use or not.
->>>>>
->>>>> For this reason a new acpi_device operation called prepare_remove is introduced.
->>>>> This operation should be registered for acpi devices whose removal (from kernel
->>>>> perspective) can fail.  Memory devices fall in this category.
->>>>>
->>>>> acpi_bus_remove() is changed to handle removal in 2 steps:
->>>>> - preparation for removal i.e. perform part of removal that can fail. Should
->>>>>   succeed for device and all its children.
->>>>> - if above step was successfull, proceed to actual device removal
->>>>
->>>> Hi Vasilis,
->>>> We met the same problem when we doing computer node hotplug, It is a good idea
->>>> to introduce prepare_remove before actual device removal.
->>>>
->>>> I think we could do more in prepare_remove, such as rollback. In most cases, we can
->>>> offline most of memory sections except kernel used pages now, should we rollback
->>>> and online the memory sections when prepare_remove failed ?
->>>
->>> I think hot-plug operation should have all-or-nothing semantics.  That
->>> is, an operation should either complete successfully, or rollback to the
->>> original state.
->>>
->>>> As you may know, the ACPI based hotplug framework we are working on already addressed
->>>> this problem, and the way we slove this problem is a bit like yours.
->>>>
->>>> We introduce hp_ops in struct acpi_device_ops:
->>>> struct acpi_device_ops {
->>>> 	acpi_op_add add;
->>>> 	acpi_op_remove remove;
->>>> 	acpi_op_start start;
->>>> 	acpi_op_bind bind;
->>>> 	acpi_op_unbind unbind;
->>>> 	acpi_op_notify notify;
->>>> #ifdef	CONFIG_ACPI_HOTPLUG
->>>> 	struct acpihp_dev_ops *hp_ops;
->>>> #endif	/* CONFIG_ACPI_HOTPLUG */
->>>> };
->>>>
->>>> in hp_ops, we divide the prepare_remove into six small steps, that is:
->>>> 1) pre_release(): optional step to mark device going to be removed/busy
->>>> 2) release(): reclaim device from running system
->>>> 3) post_release(): rollback if cancelled by user or error happened
->>>> 4) pre_unconfigure(): optional step to solve possible dependency issue
->>>> 5) unconfigure(): remove devices from running system
->>>> 6) post_unconfigure(): free resources used by devices
->>>>
->>>> In this way, we can easily rollback if error happens.
->>>> How do you think of this solution, any suggestion ? I think we can achieve
->>>> a better way for sharing ideas. :)
->>>
->>> Yes, sharing idea is good. :)  I do not know if we need all 6 steps (I
->>> have not looked at all your changes yet..), but in my mind, a hot-plug
->>> operation should be composed with the following 3 phases.
->>>
->>> 1. Validate phase - Verify if the request is a supported operation.  All
->>> known restrictions are verified at this phase.  For instance, if a
->>> hot-remove request involves kernel memory, it is failed in this phase.
->>> Since this phase makes no change, no rollback is necessary to fail.  
->>>
->>> 2. Execute phase - Perform hot-add / hot-remove operation that can be
->>> rolled-back in case of error or cancel.
->>>
->>> 3. Commit phase - Perform the final hot-add / hot-remove operation that
->>> cannot be rolled-back.  No error / cancel is allowed in this phase.  For
->>> instance, eject operation is performed at this phase.  
->> Hi Toshi,
->> 	There are one more step needed. Linux provides sysfs interfaces to
->> online/offline CPU/memory sections, so we need to protect from concurrent
->> operations from those interfaces when doing physical hotplug. Think about
->> following sequence:
->> Thread 1
->> 1. validate conditions for hot-removal
->> 2. offline memory section A
->> 3.						online memory section A			
->> 4. offline memory section B
->> 5 hot-remove memory device hosting A and B.
+On Thu, Dec 06, 2012 at 03:48:21PM +0100, Jan Kara wrote:
+> On Thu 06-12-12 10:17:44, Henrik Rydberg wrote:
+> > Hi Linus,
+> > 
+> > This is the third time I encounter this oops in 3.7, but the first
+> > time I managed to get a decent screenshot:
+> > 
+> > http://bitmath.org/test/oops-3.7-rc8.jpg
+> > 
+> > It seems to have to do with page migration. I run with transparent
+> > hugepages configured, just for the fun of it.
+> > 
+> > I am happy to test any suggestions.
+>   Adding linux-mm and Mel as an author of compaction in particular to CC...
+> It seems that while traversing struct page structures, we entered into a new
+> huge page (note that RBX is 0xffffea0001c00000 - just the beginning of
+> a huge page) and oopsed on PageBuddy test (_mapcount is at offset 0x18 in
+> struct page). It might be useful if you provide disassembly of
+> isolate_freepages_block() function in your kernel so that we can guess more
+> from other register contents...
 > 
-> Hi Gerry,
-> 
-> I agree.  And I am working on a proposal that tries to address this
-> issue by integrating both sysfs and hotplug operations into a framework.
-Hi Toshi,
-	But the sysfs for CPU and memory online/offline are platform independent
-interfaces, and the ACPI based hotplug is platform dependent interfaces. I'm not
-sure whether it's feasible to merge them. For example we still need offline interface
-to stop using faulty CPUs on platform without physical hotplug capabilities.
-	We have solved this by adding a "busy" flag to the device, so the sysfs
-will just return -EBUSY if the busy flag is set.
 
-Regards!
-Gerry
+Still travelling and am not in a position to test this properly :(.
+However, this bug feels very similar to a bug in the migration scanner where
+a pfn_valid check is missed because the start is not aligned.  Henrik, when
+did this start happening? I would be a little surprised if it started between
+3.6 and 3.7-rcX but maybe it's just easier to hit now for some reason. How
+reproducible is this? Is there anything in particular you do to trigger the
+oops? Does the following patch help any? It's only compile tested I'm afraid.
 
-> 
-> 
-> Thanks,
-> -Toshi
-> 
+---8<---
+mm: compaction: check pfn_valid when entering a new MAX_ORDER_NR_PAGES block during isolation for free
+
+Commit 0bf380bc (mm: compaction: check pfn_valid when entering a new
+MAX_ORDER_NR_PAGES block during isolation for migration) added a check
+for pfn_valid() when isolating pages for migration as the scanner does
+not necessarily start pageblock-aligned. However, the free scanner has
+the same problem. If it encounters a hole, it can also trigger an oops
+when is calls PageBuddy(page) on a page that is within an hole.
+
+Reported-by: Henrik Rydberg <rydberg@euromail.se>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Cc: stable@vger.kernel.org
+---
+ mm/compaction.c |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9eef558..7d85ad485 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -298,6 +298,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 			continue;
+ 		if (!valid_page)
+ 			valid_page = page;
++
++		/*
++		 * As blockpfn may not start aligned, blockpfn->end_pfn
++		 * may cross a MAX_ORDER_NR_PAGES boundary and a pfn_valid
++		 * check is necessary. If the pfn is not valid, stop
++		 * isolation.
++		 */
++		if ((blockpfn & (MAX_ORDER_NR_PAGES - 1)) == 0 &&
++		    !pfn_valid(blockpfn))
++			break;
+ 		if (!PageBuddy(page))
+ 			continue;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
