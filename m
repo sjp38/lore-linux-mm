@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 845C66B0070
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 19:19:50 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so3277745eaa.14
-        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 16:19:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 6C98C6B006C
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 19:19:52 -0500 (EST)
+Received: by mail-ea0-f169.google.com with SMTP id a12so3277755eaa.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 16:19:51 -0800 (PST)
 From: Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 7/9] numa, sched: Improve staggered convergence
-Date: Fri,  7 Dec 2012 01:19:24 +0100
-Message-Id: <1354839566-15697-8-git-send-email-mingo@kernel.org>
+Subject: [PATCH 8/9] numa, sched: Improve directed convergence
+Date: Fri,  7 Dec 2012 01:19:25 +0100
+Message-Id: <1354839566-15697-9-git-send-email-mingo@kernel.org>
 In-Reply-To: <1354839566-15697-1-git-send-email-mingo@kernel.org>
 References: <1354839566-15697-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -15,21 +15,24 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
 
-Add/tune two convergence mechanisms:
+Improve a few aspects of directed convergence, which problems
+have become more visible with the improved (and thus more
+aggressive) task-flipping code.
 
- - add a sysctl for the fault moving average weight factor
-   and change it to 3
+We also have the new 'cpupid' sharing info which converges more
+precisely and thus highlights weaknesses in group balancing more
+visibly:
 
- - add an initial settlement delay of 2 periods
+ - We should only balance over buddy groups that are smaller
+   than the other (not fully filled) buddy groups
 
- - add back parts of the throttling that triggers after a
-   task migrates, to let it settle - with a sysctl that is
-   set to 0 for now.
+ - Do not 'spread' buddy groups that fully fill a node
 
-This tunes the code to be in harmony with our changed and
-more precise 'cpupid' fault statistics, which allows us to
-converge more aggressively without introducing destabilizing
-turbulences into the convergence flow.
+ - Do not 'spread' singular buddy groups
+
+These bugs were prominently visible with certain preemption
+options and timings with the previous code as well, so this
+is a regression fix as well.
 
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -40,226 +43,311 @@ Cc: Mel Gorman <mgorman@suse.de>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- include/linux/sched.h   |  2 ++
- kernel/sched/core.c     |  1 +
- kernel/sched/fair.c     | 78 ++++++++++++++++++++++++++++++++++++-------------
- kernel/sched/features.h |  2 ++
- kernel/sysctl.c         |  8 +++++
- 5 files changed, 71 insertions(+), 20 deletions(-)
+ kernel/sched/fair.c | 101 ++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 71 insertions(+), 30 deletions(-)
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 1041c0d..6e63022 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1509,6 +1509,7 @@ struct task_struct {
- 	int numa_max_node;
- 	int numa_scan_seq;
- 	unsigned long numa_scan_ts_secs;
-+	int numa_migrate_seq;
- 	unsigned int numa_scan_period;
- 	u64 node_stamp;			/* migration stamp  */
- 	unsigned long convergence_strength;
-@@ -2064,6 +2065,7 @@ extern unsigned int sysctl_sched_numa_scan_size_min;
- extern unsigned int sysctl_sched_numa_scan_size_max;
- extern unsigned int sysctl_sched_numa_rss_threshold;
- extern unsigned int sysctl_sched_numa_settle_count;
-+extern unsigned int sysctl_sched_numa_fault_weight;
- 
- #ifdef CONFIG_SCHED_DEBUG
- extern unsigned int sysctl_sched_migration_cost;
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index cfa8426..3c74af7 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -1562,6 +1562,7 @@ static void __sched_fork(struct task_struct *p)
- 	p->convergence_strength		= 0;
- 	p->convergence_node		= -1;
- 	p->numa_scan_seq = p->mm ? p->mm->numa_scan_seq : 0;
-+	p->numa_migrate_seq = 2;
- 	p->numa_faults = NULL;
- 	p->numa_scan_period = sysctl_sched_numa_scan_delay;
- 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 1547d66..fd49920 100644
+index fd49920..c393fba 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -854,9 +854,20 @@ unsigned int sysctl_sched_numa_scan_size_max	__read_mostly = 512;	/* MB */
- unsigned int sysctl_sched_numa_rss_threshold	__read_mostly = 128;	/* MB */
+@@ -926,6 +926,7 @@ static long calc_node_load(int node, bool use_higher)
+ 	long cpu_load_highfreq;
+ 	long cpu_load_lowfreq;
+ 	long cpu_load_curr;
++	long cpu_load_numa;
+ 	long min_cpu_load;
+ 	long max_cpu_load;
+ 	long node_load;
+@@ -935,18 +936,22 @@ static long calc_node_load(int node, bool use_higher)
  
+ 	for_each_cpu(cpu, cpumask_of_node(node)) {
+ 		struct rq *rq = cpu_rq(cpu);
++		long cpu_load;
+ 
++		cpu_load_numa		= rq->numa_weight;
+ 		cpu_load_curr		= rq->load.weight;
+ 		cpu_load_lowfreq	= rq->cpu_load[NUMA_LOAD_IDX_LOWFREQ];
+ 		cpu_load_highfreq	= rq->cpu_load[NUMA_LOAD_IDX_HIGHFREQ];
+ 
+-		min_cpu_load = min(min(cpu_load_curr, cpu_load_lowfreq), cpu_load_highfreq);
+-		max_cpu_load = max(max(cpu_load_curr, cpu_load_lowfreq), cpu_load_highfreq);
++		min_cpu_load = min(min(min(cpu_load_numa, cpu_load_curr), cpu_load_lowfreq), cpu_load_highfreq);
++		max_cpu_load = max(max(max(cpu_load_numa, cpu_load_curr), cpu_load_lowfreq), cpu_load_highfreq);
+ 
+ 		if (use_higher)
+-			node_load += max_cpu_load;
++			cpu_load = max_cpu_load;
+ 		else
+-			node_load += min_cpu_load;
++			cpu_load = min_cpu_load;
++
++		node_load += cpu_load;
+ 	}
+ 
+ 	return node_load;
+@@ -1087,6 +1092,7 @@ static int find_intranode_imbalance(int this_node, int this_cpu)
+ 	long cpu_load_lowfreq;
+ 	long this_cpu_load;
+ 	long cpu_load_curr;
++	long cpu_load_numa;
+ 	long min_cpu_load;
+ 	long cpu_load;
+ 	int min_cpu;
+@@ -1102,14 +1108,15 @@ static int find_intranode_imbalance(int this_node, int this_cpu)
+ 	for_each_cpu(cpu, cpumask_of_node(this_node)) {
+ 		struct rq *rq = cpu_rq(cpu);
+ 
++		cpu_load_numa		= rq->numa_weight;
+ 		cpu_load_curr		= rq->load.weight;
+ 		cpu_load_lowfreq	= rq->cpu_load[NUMA_LOAD_IDX_LOWFREQ];
+ 		cpu_load_highfreq	= rq->cpu_load[NUMA_LOAD_IDX_HIGHFREQ];
+ 
+-		if (cpu == this_cpu) {
+-			this_cpu_load = min(min(cpu_load_curr, cpu_load_lowfreq), cpu_load_highfreq);
+-		}
+-		cpu_load = max(max(cpu_load_curr, cpu_load_lowfreq), cpu_load_highfreq);
++		if (cpu == this_cpu)
++			this_cpu_load = min(min(min(cpu_load_numa, cpu_load_curr), cpu_load_lowfreq), cpu_load_highfreq);
++
++		cpu_load = max(max(max(cpu_load_numa, cpu_load_curr), cpu_load_lowfreq), cpu_load_highfreq);
+ 
+ 		/* Find the idlest CPU: */
+ 		if (cpu_load < min_cpu_load) {
+@@ -1128,16 +1135,18 @@ static int find_intranode_imbalance(int this_node, int this_cpu)
  /*
-- * Wait for the 2-sample stuff to settle before migrating again
-+ * Wait for the 3-sample stuff to settle before migrating again
+  * Search a node for the smallest-group task and return
+  * it plus the size of the group it is in.
++ *
++ * TODO: can be done with a single pass.
   */
--unsigned int sysctl_sched_numa_settle_count	__read_mostly = 2;
-+unsigned int sysctl_sched_numa_settle_count	__read_mostly = 0;
-+
-+/*
-+ * Weight of decay of the fault stats:
-+ */
-+unsigned int sysctl_sched_numa_fault_weight	__read_mostly = 3;
-+
-+static void task_numa_migrate(struct task_struct *p, int next_cpu)
-+{
-+	if (cpu_to_node(next_cpu) != cpu_to_node(task_cpu(p)))
-+		p->numa_migrate_seq = 0;
-+}
- 
- static int task_ideal_cpu(struct task_struct *p)
+-static int buddy_group_size(int node, struct task_struct *p)
++static int buddy_group_size(int node, struct task_struct *p, bool *our_group_p)
  {
-@@ -2051,7 +2062,9 @@ static void task_numa_placement_tick(struct task_struct *p)
- {
- 	unsigned long total[2] = { 0, 0 };
- 	unsigned long faults, max_faults = 0;
--	int node, priv, shared, ideal_node = -1;
-+	unsigned long total_priv, total_shared;
-+	int node, priv, new_shared, prev_shared, ideal_node = -1;
-+	int settle_limit;
- 	int flip_tasks;
- 	int this_node;
- 	int this_cpu;
-@@ -2065,14 +2078,17 @@ static void task_numa_placement_tick(struct task_struct *p)
- 		for (priv = 0; priv < 2; priv++) {
- 			unsigned int new_faults;
- 			unsigned int idx;
-+			unsigned int weight;
+ 	const cpumask_t *node_cpus_mask = cpumask_of_node(node);
+ 	cpumask_t cpus_to_check_mask;
+-	bool our_group_found;
++	bool buddies_group_found;
+ 	int cpu1, cpu2;
  
- 			idx = 2*node + priv;
- 			new_faults = p->numa_faults_curr[idx];
- 			p->numa_faults_curr[idx] = 0;
+ 	cpumask_copy(&cpus_to_check_mask, node_cpus_mask);
+-	our_group_found = false;
++	buddies_group_found = false;
  
--			/* Keep a simple running average: */
--			p->numa_faults[idx] = p->numa_faults[idx]*15 + new_faults;
--			p->numa_faults[idx] /= 16;
-+			/* Keep a simple exponential moving average: */
-+			weight = sysctl_sched_numa_fault_weight;
+ 	if (WARN_ON_ONCE(cpumask_empty(&cpus_to_check_mask)))
+ 		return 0;
+@@ -1156,7 +1165,12 @@ static int buddy_group_size(int node, struct task_struct *p)
+ 
+ 			group_size = 1;
+ 			if (tasks_buddies(group_head, p))
+-				our_group_found = true;
++				buddies_group_found = true;
 +
-+			p->numa_faults[idx] = p->numa_faults[idx]*(weight-1) + new_faults;
-+			p->numa_faults[idx] /= weight;
++			if (group_head == p) {
++				*our_group_p = true;
++				buddies_group_found = true;
++			}
  
- 			faults += p->numa_faults[idx];
- 			total[priv] += p->numa_faults[idx];
-@@ -2092,23 +2108,38 @@ static void task_numa_placement_tick(struct task_struct *p)
- 	 * we might want to consider a different equation below to reduce
- 	 * the impact of a little private memory accesses.
- 	 */
--	shared = p->numa_shared;
+ 			/* Non-NUMA-shared tasks are 1-task groups: */
+ 			if (task_numa_shared(group_head) != 1)
+@@ -1169,21 +1183,22 @@ static int buddy_group_size(int node, struct task_struct *p)
+ 				struct task_struct *p2 = rq2->curr;
+ 
+ 				WARN_ON_ONCE(rq1 == rq2);
++				if (p2 == p)
++					*our_group_p = true;
+ 				if (tasks_buddies(group_head, p2)) {
+ 					/* 'group_head' and 'rq2->curr' are in the same group: */
+ 					cpumask_clear_cpu(cpu2, &cpus_to_check_mask);
+ 					group_size++;
+ 					if (tasks_buddies(p2, p))
+-						our_group_found = true;
++						buddies_group_found = true;
+ 				}
+ 			}
+ next:
 -
--	if (shared < 0) {
--		shared = (total[0] >= total[1]);
--	} else if (shared == 0) {
--		/* If it was private before, make it harder to become shared: */
--		if (total[0] >= total[1]*2)
--			shared = 1;
--	} else if (shared == 1 ) {
-+	prev_shared = p->numa_shared;
-+	new_shared = prev_shared;
-+
-+	settle_limit = sysctl_sched_numa_settle_count;
-+
-+	/*
-+	 * Note: shared is spread across multiple tasks and in the future
-+	 * we might want to consider a different equation below to reduce
-+	 * the impact of a little private memory accesses.
-+	 */
-+	total_priv = total[1] / 2;
-+	total_shared = total[0];
-+
-+	if (prev_shared < 0) {
-+		/* Start out as private: */
-+		new_shared = 0;
-+	} else if (prev_shared == 0 && p->numa_migrate_seq >= settle_limit) {
-+		/*
-+		 * Hysteresis: if it was private before, make it harder to
-+		 * become shared:
-+		 */
-+		if (total_shared*2 >= total_priv*3)
-+			new_shared = 1;
-+	} else if (prev_shared == 1 && p->numa_migrate_seq >= settle_limit) {
- 		 /* If it was shared before, make it harder to become private: */
--		if (total[0]*2 <= total[1])
--			shared = 0;
-+		if (total_shared*3 <= total_priv*2)
-+			new_shared = 0;
- 	}
- 
- 	flip_tasks = 0;
- 
--	if (shared)
-+	if (new_shared)
- 		p->ideal_cpu = sched_update_ideal_cpu_shared(p, &flip_tasks);
- 	else
- 		p->ideal_cpu = sched_update_ideal_cpu_private(p);
-@@ -2126,7 +2157,9 @@ static void task_numa_placement_tick(struct task_struct *p)
- 			ideal_node = p->numa_max_node;
- 	}
- 
--	if (shared != task_numa_shared(p) || (ideal_node != -1 && ideal_node != p->numa_max_node)) {
-+	if (new_shared != prev_shared || (ideal_node != -1 && ideal_node != p->numa_max_node)) {
-+
-+		p->numa_migrate_seq = 0;
- 		/*
- 		 * Fix up node migration fault statistics artifact, as we
- 		 * migrate to another node we'll soon bring over our private
-@@ -2141,7 +2174,7 @@ static void task_numa_placement_tick(struct task_struct *p)
- 			p->numa_faults[idx_newnode] += p->numa_faults[idx_oldnode];
- 			p->numa_faults[idx_oldnode] = 0;
+ 			/*
+ 			 * If we just found our group and checked all
+ 			 * node local CPUs then return the result:
+ 			 */
+-			if (our_group_found)
++			if (buddies_group_found)
+ 				return group_size;
  		}
--		sched_setnuma(p, ideal_node, shared);
-+		sched_setnuma(p, ideal_node, new_shared);
- 
- 		/* Allocate only the maximum node: */
- 		if (sched_feat(NUMA_POLICY_MAXNODE)) {
-@@ -2323,6 +2356,10 @@ void task_numa_placement_work(struct callback_head *work)
- 	if (p->flags & PF_EXITING)
- 		return;
- 
-+	p->numa_migrate_seq++;
-+	if (sched_feat(NUMA_SETTLE) && p->numa_migrate_seq < sysctl_sched_numa_settle_count)
-+		return;
-+
- 	task_numa_placement_tick(p);
+ 	} while (!cpumask_empty(&cpus_to_check_mask));
+@@ -1261,8 +1276,15 @@ pick_non_numa_task:
+ 	return min_group_cpu;
  }
  
-@@ -5116,6 +5153,7 @@ static void
- migrate_task_rq_fair(struct task_struct *p, int next_cpu)
+-static int find_max_node(struct task_struct *p, int *our_group_size)
++/*
++ * Find the node with the biggest buddy group of ours, but exclude
++ * our own local group on this node and also exclude fully filled
++ * nodes:
++ */
++static int
++find_max_node(struct task_struct *p, int *our_group_size_p, int *max_group_size_p, int full_size)
  {
- 	migrate_task_rq_entity(p, next_cpu);
-+	task_numa_migrate(p, next_cpu);
++	bool our_group = false;
+ 	int max_group_size;
+ 	int group_size;
+ 	int max_node;
+@@ -1272,9 +1294,12 @@ static int find_max_node(struct task_struct *p, int *our_group_size)
+ 	max_node = -1;
+ 
+ 	for_each_node(node) {
+-		int full_size = cpumask_weight(cpumask_of_node(node));
+ 
+-		group_size = buddy_group_size(node, p);
++		group_size = buddy_group_size(node, p, &our_group);
++		if (our_group) {
++			our_group = false;
++			*our_group_size_p = group_size;
++		}
+ 		if (group_size == full_size)
+ 			continue;
+ 
+@@ -1284,7 +1309,7 @@ static int find_max_node(struct task_struct *p, int *our_group_size)
+ 		}
+ 	}
+ 
+-	*our_group_size = max_group_size;
++	*max_group_size_p = max_group_size;
+ 
+ 	return max_node;
  }
- #endif /* CONFIG_SMP */
- 
-diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index 5598f63..c2f137f 100644
---- a/kernel/sched/features.h
-+++ b/kernel/sched/features.h
-@@ -63,6 +63,8 @@ SCHED_FEAT(NONTASK_POWER, true)
+@@ -1460,19 +1485,23 @@ static int find_max_node(struct task_struct *p, int *our_group_size)
   */
- SCHED_FEAT(TTWU_QUEUE, true)
+ static int improve_group_balance_compress(struct task_struct *p, int this_cpu, int this_node)
+ {
+-	int our_group_size = -1;
++	int full_size = cpumask_weight(cpumask_of_node(this_node));
++	int max_group_size = -1;
+ 	int min_group_size = -1;
++	int our_group_size = -1;
+ 	int max_node;
+ 	int min_cpu;
  
-+SCHED_FEAT(NUMA_SETTLE,			true)
+ 	if (!sched_feat(NUMA_GROUP_LB_COMPRESS))
+ 		return -1;
+ 
+-	max_node = find_max_node(p, &our_group_size);
++	max_node = find_max_node(p, &our_group_size, &max_group_size, full_size);
+ 	if (max_node == -1)
+ 		return -1;
++	if (our_group_size == -1)
++		return -1;
+ 
+-	if (WARN_ON_ONCE(our_group_size == -1))
++	if (our_group_size == full_size || our_group_size > max_group_size)
+ 		return -1;
+ 
+ 	/* We are already in the right spot: */
+@@ -1517,6 +1546,7 @@ static int improve_group_balance_spread(struct task_struct *p, int this_cpu, int
+ 	long this_node_load = -1;
+ 	long delta_load_before;
+ 	long delta_load_after;
++	int group_count = 0;
+ 	int idlest_cpu = -1;
+ 	int cpu1, cpu2;
+ 
+@@ -1585,6 +1615,7 @@ static int improve_group_balance_spread(struct task_struct *p, int this_cpu, int
+ 				min_group_size = group_size;
+ 			else
+ 				min_group_size = min(group_size, min_group_size);
++			group_count++;
+ 		}
+ 	} while (!cpumask_empty(&cpus_to_check_mask));
+ 
+@@ -1594,13 +1625,23 @@ static int improve_group_balance_spread(struct task_struct *p, int this_cpu, int
+ 	 */
+ 	if (!found_our_group)
+ 		return -1;
 +
- SCHED_FEAT(FORCE_SD_OVERLAP,		false)
- SCHED_FEAT(RT_RUNTIME_SHARE,		true)
- SCHED_FEAT(LB_MIN,			false)
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 75ab895..254a2b4 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -401,6 +401,14 @@ static struct ctl_table kern_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec,
- 	},
-+	{
-+		.procname	= "sched_numa_fault_weight",
-+		.data		= &sysctl_sched_numa_fault_weight,
-+		.maxlen		= sizeof(unsigned int),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
-+		.extra1		= &two,	/* a weight minimum of 2 */
-+	},
- #endif /* CONFIG_NUMA_BALANCING */
- #endif /* CONFIG_SCHED_DEBUG */
- 	{
+ 	if (!our_group_smallest)
+ 		return -1;
++
+ 	if (WARN_ON_ONCE(min_group_size == -1))
+ 		return -1;
+ 	if (WARN_ON_ONCE(our_group_size == -1))
+ 		return -1;
+ 
++	/* Since the current task is shared, this should not happen: */
++	if (WARN_ON_ONCE(group_count < 1))
++		return -1;
++
++	/* No point in moving if we are a single group: */
++	if (group_count <= 1)
++		return -1;
++
+ 	idlest_node = find_idlest_node(&idlest_cpu);
+ 	if (idlest_node == -1)
+ 		return -1;
+@@ -1622,7 +1663,7 @@ static int improve_group_balance_spread(struct task_struct *p, int this_cpu, int
+ 	 */
+ 	delta_load_before = this_node_load - idlest_node_load;
+ 	delta_load_after = (this_node_load-this_group_load) - (idlest_node_load+this_group_load);
+-	
++
+ 	if (abs(delta_load_after)+SCHED_LOAD_SCALE > abs(delta_load_before))
+ 		return -1;
+ 
+@@ -1806,7 +1847,7 @@ static int sched_update_ideal_cpu_shared(struct task_struct *p, int *flip_tasks)
+ 	this_node_capacity	= calc_node_capacity(this_node);
+ 
+ 	this_node_overloaded = false;
+-	if (this_node_load > this_node_capacity + 512)
++	if (this_node_load > this_node_capacity + SCHED_LOAD_SCALE/2)
+ 		this_node_overloaded = true;
+ 
+ 	/* If we'd stay within this node then stay put: */
+@@ -1922,7 +1963,7 @@ static int sched_update_ideal_cpu_private(struct task_struct *p)
+ 	this_node_capacity	= calc_node_capacity(this_node);
+ 
+ 	this_node_overloaded = false;
+-	if (this_node_load > this_node_capacity + 512)
++	if (this_node_load > this_node_capacity + SCHED_LOAD_SCALE/2)
+ 		this_node_overloaded = true;
+ 
+ 	if (this_node == min_node)
+@@ -1934,8 +1975,8 @@ static int sched_update_ideal_cpu_private(struct task_struct *p)
+ 
+ 	WARN_ON_ONCE(max_node_load < min_node_load);
+ 
+-	/* Is the load difference at least 125% of one standard task load? */
+-	if (this_node_load - min_node_load < 1536)
++	/* Is the load difference at least 150% of one standard task load? */
++	if (this_node_load - min_node_load < SCHED_LOAD_SCALE*3/2)
+ 		goto out_check_intranode;
+ 
+ 	/*
+@@ -5476,7 +5517,7 @@ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preemp
+  *
+  * The adjacency matrix of the resulting graph is given by:
+  *
+- *             log_2 n     
++ *             log_2 n
+  *   A_i,j = \Union     (i % 2^k == 0) && i / 2^(k+1) == j / 2^(k+1)  (6)
+  *             k = 0
+  *
+@@ -5522,7 +5563,7 @@ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preemp
+  *
+  * [XXX write more on how we solve this.. _after_ merging pjt's patches that
+  *      rewrite all of this once again.]
+- */ 
++ */
+ 
+ static unsigned long __read_mostly max_load_balance_interval = HZ/10;
+ 
+@@ -6133,7 +6174,7 @@ void update_group_power(struct sched_domain *sd, int cpu)
+ 		/*
+ 		 * !SD_OVERLAP domains can assume that child groups
+ 		 * span the current group.
+-		 */ 
++		 */
+ 
+ 		group = child->groups;
+ 		do {
 -- 
 1.7.11.7
 
