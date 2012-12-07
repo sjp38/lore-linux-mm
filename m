@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id BE4E76B0088
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:18 -0500 (EST)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 68C126B007D
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:20 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 12/49] mm: numa: pte_numa() and pmd_numa()
-Date: Fri,  7 Dec 2012 10:23:15 +0000
-Message-Id: <1354875832-9700-13-git-send-email-mgorman@suse.de>
+Subject: [PATCH 13/49] mm: numa: Support NUMA hinting page faults from gup/gup_fast
+Date: Fri,  7 Dec 2012 10:23:16 +0000
+Message-Id: <1354875832-9700-14-git-send-email-mgorman@suse.de>
 In-Reply-To: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,227 +15,89 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Andrea Arcangeli <aarcange@redhat.com>
 
-Implement pte_numa and pmd_numa.
+Introduce FOLL_NUMA to tell follow_page to check
+pte/pmd_numa. get_user_pages must use FOLL_NUMA, and it's safe to do
+so because it always invokes handle_mm_fault and retries the
+follow_page later.
 
-We must atomically set the numa bit and clear the present bit to
-define a pte_numa or pmd_numa.
+KVM secondary MMU page faults will trigger the NUMA hinting page
+faults through gup_fast -> get_user_pages -> follow_page ->
+handle_mm_fault.
 
-Once a pte or pmd has been set as pte_numa or pmd_numa, the next time
-a thread touches a virtual address in the corresponding virtual range,
-a NUMA hinting page fault will trigger. The NUMA hinting page fault
-will clear the NUMA bit and set the present bit again to resolve the
-page fault.
+Other follow_page callers like KSM should not use FOLL_NUMA, or they
+would fail to get the pages if they use follow_page instead of
+get_user_pages.
 
-The expectation is that a NUMA hinting page fault is used as part
-of a placement policy that decides if a page should remain on the
-current node or migrated to a different node.
+[ This patch was picked up from the AutoNUMA tree. ]
 
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
+Originally-by: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+[ ported to this tree. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 ---
- arch/x86/include/asm/pgtable.h |   11 ++++-
- include/asm-generic/pgtable.h  |  106 ++++++++++++++++++++++++++++++++++++++++
- init/Kconfig                   |   33 +++++++++++++
- 3 files changed, 148 insertions(+), 2 deletions(-)
+ include/linux/mm.h |    1 +
+ mm/memory.c        |   17 +++++++++++++++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 5fe03aa..9cd7b72 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -404,7 +404,8 @@ static inline int pte_same(pte_t a, pte_t b)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1856c62..fa16152 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1572,6 +1572,7 @@ struct page *follow_page(struct vm_area_struct *, unsigned long address,
+ #define FOLL_MLOCK	0x40	/* mark page as mlocked */
+ #define FOLL_SPLIT	0x80	/* don't return transhuge pages, split them */
+ #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
++#define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
  
- static inline int pte_present(pte_t a)
- {
--	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
-+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE |
-+			       _PAGE_NUMA);
- }
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/memory.c b/mm/memory.c
+index 221fc9f..73834e7 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1517,6 +1517,8 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ 		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+ 		goto out;
+ 	}
++	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
++		goto no_page_table;
+ 	if (pmd_trans_huge(*pmd)) {
+ 		if (flags & FOLL_SPLIT) {
+ 			split_huge_page_pmd(mm, pmd);
+@@ -1546,6 +1548,8 @@ split_fallthrough:
+ 	pte = *ptep;
+ 	if (!pte_present(pte))
+ 		goto no_page;
++	if ((flags & FOLL_NUMA) && pte_numa(pte))
++		goto no_page;
+ 	if ((flags & FOLL_WRITE) && !pte_write(pte))
+ 		goto unlock;
  
- #define pte_accessible pte_accessible
-@@ -426,7 +427,8 @@ static inline int pmd_present(pmd_t pmd)
- 	 * the _PAGE_PSE flag will remain set at all times while the
- 	 * _PAGE_PRESENT bit is clear).
- 	 */
--	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
-+	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE |
-+				 _PAGE_NUMA);
- }
+@@ -1697,6 +1701,19 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 			(VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+ 	vm_flags &= (gup_flags & FOLL_FORCE) ?
+ 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
++
++	/*
++	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
++	 * would be called on PROT_NONE ranges. We must never invoke
++	 * handle_mm_fault on PROT_NONE ranges or the NUMA hinting
++	 * page faults would unprotect the PROT_NONE ranges if
++	 * _PAGE_NUMA and _PAGE_PROTNONE are sharing the same pte/pmd
++	 * bitflag. So to avoid that, don't set FOLL_NUMA if
++	 * FOLL_FORCE is set.
++	 */
++	if (!(gup_flags & FOLL_FORCE))
++		gup_flags |= FOLL_NUMA;
++
+ 	i = 0;
  
- static inline int pmd_none(pmd_t pmd)
-@@ -485,6 +487,11 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
- 
- static inline int pmd_bad(pmd_t pmd)
- {
-+#ifdef CONFIG_BALANCE_NUMA
-+	/* pmd_numa check */
-+	if ((pmd_flags(pmd) & (_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA)
-+		return 0;
-+#endif
- 	return (pmd_flags(pmd) & ~_PAGE_USER) != _KERNPG_TABLE;
- }
- 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 48fc1dc..7ab6e63 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -558,6 +558,112 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
- #endif
- }
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
-+/*
-+ * _PAGE_NUMA works identical to _PAGE_PROTNONE (it's actually the
-+ * same bit too). It's set only when _PAGE_PRESET is not set and it's
-+ * never set if _PAGE_PRESENT is set.
-+ *
-+ * pte/pmd_present() returns true if pte/pmd_numa returns true. Page
-+ * fault triggers on those regions if pte/pmd_numa returns true
-+ * (because _PAGE_PRESENT is not set).
-+ */
-+#ifndef pte_numa
-+static inline int pte_numa(pte_t pte)
-+{
-+	return (pte_flags(pte) &
-+		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-+}
-+#endif
-+
-+#ifndef pmd_numa
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return (pmd_flags(pmd) &
-+		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-+}
-+#endif
-+
-+/*
-+ * pte/pmd_mknuma sets the _PAGE_ACCESSED bitflag automatically
-+ * because they're called by the NUMA hinting minor page fault. If we
-+ * wouldn't set the _PAGE_ACCESSED bitflag here, the TLB miss handler
-+ * would be forced to set it later while filling the TLB after we
-+ * return to userland. That would trigger a second write to memory
-+ * that we optimize away by setting _PAGE_ACCESSED here.
-+ */
-+#ifndef pte_mknonnuma
-+static inline pte_t pte_mknonnuma(pte_t pte)
-+{
-+	pte = pte_clear_flags(pte, _PAGE_NUMA);
-+	return pte_set_flags(pte, _PAGE_PRESENT|_PAGE_ACCESSED);
-+}
-+#endif
-+
-+#ifndef pmd_mknonnuma
-+static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-+{
-+	pmd = pmd_clear_flags(pmd, _PAGE_NUMA);
-+	return pmd_set_flags(pmd, _PAGE_PRESENT|_PAGE_ACCESSED);
-+}
-+#endif
-+
-+#ifndef pte_mknuma
-+static inline pte_t pte_mknuma(pte_t pte)
-+{
-+	pte = pte_set_flags(pte, _PAGE_NUMA);
-+	return pte_clear_flags(pte, _PAGE_PRESENT);
-+}
-+#endif
-+
-+#ifndef pmd_mknuma
-+static inline pmd_t pmd_mknuma(pmd_t pmd)
-+{
-+	pmd = pmd_set_flags(pmd, _PAGE_NUMA);
-+	return pmd_clear_flags(pmd, _PAGE_PRESENT);
-+}
-+#endif
-+#else
-+extern int pte_numa(pte_t pte);
-+extern int pmd_numa(pmd_t pmd);
-+extern pte_t pte_mknonnuma(pte_t pte);
-+extern pmd_t pmd_mknonnuma(pmd_t pmd);
-+extern pte_t pte_mknuma(pte_t pte);
-+extern pmd_t pmd_mknuma(pmd_t pmd);
-+#endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
-+#else
-+static inline int pmd_numa(pmd_t pmd)
-+{
-+	return 0;
-+}
-+
-+static inline int pte_numa(pte_t pte)
-+{
-+	return 0;
-+}
-+
-+static inline pte_t pte_mknonnuma(pte_t pte)
-+{
-+	return pte;
-+}
-+
-+static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-+{
-+	return pmd;
-+}
-+
-+static inline pte_t pte_mknuma(pte_t pte)
-+{
-+	return pte;
-+}
-+
-+static inline pmd_t pmd_mknuma(pmd_t pmd)
-+{
-+	return pmd;
-+}
-+#endif /* CONFIG_BALANCE_NUMA */
-+
- #endif /* CONFIG_MMU */
- 
- #endif /* !__ASSEMBLY__ */
-diff --git a/init/Kconfig b/init/Kconfig
-index 6fdd6e3..6897a05 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -696,6 +696,39 @@ config LOG_BUF_SHIFT
- config HAVE_UNSTABLE_SCHED_CLOCK
- 	bool
- 
-+#
-+# For architectures that want to enable the support for NUMA-affine scheduler
-+# balancing logic:
-+#
-+config ARCH_SUPPORTS_NUMA_BALANCING
-+	bool
-+
-+# For architectures that (ab)use NUMA to represent different memory regions
-+# all cpu-local but of different latencies, such as SuperH.
-+#
-+config ARCH_WANT_NUMA_VARIABLE_LOCALITY
-+	bool
-+
-+#
-+# For architectures that are willing to define _PAGE_NUMA as _PAGE_PROTNONE
-+config ARCH_WANTS_PROT_NUMA_PROT_NONE
-+	bool
-+
-+config ARCH_USES_NUMA_PROT_NONE
-+	bool
-+	default y
-+	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
-+	depends on BALANCE_NUMA
-+
-+config BALANCE_NUMA
-+	bool "Memory placement aware NUMA scheduler"
-+	default n
-+	depends on ARCH_SUPPORTS_NUMA_BALANCING
-+	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-+	depends on SMP && NUMA && MIGRATION
-+	help
-+	  This option adds support for automatic NUMA aware memory/task placement.
-+
- menuconfig CGROUPS
- 	boolean "Control Group support"
- 	depends on EVENTFD
+ 	do {
 -- 
 1.7.9.2
 
