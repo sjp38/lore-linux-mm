@@ -1,100 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
-	by kanga.kvack.org (Postfix) with SMTP id E3E116B0062
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 02:36:16 -0500 (EST)
-Message-ID: <50C19C33.9030502@huawei.com>
-Date: Fri, 7 Dec 2012 15:35:15 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A3BB96B005D
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 02:44:13 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so119133eek.14
+        for <linux-mm@kvack.org>; Thu, 06 Dec 2012 23:44:12 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] MCE: fix an error of mce_bad_pages statistics
-References: <50C15A35.5020007@huawei.com> <20121207072541.GA27708@liondog.tnic>
-In-Reply-To: <20121207072541.GA27708@liondog.tnic>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1354810175-4338-2-git-send-email-js1304@gmail.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+	<1354810175-4338-2-git-send-email-js1304@gmail.com>
+Date: Fri, 7 Dec 2012 09:44:11 +0200
+Message-ID: <CAOJsxLFy5TP_xJ0GcqYdpsZ_Lj+Sf2Bfn99CqCqOv8P21N8+UA@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/8] mm, vmalloc: change iterating a vmlist to find_vm_area()
+From: Pekka Enberg <penberg@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Chris Metcalf <cmetcalf@tilera.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 2012/12/7 15:25, Borislav Petkov wrote:
+On Thu, Dec 6, 2012 at 6:09 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+> The purpose of iterating a vmlist is finding vm area with specific
+> virtual address. find_vm_area() is provided for this purpose
+> and more efficient, because it uses a rbtree.
+> So change it.
 
-> On Fri, Dec 07, 2012 at 10:53:41AM +0800, Xishi Qiu wrote:
->> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
->> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
->> since the page was already marked HWPoison, we should skip the page and don't add the
->> value of mce_bad_pages.
->>
->> $ cat /proc/meminfo | grep HardwareCorrupted
->>
->> soft_offline_page()
->> 	get_any_page()
->> 		atomic_long_add(1, &mce_bad_pages)
->>
->> The free page which marked HWPoison is still managed by page buddy allocator. So when
->> offlining it again, get_any_page() always returns 0 with
->> "pr_info("%s: %#lx free buddy page\n", __func__, pfn);".
->>
->> When page is allocated, the PageBuddy is removed in bad_page(), then get_any_page()
->> returns -EIO with pr_info("%s: %#lx: unknown zero refcount page type %lx\n", so
->> mce_bad_pages will not be added.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> i>>?Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
->> ---
->>  mm/memory-failure.c |    5 +++++
->>  1 files changed, 5 insertions(+), 0 deletions(-)
->>
->> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
->> index 8b20278..02a522e 100644
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -1375,6 +1375,11 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
->>  	if (flags & MF_COUNT_INCREASED)
->>  		return 1;
->>
->> +	if (PageHWPoison(p)) {
->> +		pr_info("%s: %#lx page already poisoned\n", __func__, pfn);
->> +		return -EBUSY;
->> +	}
-> 
-> Shouldn't this be done in soft_offline_page() instead, like it is done
-> in soft_offline_huge_page() for hugepages?
-> 
-> Thanks.
-> 
+You no longer take the 'vmlist_lock'. This is safe, because...?
 
-Hi Borislav, you mean we should move this to the beginning of soft_offline_page()?
-
-soft_offline_page()
-{
-	...
-	get_any_page()
-	...
-	/*
-	 * Synchronized using the page lock with memory_failure()
-	 */
-	if (PageHWPoison(page)) {
-		unlock_page(page);
-		put_page(page);
-		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-		return -EBUSY;
-	}
-	...
-}
-
-Thanks
-Xishi Qiu
-
-
-
-
-
-
-
-
-
-
-
-
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+>
+> diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
+> index de0de0c..862782d 100644
+> --- a/arch/tile/mm/pgtable.c
+> +++ b/arch/tile/mm/pgtable.c
+> @@ -592,12 +592,7 @@ void iounmap(volatile void __iomem *addr_in)
+>            in parallel. Reuse of the virtual address is prevented by
+>            leaving it in the global lists until we're done with it.
+>            cpa takes care of the direct mappings. */
+> -       read_lock(&vmlist_lock);
+> -       for (p = vmlist; p; p = p->next) {
+> -               if (p->addr == addr)
+> -                       break;
+> -       }
+> -       read_unlock(&vmlist_lock);
+> +       p = find_vm_area((void *)addr);
+>
+>         if (!p) {
+>                 pr_err("iounmap: bad address %p\n", addr);
+> diff --git a/arch/unicore32/mm/ioremap.c b/arch/unicore32/mm/ioremap.c
+> index b7a6055..13068ee 100644
+> --- a/arch/unicore32/mm/ioremap.c
+> +++ b/arch/unicore32/mm/ioremap.c
+> @@ -235,7 +235,7 @@ EXPORT_SYMBOL(__uc32_ioremap_cached);
+>  void __uc32_iounmap(volatile void __iomem *io_addr)
+>  {
+>         void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
+> -       struct vm_struct **p, *tmp;
+> +       struct vm_struct *vm;
+>
+>         /*
+>          * If this is a section based mapping we need to handle it
+> @@ -244,17 +244,10 @@ void __uc32_iounmap(volatile void __iomem *io_addr)
+>          * all the mappings before the area can be reclaimed
+>          * by someone else.
+>          */
+> -       write_lock(&vmlist_lock);
+> -       for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
+> -               if ((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
+> -                       if (tmp->flags & VM_UNICORE_SECTION_MAPPING) {
+> -                               unmap_area_sections((unsigned long)tmp->addr,
+> -                                                   tmp->size);
+> -                       }
+> -                       break;
+> -               }
+> -       }
+> -       write_unlock(&vmlist_lock);
+> +       vm = find_vm_area(addr);
+> +       if (vm && (vm->flags & VM_IOREMAP) &&
+> +               (vm->flags & VM_UNICORE_SECTION_MAPPING))
+> +               unmap_area_sections((unsigned long)vm->addr, vm->size);
+>
+>         vunmap(addr);
+>  }
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 78fe3f1..9a1e658 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -282,12 +282,7 @@ void iounmap(volatile void __iomem *addr)
+>            in parallel. Reuse of the virtual address is prevented by
+>            leaving it in the global lists until we're done with it.
+>            cpa takes care of the direct mappings. */
+> -       read_lock(&vmlist_lock);
+> -       for (p = vmlist; p; p = p->next) {
+> -               if (p->addr == (void __force *)addr)
+> -                       break;
+> -       }
+> -       read_unlock(&vmlist_lock);
+> +       p = find_vm_area((void __force *)addr);
+>
+>         if (!p) {
+>                 printk(KERN_ERR "iounmap: bad address %p\n", addr);
+> --
+> 1.7.9.5
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
