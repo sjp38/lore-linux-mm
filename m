@@ -1,67 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 5DA5C6B0071
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 21:10:35 -0500 (EST)
-Date: Thu, 6 Dec 2012 18:10:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/3] HWPOISON, hugetlbfs: fix RSS-counter warning
-Message-Id: <20121206181024.f8a77240.akpm@linux-foundation.org>
-In-Reply-To: <1354843362-3680-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <20121206144008.9b376ec7.akpm@linux-foundation.org>
-	<1354843362-3680-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id AB0DC6B0068
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 21:18:23 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/3] HWPOISON, hugetlbfs: fix warning on freeing hwpoisoned hugepage
+Date: Thu,  6 Dec 2012 21:18:14 -0500
+Message-Id: <1354846694-6101-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C963B5E@ORSMSX108.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tony Luck <tony.luck@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi.kleen@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu,  6 Dec 2012 20:22:42 -0500 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-
-> > --- a/mm/rmap.c~hwpoison-hugetlbfs-fix-rss-counter-warning-fix
-> > +++ a/mm/rmap.c
-> > @@ -1249,14 +1249,14 @@ int try_to_unmap_one(struct page *page, 
-> >  	update_hiwater_rss(mm);
-> >  
-> >  	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
-> > -		if (PageHuge(page))
-> > -			;
-> > -		else if (PageAnon(page))
-> > -			dec_mm_counter(mm, MM_ANONPAGES);
-> > -		else
-> > -			dec_mm_counter(mm, MM_FILEPAGES);
-> > -		set_pte_at(mm, address, pte,
-> > -				swp_entry_to_pte(make_hwpoison_entry(page)));
-> > +		if (!PageHuge(page)) {
-> > +			if (PageAnon(page))
-> > +				dec_mm_counter(mm, MM_ANONPAGES);
-> > +			else
-> > +				dec_mm_counter(mm, MM_FILEPAGES);
-> > +			set_pte_at(mm, address, pte,
-> > +				   swp_entry_to_pte(make_hwpoison_entry(page)));
-> > +		}
+On Wed, Dec 05, 2012 at 10:13:42PM +0000, Luck, Tony wrote:
+> > This patch fixes the warning from __list_del_entry() which is triggered
+> > when a process tries to do free_huge_page() for a hwpoisoned hugepage.
 > 
-> This set_pte_at() should come outside the if-block, or error containment
-> does not work.
+> Ultimately it would be nice to avoid poisoning huge pages. Generally we know the
+> location of the poison to a cache line granularity (but sometimes only to a 4K
+> granularity) ... and it is rather inefficient to take an entire 2M page out of service.
+> With 1G pages things would be even worse!!
 
-Doh.  C is really hard!
+Thanks for the comment.
+And yes, it's remaining work to be done.
 
---- a/mm/rmap.c~hwpoison-hugetlbfs-fix-rss-counter-warning-fix-fix
-+++ a/mm/rmap.c
-@@ -1254,9 +1254,9 @@ int try_to_unmap_one(struct page *page, 
- 				dec_mm_counter(mm, MM_ANONPAGES);
- 			else
- 				dec_mm_counter(mm, MM_FILEPAGES);
--			set_pte_at(mm, address, pte,
--				   swp_entry_to_pte(make_hwpoison_entry(page)));
- 		}
-+		set_pte_at(mm, address, pte,
-+			   swp_entry_to_pte(make_hwpoison_entry(page)));
- 	} else if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page_private(page) };
- 
-_
+> It also makes life harder for applications that would like to catch the SIGBUS
+> and try to take their own recovery actions. Losing more data than they really
+> need to will make it less likely that they can do something to work around the
+> loss.
+> 
+> Has anyone looked at how hard it might be to have the code in memory-failure.c
+> break up a huge page and only poison the 4K that needs to be taken out of service?
+
+This work is one of my interest and became a bit easier than used to be,
+because now transparent hugepage works commonly and some of code can be
+copied from or shared with it.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
