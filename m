@@ -1,121 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 4BDB56B0075
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 16:30:37 -0500 (EST)
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 9C12F6B007B
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 16:30:57 -0500 (EST)
 Received: from /spool/local
 	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 7 Dec 2012 16:30:35 -0500
+	Fri, 7 Dec 2012 16:30:56 -0500
 Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id ACF576E8047
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 16:30:32 -0500 (EST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB7LUVMo254410
-	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 16:30:31 -0500
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB7LURQI003934
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7D22838C8039
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 16:30:53 -0500 (EST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB7LUp2J316546
+	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 16:30:51 -0500
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB7LURHE030938
 	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 14:30:27 -0700
-Subject: [RFCv2][PATCH 3/3] make DEBUG_VIRTUAL work earlier in boot
+Subject: [RFCv2][PATCH 2/3] fix kvm's use of __pa() on percpu areas
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Fri, 07 Dec 2012 16:30:25 -0500
+Date: Fri, 07 Dec 2012 16:30:24 -0500
 References: <20121207213023.AA3AFF11@kernel.stglabs.ibm.com>
 In-Reply-To: <20121207213023.AA3AFF11@kernel.stglabs.ibm.com>
-Message-Id: <20121207213025.53E4BD1B@kernel.stglabs.ibm.com>
+Message-Id: <20121207213024.105B3C00@kernel.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
 
-The KVM code has some repeated bugs in it around use of __pa() on
-per-cpu data.  Those data are not in an area on which __pa() is
-valid.  However, they are also called early enough in boot that
-__vmalloc_start_set is not set, and thus the CONFIG_DEBUG_VIRTUAL
-debugging does not catch them.
+In short, it is illegal to call __pa() on an address holding
+a percpu variable.  The times when this actually matters are
+pretty obscure (certain 32-bit NUMA systems), but it _does_
+happen.  It is important to keep KVM guests working on these
+systems because the real hardware is getting harder and
+harder to find.
 
-This adds a check to also verify them against max_low_pfn, which
-we can use earler in boot than is_vmalloc_addr().  However, if
-we are super-early in boot, max_low_pfn=0 and this will trip
-on every call, so also make sure that max_low_pfn is set.
+This bug manifested first by me seeing a plain hang at boot
+after this message:
 
-With this patch applied, CONFIG_DEBUG_VIRTUAL will actually
-catch the bug I was chasing.
+	CPU 0 irqstacks, hard=f3018000 soft=f301a000
 
-I'd love to find a generic way so that any __pa() call on percpu
-areas could do a BUG_ON(), but there don't appear to be any nice
-and easy ways to check if an address is a percpu one.  Anybody
-have ideas on a way to do this?
+or, sometimes, it would actually make it out to the console:
 
+[    0.000000] BUG: unable to handle kernel paging request at ffffffff
+
+I eventually traced it down to the KVM async pagefault code.
+This can be worked around by disabling that code either at
+compile-time, or on the kernel command-line.
+
+The kvm async pagefault code was injecting page faults in
+to the guest which the guest misinterpreted because its
+"reason" was not being properly sent from the host.
+
+The guest passes a physical address of an per-cpu async page
+fault structure via an MSR to the host.  Since __pa() is
+broken on percpu data, the physical address it sent was
+bascially bogus and the host went scribbling on random data.
+The guest never saw the real reason for the page fault (it
+was injected by the host), assumed that the kernel had taken
+a _real_ page fault, and panic()'d.
+
+Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 ---
 
- linux-2.6.git-dave/arch/x86/mm/numa.c     |    2 +-
- linux-2.6.git-dave/arch/x86/mm/pat.c      |    4 ++--
- linux-2.6.git-dave/arch/x86/mm/physaddr.c |   10 ++++++++--
- 3 files changed, 11 insertions(+), 5 deletions(-)
+ linux-2.6.git-dave/arch/x86/kernel/kvm.c      |    9 +++++----
+ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c |    4 ++--
+ 2 files changed, 7 insertions(+), 6 deletions(-)
 
-diff -puN arch/x86/mm/physaddr.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/physaddr.c
---- linux-2.6.git/arch/x86/mm/physaddr.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2012-11-30 16:18:44.522847232 -0500
-+++ linux-2.6.git-dave/arch/x86/mm/physaddr.c	2012-11-30 16:18:44.530847298 -0500
-@@ -1,3 +1,4 @@
-+#include <linux/bootmem.h>
- #include <linux/mmdebug.h>
- #include <linux/module.h>
- #include <linux/mm.h>
-@@ -41,16 +42,21 @@ bool __virt_addr_valid(unsigned long x)
- 	return pfn_valid(x >> PAGE_SHIFT);
+diff -puN arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvm.c
+--- linux-2.6.git/arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas	2012-11-30 16:09:03.562055643 -0500
++++ linux-2.6.git-dave/arch/x86/kernel/kvm.c	2012-11-30 16:09:03.586055841 -0500
+@@ -284,9 +284,9 @@ static void kvm_register_steal_time(void
+ 
+ 	memset(st, 0, sizeof(*st));
+ 
+-	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
++	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
+ 	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
+-		cpu, __pa(st));
++		cpu, slow_virt_to_phys(st));
  }
- EXPORT_SYMBOL(__virt_addr_valid);
--
- #else
  
- #ifdef CONFIG_DEBUG_VIRTUAL
- unsigned long __phys_addr(unsigned long x)
- {
-+	unsigned long phys_addr = x - PAGE_OFFSET;
- 	/* VMALLOC_* aren't constants  */
- 	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
- 	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
--	return x - PAGE_OFFSET;
-+	/* max_low_pfn is set early, but not _that_ early */
-+	if (max_low_pfn) {
-+		VIRTUAL_BUG_ON((phys_addr >> PAGE_SHIFT) > max_low_pfn);
-+		BUG_ON(slow_virt_to_phys((void *)x) != phys_addr);
-+	}
-+	return phys_addr;
- }
- EXPORT_SYMBOL(__phys_addr);
- #endif
-diff -puN arch/x86/kernel/kvmclock.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/kernel/kvmclock.c
-diff -L sr -puN /dev/null /dev/null
-diff -puN arch/x86/include/asm/page_32.h~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/include/asm/page_32.h
-diff -puN arch/x86/mm/numa.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/numa.c
---- linux-2.6.git/arch/x86/mm/numa.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2012-11-30 16:18:44.526847265 -0500
-+++ linux-2.6.git-dave/arch/x86/mm/numa.c	2012-11-30 16:18:44.534847331 -0500
-@@ -219,7 +219,7 @@ static void __init setup_node_data(int n
- 	 */
- 	nd = alloc_remap(nid, nd_size);
- 	if (nd) {
--		nd_pa = __pa(nd);
-+		nd_pa = __phys_addr_nodebug(nd);
- 		remapped = true;
- 	} else {
- 		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-diff -puN arch/x86/mm/pat.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/pat.c
---- linux-2.6.git/arch/x86/mm/pat.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2012-11-30 16:19:34.371258739 -0500
-+++ linux-2.6.git-dave/arch/x86/mm/pat.c	2012-11-30 16:22:38.528778740 -0500
-@@ -560,10 +560,10 @@ int kernel_map_sync_memtype(u64 base, un
- {
- 	unsigned long id_sz;
+ static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
+@@ -311,7 +311,7 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 		return;
  
--	if (base >= __pa(high_memory))
-+	if (base > __pa(high_memory-1))
- 		return 0;
+ 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
+-		u64 pa = __pa(&__get_cpu_var(apf_reason));
++		u64 pa = slow_virt_to_phys(&__get_cpu_var(apf_reason));
  
--	id_sz = (__pa(high_memory) < base + size) ?
-+	id_sz = (__pa(high_memory-1) <= base + size) ?
- 				__pa(high_memory) - base :
- 				size;
+ #ifdef CONFIG_PREEMPT
+ 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
+@@ -327,7 +327,8 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 		/* Size alignment is implied but just to make it explicit. */
+ 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
+ 		__get_cpu_var(kvm_apic_eoi) = 0;
+-		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
++		pa = slow_virt_to_phys(&__get_cpu_var(kvm_apic_eoi))
++			| KVM_MSR_ENABLED;
+ 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
+ 	}
  
+diff -puN arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvmclock.c
+--- linux-2.6.git/arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas	2012-11-30 16:09:03.562055643 -0500
++++ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c	2012-11-30 16:09:03.586055841 -0500
+@@ -142,8 +142,8 @@ int kvm_register_clock(char *txt)
+ 	int cpu = smp_processor_id();
+ 	int low, high, ret;
+ 
+-	low = (int)__pa(&per_cpu(hv_clock, cpu)) | 1;
+-	high = ((u64)__pa(&per_cpu(hv_clock, cpu)) >> 32);
++	low = (int)slow_virt_to_phys(&per_cpu(hv_clock, cpu)) | 1;
++	high = ((u64)slow_virt_to_phys(&per_cpu(hv_clock, cpu)) >> 32);
+ 	ret = native_write_msr_safe(msr_kvm_system_time, low, high);
+ 	printk(KERN_INFO "kvm-clock: cpu %d, msr %x:%x, %s\n",
+ 	       cpu, high, low, txt);
+diff -puN include/linux/percpu-defs.h~fix-kvm-__pa-use-on-percpu-areas include/linux/percpu-defs.h
+diff -puN mm/percpu-vm.c~fix-kvm-__pa-use-on-percpu-areas mm/percpu-vm.c
+diff -puN mm/percpu.c~fix-kvm-__pa-use-on-percpu-areas mm/percpu.c
+diff -puN include/linux/percpu.h~fix-kvm-__pa-use-on-percpu-areas include/linux/percpu.h
+diff -puN include/asm-generic/percpu.h~fix-kvm-__pa-use-on-percpu-areas include/asm-generic/percpu.h
+diff -puN arch/x86/include/asm/segment.h~fix-kvm-__pa-use-on-percpu-areas arch/x86/include/asm/segment.h
+diff -puN arch/x86/kernel/entry_32.S~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/entry_32.S
+diff -puN drivers/base/cpu.c~fix-kvm-__pa-use-on-percpu-areas drivers/base/cpu.c
 _
 
 --
