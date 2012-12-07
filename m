@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 0F1696B006E
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 08:40:10 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id v19so44422obq.14
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2012 05:40:10 -0800 (PST)
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id A65806B0070
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 09:30:09 -0500 (EST)
+Date: Fri, 7 Dec 2012 14:30:03 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH, REBASED] asm-generic, mm: PTE_SPECIAL cleanup
+Message-ID: <20121207143002.GB21233@arm.com>
+References: <1354881321-29363-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOJsxLFy5TP_xJ0GcqYdpsZ_Lj+Sf2Bfn99CqCqOv8P21N8+UA@mail.gmail.com>
-References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
-	<1354810175-4338-2-git-send-email-js1304@gmail.com>
-	<CAOJsxLFy5TP_xJ0GcqYdpsZ_Lj+Sf2Bfn99CqCqOv8P21N8+UA@mail.gmail.com>
-Date: Fri, 7 Dec 2012 22:40:10 +0900
-Message-ID: <CAAmzW4PDmL-1U6SVFohS_du-7uJngbR-4EBa4UUSWa-xs66Lmw@mail.gmail.com>
-Subject: Re: [RFC PATCH 1/8] mm, vmalloc: change iterating a vmlist to find_vm_area()
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <1354881321-29363-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=WINDOWS-1252
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Chris Metcalf <cmetcalf@tilera.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-Hello, Pekka.
+On Fri, Dec 07, 2012 at 11:55:21AM +0000, Kirill A. Shutemov wrote:
+> diff --git a/arch/Kconfig b/arch/Kconfig
+> index 6887f57..fc21a52 100644
+> --- a/arch/Kconfig
+> +++ b/arch/Kconfig
+> @@ -364,4 +364,10 @@ config CLONE_BACKWARDS2
+>         help
+>           Architecture has the first two arguments of clone(2) swapped.
+>=20
+> +config HAVE_PTE_SPECIAL
+> +       bool
+> +       help
+> +         An arch should select this symbol if it provides pte_special() =
+and
+> +         mkspecial().
+> +
+>  source "kernel/gcov/Kconfig"
+...
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index ef90d61..1e2d450 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -32,7 +32,8 @@ config ARM64
+>         select RTC_LIB
+>         select SPARSE_IRQ
+>         select SYSCTL_EXCEPTION_TRACE
+> -       select CLONE_BACKWARDS
+> +       select CHAVE_SPARSE_IRQLONE_BACKWARDS
+> +       select HAVE_SPARSE_IRQ
+>         help
+>           ARM 64-bit (AArch64) Linux support.
 
-2012/12/7 Pekka Enberg <penberg@kernel.org>:
-> On Thu, Dec 6, 2012 at 6:09 PM, Joonsoo Kim <js1304@gmail.com> wrote:
->> The purpose of iterating a vmlist is finding vm area with specific
->> virtual address. find_vm_area() is provided for this purpose
->> and more efficient, because it uses a rbtree.
->> So change it.
->
-> You no longer take the 'vmlist_lock'. This is safe, because...?
+Something wrong with your diff. Is it rebased on -next? It doesn't seem
+to select HAVE_PTE_SPECIAL and it shouldn't remove other stuff.
 
-As Bob mentioned, find_vm_area() hold a 'vmap_area_lock' during
-searching a area.
-When we hold a 'vmap_area_lock', area can't be removed.
-So this change is safe.
-
-Thanks.
+--=20
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
