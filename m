@@ -1,104 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 9C4226B005D
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 02:07:42 -0500 (EST)
-Message-ID: <50C19568.7080500@huawei.com>
-Date: Fri, 7 Dec 2012 15:06:16 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 0BF066B0062
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 02:25:44 -0500 (EST)
+Date: Fri, 7 Dec 2012 08:25:41 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH] MCE: fix an error of mce_bad_pages statistics
+Message-ID: <20121207072541.GA27708@liondog.tnic>
+References: <50C15A35.5020007@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [Patch v4 09/12] memory-hotplug: remove page table of x86_64
- architecture
-References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-10-git-send-email-wency@cn.fujitsu.com> <50C19022.9000501@cn.fujitsu.com>
-In-Reply-To: <50C19022.9000501@cn.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <50C15A35.5020007@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2012/12/7 14:43, Tang Chen wrote:
+On Fri, Dec 07, 2012 at 10:53:41AM +0800, Xishi Qiu wrote:
+> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
+> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
+> since the page was already marked HWPoison, we should skip the page and don't add the
+> value of mce_bad_pages.
+> 
+> $ cat /proc/meminfo | grep HardwareCorrupted
+> 
+> soft_offline_page()
+> 	get_any_page()
+> 		atomic_long_add(1, &mce_bad_pages)
+> 
+> The free page which marked HWPoison is still managed by page buddy allocator. So when
+> offlining it again, get_any_page() always returns 0 with
+> "pr_info("%s: %#lx free buddy page\n", __func__, pfn);".
+> 
+> When page is allocated, the PageBuddy is removed in bad_page(), then get_any_page()
+> returns -EIO with pr_info("%s: %#lx: unknown zero refcount page type %lx\n", so
+> mce_bad_pages will not be added.
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> i>>?Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> ---
+>  mm/memory-failure.c |    5 +++++
+>  1 files changed, 5 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 8b20278..02a522e 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1375,6 +1375,11 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+>  	if (flags & MF_COUNT_INCREASED)
+>  		return 1;
+> 
+> +	if (PageHWPoison(p)) {
+> +		pr_info("%s: %#lx page already poisoned\n", __func__, pfn);
+> +		return -EBUSY;
+> +	}
 
-> On 11/27/2012 06:00 PM, Wen Congyang wrote:
->> For hot removing memory, we sholud remove page table about the memory.
->> So the patch searches a page table about the removed memory, and clear
->> page table.
-> 
-> (snip)
-> 
->> +void __meminit
->> +kernel_physical_mapping_remove(unsigned long start, unsigned long end)
->> +{
->> +    unsigned long next;
->> +    bool pgd_changed = false;
->> +
->> +    start = (unsigned long)__va(start);
->> +    end = (unsigned long)__va(end);
-> 
-> Hi Wu,
-> 
-> Here, you expect start and end are physical addresses. But in
-> phys_xxx_remove() function, I think using virtual addresses is just
-> fine. Functions like pmd_addr_end() and pud_index() only calculate
-> an offset.
->
+Shouldn't this be done in soft_offline_page() instead, like it is done
+in soft_offline_huge_page() for hugepages?
 
-Hi Tang,
+Thanks.
 
- 
-
-Virtual addresses will work fine, I used physical addresses in order to
-keep consistent with phys_pud[pmd/pte]_init(), So I think we should keep this.
-
-Thanks,
-Jianguo Wu
-
-> So, would you please tell me if we have to use physical addresses here ?
-> 
-> Thanks. :)
-> 
->> +
->> +    for (; start<  end; start = next) {
->> +        pgd_t *pgd = pgd_offset_k(start);
->> +        pud_t *pud;
->> +
->> +        next = pgd_addr_end(start, end);
->> +
->> +        if (!pgd_present(*pgd))
->> +            continue;
->> +
->> +        pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
->> +        phys_pud_remove(pud, __pa(start), __pa(next));
->> +        if (free_pud_table(pud, pgd))
->> +            pgd_changed = true;
->> +        unmap_low_page(pud);
->> +    }
->> +
->> +    if (pgd_changed)
->> +        sync_global_pgds(start, end - 1);
->> +
->> +    flush_tlb_all();
->> +}
->> +
->>   #ifdef CONFIG_MEMORY_HOTREMOVE
->>   int __ref arch_remove_memory(u64 start, u64 size)
->>   {
->> @@ -692,6 +921,8 @@ int __ref arch_remove_memory(u64 start, u64 size)
->>       ret = __remove_pages(zone, start_pfn, nr_pages);
->>       WARN_ON_ONCE(ret);
->>
->> +    kernel_physical_mapping_remove(start, start + size);
->> +
->>       return ret;
->>   }
->>   #endif
-> 
-> 
-> 
-> .
-> 
-
-
+-- 
+Regards/Gruss,
+    Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
