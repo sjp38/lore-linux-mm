@@ -1,80 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id AAF2F6B009A
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 17:59:09 -0500 (EST)
-Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 7 Dec 2012 15:59:09 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 1D60119D803E
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 15:59:06 -0700 (MST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB7Mx5o6379622
-	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 15:59:05 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB7Mx5u4016765
-	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 15:59:05 -0700
-Message-ID: <50C274B1.90408@linux.vnet.ibm.com>
-Date: Fri, 07 Dec 2012 14:58:57 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Debugging: Keep track of page owners
-References: <20121207212417.FAD8DAED@kernel.stglabs.ibm.com> <20121207142614.428b8a54.akpm@linux-foundation.org> <50C26FA7.9010000@linux.vnet.ibm.com> <20121207144428.98b3eaf4.akpm@linux-foundation.org>
-In-Reply-To: <20121207144428.98b3eaf4.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id C023D6B005D
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 18:51:26 -0500 (EST)
+Date: Fri, 7 Dec 2012 15:51:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: add node physical memory range to sysfs
+Message-Id: <20121207155125.d3117244.akpm@linux-foundation.org>
+In-Reply-To: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net>
+References: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
+To: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 12/07/2012 02:44 PM, Andrew Morton wrote:
-> AFACIT that difference was undescribed.  I can see that the new version
-> uses the stack-tracing infrastructure, but the change to
-> pagetypeinfo_showmixedcount_print() is a mystery.
+On Fri, 07 Dec 2012 14:34:56 -0800
+Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
 
-Ahhh, I assume you're talking about this hunk:
+> This patch adds a new 'memrange' file that shows the starting and
+> ending physical addresses that are associated to a node. This is
+> useful for identifying specific DIMMs within the system.
 
->> @@ -976,10 +976,7 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
->>  
->>                         pagetype = allocflags_to_migratetype(page->gfp_mask);
->>                         if (pagetype != mtype) {
->> -                               if (is_migrate_cma(pagetype))
->> -                                       count[MIGRATE_MOVABLE]++;
->> -                               else
->> -                                       count[mtype]++;
->> +                               count[mtype]++;
->>                                 break;
->>                         }
+I was going to bug you about docmentation, but apparently we didn't
+document /sys/devices/system/node/node*/.  A great labor-saving device,
+that!
 
-That was to fix the comment that Laura Abbott made about it miscounting
-MIGRATE_CMA pages.
+> --- a/drivers/base/node.c
+> +++ b/drivers/base/node.c
+> @@ -211,6 +211,19 @@ static ssize_t node_read_distance(struct device *dev,
+>  }
+>  static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
+>  
+> +static ssize_t node_read_memrange(struct device *dev,
+> +				  struct device_attribute *attr, char *buf)
+> +{
+> +	int nid = dev->id;
+> +	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+> +	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
 
-My patch-sending scripts were choking a bit on the text description in
-your patch.  I'm using a long-ago-forked copy of your patch-utils and
-the DESC/EDESC in the patch I imported is giving them fits when I send
-via email and stripping large parts of the description.  I'm happy to
-resend via email, too, but here, the raw patch (will the full description):
+hm.  Is this correct for all for
+FLATMEM/SPARSEMEM/SPARSEMEM_VMEMMAP/DISCONTIGME/etc?
 
-	https://www.sr71.net/~dave/linux/pageowner.patch
-
-The important description that the scripts managed to strip out when
-emailed was this:
-
-Updated 12/4/2012 - should apply to 3.7 kernels.  I did a quick
-sniff-test to make sure that this boots and produces some sane
-output, but it's not been exhaustively tested.
-
- * Moved file over to debugfs (no reason to keep polluting /proc)
- * Now using generic stack tracking infrastructure
- * Added check for MIGRATE_CMA pages to explicitly count them
-   as movable.
-
-The new snprint_stack_trace() probably belongs in its own patch
-if this were to get merged, but it won't kill anyone as it stands.
-
------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
