@@ -1,204 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 4EB0A6B0068
-	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 20:43:15 -0500 (EST)
-Message-ID: <50C14976.2050606@cn.fujitsu.com>
-Date: Fri, 07 Dec 2012 09:42:14 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [Patch v4 08/12] memory-hotplug: remove memmap of sparse-vmemmap
-References: <1354010422-19648-1-git-send-email-wency@cn.fujitsu.com> <1354010422-19648-9-git-send-email-wency@cn.fujitsu.com> <50B5DC00.20103@huawei.com> <50B80FB1.6040906@cn.fujitsu.com> <50BC0D2D.8040008@huawei.com>
-In-Reply-To: <50BC0D2D.8040008@huawei.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 805C46B006E
+	for <linux-mm@kvack.org>; Thu,  6 Dec 2012 21:03:52 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 1/3] HWPOISON, hugetlbfs: fix warning on freeing hwpoisoned hugepage
+Date: Thu,  6 Dec 2012 21:03:44 -0500
+Message-Id: <1354845824-5734-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <20121206143652.29c4922f.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Len Brown <len.brown@intel.com>, benh@kernel.crashing.org, paulus@samba.org, Christoph Lameter <cl@linux.com>, Minchan Kim <minchan.kim@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi.kleen@intel.com>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Wu,
+On Thu, Dec 06, 2012 at 02:36:52PM -0800, Andrew Morton wrote:
+> On Wed,  5 Dec 2012 16:47:36 -0500
+> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+> 
+> > This patch fixes the warning from __list_del_entry() which is triggered
+> > when a process tries to do free_huge_page() for a hwpoisoned hugepage.
+> > 
+> > Originally, page->lru of hugetlbfs head page was dangling when the
+> > hugepage was in use. This behavior has changed by commit 0edaecfab218d7
+> > ("hugetlb: add a list for tracking in-use HugeTLB pages"), where hugepages
+> > in use are linked to hugepage_activelist. HWpoisoned hugepages should not
+> > be charged to any process, so we introduce another list to link hwpoisoned
+> > hugepages.
+> > 
+> > ...
+> >
+> > --- v3.7-rc8.orig/include/linux/hugetlb.h
+> > +++ v3.7-rc8/include/linux/hugetlb.h
+> > @@ -230,6 +230,9 @@ struct hstate {
+> >  	unsigned long nr_overcommit_huge_pages;
+> >  	struct list_head hugepage_activelist;
+> >  	struct list_head hugepage_freelists[MAX_NUMNODES];
+> > +#ifdef CONFIG_MEMORY_FAILURE
+> > +	struct list_head hugepage_hwpoisonedlist;
+> > +#endif
+> >  	unsigned int nr_huge_pages_node[MAX_NUMNODES];
+> >  	unsigned int free_huge_pages_node[MAX_NUMNODES];
+> >  	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+> > diff --git v3.7-rc8.orig/mm/hugetlb.c v3.7-rc8/mm/hugetlb.c
+> > index 59a0059..e61a749 100644
+> > --- v3.7-rc8.orig/mm/hugetlb.c
+> > +++ v3.7-rc8/mm/hugetlb.c
+> > @@ -1939,6 +1939,7 @@ void __init hugetlb_add_hstate(unsigned order)
+> >  	for (i = 0; i < MAX_NUMNODES; ++i)
+> >  		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
+> >  	INIT_LIST_HEAD(&h->hugepage_activelist);
+> > +	INIT_LIST_HEAD(&h->hugepage_hwpoisonedlist);
+> >  	h->next_nid_to_alloc = first_node(node_states[N_HIGH_MEMORY]);
+> >  	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
+> >  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
+> > @@ -3170,7 +3171,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
+> >  
+> >  	spin_lock(&hugetlb_lock);
+> >  	if (is_hugepage_on_freelist(hpage)) {
+> > -		list_del(&hpage->lru);
+> > +		list_move(&hpage->lru, &h->hugepage_hwpoisonedlist);
+> >  		set_page_refcounted(hpage);
+> >  		h->free_huge_pages--;
+> >  		h->free_huge_pages_node[nid]--;
+> 
+> Do we actually need to new list?  We could use list_del_init() to leave
+> the page's list_head pointing at itself.  In this state, it is its own
+> list_head and further list_del()s are a no-op.
 
-I met some problems when I was digging into the code. It's very
-kind of you if you could help me with that. :)
+OK, it's better, thanks.
 
-If I misunderstood your code, please tell me.
-Please see below. :)
+> I don't know whether this would trigger list-debug warnings.
 
-On 12/03/2012 10:23 AM, Jianguo Wu wrote:
-> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
-> Signed-off-by: Jiang Liu<jiang.liu@huawei.com>
-> ---
->   include/linux/mm.h  |    1 +
->   mm/sparse-vmemmap.c |  231 +++++++++++++++++++++++++++++++++++++++++++++++++++
->   mm/sparse.c         |    3 +-
->   3 files changed, 234 insertions(+), 1 deletions(-)
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5657670..1f26af5 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1642,6 +1642,7 @@ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
->   void vmemmap_populate_print_last(void);
->   void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
->   				  unsigned long size);
-> +void vmemmap_free(struct page *memmap, unsigned long nr_pages);
->
->   enum mf_flags {
->   	MF_COUNT_INCREASED = 1<<  0,
-> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-> index 1b7e22a..748732d 100644
-> --- a/mm/sparse-vmemmap.c
-> +++ b/mm/sparse-vmemmap.c
-> @@ -29,6 +29,10 @@
->   #include<asm/pgalloc.h>
->   #include<asm/pgtable.h>
->
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +#include<asm/tlbflush.h>
-> +#endif
-> +
->   /*
->    * Allocate a block of memory to be used to back the virtual memory map
->    * or to back the page tables that are used to create the mapping.
-> @@ -224,3 +228,230 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->   		vmemmap_buf_end = NULL;
->   	}
->   }
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +
-> +#define PAGE_INUSE 0xFD
-> +
-> +static void vmemmap_free_pages(struct page *page, int order)
-> +{
-> +	struct zone *zone;
-> +	unsigned long magic;
-> +
-> +	magic = (unsigned long) page->lru.next;
-> +	if (magic == SECTION_INFO || magic == MIX_SECTION_INFO) {
-> +		put_page_bootmem(page);
-> +
-> +		zone = page_zone(page);
-> +		zone_span_writelock(zone);
-> +		zone->present_pages++;
-> +		zone_span_writeunlock(zone);
-> +		totalram_pages++;
-> +	} else
-> +		free_pages((unsigned long)page_address(page), order);
+I tested your idea (with attached patch) and confirmed that
+we never get the warnings.
 
-Here, I think SECTION_INFO and MIX_SECTION_INFO pages are all allocated
-by bootmem, so I put this function this way.
+Thanks,
+Naoya
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Thu, 6 Dec 2012 20:54:30 -0500
+Subject: [PATCH v2] HWPOISON, hugetlbfs: fix warning on freeing hwpoisoned
+ hugepage
 
-I'm not sure if parameter order is necessary here. It will always be 0
-in your code. Is this OK to you ?
+This patch fixes the warning from __list_del_entry() which is triggered
+when a process tries to do free_huge_page() for a hwpoisoned hugepage.
 
-static void free_pagetable(struct page *page)
-{
-         struct zone *zone;
-         bool bootmem = false;
-         unsigned long magic;
+ChangeLog v2:
+ - simply use list_del_init instead of introducing new hugepage list
 
-         /* bootmem page has reserved flag */
-         if (PageReserved(page)) {
-                 __ClearPageReserved(page);
-                 bootmem = true;
-         }
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/hugetlb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-         magic = (unsigned long) page->lru.next;
-         if (magic == SECTION_INFO || magic == MIX_SECTION_INFO)
-                 put_page_bootmem(page);
-         else
-                 __free_page(page);
-
-         /*
-          * SECTION_INFO pages and MIX_SECTION_INFO pages
-          * are all allocated by bootmem.
-          */
-         if (bootmem) {
-                 zone = page_zone(page);
-                 zone_span_writelock(zone);
-                 zone->present_pages++;
-                 zone_span_writeunlock(zone);
-                 totalram_pages++;
-         }
-}
-
-(snip)
-
-> +
-> +static void vmemmap_pte_remove(pmd_t *pmd, unsigned long addr, unsigned long end)
-> +{
-> +	pte_t *pte;
-> +	unsigned long next;
-> +	void *page_addr;
-> +
-> +	pte = pte_offset_kernel(pmd, addr);
-> +	for (; addr<  end; pte++, addr += PAGE_SIZE) {
-> +		next = (addr + PAGE_SIZE)&  PAGE_MASK;
-> +		if (next>  end)
-> +			next = end;
-> +
-> +		if (pte_none(*pte))
-
-Here, you checked xxx_none() in your vmemmap_xxx_remove(), but you used
-!xxx_present() in your x86_64 patches. Is it OK if I only check
-!xxx_present() ?
-
-> +			continue;
-> +		if (IS_ALIGNED(addr, PAGE_SIZE)&&
-> +		    IS_ALIGNED(next, PAGE_SIZE)) {
-> +			vmemmap_free_pages(pte_page(*pte), 0);
-> +			spin_lock(&init_mm.page_table_lock);
-> +			pte_clear(&init_mm, addr, pte);
-> +			spin_unlock(&init_mm.page_table_lock);
-> +		} else {
-> +			/*
-> +			 * Removed page structs are filled with 0xFD.
-> +			 */
-> +			memset((void *)addr, PAGE_INUSE, next - addr);
-> +			page_addr = page_address(pte_page(*pte));
-> +
-> +			if (!memchr_inv(page_addr, PAGE_INUSE, PAGE_SIZE)) {
-> +				spin_lock(&init_mm.page_table_lock);
-> +				pte_clear(&init_mm, addr, pte);
-> +				spin_unlock(&init_mm.page_table_lock);
-
-Here, since we clear pte, we should also free the page, right ?
-
-> +			}
-> +		}
-> +	}
-> +
-> +	free_pte_table(pmd);
-> +	__flush_tlb_all();
-> +}
-> +
-> +static void vmemmap_pmd_remove(pud_t *pud, unsigned long addr, unsigned long end)
-> +{
-> +	unsigned long next;
-> +	pmd_t *pmd;
-> +
-> +	pmd = pmd_offset(pud, addr);
-> +	for (; addr<  end; addr = next, pmd++) {
-> +		next = (addr, end);
-
-And by the way, there isn't pte_addr_end() in kernel, why ?
-I saw you calculated it like this:
-
-                 next = (addr + PAGE_SIZE) & PAGE_MASK;
-                 if (next > end)
-                         next = end;
-
-This logic is very similar to {pmd|pud|pgd}_addr_end(). Shall we add a
-pte_addr_end() or something ? :)
-Since there is no such code in kernel for a long time, I think there
-must be some reasons.
-
-I merged free_xxx_table() and remove_xxx_table() as common interfaces.
-
-And again, thanks for your patient and nice explanation. :)
-
-(snip)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 59a0059..9308752 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -3170,7 +3170,7 @@ int dequeue_hwpoisoned_huge_page(struct page *hpage)
+ 
+ 	spin_lock(&hugetlb_lock);
+ 	if (is_hugepage_on_freelist(hpage)) {
+-		list_del(&hpage->lru);
++		list_del_init(&hpage->lru);
+ 		set_page_refcounted(hpage);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
