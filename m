@@ -1,48 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 2E43E6B0092
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 17:37:39 -0500 (EST)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Fri, 7 Dec 2012 15:37:38 -0700
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 6456419D8042
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 15:37:35 -0700 (MST)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qB7MbY3u291804
-	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 15:37:34 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qB7MbYG9010057
-	for <linux-mm@kvack.org>; Fri, 7 Dec 2012 15:37:34 -0700
-Message-ID: <50C26FA7.9010000@linux.vnet.ibm.com>
-Date: Fri, 07 Dec 2012 14:37:27 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 58A636B0095
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 17:41:13 -0500 (EST)
+Date: Fri, 7 Dec 2012 23:41:10 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
+Message-ID: <20121207224110.GA32115@liondog.tnic>
+References: <50C1AD6D.7010709@huawei.com>
+ <20121207141102.4fda582d.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Debugging: Keep track of page owners
-References: <20121207212417.FAD8DAED@kernel.stglabs.ibm.com> <20121207142614.428b8a54.akpm@linux-foundation.org>
-In-Reply-To: <20121207142614.428b8a54.akpm@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20121207141102.4fda582d.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/07/2012 02:26 PM, Andrew Morton wrote:\
-> I have cunningly divined the intention of your update and have queued
-> the below incremental.  The change to
-> pagetypeinfo_showmixedcount_print() was a surprise.  What's that there
-> for?
+On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
+> A few things:
+> 
+> - soft_offline_page() already checks for this case:
+> 
+> 	if (PageHWPoison(page)) {
+> 		unlock_page(page);
+> 		put_page(page);
+> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+> 		return -EBUSY;
+> 	}
 
-Do you mean to ask why it's being modified at all here in this patch?
-It's referenced in the changelog a bit.  I believe it came from Mel at
-some point.  I didn't do much to that portion, but I happily drug those
-hunks along with my forward port.  I believe it's virtually all the same
-as what you posted here:
+Oh, so we do this check after all. But later in the function. Why? Why
+not at the beginning so that when a page is marked poisoned already we
+can exit early?
 
-	https://bugzilla.kernel.org/show_bug.cgi?id=50181
+Strange.
 
+-- 
+Regards/Gruss,
+    Boris.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
