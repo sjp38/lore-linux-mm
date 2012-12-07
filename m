@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 8438E6B0078
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:03 -0500 (EST)
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 3F5D86B006E
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:05 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 03/49] mm,generic: only flush the local TLB in ptep_set_access_flags
-Date: Fri,  7 Dec 2012 10:23:06 +0000
-Message-Id: <1354875832-9700-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 04/49] x86/mm: Introduce pte_accessible()
+Date: Fri,  7 Dec 2012 10:23:07 +0000
+Message-Id: <1354875832-9700-5-git-send-email-mgorman@suse.de>
 In-Reply-To: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -15,62 +15,61 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh D
 
 From: Rik van Riel <riel@redhat.com>
 
-The function ptep_set_access_flags is only ever used to upgrade
-access permissions to a page. That means the only negative side
-effect of not flushing remote TLBs is that other CPUs may incur
-spurious page faults, if they happen to access the same address,
-and still have a PTE with the old permissions cached in their
-TLB.
+We need pte_present to return true for _PAGE_PROTNONE pages, to indicate that
+the pte is associated with a page.
 
-Having another CPU maybe incur a spurious page fault is faster
-than always incurring the cost of a remote TLB flush, so replace
-the remote TLB flush with a purely local one.
+However, for TLB flushing purposes, we would like to know whether the pte
+points to an actually accessible page.  This allows us to skip remote TLB
+flushes for pages that are not actually accessible.
 
-This should be safe on every architecture that correctly
-implements flush_tlb_fix_spurious_fault() to actually invalidate
-the local TLB entry that caused a page fault, as well as on
-architectures where the hardware invalidates TLB entries that
-cause page faults.
-
-In the unlikely event that you are hitting what appears to be
-an infinite loop of page faults, and 'git bisect' took you to
-this changeset, your architecture needs to implement
-flush_tlb_fix_spurious_fault to actually flush the TLB entry.
+Fill in this method for x86 and provide a safe (but slower) method
+on other architectures.
 
 Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Fixed-by: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>
+Link: http://lkml.kernel.org/n/tip-66p11te4uj23gevgh4j987ip@git.kernel.org
+[ Added Linus's review fixes. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
 ---
- mm/pgtable-generic.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/pgtable.h |    6 ++++++
+ include/asm-generic/pgtable.h  |    4 ++++
+ 2 files changed, 10 insertions(+)
 
-diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
-index e642627..d8397da 100644
---- a/mm/pgtable-generic.c
-+++ b/mm/pgtable-generic.c
-@@ -12,8 +12,8 @@
- 
- #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
- /*
-- * Only sets the access flags (dirty, accessed, and
-- * writable). Furthermore, we know it always gets set to a "more
-+ * Only sets the access flags (dirty, accessed), as well as write 
-+ * permission. Furthermore, we know it always gets set to a "more
-  * permissive" setting, which allows most architectures to optimize
-  * this. We return whether the PTE actually changed, which in turn
-  * instructs the caller to do things like update__mmu_cache.  This
-@@ -27,7 +27,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
- 	int changed = !pte_same(*ptep, entry);
- 	if (changed) {
- 		set_pte_at(vma->vm_mm, address, ptep, entry);
--		flush_tlb_page(vma, address);
-+		flush_tlb_fix_spurious_fault(vma, address);
- 	}
- 	return changed;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index a1f780d..5fe03aa 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -407,6 +407,12 @@ static inline int pte_present(pte_t a)
+ 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
  }
+ 
++#define pte_accessible pte_accessible
++static inline int pte_accessible(pte_t a)
++{
++	return pte_flags(a) & _PAGE_PRESENT;
++}
++
+ static inline int pte_hidden(pte_t pte)
+ {
+ 	return pte_flags(pte) & _PAGE_HIDDEN;
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index b36ce40..48fc1dc 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -219,6 +219,10 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
+ #define move_pte(pte, prot, old_addr, new_addr)	(pte)
+ #endif
+ 
++#ifndef pte_accessible
++# define pte_accessible(pte)		((void)(pte),1)
++#endif
++
+ #ifndef flush_tlb_fix_spurious_fault
+ #define flush_tlb_fix_spurious_fault(vma, address) flush_tlb_page(vma, address)
+ #endif
 -- 
 1.7.9.2
 
