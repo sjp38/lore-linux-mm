@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id BB1676B0073
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 04:01:37 -0500 (EST)
-Date: Fri, 7 Dec 2012 10:01:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
- iterators
-Message-ID: <20121207090135.GC31938@dhcp22.suse.cz>
-References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
- <1353955671-14385-4-git-send-email-mhocko@suse.cz>
- <CALWz4ixQR0vHp+mGJdi2q77dMHaG8BZmb+iKfMmT=T0V8X8rAg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4ixQR0vHp+mGJdi2q77dMHaG8BZmb+iKfMmT=T0V8X8rAg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 2E7946B006C
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:00 -0500 (EST)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 01/49] x86: mm: only do a local tlb flush in ptep_set_access_flags()
+Date: Fri,  7 Dec 2012 10:23:04 +0000
+Message-Id: <1354875832-9700-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-On Thu 06-12-12 19:39:41, Ying Han wrote:
-[...]
-> Michal,
-> 
-> I got some trouble while running this patch with my test. The test
-> creates hundreds of memcgs which each runs some workload to generate
-> global pressure. At the last, it removes all the memcgs by rmdir. Then
-> the cmd "ls /dev/cgroup/memory/" hangs afterwards.
->
-> I studied a bit of the patch, but not spending too much time on it
-> yet. Looks like that the v2 has something different from your last
-> post, where you replaces the mem_cgroup_get() with css_get() on the
-> iter->last_visited. Didn't follow why we made that change, but after
-> restoring the behavior a bit seems passed my test.
+From: Rik van Riel <riel@redhat.com>
 
-Hmm, strange. css reference counting should be stronger than mem_cgroup
-one because it pins css thus cgroup which in turn keeps memcg alive.
+The function ptep_set_access_flags() is only ever invoked to set access
+flags or add write permission on a PTE.  The write bit is only ever set
+together with the dirty bit.
 
-> Here is the patch I applied on top of this one:
+Because we only ever upgrade a PTE, it is safe to skip flushing entries on
+remote TLBs. The worst that can happen is a spurious page fault on other
+CPUs, which would flush that TLB entry.
 
-[...]
+Lazily letting another CPU incur a spurious page fault occasionally is
+(much!) cheaper than aggressively flushing everybody else's TLB.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+---
+ arch/x86/mm/pgtable.c |    9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index 8573b83..be3bb46 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -301,6 +301,13 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+ 	free_page((unsigned long)pgd);
+ }
+ 
++/*
++ * Used to set accessed or dirty bits in the page table entries
++ * on other architectures. On x86, the accessed and dirty bits
++ * are tracked by hardware. However, do_wp_page calls this function
++ * to also make the pte writeable at the same time the dirty bit is
++ * set. In that case we do actually need to write the PTE.
++ */
+ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 			  unsigned long address, pte_t *ptep,
+ 			  pte_t entry, int dirty)
+@@ -310,7 +317,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
+ 	if (changed && dirty) {
+ 		*ptep = entry;
+ 		pte_update_defer(vma->vm_mm, address, ptep);
+-		flush_tlb_page(vma, address);
++		__flush_tlb_one(address);
+ 	}
+ 
+ 	return changed;
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
