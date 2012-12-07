@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id C023D6B005D
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 18:51:26 -0500 (EST)
-Date: Fri, 7 Dec 2012 15:51:25 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: add node physical memory range to sysfs
-Message-Id: <20121207155125.d3117244.akpm@linux-foundation.org>
-In-Reply-To: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net>
-References: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 103066B006C
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 18:57:14 -0500 (EST)
+MIME-Version: 1.0
+Message-ID: <c8728036-07da-49ce-b4cb-c3d800790b53@default>
+Date: Fri, 7 Dec 2012 15:57:08 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: zram /proc/swaps accounting weirdness
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
+Cc: Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org
 
-On Fri, 07 Dec 2012 14:34:56 -0800
-Davidlohr Bueso <davidlohr.bueso@hp.com> wrote:
+While playing around with zcache+zram (see separate thread),
+I was watching stats with "watch -d".
 
-> This patch adds a new 'memrange' file that shows the starting and
-> ending physical addresses that are associated to a node. This is
-> useful for identifying specific DIMMs within the system.
+It appears from the code that /sys/block/num_writes only
+increases, never decreases.  In my test, num_writes got up
+to 1863.  /sys/block/disksize is 104857600.
 
-I was going to bug you about docmentation, but apparently we didn't
-document /sys/devices/system/node/node*/.  A great labor-saving device,
-that!
+I have two swap disks, one zram (pri=3D60), one real (pri=3D-1),
+and as a I watched /proc/swaps, the "Used" field grew rapidly
+and reached the Size (102396k) of the zram swap, and then
+the second swap disk (a physical disk partition) started being
+used.  Then for awhile, the Used field for both swap devices
+was changing (up and down).
 
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -211,6 +211,19 @@ static ssize_t node_read_distance(struct device *dev,
->  }
->  static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
->  
-> +static ssize_t node_read_memrange(struct device *dev,
-> +				  struct device_attribute *attr, char *buf)
-> +{
-> +	int nid = dev->id;
-> +	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-> +	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+Can you explain how this could happen if num_writes never
+exceeded 1863?  This may be harmless in the case where
+the only swap on the system is zram; or may indicate a bug
+somewhere?
 
-hm.  Is this correct for all for
-FLATMEM/SPARSEMEM/SPARSEMEM_VMEMMAP/DISCONTIGME/etc?
+It looks like num_writes is counting bio's not pages...
+which would imply the bio's are potentially quite large
+(and I'll guess they are of size SWAPFILE_CLUSTER which is
+defined to be 256).  Do large clusters make sense with zram?
 
+Late on a Friday so sorry if I am incomprehensible...
+
+P.S. The corresponding stat for zcache indicates that
+it failed 8852 stores, so I would have expected zram
+to deal with no more than 8852 compressions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
