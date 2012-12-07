@@ -1,27 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id A7AE66B007B
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 08:16:56 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id k14so522963oag.14
-        for <linux-mm@kvack.org>; Fri, 07 Dec 2012 05:16:55 -0800 (PST)
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id C603B6B0080
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 08:35:49 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id v19so37771obq.14
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2012 05:35:49 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20121206145020.93fd7128.akpm@linux-foundation.org>
+In-Reply-To: <CAA_GA1fiQfOqApE05oh=2Wr-GejbHtOd4o7sqcGdQFH6cxWPpQ@mail.gmail.com>
 References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
-	<20121206145020.93fd7128.akpm@linux-foundation.org>
-Date: Fri, 7 Dec 2012 22:16:55 +0900
-Message-ID: <CAAmzW4N-=uXBdgjbkdL=aNVtKvvXZs-6BNgpDzi7CLkeo0-jBg@mail.gmail.com>
+	<CAA_GA1fiQfOqApE05oh=2Wr-GejbHtOd4o7sqcGdQFH6cxWPpQ@mail.gmail.com>
+Date: Fri, 7 Dec 2012 22:35:48 +0900
+Message-ID: <CAAmzW4O0EY=-ZBytrWmGVax47_ygNh+hcGpbGOCt9cnXH7HU-g@mail.gmail.com>
 Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Vivek Goyal <vgoyal@redhat.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
-2012/12/7 Andrew Morton <akpm@linux-foundation.org>:
-> On Fri,  7 Dec 2012 01:09:27 +0900
-> Joonsoo Kim <js1304@gmail.com> wrote:
+Hello, Bob.
+
+2012/12/7 Bob Liu <lliubbo@gmail.com>:
+> Hi Joonsoo,
 >
+> On Fri, Dec 7, 2012 at 12:09 AM, Joonsoo Kim <js1304@gmail.com> wrote:
+>> This patchset remove vm_struct list management after initializing vmalloc.
+>> Adding and removing an entry to vmlist is linear time complexity, so
+>> it is inefficient. If we maintain this list, overall time complexity of
+>> adding and removing area to vmalloc space is O(N), although we use
+>> rbtree for finding vacant place and it's time complexity is just O(logN).
+>>
+>> And vmlist and vmlist_lock is used many places of outside of vmalloc.c.
+>> It is preferable that we hide this raw data structure and provide
+>> well-defined function for supporting them, because it makes that they
+>> cannot mistake when manipulating theses structure and it makes us easily
+>> maintain vmalloc layer.
+>>
 >> I'm not sure that "7/8: makes vmlist only for kexec" is fine.
 >> Because it is related to userspace program.
 >> As far as I know, makedumpfile use kexec's output information and it only
@@ -29,22 +43,28 @@ Cc: Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, li
 >> fact, but I'm not sure. And now, I don't fully test this patchset.
 >> Basic operation work well, but I don't test kexec. So I send this
 >> patchset with 'RFC'.
+>>
+>> Please let me know what I am missing.
+>>
 >
-> Yes, this is irritating.  Perhaps Vivek or one of the other kexec
-> people could take a look at this please - if would obviously be much
-> better if we can avoid merging [patch 7/8] at all.
+> Nice work!
+> I also thought about this several weeks ago but I think the efficiency
+> may be a problem.
+>
+> As you know two locks(vmap_area_lock and vmlist_lock) are used
+> currently so that some
+> work may be done in parallel(not proved).
+> If removed vmlist, i'm afraid vmap_area_lock will become a bottleneck
+> which will reduce the efficiency.
 
-I'm not sure, but I almost sure that [patch 7/8] have no problem.
-In kexec.c, they write an address of vmlist and offset of vm_struct's
-address field.
-It imply that user for this information doesn't have any other
-information about vm_struct,
-and they can't use other field of vm_struct. They can use *only* address field.
-So, remaining just one vm_struct for vmlist which represent first area
-of vmalloc layer
-may be safe.
+Thanks for comment!
 
-But, kexec people may be very helpful to validate this patch.
+Yes, there were some place that work may be done in parallel.
+For example, access to '/proc/meminfo', '/proc/vmallocinfo' and '/proc/kcore'
+may be done in parallel. But, access to these are not main
+functionality of vmalloc layer.
+Optimizing main function like vmalloc, vfree is more preferable than above.
+And this patchset optimize main function with removing vmlist iteration.
 
 Thanks.
 
