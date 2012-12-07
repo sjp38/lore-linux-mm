@@ -1,30 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 5876E6B0068
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 15:35:19 -0500 (EST)
-Date: Fri, 7 Dec 2012 12:35:17 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH, REBASED] asm-generic, mm: PTE_SPECIAL cleanup
-Message-Id: <20121207123517.3fc93a34.akpm@linux-foundation.org>
-In-Reply-To: <20121207144112.GA17044@otc-wbsnb-06>
-References: <1354881321-29363-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<20121207143002.GB21233@arm.com>
-	<20121207144112.GA17044@otc-wbsnb-06>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id CD8AA6B0044
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 15:56:11 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so633722eek.14
+        for <linux-mm@kvack.org>; Fri, 07 Dec 2012 12:56:10 -0800 (PST)
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Announce: the 'perf bench numa mem' NUMA performance measurement tool
+Date: Fri,  7 Dec 2012 21:55:43 +0100
+Message-Id: <1354913744-29902-1-git-send-email-mingo@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mike Galbraith <efault@gmx.de>
 
-On Fri, 7 Dec 2012 16:41:12 +0200
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+This is a NUMA performance measurement tool I've been honing for some time
+and people expressed interest in it so here's a tidied up version of it.
 
-> Advertise PTE_SPECIAL through Kconfig option and consolidate dummy
-> pte_special() and mkspecial() in <asm-generic/pgtable.h>
+I also pushed it out into the tip:perf/bench branch:
 
-why?
+   git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git perf/bench
+
+Maybe others find it useful too. I'll post a couple of perf bench
+NUMA performance numbers in the next hour or so.
+
+Thanks,
+
+	Ingo
+
+------------>
+Ingo Molnar (1):
+  perf: Add 'perf bench numa mem' NUMA performance measurement suite
+
+ tools/perf/Makefile        |    3 +-
+ tools/perf/bench/bench.h   |    1 +
+ tools/perf/bench/numa.c    | 1731 ++++++++++++++++++++++++++++++++++++++++++++
+ tools/perf/builtin-bench.c |   13 +
+ tools/perf/util/hist.h     |    2 +-
+ 5 files changed, 1748 insertions(+), 2 deletions(-)
+ create mode 100644 tools/perf/bench/numa.c
+
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
