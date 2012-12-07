@@ -1,56 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 4DD976B006E
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 03:51:19 -0500 (EST)
-Message-ID: <50C1AD6D.7010709@huawei.com>
-Date: Fri, 7 Dec 2012 16:48:45 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 96C8C6B0071
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 03:58:44 -0500 (EST)
+Date: Fri, 7 Dec 2012 09:58:39 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
+ iterators
+Message-ID: <20121207085839.GB31938@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+ <1353955671-14385-4-git-send-email-mhocko@suse.cz>
+ <CALWz4ixQR0vHp+mGJdi2q77dMHaG8BZmb+iKfMmT=T0V8X8rAg@mail.gmail.com>
+ <CALWz4iwrJtG-YUkA8ZpQC=JDMs3_ZRqwjrg+OEEO+_HA_KM9UA@mail.gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALWz4iwrJtG-YUkA8ZpQC=JDMs3_ZRqwjrg+OEEO+_HA_KM9UA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: WuJianguo <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
-free page twice, the value of mce_bad_pages will be added twice. So this is an error,
-since the page was already marked HWPoison, we should skip the page and don't add the
-value of mce_bad_pages.
+On Thu 06-12-12 19:43:52, Ying Han wrote:
+[...]
+> Forgot to mention, I was testing 3.7-rc6 with the two cgroup changes :
 
-$ cat /proc/meminfo | grep HardwareCorrupted
-
-soft_offline_page()
-	get_any_page()
-		atomic_long_add(1, &mce_bad_pages)
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-i>>?Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- mm/memory-failure.c |    7 +++++--
- 1 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 8b20278..de760ca 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
- 		return ret;
-
- done:
--	atomic_long_add(1, &mce_bad_pages);
--	SetPageHWPoison(page);
- 	/* keep elevated page count for bad page */
-+	if (!PageHWPoison(page)) {
-+		atomic_long_add(1, &mce_bad_pages);
-+		SetPageHWPoison(page);
-+	}
-+
- 	return ret;
- }
+Could you give a try to -mm tree as well. There are some changes for
+memcgs removal in that tree which are not in Linus's tree.
 -- 
-1.7.6.1
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
