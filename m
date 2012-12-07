@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id C129C6B00B7
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:47 -0500 (EST)
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 64A366B00BB
+	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 05:24:49 -0500 (EST)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 29/49] mm: numa: Add pte updates, hinting and migration stats
-Date: Fri,  7 Dec 2012 10:23:32 +0000
-Message-Id: <1354875832-9700-30-git-send-email-mgorman@suse.de>
+Subject: [PATCH 30/49] mm: numa: Migrate on reference policy
+Date: Fri,  7 Dec 2012 10:23:33 +0000
+Message-Id: <1354875832-9700-31-git-send-email-mgorman@suse.de>
 In-Reply-To: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -13,215 +13,107 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>
 Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
 
-It is tricky to quantify the basic cost of automatic NUMA placement in a
-meaningful manner. This patch adds some vmstats that can be used as part
-of a basic costing model.
-
-u    = basic unit = sizeof(void *)
-Ca   = cost of struct page access = sizeof(struct page) / u
-Cpte = Cost PTE access = Ca
-Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
-	where Cpte is incurred twice for a read and a write and Wlock
-	is a constant representing the cost of taking or releasing a
-	lock
-Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
-Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
-Ci = Cost of page isolation = Ca + Wi
-	where Wi is a constant that should reflect the approximate cost
-	of the locking operation
-Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
-	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
-	would imply that remote accesses are 20% more expensive
-
-Balancing cost = Cpte * numa_pte_updates +
-		Cnumahint * numa_hint_faults +
-		Ci * numa_pages_migrated +
-		Cpagecopy * numa_pages_migrated
-
-Note that numa_pages_migrated is used as a measure of how many pages
-were isolated even though it would miss pages that failed to migrate. A
-vmstat counter could have been added for it but the isolation cost is
-pretty marginal in comparison to the overall cost so it seemed overkill.
-
-The ideal way to measure automatic placement benefit would be to count
-the number of remote accesses versus local accesses and do something like
-
-	benefit = (remote_accesses_before - remove_access_after) * Wnuma
-
-but the information is not readily available. As a workload converges, the
-expection would be that the number of remote numa hints would reduce to 0.
-
-	convergence = numa_hint_faults_local / numa_hint_faults
-		where this is measured for the last N number of
-		numa hints recorded. When the workload is fully
-		converged the value is 1.
-
-This can measure if the placement policy is converging and how fast it is
-doing it.
+This is the simplest possible policy that still does something of note.
+When a pte_numa is faulted, it is moved immediately. Any replacement
+policy must at least do better than this and in all likelihood this
+policy regresses normal workloads.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
- include/linux/vm_event_item.h |    6 ++++++
- include/linux/vmstat.h        |    8 ++++++++
- mm/huge_memory.c              |    5 +++++
- mm/memory.c                   |   12 ++++++++++++
- mm/mempolicy.c                |    2 ++
- mm/migrate.c                  |    3 ++-
- mm/vmstat.c                   |    6 ++++++
- 7 files changed, 41 insertions(+), 1 deletion(-)
+ include/uapi/linux/mempolicy.h |    1 +
+ mm/mempolicy.c                 |   38 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index a1f750b..dded0af 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -38,6 +38,12 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
- 		KSWAPD_SKIP_CONGESTION_WAIT,
- 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+#ifdef CONFIG_BALANCE_NUMA
-+		NUMA_PTE_UPDATES,
-+		NUMA_HINT_FAULTS,
-+		NUMA_HINT_FAULTS_LOCAL,
-+		NUMA_PAGE_MIGRATE,
-+#endif
- #ifdef CONFIG_MIGRATION
- 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
- #endif
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 92a86b2..dffccfa 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -80,6 +80,14 @@ static inline void vm_events_fold_cpu(int cpu)
+diff --git a/include/uapi/linux/mempolicy.h b/include/uapi/linux/mempolicy.h
+index 16fb4e6..0d11c3d 100644
+--- a/include/uapi/linux/mempolicy.h
++++ b/include/uapi/linux/mempolicy.h
+@@ -67,6 +67,7 @@ enum mpol_rebind_step {
+ #define MPOL_F_LOCAL   (1 << 1)	/* preferred local allocation */
+ #define MPOL_F_REBINDING (1 << 2)	/* identify policies in rebinding */
+ #define MPOL_F_MOF	(1 << 3) /* this policy wants migrate on fault */
++#define MPOL_F_MORON	(1 << 4) /* Migrate On pte_numa Reference On Node */
  
- #endif /* CONFIG_VM_EVENT_COUNTERS */
  
-+#ifdef CONFIG_BALANCE_NUMA
-+#define count_vm_numa_event(x)     count_vm_event(x)
-+#define count_vm_numa_events(x, y) count_vm_events(x, y)
-+#else
-+#define count_vm_numa_event(x) do {} while (0)
-+#define count_vm_numa_events(x, y) do {} while (0)
-+#endif /* CONFIG_BALANCE_NUMA */
-+
- #define __count_zone_vm_events(item, zone, delta) \
- 		__count_vm_events(item##_NORMAL - ZONE_NORMAL + \
- 		zone_idx(zone), delta)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b3d4c4b..66e73cc 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1025,6 +1025,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	struct page *page = NULL;
- 	unsigned long haddr = addr & HPAGE_PMD_MASK;
- 	int target_nid;
-+	int current_nid = -1;
- 
- 	spin_lock(&mm->page_table_lock);
- 	if (unlikely(!pmd_same(pmd, *pmdp)))
-@@ -1033,6 +1034,10 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	page = pmd_page(pmd);
- 	get_page(page);
- 	spin_unlock(&mm->page_table_lock);
-+	current_nid = page_to_nid(page);
-+	count_vm_numa_event(NUMA_HINT_FAULTS);
-+	if (current_nid == numa_node_id())
-+		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 
- 	target_nid = mpol_misplaced(page, vma, haddr);
- 	if (target_nid == -1)
-diff --git a/mm/memory.c b/mm/memory.c
-index 1d6f85a..47f5dd1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3477,6 +3477,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	set_pte_at(mm, addr, ptep, pte);
- 	update_mmu_cache(vma, addr, ptep);
- 
-+	count_vm_numa_event(NUMA_HINT_FAULTS);
- 	page = vm_normal_page(vma, addr, pte);
- 	if (!page) {
- 		pte_unmap_unlock(ptep, ptl);
-@@ -3485,6 +3486,8 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 
- 	get_page(page);
- 	current_nid = page_to_nid(page);
-+	if (current_nid == numa_node_id())
-+		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 	target_nid = mpol_misplaced(page, vma, addr);
- 	pte_unmap_unlock(ptep, ptl);
- 	if (target_nid == -1) {
-@@ -3517,6 +3520,9 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long offset;
- 	spinlock_t *ptl;
- 	bool numa = false;
-+	int local_nid = numa_node_id();
-+	unsigned long nr_faults = 0;
-+	unsigned long nr_faults_local = 0;
- 
- 	spin_lock(&mm->page_table_lock);
- 	pmd = *pmdp;
-@@ -3565,10 +3571,16 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		curr_nid = page_to_nid(page);
- 		task_numa_fault(curr_nid, 1);
- 
-+		nr_faults++;
-+		if (curr_nid == local_nid)
-+			nr_faults_local++;
-+
- 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
- 	}
- 	pte_unmap_unlock(orig_pte, ptl);
- 
-+	count_vm_numa_events(NUMA_HINT_FAULTS, nr_faults);
-+	count_vm_numa_events(NUMA_HINT_FAULTS_LOCAL, nr_faults_local);
- 	return 0;
- }
- #else
+ #endif /* _UAPI_LINUX_MEMPOLICY_H */
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index a7a62fe..516491f 100644
+index 516491f..4c1c8d8 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -583,6 +583,8 @@ unsigned long change_prot_numa(struct vm_area_struct *vma,
- 	BUILD_BUG_ON(_PAGE_NUMA != _PAGE_PROTNONE);
+@@ -118,6 +118,26 @@ static struct mempolicy default_policy = {
+ 	.flags = MPOL_F_LOCAL,
+ };
  
- 	nr_updated = change_protection(vma, addr, end, vma->vm_page_prot, 0, 1);
-+	if (nr_updated)
-+		count_vm_numa_events(NUMA_PTE_UPDATES, nr_updated);
++static struct mempolicy preferred_node_policy[MAX_NUMNODES];
++
++static struct mempolicy *get_task_policy(struct task_struct *p)
++{
++	struct mempolicy *pol = p->mempolicy;
++	int node;
++
++	if (!pol) {
++		node = numa_node_id();
++		if (node != -1)
++			pol = &preferred_node_policy[node];
++
++		/* preferred_node_policy is not initialised early in boot */
++		if (!pol->mode)
++			pol = NULL;
++	}
++
++	return pol;
++}
++
+ static const struct mempolicy_operations {
+ 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
+ 	/*
+@@ -1598,7 +1618,7 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
+ struct mempolicy *get_vma_policy(struct task_struct *task,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+-	struct mempolicy *pol = task->mempolicy;
++	struct mempolicy *pol = get_task_policy(task);
  
- 	return nr_updated;
- }
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 49878d7..4f55694 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1514,7 +1514,8 @@ int migrate_misplaced_page(struct page *page, int node)
- 		if (nr_remaining) {
- 			putback_lru_pages(&migratepages);
- 			isolated = 0;
--		}
-+		} else
-+			count_vm_numa_event(NUMA_PAGE_MIGRATE);
+ 	if (vma) {
+ 		if (vma->vm_ops && vma->vm_ops->get_policy) {
+@@ -2021,7 +2041,7 @@ retry_cpuset:
+  */
+ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
+ {
+-	struct mempolicy *pol = current->mempolicy;
++	struct mempolicy *pol = get_task_policy(current);
+ 	struct page *page;
+ 	unsigned int cpuset_mems_cookie;
+ 
+@@ -2295,6 +2315,11 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long
+ 	default:
+ 		BUG();
  	}
- 	BUG_ON(!list_empty(&migratepages));
++
++	/* Migrate the page towards the node whose CPU is referencing it */
++	if (pol->flags & MPOL_F_MORON)
++		polnid = numa_node_id();
++
+ 	if (curnid != polnid)
+ 		ret = polnid;
  out:
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 3a067fa..cfa386da 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -774,6 +774,12 @@ const char * const vmstat_text[] = {
+@@ -2483,6 +2508,15 @@ void __init numa_policy_init(void)
+ 				     sizeof(struct sp_node),
+ 				     0, SLAB_PANIC, NULL);
  
- 	"pgrotated",
- 
-+#ifdef CONFIG_BALANCE_NUMA
-+	"numa_pte_updates",
-+	"numa_hint_faults",
-+	"numa_hint_faults_local",
-+	"numa_pages_migrated",
-+#endif
- #ifdef CONFIG_MIGRATION
- 	"pgmigrate_success",
- 	"pgmigrate_fail",
++	for_each_node(nid) {
++		preferred_node_policy[nid] = (struct mempolicy) {
++			.refcnt = ATOMIC_INIT(1),
++			.mode = MPOL_PREFERRED,
++			.flags = MPOL_F_MOF | MPOL_F_MORON,
++			.v = { .preferred_node = nid, },
++		};
++	}
++
+ 	/*
+ 	 * Set interleaving policy for system init. Interleaving is only
+ 	 * enabled across suitably sized nodes (default is >= 16MB), or
 -- 
 1.7.9.2
 
