@@ -1,174 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 196286B006C
-	for <linux-mm@kvack.org>; Fri,  7 Dec 2012 21:58:44 -0500 (EST)
-Date: Fri, 7 Dec 2012 21:58:42 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] Debugging: Keep track of page owners
-Message-ID: <20121208025842.GC31591@home.goodmis.org>
-References: <20121207212417.FAD8DAED@kernel.stglabs.ibm.com>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 3F7DC6B005D
+	for <linux-mm@kvack.org>; Sat,  8 Dec 2012 05:35:52 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so860065eek.14
+        for <linux-mm@kvack.org>; Sat, 08 Dec 2012 02:35:50 -0800 (PST)
+Message-ID: <50C31802.7030506@suse.cz>
+Date: Sat, 08 Dec 2012 11:35:46 +0100
+From: Jiri Slaby <jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121207212417.FAD8DAED@kernel.stglabs.ibm.com>
+Subject: Re: kswapd craziness in 3.7
+References: <1354049315-12874-1-git-send-email-hannes@cmpxchg.org> <20121128094511.GS8218@suse.de> <50BCC3E3.40804@redhat.com> <20121203191858.GY24381@cmpxchg.org> <50BDBCD9.9060509@redhat.com> <50BDBF1D.60105@suse.cz> <20121204161131.GB24381@cmpxchg.org>
+In-Reply-To: <20121204161131.GB24381@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Zdenek Kabelac <zkabelac@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, George Spelvin <linux@horizon.com>, Johannes Hirte <johannes.hirte@fem.tu-ilmenau.de>, Thorsten Leemhuis <fedora@leemhuis.info>, Tomas Racek <tracek@redhat.com>, Jan Kara <jack@suse.cz>, Dave Hansen <dave@linux.vnet.ibm.com>, Josh Boyer <jwboyer@gmail.com>, Valdis.Kletnieks@vt.edu, Bruno Wolff III <bruno@wolff.to>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 07, 2012 at 04:24:17PM -0500, Dave Hansen wrote:
+On 12/04/2012 05:11 PM, Johannes Weiner wrote:
+> On Tue, Dec 04, 2012 at 10:15:09AM +0100, Jiri Slaby wrote:
+>> It does not apply to -next :/. Should I try anything else?
 > 
-> diff -puN /dev/null Documentation/page_owner.c
+> The COMPACTION_BUILD changed to IS_ENABLED(CONFIG_COMPACTION), below
+> is a -next patch.  I hope you don't run into other problems that come
+> out of -next craziness, because Linus is kinda waiting for this to be
+> resolved to release 3.8.  If you've always tested against -next so far
+> and it worked otherwise, don't change the environment now, please.  If
+> you just started, it would make more sense to test based on 3.7-rc8.
+> 
+> Thanks!
+> 
+> ---
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch] mm: vmscan: do not keep kswapd looping forever due
+>  to individual uncompactable zones
+> 
+> When a zone meets its high watermark and is compactable in case of
+> higher order allocations, it contributes to the percentage of the
+> node's memory that is considered balanced.
+> 
+> This requirement, that a node be only partially balanced, came about
+> when kswapd was desparately trying to balance tiny zones when all
+> bigger zones in the node had plenty of free memory.  Arguably, the
+> same should apply to compaction: if a significant part of the node is
+> balanced enough to run compaction, do not get hung up on that tiny
+> zone that might never get in shape.
+> 
+> When the compaction logic in kswapd is reached, we know that at least
+> 25% of the node's memory is balanced properly for compaction (see
+> zone_balanced and pgdat_balanced).  Remove the individual zone checks
+> that restart the kswapd cycle.
+> 
+> Otherwise, we may observe more endless looping in kswapd where the
+> compaction code loops back to reclaim because of a single zone and
+> reclaim does nothing because the node is considered balanced overall.
+> 
+> Reported-by: Thorsten Leemhuis <fedora@leemhuis.info>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Can we stop putting code into Documentation? We have tools, samples and
-usr directories. I'm sure this could fit into one of them.
+Looks like it's gone with this patch now. Hopefully the send button
+won't trigger the issue the same as the last time :).
 
--- Steve
+> ---
+>  mm/vmscan.c | 16 ----------------
+>  1 file changed, 16 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 3b0aef4..486100f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2806,22 +2806,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  			if (!populated_zone(zone))
+>  				continue;
+>  
+> -			if (zone->all_unreclaimable &&
+> -			    sc.priority != DEF_PRIORITY)
+> -				continue;
+> -
+> -			/* Would compaction fail due to lack of free memory? */
+> -			if (IS_ENABLED(CONFIG_COMPACTION) &&
+> -			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
+> -				goto loop_again;
+> -
+> -			/* Confirm the zone is balanced for order-0 */
+> -			if (!zone_watermark_ok(zone, 0,
+> -					high_wmark_pages(zone), 0, 0)) {
+> -				order = sc.order = 0;
+> -				goto loop_again;
+> -			}
+> -
+>  			/* Check if the memory needs to be defragmented. */
+>  			if (zone_watermark_ok(zone, order,
+>  				    low_wmark_pages(zone), *classzone_idx, 0))
+> 
 
-> --- /dev/null	2012-06-13 15:09:09.708529931 -0400
-> +++ linux-2.6.git-dave/Documentation/page_owner.c	2012-12-07 16:22:43.872270758 -0500
-> @@ -0,0 +1,141 @@
-> +/*
-> + * User-space helper to sort the output of /sys/kernel/debug/page_owner
-> + *
-> + * Example use:
-> + * cat /sys/kernel/debug/page_owner > page_owner_full.txt
-> + * grep -v ^PFN page_owner_full.txt > page_owner.txt
-> + * ./sort page_owner.txt sorted_page_owner.txt
-> +*/
-> +
-> +#include <stdio.h>
-> +#include <stdlib.h>
-> +#include <sys/types.h>
-> +#include <sys/stat.h>
-> +#include <fcntl.h>
-> +#include <unistd.h>
-> +#include <string.h>
-> +
-> +struct block_list {
-> +	char *txt;
-> +	int len;
-> +	int num;
-> +};
-> +
-> +
-> +static struct block_list *list;
-> +static int list_size;
-> +static int max_size;
-> +
-> +struct block_list *block_head;
-> +
-> +int read_block(char *buf, FILE *fin)
-> +{
-> +	int ret = 0;
-> +	int hit = 0;
-> +	char *curr = buf;
-> +
-> +	for (;;) {
-> +		*curr = getc(fin);
-> +		if (*curr == EOF) return -1;
-> +
-> +		ret++;
-> +		if (*curr == '\n' && hit == 1)
-> +			return ret - 1;
-> +		else if (*curr == '\n')
-> +			hit = 1;
-> +		else
-> +			hit = 0;
-> +		curr++;
-> +	}
-> +}
-> +
-> +static int compare_txt(struct block_list *l1, struct block_list *l2)
-> +{
-> +	return strcmp(l1->txt, l2->txt);
-> +}
-> +
-> +static int compare_num(struct block_list *l1, struct block_list *l2)
-> +{
-> +	return l2->num - l1->num;
-> +}
-> +
-> +static void add_list(char *buf, int len)
-> +{
-> +	if (list_size != 0 &&
-> +	    len == list[list_size-1].len &&
-> +	    memcmp(buf, list[list_size-1].txt, len) == 0) {
-> +		list[list_size-1].num++;
-> +		return;
-> +	}
-> +	if (list_size == max_size) {
-> +		printf("max_size too small??\n");
-> +		exit(1);
-> +	}
-> +	list[list_size].txt = malloc(len+1);
-> +	list[list_size].len = len;
-> +	list[list_size].num = 1;
-> +	memcpy(list[list_size].txt, buf, len);
-> +	list[list_size].txt[len] = 0;
-> +	list_size++;
-> +	if (list_size % 1000 == 0) {
-> +		printf("loaded %d\r", list_size);
-> +		fflush(stdout);
-> +	}
-> +}
-> +
-> +int main(int argc, char **argv)
-> +{
-> +	FILE *fin, *fout;
-> +	char buf[1024];
-> +	int ret, i, count;
-> +	struct block_list *list2;
-> +	struct stat st;
-> +
-> +	fin = fopen(argv[1], "r");
-> +	fout = fopen(argv[2], "w");
-> +	if (!fin || !fout) {
-> +		printf("Usage: ./program <input> <output>\n");
-> +		perror("open: ");
-> +		exit(2);
-> +	}
-> +
-> +	fstat(fileno(fin), &st);
-> +	max_size = st.st_size / 100; /* hack ... */
-> +
-> +	list = malloc(max_size * sizeof(*list));
-> +
-> +	for(;;) {
-> +		ret = read_block(buf, fin);
-> +		if (ret < 0)
-> +			break;
-> +
-> +		buf[ret] = '\0';
-> +		add_list(buf, ret);
-> +	}
-> +
-> +	printf("loaded %d\n", list_size);
-> +
-> +	printf("sorting ....\n");
-> +
-> +	qsort(list, list_size, sizeof(list[0]), compare_txt);
-> +
-> +	list2 = malloc(sizeof(*list) * list_size);
-> +
-> +	printf("culling\n");
-> +
-> +	for (i=count=0;i<list_size;i++) {
-> +		if (count == 0 ||
-> +		    strcmp(list2[count-1].txt, list[i].txt) != 0) {
-> +			list2[count++] = list[i];
-> +		} else {
-> +			list2[count-1].num += list[i].num;
-> +		}
-> +	}
-> +
-> +	qsort(list2, count, sizeof(list[0]), compare_num);
-> +
-> +	for (i=0;i<count;i++) {
-> +		fprintf(fout, "%d times:\n%s\n", list2[i].num, list2[i].txt);
-> +	}
-> +	return 0;
-> +}
+
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
