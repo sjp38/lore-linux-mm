@@ -1,78 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id C17296B0070
-	for <linux-mm@kvack.org>; Sat,  8 Dec 2012 16:04:46 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/3] HWPOISON, hugetlbfs: fix warning on freeing hwpoisoned hugepage
-Date: Sat,  8 Dec 2012 16:04:35 -0500
-Message-Id: <1355000675-2008-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <20121207143414.b2d33095.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id F17BE6B0072
+	for <linux-mm@kvack.org>; Sat,  8 Dec 2012 16:22:13 -0500 (EST)
+Date: Sat, 08 Dec 2012 22:22:08 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+MIME-Version: 1.0
+References: <20121128145215.d23aeb1b.akpm@linux-foundation.org> <20121128235412.GW8218@suse.de> <50B77F84.1030907@leemhuis.info> <20121129170512.GI2301@cmpxchg.org> <50B8A8E7.4030108@leemhuis.info> <20121201004520.GK2301@cmpxchg.org> <50BC6314.7060106@leemhuis.info> <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com> <50C32D32.6040800@iskon.hr>
+In-Reply-To: <50C32D32.6040800@iskon.hr>
+Message-ID: <50C3AF80.8040700@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: Re: kswapd craziness in 3.7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, aneesh.kumar@linux.vnet.ibm.com, Andi Kleen <andi.kleen@intel.com>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 07, 2012 at 02:34:14PM -0800, Andrew Morton wrote:
-> On Fri,  7 Dec 2012 10:49:57 -0500
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On 08.12.2012 13:06, Zlatko Calusic wrote:
+> On 06.12.2012 20:31, Linus Torvalds wrote:
+>> Ok, people seem to be reporting success.
+>>
+>> I've applied Johannes' last patch with the new tested-by tags.
+>>
 >
-> > This patch fixes the warning from __list_del_entry() which is triggered
-> > when a process tries to do free_huge_page() for a hwpoisoned hugepage.
+> I've been testing this patch since it was applied, and it certainly
+> fixes the kswapd craziness issue, good work Johannes!
 >
-> This changelog is very short.  In fact it is too short, resulting in
-> others having to ask questions about the patch.  When this happens,
-> please treat it as a sign that the changelog needs additional
-> information - so that other readers will not feel a need to ask the
-> same questions!
-
-OK, I'll be careful after this.
-
-> I added this paragraph:
+> But, it's still not perfect yet, because I see that the system keeps
+> lots of memory unused (free), where it previously used it all for the
+> page cache (there's enough fs activity to warrant it).
 >
-> : free_huge_page() can be called for hwpoisoned hugepage from
-> : unpoison_memory().  This function gets refcount once and clears
-> : PageHWPoison, and then puts refcount twice to return the hugepage back to
-> : free pool.  The second put_page() finally reaches free_huge_page().
+> I'm now testing the last piece of Johannes' changes (still not in git
+> tree), and can report results in 24-48 hours.
 >
->
->
-> Also, is the description accurate?  Is the __list_del_entry() warning
-> the only problem?
+> Regards,
 
-Right, this description is correct and this warning is the only problem.
+Or sooner... in short: nothing's changed!
 
-> Or is it the case that this bug will cause memory corruption?  If so
-> then the patch is pretty important and is probably needed in -stable as
-> well?  I haven't checked how far back in time the bug exists.
+On a 4GB RAM system, where applications use close to 2GB, kswapd likes 
+to keep around 1GB free (unused), leaving only 1GB for page/buffer 
+cache. If I force bigger page cache by reading a big file and thus use 
+the unused 1GB of RAM, kswapd will soon (in a matter of minutes) evict 
+those (or other) pages out and once again keep unused memory close to 1GB.
 
-There's no memory corruption even if we leave this bug unfixed, because
-in unpoisoning (only way to change the status of hwpoisoned hugepage),
-there are two possible operations on page->lru as shown below:
+I guess it's not a showstopper, but it still counts as a very bad memory 
+management, wasting lots of RAM.
 
-  static void free_huge_page(struct page *page)
-  {
-          ...
-          if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
-                  /* remove the page from active list */
-                  list_del(&page->lru);
-                  update_and_free_page(h, page);
-                  h->surplus_huge_pages--;
-                  h->surplus_huge_pages_node[nid]--;
-          } else {
-                  arch_clear_hugepage_flags(page);
-                  enqueue_huge_page(h, page); /* list_move inside this function*/
-          }
-          ...
-  }
+As an additional data point, if memory pressure is slightly higher (say 
+backup kicks in, keeping page cache mostly full) kswapd gets in D 
+(uninterruptible sleep) state (function: congestion_wait) and load 
+average goes up by 1. It recovers only when it successfully throws out 
+half of page cache again.
 
-, but both path do simply list_del() or list_move(), so there's no
-difference (except for warning) after this block whether page->lru is
-dangling or pointing to itself.
-
-This bug was introduced recently on commit 0edaecfab218d747d30de
-("hugetlb: add a list for tracking in-use HugeTLB pages").
-
-Naoya
+Hope it helps.
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
