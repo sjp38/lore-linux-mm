@@ -1,40 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 10E046B005D
-	for <linux-mm@kvack.org>; Sat,  8 Dec 2012 07:06:14 -0500 (EST)
-Date: Sat, 08 Dec 2012 13:06:10 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-MIME-Version: 1.0
-References: <20121128145215.d23aeb1b.akpm@linux-foundation.org> <20121128235412.GW8218@suse.de> <50B77F84.1030907@leemhuis.info> <20121129170512.GI2301@cmpxchg.org> <50B8A8E7.4030108@leemhuis.info> <20121201004520.GK2301@cmpxchg.org> <50BC6314.7060106@leemhuis.info> <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
-In-Reply-To: <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
-Message-ID: <50C32D32.6040800@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: kswapd craziness in 3.7
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 911A76B005D
+	for <linux-mm@kvack.org>; Sat,  8 Dec 2012 09:55:08 -0500 (EST)
+From: "K. Y. Srinivasan" <kys@microsoft.com>
+Subject: mm 
+Date: Sat,  8 Dec 2012 07:18:49 -0800
+Message-Id: <1354979929-18462-1-git-send-email-kys@microsoft.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, andi@firstfloor.org, akpm@linux-foundation.org, linux-mm@kvack.org, kys@microsoft.com
 
-On 06.12.2012 20:31, Linus Torvalds wrote:
-> Ok, people seem to be reporting success.
->
-> I've applied Johannes' last patch with the new tested-by tags.
->
+While running some compilation load on a Linux-next kernel of December 2,
+2012, I see the following messages:
 
-I've been testing this patch since it was applied, and it certainly 
-fixes the kswapd craziness issue, good work Johannes!
-
-But, it's still not perfect yet, because I see that the system keeps 
-lots of memory unused (free), where it previously used it all for the 
-page cache (there's enough fs activity to warrant it).
-
-I'm now testing the last piece of Johannes' changes (still not in git 
-tree), and can report results in 24-48 hours.
+[ 1164.988521] BUG: Bad rss-counter state mm:ffff88002f8aa740 idx:1 val:-2
+[ 5042.442664] BUG: Bad rss-counter state mm:ffff88002f029140 idx:1 val:-1
+[ 5046.108841] BUG: Bad rss-counter state mm:ffff88000d052040 idx:1 val:-1
+[ 7534.904609] BUG: Bad rss-counter state mm:ffff88002faf9740 idx:1 val:-1
 
 Regards,
--- 
-Zlatko
+
+K. Y
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
