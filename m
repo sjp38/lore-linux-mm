@@ -1,165 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id EBCEB6B0044
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2012 13:16:42 -0500 (EST)
-Message-ID: <50C46568.80405@infradead.org>
-Date: Sun, 09 Dec 2012 02:18:16 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 355616B0044
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2012 14:39:51 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so1448747pbc.14
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2012 11:39:50 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH]  improve read ahead in kernel
-References: <50C4B4E7.60601@intel.com>
-In-Reply-To: <50C4B4E7.60601@intel.com>
+In-Reply-To: <1353955671-14385-4-git-send-email-mhocko@suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+	<1353955671-14385-4-git-send-email-mhocko@suse.cz>
+Date: Sun, 9 Dec 2012 11:39:50 -0800
+Message-ID: <CALWz4ixPmvguxQO8s9mqH+OLEXC5LDfzEVFx_qqe2hBaRcsXiA@mail.gmail.com>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup iterators
+From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xtu4 <xiaobing.tu@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org, linux-mm@kvack.org, di.zhang@intel.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On 12/09/12 07:57, xtu4 wrote:
-> 
-> Subject: [PATCH] when system in low memory scenario, imaging there is a mp3
->  play, or video play, we need to read mp3 or video file
->  from memory to page cache,but when system lack of memory,
->  page cache of mp3 or video file will be reclaimed.once read
->  in memory, then reclaimed, it will cause audio or video
->  glitch,and it will increase the io operation at the same
->  time.
-> 
-> Signed-off-by: xiaobing tu <xiaobing.tu@intel.com>
-
-What tree does this patch apply to?
-
-It looks like most (or all) of the tabs in the source files have
-been changed to spaces, which is Not Good.
-Maybe some info in Documentation/email-clients.txt could help you.
-
+On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> mem_cgroup_iter curently relies on css->id when walking down a group
+> hierarchy tree. This is really awkward because the tree walk depends on
+> the groups creation ordering. The only guarantee is that a parent node
+> is visited before its children.
+> Example
+>  1) mkdir -p a a/d a/b/c
+>  2) mkdir -a a/b/c a/d
+> Will create the same trees but the tree walks will be different:
+>  1) a, d, b, c
+>  2) a, b, c, d
+>
+> 574bd9f7 (cgroup: implement generic child / descendant walk macros) has
+> introduced generic cgroup tree walkers which provide either pre-order
+> or post-order tree walk. This patch converts css->id based iteration
+> to pre-order tree walk to keep the semantic with the original iterator
+> where parent is always visited before its subtree.
+>
+> cgroup_for_each_descendant_pre suggests using post_create and
+> pre_destroy for proper synchronization with groups addidition resp.
+> removal. This implementation doesn't use those because a new memory
+> cgroup is fully initialized in mem_cgroup_create and css reference
+> counting enforces that the group is alive for both the last seen cgroup
+> and the found one resp. it signals that the group is dead and it should
+> be skipped.
+>
+> If the reclaim cookie is used we need to store the last visited group
+> into the iterator so we have to be careful that it doesn't disappear in
+> the mean time. Elevated reference count on the css keeps it alive even
+> though the group have been removed (parked waiting for the last dput so
+> that it can be freed).
+>
+> V2
+> - use css_{get,put} for iter->last_visited rather than
+>   mem_cgroup_{get,put} because it is stronger wrt. cgroup life cycle
+> - cgroup_next_descendant_pre expects NULL pos for the first iterartion
+>   otherwise it might loop endlessly for intermediate node without any
+>   children.
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > ---
->  include/linux/mm_types.h |    4 ++++
->  mm/Kconfig               |    6 ++++++
->  mm/filemap.c             |    4 ++++
->  mm/readahead.c           |   20 +++++++++++++++++---
->  mm/vmscan.c              |   10 ++++++++--
->  5 files changed, 39 insertions(+), 5 deletions(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 5b42f1b..541864d 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -149,6 +149,10 @@ struct page {
->       */
->      void *shadow;
->  #endif
-> +#ifdef CONFIG_LOWMEMORY_READAHEAD
-> +    unsigned int ioprio;
-> +#endif
+>  mm/memcontrol.c |   74 ++++++++++++++++++++++++++++++++++++++++++-------------
+>  1 file changed, 57 insertions(+), 17 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1f5528d..6bcc97b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -144,8 +144,8 @@ struct mem_cgroup_stat_cpu {
+>  };
+>
+>  struct mem_cgroup_reclaim_iter {
+> -       /* css_id of the last scanned hierarchy member */
+> -       int position;
+> +       /* last scanned hierarchy member with elevated css ref count */
+> +       struct mem_cgroup *last_visited;
+>         /* scan generation, increased every round-trip */
+>         unsigned int generation;
+>         /* lock to protect the position and generation */
+> @@ -1066,7 +1066,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                                    struct mem_cgroup_reclaim_cookie *reclaim)
+>  {
+>         struct mem_cgroup *memcg = NULL;
+> -       int id = 0;
+> +       struct mem_cgroup *last_visited = NULL;
+>
+>         if (mem_cgroup_disabled())
+>                 return NULL;
+> @@ -1075,7 +1075,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                 root = root_mem_cgroup;
+>
+>         if (prev && !reclaim)
+> -               id = css_id(&prev->css);
+> +               last_visited = prev;
+>
+>         if (!root->use_hierarchy && root != root_mem_cgroup) {
+>                 if (prev)
+> @@ -1083,9 +1083,10 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                 return root;
+>         }
+>
+> +       rcu_read_lock();
+>         while (!memcg) {
+>                 struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+> -               struct cgroup_subsys_state *css;
+> +               struct cgroup_subsys_state *css = NULL;
+>
+>                 if (reclaim) {
+>                         int nid = zone_to_nid(reclaim->zone);
+> @@ -1095,34 +1096,73 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>                         mz = mem_cgroup_zoneinfo(root, nid, zid);
+>                         iter = &mz->reclaim_iter[reclaim->priority];
+>                         spin_lock(&iter->iter_lock);
+> +                       last_visited = iter->last_visited;
+>                         if (prev && reclaim->generation != iter->generation) {
+> +                               if (last_visited) {
+> +                                       css_put(&last_visited->css);
+> +                                       iter->last_visited = NULL;
+> +                               }
+>                                 spin_unlock(&iter->iter_lock);
+> -                               goto out_css_put;
+> +                               goto out_unlock;
+>                         }
+> -                       id = iter->position;
+>                 }
+>
+> -               rcu_read_lock();
+> -               css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+> -               if (css) {
+> -                       if (css == &root->css || css_tryget(css))
+> -                               memcg = mem_cgroup_from_css(css);
+> -               } else
+> -                       id = 0;
+> -               rcu_read_unlock();
+> +               /*
+> +                * Root is not visited by cgroup iterators so it needs an
+> +                * explicit visit.
+> +                */
+> +               if (!last_visited) {
+> +                       css = &root->css;
+> +               } else {
+> +                       struct cgroup *prev_cgroup, *next_cgroup;
 > +
->  }
->  /*
->   * If another subsystem starts using the double word pairing for atomic
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index e338407..dade8d3 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -140,6 +140,12 @@ config ARCH_DISCARD_MEMBLOCK
->  config NO_BOOTMEM
->      boolean
-> 
-> +# improve readahead in low memory scenario
-> +config LOWMEMORY_READAHEAD
-> +    bool "improve readahead in low memory scenario"
-> +    depends on (IA64 || X86)
-
-Why this depends on?
-I don't see anything that is arch-specific in the patch.
-
-
+> +                       prev_cgroup = (last_visited == root) ? NULL
+> +                               : last_visited->css.cgroup;
+> +                       next_cgroup = cgroup_next_descendant_pre(prev_cgroup,
+> +                                       root->css.cgroup);
+> +                       if (next_cgroup)
+> +                               css = cgroup_subsys_state(next_cgroup,
+> +                                               mem_cgroup_subsys_id);
+> +               }
 > +
+> +               /*
+> +                * Even if we found a group we have to make sure it is alive.
+> +                * css && !memcg means that the groups should be skipped and
+> +                * we should continue the tree walk.
+> +                * last_visited css is safe to use because it is protected by
+> +                * css_get and the tree walk is rcu safe.
+> +                */
+> +               if (css == &root->css || (css && css_tryget(css)))
+> +                       memcg = mem_cgroup_from_css(css);
+>
+>                 if (reclaim) {
+> -                       iter->position = id;
+> +                       struct mem_cgroup *curr = memcg;
 > +
->  # eventually, we can have this option just 'select SPARSEMEM'
->  config MEMORY_HOTPLUG
->      bool "Allow for memory hot-add"
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index a0701e6..e32efed8 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -129,6 +129,10 @@ void __delete_from_page_cache(struct page *page)
->      page->mapping = NULL;
->      /* Leave page->index set: truncation lookup relies upon it */
->      mapping->nrpages--;
-> +    #ifdef CONFIG_LOWMEMORY_READAHEAD
-> +    page->ioprio = 0;
-> +    #endif
+> +                       if (last_visited)
+> +                               css_put(&last_visited->css);
 > +
->      __dec_zone_page_state(page, NR_FILE_PAGES);
->      if (PageSwapBacked(page))
->          __dec_zone_page_state(page, NR_SHMEM);
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index cbcbb02..dd07cfe 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -159,6 +159,11 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
->      int page_idx;
->      int ret = 0;
->      loff_t isize = i_size_read(inode);
-> +#ifdef CONFIG_LOWMEMORY_READAHEAD
-> +    int class = 0;
-> +    if (p->io_context)
-> +    class = IOPRIO_PRIO_CLASS(p->io_context->ioprio);
-> +#endif
-> 
->      if (isize == 0)
->          goto out;
-> @@ -177,12 +182,21 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
->          rcu_read_lock();
->          page = radix_tree_lookup(&mapping->page_tree, page_offset);
->          rcu_read_unlock();
-> -        if (page)
-> -            continue;
-> -
-> +        if (page){
-> +#ifdef CONFIG_LOWMEMORY_READAHEAD
-> +            if (class == IOPRIO_CLASS_RT) {
-> +                page->ioprio = 1;
-> +#endif
-> +                continue;
-> +            }
->          page = page_cache_alloc_readahead(mapping);
->          if (!page)
->              break;
-> +#ifdef CONFIG_LOWMEMORY_READAHEAD
-> +        if (class == IOPRIO_CLASS_RT) {
-> +            page->ioprio = 1;
-> +#endif
+> +                       if (css && !memcg)
+> +                               curr = mem_cgroup_from_css(css);
 > +
->          page->index = page_offset;
->          list_add(&page->lru, &page_pool);
->          if (page_idx == nr_to_read - lookahead_size)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 753a2dc..86e03aa 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -728,8 +728,14 @@ static enum page_references page_check_references(struct page *page,
->      }
-> 
->      /* Reclaim if clean, defer dirty pages to writeback */
-> -    if (referenced_page && !PageSwapBacked(page))
-> -        return PAGEREF_RECLAIM_CLEAN;
-> +    if (referenced_page && !PageSwapBacked(page)) {
-> +#ifdef CONFIG_LOWMEMORY_READAHEAD
-> +        if (page->ioprio == 1) {
-> +            return PAGEREF_ACTIVATE;
-> +        } else
-> +#endif
-> +            return PAGEREF_RECLAIM_CLEAN;
-> +    }
-> 
->      return PAGEREF_RECLAIM;
->  }
+> +                       /* make sure that the cached memcg is not removed */
+> +                       if (curr)
+> +                               css_get(&curr->css);
+> +                       iter->last_visited = curr;
+
+Here we take extra refcnt for last_visited, and assume it is under
+target reclaim which then calls mem_cgroup_iter_break() and we leaked
+a refcnt of the
+target memcg css. Sorry if i missed the change in iter_break(),
+otherwise we might need something like this:
+
+ void mem_cgroup_iter_break(struct mem_cgroup *root,
+-                          struct mem_cgroup *prev)
++                          struct mem_cgroup *prev,
++                          struct mem_cgroup_reclaim_cookie *reclaim)
+ {
+        if (!root)
+                root = root_mem_cgroup;
+        if (prev && prev != root)
+                css_put(&prev->css);
++
++       if (reclaim) {
++               int nid = zone_to_nid(reclaim->zone);
++               int zid = zone_idx(reclaim->zone);
++               struct mem_cgroup *last_visited = NULL;
++               struct mem_cgroup_per_zone *mz;
++               struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
++
++               mz = mem_cgroup_zoneinfo(root, nid, zid);
++               iter = &mz->reclaim_iter[reclaim->priority];
++               spin_lock(&iter->iter_lock);
++               last_visited = iter->last_visited;
++               if (last_visited) {
++                       css_put(&last_visited->css);
++                       iter->last_visited = NULL;
++               }
++               spin_unlock(&iter->iter_lock);
++       }
+ }
+
+--Ying
 
 
--- 
-~Randy
+
+>                         if (!css)
+>                                 iter->generation++;
+>                         else if (!prev && memcg)
+>                                 reclaim->generation = iter->generation;
+>                         spin_unlock(&iter->iter_lock);
+> +               } else if (css && !memcg) {
+> +                       last_visited = mem_cgroup_from_css(css);
+>                 }
+>
+>                 if (prev && !css)
+> -                       goto out_css_put;
+> +                       goto out_unlock;
+>         }
+> +out_unlock:
+> +       rcu_read_unlock();
+>  out_css_put:
+>         if (prev && prev != root)
+>                 css_put(&prev->css);
+> --
+> 1.7.10.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
