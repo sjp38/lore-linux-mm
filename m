@@ -1,56 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id B43E76B0062
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 04:07:35 -0500 (EST)
-Date: Mon, 10 Dec 2012 09:07:30 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/45] Automatic NUMA Balancing V7
-Message-ID: <20121210090730.GF1009@suse.de>
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
- <20121126145800.GK8218@suse.de>
- <20121128134930.GB20087@suse.de>
- <20121207104539.GB22164@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 244506B0068
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 04:07:50 -0500 (EST)
+Message-ID: <50C5A62A.6030401@huawei.com>
+Date: Mon, 10 Dec 2012 17:06:50 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20121207104539.GB22164@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
+References: <50C1AD6D.7010709@huawei.com> <20121207141102.4fda582d.akpm@linux-foundation.org> <20121210083342.GA31670@hacker.(null)>
+In-Reply-To: <20121210083342.GA31670@hacker.(null)>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
 
-On Fri, Dec 07, 2012 at 04:15:39PM +0530, Srikar Dronamraju wrote:
+On 2012/12/10 16:33, Wanpeng Li wrote:
+
+> On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
+>> On Fri, 7 Dec 2012 16:48:45 +0800
+>> Xishi Qiu <qiuxishi@huawei.com> wrote:
+>>
+>>> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
+>>> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
+>>> since the page was already marked HWPoison, we should skip the page and don't add the
+>>> value of mce_bad_pages.
+>>>
+>>> $ cat /proc/meminfo | grep HardwareCorrupted
+>>>
+>>> soft_offline_page()
+>>> 	get_any_page()
+>>> 		atomic_long_add(1, &mce_bad_pages)
+>>>
+>>> ...
+>>>
+>>> --- a/mm/memory-failure.c
+>>> +++ b/mm/memory-failure.c
+>>> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
+>>>  		return ret;
+>>>
+>>>  done:
+>>> -	atomic_long_add(1, &mce_bad_pages);
+>>> -	SetPageHWPoison(page);
+>>>  	/* keep elevated page count for bad page */
+>>> +	if (!PageHWPoison(page)) {
+>>> +		atomic_long_add(1, &mce_bad_pages);
+>>> +		SetPageHWPoison(page);
+>>> +	}
+>>> +
+>>>  	return ret;
+>>>  }
+>>
+>> A few things:
+>>
+>> - soft_offline_page() already checks for this case:
+>>
+>> 	if (PageHWPoison(page)) {
+>> 		unlock_page(page);
+>> 		put_page(page);
+>> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+>> 		return -EBUSY;
+>> 	}
+>>
+>>  so why didn't this check work for you?
+>>
+>>  Presumably because one of the earlier "goto done" branches was
+>>  taken.  Which one, any why?
+>>
+>>  This function is an utter mess.  It contains six return points
+>>  randomly intermingled with three "goto done" return points.
+>>
+>>  This mess is probably the cause of the bug you have observed.  Can
+>>  we please fix it up somehow?  It *seems* that the design (lol) of
+>>  this function is "for errors, return immediately.  For success, goto
+>>  done".  In which case "done" should have been called "success".  But
+>>  if you just look at the function you'll see that this approach didn't
+>>  work.  I suggest it be converted to have two return points - one for
+>>  the success path, one for the failure path.  Or something.
+>>
+>> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
+>>  and might suffer the same bug.
+>>
+>> - A cleaner, shorter and possibly faster implementation is
+>>
+>> 	if (!TestSetPageHWPoison(page))
+>> 		atomic_long_add(1, &mce_bad_pages);
+>>
 > 
-> Got a chance to run autonuma-benchmark on a 8 node, 64 core machine. 
-> the results are as below. (for each kernel I ran 5 iterations of
-> autonuma-benchmark)
+> Hi Andrew,
+> 
+> Since hwpoison bit for free buddy page has already be set in get_any_page, 
+> !TestSetPageHWPoison(page) will not increase mce_bad_pages count even for 
+> the first time.
+> 
+> Regards,
+> Wanpeng Li
 > 
 
-Thanks, a test of v10 would also be appreciated. The differences between
-V7 and V10 are small but do include a change in how migrate rate-limiting
-is handled. It is unlikely it'll make a difference to this test but I'd
-like to rule it out.
+The poisoned page is isolated in bad_page(), I wonder whether it could be isolated
+immediately in soft_offline_page() and memory_failure()?
 
-> KernelVersion: 3.7.0-rc3-mainline_v37rc7()
+buffered_rmqueue()
+	prep_new_page()
+		check_new_page()
+			bad_page()
 
-What kernel is this? The name begins with 3.7-rc3 but then says
-v37rc7. v37rc7 of what? I thought it might be v3.7-rc7 but it already said
-it's 3.7-rc3 so I'm confused. Would it be possible to base the tests on
-a similar baseline kernel such as 3.7.0-rc7 or 3.7.0-rc8? The
-balancenuma patches should apply and the autonuma patches can be taken
-from the mm-autonuma-v28fastr4-mels-rebase branch in
-git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
+Thanks
+Xishi Qiu
 
-Either way, the figures look bad. I'm trying to find a similar machine
-but initially at least I have not had much luck. Can you post the .config
-you used for balancenuma in case I can reproduce the problem on a 4-node
-machine please? Are all the nodes the same size?
+>> - We have atomic_long_inc().  Use it?
+>>
+>> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
+>>  concept, and this code is in mm/.  Lights are flashing, bells are
+>>  ringing and a loudspeaker is blaring "layering violation" at us!
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
+> .
+> 
 
-Thanks!
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
