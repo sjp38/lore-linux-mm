@@ -1,83 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id CC2F56B0068
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2012 21:48:45 -0500 (EST)
-Date: Mon, 10 Dec 2012 10:48:36 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH][RESEND] mm: Avoid possible deadlock caused by
- too_many_isolated()
-Message-ID: <20121210024836.GA15821@localhost>
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id 8825A6B006E
+	for <linux-mm@kvack.org>; Sun,  9 Dec 2012 22:15:58 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id l22so2564897vbn.14
+        for <linux-mm@kvack.org>; Sun, 09 Dec 2012 19:15:57 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <c8728036-07da-49ce-b4cb-c3d800790b53@default>
+References: <c8728036-07da-49ce-b4cb-c3d800790b53@default>
+Date: Mon, 10 Dec 2012 11:15:57 +0800
+Message-ID: <CAA_GA1eBR6=vasnoSDYZK9qvYQtzVS9q2CHC3M-qeVRRp1dhPg@mail.gmail.com>
+Subject: Re: zram /proc/swaps accounting weirdness
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Torsten Kaiser <just.for.lkml@googlemail.com>, NeilBrown <neilb@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, Li Zefan <lizefan@huawei.com>, wuqixuan@huawei.com, zengweilin@huawei.com, shaoyafang@huawei.com
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org
 
-Neil find that if too_many_isolated() returns true while performing
-direct reclaim we can end up waiting for other threads to complete their
-direct reclaim.  If those threads are allowed to enter the FS or IO to
-free memory, but this thread is not, then it is possible that those
-threads will be waiting on this thread and so we get a circular
-deadlock.
+Hi Dan,
 
-some task enters direct reclaim with GFP_KERNEL
-  => too_many_isolated() false
-    => vmscan and run into dirty pages
-      => pageout()
-        => take some FS lock
-	  => fs/block code does GFP_NOIO allocation
-	    => enter direct reclaim again
-	      => too_many_isolated() true
-		  => waiting for others to progress, however the other
-		     tasks may be circular waiting for the FS lock..
+On Sat, Dec 8, 2012 at 7:57 AM, Dan Magenheimer
+<dan.magenheimer@oracle.com> wrote:
+> While playing around with zcache+zram (see separate thread),
+> I was watching stats with "watch -d".
+>
+> It appears from the code that /sys/block/num_writes only
+> increases, never decreases.  In my test, num_writes got up
+> to 1863.  /sys/block/disksize is 104857600.
+>
+> I have two swap disks, one zram (pri=60), one real (pri=-1),
+> and as a I watched /proc/swaps, the "Used" field grew rapidly
+> and reached the Size (102396k) of the zram swap, and then
+> the second swap disk (a physical disk partition) started being
+> used.  Then for awhile, the Used field for both swap devices
+> was changing (up and down).
+>
+> Can you explain how this could happen if num_writes never
+> exceeded 1863?  This may be harmless in the case where
+> the only swap on the system is zram; or may indicate a bug
+> somewhere?
+>
 
-The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
-priority than normal ones, by lowering the throttle threshold for the
-latter.
+Sorry, I didn't get your idea here.
+In my opinion, num_writes is the count of request but not the size.
+I think the total size should be the sum of bio->bi_size,
+so if num_writes is 1863 the actual size may also exceed 102396k.
 
-Allowing ~1/8 isolated pages in normal is large enough. For example,
-for a 1GB LRU list, that's ~128MB isolated pages, or 1k blocked tasks
-(each isolates 32 4KB pages), or 64 blocked tasks per logical CPU
-(assuming 16 logical CPUs per NUMA node). So it's not likely some CPU
-goes idle waiting (when it could make progress) because of this limit:
-there are much more sleeping reclaim tasks than the number of CPU, so
-the task may well be blocked by some low level queue/lock anyway.
+> It looks like num_writes is counting bio's not pages...
+> which would imply the bio's are potentially quite large
+> (and I'll guess they are of size SWAPFILE_CLUSTER which is
+> defined to be 256).  Do large clusters make sense with zram?
+>
+> Late on a Friday so sorry if I am incomprehensible...
+>
+> P.S. The corresponding stat for zcache indicates that
+> it failed 8852 stores, so I would have expected zram
+> to deal with no more than 8852 compressions.
+>
 
-Now !GFP_IOFS reclaims won't be waiting for GFP_IOFS reclaims to
-progress. They will be blocked only when there are too many concurrent
-!GFP_IOFS reclaims, however that's very unlikely because the IO-less
-direct reclaims is able to progress much more faster, and they won't
-deadlock each other. The threshold is raised high enough for them, so
-that there can be sufficient parallel progress of !GFP_IOFS reclaims.
-
-CC: Torsten Kaiser <just.for.lkml@googlemail.com>
-Tested-by: NeilBrown <neilb@suse.de>
-Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
----
- mm/vmscan.c |    7 +++++++
- 1 file changed, 7 insertions(+)
-
---- linux-next.orig/mm/vmscan.c	2012-12-10 10:43:06.474928860 +0800
-+++ linux-next/mm/vmscan.c	2012-12-10 10:43:09.022928920 +0800
-@@ -1202,6 +1202,13 @@ static int too_many_isolated(struct zone
- 		isolated = zone_page_state(zone, NR_ISOLATED_ANON);
- 	}
- 
-+	/*
-+	 * GFP_NOIO/GFP_NOFS callers are allowed to isolate more pages, so that
-+	 * they won't get blocked by normal ones and form circular deadlock.
-+	 */
-+	if ((sc->gfp_mask & GFP_IOFS) == GFP_IOFS)
-+		inactive >>= 3;
-+
- 	return isolated > inactive;
- }
- 
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
