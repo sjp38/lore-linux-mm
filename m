@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id C7BD56B0062
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 13:22:45 -0500 (EST)
-Date: Mon, 10 Dec 2012 19:22:37 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [GIT TREE] Unified NUMA balancing tree, v3
-In-Reply-To: <1354839566-15697-1-git-send-email-mingo@kernel.org>
-Message-ID: <alpine.LFD.2.02.1212101902050.4422@ionos>
-References: <1354839566-15697-1-git-send-email-mingo@kernel.org>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 6C3436B006C
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 13:29:06 -0500 (EST)
+Date: Mon, 10 Dec 2012 19:29:00 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <20121201004520.GK2301@cmpxchg.org> <50BC6314.7060106@leemhuis.info> <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com> <50C32D32.6040800@iskon.hr> <50C3AF80.8040700@iskon.hr> <alpine.LFD.2.02.1212081651270.4593@air.linux-foundation.org> <20121210110337.GH1009@suse.de>
+In-Reply-To: <20121210110337.GH1009@suse.de>
+Message-ID: <50C629EC.6080800@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
+Subject: Re: kswapd craziness in 3.7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, 7 Dec 2012, Ingo Molnar wrote:
-> The SPECjbb 4x JVM numbers are still very close to the
-> hard-binding results:
-> 
->   Fri Dec  7 02:08:42 CET 2012
->   spec1.txt:           throughput =     188667.94 SPECjbb2005 bops
->   spec2.txt:           throughput =     190109.31 SPECjbb2005 bops
->   spec3.txt:           throughput =     191438.13 SPECjbb2005 bops
->   spec4.txt:           throughput =     192508.34 SPECjbb2005 bops
->                                       --------------------------
->         SUM:           throughput =     762723.72 SPECjbb2005 bops
-> 
-> And the same is true for !THP as well.
+On 10.12.2012 12:03, Mel Gorman wrote:
+> There is a big difference between a direct reclaim/compaction for THP
+> and kswapd doing the same work. Direct reclaim/compaction will try once,
+> give up quickly and defer requests in the near future to avoid impacting
+> the system heavily for THP. The same applies for khugepaged.
+>
+> kswapd is different. It can keep going until it meets its watermarks for
+> a THP allocation are met. Two reasons why it might keep going for a long
+> time are that compaction is being inefficient which we know it may be due
+> to crap like this
+>
+> end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
+>
+> and the second reason is if the highest zone is relatively because
+> compaction_suitable will keep saying that allocations are failing due to
+> insufficient amounts of memory in the highest zone. It'll reclaim a little
+> from this highest zone and then shrink_slab() potentially dumping a large
+> amount of memory. This may be the case for Zlatko as with a 4G machine
+> his ZONE_NORMAL could be small depending on how the 32-bit address space
+> is used by his hardware.
+>
 
-I could not resist to throw all relevant trees on my own 4node machine
-and run a SPECjbb 4x JVM comparison. All results have been averaged
-over 10 runs.
+The kernel is 64-bit, if it makes any difference (userspace, though is 
+still 32-bit). There's no swap (swap support not even compiled in). The 
+zones are as follows:
 
-mainline:	v3.7-rc8
-autonuma:	mm-autonuma-v28fastr4-mels-rebase
-balancenuma:	mm-balancenuma-v10r3
-numacore:	Unified NUMA balancing tree, v3
+On node 0 totalpages: 1048019
+   DMA zone: 64 pages used for memmap
+   DMA zone: 6 pages reserved
+   DMA zone: 3913 pages, LIFO batch:0
+   DMA32 zone: 16320 pages used for memmap
+   DMA32 zone: 831109 pages, LIFO batch:31
+   Normal zone: 3072 pages used for memmap
+   Normal zone: 193535 pages, LIFO batch:31
 
-The config is based on a F16 config with CONFIG_PREEMPT_NONE=y and the
-relevant NUMA options enabled for the 4 trees.
+If I understand correctly, you think that because 193535 pages in 
+ZONE_NORMAL is relatively small compared to 831109 pages of ZONE_DMA32 
+the system has hard time balancing itself?
 
-THP off: manual placement result:     125239
+Is there any way I could force and test different memory layout? I'm 
+slightly lost at all the memory models (if I have a choice at all), so 
+if you have any suggestions, I'm all ears.
 
-		Auto result	Man/Auto	Mainline/Auto	Variance
-mainline    :	     93945	0.750		1.000		 5.91%
-autonuma    :	    123651	0.987		1.316		 5.15%
-balancenuma :	     97327	0.777		1.036		 5.19%
-numacore    :	    123009	0.982		1.309		 5.73%
+Maybe I could limit available memory and thus have only DMA32 zone, just 
+to prove your theory? I remember doing tuning like that many years ago 
+when I had more time to play with Linux MM, unfortunately didn't have 
+much time lately, so I'm a bit rusty, but I'm willing to help testing 
+and resolving this issue.
 
-
-THP on: manual placement result:     143170
-
-		Auto result	Auto/Manual	Auto/Mainline	Variance
-mainline    :	    104462	0.730		1.000		 8.47%
-autonuma    :	    137363	0.959		1.315		 5.81%
-balancenuma :	    112183	0.784		1.074		11.58%
-numacore    :	    142728	0.997		1.366		 2.94%
-
-So autonuma and numacore are basically on the same page, with a slight
-advantage for numacore in the THP enabled case. balancenuma is closer
-to mainline than to autonuma/numacore.
-
-Thanks,
-
-	tglx
-
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
