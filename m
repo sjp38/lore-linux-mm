@@ -1,184 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id A69776B005A
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 07:47:50 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so2079341pad.14
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2012 04:47:49 -0800 (PST)
-Message-ID: <1355143664.1821.8.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Mon, 10 Dec 2012 06:47:44 -0600
-In-Reply-To: <50C5D844.8050707@huawei.com>
-References: <50C1AD6D.7010709@huawei.com>
-	   <20121207141102.4fda582d.akpm@linux-foundation.org>
-	   <20121210083342.GA31670@hacker.(null)> <50C5A62A.6030401@huawei.com>
-	  <1355136423.1700.2.camel@kernel.cn.ibm.com> <50C5C4A2.2070002@huawei.com>
-	 <1355140561.1821.5.camel@kernel.cn.ibm.com> <50C5D844.8050707@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 3295E6B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 09:40:48 -0500 (EST)
+Received: by mail-oa0-f41.google.com with SMTP id k14so3247764oag.14
+        for <linux-mm@kvack.org>; Mon, 10 Dec 2012 06:40:47 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20121207145909.GA4928@redhat.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+	<20121206145020.93fd7128.akpm@linux-foundation.org>
+	<CAAmzW4N-=uXBdgjbkdL=aNVtKvvXZs-6BNgpDzi7CLkeo0-jBg@mail.gmail.com>
+	<20121207145909.GA4928@redhat.com>
+Date: Mon, 10 Dec 2012 23:40:47 +0900
+Message-ID: <CAAmzW4NHO=y=utmK_at+JxvyYMd4O_7W_6n541GEA0aeDfukyw@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: Vivek Goyal <vgoyal@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Anderson <anderson@redhat.com>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
 
-Cc other guys.
+Hello, Vivek.
 
-On Mon, 2012-12-10 at 20:40 +0800, Xishi Qiu wrote:
-> On 2012/12/10 19:56, Simon Jeons wrote:
-> 
-> > On Mon, 2012-12-10 at 19:16 +0800, Xishi Qiu wrote:
-> >> On 2012/12/10 18:47, Simon Jeons wrote:
-> >>
-> >>> On Mon, 2012-12-10 at 17:06 +0800, Xishi Qiu wrote:
-> >>>> On 2012/12/10 16:33, Wanpeng Li wrote:
-> >>>>
-> >>>>> On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
-> >>>>>> On Fri, 7 Dec 2012 16:48:45 +0800
-> >>>>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
-> >>>>>>
-> >>>>>>> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
-> >>>>>>> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
-> >>>>>>> since the page was already marked HWPoison, we should skip the page and don't add the
-> >>>>>>> value of mce_bad_pages.
-> >>>>>>>
-> >>>>>>> $ cat /proc/meminfo | grep HardwareCorrupted
-> >>>>>>>
-> >>>>>>> soft_offline_page()
-> >>>>>>> 	get_any_page()
-> >>>>>>> 		atomic_long_add(1, &mce_bad_pages)
-> >>>>>>>
-> >>>>>>> ...
-> >>>>>>>
-> >>>>>>> --- a/mm/memory-failure.c
-> >>>>>>> +++ b/mm/memory-failure.c
-> >>>>>>> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
-> >>>>>>>  		return ret;
-> >>>>>>>
-> >>>>>>>  done:
-> >>>>>>> -	atomic_long_add(1, &mce_bad_pages);
-> >>>>>>> -	SetPageHWPoison(page);
-> >>>>>>>  	/* keep elevated page count for bad page */
-> >>>>>>> +	if (!PageHWPoison(page)) {
-> >>>>>>> +		atomic_long_add(1, &mce_bad_pages);
-> >>>>>>> +		SetPageHWPoison(page);
-> >>>>>>> +	}
-> >>>>>>> +
-> >>>>>>>  	return ret;
-> >>>>>>>  }
-> >>>>>>
-> >>>>>> A few things:
-> >>>>>>
-> >>>>>> - soft_offline_page() already checks for this case:
-> >>>>>>
-> >>>>>> 	if (PageHWPoison(page)) {
-> >>>>>> 		unlock_page(page);
-> >>>>>> 		put_page(page);
-> >>>>>> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> >>>>>> 		return -EBUSY;
-> >>>>>> 	}
-> >>>>>>
-> >>>>>>  so why didn't this check work for you?
-> >>>>>>
-> >>>>>>  Presumably because one of the earlier "goto done" branches was
-> >>>>>>  taken.  Which one, any why?
-> >>>>>>
-> >>>>>>  This function is an utter mess.  It contains six return points
-> >>>>>>  randomly intermingled with three "goto done" return points.
-> >>>>>>
-> >>>>>>  This mess is probably the cause of the bug you have observed.  Can
-> >>>>>>  we please fix it up somehow?  It *seems* that the design (lol) of
-> >>>>>>  this function is "for errors, return immediately.  For success, goto
-> >>>>>>  done".  In which case "done" should have been called "success".  But
-> >>>>>>  if you just look at the function you'll see that this approach didn't
-> >>>>>>  work.  I suggest it be converted to have two return points - one for
-> >>>>>>  the success path, one for the failure path.  Or something.
-> >>>>>>
-> >>>>>> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
-> >>>>>>  and might suffer the same bug.
-> >>>>>>
-> >>>>>> - A cleaner, shorter and possibly faster implementation is
-> >>>>>>
-> >>>>>> 	if (!TestSetPageHWPoison(page))
-> >>>>>> 		atomic_long_add(1, &mce_bad_pages);
-> >>>>>>
-> >>>>>
-> >>>>> Hi Andrew,
-> >>>>>
-> >>>>> Since hwpoison bit for free buddy page has already be set in get_any_page, 
-> >>>>> !TestSetPageHWPoison(page) will not increase mce_bad_pages count even for 
-> >>>>> the first time.
-> >>>>>
-> >>>>> Regards,
-> >>>>> Wanpeng Li
-> >>>>>
-> >>>>
-> >>>> The poisoned page is isolated in bad_page(), I wonder whether it could be isolated
-> >>>> immediately in soft_offline_page() and memory_failure()?
-> >>>>
-> >>>> buffered_rmqueue()
-> >>>> 	prep_new_page()
-> >>>> 		check_new_page()
-> >>>> 			bad_page()
-> >>>
-> >>> Do you mean else if(is_free_buddy_page(p)) branch is redundancy?
-> >>>
-> >>
-> >> Hi Simon,
-> >>
-> >> get_any_page() -> "else if(is_free_buddy_page(p))" branch is *not* redundancy.
-> >>
-> >> It is another topic, I mean since the page is poisoned, so why not isolate it
-> > 
-> > What topic? I still can't figure out when this branch can be executed
-> > since hwpoison inject path can't poison free buddy pages. 
-> > 
-> 
-> Hi Simon,
-> 
-> If we use "/sys/devices/system/memory/soft_offline_page" to offline a
-> free page, the value of mce_bad_pages will be added. Then the page is marked
-> HWPoison, but it is still managed by page buddy alocator.
-> 
-> So if we offline it again, the value of mce_bad_pages will be added again.
-> Assume the page is not allocated during this short time.
-> 
-> soft_offline_page()
-> 	get_any_page()
-> 		"else if (is_free_buddy_page(p))" branch return 0
-> 			"goto done";
-> 				"atomic_long_add(1, &mce_bad_pages);"
-> 
-> I think it would be better to move "if(PageHWPoison(page))" at the beginning of
-> soft_offline_page(). However I don't know what do these words mean,
-> "Synchronized using the page lock with memory_failure()"
-> 
-> >> from page buddy alocator in soft_offline_page() rather than in check_new_page().
-> >>
-> >> I find soft_offline_page() only migrate the page and mark HWPoison, the poisoned
-> >> page is still managed by page buddy alocator.
-> >>
-> >>>>
-> >>>> Thanks
-> >>>> Xishi Qiu
-> >>>>
-> >>>>>> - We have atomic_long_inc().  Use it?
-> >>>>>>
-> >>>>>> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
-> >>>>>>  concept, and this code is in mm/.  Lights are flashing, bells are
-> >>>>>>  ringing and a loudspeaker is blaring "layering violation" at us!
-> >>>>>>
-> >>
-> >>
-> > 
-> > 
-> > 
-> > .
-> > 
-> 
-> 
-> 
+2012/12/7 Vivek Goyal <vgoyal@redhat.com>:
+> On Fri, Dec 07, 2012 at 10:16:55PM +0900, JoonSoo Kim wrote:
+>> 2012/12/7 Andrew Morton <akpm@linux-foundation.org>:
+>> > On Fri,  7 Dec 2012 01:09:27 +0900
+>> > Joonsoo Kim <js1304@gmail.com> wrote:
+>> >
+>> >> I'm not sure that "7/8: makes vmlist only for kexec" is fine.
+>> >> Because it is related to userspace program.
+>> >> As far as I know, makedumpfile use kexec's output information and it only
+>> >> need first address of vmalloc layer. So my implementation reflect this
+>> >> fact, but I'm not sure. And now, I don't fully test this patchset.
+>> >> Basic operation work well, but I don't test kexec. So I send this
+>> >> patchset with 'RFC'.
+>> >
+>> > Yes, this is irritating.  Perhaps Vivek or one of the other kexec
+>> > people could take a look at this please - if would obviously be much
+>> > better if we can avoid merging [patch 7/8] at all.
+>>
+>> I'm not sure, but I almost sure that [patch 7/8] have no problem.
+>> In kexec.c, they write an address of vmlist and offset of vm_struct's
+>> address field.
+>> It imply that user for this information doesn't have any other
+>> information about vm_struct,
+>> and they can't use other field of vm_struct. They can use *only* address field.
+>> So, remaining just one vm_struct for vmlist which represent first area
+>> of vmalloc layer
+>> may be safe.
+>
+> I browsed through makedumpfile source quickly. So yes it does look like
+> that we look at first vmlist element ->addr field to figure out where
+> vmalloc area is starting.
+>
+> Can we get the same information from this rb-tree of vmap_area? Is
+> ->va_start field communication same information as vmlist was
+> communicating? What's the difference between vmap_area_root and vmlist.
 
+Thanks for comment.
+
+Yes. vmap_area's va_start field represent same information as vm_struct's addr.
+vmap_area_root is data structure for fast searching an area.
+vmap_area_list is address sorted list, so we can use it like as vmlist.
+
+There is a little difference vmap_area_list and vmlist.
+vmlist is lack of information about some areas in vmalloc address space.
+For example, vm_map_ram() allocate area in vmalloc address space,
+but it doesn't make a link with vmlist. To provide full information
+about vmalloc address space,
+using vmap_area_list is more adequate.
+
+> So without knowing details of both the data structures, I think if vmlist
+> is going away, then user space tools should be able to traverse vmap_area_root
+> rb tree. I am assuming it is sorted using ->addr field and we should be
+> able to get vmalloc area start from there. It will just be a matter of
+> exporting right fields to user space (instead of vmlist).
+
+There is address sorted list of vmap_area, vmap_area_list.
+So we can use it for traversing vmalloc areas if it is necessary.
+But, as I mentioned before, kexec write *just* address of vmlist and
+offset of vm_struct's address field.
+It imply that they don't traverse vmlist,
+because they didn't write vm_struct's next field which is needed for traversing.
+Without vm_struct's next field, they have no method for traversing.
+So, IMHO, assigning dummy vm_struct to vmlist which is implemented by [7/8] is
+a safe way to maintain a compatibility of userspace tool. :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
