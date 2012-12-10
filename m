@@ -1,30 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 457BE6B006C
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 10:39:15 -0500 (EST)
-Date: Mon, 10 Dec 2012 16:39:13 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-Message-ID: <20121210153913.GT16230@one.firstfloor.org>
-References: <50C1AD6D.7010709@huawei.com> <20121207141102.4fda582d.akpm@linux-foundation.org> <20121210083342.GA31670@hacker.(null)> <50C5A62A.6030401@huawei.com> <1355136423.1700.2.camel@kernel.cn.ibm.com> <50C5C4A2.2070002@huawei.com> <20121210113923.GA5579@hacker.(null)>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 067E26B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 10:52:07 -0500 (EST)
+Date: Mon, 10 Dec 2012 16:52:05 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121210155205.GB6777@dhcp22.suse.cz>
+References: <20121130165937.F9564EBE@pobox.sk>
+ <20121130161923.GN29317@dhcp22.suse.cz>
+ <20121203151601.GA17093@dhcp22.suse.cz>
+ <20121205023644.18C3006B@pobox.sk>
+ <20121205141722.GA9714@dhcp22.suse.cz>
+ <20121206012924.FE077FD7@pobox.sk>
+ <20121206095423.GB10931@dhcp22.suse.cz>
+ <20121210022038.E6570D37@pobox.sk>
+ <20121210094318.GA6777@dhcp22.suse.cz>
+ <20121210111817.F697F53E@pobox.sk>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121210113923.GA5579@hacker.(null)>
+In-Reply-To: <20121210111817.F697F53E@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-> HWPoison delays any action on buddy allocator pages, handling can be safely postponed 
-> until a later time when the page might be referenced. By delaying, some transient errors 
-> may not reoccur or may be irrelevant.
+On Mon 10-12-12 11:18:17, azurIt wrote:
+> >Hmm, this is _really_ surprising. The latest patch didn't add any new
+> >logging actually. It just enahanced messages which were already printed
+> >out previously + changed few functions to be not inlined so they show up
+> >in the traces. So the only explanation is that the workload has changed
+> >or the patches got misapplied.
+> 
+> 
+> This time i installed 3.2.35, maybe some changes between .34 and .35
+> did this? Should i try .34?
 
-That's not true for soft offlining, only for hard.
+I would try to limit changes to minimum. So the original kernel you were
+using + the first patch to prevent OOM from the write path + 2 debugging
+patches.
+ 
+> >> Dec 10 02:03:29 server01 kernel: [  220.366486] grsec: From 141.105.120.152: bruteforce prevention initiated for the next 30 minutes or until service restarted, stalling each fork 30 seconds.  Please investigate the crash report for /usr/lib/apache2/mpm-itk/apache2[apache2:3586] uid/euid:1258/1258 gid/egid:100/100, parent /usr/lib/apache2/mpm-itk/apache2[apache2:2142] uid/euid:0/0 gid/egid:0/0
+> >
+> >This explains why you have seen your machine hung. I am not familiar
+> >with grsec but stalling each fork 30s sounds really bad.
+> 
+> 
+> Btw, i never ever saw such a message from grsecurity yet. Will write to grsec mailing list about explanation.
+> 
+> 
+> >Anyway this will not help me much. Do you happen to still have any of
+> >those logged traces from the last run?
+> 
+> 
+> Unfortunately not, it didn't log anything and tons of messages were
+> printed only to console (i was logged via IP-KVM). It looked that
+> printing is infinite, i rebooted it after few minutes.
 
--Andi
+But was it at least related to the debugging from the patch or it was
+rather a totally unrelated thing?
+
+> >Apart from that. If my current understanding is correct then this is
+> >related to transparent huge pages (and leaking charge to the page fault
+> >handler). Do you see the same problem if you disable THP before you
+> >start your workload? (echo never > /sys/kernel/mm/transparent_hugepage/enabled)
+> 
+> # cat /sys/kernel/mm/transparent_hugepage/enabled
+> cat: /sys/kernel/mm/transparent_hugepage/enabled: No such file or directory
+
+Weee. Then it cannot be related to THP at all. Which makes this even
+bigger mystery.
+We really need to find out who is leaking that charge.
+
 -- 
-ak@linux.intel.com -- Speaking for myself only.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
