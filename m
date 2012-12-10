@@ -1,39 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
-	by kanga.kvack.org (Postfix) with SMTP id 7ED756B005A
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 07:11:18 -0500 (EST)
-Date: Mon, 10 Dec 2012 13:11:15 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-Message-ID: <20121210121114.GA13631@liondog.tnic>
-References: <50C1AD6D.7010709@huawei.com>
- <20121207141102.4fda582d.akpm@linux-foundation.org>
- <20121210083342.GA31670@hacker.(null)>
- <50C5A62A.6030401@huawei.com>
- <1355136423.1700.2.camel@kernel.cn.ibm.com>
- <50C5C4A2.2070002@huawei.com>
- <20121210113923.GA5579@hacker.(null)>
- <50C5CD8D.8060505@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <50C5CD8D.8060505@huawei.com>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 99FDE6B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 07:24:43 -0500 (EST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MET00HLAEGYEZH0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Mon, 10 Dec 2012 21:24:41 +0900 (KST)
+Received: from amdc1032.localnet ([106.116.147.136])
+ by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MET0057JEH4XT30@mmp2.samsung.com> for linux-mm@kvack.org;
+ Mon, 10 Dec 2012 21:24:41 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [RFC v2] Add mempressure cgroup
+Date: Mon, 10 Dec 2012 13:23:09 +0100
+References: <20121210095838.GA21065@lizard>
+In-reply-to: <20121210095838.GA21065@lizard>
+MIME-version: 1.0
+Content-type: Text/Plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Message-id: <201212101323.09806.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Mon, Dec 10, 2012 at 07:54:53PM +0800, Xishi Qiu wrote:
-> One more question, can we add a list_head to manager the poisoned pages?
+On Monday 10 December 2012 10:58:38 Anton Vorontsov wrote:
 
-What would you need that list for? Also, a list is not the most optimal
-data structure for when you need to traverse it often.
+> +static void consume_memory(void)
+> +{
+> +	unsigned int i = 0;
+> +	unsigned int j = 0;
+> +
+> +	puts("consuming memory...");
+> +
+> +	while (1) {
+> +		pthread_mutex_lock(&locks[i]);
+> +		if (!chunks[i]) {
+> +			chunks[i] = malloc(CHUNK_SIZE);
+> +			pabort(!chunks[i], 0, "chunks alloc failed");
+> +			memset(chunks[i], 0, CHUNK_SIZE);
+> +			j++;
+> +		}
+> +		pthread_mutex_unlock(&locks[i]);
+> +
+> +		if (j >= num_chunks / 10) {
+> +			add_reclaimable(num_chunks / 10);
 
-Thanks.
+Shouldn't it use j instead of num_chunks / 10 here?
 
--- 
-Regards/Gruss,
-    Boris.
+> +			printf("added %d reclaimable chunks\n", j);
+> +			j = 0;
+> +		}
+> +
+> +		i = (i + 1) % num_chunks;
+> +	}
+> +}
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
