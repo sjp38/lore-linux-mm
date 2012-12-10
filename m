@@ -1,165 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 9EDDD6B002B
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 15:29:39 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so1570508bkc.14
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2012 12:29:37 -0800 (PST)
-Date: Mon, 10 Dec 2012 21:29:33 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: NUMA performance comparison between three NUMA kernels and
- mainline. [Mid-size NUMA system edition.]
-Message-ID: <20121210202933.GA15363@gmail.com>
-References: <1354913744-29902-1-git-send-email-mingo@kernel.org>
- <20121207215357.GA30130@gmail.com>
- <20121210123336.GI1009@suse.de>
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id CB5676B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 15:35:12 -0500 (EST)
+Date: Mon, 10 Dec 2012 21:35:06 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121210123336.GI1009@suse.de>
+References: <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com> <50C32D32.6040800@iskon.hr> <50C3AF80.8040700@iskon.hr> <alpine.LFD.2.02.1212081651270.4593@air.linux-foundation.org> <20121210110337.GH1009@suse.de> <20121210163904.GA22101@cmpxchg.org> <20121210180141.GK1009@suse.de> <50C62AE6.3030000@iskon.hr> <CA+55aFwNE2y5t2uP3esCnHsaNo0NTDnGvzN6KF0qTw_y+QbtFA@mail.gmail.com>
+In-Reply-To: <CA+55aFwNE2y5t2uP3esCnHsaNo0NTDnGvzN6KF0qTw_y+QbtFA@mail.gmail.com>
+Message-ID: <50C6477A.4090005@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Subject: Re: kswapd craziness in 3.7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Mike Galbraith <efault@gmx.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-
-* Mel Gorman <mgorman@suse.de> wrote:
-
-> > NUMA convergence latency measurements
-> > -------------------------------------
-> > 
-> > 'NUMA convergence' latency is the number of seconds a 
-> > workload takes to reach 'perfectly NUMA balanced' state. 
-> > This is measured on the CPU placement side: once it has 
-> > converged then memory typically follows within a couple of 
-> > seconds.
+On 10.12.2012 20:13, Linus Torvalds wrote:
 > 
-> This is a sortof misleading metric so be wary of it as the 
-> speed a workload converges is not necessarily useful. It only 
-> makes a difference for short-lived workloads or during phase 
-> changes. If the workload is short-lived, it's not interesting 
-> anyway. If the workload is rapidly changing phases then the 
-> migration costs can be a major factor and rapidly converging 
-> might actually be slower overall.
+> It's worth giving this as much testing as is at all possible, but at
+> the same time I really don't think I can delay 3.7 any more without
+> messing up the holiday season too much. So unless something obvious
+> pops up, I will do the release tonight. So testing will be minimal -
+> but it's not like we haven't gone back-and-forth on this several times
+> already, and we revert to *mostly* the same old state as 3.6 anyway,
+> so it should be fairly safe.
 > 
-> The speed the workload converges will depend very heavily on 
-> when the PTEs are marked pte_numa and when the faults are 
-> incurred. If this is happening very rapidly then a workload 
-> will converge quickly *but* this can incur a high system CPU 
-> cost (PTE scanning, fault trapping etc).  This metric can be 
-> gamed by always scanning rapidly but the overall performance 
-> may be worse.
-> 
-> I'm not saying that this metric is not useful, it is. Just be 
-> careful of optimising for it. numacores system CPU usage has 
-> been really high in a number of benchmarks and it may be 
-> because you are optimising to minimise time to convergence.
 
-You are missing a big part of the NUMA balancing picture here: 
-the primary use of 'latency of convergence' is to determine 
-whether a workload converges *at all*.
+It compiles and boots without a hitch, so it must be perfect. :)
 
-For example if you look at the 4-process / 8-threads-per-process 
-latency results:
+Seriously, a few more hours need to pass, until I can provide more convincing data. That's how long it takes on this particular machine for memory pressure to build up and memory fragmentation to ensue. Only then I'll be able to tell how it really behaves. I promise to get back as soon as I can.
 
-                            [ Lower numbers are better. ]
- 
-  [test unit]            :   v3.7 |balancenuma-v10|  AutoNUMA-v28 |   numa-u-v3   |
- ------------------------------------------------------------------------------------------
-  4x8-convergence        :  101.1 |         101.3 |           3.4 |           3.9 |  secs
+And funny thing that you mention i915, because yesterday my daughter managed to lock up our laptop hard (that was a first), and this is what I found in kern.log after restart:
 
-You'll see that balancenuma does not converge this workload. 
+Dec  9 21:29:42 titan vmunix: general protection fault: 0000 [#1] PREEMPT SMP 
+Dec  9 21:29:42 titan vmunix: Modules linked in: vboxpci(O) vboxnetadp(O) vboxnetflt(O) vboxdrv(O) [last unloaded: microcode]
+Dec  9 21:29:42 titan vmunix: CPU 2 
+Dec  9 21:29:42 titan vmunix: Pid: 2523, comm: Xorg Tainted: G           O 3.7.0-rc8 #1 Hewlett-Packard HP Pavilion dv7 Notebook PC/144B
+Dec  9 21:29:42 titan vmunix: RIP: 0010:[<ffffffff81090b9c>]  [<ffffffff81090b9c>] find_get_page+0x3c/0x90
+Dec  9 21:29:42 titan vmunix: RSP: 0018:ffff88014d9f7928  EFLAGS: 00010246
+Dec  9 21:29:42 titan vmunix: RAX: ffff880052594bc8 RBX: 0200000000000000 RCX: 00000000fffffffa
+Dec  9 21:29:42 titan vmunix: RDX: 0000000000000001 RSI: ffff880052594bc8 RDI: 0000000000000000
+Dec  9 21:29:42 titan vmunix: RBP: ffff88014d9f7948 R08: 0200000000000000 R09: ffff880052594b18
+Dec  9 21:29:42 titan vmunix: R10: 57ffe4cbb74d1280 R11: 0000000000000000 R12: ffff88011c959a90
+Dec  9 21:29:42 titan vmunix: R13: 0000000000000053 R14: 0000000000000000 R15: 0000000000000053
+Dec  9 21:29:42 titan vmunix: FS:  00007fcd8d413880(0000) GS:ffff880157c80000(0000) knlGS:0000000000000000
+Dec  9 21:29:42 titan vmunix: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+Dec  9 21:29:42 titan vmunix: CR2: ffffffffff600400 CR3: 000000014d937000 CR4: 00000000000007e0
+Dec  9 21:29:42 titan vmunix: DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+Dec  9 21:29:42 titan vmunix: DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Dec  9 21:29:42 titan vmunix: Process Xorg (pid: 2523, threadinfo ffff88014d9f6000, task ffff88014d9c1260)
+Dec  9 21:29:42 titan vmunix: Stack:
+Dec  9 21:29:42 titan vmunix:  ffff88014d9f7958 ffff88011c959a88 0000000000000053 ffff88011c959a88
+Dec  9 21:29:42 titan vmunix:  ffff88014d9f7978 ffffffff81090e21 0000000000000001 ffffea00014d1280
+Dec  9 21:29:42 titan vmunix:  ffff88011c959960 0000000000000001 ffff88014d9f7a28 ffffffff810a1b60
+Dec  9 21:29:42 titan vmunix: Call Trace:
+Dec  9 21:29:42 titan vmunix:  [<ffffffff81090e21>] find_lock_page+0x21/0x80
+Dec  9 21:29:42 titan vmunix:  [<ffffffff810a1b60>] shmem_getpage_gfp+0xa0/0x620
+Dec  9 21:29:42 titan vmunix:  [<ffffffff810a224c>] shmem_read_mapping_page_gfp+0x2c/0x50
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b3611>] i915_gem_object_get_pages_gtt+0xe1/0x270
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b127f>] i915_gem_object_get_pages+0x4f/0x90
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b1383>] i915_gem_object_bind_to_gtt+0xc3/0x4c0
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b4413>] i915_gem_object_pin+0x123/0x190
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b7d97>] i915_gem_execbuffer_reserve_object.isra.13+0x77/0x190
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b8171>] i915_gem_execbuffer_reserve.isra.14+0x2c1/0x320
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b87b2>] i915_gem_do_execbuffer.isra.17+0x5e2/0x11b0
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b9894>] i915_gem_execbuffer2+0x94/0x280
+Dec  9 21:29:42 titan vmunix:  [<ffffffff81287de3>] drm_ioctl+0x493/0x530
+Dec  9 21:29:42 titan vmunix:  [<ffffffff812b9800>] ? i915_gem_execbuffer+0x480/0x480
+Dec  9 21:29:42 titan vmunix:  [<ffffffff810d9cbf>] do_vfs_ioctl+0x8f/0x530
+Dec  9 21:29:42 titan vmunix:  [<ffffffff810da1ab>] sys_ioctl+0x4b/0x90
+Dec  9 21:29:42 titan vmunix:  [<ffffffff810c9e2d>] ? sys_read+0x4d/0xa0
+Dec  9 21:29:42 titan vmunix:  [<ffffffff8154a4d2>] system_call_fastpath+0x16/0x1b
+Dec  9 21:29:42 titan vmunix: Code: 63 08 48 83 ec 08 e8 84 9c fb ff 4c 89 ee 4c 89 e7 e8 89 b7 15 00 48 85 c0 48 89 c6 74 41 48 8b 18 48 85 db 74 1f f6 c3 03 75 3c <8b> 53 1c 85 d2 74 d9 8d 7a 01 89 d0 f0 0f b1 7b 1c 39 c2 75 23 
+Dec  9 21:29:42 titan vmunix: RIP  [<ffffffff81090b9c>] find_get_page+0x3c/0x90
+Dec  9 21:29:42 titan vmunix:  RSP <ffff88014d9f7928>
 
-Where does such a workload matter? For example in the 4x JVM 
-SPECjbb tests that Thomas Gleixner has reported today:
-
-    http://lkml.org/lkml/2012/12/10/437
-
-There balancenuma does worse than AutoNUMA and the -v3 tree 
-exactly because it does not NUMA-converge as well (or at all).
-
-> I'm trying to understand what you're measuring a bit better.  
-> Take 1x4 for example -- one process, 4 threads. If I'm reading 
-> this description then all 4 threads use the same memory. Is 
-> this correct? If so, this is basically a variation of numa01 
-> which is an adverse workload. [...]
-
-No, 1x4 and 1x8 are like the SPECjbb JVM tests you have been 
-performing - not an 'adverse' workload. The threads of the JVM 
-are sharing memory significantly enough to justify moving them 
-on the same node.
-
-> [...]  balancenuma will not migrate memory in this case as 
-> it'll never get past the two-stage filter. If there are few 
-> threads, it might never get scheduled on a new node in which 
-> case it'll also do nothing.
-> 
-> The correct action in this case is to interleave memory and 
-> spread the tasks between nodes but it lacks the information to 
-> do that. [...]
-
-No, the correct action is to move related threads close to each 
-other.
-
-> [...] This was deliberate as I was expecting numacore or 
-> autonuma to be rebased on top and I didn't want to collide.
-> 
-> Does the memory requirement of all threads fit in a single 
-> node? This is related to my second question -- how do you 
-> define convergence?
-
-NUMA-convergence is to achieve the ideal CPU and memory 
-placement of tasks.
-
-> > The 'balancenuma' kernel does not converge any of the 
-> > workloads where worker threads or processes relate to each 
-> > other.
-> 
-> I'd like to know if it is because the workload fits on one 
-> node. If the buffers are all really small, balancenuma would 
-> have skipped them entirely for example due to this check
-> 
->         /* Skip small VMAs. They are not likely to be of relevance */
->         if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) < HPAGE_PMD_NR)
->                 continue;
-
-No, the memory areas are larger than 2MB.
-
-> Another possible explanation is that in the 4x4 case that the 
-> processes threads are getting scheduled on separate nodes. As 
-> each thread is sharing data it would not get past the 
-> two-stage filter.
-> 
-> How realistic is it that threads are accessing the same data? 
-
-In practice? Very ...
-
-> That looks like it would be a bad idea even from a caching 
-> perspective if the data is being updated. I would expect that 
-> the majority of HPC workloads would have each thread accessing 
-> mostly private data until the final stages where the results 
-> are aggregated together.
-
-You tested such a workload many times in the past: the 4x JVM 
-SPECjbb test ...
-
-> > NUMA workload bandwidth measurements
-> > ------------------------------------
-> > 
-> > The other set of numbers I've collected are workload 
-> > bandwidth measurements, run over 20 seconds. Using 20 
-> > seconds gives a healthy mix of pre-convergence and 
-> > post-convergence bandwidth,
-> 
-> 20 seconds is *really* short. That might not even be enough 
-> time for autonumas knumad thread to find the process and 
-> update it as IIRC it starts pretty slowly.
-
-If you check the convergence latency tables you'll see that 
-AutoNUMA is able to converge within 20 seconds.
-
-Thanks,
-
-	Ingo
+It seems that whenever (if ever?) GFP_NO_KSWAPD removal is attempted again, the i915 driver will need to be taken better care of.
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
