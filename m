@@ -1,89 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id B5DCB6B005A
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:13:18 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 10 Dec 2012 05:13:17 -0500
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id BF1CCC90026
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:13:14 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBAADE1T306236
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:13:14 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBAADEN8016806
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:13:14 -0500
-Date: Mon, 10 Dec 2012 15:12:57 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/45] Automatic NUMA Balancing V7
-Message-ID: <20121210094257.GB6348@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1353612353-1576-1-git-send-email-mgorman@suse.de>
- <20121126145800.GK8218@suse.de>
- <20121128134930.GB20087@suse.de>
- <20121207104539.GB22164@linux.vnet.ibm.com>
- <20121210090730.GF1009@suse.de>
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id 32E776B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:18:20 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Mon, 10 Dec 2012 11:18:17 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121130160811.6BB25BDD@pobox.sk>, <20121130153942.GL29317@dhcp22.suse.cz>, <20121130165937.F9564EBE@pobox.sk>, <20121130161923.GN29317@dhcp22.suse.cz>, <20121203151601.GA17093@dhcp22.suse.cz>, <20121205023644.18C3006B@pobox.sk>, <20121205141722.GA9714@dhcp22.suse.cz>, <20121206012924.FE077FD7@pobox.sk>, <20121206095423.GB10931@dhcp22.suse.cz>, <20121210022038.E6570D37@pobox.sk> <20121210094318.GA6777@dhcp22.suse.cz>
+In-Reply-To: <20121210094318.GA6777@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20121210090730.GF1009@suse.de>
+Message-Id: <20121210111817.F697F53E@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-> > 
-> > Got a chance to run autonuma-benchmark on a 8 node, 64 core machine. 
-> > the results are as below. (for each kernel I ran 5 iterations of
-> > autonuma-benchmark)
-> > 
-> 
-> Thanks, a test of v10 would also be appreciated. The differences between
-> V7 and V10 are small but do include a change in how migrate rate-limiting
-> is handled. It is unlikely it'll make a difference to this test but I'd
-> like to rule it out.
-> 
+>Hmm, this is _really_ surprising. The latest patch didn't add any new
+>logging actually. It just enahanced messages which were already printed
+>out previously + changed few functions to be not inlined so they show up
+>in the traces. So the only explanation is that the workload has changed
+>or the patches got misapplied.
 
 
-Yes, have queued it for testing. Will report on completion.
+This time i installed 3.2.35, maybe some changes between .34 and .35 did this? Should i try .34?
 
 
-> > KernelVersion: 3.7.0-rc3-mainline_v37rc7()
-
-Please read it as 3.7-rc3 
-
-> 
-> What kernel is this? The name begins with 3.7-rc3 but then says
-> v37rc7. v37rc7 of what? I thought it might be v3.7-rc7 but it already said
-> it's 3.7-rc3 so I'm confused. Would it be possible to base the tests on
-> a similar baseline kernel such as 3.7.0-rc7 or 3.7.0-rc8? The
+>> Dec 10 02:03:29 server01 kernel: [  220.366486] grsec: From 141.105.120.152: bruteforce prevention initiated for the next 30 minutes or until service restarted, stalling each fork 30 seconds.  Please investigate the crash report for /usr/lib/apache2/mpm-itk/apache2[apache2:3586] uid/euid:1258/1258 gid/egid:100/100, parent /usr/lib/apache2/mpm-itk/apache2[apache2:2142] uid/euid:0/0 gid/egid:0/0
+>
+>This explains why you have seen your machine hung. I am not familiar
+>with grsec but stalling each fork 30s sounds really bad.
 
 
+Btw, i never ever saw such a message from grsecurity yet. Will write to grsec mailing list about explanation.
 
-> balancenuma patches should apply and the autonuma patches can be taken
-> from the mm-autonuma-v28fastr4-mels-rebase branch in
-> git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
-> 
 
-Yes, for the next set of reports I have based autonuma branch on this
-branch.
+>Anyway this will not help me much. Do you happen to still have any of
+>those logged traces from the last run?
 
-> Either way, the figures look bad. I'm trying to find a similar machine
-> but initially at least I have not had much luck. Can you post the .config
-> you used for balancenuma in case I can reproduce the problem on a 4-node
-> machine please? Are all the nodes the same size?
-> 
 
-No all nodes are not of same size
-There are 6 32 GB nodes and 2 64 GB nodes.
+Unfortunately not, it didn't log anything and tons of messages were printed only to console (i was logged via IP-KVM). It looked that printing is infinite, i rebooted it after few minutes.
 
-Will post the balancenuma config along with results.
 
--- 
-Thanks and Regards
-Srikar
+>Apart from that. If my current understanding is correct then this is
+>related to transparent huge pages (and leaking charge to the page fault
+>handler). Do you see the same problem if you disable THP before you
+>start your workload? (echo never > /sys/kernel/mm/transparent_hugepage/enabled)
+
+# cat /sys/kernel/mm/transparent_hugepage/enabled
+cat: /sys/kernel/mm/transparent_hugepage/enabled: No such file or directory
+
+# ls -la /sys/kernel/mm                             
+total 0
+drwx------ 3 root root 0 Dec 10 11:11 .
+drwx------ 5 root root 0 Dec 10 02:06 ..
+drwx------ 2 root root 0 Dec 10 11:11 cleancache
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
