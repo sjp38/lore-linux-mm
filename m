@@ -1,131 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 244506B0068
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 04:07:50 -0500 (EST)
-Message-ID: <50C5A62A.6030401@huawei.com>
-Date: Mon, 10 Dec 2012 17:06:50 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id B31356B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 04:43:41 -0500 (EST)
+Date: Mon, 10 Dec 2012 10:43:38 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121210094318.GA6777@dhcp22.suse.cz>
+References: <20121130160811.6BB25BDD@pobox.sk>
+ <20121130153942.GL29317@dhcp22.suse.cz>
+ <20121130165937.F9564EBE@pobox.sk>
+ <20121130161923.GN29317@dhcp22.suse.cz>
+ <20121203151601.GA17093@dhcp22.suse.cz>
+ <20121205023644.18C3006B@pobox.sk>
+ <20121205141722.GA9714@dhcp22.suse.cz>
+ <20121206012924.FE077FD7@pobox.sk>
+ <20121206095423.GB10931@dhcp22.suse.cz>
+ <20121210022038.E6570D37@pobox.sk>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-References: <50C1AD6D.7010709@huawei.com> <20121207141102.4fda582d.akpm@linux-foundation.org> <20121210083342.GA31670@hacker.(null)>
-In-Reply-To: <20121210083342.GA31670@hacker.(null)>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121210022038.E6570D37@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 2012/12/10 16:33, Wanpeng Li wrote:
+On Mon 10-12-12 02:20:38, azurIt wrote:
+[...]
+> Michal,
 
-> On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
->> On Fri, 7 Dec 2012 16:48:45 +0800
->> Xishi Qiu <qiuxishi@huawei.com> wrote:
->>
->>> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
->>> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
->>> since the page was already marked HWPoison, we should skip the page and don't add the
->>> value of mce_bad_pages.
->>>
->>> $ cat /proc/meminfo | grep HardwareCorrupted
->>>
->>> soft_offline_page()
->>> 	get_any_page()
->>> 		atomic_long_add(1, &mce_bad_pages)
->>>
->>> ...
->>>
->>> --- a/mm/memory-failure.c
->>> +++ b/mm/memory-failure.c
->>> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
->>>  		return ret;
->>>
->>>  done:
->>> -	atomic_long_add(1, &mce_bad_pages);
->>> -	SetPageHWPoison(page);
->>>  	/* keep elevated page count for bad page */
->>> +	if (!PageHWPoison(page)) {
->>> +		atomic_long_add(1, &mce_bad_pages);
->>> +		SetPageHWPoison(page);
->>> +	}
->>> +
->>>  	return ret;
->>>  }
->>
->> A few things:
->>
->> - soft_offline_page() already checks for this case:
->>
->> 	if (PageHWPoison(page)) {
->> 		unlock_page(page);
->> 		put_page(page);
->> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
->> 		return -EBUSY;
->> 	}
->>
->>  so why didn't this check work for you?
->>
->>  Presumably because one of the earlier "goto done" branches was
->>  taken.  Which one, any why?
->>
->>  This function is an utter mess.  It contains six return points
->>  randomly intermingled with three "goto done" return points.
->>
->>  This mess is probably the cause of the bug you have observed.  Can
->>  we please fix it up somehow?  It *seems* that the design (lol) of
->>  this function is "for errors, return immediately.  For success, goto
->>  done".  In which case "done" should have been called "success".  But
->>  if you just look at the function you'll see that this approach didn't
->>  work.  I suggest it be converted to have two return points - one for
->>  the success path, one for the failure path.  Or something.
->>
->> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
->>  and might suffer the same bug.
->>
->> - A cleaner, shorter and possibly faster implementation is
->>
->> 	if (!TestSetPageHWPoison(page))
->> 		atomic_long_add(1, &mce_bad_pages);
->>
+Hi,
+ 
+> this was printing so many debug messages to console that the whole
+> server hangs
+
+Hmm, this is _really_ surprising. The latest patch didn't add any new
+logging actually. It just enahanced messages which were already printed
+out previously + changed few functions to be not inlined so they show up
+in the traces. So the only explanation is that the workload has changed
+or the patches got misapplied.
+
+> and i had to hard reset it after several minutes :( Sorry
+> but i cannot test such a things in production. There's no problem with
+> one soft reset which takes 4 minutes but this hard reset creates about
+> 20 minutes outage (mainly cos of disk quotas checking).
+
+Understood.
+
+> Last logged message:
 > 
-> Hi Andrew,
-> 
-> Since hwpoison bit for free buddy page has already be set in get_any_page, 
-> !TestSetPageHWPoison(page) will not increase mce_bad_pages count even for 
-> the first time.
-> 
-> Regards,
-> Wanpeng Li
-> 
+> Dec 10 02:03:29 server01 kernel: [  220.366486] grsec: From 141.105.120.152: bruteforce prevention initiated for the next 30 minutes or until service restarted, stalling each fork 30 seconds.  Please investigate the crash report for /usr/lib/apache2/mpm-itk/apache2[apache2:3586] uid/euid:1258/1258 gid/egid:100/100, parent /usr/lib/apache2/mpm-itk/apache2[apache2:2142] uid/euid:0/0 gid/egid:0/0
 
-The poisoned page is isolated in bad_page(), I wonder whether it could be isolated
-immediately in soft_offline_page() and memory_failure()?
+This explains why you have seen your machine hung. I am not familiar
+with grsec but stalling each fork 30s sounds really bad.
 
-buffered_rmqueue()
-	prep_new_page()
-		check_new_page()
-			bad_page()
+Anyway this will not help me much. Do you happen to still have any of
+those logged traces from the last run?
 
-Thanks
-Xishi Qiu
-
->> - We have atomic_long_inc().  Use it?
->>
->> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
->>  concept, and this code is in mm/.  Lights are flashing, bells are
->>  ringing and a loudspeaker is blaring "layering violation" at us!
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
-> .
-> 
-
-
+Apart from that. If my current understanding is correct then this is
+related to transparent huge pages (and leaking charge to the page fault
+handler). Do you see the same problem if you disable THP before you
+start your workload? (echo never > /sys/kernel/mm/transparent_hugepage/enabled)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
