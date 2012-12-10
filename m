@@ -1,107 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 52ECF6B005A
-	for <linux-mm@kvack.org>; Sun,  9 Dec 2012 23:39:53 -0500 (EST)
-Message-ID: <50C5660D.4050805@huawei.com>
-Date: Mon, 10 Dec 2012 12:33:17 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id C0B916B0062
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 00:20:32 -0500 (EST)
+From: guanxuetao@mprc.pku.edu.cn
+Message-ID: <64014.162.105.80.111.1355116830.squirrel@mprc.pku.edu.cn>
+In-Reply-To: <1354810175-4338-2-git-send-email-js1304@gmail.com>
+References: <1354810175-4338-1-git-send-email-js1304@gmail.com>
+    <1354810175-4338-2-git-send-email-js1304@gmail.com>
+Date: Mon, 10 Dec 2012 13:20:30 +0800 (CST)
+Subject: Re: [RFC PATCH 1/8] mm,
+      vmalloc: change iterating a vmlist to find_vm_area()
 MIME-Version: 1.0
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-References: <50C1AD6D.7010709@huawei.com> <20121207141102.4fda582d.akpm@linux-foundation.org>
-In-Reply-To: <20121207141102.4fda582d.akpm@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;charset=GB2312
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kexec@lists.infradead.org, Chris Metcalf <cmetcalf@tilera.com>, Guan Xuetao <gxt@mprc.pku.edu.cn>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 2012/12/8 6:11, Andrew Morton wrote:
+> The purpose of iterating a vmlist is finding vm area with specific
+> virtual address. find_vm_area() is provided for this purpose
+> and more efficient, because it uses a rbtree.
+> So change it.
+>
+> Cc: Chris Metcalf <cmetcalf@tilera.com>
+> Cc: Guan Xuetao <gxt@mprc.pku.edu.cn>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-> On Fri, 7 Dec 2012 16:48:45 +0800
-> Xishi Qiu <qiuxishi@huawei.com> wrote:
-> 
->> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
->> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
->> since the page was already marked HWPoison, we should skip the page and don't add the
->> value of mce_bad_pages.
->>
->> $ cat /proc/meminfo | grep HardwareCorrupted
->>
->> soft_offline_page()
->> 	get_any_page()
->> 		atomic_long_add(1, &mce_bad_pages)
->>
->> ...
->>
->> --- a/mm/memory-failure.c
->> +++ b/mm/memory-failure.c
->> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
->>  		return ret;
->>
->>  done:
->> -	atomic_long_add(1, &mce_bad_pages);
->> -	SetPageHWPoison(page);
->>  	/* keep elevated page count for bad page */
->> +	if (!PageHWPoison(page)) {
->> +		atomic_long_add(1, &mce_bad_pages);
->> +		SetPageHWPoison(page);
->> +	}
->> +
->>  	return ret;
->>  }
-> 
-> A few things:
-> 
-> - soft_offline_page() already checks for this case:
-> 
-> 	if (PageHWPoison(page)) {
-> 		unlock_page(page);
-> 		put_page(page);
-> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> 		return -EBUSY;
-> 	}
-> 
->   so why didn't this check work for you?
-> 
->   Presumably because one of the earlier "goto done" branches was
->   taken.  Which one, any why?
-> 
->   This function is an utter mess.  It contains six return points
->   randomly intermingled with three "goto done" return points.
-> 
->   This mess is probably the cause of the bug you have observed.  Can
->   we please fix it up somehow?  It *seems* that the design (lol) of
->   this function is "for errors, return immediately.  For success, goto
->   done".  In which case "done" should have been called "success".  But
->   if you just look at the function you'll see that this approach didn't
->   work.  I suggest it be converted to have two return points - one for
->   the success path, one for the failure path.  Or something.
-> 
-> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
->   and might suffer the same bug.
-> 
-> - A cleaner, shorter and possibly faster implementation is
-> 
-> 	if (!TestSetPageHWPoison(page))
-> 		atomic_long_add(1, &mce_bad_pages);
-> 
-> - We have atomic_long_inc().  Use it?
-> 
-> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
->   concept, and this code is in mm/.  Lights are flashing, bells are
->   ringing and a loudspeaker is blaring "layering violation" at us!
-> 
+For UniCore32 bits:
+Acked-by: Guan Xuetao <gxt@mprc.pku.edu.cn>
 
-Hi Andrew, thank you for your advice, I will send V3 soon.
-
-Thanks
-Xishi Qiu
-
-> .
-> 
-
-
+>
+> diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
+> index de0de0c..862782d 100644
+> --- a/arch/tile/mm/pgtable.c
+> +++ b/arch/tile/mm/pgtable.c
+> @@ -592,12 +592,7 @@ void iounmap(volatile void __iomem *addr_in)
+>  	   in parallel. Reuse of the virtual address is prevented by
+>  	   leaving it in the global lists until we're done with it.
+>  	   cpa takes care of the direct mappings. */
+> -	read_lock(&vmlist_lock);
+> -	for (p = vmlist; p; p = p->next) {
+> -		if (p->addr == addr)
+> -			break;
+> -	}
+> -	read_unlock(&vmlist_lock);
+> +	p = find_vm_area((void *)addr);
+>
+>  	if (!p) {
+>  		pr_err("iounmap: bad address %p\n", addr);
+> diff --git a/arch/unicore32/mm/ioremap.c b/arch/unicore32/mm/ioremap.c
+> index b7a6055..13068ee 100644
+> --- a/arch/unicore32/mm/ioremap.c
+> +++ b/arch/unicore32/mm/ioremap.c
+> @@ -235,7 +235,7 @@ EXPORT_SYMBOL(__uc32_ioremap_cached);
+>  void __uc32_iounmap(volatile void __iomem *io_addr)
+>  {
+>  	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
+> -	struct vm_struct **p, *tmp;
+> +	struct vm_struct *vm;
+>
+>  	/*
+>  	 * If this is a section based mapping we need to handle it
+> @@ -244,17 +244,10 @@ void __uc32_iounmap(volatile void __iomem *io_addr)
+>  	 * all the mappings before the area can be reclaimed
+>  	 * by someone else.
+>  	 */
+> -	write_lock(&vmlist_lock);
+> -	for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
+> -		if ((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
+> -			if (tmp->flags & VM_UNICORE_SECTION_MAPPING) {
+> -				unmap_area_sections((unsigned long)tmp->addr,
+> -						    tmp->size);
+> -			}
+> -			break;
+> -		}
+> -	}
+> -	write_unlock(&vmlist_lock);
+> +	vm = find_vm_area(addr);
+> +	if (vm && (vm->flags & VM_IOREMAP) &&
+> +		(vm->flags & VM_UNICORE_SECTION_MAPPING))
+> +		unmap_area_sections((unsigned long)vm->addr, vm->size);
+>
+>  	vunmap(addr);
+>  }
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 78fe3f1..9a1e658 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -282,12 +282,7 @@ void iounmap(volatile void __iomem *addr)
+>  	   in parallel. Reuse of the virtual address is prevented by
+>  	   leaving it in the global lists until we're done with it.
+>  	   cpa takes care of the direct mappings. */
+> -	read_lock(&vmlist_lock);
+> -	for (p = vmlist; p; p = p->next) {
+> -		if (p->addr == (void __force *)addr)
+> -			break;
+> -	}
+> -	read_unlock(&vmlist_lock);
+> +	p = find_vm_area((void __force *)addr);
+>
+>  	if (!p) {
+>  		printk(KERN_ERR "iounmap: bad address %p\n", addr);
+> --
+> 1.7.9.5
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
