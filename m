@@ -1,146 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 110B36B005A
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 05:47:08 -0500 (EST)
-Received: by mail-ia0-f173.google.com with SMTP id w21so3629737iac.4
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2012 02:47:08 -0800 (PST)
-Message-ID: <1355136423.1700.2.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Mon, 10 Dec 2012 04:47:03 -0600
-In-Reply-To: <50C5A62A.6030401@huawei.com>
-References: <50C1AD6D.7010709@huawei.com>
-	 <20121207141102.4fda582d.akpm@linux-foundation.org>
-	 <20121210083342.GA31670@hacker.(null)> <50C5A62A.6030401@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
+	by kanga.kvack.org (Postfix) with SMTP id 683606B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 06:03:42 -0500 (EST)
+Date: Mon, 10 Dec 2012 11:03:37 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: kswapd craziness in 3.7
+Message-ID: <20121210110337.GH1009@suse.de>
+References: <20121201004520.GK2301@cmpxchg.org>
+ <50BC6314.7060106@leemhuis.info>
+ <20121203194208.GZ24381@cmpxchg.org>
+ <20121204214210.GB20253@cmpxchg.org>
+ <20121205030133.GA17438@wolff.to>
+ <20121206173742.GA27297@wolff.to>
+ <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com>
+ <50C32D32.6040800@iskon.hr>
+ <50C3AF80.8040700@iskon.hr>
+ <alpine.LFD.2.02.1212081651270.4593@air.linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.LFD.2.02.1212081651270.4593@air.linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, 2012-12-10 at 17:06 +0800, Xishi Qiu wrote:
-> On 2012/12/10 16:33, Wanpeng Li wrote:
+On Sat, Dec 08, 2012 at 05:01:42PM -0800, Linus Torvalds wrote:
 > 
-> > On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
-> >> On Fri, 7 Dec 2012 16:48:45 +0800
-> >> Xishi Qiu <qiuxishi@huawei.com> wrote:
-> >>
-> >>> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
-> >>> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
-> >>> since the page was already marked HWPoison, we should skip the page and don't add the
-> >>> value of mce_bad_pages.
-> >>>
-> >>> $ cat /proc/meminfo | grep HardwareCorrupted
-> >>>
-> >>> soft_offline_page()
-> >>> 	get_any_page()
-> >>> 		atomic_long_add(1, &mce_bad_pages)
-> >>>
-> >>> ...
-> >>>
-> >>> --- a/mm/memory-failure.c
-> >>> +++ b/mm/memory-failure.c
-> >>> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
-> >>>  		return ret;
-> >>>
-> >>>  done:
-> >>> -	atomic_long_add(1, &mce_bad_pages);
-> >>> -	SetPageHWPoison(page);
-> >>>  	/* keep elevated page count for bad page */
-> >>> +	if (!PageHWPoison(page)) {
-> >>> +		atomic_long_add(1, &mce_bad_pages);
-> >>> +		SetPageHWPoison(page);
-> >>> +	}
-> >>> +
-> >>>  	return ret;
-> >>>  }
-> >>
-> >> A few things:
-> >>
-> >> - soft_offline_page() already checks for this case:
-> >>
-> >> 	if (PageHWPoison(page)) {
-> >> 		unlock_page(page);
-> >> 		put_page(page);
-> >> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> >> 		return -EBUSY;
-> >> 	}
-> >>
-> >>  so why didn't this check work for you?
-> >>
-> >>  Presumably because one of the earlier "goto done" branches was
-> >>  taken.  Which one, any why?
-> >>
-> >>  This function is an utter mess.  It contains six return points
-> >>  randomly intermingled with three "goto done" return points.
-> >>
-> >>  This mess is probably the cause of the bug you have observed.  Can
-> >>  we please fix it up somehow?  It *seems* that the design (lol) of
-> >>  this function is "for errors, return immediately.  For success, goto
-> >>  done".  In which case "done" should have been called "success".  But
-> >>  if you just look at the function you'll see that this approach didn't
-> >>  work.  I suggest it be converted to have two return points - one for
-> >>  the success path, one for the failure path.  Or something.
-> >>
-> >> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
-> >>  and might suffer the same bug.
-> >>
-> >> - A cleaner, shorter and possibly faster implementation is
-> >>
-> >> 	if (!TestSetPageHWPoison(page))
-> >> 		atomic_long_add(1, &mce_bad_pages);
-> >>
-> > 
-> > Hi Andrew,
-> > 
-> > Since hwpoison bit for free buddy page has already be set in get_any_page, 
-> > !TestSetPageHWPoison(page) will not increase mce_bad_pages count even for 
-> > the first time.
-> > 
-> > Regards,
-> > Wanpeng Li
-> > 
 > 
-> The poisoned page is isolated in bad_page(), I wonder whether it could be isolated
-> immediately in soft_offline_page() and memory_failure()?
+> On Sat, 8 Dec 2012, Zlatko Calusic wrote:
+> > 
+> > Or sooner... in short: nothing's changed!
+> > 
+> > On a 4GB RAM system, where applications use close to 2GB, kswapd likes to keep
+> > around 1GB free (unused), leaving only 1GB for page/buffer cache. If I force
+> > bigger page cache by reading a big file and thus use the unused 1GB of RAM,
+> > kswapd will soon (in a matter of minutes) evict those (or other) pages out and
+> > once again keep unused memory close to 1GB.
 > 
-> buffered_rmqueue()
-> 	prep_new_page()
-> 		check_new_page()
-> 			bad_page()
+> Ok, guys, what was the reclaim or kswapd patch during the merge window 
+> that actually caused all of these insane problems?
 
-Do you mean else if(is_free_buddy_page(p)) branch is redundancy?
+I believe commit c6543459 (mm: remove __GFP_NO_KSWAPD) is the primary
+candidate. __GFP_NO_KSWAPD was originally introduced by THP because kswapd
+was excessively reclaiming. kswapd would stay awake aggressively reclaiming
+even if compaction was deferred. The flag was removed in this cycle when it
+was expected that it was no longer necessary. I'm not foisting the blame
+on Rik here, I was on the review list for that patch and did not identify
+that it would cause this many problems either.
 
+> It seems it was more 
+> fundamentally buggered than the fifteen-million fixes for kswapd we have 
+> already picked up.
 > 
-> Thanks
-> Xishi Qiu
-> 
-> >> - We have atomic_long_inc().  Use it?
-> >>
-> >> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
-> >>  concept, and this code is in mm/.  Lights are flashing, bells are
-> >>  ringing and a loudspeaker is blaring "layering violation" at us!
-> >>
-> >> --
-> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> see: http://www.linux-mm.org/ .
-> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> > 
-> > .
-> > 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
+It was already fundamentally buggered up. The difference was it stayed
+asleep for THP requests in earlier kernels.
+
+There is a big difference between a direct reclaim/compaction for THP
+and kswapd doing the same work. Direct reclaim/compaction will try once,
+give up quickly and defer requests in the near future to avoid impacting
+the system heavily for THP. The same applies for khugepaged.
+
+kswapd is different. It can keep going until it meets its watermarks for
+a THP allocation are met. Two reasons why it might keep going for a long
+time are that compaction is being inefficient which we know it may be due
+to crap like this
+
+end_pfn = ALIGN(low_pfn + pageblock_nr_pages, pageblock_nr_pages);
+
+and the second reason is if the highest zone is relatively because
+compaction_suitable will keep saying that allocations are failing due to
+insufficient amounts of memory in the highest zone. It'll reclaim a little
+from this highest zone and then shrink_slab() potentially dumping a large
+amount of memory. This may be the case for Zlatko as with a 4G machine
+his ZONE_NORMAL could be small depending on how the 32-bit address space
+is used by his hardware.
+
+> (Ok, I may be exaggerating the number of patches, but it's starting to 
+> feel that way - I thought that 3.7 was going to be a calm and easy 
+> release, but the kswapd issues seem to just keep happening. We've been 
+> fighting the kswapd changes for a while now.)
+> 
+
+Yes.
+
+> Trying to keep a gigabyte free (presumably because that way we have lots 
+> of high-order alloction pages) is ridiculous. Is it one of the compaction 
+> changes? 
+> 
+
+Not directly. Compaction has been a bigger factor after 3.5 due to the
+removal of lumpy reclaim but it's not directly responsible for excessive
+amounts of memory being kept free. The closest patch I'm aware of that
+would cause problems of that nature would be commit 83fde0f2 (mm: vmscan:
+scale number of pages reclaimed by reclaim/compaction based on failures)
+and it has already been reverted by 96710098.
+
+> Mel? Ideas?
+> 
+
+Consider reverting the revert of __GFP_NO_KSWAPD again until this can be
+ironed out at a more reasonable pace. Rik? Johannes?
+
+Verify if the shrinking slab is the issue with this brutually ugly
+hack. Zlatko?
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b7ed376..2189d20 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2550,6 +2550,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 	unsigned long balanced;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
++	bool should_shrink_slab = true;
+ 	unsigned long total_scanned;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	unsigned long nr_soft_reclaimed;
+@@ -2695,7 +2696,8 @@ loop_again:
+ 				shrink_zone(zone, &sc);
+ 
+ 				reclaim_state->reclaimed_slab = 0;
+-				nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
++				if (should_shrink_slab)
++					nr_slab = shrink_slab(&shrink, sc.nr_scanned, lru_pages);
+ 				sc.nr_reclaimed += reclaim_state->reclaimed_slab;
+ 				total_scanned += sc.nr_scanned;
+ 
+@@ -2817,6 +2819,16 @@ out:
+ 	if (order) {
+ 		int zones_need_compaction = 1;
+ 
++		/*
++		 * Shrinking slab for high-order allocs can cause an excessive
++		 * amount of memory to be dumped. Only shrink slab once per
++		 * round for high-order allocs.
++		 *
++		 * This is a very stupid hack. balance_pgdat() is in serious
++		 * need of a rework
++		 */
++		should_shrink_slab = false;
++
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
