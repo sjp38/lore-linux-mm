@@ -1,239 +1,1000 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 3E2A26B005D
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 06:39:53 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so1251566bkc.14
-        for <linux-mm@kvack.org>; Mon, 10 Dec 2012 03:39:51 -0800 (PST)
-Date: Mon, 10 Dec 2012 12:39:45 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/49] Automatic NUMA Balancing v10
-Message-ID: <20121210113945.GA7550@gmail.com>
-References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
- <20121207110113.GB21482@gmail.com>
- <20121209203630.GC1009@suse.de>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 2D0476B005A
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 06:49:56 -0500 (EST)
+Date: Mon, 10 Dec 2012 13:50:28 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC v2] Add mempressure cgroup
+Message-ID: <20121210115028.GA31788@shutemov.name>
+References: <20121210095838.GA21065@lizard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121209203630.GC1009@suse.de>
+In-Reply-To: <20121210095838.GA21065@lizard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patchen@ninaro.org, kernel-team@android.com, linux.api@vger.kernel.org
 
+On Mon, Dec 10, 2012 at 01:58:38AM -0800, Anton Vorontsov wrote:
 
-* Mel Gorman <mgorman@suse.de> wrote:
+CC: linux-api@
 
-> On Fri, Dec 07, 2012 at 12:01:13PM +0100, Ingo Molnar wrote:
-> > 
-> > * Mel Gorman <mgorman@suse.de> wrote:
-> > 
-> > > This is a full release of all the patches so apologies for the 
-> > > flood. [...]
-> > 
-> > I have yet to process all your mails, but assuming I address all 
-> > your review feedback and the latest unified tree in tip:master 
-> > shows no regression in your testing, would you be willing to 
-> > start using it for ongoing work?
-> > 
+> The main changes for the mempressure cgroup:
 > 
-> Ingo,
+> - Added documentation, describes APIs and the purpose;
 > 
-> If you had read the second paragraph of the mail you just responded to or
-> the results at the end then you would have seen that I had problems with
-> the performance. [...]
-
-I've posted a (NUMA-placement sensitive workload centric) 
-performance comparisons between "balancenuma", AutoNUMA and 
-numa/core unified-v3 to:
-
-   https://lkml.org/lkml/2012/12/7/331
-
-I tried to address all performance regressions you and others 
-have reported.
-
-Here's the direct [bandwidth] comparison of 'balancenuma v10' to 
-my -v3 tree:
-
-                            balancenuma  | NUMA-tip
- [test unit]            :          -v10  |    -v3
-------------------------------------------------------------
- 2x1-bw-process         :         6.136  |  9.647:  57.2%
- 3x1-bw-process         :         7.250  | 14.528: 100.4%
- 4x1-bw-process         :         6.867  | 18.903: 175.3%
- 8x1-bw-process         :         7.974  | 26.829: 236.5%
- 8x1-bw-process-NOTHP   :         5.937  | 22.237: 274.5%
- 16x1-bw-process        :         5.592  | 29.294: 423.9%
- 4x1-bw-thread          :        13.598  | 19.290:  41.9%
- 8x1-bw-thread          :        16.356  | 26.391:  61.4%
- 16x1-bw-thread         :        24.608  | 29.557:  20.1%
- 32x1-bw-thread         :        25.477  | 30.232:  18.7%
- 2x3-bw-thread          :         8.785  | 15.327:  74.5%
- 4x4-bw-thread          :         6.366  | 27.957: 339.2%
- 4x6-bw-thread          :         6.287  | 27.877: 343.4%
- 4x8-bw-thread          :         5.860  | 28.439: 385.3%
- 4x8-bw-thread-NOTHP    :         6.167  | 25.067: 306.5%
- 3x3-bw-thread          :         8.235  | 21.560: 161.8%
- 5x5-bw-thread          :         5.762  | 26.081: 352.6%
- 2x16-bw-thread         :         5.920  | 23.269: 293.1%
- 1x32-bw-thread         :         5.828  | 18.985: 225.8%
- numa02-bw              :        29.054  | 31.431:   8.2%
- numa02-bw-NOTHP        :        27.064  | 29.104:   7.5%
- numa01-bw-thread       :        20.338  | 28.607:  40.7%
- numa01-bw-thread-NOTHP :        18.528  | 21.119:  14.0%
-------------------------------------------------------------
-
-I also tried to reproduce and fix as many bugs you reported as 
-possible - but my point is that it would be _much_ better if we 
-actually joined forces.
-
-> [...] You would also know that tip/master testing for the last 
-> week was failing due to a boot problem (issue was in mainline 
-> not tip and has been already fixed) and would have known that 
-> since the -v18 release that numacore was effectively disabled 
-> on my test machine.
-
-I'm glad it's fixed.
-
-> Clearly you are not reading the bug reports you are receiving 
-> and you're not seeing the small bit of review feedback or 
-> answering the review questions you have received either. Why 
-> would I be more forthcoming when I feel that it'll simply be 
-> ignored? [...]
-
-I am reading the bug reports and addressing bugs as I can.
-
-> [...]  You simply assume that each batch of patches you place 
-> on top must be fixing all known regressions and ignoring any 
-> evidence to the contrary.
->
-> If you had read my mail from last Tuesday you would even know 
-> which patch was causing the problem that effectively disabled 
-> numacore although not why. The comment about p->numa_faults 
-> was completely off the mark (long journey, was tired, assumed 
-> numa_faults was a counter and not a pointer which was 
-> careless).  If you had called me on it then I would have 
-> spotted the actual problem sooner. The problem was indeed with 
-> the nr_cpus_allowed == num_online_cpus()s check which I had 
-> pointed out was a suspicious check although for different 
-> reasons. As it turns out, a printk() bodge showed that 
-> nr_cpus_allowed == 80 set in sched_init_smp() while 
-> num_online_cpus() == 48. This effectively disabling numacore. 
-> If you had responded to the bug report, this would likely have 
-> been found last Wednesday.
-
-Does changing it from num_online_cpus() to num_possible_cpus() 
-help? (Can send a patch if you want.)
-
-> > It would make it much easier for me to pick up your 
-> > enhancements, fixes, etc.
-> > 
-> > > Changelog since V9
-> > >   o Migration scalability                                             (mingo)
-> > 
-> > To *really* see migration scalability bottlenecks you need to 
-> > remove the migration-bandwidth throttling kludge from your tree 
-> > (or configure it up very high if you want to do it simple).
-> > 
+> - Implemented shrinker interface, this is based on Andrew's idea and
+>   supersedes my "balance" level idea;
 > 
-> Why is it a kludge? I already explained what the rational 
-> behind the rate limiting was. It's not about scalability, it's 
-> about mitigating worse-case behaviour and the amount of time 
-> the kernel spends moving data around which a deliberately 
-> adverse workload can trigger.  It is unacceptable if during a 
-> phase change that a process would stall potentially for 
-> milliseconds (seconds if the node is large enough I guess) 
-> while the data is being migrated. Here is it again -- 
-> http://www.spinics.net/lists/linux-mm/msg47440.html . You 
-> either ignored the mail or simply could not be bothered 
-> explaining why you thought this was the incorrect decision or 
-> why the concerns about an adverse workload were unimportant.
-
-I think the stalls could have been at least in part due to the 
-scalability bottlenecks that the rate-limiting code has hidden.
-
-If you think of the NUMA migration as a natural part of the 
-workload, as a sort of extended cache-miss, and if you assume 
-that the scheduler is intelligent about not flip-flopping tasks 
-between nodes (which the latest code certainly is), then I don't 
-see why the rate of migration should be rate-limited in the VM.
-
-Note that I tried to quantify this effect: the perf bench numa 
-testcases start from a practical 'worst-case adverse' workload 
-in essence: all pages concentrated on the wrong node, and the 
-workload having to migrate all of them over.
-
-We could add a new 'absolutely worst case' testcase, to make it 
-behaves sanely?
-
-> I have a vague suspicion actually that when you are modelling 
-> the task->data relationship that you make an implicit 
-> assumption that moving data has zero or near-zero cost. In 
-> such a model it would always make sense to move quickly and 
-> immediately but in practice the cost of moving can exceed the 
-> performance benefit of accessing local data and lead to 
-> regressions. It becomes more pronounced if the nodes are not 
-> fully connected.
-
-I make no such assumption - convergence costs were part of my 
-measurements.
-
-> > Some (certainly not all) of the performance regressions you 
-> > reported were certainly due to numa/core code hitting the 
-> > migration codepaths as aggressively as the workload demanded 
-> > - and hitting scalability bottlenecks.
+> - The shrinker interface comes with a stress-test utility, that is what
+>   Andrew was also asking for. A simple app that we can run and see if the
+>   thing works as expected;
 > 
-> How are you so certain? [...]
+> - Added reclaimer's target_mem_cgroup handling;
+> 
+> - As promised, added support for multiple listeners, and fixed some other
+>   comments on the previous RFC.
+> 
+> Just for the reference, the first mempressure RFC:
+> 
+>   http://lkml.org/lkml/2012/11/28/109
+> 
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+> ---
+>  Documentation/cgroups/mempressure.txt    |  89 ++++++
+>  Documentation/cgroups/mempressure_test.c | 209 +++++++++++++
+>  include/linux/cgroup_subsys.h            |   6 +
+>  include/linux/vmstat.h                   |  11 +
+>  init/Kconfig                             |  12 +
+>  mm/Makefile                              |   1 +
+>  mm/mempressure.c                         | 488 +++++++++++++++++++++++++++++++
+>  mm/vmscan.c                              |   4 +
+>  8 files changed, 820 insertions(+)
+>  create mode 100644 Documentation/cgroups/mempressure.txt
+>  create mode 100644 Documentation/cgroups/mempressure_test.c
+>  create mode 100644 mm/mempressure.c
+> 
+> diff --git a/Documentation/cgroups/mempressure.txt b/Documentation/cgroups/mempressure.txt
+> new file mode 100644
+> index 0000000..913accc
+> --- /dev/null
+> +++ b/Documentation/cgroups/mempressure.txt
+> @@ -0,0 +1,89 @@
+> +  Memory pressure cgroup
+> +~~~~~~~~~~~~~~~~~~~~~~~~~~
+> +  Before using the mempressure cgroup, make sure you have it mounted:
+> +
+> +   # cd /sys/fs/cgroup/
+> +   # mkdir mempressure
+> +   # mount -t cgroup cgroup ./mempressure -o mempressure
+> +
+> +  After that, you can use the following files:
+> +
+> +  /sys/fs/cgroup/.../mempressure.shrinker
+> +~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> +  The file implements userland shrinker (memory reclaimer) interface, so
+> +  that the kernel can ask userland to help with the memory reclaiming
+> +  process.
+> +
+> +  There are two basic concepts: chunks and chunks' size. The program must
+> +  tell the kernel the granularity of its allocations (chunk size) and the
+> +  number of reclaimable chunks. The granularity may be not 100% accurate,
+> +  but the more it is accurate, the better. I.e. suppose the application
+> +  has 200 page renders cached (but not displayed), 1MB each. So the chunk
+> +  size is 1MB, and the number of chunks is 200.
+> +
+> +  The granularity is specified during shrinker registration (i.e. via
+> +  argument to the event_control cgroup file; and it is OK to register
+> +  multiple shrinkers for different granularities). The number of
+> +  reclaimable chunks is specified by writing to the mempressure.shrinker
+> +  file.
+> +
+> +  The notification comes through the eventfd() interface. Upon the
+> +  notification, a read() from the eventfd returns the number of chunks to
+> +  reclaim (free).
+> +
+> +  It is assumed that the application will free the specified amount of
+> +  chunks before reading from the eventfd again. If that is not the case,
+> +  suppose the program was not able to reclaim the chunks, then application
+> +  should re-add the amount of chunks by writing to the
+> +  mempressure.shrinker file (otherwise the chunks won't be accounted by
+> +  the kernel, since it assumes that they were reclaimed).
+> +
+> +  Event control:
+> +    Used to setup shrinker events. There is only one argument for the
+> +    event control: chunk size in bytes.
+> +  Read:
+> +    Not implemented.
+> +  Write:
+> +    Writes must be in "<eventfd> <number of chunks>" format. Positive
+> +    numbers increment the internal counter, negative numbers decrement it
+> +    (but the kernel prevents the counter from falling down below zero).
+> +  Test:
+> +    See mempressure_test.c
 
-Hm, I don't think my "some (certainly not all)" statement 
-reflected any sort of certainty. So we violently agree about:
+I think the interface is broken. One eventfd can be registered to get
+many different notifications.
 
-> [...] How do you not know it's because your code is migrating 
-> excessively for no good reason because the algorithm has a 
-> flaw in it? [...]
+The only information you have on POLLIN/read() is "something happened".
+Then, it's up to userspace to find out what had happened: if it's memory
+pressure or cgroup is removed or whatever else.
 
-That's another source - but again not something we should fix by 
-hiding it under the carpet via migration bandwidth rate limits, 
-right?
+One more point: unlike kernel side shrinkers, userspace shrinkers cannot
+be synchronous. I doubt they can be useful in real world situations.
 
-> [...] Or that the cost of excessive migration is not being 
-> offset by local data accesses? [...]
+I personally feel that mempressure.level interface is enough.
 
-That's another possibility.
+> +  /sys/fs/cgroup/.../mempressure.level
+> +~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> +  Instead of working on the bytes level (like shrinkers), one may decide
+> +  to maintain the interactivity/memory allocation cost.
+> +
+> +  For this, the cgroup has memory pressure level notifications, and the
+> +  levels are defined like this:
+> +
+> +  The "low" level means that the system is reclaiming memory for new
+> +  allocations. Monitoring reclaiming activity might be useful for
+> +  maintaining overall system's cache level. Upon notification, the program
+> +  (typically "Activity Manager") might analyze vmstat and act in advance
+> +  (i.e. prematurely shutdown unimportant services).
+> +
+> +  The "medium" level means that the system is experiencing medium memory
+> +  pressure, there is some mild swapping activity. Upon this event
+> +  applications may decide to free any resources that can be easily
+> +  reconstructed or re-read from a disk. Note that for a fine-grained
+> +  control, you should probably use the shrinker interface, as described
+> +  above.
+> +
+> +  The "oom" level means that the system is actively thrashing, it is about
+> +  to out of memory (OOM) or even the in-kernel OOM killer is on its way to
+> +  trigger. Applications should do whatever they can to help the system.
+> +
+> +  Event control:
+> +    Is used to setup an eventfd with a level threshold. The argument to
+> +    the event control specifies the level threshold.
+> +  Read:
+> +    Reads mempory presure levels: low, medium or oom.
+> +  Write:
+> +    Not implemented.
+> +  Test:
+> +    To set up a notification:
+> +
+> +    # cgroup_event_listener ./mempressure.level low
+> +    ("low", "medium", "oom" are permitted.)
 
-The _real_ fix is to avoid excessive migration on the CPU and 
-memory placement side, not to throttle the basic mechanism 
-itself!
+Interface look okay for me.
 
-I don't exclude the possibility that bandwidth limits might be 
-needed - but only if everything else fails. Meanwhile, the 
-bandwidth limits were actively hiding scalability bottlenecks, 
-which bottlenecks only trigger at higher migration rates.
+BTW, do you track pressure level changes due changes in
+memory[.memsw].limit_in_bytes or memory hotplug?
 
-> [...] The critical point to note is that if it really was only 
-> scalability problems then autonuma would suffer the same 
-> problems and would be impossible to autonumas performance to 
-> exceed numacores. This isn't the case making it unlikely the 
-> scalability is your only problem.
+> diff --git a/Documentation/cgroups/mempressure_test.c b/Documentation/cgroups/mempressure_test.c
+> new file mode 100644
+> index 0000000..9747fd6
+> --- /dev/null
+> +++ b/Documentation/cgroups/mempressure_test.c
+> @@ -0,0 +1,209 @@
+> +/*
+> + * mempressure shrinker test
+> + *
+> + * Copyright 2012 Linaro Ltd.
+> + *		  Anton Vorontsov <anton.vorontsov@linaro.org>
+> + *
+> + * It is pretty simple: we create two threads, the first one constantly
+> + * tries to allocate memory (more than we physically have), the second
+> + * thread listens to the kernel shrinker notifications and frees asked
+> + * amount of chunks. When we allocate more than available RAM, the two
+> + * threads start to fight. Idially, we should not OOM (but if we reclaim
+> + * slower than we allocate, things might OOM). Also, ideally we should not
+> + * grow swap too much.
+> + *
+> + * The test accepts no arguments, so you can just run it and observe the
+> + * output and memory usage (e.g. 'watch -n 0.2 free -m'). Upon ctrl+c, the
+> + * test prints total amount of bytes we helped to reclaim.
+> + *
+> + * Compile with -pthread.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published
+> + * by the Free Software Foundation.
+> + */
+> +
+> +#define _GNU_SOURCE
+> +#include <stdio.h>
+> +#include <stdlib.h>
+> +#include <stdint.h>
+> +#include <stdbool.h>
+> +#include <unistd.h>
+> +#include <string.h>
+> +#include <sys/types.h>
+> +#include <sys/stat.h>
+> +#include <fcntl.h>
+> +#include <pthread.h>
+> +#include <signal.h>
+> +#include <errno.h>
+> +#include <sys/eventfd.h>
+> +#include <sys/sysinfo.h>
+> +
+> +#define CG			"/sys/fs/cgroup/mempressure"
+> +#define CG_EVENT_CONTROL	(CG "/cgroup.event_control")
+> +#define CG_SHRINKER		(CG "/mempressure.shrinker")
+> +
+> +#define CHUNK_SIZE (1 * 1024 * 1024)
+> +
+> +static size_t num_chunks;
+> +
+> +static void **chunks;
+> +static pthread_mutex_t *locks;
+> +static int efd;
+> +static int sfd;
+> +
+> +static inline void pabort(bool f, int code, const char *str)
+> +{
+> +	if (!f)
+> +		return;
+> +	perror(str);
+> +	printf("(%d)\n", code);
+> +	abort();
+> +}
+> +
+> +static void init_shrinker(void)
+> +{
+> +	int cfd;
+> +	int ret;
+> +	char *str;
+> +
+> +	cfd = open(CG_EVENT_CONTROL, O_WRONLY);
+> +	pabort(cfd < 0, cfd, CG_EVENT_CONTROL);
+> +
+> +	sfd = open(CG_SHRINKER, O_RDWR);
+> +	pabort(sfd < 0, sfd, CG_SHRINKER);
+> +
+> +	efd = eventfd(0, 0);
+> +	pabort(efd < 0, efd, "eventfd()");
+> +
+> +	ret = asprintf(&str, "%d %d %d\n", efd, sfd, CHUNK_SIZE);
+> +	printf("%s\n", str);
 
-The scheduling patterns are different - so they can hit 
-different bottlenecks.
+str value is undefined here if asprintf() failed.
 
-> Either way, last night I applied a patch on top of latest 
-> tip/master to remove the nr_cpus_allowed check so that 
-> numacore would be enabled again and tested that. In some 
-> places it has indeed much improved. In others it is still 
-> regressing badly and in two case, it's corrupting memory -- 
-> specjbb when THP is enabled crashes when running for single or 
-> multiple JVMs. It is likely that a zero page is being inserted 
-> due to a race with migration and causes the JVM to throw a 
-> null pointer exception. Here is the comparison on the rough 
-> off-chance you actually read it this time.
+> +	pabort(ret == -1, ret, "control string");
+> +
+> +	ret = write(cfd, str, ret + 1);
+> +	pabort(ret == -1, ret, "write() to event_control");
 
-Can you still see the JVM crash with the unified -v3 tree?
+str is leaked.
 
-Thanks,
+> +}
+> +
+> +static void add_reclaimable(int chunks)
+> +{
+> +	int ret;
+> +	char *str;
+> +
+> +	ret = asprintf(&str, "%d %d\n", efd, CHUNK_SIZE);
 
-	Ingo
+s/CHUNK_SIZE/chunks/ ?
+
+same problems with str here.
+
+> +	pabort(ret == -1, ret, "add_reclaimable, asprintf");
+> +
+> +	ret = write(sfd, str, ret + 1);
+> +	pabort(ret <= 0, ret, "add_reclaimable, write");
+> +}
+> +
+> +static int chunks_to_reclaim(void)
+> +{
+> +	uint64_t n = 0;
+> +	int ret;
+> +
+> +	ret = read(efd, &n, sizeof(n));
+> +	pabort(ret <= 0, ret, "read() from eventfd");
+> +
+> +	printf("%d chunks to reclaim\n", (int)n);
+> +
+> +	return n;
+> +}
+> +
+> +static unsigned int reclaimed;
+> +
+> +static void print_stats(int signum)
+> +{
+> +	printf("\nTOTAL: helped to reclaim %d chunks (%d MB)\n",
+> +	       reclaimed, reclaimed * CHUNK_SIZE / 1024 / 1024);
+> +	exit(0);
+> +}
+> +
+> +static void *shrinker_thr_fn(void *arg)
+> +{
+> +	puts("shrinker thread started");
+> +
+> +	sigaction(SIGINT, &(struct sigaction){.sa_handler = print_stats}, NULL);
+> +
+> +	while (1) {
+> +		unsigned int i = 0;
+> +		int n;
+> +
+> +		n = chunks_to_reclaim();
+> +
+> +		reclaimed += n;
+> +
+> +		while (n) {
+> +			pthread_mutex_lock(&locks[i]);
+> +			if (chunks[i]) {
+> +				free(chunks[i]);
+> +				chunks[i] = NULL;
+> +				n--;
+> +			}
+> +			pthread_mutex_unlock(&locks[i]);
+> +
+> +			i = (i + 1) % num_chunks;
+> +		}
+> +	}
+> +	return NULL;
+> +}
+> +
+> +static void consume_memory(void)
+> +{
+> +	unsigned int i = 0;
+> +	unsigned int j = 0;
+> +
+> +	puts("consuming memory...");
+> +
+> +	while (1) {
+> +		pthread_mutex_lock(&locks[i]);
+> +		if (!chunks[i]) {
+> +			chunks[i] = malloc(CHUNK_SIZE);
+> +			pabort(!chunks[i], 0, "chunks alloc failed");
+> +			memset(chunks[i], 0, CHUNK_SIZE);
+> +			j++;
+> +		}
+> +		pthread_mutex_unlock(&locks[i]);
+> +
+> +		if (j >= num_chunks / 10) {
+> +			add_reclaimable(num_chunks / 10);
+> +			printf("added %d reclaimable chunks\n", j);
+> +			j = 0;
+> +		}
+> +
+> +		i = (i + 1) % num_chunks;
+> +	}
+> +}
+> +
+> +int main(int argc, char *argv[])
+> +{
+> +	int ret;
+> +	int i;
+> +	pthread_t shrinker_thr;
+> +	struct sysinfo si;
+> +
+> +	ret = sysinfo(&si);
+> +	pabort(ret != 0, ret, "sysinfo()");
+> +
+> +	num_chunks = (si.totalram + si.totalswap) * si.mem_unit / 1024 / 1024;
+> +
+> +	chunks = malloc(sizeof(*chunks) * num_chunks);
+> +	locks = malloc(sizeof(*locks) * num_chunks);
+> +	pabort(!chunks || !locks, ENOMEM, NULL);
+> +
+> +	init_shrinker();
+> +
+> +	for (i = 0; i < num_chunks; i++) {
+> +		ret = pthread_mutex_init(&locks[i], NULL);
+> +		pabort(ret != 0, ret, "pthread_mutex_init");
+> +	}
+> +
+> +	ret = pthread_create(&shrinker_thr, NULL, shrinker_thr_fn, NULL);
+> +	pabort(ret != 0, ret, "pthread_create(shrinker)");
+> +
+> +	consume_memory();
+> +
+> +	ret = pthread_join(shrinker_thr, NULL);
+> +	pabort(ret != 0, ret, "pthread_join(shrinker)");
+> +
+> +	return 0;
+> +}
+> diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
+> index f204a7a..b9802e2 100644
+> --- a/include/linux/cgroup_subsys.h
+> +++ b/include/linux/cgroup_subsys.h
+> @@ -37,6 +37,12 @@ SUBSYS(mem_cgroup)
+>  
+>  /* */
+>  
+> +#if IS_SUBSYS_ENABLED(CONFIG_CGROUP_MEMPRESSURE)
+> +SUBSYS(mpc_cgroup)
+> +#endif
+> +
+> +/* */
+> +
+>  #if IS_SUBSYS_ENABLED(CONFIG_CGROUP_DEVICE)
+>  SUBSYS(devices)
+>  #endif
+> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+> index 92a86b2..3f7f7d2 100644
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -10,6 +10,17 @@
+>  
+>  extern int sysctl_stat_interval;
+>  
+> +struct mem_cgroup;
+> +#ifdef CONFIG_CGROUP_MEMPRESSURE
+> +extern void vmpressure(struct mem_cgroup *memcg,
+> +		       ulong scanned, ulong reclaimed);
+> +extern void vmpressure_prio(struct mem_cgroup *memcg, int prio);
+> +#else
+> +static inline void vmpressure(struct mem_cgroup *memcg,
+> +			      ulong scanned, ulong reclaimed) {}
+> +static inline void vmpressure_prio(struct mem_cgroup *memcg, int prio) {}
+> +#endif
+> +
+>  #ifdef CONFIG_VM_EVENT_COUNTERS
+>  /*
+>   * Light weight per cpu counter implementation.
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 6fdd6e3..5c308be 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -826,6 +826,18 @@ config MEMCG_KMEM
+>  	  the kmem extension can use it to guarantee that no group of processes
+>  	  will ever exhaust kernel resources alone.
+>  
+> +config CGROUP_MEMPRESSURE
+> +	bool "Memory pressure monitor for Control Groups"
+> +	help
+> +	  The memory pressure monitor cgroup provides a facility for
+> +	  userland programs so that they could easily assist the kernel
+> +	  with the memory management. This includes simple memory pressure
+> +	  notifications and a full-fledged userland reclaimer.
+> +
+> +	  For more information see Documentation/cgroups/mempressure.txt
+> +
+> +	  If unsure, say N.
+> +
+>  config CGROUP_HUGETLB
+>  	bool "HugeTLB Resource Controller for Control Groups"
+>  	depends on RESOURCE_COUNTERS && HUGETLB_PAGE && EXPERIMENTAL
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 6b025f8..40cee19 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -50,6 +50,7 @@ obj-$(CONFIG_MIGRATION) += migrate.o
+>  obj-$(CONFIG_QUICKLIST) += quicklist.o
+>  obj-$(CONFIG_TRANSPARENT_HUGEPAGE) += huge_memory.o
+>  obj-$(CONFIG_MEMCG) += memcontrol.o page_cgroup.o
+> +obj-$(CONFIG_CGROUP_MEMPRESSURE) += mempressure.o
+>  obj-$(CONFIG_CGROUP_HUGETLB) += hugetlb_cgroup.o
+>  obj-$(CONFIG_MEMORY_FAILURE) += memory-failure.o
+>  obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+> diff --git a/mm/mempressure.c b/mm/mempressure.c
+> new file mode 100644
+> index 0000000..e39a33d
+> --- /dev/null
+> +++ b/mm/mempressure.c
+> @@ -0,0 +1,488 @@
+> +/*
+> + * Linux VM pressure
+> + *
+> + * Copyright 2012 Linaro Ltd.
+> + *		  Anton Vorontsov <anton.vorontsov@linaro.org>
+> + *
+> + * Based on ideas from Andrew Morton, David Rientjes, KOSAKI Motohiro,
+> + * Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka Enberg.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published
+> + * by the Free Software Foundation.
+> + */
+> +
+> +#include <linux/cgroup.h>
+> +#include <linux/fs.h>
+> +#include <linux/sched.h>
+> +#include <linux/mm.h>
+> +#include <linux/vmstat.h>
+> +#include <linux/eventfd.h>
+> +#include <linux/swap.h>
+> +#include <linux/printk.h>
+> +
+> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r);
+> +
+> +/*
+> + * Generic VM Pressure routines (no cgroups or any other API details)
+> + */
+> +
+> +/*
+> + * The window size is the number of scanned pages before we try to analyze
+> + * the scanned/reclaimed ratio (or difference).
+> + *
+> + * It is used as a rate-limit tunable for the "low" level notification,
+> + * and for averaging medium/oom levels. Using small window sizes can cause
+> + * lot of false positives, but too big window size will delay the
+> + * notifications.
+> + *
+> + * The same window size also used for the shrinker, so be aware. It might
+> + * be a good idea to derive the window size from the machine size, similar
+> + * to what we do for the vmstat.
+> + */
+> +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
+> +static const uint vmpressure_level_med = 60;
+> +static const uint vmpressure_level_oom = 99;
+> +static const uint vmpressure_level_oom_prio = 4;
+> +
+> +enum vmpressure_levels {
+> +	VMPRESSURE_LOW = 0,
+> +	VMPRESSURE_MEDIUM,
+> +	VMPRESSURE_OOM,
+> +	VMPRESSURE_NUM_LEVELS,
+> +};
+> +
+> +static const char *vmpressure_str_levels[] = {
+> +	[VMPRESSURE_LOW] = "low",
+> +	[VMPRESSURE_MEDIUM] = "medium",
+> +	[VMPRESSURE_OOM] = "oom",
+> +};
+> +
+> +static enum vmpressure_levels vmpressure_level(uint pressure)
+> +{
+> +	if (pressure >= vmpressure_level_oom)
+> +		return VMPRESSURE_OOM;
+> +	else if (pressure >= vmpressure_level_med)
+> +		return VMPRESSURE_MEDIUM;
+> +	return VMPRESSURE_LOW;
+> +}
+> +
+> +static ulong vmpressure_calc_level(uint win, uint s, uint r)
+> +{
+> +	ulong p;
+> +
+> +	if (!s)
+> +		return 0;
+> +
+> +	/*
+> +	 * We calculate the ratio (in percents) of how many pages were
+> +	 * scanned vs. reclaimed in a given time frame (window). Note that
+> +	 * time is in VM reclaimer's "ticks", i.e. number of pages
+> +	 * scanned. This makes it possible to set desired reaction time
+> +	 * and serves as a ratelimit.
+> +	 */
+> +	p = win - (r * win / s);
+> +	p = p * 100 / win;
+> +
+> +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, p, s, r);
+> +
+> +	return vmpressure_level(p);
+> +}
+> +
+> +void vmpressure(struct mem_cgroup *memcg, ulong scanned, ulong reclaimed)
+> +{
+> +	if (!scanned)
+> +		return;
+> +	mpc_vmpressure(memcg, scanned, reclaimed);
+> +}
+> +
+> +void vmpressure_prio(struct mem_cgroup *memcg, int prio)
+> +{
+> +	if (prio > vmpressure_level_oom_prio)
+> +		return;
+> +
+> +	/* OK, the prio is below the threshold, send the pre-OOM event. */
+> +	vmpressure(memcg, vmpressure_win, 0);
+> +}
+> +
+> +/*
+> + * Memory pressure cgroup code
+> + */
+> +
+> +struct mpc_event {
+> +	struct eventfd_ctx *efd;
+> +	enum vmpressure_levels level;
+> +	struct list_head node;
+> +};
+> +
+> +struct mpc_shrinker {
+> +	struct eventfd_ctx *efd;
+> +	size_t chunks;
+> +	size_t chunk_sz;
+> +	struct list_head node;
+> +};
+> +
+> +struct mpc_state {
+> +	struct cgroup_subsys_state css;
+> +
+> +	uint scanned;
+> +	uint reclaimed;
+> +	struct mutex sr_lock;
+> +
+> +	struct list_head events;
+> +	struct mutex events_lock;
+> +
+> +	struct list_head shrinkers;
+> +	struct mutex shrinkers_lock;
+> +
+> +	struct work_struct work;
+> +};
+> +
+> +static struct mpc_state *wk2mpc(struct work_struct *wk)
+> +{
+> +	return container_of(wk, struct mpc_state, work);
+> +}
+> +
+> +static struct mpc_state *css2mpc(struct cgroup_subsys_state *css)
+> +{
+> +	return container_of(css, struct mpc_state, css);
+> +}
+> +
+> +static struct mpc_state *tsk2mpc(struct task_struct *tsk)
+> +{
+> +	return css2mpc(task_subsys_state(tsk, mpc_cgroup_subsys_id));
+> +}
+> +
+> +static struct mpc_state *cg2mpc(struct cgroup *cg)
+> +{
+> +	return css2mpc(cgroup_subsys_state(cg, mpc_cgroup_subsys_id));
+> +}
+> +
+> +static void mpc_shrinker(struct mpc_state *mpc, ulong s, ulong r)
+> +{
+> +	struct mpc_shrinker *sh;
+> +	ssize_t to_reclaim_pages = s - r;
+> +
+> +	if (!to_reclaim_pages)
+> +		return;
+> +
+> +	mutex_lock(&mpc->shrinkers_lock);
+> +
+> +	/*
+> +	 * To make accounting more precise and to avoid excessive
+> +	 * communication with the kernel, we operate on chunks instead of
+> +	 * bytes. Say, asking to free 8 KBs makes little sense if
+> +	 * granularity of allocations is 10 MBs. Also, knowing the
+> +	 * granularity (chunk size) and the number of reclaimable chunks,
+> +	 * we just ask that N chunks should be freed, and we assume that
+> +	 * it will be freed, thus we decrement our internal counter
+> +	 * straight away (i.e. userland does not need to respond how much
+> +	 * was reclaimed). But, if userland could not free it, it is
+> +	 * responsible to increment the counter back.
+> +	 */
+> +	list_for_each_entry(sh, &mpc->shrinkers, node) {
+> +		size_t to_reclaim_chunks;
+> +
+> +		if (!sh->chunks)
+> +			continue;
+> +
+> +		to_reclaim_chunks = to_reclaim_pages *
+> +				    PAGE_SIZE / sh->chunk_sz;
+> +		to_reclaim_chunks = min(sh->chunks, to_reclaim_chunks);
+> +
+> +		if (!to_reclaim_chunks)
+> +			continue;
+> +
+> +		sh->chunks -= to_reclaim_chunks;
+> +
+> +		eventfd_signal(sh->efd, to_reclaim_chunks);
+> +
+> +		to_reclaim_pages -= to_reclaim_chunks *
+> +				    sh->chunk_sz / PAGE_SIZE;
+> +		if (to_reclaim_pages <= 0)
+> +			break;
+> +	}
+> +
+> +	mutex_unlock(&mpc->shrinkers_lock);
+> +}
+> +
+> +static void mpc_event(struct mpc_state *mpc, ulong s, ulong r)
+> +{
+> +	struct mpc_event *ev;
+> +	int level = vmpressure_calc_level(vmpressure_win, s, r);
+> +
+> +	mutex_lock(&mpc->events_lock);
+> +
+> +	list_for_each_entry(ev, &mpc->events, node) {
+> +		if (level >= ev->level)
+
+What about per-level lists?
+
+> +			eventfd_signal(ev->efd, 1);
+> +	}
+> +
+> +	mutex_unlock(&mpc->events_lock);
+> +}
+> +
+> +static void mpc_vmpressure_wk_fn(struct work_struct *wk)
+> +{
+> +	struct mpc_state *mpc = wk2mpc(wk);
+> +	ulong s;
+> +	ulong r;
+> +
+> +	mutex_lock(&mpc->sr_lock);
+> +	s = mpc->scanned;
+> +	r = mpc->reclaimed;
+> +	mpc->scanned = 0;
+> +	mpc->reclaimed = 0;
+> +	mutex_unlock(&mpc->sr_lock);
+> +
+> +	mpc_shrinker(mpc, s, r);
+> +	mpc_event(mpc, s, r);
+> +}
+> +
+> +static void __mpc_vmpressure(struct mpc_state *mpc, ulong s, ulong r)
+> +{
+> +	mutex_lock(&mpc->sr_lock);
+> +	mpc->scanned += s;
+> +	mpc->reclaimed += r;
+> +	mutex_unlock(&mpc->sr_lock);
+> +
+> +	if (s < vmpressure_win || work_pending(&mpc->work))
+> +		return;
+> +
+> +	schedule_work(&mpc->work);
+> +}
+> +
+> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r)
+> +{
+> +	/*
+> +	 * There are two options for implementing cgroup pressure
+> +	 * notifications:
+> +	 *
+> +	 * - Store pressure counter atomically in the task struct. Upon
+> +	 *   hitting 'window' wake up a workqueue that will walk every
+> +	 *   task and sum per-thread pressure into cgroup pressure (to
+> +	 *   which the task belongs). The cons are obvious: bloats task
+> +	 *   struct, have to walk all processes and makes pressue less
+> +	 *   accurate (the window becomes per-thread);
+> +	 *
+> +	 * - Store pressure counters in per-cgroup state. This is easy and
+> +	 *   straightforward, and that's how we do things here. But this
+> +	 *   requires us to not put the vmpressure hooks into hotpath,
+> +	 *   since we have to grab some locks.
+> +	 */
+> +
+> +#ifdef CONFIG_MEMCG
+> +	if (memcg) {
+> +		struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
+> +		struct cgroup *cg = css->cgroup;
+> +		struct mpc_state *mpc = cg2mpc(cg);
+> +
+> +		if (mpc)
+> +			__mpc_vmpressure(mpc, s, r);
+> +		return;
+> +	}
+> +#endif
+> +	task_lock(current);
+> +	__mpc_vmpressure(tsk2mpc(current), s, r);
+> +	task_unlock(current);
+> +}
+> +
+> +static struct cgroup_subsys_state *mpc_create(struct cgroup *cg)
+> +{
+> +	struct mpc_state *mpc;
+> +
+> +	mpc = kzalloc(sizeof(*mpc), GFP_KERNEL);
+> +	if (!mpc)
+> +		return ERR_PTR(-ENOMEM);
+> +
+> +	mutex_init(&mpc->sr_lock);
+> +	mutex_init(&mpc->events_lock);
+> +	mutex_init(&mpc->shrinkers_lock);
+> +	INIT_LIST_HEAD(&mpc->events);
+> +	INIT_LIST_HEAD(&mpc->shrinkers);
+> +	INIT_WORK(&mpc->work, mpc_vmpressure_wk_fn);
+> +
+> +	return &mpc->css;
+> +}
+> +
+> +static void mpc_destroy(struct cgroup *cg)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +
+> +	kfree(mpc);
+> +}
+> +
+> +static ssize_t mpc_read_level(struct cgroup *cg, struct cftype *cft,
+> +			      struct file *file, char __user *buf,
+> +			      size_t sz, loff_t *ppos)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	uint level;
+> +	const char *str;
+> +
+> +	mutex_lock(&mpc->sr_lock);
+> +
+> +	level = vmpressure_calc_level(vmpressure_win,
+> +			mpc->scanned, mpc->reclaimed);
+> +
+> +	mutex_unlock(&mpc->sr_lock);
+> +
+> +	str = vmpressure_str_levels[level];
+> +	return simple_read_from_buffer(buf, sz, ppos, str, strlen(str));
+> +}
+> +
+> +static int mpc_register_level_event(struct cgroup *cg, struct cftype *cft,
+> +				    struct eventfd_ctx *eventfd,
+> +				    const char *args)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	struct mpc_event *ev;
+> +	int lvl;
+> +
+> +	for (lvl = 0; lvl < VMPRESSURE_NUM_LEVELS; lvl++) {
+> +		if (!strcmp(vmpressure_str_levels[lvl], args))
+> +			break;
+> +	}
+> +
+> +	if (lvl >= VMPRESSURE_NUM_LEVELS)
+> +		return -EINVAL;
+> +
+> +	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
+> +	if (!ev)
+> +		return -ENOMEM;
+> +
+> +	ev->efd = eventfd;
+> +	ev->level = lvl;
+> +
+> +	mutex_lock(&mpc->events_lock);
+> +	list_add(&ev->node, &mpc->events);
+> +	mutex_unlock(&mpc->events_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static void mpc_unregister_event(struct cgroup *cg, struct cftype *cft,
+> +				 struct eventfd_ctx *eventfd)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	struct mpc_event *ev;
+> +
+> +	mutex_lock(&mpc->events_lock);
+> +	list_for_each_entry(ev, &mpc->events, node) {
+> +		if (ev->efd != eventfd)
+> +			continue;
+> +		list_del(&ev->node);
+> +		kfree(ev);
+> +		break;
+> +	}
+> +	mutex_unlock(&mpc->events_lock);
+> +}
+> +
+> +static int mpc_register_shrinker(struct cgroup *cg, struct cftype *cft,
+> +				 struct eventfd_ctx *eventfd,
+> +				 const char *args)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	struct mpc_shrinker *sh;
+> +	ulong chunk_sz;
+> +	int ret;
+> +
+> +	ret = kstrtoul(args, 10, &chunk_sz);
+> +	if (ret)
+> +		return ret;
+> +
+> +	sh = kzalloc(sizeof(*sh), GFP_KERNEL);
+> +	if (!sh)
+> +		return -ENOMEM;
+> +
+> +	sh->efd = eventfd;
+> +	sh->chunk_sz = chunk_sz;
+> +
+> +	mutex_lock(&mpc->shrinkers_lock);
+> +	list_add(&sh->node, &mpc->shrinkers);
+> +	mutex_unlock(&mpc->shrinkers_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static void mpc_unregister_shrinker(struct cgroup *cg, struct cftype *cft,
+> +				 struct eventfd_ctx *eventfd)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	struct mpc_shrinker *sh;
+> +
+> +	mutex_lock(&mpc->shrinkers_lock);
+> +	list_for_each_entry(sh, &mpc->shrinkers, node) {
+> +		if (sh->efd != eventfd)
+> +			continue;
+> +		list_del(&sh->node);
+> +		kfree(sh);
+> +		break;
+> +	}
+> +	mutex_unlock(&mpc->shrinkers_lock);
+> +}
+> +
+> +static int mpc_write_shrinker(struct cgroup *cg, struct cftype *cft,
+> +			      const char *str)
+> +{
+> +	struct mpc_state *mpc = cg2mpc(cg);
+> +	struct mpc_shrinker *sh;
+> +	struct eventfd_ctx *eventfd;
+> +	struct file *file;
+> +	ssize_t chunks;
+> +	int fd;
+> +	int ret;
+> +
+> +	ret = sscanf(str, "%d %zd\n", &fd, &chunks);
+> +	if (ret != 2)
+> +		return -EINVAL;
+> +
+> +	file = fget(fd);
+> +	if (!file)
+> +		return -EBADF;
+> +
+> +	eventfd = eventfd_ctx_fileget(file);
+> +
+> +	mutex_lock(&mpc->shrinkers_lock);
+> +
+> +	/* Can avoid the loop once we introduce ->priv for eventfd_ctx. */
+> +	list_for_each_entry(sh, &mpc->shrinkers, node) {
+> +		if (sh->efd != eventfd)
+> +			continue;
+> +		if (chunks < 0 && abs(chunks) > sh->chunks)
+> +			sh->chunks = 0;
+> +		else
+> +			sh->chunks += chunks;
+> +		break;
+> +	}
+> +
+> +	mutex_unlock(&mpc->shrinkers_lock);
+> +
+> +	eventfd_ctx_put(eventfd);
+> +	fput(file);
+> +
+> +	return 0;
+> +}
+> +
+> +static struct cftype mpc_files[] = {
+> +	{
+> +		.name = "level",
+> +		.read = mpc_read_level,
+> +		.register_event = mpc_register_level_event,
+> +		.unregister_event = mpc_unregister_event,
+
+mpc_unregister_level_event for consistency.
+
+> +	},
+> +	{
+> +		.name = "shrinker",
+> +		.register_event = mpc_register_shrinker,
+> +		.unregister_event = mpc_unregister_shrinker,
+> +		.write_string = mpc_write_shrinker,
+> +	},
+> +	{},
+> +};
+> +
+> +struct cgroup_subsys mpc_cgroup_subsys = {
+> +	.name = "mempressure",
+> +	.subsys_id = mpc_cgroup_subsys_id,
+> +	.create = mpc_create,
+> +	.destroy = mpc_destroy,
+> +	.base_cftypes = mpc_files,
+> +};
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 48550c6..d8ff846 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1877,6 +1877,9 @@ restart:
+>  		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+>  				   sc, LRU_ACTIVE_ANON);
+>  
+> +	vmpressure(sc->target_mem_cgroup,
+> +		   sc->nr_scanned - nr_scanned, nr_reclaimed);
+> +
+>  	/* reclaim/compaction might need reclaim to continue */
+>  	if (should_continue_reclaim(lruvec, nr_reclaimed,
+>  				    sc->nr_scanned - nr_scanned, sc))
+> @@ -2099,6 +2102,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		count_vm_event(ALLOCSTALL);
+>  
+>  	do {
+> +		vmpressure_prio(sc->target_mem_cgroup, sc->priority);
+>  		sc->nr_scanned = 0;
+>  		aborted_reclaim = shrink_zones(zonelist, sc);
+>  
+> -- 
+> 1.8.0
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
