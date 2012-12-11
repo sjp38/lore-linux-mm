@@ -1,127 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id DAC016B0098
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:52:17 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id jt11so936pbb.26
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:52:17 -0800 (PST)
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 4F7EF6B009D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 18:21:05 -0500 (EST)
+Date: Wed, 12 Dec 2012 08:21:01 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v3] Support volatile range for anon vma
+Message-ID: <20121211232101.GA32158@blaptop>
+References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
+ <50C77F47.10601@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20121211160149.GE1612@dhcp22.suse.cz>
-References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
-	<1353955671-14385-5-git-send-email-mhocko@suse.cz>
-	<CALWz4ixgQzhZeqt_9JiMT0XOGFOh1co6xYo1dkS9Rrksey7KUA@mail.gmail.com>
-	<20121211160149.GE1612@dhcp22.suse.cz>
-Date: Tue, 11 Dec 2012 14:52:16 -0800
-Message-ID: <CALWz4izRiRFWykOr2DutHCqQnspF7NS9=G3PAVcqu80s3RXE-w@mail.gmail.com>
-Subject: Re: [patch v2 4/6] memcg: simplify mem_cgroup_iter
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50C77F47.10601@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Dec 11, 2012 at 8:01 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Mon 10-12-12 20:35:20, Ying Han wrote:
->> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > Current implementation of mem_cgroup_iter has to consider both css and
->> > memcg to find out whether no group has been found (css==NULL - aka the
->> > loop is completed) and that no memcg is associated with the found node
->> > (!memcg - aka css_tryget failed because the group is no longer alive).
->> > This leads to awkward tweaks like tests for css && !memcg to skip the
->> > current node.
->> >
->> > It will be much easier if we got rid off css variable altogether and
->> > only rely on memcg. In order to do that the iteration part has to skip
->> > dead nodes. This sounds natural to me and as a nice side effect we will
->> > get a simple invariant that memcg is always alive when non-NULL and all
->> > nodes have been visited otherwise.
->> >
->> > We could get rid of the surrounding while loop but keep it in for now to
->> > make review easier. It will go away in the following patch.
->> >
->> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
->> > ---
->> >  mm/memcontrol.c |   56 +++++++++++++++++++++++++++----------------------------
->> >  1 file changed, 27 insertions(+), 29 deletions(-)
->> >
->> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> > index 6bcc97b..d1bc0e8 100644
->> > --- a/mm/memcontrol.c
->> > +++ b/mm/memcontrol.c
->> > @@ -1086,7 +1086,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->> >         rcu_read_lock();
->> >         while (!memcg) {
->> >                 struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
->> > -               struct cgroup_subsys_state *css = NULL;
->> >
->> >                 if (reclaim) {
->> >                         int nid = zone_to_nid(reclaim->zone);
->> > @@ -1112,53 +1111,52 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->> >                  * explicit visit.
->> >                  */
->> >                 if (!last_visited) {
->                     ^^^^^^^^
->                     here
->
->> > -                       css = &root->css;
->> > +                       memcg = root;
->> >                 } else {
->> >                         struct cgroup *prev_cgroup, *next_cgroup;
->> >
->> >                         prev_cgroup = (last_visited == root) ? NULL
->> >                                 : last_visited->css.cgroup;
->> > -                       next_cgroup = cgroup_next_descendant_pre(prev_cgroup,
->> > -                                       root->css.cgroup);
->> > -                       if (next_cgroup)
->> > -                               css = cgroup_subsys_state(next_cgroup,
->> > -                                               mem_cgroup_subsys_id);
->> > -               }
->> > +skip_node:
->> > +                       next_cgroup = cgroup_next_descendant_pre(
->> > +                                       prev_cgroup, root->css.cgroup);
->> >
->> > -               /*
->> > -                * Even if we found a group we have to make sure it is alive.
->> > -                * css && !memcg means that the groups should be skipped and
->> > -                * we should continue the tree walk.
->> > -                * last_visited css is safe to use because it is protected by
->> > -                * css_get and the tree walk is rcu safe.
->> > -                */
->> > -               if (css == &root->css || (css && css_tryget(css)))
->> > -                       memcg = mem_cgroup_from_css(css);
->> > +                       /*
->> > +                        * Even if we found a group we have to make sure it is
->> > +                        * alive. css && !memcg means that the groups should be
->> > +                        * skipped and we should continue the tree walk.
->> > +                        * last_visited css is safe to use because it is
->> > +                        * protected by css_get and the tree walk is rcu safe.
->> > +                        */
->> > +                       if (next_cgroup) {
->> > +                               struct mem_cgroup *mem = mem_cgroup_from_cont(
->> > +                                               next_cgroup);
->> > +                               if (css_tryget(&mem->css))
->> > +                                       memcg = mem;
->>
->> I see a functional change after this, where we now hold a refcnt of
->> css if memcg is root. It is not the case before this change.
->
-> I know it is a bit obscure but this is not the case.
-> cgroup_next_descendant_pre never visits its root. That's why we have
-> that if (!last_visited) test above. We have to handle it separately.
->
-> Makes sense?
+Hi John,
 
-Ah, OK. The code is more readable after this patch then
+On Tue, Dec 11, 2012 at 10:45:27AM -0800, John Stultz wrote:
+> On 12/10/2012 06:34 PM, Minchan Kim wrote:
+> >This still is [RFC v3] because just passed my simple test
+> >with TCMalloc tweaking.
+> >
+> >I hope more inputs from user-space allocator people and test patch
+> >with their allocator because it might need design change of arena
+> >management design for getting real vaule.
+> >
+> >Changelog from v2
+> >
+> >  * Removing madvise(addr, length, MADV_NOVOLATILE).
+> >  * add vmstat about the number of discarded volatile pages
+> >  * discard volatile pages without promotion in reclaim path
+> >
+> >This is based on v3.6.
+> >
+> >- What's the madvise(addr, length, MADV_VOLATILE)?
+> >
+> >   It's a hint that user deliver to kernel so kernel can *discard*
+> >   pages in a range anytime.
+> >
+> >- What happens if user access page(ie, virtual address) discarded
+> >   by kernel?
+> >
+> >   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
+> >
+> >- What happens if user access page(ie, virtual address) doesn't
+> >   discarded by kernel?
+> >
+> >   The user can see old data without page fault.
+> >
+> >- What's different with madvise(DONTNEED)?
+> >
+> >   System call semantic
+> >
+> >   DONTNEED makes sure user always can see zero-fill pages after
+> >   he calls madvise while VOLATILE can see zero-fill pages or
+> >   old data.
+> I still need to really read and understand the patch, but at a high
+> level I'm not sure how this works. So does the VOLATILE flag get
+> cleared on any access, even if the pages have not been discarded?
 
---Ying
+No. It is cleared when user try to access discareded pages so
+This patch is utter crap. I missed that point.
+Thanks for pointing out, John.
 
->
->>
->> --Ying
-> [...]
+Hmm, in the end, we need NOVOLATILE.
+
+> What happens if an application wants to store non-volatile data in
+> an area that was once marked volatile. If there was never memory
+> pressure, it seems the volatility would persist with no way of
+> removing it.
+
+Yes. that's why this patch is crap and I'm insane. :(
+
+> 
+> Either way, I feel that with this revision, specifically dropping
+> the NOVOLATILE call and the SIGBUS optimization the Mozilla folks
+> suggested, your implementation has drifted quite far from the
+> concept I'm pushing. While I hope we can still align the underlying
+> mm implementation, I might ask that you use a different term for the
+> semantics you propose, so we don't add too much confusion to the
+> discussion.
+> 
+> Maybe you could call it DONTNEED_DEFERRED or something?
+> 
+> In the meantime, I'll be reading your patch in detail and seeing how
+> we might be able to combine our differing approaches.
+
+You don't need it. Ignore this patch.
+I will rework.
+
+Thanks.
+
+> 
+> thanks
+> -john
+> 
 > --
-> Michal Hocko
-> SUSE Labs
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
