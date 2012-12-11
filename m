@@ -1,58 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 68F556B0087
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:12:36 -0500 (EST)
-From: Lin Feng <linfeng@cn.fujitsu.com>
-Subject: [PATCH] mm/bootmem.c: remove unused wrapper function reserve_bootmem_generic()
-Date: Tue, 11 Dec 2012 16:12:03 +0800
-Message-Id: <1355213523-15698-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id DDA836B0089
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:21:19 -0500 (EST)
+Date: Tue, 11 Dec 2012 00:21:08 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: memory_hotplug: fix build error
+Message-Id: <20121211002108.8d013a80.akpm@linux-foundation.org>
+In-Reply-To: <1355213158-4955-1-git-send-email-lliubbo@gmail.com>
+References: <1355213158-4955-1-git-send-email-lliubbo@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, yinghai@kernel.org, hpa@zytor.com
-Cc: davem@davemloft.net, hannes@cmpxchg.org, eric.dumazet@gmail.com, tj@kernel.org, shangw@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lin Feng <linfeng@cn.fujitsu.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: laijs@cn.fujitsu.com, wency@cn.fujitsu.com, jiang.liu@huawei.com, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org
 
-Wrapper fucntion reserve_bootmem_generic() currently have no caller,
-so clean it up.
+On Tue, 11 Dec 2012 16:05:58 +0800 Bob Liu <lliubbo@gmail.com> wrote:
 
-Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- include/linux/bootmem.h |    3 ---
- mm/bootmem.c            |    6 ------
- 2 files changed, 0 insertions(+), 9 deletions(-)
+> Fix below build error(and comment):
+> mm/memory_hotplug.c:646:14: error: ___ZONE_HIGH___ undeclared (first use in this
+> function)
+> mm/memory_hotplug.c:646:14: note: each undeclared identifier is reported
+> only once for each function it appears in
+> make[1]: *** [mm/memory_hotplug.o] Error 1
+> 
+> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+> ---
+>  mm/memory_hotplug.c |    6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index ea71d0d..9e97530 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -636,14 +636,14 @@ static void node_states_check_changes_online(unsigned long nr_pages,
+>  #ifdef CONFIG_HIGHMEM
+>  	/*
+>  	 * If we have movable node, node_states[N_HIGH_MEMORY]
+> -	 * contains nodes which have zones of 0...ZONE_HIGH,
+> -	 * set zone_last to ZONE_HIGH.
+> +	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
+> +	 * set zone_last to ZONE_HIGHMEM.
+>  	 *
+>  	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+>  	 * contains nodes which have zones of 0...ZONE_MOVABLE,
+>  	 * set zone_last to ZONE_MOVABLE.
+>  	 */
+> -	zone_last = ZONE_HIGH;
+> +	zone_last = ZONE_HIGHMEM;
+>  	if (N_MEMORY == N_HIGH_MEMORY)
+>  		zone_last = ZONE_MOVABLE;
 
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index 6d6795d..bfc742c 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -137,9 +137,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- #define alloc_bootmem_low_pages_node(pgdat, x) \
- 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
+Thanks - there are actually two sites.  You only caught one because
+CONFIG_HIGHMEM was missing its 'F'.
+
+
+Guys, this isn't very good.  Obviously this code wasn't tested well :(
+
+I expect the combination of highmem and memory hotplug will never
+exist, but it should at least compile.
+
+
+
+--- a/mm/memory_hotplug.c~hotplug-update-nodemasks-management-fix
++++ a/mm/memory_hotplug.c
+@@ -620,14 +620,14 @@ static void node_states_check_changes_on
+ #ifdef CONFIG_HIGHMEM
+ 	/*
+ 	 * If we have movable node, node_states[N_HIGH_MEMORY]
+-	 * contains nodes which have zones of 0...ZONE_HIGH,
+-	 * set zone_last to ZONE_HIGH.
++	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
++	 * set zone_last to ZONE_HIGHMEM.
+ 	 *
+ 	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+ 	 * contains nodes which have zones of 0...ZONE_MOVABLE,
+ 	 * set zone_last to ZONE_MOVABLE.
+ 	 */
+-	zone_last = ZONE_HIGH;
++	zone_last = ZONE_HIGHMEM;
+ 	if (N_MEMORY == N_HIGH_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
  
--extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
--				   int flags);
--
- #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
- extern void *alloc_remap(int nid, unsigned long size);
- #else
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index f468185..2812730 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -439,12 +439,6 @@ int __init reserve_bootmem(unsigned long addr, unsigned long size,
- 	return mark_bootmem(start, end, 1, flags);
- }
+@@ -1151,17 +1151,17 @@ static void node_states_check_changes_of
+ 	else
+ 		arg->status_change_nid_normal = -1;
  
--int __weak __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
--				   int flags)
--{
--	return reserve_bootmem(phys, len, flags);
--}
--
- static unsigned long __init align_idx(struct bootmem_data *bdata,
- 				      unsigned long idx, unsigned long step)
- {
--- 
-1.7.1
+-#ifdef CONIG_HIGHMEM
++#ifdef CONFIG_HIGHMEM
+ 	/*
+ 	 * If we have movable node, node_states[N_HIGH_MEMORY]
+-	 * contains nodes which have zones of 0...ZONE_HIGH,
+-	 * set zone_last to ZONE_HIGH.
++	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
++	 * set zone_last to ZONE_HIGHMEM.
+ 	 *
+ 	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+ 	 * contains nodes which have zones of 0...ZONE_MOVABLE,
+ 	 * set zone_last to ZONE_MOVABLE.
+ 	 */
+-	zone_last = ZONE_HIGH;
++	zone_last = ZONE_HIGHMEM;
+ 	if (N_MEMORY == N_HIGH_MEMORY)
+ 		zone_last = ZONE_MOVABLE;
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
