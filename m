@@ -1,82 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 358FF6B0071
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:41:17 -0500 (EST)
-Date: Tue, 11 Dec 2012 14:41:13 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: livelock in __writeback_inodes_wb ?
-Message-ID: <20121211134113.GA15801@quack.suse.cz>
-References: <20121128145515.GA26564@redhat.com>
- <20121211082327.GA15706@localhost>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 607876B0071
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:45:11 -0500 (EST)
+Date: Tue, 11 Dec 2012 14:45:09 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH V3 1/2] MCE: fix an error of mce_bad_pages statistics
+Message-ID: <20121211134509.GB16230@one.firstfloor.org>
+References: <50C72493.3080009@huawei.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121211082327.GA15706@localhost>
+In-Reply-To: <50C72493.3080009@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 11-12-12 16:23:27, Wu Fengguang wrote:
-> On Wed, Nov 28, 2012 at 09:55:15AM -0500, Dave Jones wrote:
-> > We had a user report the soft lockup detector kicked after 22
-> > seconds of no progress, with this trace..
-> 
-> Where is the original report? The reporter may help provide some clues
-> on the workload that triggered the bug.
-> 
-> > :BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
-> > :Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
-> > :RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
-> > :Call Trace:
-> > : [<ffffffff811b783e>] redirty_tail+0x5e/0x80
-> > : [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
-> > : [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
-> > : [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
-> > : [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
-> > : [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
-> > : [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
-> > : [<ffffffff8107fde3>] kthread+0x93/0xa0
-> > : [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
-> > : [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
-> > : [<ffffffff81627e00>] ? gs_change+0x13/0x13
-> > 
-> > Looking over the code, is it possible that something could be
-> > dirtying pages faster than writeback can get them written out,
-> > keeping us in this loop indefitely ?
-> 
-> The bug reporter should know best whether there are heavy IO.
-> 
-> However I suspect it's not directly caused by heavy IO: we will
-> release &wb->list_lock before each __writeback_single_inode() call,
-> which starts writeback IO for each inode.
-  Umm, it's not about releasing wb->list_lock I think. Softlockup will
-trigger whenever we are looping in a kernel for more than given timeout
-(e.g. those 22 s) without sleeping.
+On Tue, Dec 11, 2012 at 08:18:27PM +0800, Xishi Qiu wrote:
+> 1) move poisoned page check at the beginning of the function.
+> 2) add page_lock to avoid unpoison clear the flag.
 
-> > Should there be something in this loop periodically poking
-> > the watchdog perhaps ?
-> 
-> It seems we failed to release &wb->list_lock in wb_writeback() for
-> long time (dozens of seconds). That is, the inode_sleep_on_writeback()
-> is somehow not called. However it's not obvious to me how come this
-> can happen..
-  Maybe, progress is always non-zero but small and nr_pages is high (e.g.
-when writeback is triggered by wakeup_flusher_threads()). What filesystem
-is the guy using? I remember e.g. btrfs used to have always-dirty inodes
-which could confuse us.
+That doesn't make sense, obviously you would need to recheck
+inside the lock again to really protect against unpoison.
 
->From the backtrace it is clear there's some superblock which has s_umount
-locked and we cannot writeback inodes there. So if this superblock contains
-most of the dirty pages we need to write and there's another superblock
-with always dirty inode we would livelock like observed... So my question
-would be about what filesystems are there in the system (/proc/mounts),
-what load does trigger this, trigger sysrq-w when the lockup happens.
+But unpoison is only for debugging anyways, so it doesn't matter
+if the count is 100% correct.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
