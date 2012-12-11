@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id AE5CE6B0093
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:31:50 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so1939729dak.14
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:31:49 -0800 (PST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 281256B0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:36:11 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so3140015pbc.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:36:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20121211155025.GB1612@dhcp22.suse.cz>
+In-Reply-To: <20121211155432.GC1612@dhcp22.suse.cz>
 References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
 	<1353955671-14385-4-git-send-email-mhocko@suse.cz>
-	<CALWz4iwNvRd7AgEiSzd7Gr-7P5oh0uESS5A7rLZ7dZWeTjOzpQ@mail.gmail.com>
-	<20121211155025.GB1612@dhcp22.suse.cz>
-Date: Tue, 11 Dec 2012 14:31:49 -0800
-Message-ID: <CALWz4izk-A-DPCEnCsVMvzjtgL2W2ydcRM1vyKcLhjWtUzTpkg@mail.gmail.com>
+	<CALWz4ixPmvguxQO8s9mqH+OLEXC5LDfzEVFx_qqe2hBaRcsXiA@mail.gmail.com>
+	<20121211155432.GC1612@dhcp22.suse.cz>
+Date: Tue, 11 Dec 2012 14:36:10 -0800
+Message-ID: <CALWz4izL7fEuQhEvKa7mUqi0sa25mcFP-xnTnL3vU3Z17k7VHg@mail.gmail.com>
 Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup iterators
 From: Ying Han <yinghan@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
@@ -20,63 +20,58 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Tue, Dec 11, 2012 at 7:50 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Sun 09-12-12 08:59:54, Ying Han wrote:
+On Tue, Dec 11, 2012 at 7:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sun 09-12-12 11:39:50, Ying Han wrote:
 >> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
 > [...]
->> > +               /*
->> > +                * Even if we found a group we have to make sure it is alive.
->> > +                * css && !memcg means that the groups should be skipped and
->> > +                * we should continue the tree walk.
->> > +                * last_visited css is safe to use because it is protected by
->> > +                * css_get and the tree walk is rcu safe.
->> > +                */
->> > +               if (css == &root->css || (css && css_tryget(css)))
->> > +                       memcg = mem_cgroup_from_css(css);
->> >
 >> >                 if (reclaim) {
 >> > -                       iter->position = id;
 >> > +                       struct mem_cgroup *curr = memcg;
 >> > +
 >> > +                       if (last_visited)
 >> > +                               css_put(&last_visited->css);
+>                             ^^^^^^^^^^^
+>                             here
 >> > +
 >> > +                       if (css && !memcg)
 >> > +                               curr = mem_cgroup_from_css(css);
->>
->> In this case, the css_tryget() failed which implies the css is on the
->> way to be removed. (refcnt ==0) If so, why it is safe to call
->> css_get() directly on it below? It seems not preventing the css to be
->> removed by doing so.
->
-> Well, I do not remember exactly but I guess the code is meant to say
-> that we need to store a half-dead memcg because the loop has to be
-> retried. As we are under RCU hood it is just half dead.
-> Now that you brought this up I think this is not safe as well because
-> another thread could have seen the cached value while we tried to retry
-> and his RCU is not protecting the group anymore. The follow up patch
-> fixes this by retrying within the loop. I will bring that part into
-> this patch already and then leave only css clean up in the other patch.
->
-> Thanks for spotting this Ying!
-
-I understand the intention here where we want to move on to the next
-css if the css_tryget() failed. But css_get() won't hold on it in that
-case.
-
-I fixed that on my local branch which do the retry after css_tryget()
-failed, just like what you talked about. And I will wait for you fix
-on that.
-
---Ying
-
->
->>
+>> > +
 >> > +                       /* make sure that the cached memcg is not removed */
 >> > +                       if (curr)
 >> > +                               css_get(&curr->css);
+>> > +                       iter->last_visited = curr;
 >>
->> --Ying
+>> Here we take extra refcnt for last_visited, and assume it is under
+>> target reclaim which then calls mem_cgroup_iter_break() and we leaked
+>> a refcnt of the target memcg css.
+>
+> I think you are not right here. The extra reference is kept for
+> iter->last_visited and it will be dropped the next time somebody sees
+> the same zone-priority iter. See above.
+>
+> Or have I missed your question?
+
+Hmm, question remains.
+
+My understanding of the mem_cgroup_iter() is that each call path
+should close the loop itself, in the sense that no *leaked* css refcnt
+after that loop finished. It is the case for all the caller today
+where the loop terminates at memcg == NULL, where all the refcnt have
+been dropped by then.
+
+One exception is mem_cgroup_iter_break(), where the loop terminates
+with *leaked* refcnt and that is what the iter_break() needs to clean
+up. We can not rely on the next caller of the loop since it might
+never happen.
+
+It makes sense to drop the refcnt of last_visited, the same reason as
+drop refcnt of prev. I don't see why it makes different.
+
+--Ying
+
+
+>
+> [...]
 > --
 > Michal Hocko
 > SUSE Labs
