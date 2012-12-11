@@ -1,192 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 092556B006C
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 06:28:41 -0500 (EST)
-Received: by mail-ia0-f171.google.com with SMTP id k27so7604879iad.16
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:28:41 -0800 (PST)
-Message-ID: <1355225313.1919.1.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH v3 3/5] page_alloc: Introduce zone_movable_limit[] to
- keep movable limit for nodes
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 9B4326B0071
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 06:33:28 -0500 (EST)
+Received: by mail-ie0-f176.google.com with SMTP id 13so11712371iea.7
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:33:28 -0800 (PST)
+Message-ID: <1355225600.1919.3.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH v3 0/5] Add movablecore_map boot option
 From: Simon Jeons <simon.jeons@gmail.com>
-Date: Tue, 11 Dec 2012 05:28:33 -0600
-In-Reply-To: <50C6A93A.50404@cn.fujitsu.com>
+Date: Tue, 11 Dec 2012 05:33:20 -0600
+In-Reply-To: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>
-	 <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>
-	 <50C6A36C.5030606@huawei.com> <50C6A93A.50404@cn.fujitsu.com>
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, jiang.liu@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Tue, 2012-12-11 at 11:32 +0800, Tang Chen wrote:
-> On 12/11/2012 11:07 AM, Jianguo Wu wrote:
-> > On 2012/12/11 10:33, Tang Chen wrote:
-> >
-> >> This patch introduces a new array zone_movable_limit[] to store the
-> >> ZONE_MOVABLE limit from movablecore_map boot option for all nodes.
-> >> The function sanitize_zone_movable_limit() will find out to which
-> >> node the ranges in movable_map.map[] belongs, and calculates the
-> >> low boundary of ZONE_MOVABLE for each node.
+On Tue, 2012-12-11 at 10:33 +0800, Tang Chen wrote:
+> [What we are doing]
+> This patchset provide a boot option for user to specify ZONE_MOVABLE memory
+> map for each node in the system.
+> 
+> movablecore_map=nn[KMG]@ss[KMG]
+> 
+> This option make sure memory range from ss to ss+nn is movable memory.
+> 
+> 
+> [Why we do this]
+> If we hot remove a memroy, the memory cannot have kernel memory,
+> because Linux cannot migrate kernel memory currently. Therefore,
+> we have to guarantee that the hot removed memory has only movable
+> memoroy.
+> 
+> Linux has two boot options, kernelcore= and movablecore=, for
+> creating movable memory. These boot options can specify the amount
+> of memory use as kernel or movable memory. Using them, we can
+> create ZONE_MOVABLE which has only movable memory.
+> 
+> But it does not fulfill a requirement of memory hot remove, because
+> even if we specify the boot options, movable memory is distributed
+> in each node evenly. So when we want to hot remove memory which
+> memory range is 0x80000000-0c0000000, we have no way to specify
+> the memory as movable memory.
+> 
+> So we proposed a new feature which specifies memory range to use as
+> movable memory.
+> 
+> 
+> [Ways to do this]
+> There may be 2 ways to specify movable memory.
+>  1. use firmware information
+>  2. use boot option
+> 
+> 1. use firmware information
+>   According to ACPI spec 5.0, SRAT table has memory affinity structure
+>   and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+>   Affinity Structure". If we use the information, we might be able to
+>   specify movable memory by firmware. For example, if Hot Pluggable
+>   Filed is enabled, Linux sets the memory as movable memory.
+> 
+> 2. use boot option
+>   This is our proposal. New boot option can specify memory range to use
+>   as movable memory.
+> 
+> 
+> [How we do this]
+> We chose second way, because if we use first way, users cannot change
+> memory range to use as movable memory easily. We think if we create
+> movable memory, performance regression may occur by NUMA. In this case,
+> user can turn off the feature easily if we prepare the boot option.
+> And if we prepare the boot optino, the user can select which memory
+> to use as movable memory easily. 
+> 
+> 
+> [How to use]
+> Specify the following boot option:
+> movablecore_map=nn[KMG]@ss[KMG]
+> 
+> That means physical address range from ss to ss+nn will be allocated as
+> ZONE_MOVABLE.
+> 
+> And the following points should be considered.
+> 
+> 1) If the range is involved in a single node, then from ss to the end of
+>    the node will be ZONE_MOVABLE.
+> 2) If the range covers two or more nodes, then from ss to the end of
+>    the node will be ZONE_MOVABLE, and all the other nodes will only
+>    have ZONE_MOVABLE.
 
-What's the difference between zone_movable_limit[nid] and
-zone_movable_pfn[nid]?
+Could you explain which part of your codes implement point 1 and point
+2?
 
-> >>
-> >> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
-> >> Signed-off-by: Jiang Liu<jiang.liu@huawei.com>
-> >> Reviewed-by: Wen Congyang<wency@cn.fujitsu.com>
-> >> Reviewed-by: Lai Jiangshan<laijs@cn.fujitsu.com>
-> >> Tested-by: Lin Feng<linfeng@cn.fujitsu.com>
-> >> ---
-> >>   mm/page_alloc.c |   77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
-> >>   1 files changed, 77 insertions(+), 0 deletions(-)
-> >>
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index 1c91d16..4853619 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -206,6 +206,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-> >>   static unsigned long __initdata required_kernelcore;
-> >>   static unsigned long __initdata required_movablecore;
-> >>   static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-> >> +static unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
-> >>
-> >>   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
-> >>   int movable_zone;
-> >> @@ -4340,6 +4341,77 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
-> >>   	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
-> >>   }
-> >>
-> >> +/**
-> >> + * sanitize_zone_movable_limit - Sanitize the zone_movable_limit array.
-> >> + *
-> >> + * zone_movable_limit is initialized as 0. This function will try to get
-> >> + * the first ZONE_MOVABLE pfn of each node from movablecore_map, and
-> >> + * assigne them to zone_movable_limit.
-> >> + * zone_movable_limit[nid] == 0 means no limit for the node.
-> >> + *
-> >> + * Note: Each range is represented as [start_pfn, end_pfn)
-> >> + */
-> >> +static void __meminit sanitize_zone_movable_limit(void)
-> >> +{
-> >> +	int map_pos = 0, i, nid;
-> >> +	unsigned long start_pfn, end_pfn;
-> >> +
-> >> +	if (!movablecore_map.nr_map)
-> >> +		return;
-> >> +
-> >> +	/* Iterate all ranges from minimum to maximum */
-> >> +	for_each_mem_pfn_range(i, MAX_NUMNODES,&start_pfn,&end_pfn,&nid) {
-> >> +		/*
-> >> +		 * If we have found lowest pfn of ZONE_MOVABLE of the node
-> >> +		 * specified by user, just go on to check next range.
-> >> +		 */
-> >> +		if (zone_movable_limit[nid])
-> >> +			continue;
-> >> +
-> >> +#ifdef CONFIG_ZONE_DMA
-> >> +		/* Skip DMA memory. */
-> >> +		if (start_pfn<  arch_zone_highest_possible_pfn[ZONE_DMA])
-> >> +			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA];
-> >> +#endif
-> >> +
-> >> +#ifdef CONFIG_ZONE_DMA32
-> >> +		/* Skip DMA32 memory. */
-> >> +		if (start_pfn<  arch_zone_highest_possible_pfn[ZONE_DMA32])
-> >> +			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA32];
-> >> +#endif
-> >> +
-> >> +#ifdef CONFIG_HIGHMEM
-> >> +		/* Skip lowmem if ZONE_MOVABLE is highmem. */
-> >> +		if (zone_movable_is_highmem()&&
-> >
-> > Hi Tang,
-> >
-> > I think zone_movable_is_highmem() is not work correctly here.
-> > 	sanitize_zone_movable_limit
-> > 		zone_movable_is_highmem<--using movable_zone here
-> > 	find_zone_movable_pfns_for_nodes
-> > 		find_usable_zone_for_movable<--movable_zone is specified here
-> >
-> > I think Jiang Liu's patch works fine for highmem, please refer to:
-> > http://marc.info/?l=linux-mm&m=135476085816087&w=2
+> 3) If no range is in the node, then the node will have no ZONE_MOVABLE
+>    unless kernelcore or movablecore is specified.
+> 4) This option could be specified at most MAX_NUMNODES times.
+> 5) If kernelcore or movablecore is also specified, movablecore_map will have
+>    higher priority to be satisfied.
+> 6) This option has no conflict with memmap option.
 > 
-> Hi Wu,
 > 
-> Yes, I forgot movable_zone think. Thanks for reminding me. :)
+> Change log:
 > 
-> But Liu's patch you just mentioned, I didn't use it because I
-> don't think we should skip kernelcore when movablecore_map is specified.
-> If these 2 options are not conflict, we should satisfy them both. :)
+> v2 -> v3:
+> 1) Use memblock_alloc_try_nid() instead of memblock_alloc_nid() to allocate
+>    memory twice if a whole node is ZONE_MOVABLE.
+> 2) Add DMA, DMA32 addresses check, make sure ZONE_MOVABLE won't use these addresses.
+>    Suggested by Wu Jianguo <wujianguo@huawei.com>
+> 3) Add lowmem addresses check, when the system has highmem, make sure ZONE_MOVABLE
+>    won't use lowmem. Suggested by Liu Jiang <jiang.liu@huawei.com>
+> 4) Fix misuse of pfns in movablecore_map.map[] as physical addresses.
 > 
-> Of course, I also think Liu's suggestion is wonderful. But I think we
-> need more discussion on it. :)
+> Tang Chen (4):
+>   page_alloc: add movable_memmap kernel parameter
+>   page_alloc: Introduce zone_movable_limit[] to keep movable limit for
+>     nodes
+>   page_alloc: Make movablecore_map has higher priority
+>   page_alloc: Bootmem limit with movablecore_map
 > 
-> I'll fix it soon.
-> Thanks. :)
+> Yasuaki Ishimatsu (1):
+>   x86: get pg_data_t's memory from other node
 > 
-> >
-> > Thanks,
-> > Jianguo Wu
-> >
-> >> +		    start_pfn<  arch_zone_lowest_possible_pfn[ZONE_HIGHMEM])
-> >> +			start_pfn = arch_zone_lowest_possible_pfn[ZONE_HIGHMEM];
-> >> +#endif
-> >> +
-> >> +		if (start_pfn>= end_pfn)
-> >> +			continue;
-> >> +
-> >> +		while (map_pos<  movablecore_map.nr_map) {
-> >> +			if (end_pfn<= movablecore_map.map[map_pos].start_pfn)
-> >> +				break;
-> >> +
-> >> +			if (start_pfn>= movablecore_map.map[map_pos].end_pfn) {
-> >> +				map_pos++;
-> >> +				continue;
-> >> +			}
-> >> +
-> >> +			/*
-> >> +			 * The start_pfn of ZONE_MOVABLE is either the minimum
-> >> +			 * pfn specified by movablecore_map, or 0, which means
-> >> +			 * the node has no ZONE_MOVABLE.
-> >> +			 */
-> >> +			zone_movable_limit[nid] = max(start_pfn,
-> >> +					movablecore_map.map[map_pos].start_pfn);
-> >> +
-> >> +			break;
-> >> +		}
-> >> +	}
-> >> +}
-> >> +
-> >>   #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> >>   static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
-> >>   					unsigned long zone_type,
-> >> @@ -4358,6 +4430,10 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
-> >>   	return zholes_size[zone_type];
-> >>   }
-> >>
-> >> +static void __meminit sanitize_zone_movable_limit(void)
-> >> +{
-> >> +}
-> >> +
-> >>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> >>
-> >>   static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
-> >> @@ -4923,6 +4999,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
-> >>
-> >>   	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
-> >>   	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
-> >> +	sanitize_zone_movable_limit();
-> >>   	find_zone_movable_pfns_for_nodes();
-> >>
-> >>   	/* Print out the zone ranges */
-> >
-> >
-> >
-> >
+>  Documentation/kernel-parameters.txt |   17 +++
+>  arch/x86/mm/numa.c                  |    5 +-
+>  include/linux/memblock.h            |    1 +
+>  include/linux/mm.h                  |   11 ++
+>  mm/memblock.c                       |   18 +++-
+>  mm/page_alloc.c                     |  238 ++++++++++++++++++++++++++++++++++-
+>  6 files changed, 282 insertions(+), 8 deletions(-)
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
