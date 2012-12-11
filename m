@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 2005E6B0073
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 09:45:21 -0500 (EST)
-Received: from /spool/local
-	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <jfrei@linux.vnet.ibm.com>;
-	Tue, 11 Dec 2012 14:45:06 -0000
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBBEj6BB21168154
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:45:07 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBBDmuFi028783
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:48:57 -0500
-From: dingel@linux.vnet.ibm.com
-Subject: [PATCH] remove unused code from do_wp_page
-Date: Tue, 11 Dec 2012 15:44:50 +0100
-Message-Id: <1355237090-52434-1-git-send-email-dingel@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 342466B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 10:22:14 -0500 (EST)
+Date: Tue, 11 Dec 2012 15:22:07 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 00/49] Automatic NUMA Balancing v10
+Message-ID: <20121211152207.GQ1009@suse.de>
+References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+ <20121207110113.GB21482@gmail.com>
+ <20121209203630.GC1009@suse.de>
+ <20121210113945.GA7550@gmail.com>
+ <20121210152405.GJ1009@suse.de>
+ <20121211010201.GP1009@suse.de>
+ <20121211085238.GA21673@gmail.com>
+ <20121211091807.GA23600@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20121211091807.GA23600@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+On Tue, Dec 11, 2012 at 10:18:07AM +0100, Ingo Molnar wrote:
+> 
+> * Ingo Molnar <mingo@kernel.org> wrote:
+> 
+> > > This is prototype only but what I was using as a reference 
+> > > to see could I spot a problem in yours. It has not been even 
+> > > boot tested but avoids remote->remote copies, contending on 
+> > > PTL or holding it longer than necessary (should anyway)
+> > 
+> > So ... because time is running out and it would be nice to 
+> > progress with this for v3.8, I'd suggest the following 
+> > approach:
+> > 
+> >  - Please send your current tree to Linus as-is. You already 
+> >    have my Acked-by/Reviewed-by for its scheduler bits, and my
+> >    testing found your tree to have no regression to mainline,
+> >    plus it's a nice win in a number of NUMA-intense workloads.
+> >    So it's a good, monotonic step forward in terms of NUMA
+> >    balancing, very close to what the bits I'm working on need as
+> >    infrastructure.
+> > 
+> >  - I'll rebase all my devel bits on top of it. Instead of
+> >    removing the migration bandwidth I'll simply increase it for
+> >    testing - this should trigger similarly aggressive behavior.
+> >    I'll try to touch as little of the mm/ code as possible, to
+> >    keep things debuggable.
+> 
+> One minor last-minute request/nit before you send it to Linus, 
+> would you mind doing a:
+> 
+>    CONFIG_BALANCE_NUMA => CONFIG_NUMA_BALANCING
+> 
+> rename please? (I can do it for you if you don't have the time.)
+> 
+> CONFIG_NUMA_BALANCING is really what fits into our existing NUMA 
+> namespace, CONFIG_NUMA, CONFIG_NUMA_EMU - and, more importantly, 
+> the ordering of words follows the common generic -> less generic 
+> ordering we do in the kernel for config names and methods.
+> 
+> So it would fit nicely into existing Kconfig naming schemes:
+> 
+>    CONFIG_TRACING
+>    CONFIG_FILE_LOCKING
+>    CONFIG_EVENT_TRACING
+> 
+> etc.
+> 
 
-page_mkwrite is initalized with zero and only set once, from that point exists no way to get to the oom or oom_free_new labels.
+Yes, that makes sense. I should have spotted the rationale. I also took
+the liberty of renaming the command-line parameter and the variables to
+be consistent with this.
 
-Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
----
- mm/memory.c | 4 ----
- 1 file changed, 4 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 221fc9f..c322708 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2795,10 +2795,6 @@ oom_free_new:
- 	page_cache_release(new_page);
- oom:
- 	if (old_page) {
--		if (page_mkwrite) {
--			unlock_page(old_page);
--			page_cache_release(old_page);
--		}
- 		page_cache_release(old_page);
- 	}
- 	return VM_FAULT_OOM;
 -- 
-1.7.12.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
