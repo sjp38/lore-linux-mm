@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 003366B0083
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:11:19 -0500 (EST)
-Date: Tue, 11 Dec 2012 17:11:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v3] Support volatile range for anon vma
-Message-ID: <20121211081117.GH22698@blaptop>
-References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
- <20121211024104.GA10523@blaptop>
- <20121211071742.GA26598@glandium.org>
- <20121211073744.GF22698@blaptop>
- <20121211075950.GA27103@glandium.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121211075950.GA27103@glandium.org>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 68F556B0087
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:12:36 -0500 (EST)
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH] mm/bootmem.c: remove unused wrapper function reserve_bootmem_generic()
+Date: Tue, 11 Dec 2012 16:12:03 +0800
+Message-Id: <1355213523-15698-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Hommey <mh@glandium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: akpm@linux-foundation.org, yinghai@kernel.org, hpa@zytor.com
+Cc: davem@davemloft.net, hannes@cmpxchg.org, eric.dumazet@gmail.com, tj@kernel.org, shangw@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Lin Feng <linfeng@cn.fujitsu.com>
 
-On Tue, Dec 11, 2012 at 08:59:50AM +0100, Mike Hommey wrote:
-> On Tue, Dec 11, 2012 at 04:37:44PM +0900, Minchan Kim wrote:
-> > On Tue, Dec 11, 2012 at 08:17:42AM +0100, Mike Hommey wrote:
-> > > On Tue, Dec 11, 2012 at 11:41:04AM +0900, Minchan Kim wrote:
-> > > > - What's the madvise(addr, length, MADV_VOLATILE)?
-> > > > 
-> > > >   It's a hint that user deliver to kernel so kernel can *discard*
-> > > >   pages in a range anytime.
-> > > > 
-> > > > - What happens if user access page(ie, virtual address) discarded
-> > > >   by kernel?
-> > > > 
-> > > >   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
-> > > 
-> > > What happened to getting SIGBUS?
-> > 
-> > I thought it could force for user to handle signal.
-> > If user can receive signal, what can he do?
-> > Maybe he can call madivse(NOVOLATILE) in my old version but I removed it
-> > in this version so user don't need handle signal handling.
-> 
-> NOVOLATILE and signal throwing are two different and not necessarily
-> related needs. We (Mozilla) could probably live without NOVOLATILE,
-> but certainly not without signal throwing.
+Wrapper fucntion reserve_bootmem_generic() currently have no caller,
+so clean it up.
 
-What's shortcoming if we don't provide signal handling?
-Could you explain how you want to signal in your allocator?
+Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+---
+ include/linux/bootmem.h |    3 ---
+ mm/bootmem.c            |    6 ------
+ 2 files changed, 0 insertions(+), 9 deletions(-)
 
-It could be very helpful to improve this patch.
-Thanks for the input.
-
-> 
-> Mike
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index 6d6795d..bfc742c 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -137,9 +137,6 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ #define alloc_bootmem_low_pages_node(pgdat, x) \
+ 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
+ 
+-extern int reserve_bootmem_generic(unsigned long addr, unsigned long size,
+-				   int flags);
+-
+ #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+ extern void *alloc_remap(int nid, unsigned long size);
+ #else
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index f468185..2812730 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -439,12 +439,6 @@ int __init reserve_bootmem(unsigned long addr, unsigned long size,
+ 	return mark_bootmem(start, end, 1, flags);
+ }
+ 
+-int __weak __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
+-				   int flags)
+-{
+-	return reserve_bootmem(phys, len, flags);
+-}
+-
+ static unsigned long __init align_idx(struct bootmem_data *bdata,
+ 				      unsigned long idx, unsigned long step)
+ {
 -- 
-Kind regards,
-Minchan Kim
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
