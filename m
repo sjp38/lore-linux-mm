@@ -1,65 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 0221E6B0093
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:29:18 -0500 (EST)
-Date: Tue, 11 Dec 2012 09:29:03 +0100
-From: Mike Hommey <mh@glandium.org>
-Subject: Re: [RFC v3] Support volatile range for anon vma
-Message-ID: <20121211082903.GA27441@glandium.org>
-References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
- <20121211024104.GA10523@blaptop>
- <20121211071742.GA26598@glandium.org>
- <20121211073744.GF22698@blaptop>
- <20121211075950.GA27103@glandium.org>
- <20121211081117.GH22698@blaptop>
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 63B1A6B0095
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:41:29 -0500 (EST)
+Received: by mail-vc0-f169.google.com with SMTP id gb23so4214702vcb.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 00:41:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121211081117.GH22698@blaptop>
+In-Reply-To: <20121211002108.8d013a80.akpm@linux-foundation.org>
+References: <1355213158-4955-1-git-send-email-lliubbo@gmail.com>
+	<20121211002108.8d013a80.akpm@linux-foundation.org>
+Date: Tue, 11 Dec 2012 16:41:28 +0800
+Message-ID: <CAA_GA1cOh0vP=6_FbLCzakaROySUJHpR4604Bq6QjUOvttjXHw@mail.gmail.com>
+Subject: Re: [PATCH] mm: memory_hotplug: fix build error
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: laijs@cn.fujitsu.com, wency@cn.fujitsu.com, jiang.liu@huawei.com, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org
 
-On Tue, Dec 11, 2012 at 05:11:17PM +0900, Minchan Kim wrote:
-> On Tue, Dec 11, 2012 at 08:59:50AM +0100, Mike Hommey wrote:
-> > On Tue, Dec 11, 2012 at 04:37:44PM +0900, Minchan Kim wrote:
-> > > On Tue, Dec 11, 2012 at 08:17:42AM +0100, Mike Hommey wrote:
-> > > > On Tue, Dec 11, 2012 at 11:41:04AM +0900, Minchan Kim wrote:
-> > > > > - What's the madvise(addr, length, MADV_VOLATILE)?
-> > > > > 
-> > > > >   It's a hint that user deliver to kernel so kernel can *discard*
-> > > > >   pages in a range anytime.
-> > > > > 
-> > > > > - What happens if user access page(ie, virtual address) discarded
-> > > > >   by kernel?
-> > > > > 
-> > > > >   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
-> > > > 
-> > > > What happened to getting SIGBUS?
-> > > 
-> > > I thought it could force for user to handle signal.
-> > > If user can receive signal, what can he do?
-> > > Maybe he can call madivse(NOVOLATILE) in my old version but I removed it
-> > > in this version so user don't need handle signal handling.
-> > 
-> > NOVOLATILE and signal throwing are two different and not necessarily
-> > related needs. We (Mozilla) could probably live without NOVOLATILE,
-> > but certainly not without signal throwing.
-> 
-> What's shortcoming if we don't provide signal handling?
-> Could you explain how you want to signal in your allocator?
+On Tue, Dec 11, 2012 at 4:21 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 11 Dec 2012 16:05:58 +0800 Bob Liu <lliubbo@gmail.com> wrote:
+>
+>> Fix below build error(and comment):
+>> mm/memory_hotplug.c:646:14: error: ___ZONE_HIGH___ undeclared (first use in this
+>> function)
+>> mm/memory_hotplug.c:646:14: note: each undeclared identifier is reported
+>> only once for each function it appears in
+>> make[1]: *** [mm/memory_hotplug.o] Error 1
+>>
+>> Signed-off-by: Bob Liu <lliubbo@gmail.com>
+>> ---
+>>  mm/memory_hotplug.c |    6 +++---
+>>  1 file changed, 3 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index ea71d0d..9e97530 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -636,14 +636,14 @@ static void node_states_check_changes_online(unsigned long nr_pages,
+>>  #ifdef CONFIG_HIGHMEM
+>>       /*
+>>        * If we have movable node, node_states[N_HIGH_MEMORY]
+>> -      * contains nodes which have zones of 0...ZONE_HIGH,
+>> -      * set zone_last to ZONE_HIGH.
+>> +      * contains nodes which have zones of 0...ZONE_HIGHMEM,
+>> +      * set zone_last to ZONE_HIGHMEM.
+>>        *
+>>        * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+>>        * contains nodes which have zones of 0...ZONE_MOVABLE,
+>>        * set zone_last to ZONE_MOVABLE.
+>>        */
+>> -     zone_last = ZONE_HIGH;
+>> +     zone_last = ZONE_HIGHMEM;
+>>       if (N_MEMORY == N_HIGH_MEMORY)
+>>               zone_last = ZONE_MOVABLE;
+>
+> Thanks - there are actually two sites.  You only caught one because
+> CONFIG_HIGHMEM was missing its 'F'.
+>
 
-The main use case we have for signals is not an allocator. We're
-currently using ashmem to decompress libraries on Android. We would like
-to use volatile memory for that instead, so that unused pages can be
-discarded. With NOVOLATILE, or when getting zero-filled pages, that just
-doesn't pan out: you may well be jumping in the volatile memory from
-anywhere, and you can't check the status of the page you're jumping into
-before jumping. Thus you need to be signaled when reaching a discarded
-page.
+Hmm...You are right.
+Sorry for not take more time on it.
 
-Mike
+>
+> Guys, this isn't very good.  Obviously this code wasn't tested well :(
+>
+> I expect the combination of highmem and memory hotplug will never
+> exist, but it should at least compile.
+>
+
+Agree.
+
+>
+>
+> --- a/mm/memory_hotplug.c~hotplug-update-nodemasks-management-fix
+> +++ a/mm/memory_hotplug.c
+> @@ -620,14 +620,14 @@ static void node_states_check_changes_on
+>  #ifdef CONFIG_HIGHMEM
+>         /*
+>          * If we have movable node, node_states[N_HIGH_MEMORY]
+> -        * contains nodes which have zones of 0...ZONE_HIGH,
+> -        * set zone_last to ZONE_HIGH.
+> +        * contains nodes which have zones of 0...ZONE_HIGHMEM,
+> +        * set zone_last to ZONE_HIGHMEM.
+>          *
+>          * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+>          * contains nodes which have zones of 0...ZONE_MOVABLE,
+>          * set zone_last to ZONE_MOVABLE.
+>          */
+> -       zone_last = ZONE_HIGH;
+> +       zone_last = ZONE_HIGHMEM;
+>         if (N_MEMORY == N_HIGH_MEMORY)
+>                 zone_last = ZONE_MOVABLE;
+>
+> @@ -1151,17 +1151,17 @@ static void node_states_check_changes_of
+>         else
+>                 arg->status_change_nid_normal = -1;
+>
+> -#ifdef CONIG_HIGHMEM
+> +#ifdef CONFIG_HIGHMEM
+>         /*
+>          * If we have movable node, node_states[N_HIGH_MEMORY]
+> -        * contains nodes which have zones of 0...ZONE_HIGH,
+> -        * set zone_last to ZONE_HIGH.
+> +        * contains nodes which have zones of 0...ZONE_HIGHMEM,
+> +        * set zone_last to ZONE_HIGHMEM.
+>          *
+>          * If we don't have movable node, node_states[N_NORMAL_MEMORY]
+>          * contains nodes which have zones of 0...ZONE_MOVABLE,
+>          * set zone_last to ZONE_MOVABLE.
+>          */
+> -       zone_last = ZONE_HIGH;
+> +       zone_last = ZONE_HIGHMEM;
+>         if (N_MEMORY == N_HIGH_MEMORY)
+>                 zone_last = ZONE_MOVABLE;
+>
+> _
+>
+
+-- 
+Regards,
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
