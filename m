@@ -1,16 +1,17 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-Date: Tue, 11 Dec 2012 09:16:43 +0800
-Message-ID: <4523.68581104583$1355188636@news.gmane.org>
-References: <50C1AD6D.7010709@huawei.com>
- <20121207141102.4fda582d.akpm@linux-foundation.org>
- <20121210083342.GA31670@hacker.(null)>
- <50C5A62A.6030401@huawei.com>
- <1355136423.1700.2.camel@kernel.cn.ibm.com>
- <50C5C4A2.2070002@huawei.com>
- <1355140561.1821.5.camel@kernel.cn.ibm.com>
- <50C5D844.8050707@huawei.com>
- <1355143664.1821.8.camel@kernel.cn.ibm.com>
+Date: Tue, 11 Dec 2012 14:34:31 +0800
+Message-ID: <46601.0803742849$1355207703@news.gmane.org>
+References: <50C5C4A2.2070002@huawei.com>
+ <20121210153805.GS16230@one.firstfloor.org>
+ <1355190540.1933.4.camel@kernel.cn.ibm.com>
+ <20121211020313.GV16230@one.firstfloor.org>
+ <1355192071.1933.7.camel@kernel.cn.ibm.com>
+ <20121211030125.GY16230@one.firstfloor.org>
+ <1355195591.1933.18.camel@kernel.cn.ibm.com>
+ <20121211031907.GZ16230@one.firstfloor.org>
+ <1355197690.1933.20.camel@kernel.cn.ibm.com>
+ <50C6CAC3.1090809@huawei.com>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -18,197 +19,104 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1TiET7-00051U-FJ
-	for glkm-linux-mm-2@m.gmane.org; Tue, 11 Dec 2012 02:17:09 +0100
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 501126B006E
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 20:16:54 -0500 (EST)
+	id 1TiJQh-0008GB-W6
+	for glkm-linux-mm-2@m.gmane.org; Tue, 11 Dec 2012 07:35:00 +0100
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 54DF86B0078
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 01:34:45 -0500 (EST)
 Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 11 Dec 2012 11:13:04 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 369263578023
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 12:16:49 +1100 (EST)
+	Tue, 11 Dec 2012 16:30:36 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id C94AD3578023
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:34:35 +1100 (EST)
 Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBB15pOq65667202
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 12:05:54 +1100
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBB6YYHV45154520
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:34:35 +1100
 Received: from d23av03.au.ibm.com (loopback [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBB1GjiK016273
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 12:16:46 +1100
+	by d23av03.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBB6YXp9014713
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:34:34 +1100
 Content-Disposition: inline
-In-Reply-To: <1355143664.1821.8.camel@kernel.cn.ibm.com>
+In-Reply-To: <50C6CAC3.1090809@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+Cc: Simon Jeons <simon.jeons@gmail.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
 
-On Mon, Dec 10, 2012 at 06:47:44AM -0600, Simon Jeons wrote:
->Cc other guys.
+On Tue, Dec 11, 2012 at 01:55:15PM +0800, Xishi Qiu wrote:
+>On 2012/12/11 11:48, Simon Jeons wrote:
 >
->On Mon, 2012-12-10 at 20:40 +0800, Xishi Qiu wrote:
->> On 2012/12/10 19:56, Simon Jeons wrote:
+>> On Tue, 2012-12-11 at 04:19 +0100, Andi Kleen wrote:
+>>> On Mon, Dec 10, 2012 at 09:13:11PM -0600, Simon Jeons wrote:
+>>>> On Tue, 2012-12-11 at 04:01 +0100, Andi Kleen wrote:
+>>>>>> Oh, it will be putback to lru list during migration. So does your "some
+>>>>>> time" mean before call check_new_page?
+>>>>>
+>>>>> Yes until the next check_new_page() whenever that is. If the migration
+>>>>> works it will be earlier, otherwise later.
+>>>>
+>>>> But I can't figure out any page reclaim path check if the page is set
+>>>> PG_hwpoison, can poisoned pages be rclaimed?
+>>>
+>>> The only way to reclaim a page is to free and reallocate it.
 >> 
->> > On Mon, 2012-12-10 at 19:16 +0800, Xishi Qiu wrote:
->> >> On 2012/12/10 18:47, Simon Jeons wrote:
->> >>
->> >>> On Mon, 2012-12-10 at 17:06 +0800, Xishi Qiu wrote:
->> >>>> On 2012/12/10 16:33, Wanpeng Li wrote:
->> >>>>
->> >>>>> On Fri, Dec 07, 2012 at 02:11:02PM -0800, Andrew Morton wrote:
->> >>>>>> On Fri, 7 Dec 2012 16:48:45 +0800
->> >>>>>> Xishi Qiu <qiuxishi@huawei.com> wrote:
->> >>>>>>
->> >>>>>>> On x86 platform, if we use "/sys/devices/system/memory/soft_offline_page" to offline a
->> >>>>>>> free page twice, the value of mce_bad_pages will be added twice. So this is an error,
->> >>>>>>> since the page was already marked HWPoison, we should skip the page and don't add the
->> >>>>>>> value of mce_bad_pages.
->> >>>>>>>
->> >>>>>>> $ cat /proc/meminfo | grep HardwareCorrupted
->> >>>>>>>
->> >>>>>>> soft_offline_page()
->> >>>>>>> 	get_any_page()
->> >>>>>>> 		atomic_long_add(1, &mce_bad_pages)
->> >>>>>>>
->> >>>>>>> ...
->> >>>>>>>
->> >>>>>>> --- a/mm/memory-failure.c
->> >>>>>>> +++ b/mm/memory-failure.c
->> >>>>>>> @@ -1582,8 +1582,11 @@ int soft_offline_page(struct page *page, int flags)
->> >>>>>>>  		return ret;
->> >>>>>>>
->> >>>>>>>  done:
->> >>>>>>> -	atomic_long_add(1, &mce_bad_pages);
->> >>>>>>> -	SetPageHWPoison(page);
->> >>>>>>>  	/* keep elevated page count for bad page */
->> >>>>>>> +	if (!PageHWPoison(page)) {
->> >>>>>>> +		atomic_long_add(1, &mce_bad_pages);
->> >>>>>>> +		SetPageHWPoison(page);
->> >>>>>>> +	}
->> >>>>>>> +
->> >>>>>>>  	return ret;
->> >>>>>>>  }
->> >>>>>>
->> >>>>>> A few things:
->> >>>>>>
->> >>>>>> - soft_offline_page() already checks for this case:
->> >>>>>>
->> >>>>>> 	if (PageHWPoison(page)) {
->> >>>>>> 		unlock_page(page);
->> >>>>>> 		put_page(page);
->> >>>>>> 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
->> >>>>>> 		return -EBUSY;
->> >>>>>> 	}
->> >>>>>>
->> >>>>>>  so why didn't this check work for you?
->> >>>>>>
->> >>>>>>  Presumably because one of the earlier "goto done" branches was
->> >>>>>>  taken.  Which one, any why?
->> >>>>>>
->> >>>>>>  This function is an utter mess.  It contains six return points
->> >>>>>>  randomly intermingled with three "goto done" return points.
->> >>>>>>
->> >>>>>>  This mess is probably the cause of the bug you have observed.  Can
->> >>>>>>  we please fix it up somehow?  It *seems* that the design (lol) of
->> >>>>>>  this function is "for errors, return immediately.  For success, goto
->> >>>>>>  done".  In which case "done" should have been called "success".  But
->> >>>>>>  if you just look at the function you'll see that this approach didn't
->> >>>>>>  work.  I suggest it be converted to have two return points - one for
->> >>>>>>  the success path, one for the failure path.  Or something.
->> >>>>>>
->> >>>>>> - soft_offline_huge_page() is a miniature copy of soft_offline_page()
->> >>>>>>  and might suffer the same bug.
->> >>>>>>
->> >>>>>> - A cleaner, shorter and possibly faster implementation is
->> >>>>>>
->> >>>>>> 	if (!TestSetPageHWPoison(page))
->> >>>>>> 		atomic_long_add(1, &mce_bad_pages);
->> >>>>>>
->> >>>>>
->> >>>>> Hi Andrew,
->> >>>>>
->> >>>>> Since hwpoison bit for free buddy page has already be set in get_any_page, 
->> >>>>> !TestSetPageHWPoison(page) will not increase mce_bad_pages count even for 
->> >>>>> the first time.
->> >>>>>
->> >>>>> Regards,
->> >>>>> Wanpeng Li
->> >>>>>
->> >>>>
->> >>>> The poisoned page is isolated in bad_page(), I wonder whether it could be isolated
->> >>>> immediately in soft_offline_page() and memory_failure()?
->> >>>>
->> >>>> buffered_rmqueue()
->> >>>> 	prep_new_page()
->> >>>> 		check_new_page()
->> >>>> 			bad_page()
->> >>>
->> >>> Do you mean else if(is_free_buddy_page(p)) branch is redundancy?
->> >>>
->> >>
->> >> Hi Simon,
->> >>
->> >> get_any_page() -> "else if(is_free_buddy_page(p))" branch is *not* redundancy.
->> >>
->> >> It is another topic, I mean since the page is poisoned, so why not isolate it
->> > 
->> > What topic? I still can't figure out when this branch can be executed
->> > since hwpoison inject path can't poison free buddy pages. 
->> > 
+>> Then why there doesn't have check in reclaim path to avoid relcaim
+>> poisoned page?
 >> 
->> Hi Simon,
->> 
->> If we use "/sys/devices/system/memory/soft_offline_page" to offline a
->> free page, the value of mce_bad_pages will be added. Then the page is marked
->> HWPoison, but it is still managed by page buddy alocator.
->> 
->> So if we offline it again, the value of mce_bad_pages will be added again.
->> Assume the page is not allocated during this short time.
->> 
->> soft_offline_page()
->> 	get_any_page()
->> 		"else if (is_free_buddy_page(p))" branch return 0
->> 			"goto done";
->> 				"atomic_long_add(1, &mce_bad_pages);"
->> 
->> I think it would be better to move "if(PageHWPoison(page))" at the beginning of
->> soft_offline_page(). However I don't know what do these words mean,
->> "Synchronized using the page lock with memory_failure()"
+>> 			-Simon
+>
+>Hi Simon,
+>
+>If the page is free, it will be set PG_hwpoison, and soft_offline_page() is done.
+>When the page is alocated later, check_new_page() will find the poisoned page and
+>isolate the whole buddy block(just drop the block).
+>
+>If the page is not free, soft_offline_page() try to free it first, if this is
+>failed, it will migrate the page, but the page is still in LRU list after migration,
+>migrate_pages()
+>	unmap_and_move()
+>		if (rc != -EAGAIN) {
+>			...
+>			putback_lru_page(page);
+>		}
+>We can use lru_add_drain_all() to drain lru pagevec, at last free_hot_cold_page()
 
 Hi Xishi,
 
-Unpoison will clear PG_hwpoison flag after hold page lock, memory_failure() and 
-soft_offline_page() take the lock to avoid unpoison clear the flag behind them.
+I don't understand why you need drain lru pagevec here, if the page has
+been migrated has all references removed and then it will be freed. The 
+putback_lru_page mentioned above will call put_page free to it. 
+
+putback_lru_page
+	->put_page
+		->__put_single_page
+			->free_hot_cold_page
+				->free_page_check
+					->free_pages_prepare
+						->free_pages_check
+							->bad_page
 
 Regards,
 Wanpeng Li 
 
->> 
->> >> from page buddy alocator in soft_offline_page() rather than in check_new_page().
->> >>
->> >> I find soft_offline_page() only migrate the page and mark HWPoison, the poisoned
->> >> page is still managed by page buddy alocator.
->> >>
->> >>>>
->> >>>> Thanks
->> >>>> Xishi Qiu
->> >>>>
->> >>>>>> - We have atomic_long_inc().  Use it?
->> >>>>>>
->> >>>>>> - Why do we have a variable called "mce_bad_pages"?  MCE is an x86
->> >>>>>>  concept, and this code is in mm/.  Lights are flashing, bells are
->> >>>>>>  ringing and a loudspeaker is blaring "layering violation" at us!
->> >>>>>>
->> >>
->> >>
->> > 
->> > 
->> > 
->> > .
->> > 
+>will be called, and free_pages_prepare() check the poisoned pages.
+>free_pages_prepare()
+>	free_pages_check()
+>		bad_page()
+>
+>Is this right, Andi?
+>
+>Thanks
+>Xishi Qiu
+>
+>>>
+>>> -Andi
 >> 
 >> 
 >> 
+>> 
+>
 >
 
 --
