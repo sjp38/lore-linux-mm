@@ -1,64 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id A7BE36B008C
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:23:34 -0500 (EST)
-Date: Tue, 11 Dec 2012 16:23:27 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: livelock in __writeback_inodes_wb ?
-Message-ID: <20121211082327.GA15706@localhost>
-References: <20121128145515.GA26564@redhat.com>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 0221E6B0093
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:29:18 -0500 (EST)
+Date: Tue, 11 Dec 2012 09:29:03 +0100
+From: Mike Hommey <mh@glandium.org>
+Subject: Re: [RFC v3] Support volatile range for anon vma
+Message-ID: <20121211082903.GA27441@glandium.org>
+References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
+ <20121211024104.GA10523@blaptop>
+ <20121211071742.GA26598@glandium.org>
+ <20121211073744.GF22698@blaptop>
+ <20121211075950.GA27103@glandium.org>
+ <20121211081117.GH22698@blaptop>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121128145515.GA26564@redhat.com>
+In-Reply-To: <20121211081117.GH22698@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, Nov 28, 2012 at 09:55:15AM -0500, Dave Jones wrote:
-> We had a user report the soft lockup detector kicked after 22
-> seconds of no progress, with this trace..
-
-Where is the original report? The reporter may help provide some clues
-on the workload that triggered the bug.
-
-> :BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
-> :Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
-> :RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
-> :Call Trace:
-> : [<ffffffff811b783e>] redirty_tail+0x5e/0x80
-> : [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
-> : [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
-> : [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
-> : [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
-> : [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
-> : [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
-> : [<ffffffff8107fde3>] kthread+0x93/0xa0
-> : [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
-> : [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
-> : [<ffffffff81627e00>] ? gs_change+0x13/0x13
+On Tue, Dec 11, 2012 at 05:11:17PM +0900, Minchan Kim wrote:
+> On Tue, Dec 11, 2012 at 08:59:50AM +0100, Mike Hommey wrote:
+> > On Tue, Dec 11, 2012 at 04:37:44PM +0900, Minchan Kim wrote:
+> > > On Tue, Dec 11, 2012 at 08:17:42AM +0100, Mike Hommey wrote:
+> > > > On Tue, Dec 11, 2012 at 11:41:04AM +0900, Minchan Kim wrote:
+> > > > > - What's the madvise(addr, length, MADV_VOLATILE)?
+> > > > > 
+> > > > >   It's a hint that user deliver to kernel so kernel can *discard*
+> > > > >   pages in a range anytime.
+> > > > > 
+> > > > > - What happens if user access page(ie, virtual address) discarded
+> > > > >   by kernel?
+> > > > > 
+> > > > >   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
+> > > > 
+> > > > What happened to getting SIGBUS?
+> > > 
+> > > I thought it could force for user to handle signal.
+> > > If user can receive signal, what can he do?
+> > > Maybe he can call madivse(NOVOLATILE) in my old version but I removed it
+> > > in this version so user don't need handle signal handling.
+> > 
+> > NOVOLATILE and signal throwing are two different and not necessarily
+> > related needs. We (Mozilla) could probably live without NOVOLATILE,
+> > but certainly not without signal throwing.
 > 
-> Looking over the code, is it possible that something could be
-> dirtying pages faster than writeback can get them written out,
-> keeping us in this loop indefitely ?
+> What's shortcoming if we don't provide signal handling?
+> Could you explain how you want to signal in your allocator?
 
-The bug reporter should know best whether there are heavy IO.
+The main use case we have for signals is not an allocator. We're
+currently using ashmem to decompress libraries on Android. We would like
+to use volatile memory for that instead, so that unused pages can be
+discarded. With NOVOLATILE, or when getting zero-filled pages, that just
+doesn't pan out: you may well be jumping in the volatile memory from
+anywhere, and you can't check the status of the page you're jumping into
+before jumping. Thus you need to be signaled when reaching a discarded
+page.
 
-However I suspect it's not directly caused by heavy IO: we will
-release &wb->list_lock before each __writeback_single_inode() call,
-which starts writeback IO for each inode.
-
-> Should there be something in this loop periodically poking
-> the watchdog perhaps ?
-
-It seems we failed to release &wb->list_lock in wb_writeback() for
-long time (dozens of seconds). That is, the inode_sleep_on_writeback()
-is somehow not called. However it's not obvious to me how come this
-can happen..
-
-Thanks,
-Fengguang
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
