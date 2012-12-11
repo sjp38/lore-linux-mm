@@ -1,82 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 342466B002B
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 10:22:14 -0500 (EST)
-Date: Tue, 11 Dec 2012 15:22:07 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 00/49] Automatic NUMA Balancing v10
-Message-ID: <20121211152207.GQ1009@suse.de>
-References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
- <20121207110113.GB21482@gmail.com>
- <20121209203630.GC1009@suse.de>
- <20121210113945.GA7550@gmail.com>
- <20121210152405.GJ1009@suse.de>
- <20121211010201.GP1009@suse.de>
- <20121211085238.GA21673@gmail.com>
- <20121211091807.GA23600@gmail.com>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id D2CAF6B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 10:50:32 -0500 (EST)
+Received: by mail-oa0-f41.google.com with SMTP id k14so4808903oag.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 07:50:32 -0800 (PST)
+Date: Tue, 11 Dec 2012 16:50:25 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
+ iterators
+Message-ID: <20121211155025.GB1612@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+ <1353955671-14385-4-git-send-email-mhocko@suse.cz>
+ <CALWz4iwNvRd7AgEiSzd7Gr-7P5oh0uESS5A7rLZ7dZWeTjOzpQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121211091807.GA23600@gmail.com>
+In-Reply-To: <CALWz4iwNvRd7AgEiSzd7Gr-7P5oh0uESS5A7rLZ7dZWeTjOzpQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ying Han <yinghan@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Tue, Dec 11, 2012 at 10:18:07AM +0100, Ingo Molnar wrote:
+On Sun 09-12-12 08:59:54, Ying Han wrote:
+> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
+[...]
+> > +               /*
+> > +                * Even if we found a group we have to make sure it is alive.
+> > +                * css && !memcg means that the groups should be skipped and
+> > +                * we should continue the tree walk.
+> > +                * last_visited css is safe to use because it is protected by
+> > +                * css_get and the tree walk is rcu safe.
+> > +                */
+> > +               if (css == &root->css || (css && css_tryget(css)))
+> > +                       memcg = mem_cgroup_from_css(css);
+> >
+> >                 if (reclaim) {
+> > -                       iter->position = id;
+> > +                       struct mem_cgroup *curr = memcg;
+> > +
+> > +                       if (last_visited)
+> > +                               css_put(&last_visited->css);
+> > +
+> > +                       if (css && !memcg)
+> > +                               curr = mem_cgroup_from_css(css);
 > 
-> * Ingo Molnar <mingo@kernel.org> wrote:
-> 
-> > > This is prototype only but what I was using as a reference 
-> > > to see could I spot a problem in yours. It has not been even 
-> > > boot tested but avoids remote->remote copies, contending on 
-> > > PTL or holding it longer than necessary (should anyway)
-> > 
-> > So ... because time is running out and it would be nice to 
-> > progress with this for v3.8, I'd suggest the following 
-> > approach:
-> > 
-> >  - Please send your current tree to Linus as-is. You already 
-> >    have my Acked-by/Reviewed-by for its scheduler bits, and my
-> >    testing found your tree to have no regression to mainline,
-> >    plus it's a nice win in a number of NUMA-intense workloads.
-> >    So it's a good, monotonic step forward in terms of NUMA
-> >    balancing, very close to what the bits I'm working on need as
-> >    infrastructure.
-> > 
-> >  - I'll rebase all my devel bits on top of it. Instead of
-> >    removing the migration bandwidth I'll simply increase it for
-> >    testing - this should trigger similarly aggressive behavior.
-> >    I'll try to touch as little of the mm/ code as possible, to
-> >    keep things debuggable.
-> 
-> One minor last-minute request/nit before you send it to Linus, 
-> would you mind doing a:
-> 
->    CONFIG_BALANCE_NUMA => CONFIG_NUMA_BALANCING
-> 
-> rename please? (I can do it for you if you don't have the time.)
-> 
-> CONFIG_NUMA_BALANCING is really what fits into our existing NUMA 
-> namespace, CONFIG_NUMA, CONFIG_NUMA_EMU - and, more importantly, 
-> the ordering of words follows the common generic -> less generic 
-> ordering we do in the kernel for config names and methods.
-> 
-> So it would fit nicely into existing Kconfig naming schemes:
-> 
->    CONFIG_TRACING
->    CONFIG_FILE_LOCKING
->    CONFIG_EVENT_TRACING
-> 
-> etc.
-> 
+> In this case, the css_tryget() failed which implies the css is on the
+> way to be removed. (refcnt ==0) If so, why it is safe to call
+> css_get() directly on it below? It seems not preventing the css to be
+> removed by doing so.
 
-Yes, that makes sense. I should have spotted the rationale. I also took
-the liberty of renaming the command-line parameter and the variables to
-be consistent with this.
+Well, I do not remember exactly but I guess the code is meant to say
+that we need to store a half-dead memcg because the loop has to be
+retried. As we are under RCU hood it is just half dead.
+Now that you brought this up I think this is not safe as well because
+another thread could have seen the cached value while we tried to retry
+and his RCU is not protecting the group anymore. The follow up patch
+fixes this by retrying within the loop. I will bring that part into
+this patch already and then leave only css clean up in the other patch.
 
+Thanks for spotting this Ying!
+
+> 
+> > +                       /* make sure that the cached memcg is not removed */
+> > +                       if (curr)
+> > +                               css_get(&curr->css);
+> 
+> --Ying
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
