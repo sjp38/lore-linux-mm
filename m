@@ -1,29 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id EB7746B0044
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 13:40:16 -0500 (EST)
-Date: Tue, 11 Dec 2012 13:39:37 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/bootmem.c: remove unused wrapper function
- reserve_bootmem_generic()
-Message-ID: <20121211183937.GA5168@cmpxchg.org>
-References: <1355213523-15698-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id B9AA86B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 13:45:33 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id c14so16370620ieb.0
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 10:45:33 -0800 (PST)
+Message-ID: <50C77F47.10601@linaro.org>
+Date: Tue, 11 Dec 2012 10:45:27 -0800
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355213523-15698-1-git-send-email-linfeng@cn.fujitsu.com>
+Subject: Re: [RFC v3] Support volatile range for anon vma
+References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1355193255-7217-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, yinghai@kernel.org, hpa@zytor.com, davem@davemloft.net, eric.dumazet@gmail.com, tj@kernel.org, shangw@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Dec 11, 2012 at 04:12:03PM +0800, Lin Feng wrote:
-> Wrapper fucntion reserve_bootmem_generic() currently have no caller,
-> so clean it up.
-> 
-> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+On 12/10/2012 06:34 PM, Minchan Kim wrote:
+> This still is [RFC v3] because just passed my simple test
+> with TCMalloc tweaking.
+>
+> I hope more inputs from user-space allocator people and test patch
+> with their allocator because it might need design change of arena
+> management design for getting real vaule.
+>
+> Changelog from v2
+>
+>   * Removing madvise(addr, length, MADV_NOVOLATILE).
+>   * add vmstat about the number of discarded volatile pages
+>   * discard volatile pages without promotion in reclaim path
+>
+> This is based on v3.6.
+>
+> - What's the madvise(addr, length, MADV_VOLATILE)?
+>
+>    It's a hint that user deliver to kernel so kernel can *discard*
+>    pages in a range anytime.
+>
+> - What happens if user access page(ie, virtual address) discarded
+>    by kernel?
+>
+>    The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
+>
+> - What happens if user access page(ie, virtual address) doesn't
+>    discarded by kernel?
+>
+>    The user can see old data without page fault.
+>
+> - What's different with madvise(DONTNEED)?
+>
+>    System call semantic
+>
+>    DONTNEED makes sure user always can see zero-fill pages after
+>    he calls madvise while VOLATILE can see zero-fill pages or
+>    old data.
+I still need to really read and understand the patch, but at a high 
+level I'm not sure how this works. So does the VOLATILE flag get cleared 
+on any access, even if the pages have not been discarded? What happens 
+if an application wants to store non-volatile data in an area that was 
+once marked volatile. If there was never memory pressure, it seems the 
+volatility would persist with no way of removing it.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Either way, I feel that with this revision, specifically dropping the 
+NOVOLATILE call and the SIGBUS optimization the Mozilla folks suggested, 
+your implementation has drifted quite far from the concept I'm pushing. 
+While I hope we can still align the underlying mm implementation, I 
+might ask that you use a different term for the semantics you propose, 
+so we don't add too much confusion to the discussion.
+
+Maybe you could call it DONTNEED_DEFERRED or something?
+
+In the meantime, I'll be reading your patch in detail and seeing how we 
+might be able to combine our differing approaches.
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
