@@ -1,82 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 951BF6B0071
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:23:18 -0500 (EST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MEV00JOJBUSNPY0@mailout4.samsung.com> for
- linux-mm@kvack.org; Tue, 11 Dec 2012 22:23:16 +0900 (KST)
-Received: from amdc1032.localnet ([106.116.147.136])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MEV007TEBUREP30@mmp1.samsung.com> for linux-mm@kvack.org;
- Tue, 11 Dec 2012 22:23:16 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: Re: [RFC v2] Add mempressure cgroup
-Date: Tue, 11 Dec 2012 14:22:38 +0100
-References: <20121210095838.GA21065@lizard>
- <201212101323.09806.b.zolnierkie@samsung.com> <20121210200512.GA499@lizard>
-In-reply-to: <20121210200512.GA499@lizard>
-MIME-version: 1.0
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Message-id: <201212111422.38970.b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 358FF6B0071
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:41:17 -0500 (EST)
+Date: Tue, 11 Dec 2012 14:41:13 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: livelock in __writeback_inodes_wb ?
+Message-ID: <20121211134113.GA15801@quack.suse.cz>
+References: <20121128145515.GA26564@redhat.com>
+ <20121211082327.GA15706@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121211082327.GA15706@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org
 
-On Monday 10 December 2012 21:05:12 Anton Vorontsov wrote:
-> On Mon, Dec 10, 2012 at 01:23:09PM +0100, Bartlomiej Zolnierkiewicz wrote:
-> > On Monday 10 December 2012 10:58:38 Anton Vorontsov wrote:
+On Tue 11-12-12 16:23:27, Wu Fengguang wrote:
+> On Wed, Nov 28, 2012 at 09:55:15AM -0500, Dave Jones wrote:
+> > We had a user report the soft lockup detector kicked after 22
+> > seconds of no progress, with this trace..
+> 
+> Where is the original report? The reporter may help provide some clues
+> on the workload that triggered the bug.
+> 
+> > :BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
+> > :Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
+> > :RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
+> > :Call Trace:
+> > : [<ffffffff811b783e>] redirty_tail+0x5e/0x80
+> > : [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
+> > : [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
+> > : [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
+> > : [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
+> > : [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
+> > : [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
+> > : [<ffffffff8107fde3>] kthread+0x93/0xa0
+> > : [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
+> > : [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
+> > : [<ffffffff81627e00>] ? gs_change+0x13/0x13
 > > 
-> > > +static void consume_memory(void)
-> > > +{
-> > > +	unsigned int i = 0;
-> > > +	unsigned int j = 0;
-> > > +
-> > > +	puts("consuming memory...");
-> > > +
-> > > +	while (1) {
-> > > +		pthread_mutex_lock(&locks[i]);
-> > > +		if (!chunks[i]) {
-> > > +			chunks[i] = malloc(CHUNK_SIZE);
-> > > +			pabort(!chunks[i], 0, "chunks alloc failed");
-> > > +			memset(chunks[i], 0, CHUNK_SIZE);
-> > > +			j++;
-> > > +		}
-> > > +		pthread_mutex_unlock(&locks[i]);
-> > > +
-> > > +		if (j >= num_chunks / 10) {
-> > > +			add_reclaimable(num_chunks / 10);
-> > 
-> > Shouldn't it use j instead of num_chunks / 10 here?
+> > Looking over the code, is it possible that something could be
+> > dirtying pages faster than writeback can get them written out,
+> > keeping us in this loop indefitely ?
 > 
-> Um.. They should be equal. Or am I missing the point?
-
-Oh, ok.  You're right.
-
-j > num_chunks / 10 condition should never happen and may be removed.
-
-> > > +			printf("added %d reclaimable chunks\n", j);
-> > > +			j = 0;
+> The bug reporter should know best whether there are heavy IO.
 > 
-> Here, we reset it.
-> 
-> > > +		}
-> > > +
-> > > +		i = (i + 1) % num_chunks;
-> > > +	}
-> > > +}
-> 
-> Thanks!
-> Anton.
+> However I suspect it's not directly caused by heavy IO: we will
+> release &wb->list_lock before each __writeback_single_inode() call,
+> which starts writeback IO for each inode.
+  Umm, it's not about releasing wb->list_lock I think. Softlockup will
+trigger whenever we are looping in a kernel for more than given timeout
+(e.g. those 22 s) without sleeping.
 
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
+> > Should there be something in this loop periodically poking
+> > the watchdog perhaps ?
+> 
+> It seems we failed to release &wb->list_lock in wb_writeback() for
+> long time (dozens of seconds). That is, the inode_sleep_on_writeback()
+> is somehow not called. However it's not obvious to me how come this
+> can happen..
+  Maybe, progress is always non-zero but small and nr_pages is high (e.g.
+when writeback is triggered by wakeup_flusher_threads()). What filesystem
+is the guy using? I remember e.g. btrfs used to have always-dirty inodes
+which could confuse us.
+
+>From the backtrace it is clear there's some superblock which has s_umount
+locked and we cannot writeback inodes there. So if this superblock contains
+most of the dirty pages we need to write and there's another superblock
+with always dirty inode we would livelock like observed... So my question
+would be about what filesystems are there in the system (/proc/mounts),
+what load does trigger this, trigger sysrq-w when the lockup happens.
+
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
