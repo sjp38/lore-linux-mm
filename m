@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 009276B0074
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 21:34:29 -0500 (EST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id 084AF6B0071
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 21:34:30 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 4/5] page_alloc: Make movablecore_map has higher priority
-Date: Tue, 11 Dec 2012 10:33:26 +0800
-Message-Id: <1355193207-21797-5-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 5/5] page_alloc: Bootmem limit with movablecore_map
+Date: Tue, 11 Dec 2012 10:33:27 +0800
+Message-Id: <1355193207-21797-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,93 +13,72 @@ List-ID: <linux-mm.kvack.org>
 To: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-If kernelcore or movablecore is specified at the same time
-with movablecore_map, movablecore_map will have higher
-priority to be satisfied.
-This patch will make find_zone_movable_pfns_for_nodes()
-calculate zone_movable_pfn[] with the limit from
-zone_movable_limit[].
+This patch make sure bootmem will not allocate memory from areas that
+may be ZONE_MOVABLE. The map info is from movablecore_map boot option.
 
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
 Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
 ---
- mm/page_alloc.c |   35 +++++++++++++++++++++++++++++++----
- 1 files changed, 31 insertions(+), 4 deletions(-)
+ include/linux/memblock.h |    1 +
+ mm/memblock.c            |   18 +++++++++++++++++-
+ 2 files changed, 18 insertions(+), 1 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4853619..e7b6db5 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4839,12 +4839,25 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
+diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+index d452ee1..6e25597 100644
+--- a/include/linux/memblock.h
++++ b/include/linux/memblock.h
+@@ -42,6 +42,7 @@ struct memblock {
+ 
+ extern struct memblock memblock;
+ extern int memblock_debug;
++extern struct movablecore_map movablecore_map;
+ 
+ #define memblock_dbg(fmt, ...) \
+ 	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 6259055..197c3be 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -101,6 +101,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+ {
+ 	phys_addr_t this_start, this_end, cand;
+ 	u64 i;
++	int curr = movablecore_map.nr_map - 1;
+ 
+ 	/* pump up @end */
+ 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+@@ -114,13 +115,28 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
+ 		this_start = clamp(this_start, start, end);
+ 		this_end = clamp(this_end, start, end);
+ 
+-		if (this_end < size)
++restart:
++		if (this_end <= this_start || this_end < size)
+ 			continue;
+ 
++		for (; curr >= 0; curr--) {
++			if ((movablecore_map.map[curr].start_pfn << PAGE_SHIFT)
++			    < this_end)
++				break;
++		}
++
+ 		cand = round_down(this_end - size, align);
++		if (curr >= 0 &&
++		    cand < movablecore_map.map[curr].end_pfn << PAGE_SHIFT) {
++			this_end = movablecore_map.map[curr].start_pfn
++				   << PAGE_SHIFT;
++			goto restart;
++		}
++
+ 		if (cand >= this_start)
+ 			return cand;
  	}
- 
--	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
--	if (!required_kernelcore)
-+	/*
-+	 * No matter kernelcore/movablecore was limited or not, movable_zone
-+	 * should always be set to a usable zone index.
-+	 */
-+	find_usable_zone_for_movable();
 +
-+	/*
-+	 * If neither kernelcore/movablecore nor movablecore_map is specified,
-+	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
-+	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
-+	 */
-+	if (!required_kernelcore) {
-+		if (movablecore_map.nr_map)
-+			memcpy(zone_movable_pfn, zone_movable_limit,
-+				sizeof(zone_movable_pfn));
- 		goto out;
-+	}
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
--	find_usable_zone_for_movable();
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
- 
- restart:
-@@ -4872,10 +4885,24 @@ restart:
- 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
- 			unsigned long size_pages;
- 
-+			/*
-+			 * Find more memory for kernelcore in
-+			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
-+			 */
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
- 			if (start_pfn >= end_pfn)
- 				continue;
- 
-+			if (zone_movable_limit[nid]) {
-+				end_pfn = min(end_pfn, zone_movable_limit[nid]);
-+				/* No range left for kernelcore in this node */
-+				if (start_pfn >= end_pfn) {
-+					zone_movable_pfn[nid] =
-+							zone_movable_limit[nid];
-+					break;
-+				}
-+			}
-+
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
- 				unsigned long kernel_pages;
-@@ -4935,12 +4962,12 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
- 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
- 
--out:
- 	/* restore the node_state */
- 	node_states[N_HIGH_MEMORY] = saved_node_state;
+ 	return 0;
  }
+ 
 -- 
 1.7.1
 
