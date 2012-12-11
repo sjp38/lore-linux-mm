@@ -1,43 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id CDB4B6B0068
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:09:56 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id jg9so2173917bkc.14
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 11:09:54 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121211183937.GA5168@cmpxchg.org>
-References: <1355213523-15698-1-git-send-email-linfeng@cn.fujitsu.com>
-	<20121211183937.GA5168@cmpxchg.org>
-Date: Tue, 11 Dec 2012 11:09:54 -0800
-Message-ID: <CAE9FiQVtsd90x3cpaZWK+oVUydApb9YVON3LNV1+cP9_0uCWzw@mail.gmail.com>
-Subject: Re: [PATCH] mm/bootmem.c: remove unused wrapper function reserve_bootmem_generic()
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id F0EFB6B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 16:36:46 -0500 (EST)
+Date: Tue, 11 Dec 2012 13:36:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] remove unused code from do_wp_page
+Message-Id: <20121211133645.64a712d7.akpm@linux-foundation.org>
+In-Reply-To: <1355237090-52434-1-git-send-email-dingel@linux.vnet.ibm.com>
+References: <1355237090-52434-1-git-send-email-dingel@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Lin Feng <linfeng@cn.fujitsu.com>, akpm@linux-foundation.org, hpa@zytor.com, davem@davemloft.net, eric.dumazet@gmail.com, tj@kernel.org, shangw@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dingel@linux.vnet.ibm.com
+Cc: David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 11, 2012 at 10:39 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Tue, Dec 11, 2012 at 04:12:03PM +0800, Lin Feng wrote:
->> Wrapper fucntion reserve_bootmem_generic() currently have no caller,
->> so clean it up.
->>
->> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
->
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+On Tue, 11 Dec 2012 15:44:50 +0100
+dingel@linux.vnet.ibm.com wrote:
 
-yes, this is leftover from
+> From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+> 
+> page_mkwrite is initalized with zero and only set once, from that point exists no way to get to the oom or oom_free_new labels.
+> 
+> Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+> ---
+>  mm/memory.c | 4 ----
+>  1 file changed, 4 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 221fc9f..c322708 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2795,10 +2795,6 @@ oom_free_new:
+>  	page_cache_release(new_page);
+>  oom:
+>  	if (old_page) {
+> -		if (page_mkwrite) {
+> -			unlock_page(old_page);
+> -			page_cache_release(old_page);
+> -		}
+>  		page_cache_release(old_page);
+>  	}
+>  	return VM_FAULT_OOM;
 
-commit 774ea0bcb27f57b6fd521b3b6c43237782fed4b9
-Date:   Wed Aug 25 13:39:18 2010 -0700
+I hope you've checked all this carefully, including the "goto reuse"
+and "goto gotten" paths.  I *think* it's OK, but geeze. And the oom path
+surely gets very little testing.
 
-    x86: Remove old bootmem code
+do_wp_page() has become truly awful.  I'm wondering if we should
+actually leave that code in there in case something changes in the
+future and it becomes necessary.
 
-    Requested by Ingo, Thomas and HPA.
+With my compiler version this patch actually increases the size of
+memory.o's text by 7 bytes.  Odd.
 
-    The old bootmem code is no longer necessary, and the transition is
-    complete.  Remove it.
+Ho hum.  You should also have done this:
+
+--- a/mm/memory.c~mm-memoryc-remove-unused-code-from-do_wp_page-fix
++++ a/mm/memory.c
+@@ -2780,9 +2780,8 @@ unlock:
+ oom_free_new:
+ 	page_cache_release(new_page);
+ oom:
+-	if (old_page) {
++	if (old_page)
+ 		page_cache_release(old_page);
+-	}
+ 	return VM_FAULT_OOM;
+ 
+ unwritable_page:
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
