@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 6B5A86B0062
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 10:57:30 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id v19so4112549obq.14
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 07:57:29 -0800 (PST)
-Date: Tue, 11 Dec 2012 16:57:24 +0100
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id E60E96B0069
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 11:01:55 -0500 (EST)
+Received: by mail-oa0-f41.google.com with SMTP id k14so4828390oag.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:01:55 -0800 (PST)
+Date: Tue, 11 Dec 2012 17:01:49 +0100
 From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [patch v2 4/6] memcg: simplify mem_cgroup_iter
-Message-ID: <20121211155724.GD1612@dhcp22.suse.cz>
+Message-ID: <20121211160149.GE1612@dhcp22.suse.cz>
 References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
  <1353955671-14385-5-git-send-email-mhocko@suse.cz>
- <CALWz4iw3v08Q3=nJRssOYjvpFa=yAJdmewYugogLcX_FBC1GmQ@mail.gmail.com>
+ <CALWz4ixgQzhZeqt_9JiMT0XOGFOh1co6xYo1dkS9Rrksey7KUA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALWz4iw3v08Q3=nJRssOYjvpFa=yAJdmewYugogLcX_FBC1GmQ@mail.gmail.com>
+In-Reply-To: <CALWz4ixgQzhZeqt_9JiMT0XOGFOh1co6xYo1dkS9Rrksey7KUA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Sun 09-12-12 09:01:48, Ying Han wrote:
+On Mon 10-12-12 20:35:20, Ying Han wrote:
 > On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
 > > Current implementation of mem_cgroup_iter has to consider both css and
 > > memcg to find out whether no group has been found (css==NULL - aka the
@@ -49,16 +49,32 @@ On Sun 09-12-12 09:01:48, Ying Han wrote:
 > > +++ b/mm/memcontrol.c
 > > @@ -1086,7 +1086,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 > >         rcu_read_lock();
-	    ^^^^^^^^
-	    here
-
 > >         while (!memcg) {
 > >                 struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
 > > -               struct cgroup_subsys_state *css = NULL;
 > >
 > >                 if (reclaim) {
 > >                         int nid = zone_to_nid(reclaim->zone);
-[...]
+> > @@ -1112,53 +1111,52 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+> >                  * explicit visit.
+> >                  */
+> >                 if (!last_visited) {
+		    ^^^^^^^^
+		    here
+
+> > -                       css = &root->css;
+> > +                       memcg = root;
+> >                 } else {
+> >                         struct cgroup *prev_cgroup, *next_cgroup;
+> >
+> >                         prev_cgroup = (last_visited == root) ? NULL
+> >                                 : last_visited->css.cgroup;
+> > -                       next_cgroup = cgroup_next_descendant_pre(prev_cgroup,
+> > -                                       root->css.cgroup);
+> > -                       if (next_cgroup)
+> > -                               css = cgroup_subsys_state(next_cgroup,
+> > -                                               mem_cgroup_subsys_id);
+> > -               }
 > > +skip_node:
 > > +                       next_cgroup = cgroup_next_descendant_pre(
 > > +                                       prev_cgroup, root->css.cgroup);
@@ -84,15 +100,15 @@ On Sun 09-12-12 09:01:48, Ying Han wrote:
 > > +                                               next_cgroup);
 > > +                               if (css_tryget(&mem->css))
 > > +                                       memcg = mem;
-> > +                               else {
-> > +                                       prev_cgroup = next_cgroup;
 > 
-> I might be missing something here, but the comment says the
-> last_visited is safe to use but not the next_cgroup. What is
-> preventing it to be
-> removed ?
+> I see a functional change after this, where we now hold a refcnt of
+> css if memcg is root. It is not the case before this change.
 
-rcu_read_lock. cgroup cannot disappear inside rcu.
+I know it is a bit obscure but this is not the case.
+cgroup_next_descendant_pre never visits its root. That's why we have
+that if (!last_visited) test above. We have to handle it separately.
+
+Makes sense?
 
 > 
 > --Ying
