@@ -1,118 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id E60E96B0069
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 11:01:55 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id k14so4828390oag.14
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:01:55 -0800 (PST)
-Date: Tue, 11 Dec 2012 17:01:49 +0100
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 243916B006E
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 11:16:06 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id v19so4141631obq.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:16:05 -0800 (PST)
+Date: Tue, 11 Dec 2012 17:15:59 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2 4/6] memcg: simplify mem_cgroup_iter
-Message-ID: <20121211160149.GE1612@dhcp22.suse.cz>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
+ iterators
+Message-ID: <20121211161559.GF1612@dhcp22.suse.cz>
 References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
- <1353955671-14385-5-git-send-email-mhocko@suse.cz>
- <CALWz4ixgQzhZeqt_9JiMT0XOGFOh1co6xYo1dkS9Rrksey7KUA@mail.gmail.com>
+ <1353955671-14385-4-git-send-email-mhocko@suse.cz>
+ <CALWz4iwNvRd7AgEiSzd7Gr-7P5oh0uESS5A7rLZ7dZWeTjOzpQ@mail.gmail.com>
+ <20121211155025.GB1612@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALWz4ixgQzhZeqt_9JiMT0XOGFOh1co6xYo1dkS9Rrksey7KUA@mail.gmail.com>
+In-Reply-To: <20121211155025.GB1612@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ying Han <yinghan@google.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Mon 10-12-12 20:35:20, Ying Han wrote:
-> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > Current implementation of mem_cgroup_iter has to consider both css and
-> > memcg to find out whether no group has been found (css==NULL - aka the
-> > loop is completed) and that no memcg is associated with the found node
-> > (!memcg - aka css_tryget failed because the group is no longer alive).
-> > This leads to awkward tweaks like tests for css && !memcg to skip the
-> > current node.
-> >
-> > It will be much easier if we got rid off css variable altogether and
-> > only rely on memcg. In order to do that the iteration part has to skip
-> > dead nodes. This sounds natural to me and as a nice side effect we will
-> > get a simple invariant that memcg is always alive when non-NULL and all
-> > nodes have been visited otherwise.
-> >
-> > We could get rid of the surrounding while loop but keep it in for now to
-> > make review easier. It will go away in the following patch.
-> >
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > ---
-> >  mm/memcontrol.c |   56 +++++++++++++++++++++++++++----------------------------
-> >  1 file changed, 27 insertions(+), 29 deletions(-)
-> >
-> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > index 6bcc97b..d1bc0e8 100644
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -1086,7 +1086,6 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >         rcu_read_lock();
-> >         while (!memcg) {
-> >                 struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
-> > -               struct cgroup_subsys_state *css = NULL;
-> >
-> >                 if (reclaim) {
-> >                         int nid = zone_to_nid(reclaim->zone);
-> > @@ -1112,53 +1111,52 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
-> >                  * explicit visit.
-> >                  */
-> >                 if (!last_visited) {
-		    ^^^^^^^^
-		    here
-
-> > -                       css = &root->css;
-> > +                       memcg = root;
-> >                 } else {
-> >                         struct cgroup *prev_cgroup, *next_cgroup;
-> >
-> >                         prev_cgroup = (last_visited == root) ? NULL
-> >                                 : last_visited->css.cgroup;
-> > -                       next_cgroup = cgroup_next_descendant_pre(prev_cgroup,
-> > -                                       root->css.cgroup);
-> > -                       if (next_cgroup)
-> > -                               css = cgroup_subsys_state(next_cgroup,
-> > -                                               mem_cgroup_subsys_id);
-> > -               }
-> > +skip_node:
-> > +                       next_cgroup = cgroup_next_descendant_pre(
-> > +                                       prev_cgroup, root->css.cgroup);
-> >
-> > -               /*
-> > -                * Even if we found a group we have to make sure it is alive.
-> > -                * css && !memcg means that the groups should be skipped and
-> > -                * we should continue the tree walk.
-> > -                * last_visited css is safe to use because it is protected by
-> > -                * css_get and the tree walk is rcu safe.
-> > -                */
-> > -               if (css == &root->css || (css && css_tryget(css)))
-> > -                       memcg = mem_cgroup_from_css(css);
-> > +                       /*
-> > +                        * Even if we found a group we have to make sure it is
-> > +                        * alive. css && !memcg means that the groups should be
-> > +                        * skipped and we should continue the tree walk.
-> > +                        * last_visited css is safe to use because it is
-> > +                        * protected by css_get and the tree walk is rcu safe.
-> > +                        */
-> > +                       if (next_cgroup) {
-> > +                               struct mem_cgroup *mem = mem_cgroup_from_cont(
-> > +                                               next_cgroup);
-> > +                               if (css_tryget(&mem->css))
-> > +                                       memcg = mem;
+On Tue 11-12-12 16:50:25, Michal Hocko wrote:
+> On Sun 09-12-12 08:59:54, Ying Han wrote:
+> > On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> [...]
+> > > +               /*
+> > > +                * Even if we found a group we have to make sure it is alive.
+> > > +                * css && !memcg means that the groups should be skipped and
+> > > +                * we should continue the tree walk.
+> > > +                * last_visited css is safe to use because it is protected by
+> > > +                * css_get and the tree walk is rcu safe.
+> > > +                */
+> > > +               if (css == &root->css || (css && css_tryget(css)))
+> > > +                       memcg = mem_cgroup_from_css(css);
+> > >
+> > >                 if (reclaim) {
+> > > -                       iter->position = id;
+> > > +                       struct mem_cgroup *curr = memcg;
+> > > +
+> > > +                       if (last_visited)
+> > > +                               css_put(&last_visited->css);
+> > > +
+> > > +                       if (css && !memcg)
+> > > +                               curr = mem_cgroup_from_css(css);
+> > 
+> > In this case, the css_tryget() failed which implies the css is on the
+> > way to be removed. (refcnt ==0) If so, why it is safe to call
+> > css_get() directly on it below? It seems not preventing the css to be
+> > removed by doing so.
 > 
-> I see a functional change after this, where we now hold a refcnt of
-> css if memcg is root. It is not the case before this change.
+> Well, I do not remember exactly but I guess the code is meant to say
+> that we need to store a half-dead memcg because the loop has to be
+> retried. As we are under RCU hood it is just half dead.
+> Now that you brought this up I think this is not safe as well because
+> another thread could have seen the cached value while we tried to retry
+> and his RCU is not protecting the group anymore.
 
-I know it is a bit obscure but this is not the case.
-cgroup_next_descendant_pre never visits its root. That's why we have
-that if (!last_visited) test above. We have to handle it separately.
+Hmm, thinking about it some more, it _is_ be safe in the end.
 
-Makes sense?
+We are safe because we are under RCU. And even if somebody else looked
+at the half-dead memcg from iter->last_visited it cannot disappear
+because the current one will retry without dropping RCU so the grace
+period couldn't have been finished.
 
-> 
-> --Ying
+		CPU0					CPU1
+rcu_read_lock()						rcu_read_lock()
+while(!memcg) {						while(!memcg)
 [...]
+spin_lock(&iter->iter_lock)
+[...]
+if (css == &root->css ||
+		(css && css_tryget(css)))
+	memcg = mem_cgroup_from_css(css)
+[...]
+if (css && !memcg)
+	curr = mem_cgroup_from_css(css)
+if (curr)
+	css_get(curr);
+spin_unlock(&iter->iter_lock)
+							spin_lock(&iter->iter_lock)
+							/* sees the half dead memcg but its cgroup is still valid */ 
+							[...]
+							spin_unlock(&iter->iter_lock)
+/* we do retry */
+}
+rcu_read_unlock()
+
+so the css_get will just helps to prevent from further code obfuscation.
+
+Makes sense? The code gets much simplified later in the series,
+fortunately.
 -- 
 Michal Hocko
 SUSE Labs
