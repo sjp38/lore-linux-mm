@@ -1,77 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 701816B0087
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 23:40:46 -0500 (EST)
-Date: Tue, 11 Dec 2012 13:40:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v2] Support volatile range for anon vma
-Message-ID: <20121211044044.GC22698@blaptop>
-References: <1351560594-18366-1-git-send-email-minchan@kernel.org>
- <50AD739A.30804@linaro.org>
- <50B6E1F9.5010301@linaro.org>
- <20121204000042.GB20395@bbox>
- <50BD4A70.9060506@linaro.org>
- <20121204072207.GA9782@blaptop>
- <50BE4B64.6000003@linaro.org>
- <20121205041855.GB9782@blaptop>
- <50C28EB4.6030505@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50C28EB4.6030505@linaro.org>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 6771D6B0074
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 23:56:45 -0500 (EST)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v3 3/5][RESEND] page_alloc: Introduce zone_movable_limit[] to keep movable limit for nodes
+Date: Tue, 11 Dec 2012 12:55:49 +0800
+Message-Id: <1355201749-27182-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>
+References: <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Fri, Dec 07, 2012 at 04:49:56PM -0800, John Stultz wrote:
-> On 12/04/2012 08:18 PM, Minchan Kim wrote:
-> >On Tue, Dec 04, 2012 at 11:13:40AM -0800, John Stultz wrote:
-> >>I don't think the problem is when vmas being marked VM_VOLATILE are
-> >>being merged, its that when we mark the vma as *non-volatile*, and
-> >>remove the VM_VOLATILE flag we merge the non-volatile vmas with
-> >>neighboring vmas. So preserving the purged flag during that merge is
-> >>important. Again, the example I used to trigger this was an
-> >>alternating pattern of volatile and non volatile vmas, then marking
-> >>the entire range non-volatile (though sometimes in two overlapping
-> >>passes).
-> >Understood. Thanks.
-> >Below patch solves your problems? It's simple than yours.
-> 
-> Yea, this is nicer then my fix.
-> Although I still need the purged handling in the vma merge code for
-> me to see the behavior I expect in my tests.
-> 
-> I've integrated your patch and repushed my queue here:
-> http://git.linaro.org/gitweb?p=people/jstultz/android-dev.git;a=shortlog;h=refs/heads/dev/minchan-anonvol
-> 
-> git://git.linaro.org/people/jstultz/android-dev.git dev/minchan-anonvol
-> 
-> >Anyway, both yours and mine are not right fix.
-> >As I mentioned, locking scheme is broken.
-> >We need anon_vma_lock to handle purged and we should consider fork
-> >case, too.
-> Hrm. I'm sure you're right, as I've not yet fully grasped all the
-> locking rules here.  Could you clarify how it is broken? And why is
-> the anon_vma_lock needed to manage the purged state that is part of
-> the vma itself?
+This patch introduces a new array zone_movable_limit[] to store the
+ZONE_MOVABLE limit from movablecore_map boot option for all nodes.
+The function sanitize_zone_movable_limit() will find out to which
+node the ranges in movable_map.map[] belongs, and calculates the
+low boundary of ZONE_MOVABLE for each node.
 
-If you don't hold anon->lock, merge/split/fork can race with try_to_unmap
-so vma->[purged|vm_flags] would lose consistency.
+change log:
+Do find_usable_zone_for_movable() to initialize movable_zone
+so that sanitize_zone_movable_limit() could use it.
 
-> 
-> thanks
-> -john
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Reported-by: Wu Jianguo <wujianguo@huawei.com>
 
+
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Signed-off-by: Liu Jiang <jiang.liu@huawei.com>
+Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
+---
+ mm/page_alloc.c |   79 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 files changed, 78 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1c91d16..52c368e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -206,6 +206,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+ static unsigned long __initdata required_kernelcore;
+ static unsigned long __initdata required_movablecore;
+ static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
++static unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
+ 
+ /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
+ int movable_zone;
+@@ -4340,6 +4341,77 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+ }
+ 
++/**
++ * sanitize_zone_movable_limit - Sanitize the zone_movable_limit array.
++ *
++ * zone_movable_limit is initialized as 0. This function will try to get
++ * the first ZONE_MOVABLE pfn of each node from movablecore_map, and
++ * assigne them to zone_movable_limit.
++ * zone_movable_limit[nid] == 0 means no limit for the node.
++ *
++ * Note: Each range is represented as [start_pfn, end_pfn)
++ */
++static void __meminit sanitize_zone_movable_limit(void)
++{
++	int map_pos = 0, i, nid;
++	unsigned long start_pfn, end_pfn;
++
++	if (!movablecore_map.nr_map)
++		return;
++
++	/* Iterate all ranges from minimum to maximum */
++	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
++		/*
++		 * If we have found lowest pfn of ZONE_MOVABLE of the node
++		 * specified by user, just go on to check next range.
++		 */
++		if (zone_movable_limit[nid])
++			continue;
++
++#ifdef CONFIG_ZONE_DMA
++		/* Skip DMA memory. */
++		if (start_pfn < arch_zone_highest_possible_pfn[ZONE_DMA])
++			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA];
++#endif
++
++#ifdef CONFIG_ZONE_DMA32
++		/* Skip DMA32 memory. */
++		if (start_pfn < arch_zone_highest_possible_pfn[ZONE_DMA32])
++			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA32];
++#endif
++
++#ifdef CONFIG_HIGHMEM
++		/* Skip lowmem if ZONE_MOVABLE is highmem. */
++		if (zone_movable_is_highmem() &&
++		    start_pfn < arch_zone_lowest_possible_pfn[ZONE_HIGHMEM])
++			start_pfn = arch_zone_lowest_possible_pfn[ZONE_HIGHMEM];
++#endif
++
++		if (start_pfn >= end_pfn)
++			continue;
++
++		while (map_pos < movablecore_map.nr_map) {
++			if (end_pfn <= movablecore_map.map[map_pos].start_pfn)
++				break;
++
++			if (start_pfn >= movablecore_map.map[map_pos].end_pfn) {
++				map_pos++;
++				continue;
++			}
++
++			/*
++			 * The start_pfn of ZONE_MOVABLE is either the minimum
++			 * pfn specified by movablecore_map, or 0, which means
++			 * the node has no ZONE_MOVABLE.
++			 */
++			zone_movable_limit[nid] = max(start_pfn,
++					movablecore_map.map[map_pos].start_pfn);
++
++			break;
++		}
++	}
++}
++
+ #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long zone_type,
+@@ -4358,6 +4430,10 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	return zholes_size[zone_type];
+ }
+ 
++static void __meminit sanitize_zone_movable_limit(void)
++{
++}
++
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 
+ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
+@@ -4768,7 +4844,6 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		goto out;
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+-	find_usable_zone_for_movable();
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+ 
+ restart:
+@@ -4923,6 +4998,8 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
+ 
+ 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
+ 	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
++	find_usable_zone_for_movable();
++	sanitize_zone_movable_limit();
+ 	find_zone_movable_pfns_for_nodes();
+ 
+ 	/* Print out the zone ranges */
 -- 
-Kind regards,
-Minchan Kim
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
