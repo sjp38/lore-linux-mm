@@ -1,60 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id C18626B0081
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 01:50:23 -0500 (EST)
-Message-ID: <50C6D762.4030507@huawei.com>
-Date: Tue, 11 Dec 2012 14:49:06 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 3D9246B0083
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 02:18:03 -0500 (EST)
+Date: Tue, 11 Dec 2012 08:17:42 +0100
+From: Mike Hommey <mh@glandium.org>
+Subject: Re: [RFC v3] Support volatile range for anon vma
+Message-ID: <20121211071742.GA26598@glandium.org>
+References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
+ <20121211024104.GA10523@blaptop>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
-References: <50C1AD6D.7010709@huawei.com> <20121207141102.4fda582d.akpm@linux-foundation.org> <20121210083342.GA31670@hacker.(null)> <50C5A62A.6030401@huawei.com> <1355136423.1700.2.camel@kernel.cn.ibm.com> <50C5C4A2.2070002@huawei.com> <1355140561.1821.5.camel@kernel.cn.ibm.com> <50C5D844.8050707@huawei.com> <1355143664.1821.8.camel@kernel.cn.ibm.com> <20121211011643.GA15754@hacker.(null)>
-In-Reply-To: <20121211011643.GA15754@hacker.(null)>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121211024104.GA10523@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, andi@firstfloor.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
->>> Hi Simon,
-
->>>
->>> If we use "/sys/devices/system/memory/soft_offline_page" to offline a
->>> free page, the value of mce_bad_pages will be added. Then the page is marked
->>> HWPoison, but it is still managed by page buddy alocator.
->>>
->>> So if we offline it again, the value of mce_bad_pages will be added again.
->>> Assume the page is not allocated during this short time.
->>>
->>> soft_offline_page()
->>> 	get_any_page()
->>> 		"else if (is_free_buddy_page(p))" branch return 0
->>> 			"goto done";
->>> 				"atomic_long_add(1, &mce_bad_pages);"
->>>
->>> I think it would be better to move "if(PageHWPoison(page))" at the beginning of
->>> soft_offline_page(). However I don't know what do these words mean,
->>> "Synchronized using the page lock with memory_failure()"
+On Tue, Dec 11, 2012 at 11:41:04AM +0900, Minchan Kim wrote:
+> - What's the madvise(addr, length, MADV_VOLATILE)?
 > 
-> Hi Xishi,
+>   It's a hint that user deliver to kernel so kernel can *discard*
+>   pages in a range anytime.
 > 
-> Unpoison will clear PG_hwpoison flag after hold page lock, memory_failure() and 
-> soft_offline_page() take the lock to avoid unpoison clear the flag behind them.
+> - What happens if user access page(ie, virtual address) discarded
+>   by kernel?
 > 
-> Regards,
-> Wanpeng Li 
-> 
+>   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
 
-Hi Wanpeng,
+What happened to getting SIGBUS?
 
-As you mean, it is the necessary to get the page lock first when we check the
-HWPoison flag every time, this is in order to avoid conflict, right?
-
-So why not use a globe lock here? For example lock_memory_hotplug() is used in
-online_pages() and offline_pages()?
-
-Thanks,
-Xishi Qiu
+Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
