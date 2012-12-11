@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id DDA836B0089
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:21:19 -0500 (EST)
-Date: Tue, 11 Dec 2012 00:21:08 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: memory_hotplug: fix build error
-Message-Id: <20121211002108.8d013a80.akpm@linux-foundation.org>
-In-Reply-To: <1355213158-4955-1-git-send-email-lliubbo@gmail.com>
-References: <1355213158-4955-1-git-send-email-lliubbo@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id A7BE36B008C
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:23:34 -0500 (EST)
+Date: Tue, 11 Dec 2012 16:23:27 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: livelock in __writeback_inodes_wb ?
+Message-ID: <20121211082327.GA15706@localhost>
+References: <20121128145515.GA26564@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121128145515.GA26564@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>
-Cc: laijs@cn.fujitsu.com, wency@cn.fujitsu.com, jiang.liu@huawei.com, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org
+To: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org
 
-On Tue, 11 Dec 2012 16:05:58 +0800 Bob Liu <lliubbo@gmail.com> wrote:
+On Wed, Nov 28, 2012 at 09:55:15AM -0500, Dave Jones wrote:
+> We had a user report the soft lockup detector kicked after 22
+> seconds of no progress, with this trace..
 
-> Fix below build error(and comment):
-> mm/memory_hotplug.c:646:14: error: ___ZONE_HIGH___ undeclared (first use in this
-> function)
-> mm/memory_hotplug.c:646:14: note: each undeclared identifier is reported
-> only once for each function it appears in
-> make[1]: *** [mm/memory_hotplug.o] Error 1
+Where is the original report? The reporter may help provide some clues
+on the workload that triggered the bug.
+
+> :BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
+> :Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
+> :RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
+> :Call Trace:
+> : [<ffffffff811b783e>] redirty_tail+0x5e/0x80
+> : [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
+> : [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
+> : [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
+> : [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
+> : [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
+> : [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
+> : [<ffffffff8107fde3>] kthread+0x93/0xa0
+> : [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
+> : [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
+> : [<ffffffff81627e00>] ? gs_change+0x13/0x13
 > 
-> Signed-off-by: Bob Liu <lliubbo@gmail.com>
-> ---
->  mm/memory_hotplug.c |    6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index ea71d0d..9e97530 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -636,14 +636,14 @@ static void node_states_check_changes_online(unsigned long nr_pages,
->  #ifdef CONFIG_HIGHMEM
->  	/*
->  	 * If we have movable node, node_states[N_HIGH_MEMORY]
-> -	 * contains nodes which have zones of 0...ZONE_HIGH,
-> -	 * set zone_last to ZONE_HIGH.
-> +	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
-> +	 * set zone_last to ZONE_HIGHMEM.
->  	 *
->  	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
->  	 * contains nodes which have zones of 0...ZONE_MOVABLE,
->  	 * set zone_last to ZONE_MOVABLE.
->  	 */
-> -	zone_last = ZONE_HIGH;
-> +	zone_last = ZONE_HIGHMEM;
->  	if (N_MEMORY == N_HIGH_MEMORY)
->  		zone_last = ZONE_MOVABLE;
+> Looking over the code, is it possible that something could be
+> dirtying pages faster than writeback can get them written out,
+> keeping us in this loop indefitely ?
 
-Thanks - there are actually two sites.  You only caught one because
-CONFIG_HIGHMEM was missing its 'F'.
+The bug reporter should know best whether there are heavy IO.
 
+However I suspect it's not directly caused by heavy IO: we will
+release &wb->list_lock before each __writeback_single_inode() call,
+which starts writeback IO for each inode.
 
-Guys, this isn't very good.  Obviously this code wasn't tested well :(
+> Should there be something in this loop periodically poking
+> the watchdog perhaps ?
 
-I expect the combination of highmem and memory hotplug will never
-exist, but it should at least compile.
+It seems we failed to release &wb->list_lock in wb_writeback() for
+long time (dozens of seconds). That is, the inode_sleep_on_writeback()
+is somehow not called. However it's not obvious to me how come this
+can happen..
 
-
-
---- a/mm/memory_hotplug.c~hotplug-update-nodemasks-management-fix
-+++ a/mm/memory_hotplug.c
-@@ -620,14 +620,14 @@ static void node_states_check_changes_on
- #ifdef CONFIG_HIGHMEM
- 	/*
- 	 * If we have movable node, node_states[N_HIGH_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_HIGH,
--	 * set zone_last to ZONE_HIGH.
-+	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
-+	 * set zone_last to ZONE_HIGHMEM.
- 	 *
- 	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
- 	 * contains nodes which have zones of 0...ZONE_MOVABLE,
- 	 * set zone_last to ZONE_MOVABLE.
- 	 */
--	zone_last = ZONE_HIGH;
-+	zone_last = ZONE_HIGHMEM;
- 	if (N_MEMORY == N_HIGH_MEMORY)
- 		zone_last = ZONE_MOVABLE;
- 
-@@ -1151,17 +1151,17 @@ static void node_states_check_changes_of
- 	else
- 		arg->status_change_nid_normal = -1;
- 
--#ifdef CONIG_HIGHMEM
-+#ifdef CONFIG_HIGHMEM
- 	/*
- 	 * If we have movable node, node_states[N_HIGH_MEMORY]
--	 * contains nodes which have zones of 0...ZONE_HIGH,
--	 * set zone_last to ZONE_HIGH.
-+	 * contains nodes which have zones of 0...ZONE_HIGHMEM,
-+	 * set zone_last to ZONE_HIGHMEM.
- 	 *
- 	 * If we don't have movable node, node_states[N_NORMAL_MEMORY]
- 	 * contains nodes which have zones of 0...ZONE_MOVABLE,
- 	 * set zone_last to ZONE_MOVABLE.
- 	 */
--	zone_last = ZONE_HIGH;
-+	zone_last = ZONE_HIGHMEM;
- 	if (N_MEMORY == N_HIGH_MEMORY)
- 		zone_last = ZONE_MOVABLE;
- 
-_
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
