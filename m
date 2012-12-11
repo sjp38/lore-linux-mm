@@ -1,91 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 363996B009A
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:45:14 -0500 (EST)
-Date: Tue, 11 Dec 2012 17:45:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v3] Support volatile range for anon vma
-Message-ID: <20121211084512.GI22698@blaptop>
-References: <1355193255-7217-1-git-send-email-minchan@kernel.org>
- <20121211024104.GA10523@blaptop>
- <20121211071742.GA26598@glandium.org>
- <20121211073744.GF22698@blaptop>
- <20121211075950.GA27103@glandium.org>
- <20121211081117.GH22698@blaptop>
- <20121211082903.GA27441@glandium.org>
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id EB4386B009C
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 03:51:35 -0500 (EST)
+Date: Tue, 11 Dec 2012 10:53:00 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH, REBASED] asm-generic, mm: PTE_SPECIAL cleanup
+Message-ID: <20121211085300.GA32158@otc-wbsnb-06>
+References: <1354881321-29363-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20121207143002.GB21233@arm.com>
+ <20121207144112.GA17044@otc-wbsnb-06>
+ <20121207123517.3fc93a34.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="YZ5djTAD1cGYuMQK"
 Content-Disposition: inline
-In-Reply-To: <20121211082903.GA27441@glandium.org>
+In-Reply-To: <20121207123517.3fc93a34.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Hommey <mh@glandium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>
 
-On Tue, Dec 11, 2012 at 09:29:03AM +0100, Mike Hommey wrote:
-> On Tue, Dec 11, 2012 at 05:11:17PM +0900, Minchan Kim wrote:
-> > On Tue, Dec 11, 2012 at 08:59:50AM +0100, Mike Hommey wrote:
-> > > On Tue, Dec 11, 2012 at 04:37:44PM +0900, Minchan Kim wrote:
-> > > > On Tue, Dec 11, 2012 at 08:17:42AM +0100, Mike Hommey wrote:
-> > > > > On Tue, Dec 11, 2012 at 11:41:04AM +0900, Minchan Kim wrote:
-> > > > > > - What's the madvise(addr, length, MADV_VOLATILE)?
-> > > > > > 
-> > > > > >   It's a hint that user deliver to kernel so kernel can *discard*
-> > > > > >   pages in a range anytime.
-> > > > > > 
-> > > > > > - What happens if user access page(ie, virtual address) discarded
-> > > > > >   by kernel?
-> > > > > > 
-> > > > > >   The user can see zero-fill-on-demand pages as if madvise(DONTNEED).
-> > > > > 
-> > > > > What happened to getting SIGBUS?
-> > > > 
-> > > > I thought it could force for user to handle signal.
-> > > > If user can receive signal, what can he do?
-> > > > Maybe he can call madivse(NOVOLATILE) in my old version but I removed it
-> > > > in this version so user don't need handle signal handling.
-> > > 
-> > > NOVOLATILE and signal throwing are two different and not necessarily
-> > > related needs. We (Mozilla) could probably live without NOVOLATILE,
-> > > but certainly not without signal throwing.
-> > 
-> > What's shortcoming if we don't provide signal handling?
-> > Could you explain how you want to signal in your allocator?
-> 
-> The main use case we have for signals is not an allocator. We're
-> currently using ashmem to decompress libraries on Android. We would like
-> to use volatile memory for that instead, so that unused pages can be
-> discarded. With NOVOLATILE, or when getting zero-filled pages, that just
-> doesn't pan out: you may well be jumping in the volatile memory from
-> anywhere, and you can't check the status of the page you're jumping into
-> before jumping. Thus you need to be signaled when reaching a discarded
-> page.
 
-It seems you are saying about tmpfs-based volatile ranges.
-As I mentioned in John's thread, some interface to pin memory
-as ashmem's term is needed for tmpfs-based volatile ranges.
-But in case of allocator, we might not need it so this patch which
-for considering allocator usecase removed SIGBUS.
-If user allocator guys ask such interface, it wouldn't be a problem
-for unifying both usecases but if they don't want due to by
-performance, I don't want to add it. If so, there are two choices.
+--YZ5djTAD1cGYuMQK
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-1) Go separate way with each interface.
-   (madvise for anon vs fadvise or fallocate for tmpfs)
-2) A new system call to unify them.
+On Fri, Dec 07, 2012 at 12:35:17PM -0800, Andrew Morton wrote:
+> On Fri, 7 Dec 2012 16:41:12 +0200
+> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+>=20
+> > Advertise PTE_SPECIAL through Kconfig option and consolidate dummy
+> > pte_special() and mkspecial() in <asm-generic/pgtable.h>
+>=20
+> why?
 
-> 
-> Mike
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Just drop some amount of useless code. Do you think it's not reasonable?
 
--- 
-Kind regards,
-Minchan Kim
+--=20
+ Kirill A. Shutemov
+
+--YZ5djTAD1cGYuMQK
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQxvRsAAoJEAd+omnVudOM8VsQAMu4u0bNE9Xv2f+RP68lYcZg
+NkjQFvNws7vYZjv3xtKN1kssbP4EF1WYU5XeV03vWla4+FJ6xnSAL/fq1MMXiLH/
+Id6iKjl2EwwxGY3jcGA8U6/6STszdvSg3ee4imsgVdpH9eYelsE8rqDD3BVF6Et2
+QS6i0iNmWyayvLE6jbwVl9/qR16QYraXMobjKEYe4aeWTlZGTqhgMQtbhm7K/heV
+3OVGHetiq+MOdr7KJYb+YZc/81kd6sMXDpEafyQlhdIHF8AMYVQA2Pm2AwvA0/RC
+CCZdGXd8J1jIetIcbJknp5Cg7pB5uEAVcNFGwPoa8i+LmRc74yNvqEg/KsyDJd3a
+NhPST97tzPss0VZGkX0A3P34d4jMIihEW7WOTXtgm0MjrGdOGWy7yAearmWTgtS+
+MEqul5QCmHf6te2if2ZUcOeJyRDcuDKPrnkjHS1CJSei2HuWSk7UQJd34uXil0m1
+BAD4+yWH+eR2ELTxsTljERlgombPETMkoZ2lP3ty5VWoH4k9DuNQ1QCyxoKem4hA
+0K3eanwMTNyz4nM1R5P21tzyGl9xwPJpyqZWNtQDhwn9qSKuIcrPQ5C45wBFFPky
+rQwqIHnMaquOUnbn+n7nrvvBzaeIp9xU6r1J86Ioza164q3aJQN1BRgx0Cfr1anc
+j7ojFfbWzkeJBbs4m4kr
+=mtam
+-----END PGP SIGNATURE-----
+
+--YZ5djTAD1cGYuMQK--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
