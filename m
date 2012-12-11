@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 19E216B0072
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 09:41:49 -0500 (EST)
-Date: Tue, 11 Dec 2012 09:41:39 -0500 (EST)
-From: Dave Anderson <anderson@redhat.com>
-Message-ID: <1672785544.45808556.1355236899164.JavaMail.root@redhat.com>
-In-Reply-To: <CAAmzW4NHO=y=utmK_at+JxvyYMd4O_7W_6n541GEA0aeDfukyw@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 2005E6B0073
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 09:45:21 -0500 (EST)
+Received: from /spool/local
+	by e06smtp17.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <jfrei@linux.vnet.ibm.com>;
+	Tue, 11 Dec 2012 14:45:06 -0000
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBBEj6BB21168154
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:45:07 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (loopback [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBBDmuFi028783
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 08:48:57 -0500
+From: dingel@linux.vnet.ibm.com
+Subject: [PATCH] remove unused code from do_wp_page
+Date: Tue, 11 Dec 2012 15:44:50 +0100
+Message-Id: <1355237090-52434-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JoonSoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, Vivek Goyal <vgoyal@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
 
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
 
+page_mkwrite is initalized with zero and only set once, from that point exists no way to get to the oom or oom_free_new labels.
 
------ Original Message -----
+Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+---
+ mm/memory.c | 4 ----
+ 1 file changed, 4 deletions(-)
 
-> > Can we get the same information from this rb-tree of vmap_area? Is
-> > ->va_start field communication same information as vmlist was
-> > communicating? What's the difference between vmap_area_root and vmlist.
-> 
-> Thanks for comment.
-> 
-> Yes. vmap_area's va_start field represent same information as vm_struct's addr.
-> vmap_area_root is data structure for fast searching an area.
-> vmap_area_list is address sorted list, so we can use it like as vmlist.
-> 
-> There is a little difference vmap_area_list and vmlist.
-> vmlist is lack of information about some areas in vmalloc address space.
-> For example, vm_map_ram() allocate area in vmalloc address space,
-> but it doesn't make a link with vmlist. To provide full information
-> about vmalloc address space, using vmap_area_list is more adequate.
-> 
-> > So without knowing details of both the data structures, I think if vmlist
-> > is going away, then user space tools should be able to traverse vmap_area_root
-> > rb tree. I am assuming it is sorted using ->addr field and we should be
-> > able to get vmalloc area start from there. It will just be a matter of
-> > exporting right fields to user space (instead of vmlist).
-> 
-> There is address sorted list of vmap_area, vmap_area_list.
-> So we can use it for traversing vmalloc areas if it is necessary.
-> But, as I mentioned before, kexec write *just* address of vmlist and
-> offset of vm_struct's address field.  It imply that they don't traverse vmlist,
-> because they didn't write vm_struct's next field which is needed for traversing.
-> Without vm_struct's next field, they have no method for traversing.
-> So, IMHO, assigning dummy vm_struct to vmlist which is implemented by [7/8] is
-> a safe way to maintain a compatibility of userspace tool. :)
-
-Why bother keeping vmlist around?  kdump's makedumpfile command would not
-even need to traverse the vmap_area rbtree, because it could simply look
-at the first vmap_area in the sorted vmap_area_list, correct?
-
-Dave Anderson
-
+diff --git a/mm/memory.c b/mm/memory.c
+index 221fc9f..c322708 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2795,10 +2795,6 @@ oom_free_new:
+ 	page_cache_release(new_page);
+ oom:
+ 	if (old_page) {
+-		if (page_mkwrite) {
+-			unlock_page(old_page);
+-			page_cache_release(old_page);
+-		}
+ 		page_cache_release(old_page);
+ 	}
+ 	return VM_FAULT_OOM;
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
