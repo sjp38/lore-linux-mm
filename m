@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id B10696B008C
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:17:11 -0500 (EST)
-Date: Tue, 11 Dec 2012 17:17:05 -0500 (EST)
-From: Dave Anderson <anderson@redhat.com>
-Message-ID: <104724866.46130887.1355264225876.JavaMail.root@redhat.com>
-In-Reply-To: <20121211214859.GG5580@redhat.com>
-Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id AE5CE6B0093
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:31:50 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id e20so1939729dak.14
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 14:31:49 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121211155025.GB1612@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+	<1353955671-14385-4-git-send-email-mhocko@suse.cz>
+	<CALWz4iwNvRd7AgEiSzd7Gr-7P5oh0uESS5A7rLZ7dZWeTjOzpQ@mail.gmail.com>
+	<20121211155025.GB1612@dhcp22.suse.cz>
+Date: Tue, 11 Dec 2012 14:31:49 -0800
+Message-ID: <CALWz4izk-A-DPCEnCsVMvzjtgL2W2ydcRM1vyKcLhjWtUzTpkg@mail.gmail.com>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup iterators
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Russell King <rmk+kernel@arm.linux.org.uk>, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, JoonSoo Kim <js1304@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
+On Tue, Dec 11, 2012 at 7:50 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Sun 09-12-12 08:59:54, Ying Han wrote:
+>> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> [...]
+>> > +               /*
+>> > +                * Even if we found a group we have to make sure it is alive.
+>> > +                * css && !memcg means that the groups should be skipped and
+>> > +                * we should continue the tree walk.
+>> > +                * last_visited css is safe to use because it is protected by
+>> > +                * css_get and the tree walk is rcu safe.
+>> > +                */
+>> > +               if (css == &root->css || (css && css_tryget(css)))
+>> > +                       memcg = mem_cgroup_from_css(css);
+>> >
+>> >                 if (reclaim) {
+>> > -                       iter->position = id;
+>> > +                       struct mem_cgroup *curr = memcg;
+>> > +
+>> > +                       if (last_visited)
+>> > +                               css_put(&last_visited->css);
+>> > +
+>> > +                       if (css && !memcg)
+>> > +                               curr = mem_cgroup_from_css(css);
+>>
+>> In this case, the css_tryget() failed which implies the css is on the
+>> way to be removed. (refcnt ==0) If so, why it is safe to call
+>> css_get() directly on it below? It seems not preventing the css to be
+>> removed by doing so.
+>
+> Well, I do not remember exactly but I guess the code is meant to say
+> that we need to store a half-dead memcg because the loop has to be
+> retried. As we are under RCU hood it is just half dead.
+> Now that you brought this up I think this is not safe as well because
+> another thread could have seen the cached value while we tried to retry
+> and his RCU is not protecting the group anymore. The follow up patch
+> fixes this by retrying within the loop. I will bring that part into
+> this patch already and then leave only css clean up in the other patch.
+>
+> Thanks for spotting this Ying!
 
+I understand the intention here where we want to move on to the next
+css if the css_tryget() failed. But css_get() won't hold on it in that
+case.
 
------ Original Message -----
-> On Mon, Dec 10, 2012 at 11:40:47PM +0900, JoonSoo Kim wrote:
-> 
-> [..]
-> > > So without knowing details of both the data structures, I think if vmlist
-> > > is going away, then user space tools should be able to traverse vmap_area_root
-> > > rb tree. I am assuming it is sorted using ->addr field and we should be
-> > > able to get vmalloc area start from there. It will just be a matter of
-> > > exporting right fields to user space (instead of vmlist).
-> > 
-> > There is address sorted list of vmap_area, vmap_area_list.
-> > So we can use it for traversing vmalloc areas if it is necessary.
-> > But, as I mentioned before, kexec write *just* address of vmlist and
-> > offset of vm_struct's address field.  It imply that they don't traverse vmlist,
-> > because they didn't write vm_struct's next field which is needed for traversing.
-> > Without vm_struct's next field, they have no method for traversing.
-> > So, IMHO, assigning dummy vm_struct to vmlist which is implemented by [7/8] is
-> > a safe way to maintain a compatibility of userspace tool. :)
-> 
-> Actually the design of "makedumpfile" and "crash" tool is that they know
-> about kernel data structures and they adopt to changes. So for major
-> changes they keep track of kernel version numbers and if access the
-> data structures accordingly.
-> 
-> Currently we access first element of vmlist to determine start of vmalloc
-> address. True we don't have to traverse the list.
-> 
-> But as you mentioned we should be able to get same information by
-> traversing to left most element of vmap_area_list rb tree. So I think
-> instead of trying to retain vmlist first element just for backward
-> compatibility, I will rather prefer get rid of that code completely
-> from kernel and let user space tool traverse rbtree. Just export
-> minimum needed info for traversal in user space.
+I fixed that on my local branch which do the retry after css_tryget()
+failed, just like what you talked about. And I will wait for you fix
+on that.
 
-There's no need to traverse the rbtree.  There is a vmap_area_list
-linked list of vmap_area structures that is also sorted by virtual
-address.
+--Ying
 
-All that makedumpfile would have to do is to access the first vmap_area
-in the vmap_area_list -- as opposed to the way that it does now, which is
-by accessing the first vm_struct in the to-be-obsoleted vmlist list.
-
-So it seems silly to keep the dummy "vmlist" around.
-
-Dave
+>
+>>
+>> > +                       /* make sure that the cached memcg is not removed */
+>> > +                       if (curr)
+>> > +                               css_get(&curr->css);
+>>
+>> --Ying
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
