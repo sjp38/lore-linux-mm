@@ -1,105 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 365566B0074
-	for <linux-mm@kvack.org>; Mon, 10 Dec 2012 23:57:53 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v3 4/5][RESEND] page_alloc: Make movablecore_map has higher priority
-Date: Tue, 11 Dec 2012 12:56:57 +0800
-Message-Id: <1355201817-27230-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1355193207-21797-5-git-send-email-tangchen@cn.fujitsu.com>
-References: <1355193207-21797-5-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 1CBB16B0071
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 00:55:48 -0500 (EST)
+Message-ID: <50C6CAC3.1090809@huawei.com>
+Date: Tue, 11 Dec 2012 13:55:15 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH V2] MCE: fix an error of mce_bad_pages statistics
+References: <20121210083342.GA31670@hacker.(null)>  <50C5A62A.6030401@huawei.com> <1355136423.1700.2.camel@kernel.cn.ibm.com>  <50C5C4A2.2070002@huawei.com> <20121210153805.GS16230@one.firstfloor.org>  <1355190540.1933.4.camel@kernel.cn.ibm.com>  <20121211020313.GV16230@one.firstfloor.org>  <1355192071.1933.7.camel@kernel.cn.ibm.com>  <20121211030125.GY16230@one.firstfloor.org>  <1355195591.1933.18.camel@kernel.cn.ibm.com>  <20121211031907.GZ16230@one.firstfloor.org> <1355197690.1933.20.camel@kernel.cn.ibm.com>
+In-Reply-To: <1355197690.1933.20.camel@kernel.cn.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Vyacheslav.Dubeyko@huawei.com, Borislav Petkov <bp@alien8.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com
 
-If kernelcore or movablecore is specified at the same time
-with movablecore_map, movablecore_map will have higher
-priority to be satisfied.
-This patch will make find_zone_movable_pfns_for_nodes()
-calculate zone_movable_pfn[] with the limit from
-zone_movable_limit[].
+On 2012/12/11 11:48, Simon Jeons wrote:
 
-change log:
-Move find_usable_zone_for_movable() to free_area_init_nodes()
-so that sanitize_zone_movable_limit() in patch 3 could use
-initialized movable_zone.
+> On Tue, 2012-12-11 at 04:19 +0100, Andi Kleen wrote:
+>> On Mon, Dec 10, 2012 at 09:13:11PM -0600, Simon Jeons wrote:
+>>> On Tue, 2012-12-11 at 04:01 +0100, Andi Kleen wrote:
+>>>>> Oh, it will be putback to lru list during migration. So does your "some
+>>>>> time" mean before call check_new_page?
+>>>>
+>>>> Yes until the next check_new_page() whenever that is. If the migration
+>>>> works it will be earlier, otherwise later.
+>>>
+>>> But I can't figure out any page reclaim path check if the page is set
+>>> PG_hwpoison, can poisoned pages be rclaimed?
+>>
+>> The only way to reclaim a page is to free and reallocate it.
+> 
+> Then why there doesn't have check in reclaim path to avoid relcaim
+> poisoned page?
+> 
+> 			-Simon
 
-Reported-by: Wu Jianguo <wujianguo@huawei.com>
+Hi Simon,
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
-Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- mm/page_alloc.c |   28 +++++++++++++++++++++++++---
- 1 files changed, 25 insertions(+), 3 deletions(-)
+If the page is free, it will be set PG_hwpoison, and soft_offline_page() is done.
+When the page is alocated later, check_new_page() will find the poisoned page and
+isolate the whole buddy block(just drop the block).
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 52c368e..00fa67d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4839,9 +4839,17 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 		required_kernelcore = max(required_kernelcore, corepages);
- 	}
- 
--	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
--	if (!required_kernelcore)
-+	/*
-+	 * If neither kernelcore/movablecore nor movablecore_map is specified,
-+	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
-+	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
-+	 */
-+	if (!required_kernelcore) {
-+		if (movablecore_map.nr_map)
-+			memcpy(zone_movable_pfn, zone_movable_limit,
-+				sizeof(zone_movable_pfn));
- 		goto out;
-+	}
- 
- 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
- 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
-@@ -4871,10 +4879,24 @@ restart:
- 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
- 			unsigned long size_pages;
- 
-+			/*
-+			 * Find more memory for kernelcore in
-+			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
-+			 */
- 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
- 			if (start_pfn >= end_pfn)
- 				continue;
- 
-+			if (zone_movable_limit[nid]) {
-+				end_pfn = min(end_pfn, zone_movable_limit[nid]);
-+				/* No range left for kernelcore in this node */
-+				if (start_pfn >= end_pfn) {
-+					zone_movable_pfn[nid] =
-+							zone_movable_limit[nid];
-+					break;
-+				}
-+			}
-+
- 			/* Account for what is only usable for kernelcore */
- 			if (start_pfn < usable_startpfn) {
- 				unsigned long kernel_pages;
-@@ -4934,12 +4956,12 @@ restart:
- 	if (usable_nodes && required_kernelcore > usable_nodes)
- 		goto restart;
- 
-+out:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
- 		zone_movable_pfn[nid] =
- 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
- 
--out:
- 	/* restore the node_state */
- 	node_states[N_HIGH_MEMORY] = saved_node_state;
- }
--- 
-1.7.1
+If the page is not free, soft_offline_page() try to free it first, if this is
+failed, it will migrate the page, but the page is still in LRU list after migration,
+migrate_pages()
+	unmap_and_move()
+		if (rc != -EAGAIN) {
+			...
+			putback_lru_page(page);
+		}
+We can use lru_add_drain_all() to drain lru pagevec, at last free_hot_cold_page()
+will be called, and free_pages_prepare() check the poisoned pages.
+free_pages_prepare()
+	free_pages_check()
+		bad_page()
+
+Is this right, Andi?
+
+Thanks
+Xishi Qiu
+
+>>
+>> -Andi
+> 
+> 
+> 
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
