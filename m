@@ -1,101 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id CD6096B002B
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 04:06:55 -0500 (EST)
-Date: Wed, 12 Dec 2012 10:06:52 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup
- iterators
-Message-ID: <20121212090652.GB32081@dhcp22.suse.cz>
-References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
- <1353955671-14385-4-git-send-email-mhocko@suse.cz>
- <CALWz4ixPmvguxQO8s9mqH+OLEXC5LDfzEVFx_qqe2hBaRcsXiA@mail.gmail.com>
- <20121211155432.GC1612@dhcp22.suse.cz>
- <CALWz4izL7fEuQhEvKa7mUqi0sa25mcFP-xnTnL3vU3Z17k7VHg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 5D2566B005D
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 04:10:45 -0500 (EST)
+Message-ID: <50C849DD.20405@cn.fujitsu.com>
+Date: Wed, 12 Dec 2012 17:09:49 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALWz4izL7fEuQhEvKa7mUqi0sa25mcFP-xnTnL3vU3Z17k7VHg@mail.gmail.com>
+Subject: Re: [PATCH v3 3/5] page_alloc: Introduce zone_movable_limit[] to
+ keep movable limit for nodes
+References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>  <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>  <50C6A36C.5030606@huawei.com> <50C6A93A.50404@cn.fujitsu.com> <1355225313.1919.1.camel@kernel.cn.ibm.com> <50C7D490.60409@huawei.com>
+In-Reply-To: <50C7D490.60409@huawei.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ying Han <yinghan@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Jiang Liu <jiang.liu@huawei.com>, Simon Jeons <simon.jeons@gmail.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On Tue 11-12-12 14:36:10, Ying Han wrote:
-> On Tue, Dec 11, 2012 at 7:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Sun 09-12-12 11:39:50, Ying Han wrote:
-> >> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > [...]
-> >> >                 if (reclaim) {
-> >> > -                       iter->position = id;
-> >> > +                       struct mem_cgroup *curr = memcg;
-> >> > +
-> >> > +                       if (last_visited)
-> >> > +                               css_put(&last_visited->css);
-> >                             ^^^^^^^^^^^
-> >                             here
-> >> > +
-> >> > +                       if (css && !memcg)
-> >> > +                               curr = mem_cgroup_from_css(css);
-> >> > +
-> >> > +                       /* make sure that the cached memcg is not removed */
-> >> > +                       if (curr)
-> >> > +                               css_get(&curr->css);
-> >> > +                       iter->last_visited = curr;
-> >>
-> >> Here we take extra refcnt for last_visited, and assume it is under
-> >> target reclaim which then calls mem_cgroup_iter_break() and we leaked
-> >> a refcnt of the target memcg css.
-> >
-> > I think you are not right here. The extra reference is kept for
-> > iter->last_visited and it will be dropped the next time somebody sees
-> > the same zone-priority iter. See above.
-> >
-> > Or have I missed your question?
-> 
-> Hmm, question remains.
-> 
-> My understanding of the mem_cgroup_iter() is that each call path
-> should close the loop itself, in the sense that no *leaked* css refcnt
-> after that loop finished. It is the case for all the caller today
-> where the loop terminates at memcg == NULL, where all the refcnt have
-> been dropped by then.
+On 12/12/2012 08:49 AM, Jiang Liu wrote:
+>>>>> This patch introduces a new array zone_movable_limit[] to store the
+>>>>> ZONE_MOVABLE limit from movablecore_map boot option for all nodes.
+>>>>> The function sanitize_zone_movable_limit() will find out to which
+>>>>> node the ranges in movable_map.map[] belongs, and calculates the
+>>>>> low boundary of ZONE_MOVABLE for each node.
+>>
+>> What's the difference between zone_movable_limit[nid] and
+>> zone_movable_pfn[nid]?
+> zone_movable_limit[] is a temporary storage for zone_moveable_pfn[].
+> It's used to handle a special case if user specifies both movablecore_map
+> and movablecore/kernelcore on the kernel command line.
+>
+Hi Simon, Liu,
 
-Now I am not sure I understand you. mem_cgroup_iter_break will always
-drop the reference of the last returned memcg. So far so good. But if
-the last memcg got cached in per-zone-priority last_visited then we
-_have_ to keep a reference to it regardless we broke out of the loop.
-The last_visited thingy is shared between all parallel reclaimers so we
-cannot just drop a reference to it.
+Sorry for the late and thanks for your discussion. :)
 
-> One exception is mem_cgroup_iter_break(), where the loop terminates
-> with *leaked* refcnt and that is what the iter_break() needs to clean
-> up. We can not rely on the next caller of the loop since it might
-> never happen.
+As Liu said, zone_movable_limit[] is a temporary array for calculation.
 
-Yes, this is true and I already have a half baked patch for that. I
-haven't posted it yet but it basically checks all node-zone-prio
-last_visited and removes itself from them on the way out in pre_destroy
-callback (I just need to cleanup "find a new last_visited" part and will
-post it).
+If users specified movablecore_map option, zone_movable_limit[] holds
+the lowest pfn of ZONE_MOVABLE limited by movablecore_map option. It is 
+constant, won't change.
 
-> It makes sense to drop the refcnt of last_visited, the same reason as
-> drop refcnt of prev. I don't see why it makes different.
+Please refer to find_zone_movable_pfns_for_nodes() in patch4, you will
+see that zone_moveable_pfn[] will be changed each time kernel area
+increases.
 
-Because then it might vanish when somebody else wants to access it. If
-we just did mem_cgroup_get which would be enough to keep only memcg part
-in memory then what can we do at the time we visit it? css_tryget would
-tell us "no your buddy is gone", you do not have any links to the tree
-so you would need to start from the beginning. That is what I have
-implemented in the first version. Then I've realized that this could
-make a bigger pressure on the groups created earlier which doesn't seem
-to be right. With css pinning we are sure that there is a link to a next
-node in the tree.
+So when kernel area increases on node i, zone_moveable_pfn[i] will
+increase. And if zone_moveable_pfn[i] > zone_movable_limit[i], we should
+stop allocate memory for kernel on node i. Here, I give movablecore_map 
+higher priority than kernelcore/movablecore.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+And also, I tried to use zone_moveable_pfn[] to store limits. But when
+calculating the kernel area, I still have to store the limits in
+temporary variables. I think the code was ugly. So I added an new array.
+
+Thanks. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
