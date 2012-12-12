@@ -1,205 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 67E6B6B0096
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 19:50:29 -0500 (EST)
-Message-ID: <50C7D490.60409@huawei.com>
-Date: Wed, 12 Dec 2012 08:49:20 +0800
-From: Jiang Liu <jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 5C61E6B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 20:12:27 -0500 (EST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 3/5] page_alloc: Introduce zone_movable_limit[] to
- keep movable limit for nodes
-References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>  <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>  <50C6A36C.5030606@huawei.com> <50C6A93A.50404@cn.fujitsu.com> <1355225313.1919.1.camel@kernel.cn.ibm.com>
-In-Reply-To: <1355225313.1919.1.camel@kernel.cn.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Message-ID: <9c96c9e7-4f6e-4e78-a207-009293c37b89@default>
+Date: Tue, 11 Dec 2012 17:12:18 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: zram /proc/swaps accounting weirdness
+References: <c8728036-07da-49ce-b4cb-c3d800790b53@default>
+ <20121211062601.GD22698@blaptop>
+ <d4ab3d29-f29d-4236-bbba-d93b633a18e7@default>
+In-Reply-To: <d4ab3d29-f29d-4236-bbba-d93b633a18e7@default>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Jianguo Wu <wujianguo@huawei.com>, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>
 
-On 2012-12-11 19:28, Simon Jeons wrote:
-> On Tue, 2012-12-11 at 11:32 +0800, Tang Chen wrote:
->> On 12/11/2012 11:07 AM, Jianguo Wu wrote:
->>> On 2012/12/11 10:33, Tang Chen wrote:
->>>
->>>> This patch introduces a new array zone_movable_limit[] to store the
->>>> ZONE_MOVABLE limit from movablecore_map boot option for all nodes.
->>>> The function sanitize_zone_movable_limit() will find out to which
->>>> node the ranges in movable_map.map[] belongs, and calculates the
->>>> low boundary of ZONE_MOVABLE for each node.
-> 
-> What's the difference between zone_movable_limit[nid] and
-> zone_movable_pfn[nid]?
-zone_movable_limit[] is a temporary storage for zone_moveable_pfn[].
-It's used to handle a special case if user specifies both movablecore_map
-and movablecore/kernelcore on the kernel command line. 
+> From: Dan Magenheimer
+> Subject: RE: zram /proc/swaps accounting weirdness
+>=20
+> > > Can you explain how this could happen if num_writes never
+> > > exceeded 1863?  This may be harmless in the case where
+> >
+> > Odd.
+> > I tried to reproduce it with zram and real swap device without
+> > zcache but failed. Does the problem happen only if enabling zcache
+> > together?
+>=20
+> I also cannot reproduce it with only zram, without zcache.
+> I can only reproduce with zcache+zram.  Since zcache will
+> only "fall through" to zram when the frontswap_store() call
+> in swap_writepage() fails, I wonder if in both cases swap_writepage()
+> is being called in large (e.g. SWAPFILE_CLUSTER-sized) blocks
+> of pages?  When zram-only, the entire block of pages always gets
+> sent to zram, but with zcache only a small randomly-positioned
+> fraction fail frontswap_store(), but the SWAPFILE_CLUSTER-sized
+> blocks have already been pre-reserved on the swap device and
+> become only partially-filled?
 
-> 
->>>>
->>>> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
->>>> Signed-off-by: Jiang Liu<jiang.liu@huawei.com>
->>>> Reviewed-by: Wen Congyang<wency@cn.fujitsu.com>
->>>> Reviewed-by: Lai Jiangshan<laijs@cn.fujitsu.com>
->>>> Tested-by: Lin Feng<linfeng@cn.fujitsu.com>
->>>> ---
->>>>   mm/page_alloc.c |   77 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
->>>>   1 files changed, 77 insertions(+), 0 deletions(-)
->>>>
->>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>>> index 1c91d16..4853619 100644
->>>> --- a/mm/page_alloc.c
->>>> +++ b/mm/page_alloc.c
->>>> @@ -206,6 +206,7 @@ static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
->>>>   static unsigned long __initdata required_kernelcore;
->>>>   static unsigned long __initdata required_movablecore;
->>>>   static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
->>>> +static unsigned long __meminitdata zone_movable_limit[MAX_NUMNODES];
->>>>
->>>>   /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
->>>>   int movable_zone;
->>>> @@ -4340,6 +4341,77 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
->>>>   	return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
->>>>   }
->>>>
->>>> +/**
->>>> + * sanitize_zone_movable_limit - Sanitize the zone_movable_limit array.
->>>> + *
->>>> + * zone_movable_limit is initialized as 0. This function will try to get
->>>> + * the first ZONE_MOVABLE pfn of each node from movablecore_map, and
->>>> + * assigne them to zone_movable_limit.
->>>> + * zone_movable_limit[nid] == 0 means no limit for the node.
->>>> + *
->>>> + * Note: Each range is represented as [start_pfn, end_pfn)
->>>> + */
->>>> +static void __meminit sanitize_zone_movable_limit(void)
->>>> +{
->>>> +	int map_pos = 0, i, nid;
->>>> +	unsigned long start_pfn, end_pfn;
->>>> +
->>>> +	if (!movablecore_map.nr_map)
->>>> +		return;
->>>> +
->>>> +	/* Iterate all ranges from minimum to maximum */
->>>> +	for_each_mem_pfn_range(i, MAX_NUMNODES,&start_pfn,&end_pfn,&nid) {
->>>> +		/*
->>>> +		 * If we have found lowest pfn of ZONE_MOVABLE of the node
->>>> +		 * specified by user, just go on to check next range.
->>>> +		 */
->>>> +		if (zone_movable_limit[nid])
->>>> +			continue;
->>>> +
->>>> +#ifdef CONFIG_ZONE_DMA
->>>> +		/* Skip DMA memory. */
->>>> +		if (start_pfn<  arch_zone_highest_possible_pfn[ZONE_DMA])
->>>> +			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA];
->>>> +#endif
->>>> +
->>>> +#ifdef CONFIG_ZONE_DMA32
->>>> +		/* Skip DMA32 memory. */
->>>> +		if (start_pfn<  arch_zone_highest_possible_pfn[ZONE_DMA32])
->>>> +			start_pfn = arch_zone_highest_possible_pfn[ZONE_DMA32];
->>>> +#endif
->>>> +
->>>> +#ifdef CONFIG_HIGHMEM
->>>> +		/* Skip lowmem if ZONE_MOVABLE is highmem. */
->>>> +		if (zone_movable_is_highmem()&&
->>>
->>> Hi Tang,
->>>
->>> I think zone_movable_is_highmem() is not work correctly here.
->>> 	sanitize_zone_movable_limit
->>> 		zone_movable_is_highmem<--using movable_zone here
->>> 	find_zone_movable_pfns_for_nodes
->>> 		find_usable_zone_for_movable<--movable_zone is specified here
->>>
->>> I think Jiang Liu's patch works fine for highmem, please refer to:
->>> http://marc.info/?l=linux-mm&m=135476085816087&w=2
->>
->> Hi Wu,
->>
->> Yes, I forgot movable_zone think. Thanks for reminding me. :)
->>
->> But Liu's patch you just mentioned, I didn't use it because I
->> don't think we should skip kernelcore when movablecore_map is specified.
->> If these 2 options are not conflict, we should satisfy them both. :)
->>
->> Of course, I also think Liu's suggestion is wonderful. But I think we
->> need more discussion on it. :)
->>
->> I'll fix it soon.
->> Thanks. :)
->>
->>>
->>> Thanks,
->>> Jianguo Wu
->>>
->>>> +		    start_pfn<  arch_zone_lowest_possible_pfn[ZONE_HIGHMEM])
->>>> +			start_pfn = arch_zone_lowest_possible_pfn[ZONE_HIGHMEM];
->>>> +#endif
->>>> +
->>>> +		if (start_pfn>= end_pfn)
->>>> +			continue;
->>>> +
->>>> +		while (map_pos<  movablecore_map.nr_map) {
->>>> +			if (end_pfn<= movablecore_map.map[map_pos].start_pfn)
->>>> +				break;
->>>> +
->>>> +			if (start_pfn>= movablecore_map.map[map_pos].end_pfn) {
->>>> +				map_pos++;
->>>> +				continue;
->>>> +			}
->>>> +
->>>> +			/*
->>>> +			 * The start_pfn of ZONE_MOVABLE is either the minimum
->>>> +			 * pfn specified by movablecore_map, or 0, which means
->>>> +			 * the node has no ZONE_MOVABLE.
->>>> +			 */
->>>> +			zone_movable_limit[nid] = max(start_pfn,
->>>> +					movablecore_map.map[map_pos].start_pfn);
->>>> +
->>>> +			break;
->>>> +		}
->>>> +	}
->>>> +}
->>>> +
->>>>   #else /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->>>>   static inline unsigned long __meminit zone_spanned_pages_in_node(int nid,
->>>>   					unsigned long zone_type,
->>>> @@ -4358,6 +4430,10 @@ static inline unsigned long __meminit zone_absent_pages_in_node(int nid,
->>>>   	return zholes_size[zone_type];
->>>>   }
->>>>
->>>> +static void __meminit sanitize_zone_movable_limit(void)
->>>> +{
->>>> +}
->>>> +
->>>>   #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->>>>
->>>>   static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
->>>> @@ -4923,6 +4999,7 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
->>>>
->>>>   	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
->>>>   	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
->>>> +	sanitize_zone_movable_limit();
->>>>   	find_zone_movable_pfns_for_nodes();
->>>>
->>>>   	/* Print out the zone ranges */
->>>
->>>
->>>
->>>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
-> 
-> .
-> 
+Urk.  Never mind.  My bad.  When a swap page is compressed in
+zcache, it gets accounted in the swap subsystem as an "inuse"
+page for the backing swap device.  (Frontswap provides a
+page-by-page "fronting store" for the swap device.)  That explains
+why Used is so high for the "zram swap device" even though
+zram has only compressed a fraction of the pages... the
+remaining (much larger) number of pages have been compressed
+by/in zcache.
 
+Move along, there are no droids here. :-(
+
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
