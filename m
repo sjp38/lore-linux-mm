@@ -1,95 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 76F336B0062
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 09:34:47 -0500 (EST)
-Received: by mail-oa0-f41.google.com with SMTP id k14so832011oag.14
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 06:34:46 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAAmzW4Ng8S_O4SEoANCWz3jsW3h3ucGSM9=Ld-n9aLuHcdgprw@mail.gmail.com>
-References: <1354033730-850-1-git-send-email-js1304@gmail.com>
-	<CAAmzW4Ng8S_O4SEoANCWz3jsW3h3ucGSM9=Ld-n9aLuHcdgprw@mail.gmail.com>
-Date: Wed, 12 Dec 2012 23:34:46 +0900
-Message-ID: <CAAmzW4Ns_90oYH4gDduz=UZ6_krFnkm1ODPS8eitH26vc0u7zg@mail.gmail.com>
-Subject: Re: [PATCH v2 0/3] introduce static_vm for ARM-specific static mapped area
-From: JoonSoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 3992E6B006C
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 10:47:00 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH V4 1/3] MCE: fix an error of mce_bad_pages statistics
+Date: Wed, 12 Dec 2012 10:46:23 -0500
+Message-Id: <1355327183-4452-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <50C7FB7D.2060801@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King <rmk+kernel@arm.linux.org.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
+To: qiuxishi@huawei.com
+Cc: wujianguo@huawei.com, jiang.liu@huawei.com, simon.jeons@gmail.com, Andrew Morton <akpm@linux-foundation.org>, bp@alien8.de, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, liwanp@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-2012/12/7 JoonSoo Kim <js1304@gmail.com>:
-> 2012/11/28 Joonsoo Kim <js1304@gmail.com>:
->> In current implementation, we used ARM-specific flag, that is,
->> VM_ARM_STATIC_MAPPING, for distinguishing ARM specific static mapped area.
->> The purpose of static mapped area is to re-use static mapped area when
->> entire physical address range of the ioremap request can be covered
->> by this area.
->>
->> This implementation causes needless overhead for some cases.
->> For example, assume that there is only one static mapped area and
->> vmlist has 300 areas. Every time we call ioremap, we check 300 areas for
->> deciding whether it is matched or not. Moreover, even if there is
->> no static mapped area and vmlist has 300 areas, every time we call
->> ioremap, we check 300 areas in now.
->>
->> If we construct a extra list for static mapped area, we can eliminate
->> above mentioned overhead.
->> With a extra list, if there is one static mapped area,
->> we just check only one area and proceed next operation quickly.
->>
->> In fact, it is not a critical problem, because ioremap is not frequently
->> used. But reducing overhead is better idea.
->>
->> Another reason for doing this work is for removing architecture dependency
->> on vmalloc layer. I think that vmlist and vmlist_lock is internal data
->> structure for vmalloc layer. Some codes for debugging and stat inevitably
->> use vmlist and vmlist_lock. But it is preferable that they are used
->> as least as possible in outside of vmalloc.c
->>
->> Changelog
->> v1->v2:
->>   [2/3]: patch description is improved.
->>   Rebased on v3.7-rc7
->>
->> Joonsoo Kim (3):
->>   ARM: vmregion: remove vmregion code entirely
->>   ARM: static_vm: introduce an infrastructure for static mapped area
->>   ARM: mm: use static_vm for managing static mapped areas
->>
->>  arch/arm/include/asm/mach/static_vm.h |   51 ++++++++
->>  arch/arm/mm/Makefile                  |    2 +-
->>  arch/arm/mm/ioremap.c                 |   69 ++++-------
->>  arch/arm/mm/mm.h                      |   10 --
->>  arch/arm/mm/mmu.c                     |   55 +++++----
->>  arch/arm/mm/static_vm.c               |   97 ++++++++++++++++
->>  arch/arm/mm/vmregion.c                |  205 ---------------------------------
->>  arch/arm/mm/vmregion.h                |   31 -----
->>  8 files changed, 208 insertions(+), 312 deletions(-)
->>  create mode 100644 arch/arm/include/asm/mach/static_vm.h
->>  create mode 100644 arch/arm/mm/static_vm.c
->>  delete mode 100644 arch/arm/mm/vmregion.c
->>  delete mode 100644 arch/arm/mm/vmregion.h
->>
->> --
->> 1.7.9.5
->>
->
-> Hello, Russell.
->
-> Could you review this patchset, please?
-> I send another patchset to mm community on top of this.
-> That one is related to this patchset,
-> so I want to get a review about this patchset :)
->
-> Thanks.
+On Wed, Dec 12, 2012 at 11:35:25AM +0800, Xishi Qiu wrote:
+> Move poisoned page check at the beginning of the function in order to
+> fix the error.
 
-Hello.
+Thanks for the fix.
+It works fine both on normal pages and hugepages in my testing.
 
-Is there anyone to review this patchset?
-Please let me know what I should do in order to take a review :)
+Tested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Thanks.
+Just nitpick below ...
+
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> ---
+>  mm/memory-failure.c |   38 +++++++++++++++++---------------------
+>  1 files changed, 17 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> index 8b20278..3a8b4b2 100644
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1419,18 +1419,17 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  	unsigned long pfn = page_to_pfn(page);
+>  	struct page *hpage = compound_head(page);
+> 
+> +	if (PageHWPoison(hpage)) {
+> +		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
+> +		return -EBUSY;
+> +	}
+> +
+>  	ret = get_any_page(page, pfn, flags);
+>  	if (ret < 0)
+>  		return ret;
+>  	if (ret == 0)
+>  		goto done;
+> 
+> -	if (PageHWPoison(hpage)) {
+> -		put_page(hpage);
+> -		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
+> -		return -EBUSY;
+> -	}
+> -
+>  	/* Keep page count to indicate a given hugepage is isolated. */
+>  	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
+>  				MIGRATE_SYNC);
+> @@ -1441,12 +1440,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
+>  		return ret;
+>  	}
+>  done:
+> -	if (!PageHWPoison(hpage))
+> -		atomic_long_add(1 << compound_trans_order(hpage),
+> -				&mce_bad_pages);
+> +	/* keep elevated page count for bad page */
+> +	atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
+>  	set_page_hwpoison_huge_page(hpage);
+>  	dequeue_hwpoisoned_huge_page(hpage);
+> -	/* keep elevated page count for bad page */
+> +
+
+I think this comment refers to "returning without decrementing page refcount",
+and it's not about mce_bad_pages, so keeping the comment as it is seems good
+for me.
+
+>  	return ret;
+>  }
+> 
+> @@ -1488,6 +1486,11 @@ int soft_offline_page(struct page *page, int flags)
+>  		}
+>  	}
+> 
+> +	if (PageHWPoison(page)) {
+> +		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+> +		return -EBUSY;
+> +	}
+> +
+>  	ret = get_any_page(page, pfn, flags);
+>  	if (ret < 0)
+>  		return ret;
+> @@ -1519,19 +1522,11 @@ int soft_offline_page(struct page *page, int flags)
+>  		return -EIO;
+>  	}
+> 
+> -	lock_page(page);
+> -	wait_on_page_writeback(page);
+> -
+>  	/*
+>  	 * Synchronized using the page lock with memory_failure()
+>  	 */
+> -	if (PageHWPoison(page)) {
+> -		unlock_page(page);
+> -		put_page(page);
+> -		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+> -		return -EBUSY;
+> -	}
+> -
+> +	lock_page(page);
+> +	wait_on_page_writeback(page);
+>  	/*
+>  	 * Try to invalidate first. This should work for
+>  	 * non dirty unmapped page cache pages.
+> @@ -1582,8 +1577,9 @@ int soft_offline_page(struct page *page, int flags)
+>  		return ret;
+> 
+>  done:
+> +	/* keep elevated page count for bad page */
+>  	atomic_long_add(1, &mce_bad_pages);
+>  	SetPageHWPoison(page);
+> -	/* keep elevated page count for bad page */
+> +
+>  	return ret;
+>  }
+
+Ditto here.
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
