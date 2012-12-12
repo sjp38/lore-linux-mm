@@ -1,172 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id C87F56B005A
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 12:06:05 -0500 (EST)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 12 Dec 2012 22:35:45 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 679B8125804E
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 22:35:50 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBCH5v2f65077318
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 22:35:57 +0530
-Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBCH5vEA015543
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 04:05:58 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm/hugetlb: create hugetlb cgroup file in hugetlb_init
-In-Reply-To: <50C83F97.3040009@huawei.com>
-References: <50C83F97.3040009@huawei.com>
-Date: Wed, 12 Dec 2012 22:35:54 +0530
-Message-ID: <8738zb9p59.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id 3B6EC6B006C
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 12:06:13 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so753744pad.14
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 09:06:12 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] mm: introduce numa_zero_pfn
+Date: Thu, 13 Dec 2012 02:03:39 +0900
+Message-Id: <1355331819-8728-1-git-send-email-js1304@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>, tj@kernel.org, lizefan@huawei.com, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Liujiang <jiang.liu@huawei.com>, dhillf@gmail.com, Jiang Liu <liuj97@gmail.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Joonsoo Kim <js1304@gmail.com>
 
-Jianguo Wu <wujianguo@huawei.com> writes:
+Currently, we use just *one* zero page regardless of user process' node.
+When user process read zero page, at first, cpu should load this
+to cpu cache. If node of cpu is not same as node of zero page, loading
+takes long time. If we make zero pages for each nodes and use them
+adequetly, we can reduce this overhead.
 
-> Build kernel with CONFIG_HUGETLBFS=y,CONFIG_HUGETLB_PAGE=y
-> and CONFIG_CGROUP_HUGETLB=y, then specify hugepagesz=xx boot option,
-> system will boot fail.
->
-> This failure is caused by following code path:
-> setup_hugepagesz
-> 	hugetlb_add_hstate
-> 		hugetlb_cgroup_file_init
-> 			cgroup_add_cftypes
-> 				kzalloc <--slab is *not available* yet
->
-> For this path, slab is not available yet, so memory allocated will be
-> failed, and cause WARN_ON() in hugetlb_cgroup_file_init().
->
-> So I move hugetlb_cgroup_file_init() into hugetlb_init().
->
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> ---
->  include/linux/hugetlb_cgroup.h |    7 ++-----
->  mm/hugetlb.c                   |   11 +----------
->  mm/hugetlb_cgroup.c            |   23 +++++++++++++++++++++--
->  3 files changed, 24 insertions(+), 17 deletions(-)
->
-> diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-> index d73878c..5bb9c28 100644
-> --- a/include/linux/hugetlb_cgroup.h
-> +++ b/include/linux/hugetlb_cgroup.h
-> @@ -62,7 +62,7 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
->  					 struct page *page);
->  extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  					   struct hugetlb_cgroup *h_cg);
-> -extern int hugetlb_cgroup_file_init(int idx) __init;
-> +extern void hugetlb_cgroup_file_init(void) __init;
->  extern void hugetlb_cgroup_migrate(struct page *oldhpage,
->  				   struct page *newhpage);
->
-> @@ -111,10 +111,7 @@ hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
->  	return;
->  }
->
-> -static inline int __init hugetlb_cgroup_file_init(int idx)
-> -{
-> -	return 0;
-> -}
-> +static inline void __init hugetlb_cgroup_file_init() {}
->
->  static inline void hugetlb_cgroup_migrate(struct page *oldhpage,
->  					  struct page *newhpage)
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 1ef2cd4..a30da48 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1906,14 +1906,12 @@ static int __init hugetlb_init(void)
->  		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
->
->  	hugetlb_init_hstates();
-> -
->  	gather_bootmem_prealloc();
-> -
->  	report_hugepages();
->
->  	hugetlb_sysfs_init();
-> -
->  	hugetlb_register_all_nodes();
-> +	hugetlb_cgroup_file_init();
->
->  	return 0;
->  }
-> @@ -1943,13 +1941,6 @@ void __init hugetlb_add_hstate(unsigned order)
->  	h->next_nid_to_free = first_node(node_states[N_HIGH_MEMORY]);
->  	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
->  					huge_page_size(h)/1024);
-> -	/*
-> -	 * Add cgroup control files only if the huge page consists
-> -	 * of more than two normal pages. This is because we use
-> -	 * page[2].lru.next for storing cgoup details.
-> -	 */
-> -	if (order >= HUGETLB_CGROUP_MIN_ORDER)
-> -		hugetlb_cgroup_file_init(hugetlb_max_hstate - 1);
->
->  	parsed_hstate = h;
->  }
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> index a3f358f..284cb68 100644
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -340,7 +340,7 @@ static char *mem_fmt(char *buf, int size, unsigned long hsize)
->  	return buf;
->  }
->
-> -int __init hugetlb_cgroup_file_init(int idx)
-> +static void __init __hugetlb_cgroup_file_init(int idx)
->  {
->  	char buf[32];
->  	struct cftype *cft;
-> @@ -382,7 +382,26 @@ int __init hugetlb_cgroup_file_init(int idx)
->
->  	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
->
-> -	return 0;
-> +	return;
-> +}
-> +
-> +void __init hugetlb_cgroup_file_init()
-> +{
-> +	struct hstate *h;
-> +	int idx;
-> +
-> +	idx = 0;
-> +	for_each_hstate(h) {
-> +		/*
-> +		 * Add cgroup control files only if the huge page consists
-> +		 * of more than two normal pages. This is because we use
-> +		 * page[2].lru.next for storing cgoup details.
-> +		 */
-> +		if (h->order >= HUGETLB_CGROUP_MIN_ORDER)
-> +			__hugetlb_cgroup_file_init(idx);
+This patch implement basic infrastructure for numa_zero_pfn.
+It is default disabled, because it doesn't provide page coloring and
+some architecture use page coloring for zero page.
 
-Is it better to say ?
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
 
-             if (huge_page_order(h) >= HUGETLB_CGROUP_MIN_ORDER)
-                          __hugetlb_cgroup_file_init(hstate_index(h));                                
-
-It should be ok both case.
-
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-> +
-> +		idx++;
-> +	}
->  }
->
->  /*
-> -- 1.7.1
-
--anesh
+diff --git a/mm/Kconfig b/mm/Kconfig
+index a3f8ddd..de0ab65 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -412,3 +412,8 @@ config FRONTSWAP
+ 	  and swap data is stored as normal on the matching swap device.
+ 
+ 	  If unsure, say Y to enable frontswap.
++
++config NUMA_ZERO_PFN
++	bool "Enable NUMA-aware zero page handling"
++	depends on NUMA
++	default n
+diff --git a/mm/memory.c b/mm/memory.c
+index 221fc9f..e7d3969 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -112,12 +112,43 @@ __setup("norandmaps", disable_randmaps);
+ unsigned long zero_pfn __read_mostly;
+ unsigned long highest_memmap_pfn __read_mostly;
+ 
++#ifdef CONFIG_NUMA_ZERO_PFN
++unsigned long node_to_zero_pfn[MAX_NUMNODES] __read_mostly;
++
++/* Should be called after zero_pfn initialization */
++static void __init init_numa_zero_pfn(void)
++{
++	unsigned int node;
++
++	if (nr_node_ids == 1)
++		return;
++
++	for_each_node_state(node, N_POSSIBLE) {
++		node_to_zero_pfn[node] = zero_pfn;
++	}
++
++	for_each_node_state(node, N_HIGH_MEMORY) {
++		struct page *page;
++		page = alloc_pages_exact_node(node,
++				GFP_HIGHUSER | __GFP_ZERO, 0);
++		if (!page)
++			continue;
++
++		node_to_zero_pfn[node] = page_to_pfn(page);
++	}
++}
++#else
++static inline void __init init_numa_zero_pfn(void) {}
++#endif
++
+ /*
+  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
+  */
+ static int __init init_zero_pfn(void)
+ {
+ 	zero_pfn = page_to_pfn(ZERO_PAGE(0));
++	init_numa_zero_pfn();
++
+ 	return 0;
+ }
+ core_initcall(init_zero_pfn);
+@@ -717,6 +748,24 @@ static inline bool is_cow_mapping(vm_flags_t flags)
+ 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ }
+ 
++#ifdef CONFIG_NUMA_ZERO_PFN
++static inline int is_numa_zero_pfn(unsigned long pfn)
++{
++	return zero_pfn == pfn || node_to_zero_pfn[pfn_to_nid(pfn)] == pfn;
++}
++
++static inline unsigned long my_numa_zero_pfn(unsigned long addr)
++{
++	if (nr_node_ids == 1)
++		return zero_pfn;
++
++	return node_to_zero_pfn[numa_node_id()];
++}
++
++#define is_zero_pfn is_numa_zero_pfn
++#define my_zero_pfn my_numa_zero_pfn
++#endif /* CONFIG_NUMA_ZERO_PFN */
++
+ #ifndef is_zero_pfn
+ static inline int is_zero_pfn(unsigned long pfn)
+ {
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
