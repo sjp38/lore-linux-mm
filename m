@@ -1,136 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id E031E6B0062
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:09:44 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so776555pbc.14
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 10:09:44 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121212090652.GB32081@dhcp22.suse.cz>
-References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
-	<1353955671-14385-4-git-send-email-mhocko@suse.cz>
-	<CALWz4ixPmvguxQO8s9mqH+OLEXC5LDfzEVFx_qqe2hBaRcsXiA@mail.gmail.com>
-	<20121211155432.GC1612@dhcp22.suse.cz>
-	<CALWz4izL7fEuQhEvKa7mUqi0sa25mcFP-xnTnL3vU3Z17k7VHg@mail.gmail.com>
-	<20121212090652.GB32081@dhcp22.suse.cz>
-Date: Wed, 12 Dec 2012 10:09:43 -0800
-Message-ID: <CALWz4iwq+vRN+rreOk7Jg4rHWWBSmNwBW8Kko45E-D8Vi66eQA@mail.gmail.com>
-Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup iterators
-From: Ying Han <yinghan@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
+	by kanga.kvack.org (Postfix) with SMTP id 9618E6B005A
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:19:35 -0500 (EST)
+From: Joe Perches <joe@perches.com>
+Subject: [TRIVIAL PATCH 00/26] treewide: Add and use vsprintf extension %pSR
+Date: Wed, 12 Dec 2012 10:18:49 -0800
+Message-Id: <cover.1355335227.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
+To: Jiri Kosina <trivial@kernel.org>, linux-doc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, cbe-oss-dev@lists.ozlabs.org, linux-edac@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, user-mode-linux-user@lists.sourceforge.net, cluster-devel@redhat.com, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-kernel@zh-kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-c6x-dev@linux-c6x.org, linux-ia64@vger.kernel.org, linux-m32r@ml.linux-m32r.org, linux-m32r-ja@ml.linux-m32r.org, linux-am33-list@redhat.com, linux@lists.openrisc.net, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-xtensa@linux-xtensa.org
 
-On Wed, Dec 12, 2012 at 1:06 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Tue 11-12-12 14:36:10, Ying Han wrote:
->> On Tue, Dec 11, 2012 at 7:54 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > On Sun 09-12-12 11:39:50, Ying Han wrote:
->> >> On Mon, Nov 26, 2012 at 10:47 AM, Michal Hocko <mhocko@suse.cz> wrote:
->> > [...]
->> >> >                 if (reclaim) {
->> >> > -                       iter->position = id;
->> >> > +                       struct mem_cgroup *curr = memcg;
->> >> > +
->> >> > +                       if (last_visited)
->> >> > +                               css_put(&last_visited->css);
->> >                             ^^^^^^^^^^^
->> >                             here
->> >> > +
->> >> > +                       if (css && !memcg)
->> >> > +                               curr = mem_cgroup_from_css(css);
->> >> > +
->> >> > +                       /* make sure that the cached memcg is not removed */
->> >> > +                       if (curr)
->> >> > +                               css_get(&curr->css);
->> >> > +                       iter->last_visited = curr;
->> >>
->> >> Here we take extra refcnt for last_visited, and assume it is under
->> >> target reclaim which then calls mem_cgroup_iter_break() and we leaked
->> >> a refcnt of the target memcg css.
->> >
->> > I think you are not right here. The extra reference is kept for
->> > iter->last_visited and it will be dropped the next time somebody sees
->> > the same zone-priority iter. See above.
->> >
->> > Or have I missed your question?
->>
->> Hmm, question remains.
->>
->> My understanding of the mem_cgroup_iter() is that each call path
->> should close the loop itself, in the sense that no *leaked* css refcnt
->> after that loop finished. It is the case for all the caller today
->> where the loop terminates at memcg == NULL, where all the refcnt have
->> been dropped by then.
->
-> Now I am not sure I understand you. mem_cgroup_iter_break will always
-> drop the reference of the last returned memcg. So far so good.
+Remove the somewhat awkward uses of print_symbol and convert all the
+existing uses to a new vsprintf pointer type of %pSR.
 
-Yes, and the patch doesn't change that.
+print_symbol can be interleaved when it is used in a sequence like:
 
-But if
-> the last memcg got cached in per-zone-priority last_visited then we
-> _have_ to keep a reference to it regardless we broke out of the loop.
-> The last_visited thingy is shared between all parallel reclaimers so we
-> cannot just drop a reference to it.
+	printk("something: ...");
+	print_symbol("%s", addr);
+	printk("\n");
 
-Agree that the last_visited is shared between all the memcgs accessing
-the per-zone-per-iterator.
+Instead use:
 
-Also agree that we don't want to drop reference of it if last_visited
-is cached after the loop.
+	printk("something: %pSR\n", (void *)addr);
 
-But If i look at the callers of mem_cgroup_iter(), they all look like
-the following:
+Add a new %p[SsFf]R vsprintf extension that can perform the same
+symbol function/address/offset formatting as print_symbol to
+reduce the number and styles of message logging functions.
 
-memcg = mem_cgroup_iter(root, NULL, &reclaim);
-do {
+print_symbol used __builtin_extract_return_addr for those architectures
+like S/390 and SPARC that have offset or masked addressing.
+%p[FfSs]R uses the same gcc __builtin
 
-    // do something
+Joe Perches (26):
+  vsprintf: Add extension %pSR - print_symbol replacement
+  alpha: Convert print_symbol to %pSR
+  arm: Convert print_symbol to %pSR
+  arm64: Convert print_symbol to %pSR
+  avr32: Convert print_symbol to %pSR
+  c6x: Convert print_symbol to %pSR
+  ia64: Convert print_symbol to %pSR
+  m32r: Convert print_symbol to %pSR
+  mn10300: Convert print_symbol to %pSR
+  openrisc: Convert print_symbol to %pSR
+  powerpc: Convert print_symbol to %pSR
+  s390: Convert print_symbol to %pSR
+  sh: Convert print_symbol to %pSR
+  um: Convert print_symbol to %pSR
+  unicore32: Convert print_symbol to %pSR
+  x86: Convert print_symbol to %pSR
+  xtensa: Convert print_symbol to %pSR
+  drivers: base: Convert print_symbol to %pSR
+  gfs2: Convert print_symbol to %pSR
+  sysfs: Convert print_symbol to %pSR
+  irq: Convert print_symbol to %pSR
+  smp_processor_id: Convert print_symbol to %pSR
+  mm: Convert print_symbol to %pSR
+  xtensa: Convert print_symbol to %pSR
+  x86: head_64.S: Use vsprintf extension %pSR not print_symbol
+  kallsyms: Remove print_symbol
 
-    memcg = mem_cgroup_iter(root, memcg, &reclaim);
-} while (memcg);
+ Documentation/filesystems/sysfs.txt         |    4 +-
+ Documentation/printk-formats.txt            |    2 +
+ Documentation/zh_CN/filesystems/sysfs.txt   |    4 +-
+ arch/alpha/kernel/traps.c                   |    8 ++----
+ arch/arm/kernel/process.c                   |    4 +-
+ arch/arm64/kernel/process.c                 |    4 +-
+ arch/avr32/kernel/process.c                 |   25 ++++++-----------------
+ arch/c6x/kernel/traps.c                     |    3 +-
+ arch/ia64/kernel/process.c                  |   13 ++++-------
+ arch/m32r/kernel/traps.c                    |    6 +---
+ arch/mn10300/kernel/traps.c                 |    8 +++---
+ arch/openrisc/kernel/traps.c                |    7 +----
+ arch/powerpc/platforms/cell/spu_callbacks.c |   12 ++++------
+ arch/s390/kernel/traps.c                    |   28 +++++++++++++++-----------
+ arch/sh/kernel/process_32.c                 |    4 +-
+ arch/um/kernel/sysrq.c                      |    6 +---
+ arch/unicore32/kernel/process.c             |    5 ++-
+ arch/x86/kernel/cpu/mcheck/mce.c            |   13 ++++++-----
+ arch/x86/kernel/dumpstack.c                 |    5 +--
+ arch/x86/kernel/head_64.S                   |    4 +-
+ arch/x86/kernel/process_32.c                |    2 +-
+ arch/x86/mm/mmio-mod.c                      |    4 +-
+ arch/x86/um/sysrq_32.c                      |    9 ++-----
+ arch/xtensa/kernel/traps.c                  |    6 +---
+ drivers/base/core.c                         |    4 +-
+ fs/gfs2/glock.c                             |    4 +-
+ fs/gfs2/trans.c                             |    3 +-
+ fs/sysfs/file.c                             |    4 +-
+ include/linux/kallsyms.h                    |   18 -----------------
+ kernel/irq/debug.h                          |   15 ++++++-------
+ kernel/kallsyms.c                           |   11 ----------
+ lib/smp_processor_id.c                      |    2 +-
+ lib/vsprintf.c                              |   18 ++++++++++++----
+ mm/memory.c                                 |    8 +++---
+ mm/slab.c                                   |    8 ++----
+ 35 files changed, 117 insertions(+), 164 deletions(-)
 
-So we get out of the loop when memcg returns as NULL, where the
-last_visited is cached as NULL as well thus no css_get(). That is what
-I meant by "each reclaim thread closes the loop". If that is true, the
-current implementation of mem_cgroup_iter_break() changes that.
-
-
->
->> One exception is mem_cgroup_iter_break(), where the loop terminates
->> with *leaked* refcnt and that is what the iter_break() needs to clean
->> up. We can not rely on the next caller of the loop since it might
->> never happen.
->
-> Yes, this is true and I already have a half baked patch for that. I
-> haven't posted it yet but it basically checks all node-zone-prio
-> last_visited and removes itself from them on the way out in pre_destroy
-> callback (I just need to cleanup "find a new last_visited" part and will
-> post it).
-
-Not sure whether that or just change the mem_cgroup_iter_break() by
-dropping the refcnt of last_visited.
-
---Ying
->
->> It makes sense to drop the refcnt of last_visited, the same reason as
->> drop refcnt of prev. I don't see why it makes different.
->
-> Because then it might vanish when somebody else wants to access it. If
-> we just did mem_cgroup_get which would be enough to keep only memcg part
-> in memory then what can we do at the time we visit it? css_tryget would
-> tell us "no your buddy is gone", you do not have any links to the tree
-> so you would need to start from the beginning. That is what I have
-> implemented in the first version. Then I've realized that this could
-> make a bigger pressure on the groups created earlier which doesn't seem
-> to be right. With css pinning we are sure that there is a link to a next
-> node in the tree.
->
-> Thanks!
-> --
-> Michal Hocko
-> SUSE Labs
+-- 
+1.7.8.112.g3fd21
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
