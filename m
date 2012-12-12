@@ -1,37 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id D8AD56B002B
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 22:07:16 -0500 (EST)
-Received: by mail-da0-f46.google.com with SMTP id p5so69892dak.19
-        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 19:07:16 -0800 (PST)
-Date: Tue, 11 Dec 2012 19:07:14 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH, RESEND] asm-generic, mm: pgtable: consolidate zero page
- helpers
-In-Reply-To: <1354881215-26257-1-git-send-email-kirill.shutemov@linux.intel.com>
-Message-ID: <alpine.DEB.2.00.1212111906270.18872@chino.kir.corp.google.com>
-References: <1354881215-26257-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 0AFB36B005D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 22:35:27 -0500 (EST)
+Message-ID: <50C7FB6A.9030209@huawei.com>
+Date: Wed, 12 Dec 2012 11:35:06 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH V4 0/3] MCE: fix an error of mce_bad_pages statistics
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Arnd Bergmann <arnd@arndb.de>, linux-arch@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mips@linux-mips.org, Ralf Baechle <ralf@linux-mips.org>, John Crispin <blogic@openwrt.org>
+To: WuJianguo <wujianguo@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>, Liujiang <jiang.liu@huawei.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 7 Dec 2012, Kirill A. Shutemov wrote:
+When we use "/sys/devices/system/memory/soft_offline_page" to offline a
+*free* page, the value of mce_bad_pages will be added, and the page is set
+HWPoison flag, but it is still managed by page buddy alocator.
 
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> 
-> We have two different implementation of is_zero_pfn() and
-> my_zero_pfn() helpers: for architectures with and without zero page
-> coloring.
-> 
-> Let's consolidate them in <asm-generic/pgtable.h>.
-> 
+$ cat /proc/meminfo | grep HardwareCorrupted shows the value.
 
-What's the benefit from doing this other than generalizing some per-arch 
-code?  It simply adds on more layer of redirection to try to find the 
-implementation that matters for the architecture you're hacking on.
+If we offline the same page, the value of mce_bad_pages will be added
+*again*, this means the value is incorrect now. Assume the page is
+still free during this short time.
+
+soft_offline_page()
+	get_any_page()
+		"else if (is_free_buddy_page(p))" branch return 0
+			"goto done";
+				"atomic_long_add(1, &mce_bad_pages);"
+
+Changelog:
+V4:
+	-use num_poisoned_pages instead of mce_bad_pages
+	-remove page lock
+V3:
+	-add page lock when set HWPoison flag
+	-adjust the function structure
+V2 and V1:
+	-fix the error
+
+Xishi Qiu (3):
+  move-poisoned-page-check-at-the-beginning-of-the-function
+  fix-function-structure
+  use-num_poisoned_pages-instead-of-mce_bad_pages
+
+ fs/proc/meminfo.c   |    2 +-
+ include/linux/mm.h  |    2 +-
+ mm/memory-failure.c |   76 ++++++++++++++++++++++++++-------------------------
+ 3 files changed, 41 insertions(+), 39 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
