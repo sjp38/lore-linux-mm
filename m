@@ -1,92 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 47E5C6B0062
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 09:10:58 -0500 (EST)
-Received: by mail-ob0-f169.google.com with SMTP id v19so712451obq.14
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 06:10:57 -0800 (PST)
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 76F336B0062
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 09:34:47 -0500 (EST)
+Received: by mail-oa0-f41.google.com with SMTP id k14so832011oag.14
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 06:34:46 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20121212145631.d03a40fd28d4b59b56009fe1@mxc.nes.nec.co.jp>
-References: <20121211214859.GG5580@redhat.com>
-	<104724866.46130887.1355264225876.JavaMail.root@redhat.com>
-	<20121212145631.d03a40fd28d4b59b56009fe1@mxc.nes.nec.co.jp>
-Date: Wed, 12 Dec 2012 23:10:57 +0900
-Message-ID: <CAAmzW4PGD4QWVuL4zWLeZ3GLyetoD0NO8qgc1Rgfx-CtGS384w@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/8] remove vm_struct list management
+In-Reply-To: <CAAmzW4Ng8S_O4SEoANCWz3jsW3h3ucGSM9=Ld-n9aLuHcdgprw@mail.gmail.com>
+References: <1354033730-850-1-git-send-email-js1304@gmail.com>
+	<CAAmzW4Ng8S_O4SEoANCWz3jsW3h3ucGSM9=Ld-n9aLuHcdgprw@mail.gmail.com>
+Date: Wed, 12 Dec 2012 23:34:46 +0900
+Message-ID: <CAAmzW4Ns_90oYH4gDduz=UZ6_krFnkm1ODPS8eitH26vc0u7zg@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] introduce static_vm for ARM-specific static mapped area
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Cc: anderson@redhat.com, vgoyal@redhat.com, akpm@linux-foundation.org, rmk+kernel@arm.linux.org.uk, kexec@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Russell King <rmk+kernel@arm.linux.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Joonsoo Kim <js1304@gmail.com>
 
-Hello, Atsushi.
-
-2012/12/12 Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>:
-> Hello,
+2012/12/7 JoonSoo Kim <js1304@gmail.com>:
+> 2012/11/28 Joonsoo Kim <js1304@gmail.com>:
+>> In current implementation, we used ARM-specific flag, that is,
+>> VM_ARM_STATIC_MAPPING, for distinguishing ARM specific static mapped area.
+>> The purpose of static mapped area is to re-use static mapped area when
+>> entire physical address range of the ioremap request can be covered
+>> by this area.
+>>
+>> This implementation causes needless overhead for some cases.
+>> For example, assume that there is only one static mapped area and
+>> vmlist has 300 areas. Every time we call ioremap, we check 300 areas for
+>> deciding whether it is matched or not. Moreover, even if there is
+>> no static mapped area and vmlist has 300 areas, every time we call
+>> ioremap, we check 300 areas in now.
+>>
+>> If we construct a extra list for static mapped area, we can eliminate
+>> above mentioned overhead.
+>> With a extra list, if there is one static mapped area,
+>> we just check only one area and proceed next operation quickly.
+>>
+>> In fact, it is not a critical problem, because ioremap is not frequently
+>> used. But reducing overhead is better idea.
+>>
+>> Another reason for doing this work is for removing architecture dependency
+>> on vmalloc layer. I think that vmlist and vmlist_lock is internal data
+>> structure for vmalloc layer. Some codes for debugging and stat inevitably
+>> use vmlist and vmlist_lock. But it is preferable that they are used
+>> as least as possible in outside of vmalloc.c
+>>
+>> Changelog
+>> v1->v2:
+>>   [2/3]: patch description is improved.
+>>   Rebased on v3.7-rc7
+>>
+>> Joonsoo Kim (3):
+>>   ARM: vmregion: remove vmregion code entirely
+>>   ARM: static_vm: introduce an infrastructure for static mapped area
+>>   ARM: mm: use static_vm for managing static mapped areas
+>>
+>>  arch/arm/include/asm/mach/static_vm.h |   51 ++++++++
+>>  arch/arm/mm/Makefile                  |    2 +-
+>>  arch/arm/mm/ioremap.c                 |   69 ++++-------
+>>  arch/arm/mm/mm.h                      |   10 --
+>>  arch/arm/mm/mmu.c                     |   55 +++++----
+>>  arch/arm/mm/static_vm.c               |   97 ++++++++++++++++
+>>  arch/arm/mm/vmregion.c                |  205 ---------------------------------
+>>  arch/arm/mm/vmregion.h                |   31 -----
+>>  8 files changed, 208 insertions(+), 312 deletions(-)
+>>  create mode 100644 arch/arm/include/asm/mach/static_vm.h
+>>  create mode 100644 arch/arm/mm/static_vm.c
+>>  delete mode 100644 arch/arm/mm/vmregion.c
+>>  delete mode 100644 arch/arm/mm/vmregion.h
+>>
+>> --
+>> 1.7.9.5
+>>
 >
-> On Tue, 11 Dec 2012 17:17:05 -0500 (EST)
-> Dave Anderson <anderson@redhat.com> wrote:
+> Hello, Russell.
 >
->>
->>
->> ----- Original Message -----
->> > On Mon, Dec 10, 2012 at 11:40:47PM +0900, JoonSoo Kim wrote:
->> >
->> > [..]
->> > > > So without knowing details of both the data structures, I think if vmlist
->> > > > is going away, then user space tools should be able to traverse vmap_area_root
->> > > > rb tree. I am assuming it is sorted using ->addr field and we should be
->> > > > able to get vmalloc area start from there. It will just be a matter of
->> > > > exporting right fields to user space (instead of vmlist).
->> > >
->> > > There is address sorted list of vmap_area, vmap_area_list.
->> > > So we can use it for traversing vmalloc areas if it is necessary.
->> > > But, as I mentioned before, kexec write *just* address of vmlist and
->> > > offset of vm_struct's address field.  It imply that they don't traverse vmlist,
->> > > because they didn't write vm_struct's next field which is needed for traversing.
->> > > Without vm_struct's next field, they have no method for traversing.
->> > > So, IMHO, assigning dummy vm_struct to vmlist which is implemented by [7/8] is
->> > > a safe way to maintain a compatibility of userspace tool. :)
->> >
->> > Actually the design of "makedumpfile" and "crash" tool is that they know
->> > about kernel data structures and they adopt to changes. So for major
->> > changes they keep track of kernel version numbers and if access the
->> > data structures accordingly.
->> >
->> > Currently we access first element of vmlist to determine start of vmalloc
->> > address. True we don't have to traverse the list.
->> >
->> > But as you mentioned we should be able to get same information by
->> > traversing to left most element of vmap_area_list rb tree. So I think
->> > instead of trying to retain vmlist first element just for backward
->> > compatibility, I will rather prefer get rid of that code completely
->> > from kernel and let user space tool traverse rbtree. Just export
->> > minimum needed info for traversal in user space.
->>
->> There's no need to traverse the rbtree.  There is a vmap_area_list
->> linked list of vmap_area structures that is also sorted by virtual
->> address.
->>
->> All that makedumpfile would have to do is to access the first vmap_area
->> in the vmap_area_list -- as opposed to the way that it does now, which is
->> by accessing the first vm_struct in the to-be-obsoleted vmlist list.
->>
->> So it seems silly to keep the dummy "vmlist" around.
+> Could you review this patchset, please?
+> I send another patchset to mm community on top of this.
+> That one is related to this patchset,
+> so I want to get a review about this patchset :)
 >
-> I think so, I will modify makedumpfile to get the start address of vmalloc
-> with vmap_area_list if the related symbols are provided as VMCOREINFO like
-> vmlist.
-> BTW, have we to consider other tools ?
-> If it is clear, I think we can get rid of the dummy vmlist.
+> Thanks.
 
-Good!
-In next spin, I will remove dummy vmlist and export vmap_area_list symbol
-for makedumpfile.
+Hello.
 
-I don't know any other tools.
-If anyone knows it, please let me know.
+Is there anyone to review this patchset?
+Please let me know what I should do in order to take a review :)
 
-Thanks! Atsushi, Dave and Vivek.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
