@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id DC9036B0062
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:44:36 -0500 (EST)
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 2E8286B0069
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:44:39 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/8] mm: memcg: only evict file pages when we have plenty
-Date: Wed, 12 Dec 2012 16:43:33 -0500
-Message-Id: <1355348620-9382-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/8] mm: vmscan: disregard swappiness shortly before going OOM
+Date: Wed, 12 Dec 2012 16:43:34 -0500
+Message-Id: <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
 References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,55 +13,33 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-dc0422c "mm: vmscan: only evict file pages when we have plenty" makes
-a point of not going for anonymous memory while there is still enough
-inactive cache around.
+When a reclaim scanner is doing its final scan before giving up and
+there is swap space available, pay no attention to swappiness
+preference anymore.  Just swap.
 
-The check was added only for global reclaim, but it is just as useful
-for memory cgroup reclaim.
+Note that this change won't make too big of a difference for general
+reclaim: anonymous pages are already force-scanned when there is only
+very little file cache left, and there very likely isn't when the
+reclaimer enters this final cycle.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 157bb11..3874dcb 100644
+index 3874dcb..6e53446 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1671,6 +1671,16 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 		denominator = 1;
- 		goto out;
- 	}
-+	/*
-+	 * There is enough inactive page cache, do not reclaim
-+	 * anything from the anonymous working set right now.
-+	 */
-+	if (!inactive_file_is_low(lruvec)) {
-+		fraction[0] = 0;
-+		fraction[1] = 1;
-+		denominator = 1;
-+		goto out;
-+	}
+@@ -1751,7 +1751,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 		unsigned long scan;
  
- 	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
- 		get_lru_size(lruvec, LRU_INACTIVE_ANON);
-@@ -1688,15 +1698,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 			fraction[1] = 0;
- 			denominator = 1;
- 			goto out;
--		} else if (!inactive_file_is_low_global(zone)) {
--			/*
--			 * There is enough inactive page cache, do not
--			 * reclaim anything from the working set right now.
--			 */
--			fraction[0] = 0;
--			fraction[1] = 1;
--			denominator = 1;
--			goto out;
- 		}
- 	}
- 
+ 		scan = get_lru_size(lruvec, lru);
+-		if (sc->priority || noswap || !vmscan_swappiness(sc)) {
++		if (sc->priority || noswap) {
+ 			scan >>= sc->priority;
+ 			if (!scan && force_scan)
+ 				scan = SWAP_CLUSTER_MAX;
 -- 
 1.7.11.7
 
