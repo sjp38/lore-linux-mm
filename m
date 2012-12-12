@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 552566B0062
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 15:15:33 -0500 (EST)
-Date: Wed, 12 Dec 2012 21:15:29 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] mm: introduce numa_zero_pfn
-Message-ID: <20121212201529.GD16230@one.firstfloor.org>
-References: <1355331819-8728-1-git-send-email-js1304@gmail.com> <0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id A8E2E6B002B
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:30:58 -0500 (EST)
+Date: Wed, 12 Dec 2012 13:30:51 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 09/11] thp: lazy huge zero page allocation
+Message-Id: <20121212133051.6dad3722.akpm@linux-foundation.org>
+In-Reply-To: <20121115094155.GG9676@otc-wbsnb-06>
+References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1352300463-12627-10-git-send-email-kirill.shutemov@linux.intel.com>
+	<alpine.DEB.2.00.1211141535190.22537@chino.kir.corp.google.com>
+	<20121115094155.GG9676@otc-wbsnb-06>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-> I would expect a processor to fetch the zero page cachelines from the l3
-> cache from other sockets avoiding memory transactions altogether. The zero
-> page is likely in use somewhere so no typically no memory accesses should
-> occur in a system.
+On Thu, 15 Nov 2012 11:41:55 +0200
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-It depends on how effectively the workload uses the caches. If something
-is a cache pig of the L3 cache, then even shareable cache lines may need
-to be refetched regularly.
+> On Wed, Nov 14, 2012 at 03:37:09PM -0800, David Rientjes wrote:
+> > On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
+> > 
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > 
+> > > Instead of allocating huge zero page on hugepage_init() we can postpone it
+> > > until first huge zero page map. It saves memory if THP is not in use.
+> > > 
+> > 
+> > Is it worth the branch on every non-write pagefault after that?  The 
+> > unlikely() is not going to help on x86.  If thp is enabled in your 
+> > .config (which isn't the default), then I think it's better to just 
+> > allocate the zero huge page once and avoid any branches after that to 
+> > lazily allocate it.  (Or do it only when thp is set to "madvise" or 
+> > "always" if booting with transparent_hugepage=never.)
+> 
+> I can rewrite the check to static_key if you want. Would it be better?
 
-But if your workloads spends a significant part of its time reading
-from zero page read only data there is something wrong with the workload.
+The new test-n-branch only happens on the first read fault against a
+thp huge page, yes?  In which case it's a quite infrequent event and I
+suspect this isn't worth bothering about.
 
-I would do some data profiling first to really prove that is the case.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
