@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id A8E2E6B002B
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:30:58 -0500 (EST)
-Date: Wed, 12 Dec 2012 13:30:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 09/11] thp: lazy huge zero page allocation
-Message-Id: <20121212133051.6dad3722.akpm@linux-foundation.org>
-In-Reply-To: <20121115094155.GG9676@otc-wbsnb-06>
-References: <1352300463-12627-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1352300463-12627-10-git-send-email-kirill.shutemov@linux.intel.com>
-	<alpine.DEB.2.00.1211141535190.22537@chino.kir.corp.google.com>
-	<20121115094155.GG9676@otc-wbsnb-06>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id EE4CB6B005D
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:44:34 -0500 (EST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 0/8] page reclaim bits
+Date: Wed, 12 Dec 2012 16:43:32 -0500
+Message-Id: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 15 Nov 2012 11:41:55 +0200
-"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+Hello,
 
-> On Wed, Nov 14, 2012 at 03:37:09PM -0800, David Rientjes wrote:
-> > On Wed, 7 Nov 2012, Kirill A. Shutemov wrote:
-> > 
-> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > 
-> > > Instead of allocating huge zero page on hugepage_init() we can postpone it
-> > > until first huge zero page map. It saves memory if THP is not in use.
-> > > 
-> > 
-> > Is it worth the branch on every non-write pagefault after that?  The 
-> > unlikely() is not going to help on x86.  If thp is enabled in your 
-> > .config (which isn't the default), then I think it's better to just 
-> > allocate the zero huge page once and avoid any branches after that to 
-> > lazily allocate it.  (Or do it only when thp is set to "madvise" or 
-> > "always" if booting with transparent_hugepage=never.)
-> 
-> I can rewrite the check to static_key if you want. Would it be better?
+I had these in my queue and on test machines for a while, but they got
+deferred over and over, partly because of the kswapd issues.  I hope
+it's not too late for 3.8, they should be fairly straight forward.
 
-The new test-n-branch only happens on the first read fault against a
-thp huge page, yes?  In which case it's a quite infrequent event and I
-suspect this isn't worth bothering about.
+#1 takes the anon workingset protection with plenty file cache from
+global reclaim, which was just merged into 3.8, and generalizes it to
+include memcg reclaim.
 
+#2-#6 are get_scan_count() fixes and cleanups.
+
+#7 fixes reclaim-for-compaction to work against zones, not lruvecs,
+since that is what compaction works against.  Practical impact only on
+memcg setups, but confusing for everybody.
+
+#8 puts ksm pages that are copied-on-swapin into their own separate
+anon_vma.
+
+Thanks!
+
+ include/linux/swap.h |   2 +-
+ mm/ksm.c             |   6 --
+ mm/memory.c          |   5 +-
+ mm/vmscan.c          | 268 +++++++++++++++++++++++++++----------------------
+ 4 files changed, 152 insertions(+), 129 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
