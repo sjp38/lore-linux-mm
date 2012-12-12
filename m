@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 5FB046B0093
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 18:27:10 -0500 (EST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 2D8E26B0095
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 18:27:16 -0500 (EST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 03/11] cpu: Add cpu hotplug handlers
-Date: Wed, 12 Dec 2012 16:17:15 -0700
-Message-Id: <1355354243-18657-4-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH 04/11] mm: Add memory hotplug handlers
+Date: Wed, 12 Dec 2012 16:17:16 -0700
+Message-Id: <1355354243-18657-5-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
 References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,135 +13,139 @@ List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org
 Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
 
-Added cpu hotplug handlers.  cpu_add_execute() onlines requested
-cpus for hot-add and online operations, and cpu_del_execute() 
-offlines them for hot-delete and offline operations.  They are
-also used for rollback as well.
+Added memory hotplug handlers.  mm_add_execute() onlines requested
+memory ranges for hot-add and online operations, and mm_del_execute()
+offlines them for hot-delete and offline operations.  They are also
+used for rollback as well.
 
-cpu_del_validate() fails a request if cpu0 is requested to delete.
+mm_del_validate() fails a request if a requested memory range is
+non-movable for delete.  This check can be removed if we should
+attempt to delete such range anyway (but can cause a rollback).
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- drivers/base/cpu.c | 95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 95 insertions(+)
+ mm/memory_hotplug.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)
 
-diff --git a/drivers/base/cpu.c b/drivers/base/cpu.c
-index 6345294..3870231 100644
---- a/drivers/base/cpu.c
-+++ b/drivers/base/cpu.c
-@@ -13,6 +13,8 @@
- #include <linux/gfp.h>
- #include <linux/slab.h>
- #include <linux/percpu.h>
-+#include <linux/list.h>
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e4eeaca..107a39d 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -29,6 +29,7 @@
+ #include <linux/suspend.h>
+ #include <linux/mm_inline.h>
+ #include <linux/firmware-map.h>
 +#include <linux/hotplug.h>
  
- #include "base.h"
+ #include <asm/tlbflush.h>
  
-@@ -324,10 +326,103 @@ static void __init cpu_dev_register_generic(void)
- #endif
- }
+@@ -45,6 +46,9 @@ static void generic_online_page(struct page *page);
  
-+#ifdef CONFIG_HOTPLUG_CPU
-+static int cpu_del_execute(struct hp_request *req, int rollback);
+ static online_page_callback_t online_page_callback = generic_online_page;
+ 
++static int mm_add_execute(struct hp_request *req, int rollback);
++static int mm_del_execute(struct hp_request *req, int rollback);
 +
-+static int cpu_add_execute(struct hp_request *req, int rollback)
+ DEFINE_MUTEX(mem_hotplug_mutex);
+ 
+ void lock_memory_hotplug(void)
+@@ -1055,3 +1059,96 @@ int remove_memory(u64 start, u64 size)
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ EXPORT_SYMBOL_GPL(remove_memory);
++
++static int mm_add_execute(struct hp_request *req, int rollback)
 +{
 +	struct hp_device *hp_dev;
-+	u32 cpu;
++	struct hp_memory *hp_mem;
 +	int ret;
 +
 +	if (rollback)
-+		return cpu_del_execute(req, 0);
++		return mm_del_execute(req, 0);
 +
 +	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_CPU)
++		if (hp_dev->class != HP_CLS_MEMORY)
 +			continue;
 +
-+		cpu = hp_dev->data.cpu.cpu_id;
++		hp_mem = &hp_dev->data.mem;
 +
-+		if (cpu_online(cpu))
-+			continue;
-+
-+		ret = cpu_up(cpu);
-+		/* REVISIT: need a way to set a cpu dev for hot-plug op */
-+		if (!ret && hp_is_online_op(req->operation))
-+			kobject_uevent(&hp_dev->device->kobj, KOBJ_ONLINE);
++		ret = add_memory(hp_mem->node,
++				hp_mem->start_addr, hp_mem->length);
++		if (ret)
++			return ret;
 +	}
 +
 +	return 0;
 +}
 +
-+static int cpu_del_validate(struct hp_request *req, int rollback)
++static int mm_del_validate(struct hp_request *req, int rollback)
 +{
 +	struct hp_device *hp_dev;
++	struct hp_memory *hp_mem;
++	unsigned long start_pfn, nr_pages;
 +
 +	if (rollback)
 +		return 0;
 +
 +	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_CPU)
++		if (hp_dev->class != HP_CLS_MEMORY)
 +			continue;
 +
++		hp_mem = &hp_dev->data.mem;
++		start_pfn = hp_mem->start_addr >> PAGE_SHIFT;
++		nr_pages = PAGE_ALIGN(hp_mem->length) >> PAGE_SHIFT;
++
 +		/*
-+		 * cpu 0 cannot be offlined.  This check can be removed when
-+		 * cpu 0 offline is supported.
++		 * Check if this memory range is removable.  This check can
++		 * be removed if we should attempt to delete a non-movable
++		 * range.
 +		 */
-+		if (hp_dev->data.cpu.cpu_id == 0)
++		if (is_mem_section_removable(start_pfn, nr_pages)) {
++			pr_info("Memory [%#010llx-%#010llx] not removable\n",
++				hp_mem->start_addr,
++				hp_mem->start_addr + hp_mem->length-1);
 +			return -EINVAL;
++		}
 +	}
 +
 +	return 0;
 +}
 +
-+static int cpu_del_execute(struct hp_request *req, int rollback)
++static int mm_del_execute(struct hp_request *req, int rollback)
 +{
 +	struct hp_device *hp_dev;
-+	u32 cpu;
++	struct hp_memory *hp_mem;
 +	int ret;
 +
 +	if (rollback)
-+		return cpu_add_execute(req, 0);
++		return mm_add_execute(req, 0);
 +
 +	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_CPU)
++		if (hp_dev->class != HP_CLS_MEMORY)
 +			continue;
 +
-+		cpu = hp_dev->data.cpu.cpu_id;
++		hp_mem = &hp_dev->data.mem;
 +
-+		if (!cpu_online(cpu))
-+			continue;
-+
-+		ret = cpu_down(cpu);
-+		/* REVISIT: need a way to set a cpu dev for hot-plug op */
-+		if (!ret && hp_is_online_op(req->operation))
-+			kobject_uevent(&hp_dev->device->kobj, KOBJ_OFFLINE);
++		ret = remove_memory(hp_mem->start_addr, hp_mem->length);
++		if (ret)
++			return ret;
 +	}
 +
 +	return 0;
 +}
 +
-+static void __init cpu_hp_init(void)
++static int __init mm_hp_init(void)
 +{
-+	hp_register_handler(HP_ADD_EXECUTE, cpu_add_execute,
-+				HP_CPU_ADD_EXECUTE_ORDER);
-+	hp_register_handler(HP_DEL_VALIDATE, cpu_del_validate,
-+				HP_CPU_DEL_VALIDATE_ORDER);
-+	hp_register_handler(HP_DEL_EXECUTE, cpu_del_execute,
-+				HP_CPU_DEL_EXECUTE_ORDER);
-+}
-+#endif	/* CONFIG_HOTPLUG_CPU */
++	hp_register_handler(HP_ADD_EXECUTE, mm_add_execute,
++				HP_MEM_ADD_EXECUTE_ORDER);
++	hp_register_handler(HP_DEL_VALIDATE, mm_del_validate,
++				HP_MEM_DEL_VALIDATE_ORDER);
++	hp_register_handler(HP_DEL_EXECUTE, mm_del_execute,
++				HP_MEM_DEL_EXECUTE_ORDER);
 +
- void __init cpu_dev_init(void)
- {
- 	if (subsys_system_register(&cpu_subsys, cpu_root_attr_groups))
- 		panic("Failed to register CPU subsystem");
- 
- 	cpu_dev_register_generic();
-+#ifdef CONFIG_HOTPLUG_CPU
-+	cpu_hp_init();
-+#endif
- }
++	return 0;
++}
++module_init(mm_hp_init);
 -- 
 1.7.11.7
 
