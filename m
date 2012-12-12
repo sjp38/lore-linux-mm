@@ -1,57 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 5C61E6B002B
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 20:12:27 -0500 (EST)
-MIME-Version: 1.0
-Message-ID: <9c96c9e7-4f6e-4e78-a207-009293c37b89@default>
-Date: Tue, 11 Dec 2012 17:12:18 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: zram /proc/swaps accounting weirdness
-References: <c8728036-07da-49ce-b4cb-c3d800790b53@default>
- <20121211062601.GD22698@blaptop>
- <d4ab3d29-f29d-4236-bbba-d93b633a18e7@default>
-In-Reply-To: <d4ab3d29-f29d-4236-bbba-d93b633a18e7@default>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id B516C6B002B
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 20:33:36 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id s9so589643iec.27
+        for <linux-mm@kvack.org>; Tue, 11 Dec 2012 17:33:36 -0800 (PST)
+Message-ID: <1355276008.1433.1.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH v3 4/5][RESEND] page_alloc: Make movablecore_map has
+ higher priority
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Tue, 11 Dec 2012 19:33:28 -0600
+In-Reply-To: <1355201817-27230-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1355193207-21797-5-git-send-email-tangchen@cn.fujitsu.com>
+	 <1355201817-27230-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Magenheimer <dan.magenheimer@oracle.com>, Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-> From: Dan Magenheimer
-> Subject: RE: zram /proc/swaps accounting weirdness
->=20
-> > > Can you explain how this could happen if num_writes never
-> > > exceeded 1863?  This may be harmless in the case where
-> >
-> > Odd.
-> > I tried to reproduce it with zram and real swap device without
-> > zcache but failed. Does the problem happen only if enabling zcache
-> > together?
->=20
-> I also cannot reproduce it with only zram, without zcache.
-> I can only reproduce with zcache+zram.  Since zcache will
-> only "fall through" to zram when the frontswap_store() call
-> in swap_writepage() fails, I wonder if in both cases swap_writepage()
-> is being called in large (e.g. SWAPFILE_CLUSTER-sized) blocks
-> of pages?  When zram-only, the entire block of pages always gets
-> sent to zram, but with zcache only a small randomly-positioned
-> fraction fail frontswap_store(), but the SWAPFILE_CLUSTER-sized
-> blocks have already been pre-reserved on the swap device and
-> become only partially-filled?
+On Tue, 2012-12-11 at 12:56 +0800, Tang Chen wrote:
+> If kernelcore or movablecore is specified at the same time
+> with movablecore_map, movablecore_map will have higher
+> priority to be satisfied.
+> This patch will make find_zone_movable_pfns_for_nodes()
+> calculate zone_movable_pfn[] with the limit from
+> zone_movable_limit[].
+> 
+> change log:
+> Move find_usable_zone_for_movable() to free_area_init_nodes()
+> so that sanitize_zone_movable_limit() in patch 3 could use
+> initialized movable_zone.
+> 
+> Reported-by: Wu Jianguo <wujianguo@huawei.com>
+> 
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+> Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+> Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
+> ---
+>  mm/page_alloc.c |   28 +++++++++++++++++++++++++---
+>  1 files changed, 25 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 52c368e..00fa67d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4839,9 +4839,17 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>  		required_kernelcore = max(required_kernelcore, corepages);
+>  	}
+>  
+> -	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+> -	if (!required_kernelcore)
+> +	/*
+> +	 * If neither kernelcore/movablecore nor movablecore_map is specified,
+> +	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
+> +	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
+> +	 */
+> +	if (!required_kernelcore) {
+> +		if (movablecore_map.nr_map)
+> +			memcpy(zone_movable_pfn, zone_movable_limit,
+> +				sizeof(zone_movable_pfn));
+>  		goto out;
+> +	}
+>  
+>  	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+>  	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+> @@ -4871,10 +4879,24 @@ restart:
+>  		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
+>  			unsigned long size_pages;
+>  
+> +			/*
+> +			 * Find more memory for kernelcore in
+> +			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
+> +			 */
+>  			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
+>  			if (start_pfn >= end_pfn)
+>  				continue;
+>  
 
-Urk.  Never mind.  My bad.  When a swap page is compressed in
-zcache, it gets accounted in the swap subsystem as an "inuse"
-page for the backing swap device.  (Frontswap provides a
-page-by-page "fronting store" for the swap device.)  That explains
-why Used is so high for the "zram swap device" even though
-zram has only compressed a fraction of the pages... the
-remaining (much larger) number of pages have been compressed
-by/in zcache.
+Hi Chen,
 
-Move along, there are no droids here. :-(
+> +			if (zone_movable_limit[nid]) {
+> +				end_pfn = min(end_pfn, zone_movable_limit[nid]);
+> +				/* No range left for kernelcore in this node */
+> +				if (start_pfn >= end_pfn) {
+> +					zone_movable_pfn[nid] =
+> +							zone_movable_limit[nid];
+> +					break;
+> +				}
+> +			}
+> +
 
-Dan
+Could you explain this part of codes? hard to understand.
+
+>  			/* Account for what is only usable for kernelcore */
+>  			if (start_pfn < usable_startpfn) {
+>  				unsigned long kernel_pages;
+> @@ -4934,12 +4956,12 @@ restart:
+>  	if (usable_nodes && required_kernelcore > usable_nodes)
+>  		goto restart;
+>  
+> +out:
+>  	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+>  	for (nid = 0; nid < MAX_NUMNODES; nid++)
+>  		zone_movable_pfn[nid] =
+>  			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+>  
+> -out:
+>  	/* restore the node_state */
+>  	node_states[N_HIGH_MEMORY] = saved_node_state;
+>  }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
