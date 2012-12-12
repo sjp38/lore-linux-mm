@@ -1,94 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 818C86B005D
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 01:45:19 -0500 (EST)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] huge_memory: fix huge zero page refcount
-Date: Wed, 12 Dec 2012 14:44:37 +0800
-Message-ID: <1355294677-26842-1-git-send-email-lliubbo@gmail.com>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 7CA6B6B0068
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 01:48:07 -0500 (EST)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Wed, 12 Dec 2012 12:17:42 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 91B5AE0051
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 12:17:41 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBC6lwND47054884
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 12:17:58 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBC6lw2P003896
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 17:47:58 +1100
+Date: Wed, 12 Dec 2012 14:47:56 +0800
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH V4 3/3] MCE: fix an error of mce_bad_pages statistics
+Message-ID: <20121212064756.GB18308@hacker.(null)>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+References: <50C7FB85.8040008@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50C7FB85.8040008@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, aarcange@redhat.com, rientjes@google.com, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: WuJianguo <wujianguo@huawei.com>, Liujiang <jiang.liu@huawei.com>, Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <andi@firstfloor.org>, Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
+On Wed, Dec 12, 2012 at 11:35:33AM +0800, Xishi Qiu wrote:
+>Since MCE is an x86 concept, and this code is in mm/, it would be
+>better to use the name num_poisoned_pages instead of mce_bad_pages.
+>
 
-It seems patch "[PATCH v5 10/11] thp: implement refcounting for huge zero
-page" was merged wrong into your tree.
+Why the three patches have equal title? Otherwise, for this patch: 
 
-In Kirill's patch, put_huge_zero_page() is called in
-do_huge_pmd_wp_zero_page_fallback().
-But in linux-next and linux-mmotm.git, it's called in
-do_huge_pmd_wp_page_fallback().
+Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-That's wrong and make below BUG triggered again:
-
-[ 1384.485993] ------------[ cut here ]------------
-[ 1384.486031] kernel BUG at mm/huge_memory.c:213!
-[ 1384.486055] invalid opcode: 0000 [#1] PREEMPT SMP
-.....
-3.7.0-rc8+ #53 Dell Inc. OptiPlex 760                 /0M860N
-[ 1384.486473] EIP: 0060:[<c114d9d8>] EFLAGS: 00010202 CPU: 1
-[ 1384.486504] EIP is at put_huge_zero_page+0x18/0x20
-[ 1384.486528] EAX: 00000001 EBX: 00000008 ECX: 00000000 EDX: ed5c4000
-[ 1384.486556] ESI: b5a00000 EDI: ed7af000 EBP: ed5c5e8c ESP: ed5c5e8c
-[ 1384.486585]  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-[ 1384.486611] CR0: 8005003b CR2: b59ffba8 CR3: 2e79a000 CR4: 000427f0
-[ 1384.486639] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
-[ 1384.486668] DR6: ffff0ff0 DR7: 00000400
-[ 1384.486687] Process gnome-terminal (pid: 12714, ti=ed5c4000 task=ebd59a60
-task.ti=ed5c4000)
-[ 1384.486724] Stack:
-[ 1384.486735]  ed5c5eec c1151329 092fb067 80000000 eaf9eca8 ed7ae800 ed7ae800
-2c6f9000
-[ 1384.486786]  00000000 f5ff16e8 f251d378 00000163 b5a00000 f4622000 b5800000
-f251d340
-[ 1384.486836]  ec7b6c60 80000000 092fb067 2c6f9067 00000000 c74000c5 80000000
-eaf9ed60
-[ 1384.486887] Call Trace:
-[ 1384.486902]  [<c1151329>] do_huge_pmd_wp_page+0x949/0xb60
-[ 1384.486929]  [<c1128aff>] handle_mm_fault+0x14f/0x330
-[ 1384.486956]  [<c1804810>] ? __do_page_fault+0x550/0x550
-[ 1384.486981]  [<c180440d>] __do_page_fault+0x14d/0x550
-[ 1384.487005]  [<c180481d>] ? do_page_fault+0xd/0x10
-[ 1384.487030]  [<c1801cdf>] ? error_code+0x67/0x6c
-[ 1384.487054]  [<c180007b>] ? __schedule+0x66b/0x7c0
-[ 1384.487080]  [<c12ea155>] ? __put_user_4+0x11/0x18
-[ 1384.487104]  [<c1804810>] ? __do_page_fault+0x550/0x550
-[ 1384.487130]  [<c180481d>] do_page_fault+0xd/0x10
-[ 1384.487153]  [<c1801cdf>] error_code+0x67/0x6c
-[ 1384.487176]  [<c1800000>] ? __schedule+0x5f0/0x7c0
-
-Signed-off-by: Bob Liu <lliubbo@gmail.com>
----
- mm/huge_memory.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index ce0b230..f408b05 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1176,6 +1176,7 @@ static int do_huge_pmd_wp_zero_page_fallback(struct mm_struct *mm,
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
- 	spin_unlock(&mm->page_table_lock);
-+	put_huge_zero_page();
- 	inc_mm_counter(mm, MM_ANONPAGES);
- 
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
-@@ -1271,7 +1272,6 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 	pmd_populate(mm, pmd, pgtable);
- 	page_remove_rmap(page);
- 	spin_unlock(&mm->page_table_lock);
--	put_huge_zero_page();
- 
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- 
--- 
-1.7.9.5
-
+>Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+>Signed-off-by: Borislav Petkov <bp@alien8.de>
+>---
+> fs/proc/meminfo.c   |    2 +-
+> include/linux/mm.h  |    2 +-
+> mm/memory-failure.c |   16 ++++++++--------
+> 3 files changed, 10 insertions(+), 10 deletions(-)
+>
+>diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+>index 80e4645..c3dac61 100644
+>--- a/fs/proc/meminfo.c
+>+++ b/fs/proc/meminfo.c
+>@@ -158,7 +158,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+> 		vmi.used >> 10,
+> 		vmi.largest_chunk >> 10
+> #ifdef CONFIG_MEMORY_FAILURE
+>-		,atomic_long_read(&mce_bad_pages) << (PAGE_SHIFT - 10)
+>+		,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT - 10)
+> #endif
+> #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> 		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+>diff --git a/include/linux/mm.h b/include/linux/mm.h
+>index 5432a3e..8ccc477 100644
+>--- a/include/linux/mm.h
+>+++ b/include/linux/mm.h
+>@@ -1653,7 +1653,7 @@ extern int unpoison_memory(unsigned long pfn);
+> extern int sysctl_memory_failure_early_kill;
+> extern int sysctl_memory_failure_recovery;
+> extern void shake_page(struct page *p, int access);
+>-extern atomic_long_t mce_bad_pages;
+>+extern atomic_long_t num_poisoned_pages;
+> extern int soft_offline_page(struct page *page, int flags);
+>
+> extern void dump_page(struct page *page);
+>diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>index e513a7b..ff5e611 100644
+>--- a/mm/memory-failure.c
+>+++ b/mm/memory-failure.c
+>@@ -61,7 +61,7 @@ int sysctl_memory_failure_early_kill __read_mostly = 0;
+>
+> int sysctl_memory_failure_recovery __read_mostly = 1;
+>
+>-atomic_long_t mce_bad_pages __read_mostly = ATOMIC_LONG_INIT(0);
+>+atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
+>
+> #if defined(CONFIG_HWPOISON_INJECT) || defined(CONFIG_HWPOISON_INJECT_MODULE)
+>
+>@@ -1040,7 +1040,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+> 	}
+>
+> 	nr_pages = 1 << compound_trans_order(hpage);
+>-	atomic_long_add(nr_pages, &mce_bad_pages);
+>+	atomic_long_add(nr_pages, &num_poisoned_pages);
+>
+> 	/*
+> 	 * We need/can do nothing about count=0 pages.
+>@@ -1070,7 +1070,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+> 			if (!PageHWPoison(hpage)
+> 			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
+> 			    || (p != hpage && TestSetPageHWPoison(hpage))) {
+>-				atomic_long_sub(nr_pages, &mce_bad_pages);
+>+				atomic_long_sub(nr_pages, &num_poisoned_pages);
+> 				return 0;
+> 			}
+> 			set_page_hwpoison_huge_page(hpage);
+>@@ -1128,7 +1128,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+> 	}
+> 	if (hwpoison_filter(p)) {
+> 		if (TestClearPageHWPoison(p))
+>-			atomic_long_sub(nr_pages, &mce_bad_pages);
+>+			atomic_long_sub(nr_pages, &num_poisoned_pages);
+> 		unlock_page(hpage);
+> 		put_page(hpage);
+> 		return 0;
+>@@ -1323,7 +1323,7 @@ int unpoison_memory(unsigned long pfn)
+> 			return 0;
+> 		}
+> 		if (TestClearPageHWPoison(p))
+>-			atomic_long_sub(nr_pages, &mce_bad_pages);
+>+			atomic_long_sub(nr_pages, &num_poisoned_pages);
+> 		pr_info("MCE: Software-unpoisoned free page %#lx\n", pfn);
+> 		return 0;
+> 	}
+>@@ -1337,7 +1337,7 @@ int unpoison_memory(unsigned long pfn)
+> 	 */
+> 	if (TestClearPageHWPoison(page)) {
+> 		pr_info("MCE: Software-unpoisoned page %#lx\n", pfn);
+>-		atomic_long_sub(nr_pages, &mce_bad_pages);
+>+		atomic_long_sub(nr_pages, &num_poisoned_pages);
+> 		freeit = 1;
+> 		if (PageHuge(page))
+> 			clear_page_hwpoison_huge_page(page);
+>@@ -1442,7 +1442,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> 	}
+> done:
+> 	/* keep elevated page count for bad page */
+>-	atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
+>+	atomic_long_add(1 << compound_trans_order(hpage), &num_poisoned_pages);
+> 	set_page_hwpoison_huge_page(hpage);
+> 	dequeue_hwpoisoned_huge_page(hpage);
+> out:
+>@@ -1584,7 +1584,7 @@ int soft_offline_page(struct page *page, int flags)
+>
+> done:
+> 	/* keep elevated page count for bad page */
+>-	atomic_long_inc(&mce_bad_pages);
+>+	atomic_long_inc(&num_poisoned_pages);
+> 	SetPageHWPoison(page);
+> out:
+> 	return ret;
+>-- 
+>1.7.1
+>
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
