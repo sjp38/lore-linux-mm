@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 007AD6B0074
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:44:43 -0500 (EST)
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id C4EB56B0075
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:44:44 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 5/8] mm: vmscan: improve comment on low-page cache handling
-Date: Wed, 12 Dec 2012 16:43:37 -0500
-Message-Id: <1355348620-9382-6-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 6/8] mm: vmscan: clean up get_scan_count()
+Date: Wed, 12 Dec 2012 16:43:38 -0500
+Message-Id: <1355348620-9382-7-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
 References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,136 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Fix comment style and elaborate on why anonymous memory is
-force-scanned when file cache runs low.
+Reclaim pressure balance between anon and file pages is calculated
+through a tuple of numerators and a shared denominator.
+
+Exceptional cases that want to force-scan anon or file pages configure
+the numerators and denominator such that one list is preferred, which
+is not necessarily the most obvious way:
+
+    fraction[0] = 1;
+    fraction[1] = 0;
+    denominator = 1;
+    goto out;
+
+Make this easier by making the force-scan cases explicit and use the
+fractionals only in case they are calculated from reclaim history.
+
+And bring the variable declarations/definitions in order.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/vmscan.c | 12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
+ mm/vmscan.c | 46 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 28 insertions(+), 18 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 5e1beed..05475e1 100644
+index 05475e1..e20385a 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1697,13 +1697,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
- 		get_lru_size(lruvec, LRU_INACTIVE_FILE);
+@@ -1626,6 +1626,13 @@ static int vmscan_swappiness(struct scan_control *sc)
+ 	return mem_cgroup_swappiness(sc->target_mem_cgroup);
+ }
  
-+	/*
-+	 * If it's foreseeable that reclaiming the file cache won't be
-+	 * enough to get the zone back into a desirable shape, we have
-+	 * to swap.  Better start now and leave the - probably heavily
-+	 * thrashing - remaining file pages alone.
-+	 */
++enum scan_balance {
++	SCAN_EQUAL,
++	SCAN_FRACT,
++	SCAN_ANON,
++	SCAN_FILE,
++};
++
+ /*
+  * Determine how aggressively the anon and file LRU lists should be
+  * scanned.  The relative value of each set of LRU lists is determined
+@@ -1638,14 +1645,15 @@ static int vmscan_swappiness(struct scan_control *sc)
+ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 			   unsigned long *nr)
+ {
+-	unsigned long anon, file, free;
++	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
++	u64 fraction[2], uninitialized_var(denominator);
++	struct zone *zone = lruvec_zone(lruvec);
+ 	unsigned long anon_prio, file_prio;
++	enum scan_balance scan_balance;
++	unsigned long anon, file, free;
++	bool force_scan = false;
+ 	unsigned long ap, fp;
+-	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+-	u64 fraction[2], denominator;
+ 	enum lru_list lru;
+-	bool force_scan = false;
+-	struct zone *zone = lruvec_zone(lruvec);
+ 
+ 	/*
+ 	 * If the zone or memcg is small, nr[l] can be 0.  This
+@@ -1664,9 +1672,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+-		fraction[0] = 0;
+-		fraction[1] = 1;
+-		denominator = 1;
++		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
+ 
+@@ -1675,9 +1681,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 	 * system is close to OOM, scan both anon and file equally.
+ 	 */
+ 	if (!sc->priority) {
+-		fraction[0] = 1;
+-		fraction[1] = 1;
+-		denominator = 1;
++		scan_balance = SCAN_EQUAL;
+ 		goto out;
+ 	}
+ 
+@@ -1686,9 +1690,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 	 * anything from the anonymous working set right now.
+ 	 */
+ 	if (!inactive_file_is_low(lruvec)) {
+-		fraction[0] = 0;
+-		fraction[1] = 1;
+-		denominator = 1;
++		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
+ 
+@@ -1706,13 +1708,13 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  	if (global_reclaim(sc)) {
--		free  = zone_page_state(zone, NR_FREE_PAGES);
-+		free = zone_page_state(zone, NR_FREE_PAGES);
+ 		free = zone_page_state(zone, NR_FREE_PAGES);
  		if (unlikely(file + free <= high_wmark_pages(zone))) {
--			/*
--			 * If we have very few page cache pages, force-scan
--			 * anon pages.
--			 */
- 			fraction[0] = 1;
- 			fraction[1] = 0;
- 			denominator = 1;
+-			fraction[0] = 1;
+-			fraction[1] = 0;
+-			denominator = 1;
++			scan_balance = SCAN_ANON;
+ 			goto out;
+ 		}
+ 	}
+ 
++	scan_balance = SCAN_FRACT;
++
+ 	/*
+ 	 * With swappiness at 100, anonymous and file have the same priority.
+ 	 * This scanning priority is essentially the inverse of IO cost.
+@@ -1765,9 +1767,17 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 
+ 		size = get_lru_size(lruvec, lru);
+ 		scan = size >> sc->priority;
++
+ 		if (!scan && force_scan)
+ 			scan = min(size, SWAP_CLUSTER_MAX);
+-		scan = div64_u64(scan * fraction[file], denominator);
++
++		if (scan_balance == SCAN_EQUAL)
++			; /* scan relative to size */
++		else if (scan_balance == SCAN_FRACT)
++			scan = div64_u64(scan * fraction[file], denominator);
++		else if ((scan_balance == SCAN_FILE) != file)
++			scan = 0;
++
+ 		nr[lru] = scan;
+ 	}
+ }
 -- 
 1.7.11.7
 
