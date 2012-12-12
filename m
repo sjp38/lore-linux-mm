@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 2D8E26B0095
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 18:27:16 -0500 (EST)
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id 778FD6B0096
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 18:27:19 -0500 (EST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 04/11] mm: Add memory hotplug handlers
-Date: Wed, 12 Dec 2012 16:17:16 -0700
-Message-Id: <1355354243-18657-5-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH 05/11] ACPI: Add ACPI bus hotplug handlers
+Date: Wed, 12 Dec 2012 16:17:17 -0700
+Message-Id: <1355354243-18657-6-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
 References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,139 +13,187 @@ List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org
 Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
 
-Added memory hotplug handlers.  mm_add_execute() onlines requested
-memory ranges for hot-add and online operations, and mm_del_execute()
-offlines them for hot-delete and offline operations.  They are also
-used for rollback as well.
+Added ACPI bus hotplug handlers.  acpi_add_execute() calls
+acpi_bus_add() to construct new acpi_device objects for hot-add
+operation, and acpi_del_execute() calls acpi_bus_trim() to destruct
+them for hot-delete operation.  They are also used for rollback
+as well.
 
-mm_del_validate() fails a request if a requested memory range is
-non-movable for delete.  This check can be removed if we should
-attempt to delete such range anyway (but can cause a rollback).
+acpi_del_commit() calls _EJ0 to eject a target object for hot-delete.
+
+acpi_rollback_ost() calls _OST to inform FW that a hot-plug operation
+completed with error in case of failure.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- mm/memory_hotplug.c | 97 +++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 97 insertions(+)
+ drivers/acpi/bus.c | 133 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e4eeaca..107a39d 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -29,6 +29,7 @@
+diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
+index 1f0d457..341db34 100644
+--- a/drivers/acpi/bus.c
++++ b/drivers/acpi/bus.c
+@@ -42,6 +42,7 @@
+ #include <acpi/apei.h>
+ #include <linux/dmi.h>
  #include <linux/suspend.h>
- #include <linux/mm_inline.h>
- #include <linux/firmware-map.h>
 +#include <linux/hotplug.h>
  
- #include <asm/tlbflush.h>
+ #include "internal.h"
  
-@@ -45,6 +46,9 @@ static void generic_online_page(struct page *page);
+@@ -52,6 +53,9 @@ struct acpi_device *acpi_root;
+ struct proc_dir_entry *acpi_root_dir;
+ EXPORT_SYMBOL(acpi_root_dir);
  
- static online_page_callback_t online_page_callback = generic_online_page;
- 
-+static int mm_add_execute(struct hp_request *req, int rollback);
-+static int mm_del_execute(struct hp_request *req, int rollback);
++static int acpi_add_execute(struct hp_request *req, int rollback);
++static int acpi_del_execute(struct hp_request *req, int rollback);
 +
- DEFINE_MUTEX(mem_hotplug_mutex);
+ #define STRUCT_TO_INT(s)	(*((int*)&s))
  
- void lock_memory_hotplug(void)
-@@ -1055,3 +1059,96 @@ int remove_memory(u64 start, u64 size)
+ 
+@@ -859,6 +863,134 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
  }
- #endif /* CONFIG_MEMORY_HOTREMOVE */
- EXPORT_SYMBOL_GPL(remove_memory);
+ 
+ /* --------------------------------------------------------------------------
++			Hot-plug Handling
++   -------------------------------------------------------------------------- */
 +
-+static int mm_add_execute(struct hp_request *req, int rollback)
++static int acpi_rollback_ost(struct hp_request *req, int rollback)
 +{
-+	struct hp_device *hp_dev;
-+	struct hp_memory *hp_mem;
-+	int ret;
-+
-+	if (rollback)
-+		return mm_del_execute(req, 0);
-+
-+	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_MEMORY)
-+			continue;
-+
-+		hp_mem = &hp_dev->data.mem;
-+
-+		ret = add_memory(hp_mem->node,
-+				hp_mem->start_addr, hp_mem->length);
-+		if (ret)
-+			return ret;
-+	}
++	/* If hotplug request failed, inform firmware with error */
++	if (rollback && hp_is_hotplug_op(req->operation))
++		(void) acpi_evaluate_hotplug_ost(req->handle, req->event,
++				ACPI_OST_SC_NON_SPECIFIC_FAILURE, NULL);
 +
 +	return 0;
 +}
 +
-+static int mm_del_validate(struct hp_request *req, int rollback)
++static int acpi_add_execute(struct hp_request *req, int rollback)
 +{
-+	struct hp_device *hp_dev;
-+	struct hp_memory *hp_mem;
-+	unsigned long start_pfn, nr_pages;
++	acpi_handle handle = (acpi_handle) req->handle;
++	acpi_handle phandle;
++	struct acpi_device *device = NULL;
++	struct acpi_device *pdev;
++	int ret;
 +
 +	if (rollback)
++		return acpi_del_execute(req, 0);
++
++	/* only handle hot-plug operation */
++	if (!hp_is_hotplug_op(req->operation))
 +		return 0;
 +
-+	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_MEMORY)
-+			continue;
++	if (acpi_get_parent(handle, &phandle))
++		return -ENODEV;
 +
-+		hp_mem = &hp_dev->data.mem;
-+		start_pfn = hp_mem->start_addr >> PAGE_SHIFT;
-+		nr_pages = PAGE_ALIGN(hp_mem->length) >> PAGE_SHIFT;
++	if (acpi_bus_get_device(phandle, &pdev))
++		return -ENODEV;
 +
-+		/*
-+		 * Check if this memory range is removable.  This check can
-+		 * be removed if we should attempt to delete a non-movable
-+		 * range.
-+		 */
-+		if (is_mem_section_removable(start_pfn, nr_pages)) {
-+			pr_info("Memory [%#010llx-%#010llx] not removable\n",
-+				hp_mem->start_addr,
-+				hp_mem->start_addr + hp_mem->length-1);
-+			return -EINVAL;
-+		}
-+	}
++	ret = acpi_bus_add(&device, pdev, handle, ACPI_BUS_TYPE_DEVICE);
++
++	return ret;
++}
++
++static int acpi_add_commit(struct hp_request *req, int rollback)
++{
++	/* Inform firmware that the hotplug operation has completed */
++	(void) acpi_evaluate_hotplug_ost(req->handle, req->event,
++					ACPI_OST_SC_SUCCESS, NULL);
 +
 +	return 0;
 +}
 +
-+static int mm_del_execute(struct hp_request *req, int rollback)
++static int acpi_del_execute(struct hp_request *req, int rollback)
 +{
-+	struct hp_device *hp_dev;
-+	struct hp_memory *hp_mem;
-+	int ret;
++	acpi_handle handle = (acpi_handle) req->handle;
++	struct acpi_device *device;
 +
 +	if (rollback)
-+		return mm_add_execute(req, 0);
++		return acpi_add_execute(req, 0);
 +
-+	list_for_each_entry(hp_dev, &req->dev_list, list) {
-+		if (hp_dev->class != HP_CLS_MEMORY)
-+			continue;
++	/* only handle hot-plug operation */
++	if (!hp_is_hotplug_op(req->operation))
++		return 0;
 +
-+		hp_mem = &hp_dev->data.mem;
++	if (acpi_bus_get_device(handle, &device)) {
++		acpi_handle_err(handle, "Failed to obtain device\n");
++		return -EINVAL;
++	}
 +
-+		ret = remove_memory(hp_mem->start_addr, hp_mem->length);
-+		if (ret)
-+			return ret;
++	if (acpi_bus_trim(device, 1)) {
++		dev_err(&device->dev, "Removing device failed\n");
++		return -EINVAL;
 +	}
 +
 +	return 0;
 +}
 +
-+static int __init mm_hp_init(void)
++static int acpi_del_commit(struct hp_request *req, int rollback)
 +{
-+	hp_register_handler(HP_ADD_EXECUTE, mm_add_execute,
-+				HP_MEM_ADD_EXECUTE_ORDER);
-+	hp_register_handler(HP_DEL_VALIDATE, mm_del_validate,
-+				HP_MEM_DEL_VALIDATE_ORDER);
-+	hp_register_handler(HP_DEL_EXECUTE, mm_del_execute,
-+				HP_MEM_DEL_EXECUTE_ORDER);
++	acpi_handle handle = (acpi_handle) req->handle;
++	acpi_handle temp;
++	struct acpi_object_list arg_list;
++	union acpi_object arg;
++	acpi_status status;
++
++	/* only handle hot-plug operation */
++	if (!hp_is_hotplug_op(req->operation))
++		return 0;
++
++	/* power off device */
++	status = acpi_evaluate_object(handle, "_PS3", NULL, NULL);
++	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
++		acpi_handle_warn(handle, "Power-off device failed\n");
++
++	if (ACPI_SUCCESS(acpi_get_handle(handle, "_LCK", &temp))) {
++		arg_list.count = 1;
++		arg_list.pointer = &arg;
++		arg.type = ACPI_TYPE_INTEGER;
++		arg.integer.value = 0;
++		acpi_evaluate_object(handle, "_LCK", &arg_list, NULL);
++	}
++
++	arg_list.count = 1;
++	arg_list.pointer = &arg;
++	arg.type = ACPI_TYPE_INTEGER;
++	arg.integer.value = 1;
++
++	status = acpi_evaluate_object(handle, "_EJ0", &arg_list, NULL);
++	if (ACPI_FAILURE(status) && (status != AE_NOT_FOUND))
++			acpi_handle_warn(handle, "Eject device failed\n");
 +
 +	return 0;
 +}
-+module_init(mm_hp_init);
++
++static void __init acpi_hp_init(void)
++{
++	hp_register_handler(HP_ADD_VALIDATE, acpi_rollback_ost,
++				HP_ACPI_BUS_ADD_VALIDATE_ORDER);
++	hp_register_handler(HP_ADD_EXECUTE, acpi_add_execute,
++				HP_ACPI_BUS_ADD_EXECUTE_ORDER);
++	hp_register_handler(HP_ADD_COMMIT, acpi_add_commit,
++				HP_ACPI_BUS_ADD_COMMIT_ORDER);
++
++	hp_register_handler(HP_DEL_VALIDATE, acpi_rollback_ost,
++				HP_ACPI_BUS_DEL_VALIDATE_ORDER);
++	hp_register_handler(HP_DEL_EXECUTE, acpi_del_execute,
++				HP_ACPI_BUS_DEL_EXECUTE_ORDER);
++	hp_register_handler(HP_DEL_COMMIT, acpi_del_commit,
++				HP_ACPI_BUS_DEL_COMMIT_ORDER);
++}
++
++/* --------------------------------------------------------------------------
+                              Initialization/Cleanup
+    -------------------------------------------------------------------------- */
+ 
+@@ -1103,6 +1235,7 @@ static int __init acpi_init(void)
+ 	acpi_debugfs_init();
+ 	acpi_sleep_proc_init();
+ 	acpi_wakeup_device_init();
++	acpi_hp_init();
+ 	return 0;
+ }
+ 
 -- 
 1.7.11.7
 
