@@ -1,68 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id E91526B002B
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:23:10 -0500 (EST)
-From: Joe Perches <joe@perches.com>
-Subject: [TRIVIAL PATCH 23/26] mm: Convert print_symbol to %pSR
-Date: Wed, 12 Dec 2012 10:19:12 -0800
-Message-Id: <96a83ddb7f8571afe8b3b3b6e7fc9dc3ff81dda5.1355335228.git.joe@perches.com>
-In-Reply-To: <cover.1355335227.git.joe@perches.com>
-References: <cover.1355335227.git.joe@perches.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id A0C176B002B
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:33:02 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 12 Dec 2012 13:33:01 -0500
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 011E5C90042
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:32:58 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBCIWv02322976
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:32:57 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBCIWv7c029645
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 13:32:57 -0500
+Message-ID: <50C8CDD7.8040302@linux.vnet.ibm.com>
+Date: Wed, 12 Dec 2012 12:32:55 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] zswap: compressed swap caching
+References: <1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com> <20121211220148.GA12821@kroah.com> <50C8B0EA.6040205@linux.vnet.ibm.com> <59a1d7ee-e5dc-4923-8544-605c35c632af@default>
+In-Reply-To: <59a1d7ee-e5dc-4923-8544-605c35c632af@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <trivial@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-Use the new vsprintf extension to avoid any possible
-message interleaving.
+On 12/12/2012 11:27 AM, Dan Magenheimer wrote:
+> Related, are you now comfortable with abandoning "zcache1" and
+> moving "zcache2" (now in drivers/staging/ramster in 3.7) to become
+> the one-and-only in-tree drivers/staging/zcache (with ramster
+> as a subdirectory and build option)?  It would be nice to get
+> rid of that artificial and confusing distinction as soon as possible,
+> especially if, due to zswap, you have no plans to continue to
+> maintain/enhance/promote zcache1 anymore.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/memory.c |    8 ++++----
- mm/slab.c   |    8 +++-----
- 2 files changed, 7 insertions(+), 9 deletions(-)
+Yes, that's fine by me.  I guess that didn't get said explicitly in
+the last discussion so sorry for any confusion.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index d81bdd7..a14c194 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -711,11 +711,11 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
- 	 * Choose text because data symbols depend on CONFIG_KALLSYMS_ALL=y
- 	 */
- 	if (vma->vm_ops)
--		print_symbol(KERN_ALERT "vma->vm_ops->fault: %s\n",
--				(unsigned long)vma->vm_ops->fault);
-+		printk(KERN_ALERT "vma->vm_ops->fault: %pSR\n",
-+		       vma->vm_ops->fault);
- 	if (vma->vm_file && vma->vm_file->f_op)
--		print_symbol(KERN_ALERT "vma->vm_file->f_op->mmap: %s\n",
--				(unsigned long)vma->vm_file->f_op->mmap);
-+		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
-+		       vma->vm_file->f_op->mmap);
- 	dump_stack();
- 	add_taint(TAINT_BAD_PAGE);
- }
-diff --git a/mm/slab.c b/mm/slab.c
-index 23daffa..d23ab4f 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2081,11 +2081,9 @@ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
- 	}
- 
- 	if (cachep->flags & SLAB_STORE_USER) {
--		printk(KERN_ERR "Last user: [<%p>]",
--			*dbg_userword(cachep, objp));
--		print_symbol("(%s)",
--				(unsigned long)*dbg_userword(cachep, objp));
--		printk("\n");
-+		printk(KERN_ERR "Last user: [<%p>](%pSR)\n",
-+		       *dbg_userword(cachep, objp),
-+		       *dbg_userword(cachep, objp));
- 	}
- 	realobj = (char *)objp + obj_offset(cachep);
- 	size = cachep->object_size;
--- 
-1.7.8.112.g3fd21
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
