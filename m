@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 6BA2C6B002B
-	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 20:58:58 -0500 (EST)
-Message-ID: <50C7E48F.4020105@huawei.com>
-Date: Wed, 12 Dec 2012 09:57:35 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 670EC6B005D
+	for <linux-mm@kvack.org>; Tue, 11 Dec 2012 20:59:20 -0500 (EST)
+Message-ID: <50C7E4D9.30207@cn.fujitsu.com>
+Date: Wed, 12 Dec 2012 09:58:49 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v3 3/5] page_alloc: Introduce zone_movable_limit[] to
  keep movable limit for nodes
 References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>   <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>   <50C6A36C.5030606@huawei.com> <1355228650.1919.9.camel@kernel.cn.ibm.com>  <50C729E7.4040108@huawei.com> <1355232032.1459.2.camel@kernel.cn.ibm.com>
 In-Reply-To: <1355232032.1459.2.camel@kernel.cn.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+Cc: Jianguo Wu <wujianguo@huawei.com>, Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On 2012/12/11 21:20, Simon Jeons wrote:
 
+
+On 12/11/2012 09:20 PM, Simon Jeons wrote:
 > On Tue, 2012-12-11 at 20:41 +0800, Jianguo Wu wrote:
 >> On 2012/12/11 20:24, Simon Jeons wrote:
 >>
@@ -142,16 +143,13 @@ On 2012/12/11 21:20, Simon Jeons wrote:
 > 
 > I have 8G memory, movablecore=5G, but dmesg looks strange, what
 > happended to me?
-> 
-
 Hi Simon,
 
-I think you used 32bit kernel, and didn't enable CONFIG_X86_PAE, right?
-So, it can only address memory below 4G.
+Is there any other boot parameters for memory taken besides 'movablecore=5G'?
 
-Thanks,
-Jianguo Wu
-
+thanks,
+linfeng
+> 
 >> [    0.000000] Zone ranges:
 >> [    0.000000]   DMA      [mem 0x00010000-0x00ffffff]
 >> [    0.000000]   Normal   [mem 0x01000000-0x373fdfff]
@@ -256,10 +254,6 @@ Jianguo Wu
 > 
 > 
 > 
-> .
-> 
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
