@@ -1,133 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 3992E6B006C
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 10:47:00 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH V4 1/3] MCE: fix an error of mce_bad_pages statistics
-Date: Wed, 12 Dec 2012 10:46:23 -0500
-Message-Id: <1355327183-4452-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <50C7FB7D.2060801@huawei.com>
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 099246B005A
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 11:32:00 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Wed, 12 Dec 2012 11:31:58 -0500
+Received: from d01relay03.pok.ibm.com (d01relay03.pok.ibm.com [9.56.227.235])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 6A024C9007A
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 11:31:50 -0500 (EST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay03.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBCGVnHs311064
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 11:31:50 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBCGTiUa028045
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 09:29:47 -0700
+Message-ID: <50C8B0EA.6040205@linux.vnet.ibm.com>
+Date: Wed, 12 Dec 2012 10:29:30 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] zswap: compressed swap caching
+References: <1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com> <20121211220148.GA12821@kroah.com>
+In-Reply-To: <20121211220148.GA12821@kroah.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: qiuxishi@huawei.com
-Cc: wujianguo@huawei.com, jiang.liu@huawei.com, simon.jeons@gmail.com, Andrew Morton <akpm@linux-foundation.org>, bp@alien8.de, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, liwanp@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, Dec 12, 2012 at 11:35:25AM +0800, Xishi Qiu wrote:
-> Move poisoned page check at the beginning of the function in order to
-> fix the error.
-
-Thanks for the fix.
-It works fine both on normal pages and hugepages in my testing.
-
-Tested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-Just nitpick below ...
-
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
-> ---
->  mm/memory-failure.c |   38 +++++++++++++++++---------------------
->  1 files changed, 17 insertions(+), 21 deletions(-)
+On 12/11/2012 04:01 PM, Greg Kroah-Hartman wrote:
+> On Tue, Dec 11, 2012 at 03:55:58PM -0600, Seth Jennings wrote:
+>> Zswap Overview:
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 8b20278..3a8b4b2 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1419,18 +1419,17 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  	unsigned long pfn = page_to_pfn(page);
->  	struct page *hpage = compound_head(page);
+> <snip>
 > 
-> +	if (PageHWPoison(hpage)) {
-> +		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
-> +		return -EBUSY;
-> +	}
-> +
->  	ret = get_any_page(page, pfn, flags);
->  	if (ret < 0)
->  		return ret;
->  	if (ret == 0)
->  		goto done;
-> 
-> -	if (PageHWPoison(hpage)) {
-> -		put_page(hpage);
-> -		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
-> -		return -EBUSY;
-> -	}
-> -
->  	/* Keep page count to indicate a given hugepage is isolated. */
->  	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
->  				MIGRATE_SYNC);
-> @@ -1441,12 +1440,11 @@ static int soft_offline_huge_page(struct page *page, int flags)
->  		return ret;
->  	}
->  done:
-> -	if (!PageHWPoison(hpage))
-> -		atomic_long_add(1 << compound_trans_order(hpage),
-> -				&mce_bad_pages);
-> +	/* keep elevated page count for bad page */
-> +	atomic_long_add(1 << compound_trans_order(hpage), &mce_bad_pages);
->  	set_page_hwpoison_huge_page(hpage);
->  	dequeue_hwpoisoned_huge_page(hpage);
-> -	/* keep elevated page count for bad page */
-> +
+> Why are you sending this right at the start of the merge window, when
+> all of the people who need to review it are swamped with other work?
 
-I think this comment refers to "returning without decrementing page refcount",
-and it's not about mce_bad_pages, so keeping the comment as it is seems good
-for me.
+Yes, sorry, poor timing :-/
 
->  	return ret;
->  }
-> 
-> @@ -1488,6 +1486,11 @@ int soft_offline_page(struct page *page, int flags)
->  		}
->  	}
-> 
-> +	if (PageHWPoison(page)) {
-> +		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> +		return -EBUSY;
-> +	}
-> +
->  	ret = get_any_page(page, pfn, flags);
->  	if (ret < 0)
->  		return ret;
-> @@ -1519,19 +1522,11 @@ int soft_offline_page(struct page *page, int flags)
->  		return -EIO;
->  	}
-> 
-> -	lock_page(page);
-> -	wait_on_page_writeback(page);
-> -
->  	/*
->  	 * Synchronized using the page lock with memory_failure()
->  	 */
-> -	if (PageHWPoison(page)) {
-> -		unlock_page(page);
-> -		put_page(page);
-> -		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-> -		return -EBUSY;
-> -	}
-> -
-> +	lock_page(page);
-> +	wait_on_page_writeback(page);
->  	/*
->  	 * Try to invalidate first. This should work for
->  	 * non dirty unmapped page cache pages.
-> @@ -1582,8 +1577,9 @@ int soft_offline_page(struct page *page, int flags)
->  		return ret;
-> 
->  done:
-> +	/* keep elevated page count for bad page */
->  	atomic_long_add(1, &mce_bad_pages);
->  	SetPageHWPoison(page);
-> -	/* keep elevated page count for bad page */
-> +
->  	return ret;
->  }
-
-Ditto here.
+I'm just looking for early feedback from those that are not swamped
+doing merge window stuff.
 
 Thanks,
-Naoya
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
