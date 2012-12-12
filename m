@@ -1,37 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id B60AC6B005D
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 15:12:11 -0500 (EST)
-Date: Wed, 12 Dec 2012 20:12:09 +0000
-From: Christoph Lameter <cl@linux.com>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 552566B0062
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 15:15:33 -0500 (EST)
+Date: Wed, 12 Dec 2012 21:15:29 +0100
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: [PATCH] mm: introduce numa_zero_pfn
-In-Reply-To: <1355331819-8728-1-git-send-email-js1304@gmail.com>
-Message-ID: <0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
-References: <1355331819-8728-1-git-send-email-js1304@gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20121212201529.GD16230@one.firstfloor.org>
+References: <1355331819-8728-1-git-send-email-js1304@gmail.com> <0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, andi@firstfloor.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, 13 Dec 2012, Joonsoo Kim wrote:
+> I would expect a processor to fetch the zero page cachelines from the l3
+> cache from other sockets avoiding memory transactions altogether. The zero
+> page is likely in use somewhere so no typically no memory accesses should
+> occur in a system.
 
-> Currently, we use just *one* zero page regardless of user process' node.
-> When user process read zero page, at first, cpu should load this
-> to cpu cache. If node of cpu is not same as node of zero page, loading
-> takes long time. If we make zero pages for each nodes and use them
-> adequetly, we can reduce this overhead.
+It depends on how effectively the workload uses the caches. If something
+is a cache pig of the L3 cache, then even shareable cache lines may need
+to be refetched regularly.
 
-Are you sure about the loading taking a long time?
+But if your workloads spends a significant part of its time reading
+from zero page read only data there is something wrong with the workload.
 
-I would expect a processor to fetch the zero page cachelines from the l3
-cache from other sockets avoiding memory transactions altogether. The zero
-page is likely in use somewhere so no typically no memory accesses should
-occur in a system.
+I would do some data profiling first to really prove that is the case.
 
-Fetching from the l3 cache out of another socket is faster than
-fetching from local memory.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
