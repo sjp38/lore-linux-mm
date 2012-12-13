@@ -1,28 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 1CB636B0068
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 05:46:05 -0500 (EST)
-Date: Thu, 13 Dec 2012 10:46:00 +0000
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 4A84A6B006C
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 05:47:36 -0500 (EST)
+Date: Thu, 13 Dec 2012 10:47:32 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 4/8] mm: vmscan: clarify LRU balancing close to OOM
-Message-ID: <20121213104600.GY1009@suse.de>
+Subject: Re: [patch 5/8] mm: vmscan: improve comment on low-page cache
+ handling
+Message-ID: <20121213104732.GZ1009@suse.de>
 References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-5-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-6-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1355348620-9382-5-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1355348620-9382-6-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 12, 2012 at 04:43:36PM -0500, Johannes Weiner wrote:
-> There are currently several inter-LRU balancing heuristics that simply
-> get disabled when the reclaimer is at the last reclaim cycle before
-> giving up, but the code is quite cumbersome and not really obvious.
-> 
-> Make the heuristics visibly unreachable for the last reclaim cycle.
+On Wed, Dec 12, 2012 at 04:43:37PM -0500, Johannes Weiner wrote:
+> Fix comment style and elaborate on why anonymous memory is
+> force-scanned when file cache runs low.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
