@@ -1,94 +1,307 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 5DF0E6B002B
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 17:25:53 -0500 (EST)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Subject: RE: [patch 2/8] mm: vmscan: disregard swappiness shortly before
- going OOM
-Date: Thu, 13 Dec 2012 22:25:43 +0000
-Message-ID: <8631DC5930FA9E468F04F3FD3A5D007214AD2FA2@USINDEM103.corp.hds.com>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
- <20121213103420.GW1009@suse.de> <20121213152959.GE21644@dhcp22.suse.cz>
- <20121213160521.GG21644@dhcp22.suse.cz>
-In-Reply-To: <20121213160521.GG21644@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 6351E6B002B
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 18:02:55 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm: clean up soft_offline_page()
+Date: Thu, 13 Dec 2012 18:01:46 -0500
+Message-Id: <1355439706-23726-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>
+Cc: Wu Fengguang <fengguang.wu@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <jiang.liu@huawei.com>, Borislav Petkov <bp@alien8.de>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Hi,
 
-On 12/13/2012 11:05 AM, Michal Hocko wrote:> On Thu 13-12-12 16:29:59, Mich=
-al Hocko wrote:
->> On Thu 13-12-12 10:34:20, Mel Gorman wrote:
->>> On Wed, Dec 12, 2012 at 04:43:34PM -0500, Johannes Weiner wrote:
->>>> When a reclaim scanner is doing its final scan before giving up and=20
->>>> there is swap space available, pay no attention to swappiness=20
->>>> preference anymore.  Just swap.
->>>>
->>>> Note that this change won't make too big of a difference for=20
->>>> general
->>>> reclaim: anonymous pages are already force-scanned when there is=20
->>>> only very little file cache left, and there very likely isn't when=20
->>>> the reclaimer enters this final cycle.
->>>>
->>>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
->>>
->>> Ok, I see the motivation for your patch but is the block inside=20
->>> still wrong for what you want? After your patch the block looks like=20
->>> this
->>>
->>>                 if (sc->priority || noswap) {
->>>                         scan >>=3D sc->priority;
->>>                         if (!scan && force_scan)
->>>                                 scan =3D SWAP_CLUSTER_MAX;
->>>                         scan =3D div64_u64(scan * fraction[file], denom=
-inator);
->>>                 }
->>>
->>> if sc->priority =3D=3D 0 and swappiness=3D=3D0 then you enter this bloc=
-k but=20
->>> fraction[0] for anonymous pages will also be 0 and because of the=20
->>> ordering of statements there, scan will be
->>>
->>> scan =3D scan * 0 / denominator
->>>
->>> so you are still not reclaiming anonymous pages in the swappiness=3D0=20
->>> case. What did I miss?
->>
->> Yes, now that you have mentioned that I realized that it really=20
->> doesn't make any sense. fraction[0] is _always_ 0 for swappiness=3D=3D0.=
-=20
->> So we just made a bigger pressure on file LRUs. So this sounds like a=20
->> misuse of the swappiness. This all has been introduced with fe35004f=20
->> (mm: avoid swapping out with swappiness=3D=3D0).
->>
->> I think that removing swappiness check make sense but I am not sure=20
->> it does what the changelog says. It should have said that checking=20
->> swappiness doesn't make any sense for small LRUs.
->
-> Bahh, wait a moment. Now I remember why the check made sense=20
-> especially for memcg.
-> It made "don't swap _at all_ for swappiness=3D=3D0" for real - you are=20
-> even willing to sacrifice OOM. Maybe this is OK for the global case=20
-> because noswap would safe you here (assuming that there is no swap if=20
-> somebody doesn't want to swap at all and swappiness doesn't play such=20
-> a big role) but for memcg you really might want to prevent from=20
-> swapping - not everybody has memcg swap extension enabled and swappiness =
-is handy then.
-> So I am not sure this is actually what we want. Need to think about it.
+I wrote this patch inspired by the discussion about fixing mce_bad_pages bug.
+https://lkml.org/lkml/2012/12/7/66
+As mentioned by Andrew, this bug seemed to be undetected because of the
+messiness of soft_offline_page(), so with this patch we can deal with the problem.
 
-I introduced swappiness check here with fe35004f because, in some
-cases, we prefer OOM to swap out pages to detect problems as soon
-as possible. Basically, we design the system not to swap out and
-so if it causes swapping, something goes wrong.
+Thanks,
+Naoya
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Thu, 13 Dec 2012 16:08:54 -0500
+Subject: [PATCH] mm: clean up soft_offline_page()
 
-Regards,
-Satoru
+Currently soft_offline_page() is hard to maintain because it has many
+return points and goto statements. All of this mess come from get_any_page().
+This function should only get page refcount as the name implies, but it does
+some page isolating actions like SetPageHWPoison() and dequeuing hugepage.
+This patch corrects it and introduces some internal subroutines to make
+soft offlining code more readable and maintainable.
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/memory-failure.c | 189 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 101 insertions(+), 88 deletions(-)
+
+diff --git v3.7.orig/mm/memory-failure.c v3.7/mm/memory-failure.c
+index 8b20278..8cef032 100644
+--- v3.7.orig/mm/memory-failure.c
++++ v3.7/mm/memory-failure.c
+@@ -1368,7 +1368,7 @@ static struct page *new_page(struct page *p, unsigned long private, int **x)
+  * that is not free, and 1 for any other page type.
+  * For 1 the page is returned with increased page count, otherwise not.
+  */
+-static int get_any_page(struct page *p, unsigned long pfn, int flags)
++static int __get_any_page(struct page *p, unsigned long pfn, int flags)
+ {
+ 	int ret;
+ 
+@@ -1393,11 +1393,9 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+ 	if (!get_page_unless_zero(compound_head(p))) {
+ 		if (PageHuge(p)) {
+ 			pr_info("%s: %#lx free huge page\n", __func__, pfn);
+-			ret = dequeue_hwpoisoned_huge_page(compound_head(p));
++			ret = 0;
+ 		} else if (is_free_buddy_page(p)) {
+ 			pr_info("%s: %#lx free buddy page\n", __func__, pfn);
+-			/* Set hwpoison bit while page is still isolated */
+-			SetPageHWPoison(p);
+ 			ret = 0;
+ 		} else {
+ 			pr_info("%s: %#lx: unknown zero refcount page type %lx\n",
+@@ -1413,23 +1411,45 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
+ 	return ret;
+ }
+ 
++static int get_any_page(struct page *page, unsigned long pfn, int flags)
++{
++	int ret = __get_any_page(page, pfn, flags);
++
++	if (ret == 1 && !PageHuge(page) && !PageLRU(page)) {
++		/*
++		 * Try to free it.
++		 */
++		put_page(page);
++		shake_page(page, 1);
++
++		/*
++		 * Did it turn free?
++		 */
++		ret = __get_any_page(page, pfn, 0);
++		if (!PageLRU(page)) {
++			pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
++				pfn, page->flags);
++			return -EIO;
++		}
++	}
++	return ret;
++}
++
+ static int soft_offline_huge_page(struct page *page, int flags)
+ {
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+ 	struct page *hpage = compound_head(page);
+ 
+-	ret = get_any_page(page, pfn, flags);
+-	if (ret < 0)
+-		return ret;
+-	if (ret == 0)
+-		goto done;
+-
++	/* Synchronized using the page lock with memory_failure() */
++	lock_page(hpage);
+ 	if (PageHWPoison(hpage)) {
++		unlock_page(hpage);
+ 		put_page(hpage);
+ 		pr_info("soft offline: %#lx hugepage already poisoned\n", pfn);
+ 		return -EBUSY;
+ 	}
++	unlock_page(hpage);
+ 
+ 	/* Keep page count to indicate a given hugepage is isolated. */
+ 	ret = migrate_huge_page(hpage, new_page, MPOL_MF_MOVE_ALL, false,
+@@ -1439,85 +1459,19 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+ 			pfn, ret, page->flags);
+ 		return ret;
++	} else {
++		set_page_hwpoison_huge_page(hpage);
++		dequeue_hwpoisoned_huge_page(hpage);
++		atomic_long_add(1<<compound_trans_order(hpage), &mce_bad_pages);
+ 	}
+-done:
+-	if (!PageHWPoison(hpage))
+-		atomic_long_add(1 << compound_trans_order(hpage),
+-				&mce_bad_pages);
+-	set_page_hwpoison_huge_page(hpage);
+-	dequeue_hwpoisoned_huge_page(hpage);
+ 	/* keep elevated page count for bad page */
+ 	return ret;
+ }
+ 
+-/**
+- * soft_offline_page - Soft offline a page.
+- * @page: page to offline
+- * @flags: flags. Same as memory_failure().
+- *
+- * Returns 0 on success, otherwise negated errno.
+- *
+- * Soft offline a page, by migration or invalidation,
+- * without killing anything. This is for the case when
+- * a page is not corrupted yet (so it's still valid to access),
+- * but has had a number of corrected errors and is better taken
+- * out.
+- *
+- * The actual policy on when to do that is maintained by
+- * user space.
+- *
+- * This should never impact any application or cause data loss,
+- * however it might take some time.
+- *
+- * This is not a 100% solution for all memory, but tries to be
+- * ``good enough'' for the majority of memory.
+- */
+-int soft_offline_page(struct page *page, int flags)
++int __soft_offline_page(struct page *page, int flags)
+ {
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+-	struct page *hpage = compound_trans_head(page);
+-
+-	if (PageHuge(page))
+-		return soft_offline_huge_page(page, flags);
+-	if (PageTransHuge(hpage)) {
+-		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
+-			pr_info("soft offline: %#lx: failed to split THP\n",
+-				pfn);
+-			return -EBUSY;
+-		}
+-	}
+-
+-	ret = get_any_page(page, pfn, flags);
+-	if (ret < 0)
+-		return ret;
+-	if (ret == 0)
+-		goto done;
+-
+-	/*
+-	 * Page cache page we can handle?
+-	 */
+-	if (!PageLRU(page)) {
+-		/*
+-		 * Try to free it.
+-		 */
+-		put_page(page);
+-		shake_page(page, 1);
+-
+-		/*
+-		 * Did it turn free?
+-		 */
+-		ret = get_any_page(page, pfn, 0);
+-		if (ret < 0)
+-			return ret;
+-		if (ret == 0)
+-			goto done;
+-	}
+-	if (!PageLRU(page)) {
+-		pr_info("soft_offline: %#lx: unknown non LRU page type %lx\n",
+-			pfn, page->flags);
+-		return -EIO;
+-	}
+ 
+ 	lock_page(page);
+ 	wait_on_page_writeback(page);
+@@ -1544,9 +1498,10 @@ int soft_offline_page(struct page *page, int flags)
+ 	 */
+ 	if (ret == 1) {
+ 		put_page(page);
+-		ret = 0;
+ 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
+-		goto done;
++		SetPageHWPoison(page);
++		atomic_long_inc(&mce_bad_pages);
++		return 0;
+ 	}
+ 
+ 	/*
+@@ -1573,17 +1528,75 @@ int soft_offline_page(struct page *page, int flags)
+ 				pfn, ret, page->flags);
+ 			if (ret > 0)
+ 				ret = -EIO;
++		} else {
++			SetPageHWPoison(page);
++			atomic_long_inc(&mce_bad_pages);
+ 		}
+ 	} else {
+ 		pr_info("soft offline: %#lx: isolation failed: %d, page count %d, type %lx\n",
+ 			pfn, ret, page_count(page), page->flags);
+ 	}
+-	if (ret)
+-		return ret;
++	return ret;
++}
++
++/**
++ * soft_offline_page - Soft offline a page.
++ * @page: page to offline
++ * @flags: flags. Same as memory_failure().
++ *
++ * Returns 0 on success, otherwise negated errno.
++ *
++ * Soft offline a page, by migration or invalidation,
++ * without killing anything. This is for the case when
++ * a page is not corrupted yet (so it's still valid to access),
++ * but has had a number of corrected errors and is better taken
++ * out.
++ *
++ * The actual policy on when to do that is maintained by
++ * user space.
++ *
++ * This should never impact any application or cause data loss,
++ * however it might take some time.
++ *
++ * This is not a 100% solution for all memory, but tries to be
++ * ``good enough'' for the majority of memory.
++ */
++int soft_offline_page(struct page *page, int flags)
++{
++	int ret;
++	unsigned long pfn = page_to_pfn(page);
++	struct page *hpage = compound_trans_head(page);
+ 
+-done:
+-	atomic_long_add(1, &mce_bad_pages);
+-	SetPageHWPoison(page);
++	if (PageHWPoison(page)) {
++		pr_info("soft offline: %#lx page already poisoned\n", pfn);
++		return -EBUSY;
++	}
++	if (!PageHuge(page) && PageTransHuge(hpage)) {
++		if (PageAnon(hpage) && unlikely(split_huge_page(hpage))) {
++			pr_info("soft offline: %#lx: failed to split THP\n",
++				pfn);
++			return -EBUSY;
++		}
++	}
++	ret = get_any_page(page, pfn, flags);
++	if (ret < 0)
++		return ret;
++	if (ret) { /* for in-use pages */
++		if (PageHuge(page))
++			soft_offline_huge_page(page, flags);
++		else
++			__soft_offline_page(page, flags);
++	} else { /* for free pages */
++		if (PageHuge(page)) {
++			set_page_hwpoison_huge_page(hpage);
++			dequeue_hwpoisoned_huge_page(hpage);
++			atomic_long_add(1 << compound_trans_order(hpage),
++					&mce_bad_pages);
++		} else {
++			SetPageHWPoison(page);
++			atomic_long_inc(&mce_bad_pages);
++		}
++	}
+ 	/* keep elevated page count for bad page */
+ 	return ret;
+ }
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
