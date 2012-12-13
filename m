@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 659366B0070
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 06:12:58 -0500 (EST)
-Date: Thu, 13 Dec 2012 11:12:54 +0000
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id F26A56B0069
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 06:21:02 -0500 (EST)
+Date: Thu, 13 Dec 2012 11:20:58 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 7/8] mm: vmscan: compaction works against zones, not
- lruvecs
-Message-ID: <20121213111254.GB1009@suse.de>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-8-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH v3] mm: Use aligned zone start for pfn_to_bitidx
+ calculation
+Message-ID: <20121213112058.GA9887@suse.de>
+References: <1354828301-27849-1-git-send-email-lauraa@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1355348620-9382-8-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1354828301-27849-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
 
-On Wed, Dec 12, 2012 at 04:43:39PM -0500, Johannes Weiner wrote:
-> The restart logic for when reclaim operates back to back with
-> compaction is currently applied on the lruvec level.  But this does
-> not make sense, because the container of interest for compaction is a
-> zone as a whole, not the zone pages that are part of a certain memory
-> cgroup.
+On Thu, Dec 06, 2012 at 01:11:41PM -0800, Laura Abbott wrote:
+> The current calculation in pfn_to_bitidx assumes that
+> (pfn - zone->zone_start_pfn) >> pageblock_order will return the
+> same bit for all pfn in a pageblock. If zone_start_pfn is not
+> aligned to pageblock_nr_pages, this may not always be correct.
 > 
-> Negative impact is bounded.  For one, the code checks that the lruvec
-> has enough reclaim candidates, so it does not risk getting stuck on a
-> condition that can not be fulfilled.  And the unfairness of hammering
-> on one particular memory cgroup to make progress in a zone will be
-> amortized by the round robin manner in which reclaim goes through the
-> memory cgroups.  Still, this can lead to unnecessary allocation
-> latencies when the code elects to restart on a hard to reclaim or
-> small group when there are other, more reclaimable groups in the zone.
+> Consider the following with pageblock order = 10, zone start 2MB:
 > 
-> Move this logic to the zone level and restart reclaim for all memory
-> cgroups in a zone when compaction requires more free pages from it.
+> pfn     | pfn - zone start | (pfn - zone start) >> page block order
+> ----------------------------------------------------------------
+> 0x26000 | 0x25e00	   |  0x97
+> 0x26100 | 0x25f00	   |  0x97
+> 0x26200 | 0x26000	   |  0x98
+> 0x26300 | 0x26100	   |  0x98
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> This means that calling {get,set}_pageblock_migratetype on a single
+> page will not set the migratetype for the full block. Fix this by
+> rounding down zone_start_pfn when doing the bitidx calculation.
+> 
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 
 Acked-by: Mel Gorman <mgorman@suse.de>
+
+It's merge window at the moment so it's in danger of getting lost. What
+I suggest you do is do is resend to Andrew with the same people cc'd
+post-merge window so it'll be picked up in mmotm for the next cycle.
+
+Thanks.
 
 -- 
 Mel Gorman
