@@ -1,16 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id BF8246B0073
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 22:46:47 -0500 (EST)
-Message-ID: <1355369864.18964.68.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH 00/11] Hot-plug and Online/Offline framework
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 53ADC6B0075
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 23:05:18 -0500 (EST)
+Message-ID: <1355370975.18964.83.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 01/11] Add hotplug.h for hotplug framework
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 12 Dec 2012 20:37:44 -0700
-In-Reply-To: <20121213005510.GA9220@kroah.com>
+Date: Wed, 12 Dec 2012 20:56:15 -0700
+In-Reply-To: <20121212235358.GA22764@kroah.com>
 References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
-	 <20121212235657.GD22764@kroah.com>
-	 <1355359176.18964.41.camel@misato.fc.hp.com>
-	 <20121213005510.GA9220@kroah.com>
+	 <1355354243-18657-2-git-send-email-toshi.kani@hp.com>
+	 <20121212235358.GA22764@kroah.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -19,69 +18,37 @@ List-ID: <linux-mm.kvack.org>
 To: Greg KH <gregkh@linuxfoundation.org>
 Cc: rjw@sisk.pl, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Wed, 2012-12-12 at 16:55 -0800, Greg KH wrote:
-> On Wed, Dec 12, 2012 at 05:39:36PM -0700, Toshi Kani wrote:
-> > On Wed, 2012-12-12 at 15:56 -0800, Greg KH wrote:
-> > > On Wed, Dec 12, 2012 at 04:17:12PM -0700, Toshi Kani wrote:
-> > > > This patchset is an initial prototype of proposed hot-plug framework
-> > > > for design review.  The hot-plug framework is designed to provide 
-> > > > the common framework for hot-plugging and online/offline operations
-> > > > of system devices, such as CPU, Memory and Node.  While this patchset
-> > > > only supports ACPI-based hot-plug operations, the framework itself is
-> > > > designed to be platform-neural and can support other FW architectures
-> > > > as necessary.
-> > > > 
-> > > > The patchset has not been fully tested yet, esp. for memory hot-plug.
-> > > > Any help for testing will be very appreciated since my test setup
-> > > > is limited.
-> > > > 
-> > > > The patchset is based on the linux-next branch of linux-pm.git tree.
-> > > > 
-> > > > Overview of the Framework
-> > > > =========================
-> > > 
-> > > <snip>
-> > > 
-> > > Why all the new framework, doesn't the existing bus infrastructure
-> > > provide everything you need here?  Shouldn't you just be putting your
-> > > cpus and memory sticks on a bus and handle stuff that way?  What makes
-> > > these types of devices so unique from all other devices that Linux has
-> > > been handling in a dynamic manner (i.e. hotplugging them) for many many
-> > > years?
-> > > 
-> > > Why are you reinventing the wheel?
-> > 
-> > Good question.  Yes, USB and PCI hotplug operate based on their bus
-> > structures.  USB and PCI cards only work under USB and PCI bus
-> > controllers.  So, their framework can be composed within the bus
-> > structures as you pointed out.
-> > 
-> > However, system devices such CPU and memory do not have their standard
-> > bus.  ACPI allows these system devices to be enumerated, but it does not
-> > make ACPI as the HW bus hierarchy for CPU and memory, unlike PCI and
-> > USB.  Therefore, CPU and memory modules manage CPU and memory outside of
-> > ACPI.  This makes sense because CPU and memory can be used without ACPI.
-> > 
-> > This leads us an issue when we try to manage system device hotplug
-> > within ACPI, because ACPI does not control everything.  This patchset
-> > provides a common hotplug framework for system devices, which both ACPI
-> > and non-ACPI modules (i.e. CPU and memory modules) can participate and
-> > are coordinated for their hotplug operations.  This is analogous to the
-> > boot-up sequence, which ACPI and non-ACPI modules can participate to
-> > enable CPU and memory.
+On Wed, 2012-12-12 at 15:53 -0800, Greg KH wrote:
+> On Wed, Dec 12, 2012 at 04:17:13PM -0700, Toshi Kani wrote:
+> > Added include/linux/hotplug.h, which defines the hotplug framework
+> > interfaces used by the framework itself and handlers.
 > 
-> Then create a "virtual" bus and put the devices you wish to control on
-> that.  That is what the "system bus" devices were supposed to be, it's
-> about time someone took that code and got it all working properly in
-> this way, that is why it was created oh so long ago.
+> No, please name this properly, _everything_ is hotpluggable these days,
+> and unless you want the whole kernel and all busses and devices to use
+> this, then it needs to be named much better than this, sorry.
+> 
+> We went through this same issue over 10 years ago, please, let's learn
+> from our mistakes and not do it again.
 
-It may be the ideal, but it will take us great effort to make such
-things to happen based on where we are now.  It is going to be a long
-way.  I believe the first step is to make the boot-up flow and hot-plug
-flow consistent for system devices.  This is what this patchset is
-trying to do.
+Agreed.  I will come up with a better name to avoid the confusion.
 
-Thanks,
+> > +/* Add Validate order values */
+> > +#define HP_ACPI_BUS_ADD_VALIDATE_ORDER		0	/* must be first */
+> 
+> This is really ACPI specific, so why not just put it under include/acpi/
+> instead?
+
+Yes, this needs to be revisited.  For now, it is defined in the same
+file since it helps to manage the ordering when all values are defined
+in a same place.  We may need the ordering values defined in each arch
+when this framework is used by multiple architectures. 
+
+> And note, PPC and other arches probably do this already (s390?) so to
+> exclude them from the beginning would not be a good idea.
+
+Thanks for the suggestion.  I will check other architectures and bring
+them to the discussions. 
+
 -Toshi
 
 
