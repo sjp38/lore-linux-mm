@@ -1,282 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 3BB4E6B005A
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 11:49:03 -0500 (EST)
-Date: Thu, 13 Dec 2012 17:48:50 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 7/8] mm: vmscan: compaction works against zones, not
- lruvecs
-Message-ID: <20121213164850.GJ21644@dhcp22.suse.cz>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-8-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 9D4AD6B002B
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 13:17:41 -0500 (EST)
+Message-ID: <50CA1B60.9000806@redhat.com>
+Date: Thu, 13 Dec 2012 13:16:00 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355348620-9382-8-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH][RESEND] mm: Avoid possible deadlock caused by too_many_isolated()
+References: <20121210024836.GA15821@localhost>
+In-Reply-To: <20121210024836.GA15821@localhost>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Torsten Kaiser <just.for.lkml@googlemail.com>, NeilBrown <neilb@suse.de>, Minchan Kim <minchan.kim@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Li Zefan <lizefan@huawei.com>, wuqixuan@huawei.com, zengweilin@huawei.com, shaoyafang@huawei.com
 
-On Wed 12-12-12 16:43:39, Johannes Weiner wrote:
-> The restart logic for when reclaim operates back to back with
-> compaction is currently applied on the lruvec level.  But this does
-> not make sense, because the container of interest for compaction is a
-> zone as a whole, not the zone pages that are part of a certain memory
-> cgroup.
-> 
-> Negative impact is bounded.  For one, the code checks that the lruvec
-> has enough reclaim candidates, so it does not risk getting stuck on a
-> condition that can not be fulfilled.  And the unfairness of hammering
-> on one particular memory cgroup to make progress in a zone will be
-> amortized by the round robin manner in which reclaim goes through the
-> memory cgroups.  Still, this can lead to unnecessary allocation
-> latencies when the code elects to restart on a hard to reclaim or
-> small group when there are other, more reclaimable groups in the zone.
-> Move this logic to the zone level and restart reclaim for all memory
-> cgroups in a zone when compaction requires more free pages from it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On 12/09/2012 09:48 PM, Fengguang Wu wrote:
+> Neil find that if too_many_isolated() returns true while performing
+> direct reclaim we can end up waiting for other threads to complete their
+> direct reclaim.  If those threads are allowed to enter the FS or IO to
+> free memory, but this thread is not, then it is possible that those
+> threads will be waiting on this thread and so we get a circular
+> deadlock.
+>
+> some task enters direct reclaim with GFP_KERNEL
+>    => too_many_isolated() false
+>      => vmscan and run into dirty pages
+>        => pageout()
+>          => take some FS lock
+> 	  => fs/block code does GFP_NOIO allocation
+> 	    => enter direct reclaim again
+> 	      => too_many_isolated() true
+> 		  => waiting for others to progress, however the other
+> 		     tasks may be circular waiting for the FS lock..
+>
+> The fix is to let !__GFP_IO and !__GFP_FS direct reclaims enjoy higher
+> priority than normal ones, by lowering the throttle threshold for the
+> latter.
+>
+> Allowing ~1/8 isolated pages in normal is large enough. For example,
+> for a 1GB LRU list, that's ~128MB isolated pages, or 1k blocked tasks
+> (each isolates 32 4KB pages), or 64 blocked tasks per logical CPU
+> (assuming 16 logical CPUs per NUMA node). So it's not likely some CPU
+> goes idle waiting (when it could make progress) because of this limit:
+> there are much more sleeping reclaim tasks than the number of CPU, so
+> the task may well be blocked by some low level queue/lock anyway.
+>
+> Now !GFP_IOFS reclaims won't be waiting for GFP_IOFS reclaims to
+> progress. They will be blocked only when there are too many concurrent
+> !GFP_IOFS reclaims, however that's very unlikely because the IO-less
+> direct reclaims is able to progress much more faster, and they won't
+> deadlock each other. The threshold is raised high enough for them, so
+> that there can be sufficient parallel progress of !GFP_IOFS reclaims.
+>
+> CC: Torsten Kaiser <just.for.lkml@googlemail.com>
+> Tested-by: NeilBrown <neilb@suse.de>
+> Reviewed-by: Minchan Kim <minchan.kim@gmail.com>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Wu Fengguang <fengguang.wu@intel.com>
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/vmscan.c | 180 +++++++++++++++++++++++++++++++-----------------------------
->  1 file changed, 92 insertions(+), 88 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e20385a..c9c841d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1782,6 +1782,59 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	}
->  }
->  
-> +/*
-> + * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-> + */
-> +static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
-> +{
-> +	unsigned long nr[NR_LRU_LISTS];
-> +	unsigned long nr_to_scan;
-> +	enum lru_list lru;
-> +	unsigned long nr_reclaimed = 0;
-> +	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-> +	struct blk_plug plug;
-> +
-> +	get_scan_count(lruvec, sc, nr);
-> +
-> +	blk_start_plug(&plug);
-> +	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> +					nr[LRU_INACTIVE_FILE]) {
-> +		for_each_evictable_lru(lru) {
-> +			if (nr[lru]) {
-> +				nr_to_scan = min_t(unsigned long,
-> +						   nr[lru], SWAP_CLUSTER_MAX);
-> +				nr[lru] -= nr_to_scan;
-> +
-> +				nr_reclaimed += shrink_list(lru, nr_to_scan,
-> +							    lruvec, sc);
-> +			}
-> +		}
-> +		/*
-> +		 * On large memory systems, scan >> priority can become
-> +		 * really large. This is fine for the starting priority;
-> +		 * we want to put equal scanning pressure on each zone.
-> +		 * However, if the VM has a harder time of freeing pages,
-> +		 * with multiple processes reclaiming pages, the total
-> +		 * freeing target can get unreasonably large.
-> +		 */
-> +		if (nr_reclaimed >= nr_to_reclaim &&
-> +		    sc->priority < DEF_PRIORITY)
-> +			break;
-> +	}
-> +	blk_finish_plug(&plug);
-> +	sc->nr_reclaimed += nr_reclaimed;
-> +
-> +	/*
-> +	 * Even if we did not try to evict anon pages at all, we want to
-> +	 * rebalance the anon lru active/inactive ratio.
-> +	 */
-> +	if (inactive_anon_is_low(lruvec))
-> +		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
-> +				   sc, LRU_ACTIVE_ANON);
-> +
-> +	throttle_vm_writeout(sc->gfp_mask);
-> +}
-> +
->  /* Use reclaim/compaction for costly allocs or under memory pressure */
->  static bool in_reclaim_compaction(struct scan_control *sc)
->  {
-> @@ -1800,7 +1853,7 @@ static bool in_reclaim_compaction(struct scan_control *sc)
->   * calls try_to_compact_zone() that it will have enough free pages to succeed.
->   * It will give up earlier than that if there is difficulty reclaiming pages.
->   */
-> -static inline bool should_continue_reclaim(struct lruvec *lruvec,
-> +static inline bool should_continue_reclaim(struct zone *zone,
->  					unsigned long nr_reclaimed,
->  					unsigned long nr_scanned,
->  					struct scan_control *sc)
-> @@ -1840,15 +1893,15 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
->  	 * inactive lists are large enough, continue reclaiming
->  	 */
->  	pages_for_compaction = (2UL << sc->order);
-> -	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
-> +	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
->  	if (nr_swap_pages > 0)
-> -		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
-> +		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
->  	if (sc->nr_reclaimed < pages_for_compaction &&
->  			inactive_lru_pages > pages_for_compaction)
->  		return true;
->  
->  	/* If compaction would go ahead or the allocation would succeed, stop */
-> -	switch (compaction_suitable(lruvec_zone(lruvec), sc->order)) {
-> +	switch (compaction_suitable(zone, sc->order)) {
->  	case COMPACT_PARTIAL:
->  	case COMPACT_CONTINUE:
->  		return false;
-> @@ -1857,98 +1910,49 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
->  	}
->  }
->  
-> -/*
-> - * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
-> - */
-> -static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
-> +static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  {
-> -	unsigned long nr[NR_LRU_LISTS];
-> -	unsigned long nr_to_scan;
-> -	enum lru_list lru;
->  	unsigned long nr_reclaimed, nr_scanned;
-> -	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-> -	struct blk_plug plug;
-> -
-> -restart:
-> -	nr_reclaimed = 0;
-> -	nr_scanned = sc->nr_scanned;
-> -	get_scan_count(lruvec, sc, nr);
-> -
-> -	blk_start_plug(&plug);
-> -	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
-> -					nr[LRU_INACTIVE_FILE]) {
-> -		for_each_evictable_lru(lru) {
-> -			if (nr[lru]) {
-> -				nr_to_scan = min_t(unsigned long,
-> -						   nr[lru], SWAP_CLUSTER_MAX);
-> -				nr[lru] -= nr_to_scan;
-> -
-> -				nr_reclaimed += shrink_list(lru, nr_to_scan,
-> -							    lruvec, sc);
-> -			}
-> -		}
-> -		/*
-> -		 * On large memory systems, scan >> priority can become
-> -		 * really large. This is fine for the starting priority;
-> -		 * we want to put equal scanning pressure on each zone.
-> -		 * However, if the VM has a harder time of freeing pages,
-> -		 * with multiple processes reclaiming pages, the total
-> -		 * freeing target can get unreasonably large.
-> -		 */
-> -		if (nr_reclaimed >= nr_to_reclaim &&
-> -		    sc->priority < DEF_PRIORITY)
-> -			break;
-> -	}
-> -	blk_finish_plug(&plug);
-> -	sc->nr_reclaimed += nr_reclaimed;
->  
-> -	/*
-> -	 * Even if we did not try to evict anon pages at all, we want to
-> -	 * rebalance the anon lru active/inactive ratio.
-> -	 */
-> -	if (inactive_anon_is_low(lruvec))
-> -		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
-> -				   sc, LRU_ACTIVE_ANON);
-> -
-> -	/* reclaim/compaction might need reclaim to continue */
-> -	if (should_continue_reclaim(lruvec, nr_reclaimed,
-> -				    sc->nr_scanned - nr_scanned, sc))
-> -		goto restart;
-> +	do {
-> +		struct mem_cgroup *root = sc->target_mem_cgroup;
-> +		struct mem_cgroup_reclaim_cookie reclaim = {
-> +			.zone = zone,
-> +			.priority = sc->priority,
-> +		};
-> +		struct mem_cgroup *memcg;
->  
-> -	throttle_vm_writeout(sc->gfp_mask);
-> -}
-> +		nr_reclaimed = sc->nr_reclaimed;
-> +		nr_scanned = sc->nr_scanned;
->  
-> -static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> -{
-> -	struct mem_cgroup *root = sc->target_mem_cgroup;
-> -	struct mem_cgroup_reclaim_cookie reclaim = {
-> -		.zone = zone,
-> -		.priority = sc->priority,
-> -	};
-> -	struct mem_cgroup *memcg;
-> +		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> +		do {
-> +			struct lruvec *lruvec;
->  
-> -	memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> -	do {
-> -		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
-> +			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
->  
-> -		shrink_lruvec(lruvec, sc);
-> +			shrink_lruvec(lruvec, sc);
->  
-> -		/*
-> -		 * Limit reclaim has historically picked one memcg and
-> -		 * scanned it with decreasing priority levels until
-> -		 * nr_to_reclaim had been reclaimed.  This priority
-> -		 * cycle is thus over after a single memcg.
-> -		 *
-> -		 * Direct reclaim and kswapd, on the other hand, have
-> -		 * to scan all memory cgroups to fulfill the overall
-> -		 * scan target for the zone.
-> -		 */
-> -		if (!global_reclaim(sc)) {
-> -			mem_cgroup_iter_break(root, memcg);
-> -			break;
-> -		}
-> -		memcg = mem_cgroup_iter(root, memcg, &reclaim);
-> -	} while (memcg);
-> +			/*
-> +			 * Limit reclaim has historically picked one
-> +			 * memcg and scanned it with decreasing
-> +			 * priority levels until nr_to_reclaim had
-> +			 * been reclaimed.  This priority cycle is
-> +			 * thus over after a single memcg.
-> +			 *
-> +			 * Direct reclaim and kswapd, on the other
-> +			 * hand, have to scan all memory cgroups to
-> +			 * fulfill the overall scan target for the
-> +			 * zone.
-> +			 */
-> +			if (!global_reclaim(sc)) {
-> +				mem_cgroup_iter_break(root, memcg);
-> +				break;
-> +			}
-> +			memcg = mem_cgroup_iter(root, memcg, &reclaim);
-> +		} while (memcg);
-> +	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
-> +					 sc->nr_scanned - nr_scanned, sc));
->  }
->  
->  /* Returns true if compaction should go ahead for a high-order request */
-> -- 
-> 1.7.11.7
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
