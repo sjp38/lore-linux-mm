@@ -1,53 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id D1F806B002B
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 05:34:24 -0500 (EST)
-Date: Thu, 13 Dec 2012 10:34:20 +0000
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 90C5B6B005D
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 05:41:08 -0500 (EST)
+Date: Thu, 13 Dec 2012 10:41:04 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 2/8] mm: vmscan: disregard swappiness shortly before
- going OOM
-Message-ID: <20121213103420.GW1009@suse.de>
+Subject: Re: [patch 3/8] mm: vmscan: save work scanning (almost) empty LRU
+ lists
+Message-ID: <20121213104104.GX1009@suse.de>
 References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1355348620-9382-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 12, 2012 at 04:43:34PM -0500, Johannes Weiner wrote:
-> When a reclaim scanner is doing its final scan before giving up and
-> there is swap space available, pay no attention to swappiness
-> preference anymore.  Just swap.
+On Wed, Dec 12, 2012 at 04:43:35PM -0500, Johannes Weiner wrote:
+> In certain cases (kswapd reclaim, memcg target reclaim), a fixed
+> minimum amount of pages is scanned from the LRU lists on each
+> iteration, to make progress.
 > 
-> Note that this change won't make too big of a difference for general
-> reclaim: anonymous pages are already force-scanned when there is only
-> very little file cache left, and there very likely isn't when the
-> reclaimer enters this final cycle.
+> Do not make this minimum bigger than the respective LRU list size,
+> however, and save some busy work trying to isolate and reclaim pages
+> that are not there.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Ok, I see the motivation for your patch but is the block inside still
-wrong for what you want? After your patch the block looks like this
+This looks like a corner case where the LRU size would have to be smaller
+than SWAP_CLUSTER_MAX. Is that common enough to care? It looks correct,
+I'm just curious.
 
-                if (sc->priority || noswap) {
-                        scan >>= sc->priority;
-                        if (!scan && force_scan)
-                                scan = SWAP_CLUSTER_MAX;
-                        scan = div64_u64(scan * fraction[file], denominator);
-                }
-
-if sc->priority == 0 and swappiness==0 then you enter this block but
-fraction[0] for anonymous pages will also be 0 and because of the ordering
-of statements there, scan will be
-
-scan = scan * 0 / denominator
-
-so you are still not reclaiming anonymous pages in the swappiness=0
-case. What did I miss?
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
 Mel Gorman
