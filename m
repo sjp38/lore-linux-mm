@@ -1,100 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id F372B6B0068
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 20:49:13 -0500 (EST)
-Message-ID: <50C933E2.3070608@cn.fujitsu.com>
-Date: Thu, 13 Dec 2012 09:48:18 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 3/5] page_alloc: Introduce zone_movable_limit[] to
- keep movable limit for nodes
-References: <1355193207-21797-1-git-send-email-tangchen@cn.fujitsu.com>    <1355193207-21797-4-git-send-email-tangchen@cn.fujitsu.com>    <50C6A36C.5030606@huawei.com> <50C6A93A.50404@cn.fujitsu.com>   <1355225313.1919.1.camel@kernel.cn.ibm.com> <50C7D490.60409@huawei.com>   <50C849DD.20405@cn.fujitsu.com>  <1355304570.1542.0.camel@kernel.cn.ibm.com>  <50C85D2D.5030309@cn.fujitsu.com> <1355358485.1508.2.camel@kernel.cn.ibm.com>
-In-Reply-To: <1355358485.1508.2.camel@kernel.cn.ibm.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id B66136B0070
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 20:56:35 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id c14so3253883ieb.14
+        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 17:56:35 -0800 (PST)
+Message-ID: <1355363787.1749.4.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH v3 4/5][RESEND] page_alloc: Make movablecore_map has
+ higher priority
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Wed, 12 Dec 2012 19:56:27 -0600
+In-Reply-To: <50C84F8E.5030805@cn.fujitsu.com>
+References: <1355193207-21797-5-git-send-email-tangchen@cn.fujitsu.com>
+	  <1355201817-27230-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1355276008.1433.1.camel@kernel.cn.ibm.com>
+	 <50C84F8E.5030805@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Jianguo Wu <wujianguo@huawei.com>, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org
 
-On 12/13/2012 08:28 AM, Simon Jeons wrote:
-> On Wed, 2012-12-12 at 18:32 +0800, Tang Chen wrote:
->> Hi Simon,
->>
->> On 12/12/2012 05:29 PM, Simon Jeons wrote:
->>>
->>> Thanks for your clarify.
->>>
->>> Enable PAE on x86 32bit kernel, 8G memory, movablecore=6.5G
->>
->> Could you please provide more info ?
->>
->> Such as the whole kernel commondline. And did this happen after
->> you applied these patches ? What is the output without these
->> patches ?
->
-> This result is without the patches, I didn't add more kernel
-> commandline, just movablecore=6.5G, but output as you see is strange, so
-> what happened?
+On Wed, 2012-12-12 at 17:34 +0800, Tang Chen wrote:
+> Hi Simon,
+> 
+> Thanks for reviewing. This logic is aimed at make movablecore_map
+> coexist with kernelcore/movablecore.
+> 
+> Please see below. :)
 
-Hi Simon,
+Hi Chen,
 
-For now, I'm not quite sure what happened. Could you please provide the
-output without the movablecore=6.5G option ?
+Thanks for your detail explanation. The logic looks reasonable to me. Bu
+t how you guarantee the below changlog in your patchset.
+1) If the range is involved in a single node, then from ss to the end of
+the node will be ZONE_MOVABLE.
+2) If the range covers two or more nodes, then from ss to the end of the
+node will be ZONE_MOVABLE, and all the other nodes will only have
+ZONE_MOVABLE.
 
-Seeing from your output, your totalpages=2051391, which is about 8G. But
-the memory mapped for your node 0 is obviously not enough.
+> 
+> On 12/12/2012 09:33 AM, Simon Jeons wrote:
+> >> @@ -4839,9 +4839,17 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+> >>   		required_kernelcore = max(required_kernelcore, corepages);
+> >>   	}
+> >>
+> >> -	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+> >> -	if (!required_kernelcore)
+> >> +	/*
+> >> +	 * If neither kernelcore/movablecore nor movablecore_map is specified,
+> >> +	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
+> >> +	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
+> >> +	 */
+> >> +	if (!required_kernelcore) {
+> >> +		if (movablecore_map.nr_map)
+> >> +			memcpy(zone_movable_pfn, zone_movable_limit,
+> >> +				sizeof(zone_movable_pfn));
+> 
+> If users didn't specified kernelcore option, then zone_movable_pfn[]
+> and zone_movable_limit[] are all the same. We skip the logic.
+> 
+> >>   		goto out;
+> >> +	}
+> >>
+> >>   	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+> >>   	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+> >> @@ -4871,10 +4879,24 @@ restart:
+> >>   		for_each_mem_pfn_range(i, nid,&start_pfn,&end_pfn, NULL) {
+> >>   			unsigned long size_pages;
+> >>
+> >> +			/*
+> >> +			 * Find more memory for kernelcore in
+> >> +			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
+> >> +			 */
+> >>   			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
+> >>   			if (start_pfn>= end_pfn)
+> >>   				continue;
+> >>
+> >
+> > Hi Chen,
+> >
+> >> +			if (zone_movable_limit[nid]) {
+> 
+> If users didn't give any limitation of ZONE_MOVABLE on node i, we could
+> skip the logic too.
+> 
+> >> +				end_pfn = min(end_pfn, zone_movable_limit[nid]);
+> 
+> In order to reuse the original kernelcore/movablecore logic, we keep
+> end_pfn <= zone_movable_limit[nid]. We device [start_pfn, end_pfn) into
+> two parts:
+> [start_pfn, zone_movable_limit[nid])
+> and
+> [zone_movable_limit[nid], end_pfn).
+> 
+> We just remove the second part, and go on to the original logic.
+> 
+> >> +				/* No range left for kernelcore in this node */
+> >> +				if (start_pfn>= end_pfn) {
+> 
+> Since we re-evaluated end_pfn, if we have crossed the limitation, we
+> should stop.
+> 
+> >> +					zone_movable_pfn[nid] =
+> >> +							zone_movable_limit[nid];
+> 
+> Here, we found the real limitation. That means, the lowest pfn of
+> ZONE_MOVABLE is either zone_movable_limit[nid] or the value the original
+> logic calculates out, which is below zone_movable_limit[nid].
+> 
+> >> +					break;
+> 
+> Then we break and go on to the next node.
+> 
+> >> +				}
+> >> +			}
+> >> +
+> >
+> > Could you explain this part of codes? hard to understand.
+> >
+> >>   			/* Account for what is only usable for kernelcore */
+> >>   			if (start_pfn<  usable_startpfn) {
+> >>   				unsigned long kernel_pages;
+> >> @@ -4934,12 +4956,12 @@ restart:
+> >>   	if (usable_nodes&&  required_kernelcore>  usable_nodes)
+> >>   		goto restart;
+> >>
+> >> +out:
+> >>   	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+> >>   	for (nid = 0; nid<  MAX_NUMNODES; nid++)
+> >>   		zone_movable_pfn[nid] =
+> >>   			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+> >>
+> >> -out:
+> >>   	/* restore the node_state */
+> >>   	node_states[N_HIGH_MEMORY] = saved_node_state;
+> >>   }
+> >
+> >
+> >
+> 
 
-When we have high memory, ZONE_MOVABLE is taken from ZONE_HIGH. So the
-first line, 8304MB HIGHMEM available is also strange.
-
-So I think we need more info to find out the problem. :)
-
-Thank. :)
-
->
->>
->> Thanks. :)
->>
->>>>
->>>> [    0.000000] 8304MB HIGHMEM available.
->>>> [    0.000000] 885MB LOWMEM available.
->>>> [    0.000000]   mapped low ram: 0 - 375fe000
->>>> [    0.000000]   low ram: 0 - 375fe000
->>>> [    0.000000] Zone ranges:
->>>> [    0.000000]   DMA      [mem 0x00010000-0x00ffffff]
->>>> [    0.000000]   Normal   [mem 0x01000000-0x375fdfff]
->>>> [    0.000000]   HighMem  [mem 0x375fe000-0x3e5fffff]
->>>> [    0.000000] Movable zone start for each node
->>>> [    0.000000] Early memory node ranges
->>>> [    0.000000]   node   0: [mem 0x00010000-0x0009cfff]
->>>> [    0.000000]   node   0: [mem 0x00100000-0x1fffffff]
->>>> [    0.000000]   node   0: [mem 0x20200000-0x3fffffff]
->>>> [    0.000000]   node   0: [mem 0x40200000-0xb69cbfff]
->>>> [    0.000000]   node   0: [mem 0xb6a46000-0xb6a47fff]
->>>> [    0.000000]   node   0: [mem 0xb6b1c000-0xb6cfffff]
->>>> [    0.000000]   node   0: [mem 0x00000000-0x3e5fffff]
->>>> [    0.000000] On node 0 totalpages: 2051391
->>>> [    0.000000] free_area_init_node: node 0, pgdat c0c26a80,
->>>> node_mem_map
->>>> f19de200
->>>> [    0.000000]   DMA zone: 32 pages used for memmap
->>>> [    0.000000]   DMA zone: 0 pages reserved
->>>> [    0.000000]   DMA zone: 3949 pages, LIFO batch:0
->>>> [    0.000000]   Normal zone: 1740 pages used for memmap
->>>> [    0.000000]   Normal zone: 220466 pages, LIFO batch:31
->>>> [    0.000000]   HighMem zone: 16609 pages used for memmap
->>>> [    0.000000]   HighMem zone: 1808595 pages, LIFO batch:31
->>>
->>> Why zone movable disappear?
->>>
->>>
->>>
->>>
->>
->
->
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
