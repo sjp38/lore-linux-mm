@@ -1,312 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id CB89F6B006C
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 17:00:56 -0500 (EST)
-Message-Id: <0000013b9648d9d2-d4e9b7b0-d7d3-47ed-aca0-6397e1f8d98a-000000@email.amazonses.com>
-Date: Thu, 13 Dec 2012 22:00:55 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Ren [03/12] Common kmalloc slab index determination
-References: <20121213211413.134419945@linux.com>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id 5DF0E6B002B
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 17:25:53 -0500 (EST)
+From: Satoru Moriya <satoru.moriya@hds.com>
+Subject: RE: [patch 2/8] mm: vmscan: disregard swappiness shortly before
+ going OOM
+Date: Thu, 13 Dec 2012 22:25:43 +0000
+Message-ID: <8631DC5930FA9E468F04F3FD3A5D007214AD2FA2@USINDEM103.corp.hds.com>
+References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
+ <20121213103420.GW1009@suse.de> <20121213152959.GE21644@dhcp22.suse.cz>
+ <20121213160521.GG21644@dhcp22.suse.cz>
+In-Reply-To: <20121213160521.GG21644@dhcp22.suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Extract the function to determine the index of the slab within
-the array of kmalloc caches as well as a function to determine
-maximum object size from the nr of the kmalloc slab.
 
-This is used here only to simplify slub bootstrap but will
-be used later also for SLAB.
+On 12/13/2012 11:05 AM, Michal Hocko wrote:> On Thu 13-12-12 16:29:59, Mich=
+al Hocko wrote:
+>> On Thu 13-12-12 10:34:20, Mel Gorman wrote:
+>>> On Wed, Dec 12, 2012 at 04:43:34PM -0500, Johannes Weiner wrote:
+>>>> When a reclaim scanner is doing its final scan before giving up and=20
+>>>> there is swap space available, pay no attention to swappiness=20
+>>>> preference anymore.  Just swap.
+>>>>
+>>>> Note that this change won't make too big of a difference for=20
+>>>> general
+>>>> reclaim: anonymous pages are already force-scanned when there is=20
+>>>> only very little file cache left, and there very likely isn't when=20
+>>>> the reclaimer enters this final cycle.
+>>>>
+>>>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>>>
+>>> Ok, I see the motivation for your patch but is the block inside=20
+>>> still wrong for what you want? After your patch the block looks like=20
+>>> this
+>>>
+>>>                 if (sc->priority || noswap) {
+>>>                         scan >>=3D sc->priority;
+>>>                         if (!scan && force_scan)
+>>>                                 scan =3D SWAP_CLUSTER_MAX;
+>>>                         scan =3D div64_u64(scan * fraction[file], denom=
+inator);
+>>>                 }
+>>>
+>>> if sc->priority =3D=3D 0 and swappiness=3D=3D0 then you enter this bloc=
+k but=20
+>>> fraction[0] for anonymous pages will also be 0 and because of the=20
+>>> ordering of statements there, scan will be
+>>>
+>>> scan =3D scan * 0 / denominator
+>>>
+>>> so you are still not reclaiming anonymous pages in the swappiness=3D0=20
+>>> case. What did I miss?
+>>
+>> Yes, now that you have mentioned that I realized that it really=20
+>> doesn't make any sense. fraction[0] is _always_ 0 for swappiness=3D=3D0.=
+=20
+>> So we just made a bigger pressure on file LRUs. So this sounds like a=20
+>> misuse of the swappiness. This all has been introduced with fe35004f=20
+>> (mm: avoid swapping out with swappiness=3D=3D0).
+>>
+>> I think that removing swappiness check make sense but I am not sure=20
+>> it does what the changelog says. It should have said that checking=20
+>> swappiness doesn't make any sense for small LRUs.
+>
+> Bahh, wait a moment. Now I remember why the check made sense=20
+> especially for memcg.
+> It made "don't swap _at all_ for swappiness=3D=3D0" for real - you are=20
+> even willing to sacrifice OOM. Maybe this is OK for the global case=20
+> because noswap would safe you here (assuming that there is no swap if=20
+> somebody doesn't want to swap at all and swappiness doesn't play such=20
+> a big role) but for memcg you really might want to prevent from=20
+> swapping - not everybody has memcg swap extension enabled and swappiness =
+is handy then.
+> So I am not sure this is actually what we want. Need to think about it.
 
-Signed-off-by: Christoph Lameter <cl@linux.com> 
+I introduced swappiness check here with fe35004f because, in some
+cases, we prefer OOM to swap out pages to detect problems as soon
+as possible. Basically, we design the system not to swap out and
+so if it causes swapping, something goes wrong.
 
-Index: linux/include/linux/slab.h
-===================================================================
---- linux.orig/include/linux/slab.h	2012-11-01 10:10:24.838044511 -0500
-+++ linux/include/linux/slab.h	2012-11-01 10:10:27.774093173 -0500
-@@ -93,30 +93,6 @@
- 				(unsigned long)ZERO_SIZE_PTR)
- 
- /*
-- * Common fields provided in kmem_cache by all slab allocators
-- * This struct is either used directly by the allocator (SLOB)
-- * or the allocator must include definitions for all fields
-- * provided in kmem_cache_common in their definition of kmem_cache.
-- *
-- * Once we can do anonymous structs (C11 standard) we could put a
-- * anonymous struct definition in these allocators so that the
-- * separate allocations in the kmem_cache structure of SLAB and
-- * SLUB is no longer needed.
-- */
--#ifdef CONFIG_SLOB
--struct kmem_cache {
--	unsigned int object_size;/* The original size of the object */
--	unsigned int size;	/* The aligned/padded/added on size  */
--	unsigned int align;	/* Alignment as calculated */
--	unsigned long flags;	/* Active flags on the slab */
--	const char *name;	/* Slab name for sysfs */
--	int refcount;		/* Use counter */
--	void (*ctor)(void *);	/* Called on object slot creation */
--	struct list_head list;	/* List of all slab caches on the system */
--};
--#endif
--
--/*
-  * struct kmem_cache related prototypes
-  */
- void __init kmem_cache_init(void);
-@@ -150,6 +126,35 @@ void kfree(const void *);
- void kzfree(const void *);
- size_t ksize(const void *);
- 
-+#ifdef CONFIG_SLOB
-+/*
-+ * Common fields provided in kmem_cache by all slab allocators
-+ * This struct is either used directly by the allocator (SLOB)
-+ * or the allocator must include definitions for all fields
-+ * provided in kmem_cache_common in their definition of kmem_cache.
-+ *
-+ * Once we can do anonymous structs (C11 standard) we could put a
-+ * anonymous struct definition in these allocators so that the
-+ * separate allocations in the kmem_cache structure of SLAB and
-+ * SLUB is no longer needed.
-+ */
-+struct kmem_cache {
-+	unsigned int object_size;/* The original size of the object */
-+	unsigned int size;	/* The aligned/padded/added on size  */
-+	unsigned int align;	/* Alignment as calculated */
-+	unsigned long flags;	/* Active flags on the slab */
-+	const char *name;	/* Slab name for sysfs */
-+	int refcount;		/* Use counter */
-+	void (*ctor)(void *);	/* Called on object slot creation */
-+	struct list_head list;	/* List of all slab caches on the system */
-+};
-+
-+#define KMALLOC_MAX_SIZE (1UL << 30)
-+
-+#include <linux/slob_def.h>
-+
-+#else /* CONFIG_SLOB */
-+
- /*
-  * The largest kmalloc size supported by the slab allocators is
-  * 32 megabyte (2^25) or the maximum allocatable page order if that is
-@@ -166,6 +171,99 @@ size_t ksize(const void *);
- #define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
- 
- /*
-+ * Kmalloc subsystem.
-+ */
-+#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
-+#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
-+#else
-+#ifdef CONFIG_SLAB
-+#define KMALLOC_MIN_SIZE 32
-+#else
-+#define KMALLOC_MIN_SIZE 8
-+#endif
-+#endif
-+
-+#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
-+
-+/*
-+ * Figure out which kmalloc slab an allocation of a certain size
-+ * belongs to.
-+ * 0 = zero alloc
-+ * 1 =  65 .. 96 bytes
-+ * 2 = 120 .. 192 bytes
-+ * n = 2^(n-1) .. 2^n -1
-+ */
-+static __always_inline int kmalloc_index(size_t size)
-+{
-+	if (!size)
-+		return 0;
-+
-+	if (size <= KMALLOC_MIN_SIZE)
-+		return KMALLOC_SHIFT_LOW;
-+
-+	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
-+		return 1;
-+	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
-+		return 2;
-+	if (size <=          8) return 3;
-+	if (size <=         16) return 4;
-+	if (size <=         32) return 5;
-+	if (size <=         64) return 6;
-+	if (size <=        128) return 7;
-+	if (size <=        256) return 8;
-+	if (size <=        512) return 9;
-+	if (size <=       1024) return 10;
-+	if (size <=   2 * 1024) return 11;
-+	if (size <=   4 * 1024) return 12;
-+	if (size <=   8 * 1024) return 13;
-+	if (size <=  16 * 1024) return 14;
-+	if (size <=  32 * 1024) return 15;
-+	if (size <=  64 * 1024) return 16;
-+	if (size <= 128 * 1024) return 17;
-+	if (size <= 256 * 1024) return 18;
-+	if (size <= 512 * 1024) return 19;
-+	if (size <= 1024 * 1024) return 20;
-+	if (size <=  2 * 1024 * 1024) return 21;
-+	if (size <=  4 * 1024 * 1024) return 22;
-+	if (size <=  8 * 1024 * 1024) return 23;
-+	if (size <=  16 * 1024 * 1024) return 24;
-+	if (size <=  32 * 1024 * 1024) return 25;
-+	if (size <=  64 * 1024 * 1024) return 26;
-+	BUG();
-+
-+	/* Will never be reached. Needed because the compiler may complain */
-+	return -1;
-+}
-+
-+#ifdef CONFIG_SLAB
-+#include <linux/slab_def.h>
-+#elif defined(CONFIG_SLUB)
-+#include <linux/slub_def.h>
-+#else
-+#error "Unknown slab allocator"
-+#endif
-+
-+/*
-+ * Determine size used for the nth kmalloc cache.
-+ * return size or 0 if a kmalloc cache for that
-+ * size does not exist
-+ */
-+static __always_inline int kmalloc_size(int n)
-+{
-+	if (n > 2)
-+		return 1 << n;
-+
-+	if (n == 1 && KMALLOC_MIN_SIZE <= 32)
-+		return 96;
-+
-+	if (n == 2 && KMALLOC_MIN_SIZE <= 64)
-+		return 192;
-+
-+	return 0;
-+}
-+#endif /* !CONFIG_SLOB */
-+
-+/*
-  * Some archs want to perform DMA into kmalloc caches and need a guaranteed
-  * alignment larger than the alignment of a 64-bit integer.
-  * Setting ARCH_KMALLOC_MINALIGN in arch headers allows that.
-@@ -185,33 +283,6 @@ size_t ksize(const void *);
- #define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
- #endif
- 
--/*
-- * Allocator specific definitions. These are mainly used to establish optimized
-- * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
-- * selecting the appropriate general cache at compile time.
-- *
-- * Allocators must define at least:
-- *
-- *	kmem_cache_alloc()
-- *	__kmalloc()
-- *	kmalloc()
-- *
-- * Those wishing to support NUMA must also define:
-- *
-- *	kmem_cache_alloc_node()
-- *	kmalloc_node()
-- *
-- * See each allocator definition file for additional comments and
-- * implementation notes.
-- */
--#ifdef CONFIG_SLUB
--#include <linux/slub_def.h>
--#elif defined(CONFIG_SLOB)
--#include <linux/slob_def.h>
--#else
--#include <linux/slab_def.h>
--#endif
--
- /**
-  * kmalloc_array - allocate memory for an array.
-  * @n: number of elements.
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h	2012-11-01 10:09:46.681411435 -0500
-+++ linux/include/linux/slub_def.h	2012-11-01 10:10:27.778093241 -0500
-@@ -112,17 +112,6 @@ struct kmem_cache {
- };
- 
- /*
-- * Kmalloc subsystem.
-- */
--#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
--#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
--#else
--#define KMALLOC_MIN_SIZE 8
--#endif
--
--#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
--
--/*
-  * Maximum kmalloc object size handled by SLUB. Larger object allocations
-  * are passed through to the page allocator. The page allocator "fastpath"
-  * is relatively slow so we need this value sufficiently high so that
-@@ -149,58 +138,6 @@ struct kmem_cache {
- extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
- 
- /*
-- * Sorry that the following has to be that ugly but some versions of GCC
-- * have trouble with constant propagation and loops.
-- */
--static __always_inline int kmalloc_index(size_t size)
--{
--	if (!size)
--		return 0;
--
--	if (size <= KMALLOC_MIN_SIZE)
--		return KMALLOC_SHIFT_LOW;
--
--	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
--		return 1;
--	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
--		return 2;
--	if (size <=          8) return 3;
--	if (size <=         16) return 4;
--	if (size <=         32) return 5;
--	if (size <=         64) return 6;
--	if (size <=        128) return 7;
--	if (size <=        256) return 8;
--	if (size <=        512) return 9;
--	if (size <=       1024) return 10;
--	if (size <=   2 * 1024) return 11;
--	if (size <=   4 * 1024) return 12;
--/*
-- * The following is only needed to support architectures with a larger page
-- * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
-- * size we would have to go up to 128k.
-- */
--	if (size <=   8 * 1024) return 13;
--	if (size <=  16 * 1024) return 14;
--	if (size <=  32 * 1024) return 15;
--	if (size <=  64 * 1024) return 16;
--	if (size <= 128 * 1024) return 17;
--	if (size <= 256 * 1024) return 18;
--	if (size <= 512 * 1024) return 19;
--	if (size <= 1024 * 1024) return 20;
--	if (size <=  2 * 1024 * 1024) return 21;
--	BUG();
--	return -1; /* Will never be reached */
--
--/*
-- * What we really wanted to do and cannot do because of compiler issues is:
-- *	int i;
-- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
-- *		if (size <= (1 << i))
-- *			return i;
-- */
--}
--
--/*
-  * Find the slab cache for a given combination of allocation flags and size.
-  *
-  * This ought to end up with a global pointer to the right cache
+Regards,
+Satoru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
