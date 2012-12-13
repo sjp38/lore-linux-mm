@@ -1,86 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 912906B0075
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 08:52:34 -0500 (EST)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 13 Dec 2012 08:52:33 -0500
-Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 595E16E803C
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 08:52:29 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBDDqIDN45613132
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 08:52:18 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBDDqGJX017099
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 08:52:17 -0500
-Date: Thu, 13 Dec 2012 18:51:48 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 00/49] Automatic NUMA Balancing v10
-Message-ID: <20121213132148.GD29086@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3E6376B0078
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 08:57:21 -0500 (EST)
+Date: Thu, 13 Dec 2012 14:56:56 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 UPDATE] mm/hugetlb: create hugetlb cgroup file in
+ hugetlb_init
+Message-ID: <20121213135656.GB27775@dhcp22.suse.cz>
+References: <50C94DE5.2040302@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <50C94DE5.2040302@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, tj@kernel.org, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com, Liujiang <jiang.liu@huawei.com>, Jiang Liu <liuj97@gmail.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
 
-* Mel Gorman <mgorman@suse.de> [2012-12-07 10:23:03]:
-
-> This is a full release of all the patches so apologies for the flood.  V9 was
-> just a MIPS build fix and did not justify a full release. V10 includes Ingo's
-> scalability patches because even though they increase system CPU usage,
-> they also helped in a number of test cases. It would be worthwhile trying
-> to reduce the system CPU usage by looking closer at how rwsem works and
-> dealing with the contended case a bit better. Otherwise the rate of change
-> in the last few weeks has been tiny as the preliminary objectives had been
-> met and I did not want to invalidate any testing other people had conducted.
+On Thu 13-12-12 11:39:17, Jianguo Wu wrote:
+> Build kernel with CONFIG_HUGETLBFS=y,CONFIG_HUGETLB_PAGE=y
+> and CONFIG_CGROUP_HUGETLB=y, then specify hugepagesz=xx boot option,
+> system will boot fail.
 > 
-> git tree: git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git mm-balancenuma-v10r3
-> git tag:  git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git mm-balancenuma-v10
+> This failure is caused by following code path:
+> setup_hugepagesz
+> 	hugetlb_add_hstate
+> 		hugetlb_cgroup_file_init
+> 			cgroup_add_cftypes
+> 				kzalloc <--slab is *not available* yet
+> 
+> For this path, slab is not available yet, so memory allocated will be
+> failed, and cause WARN_ON() in hugetlb_cgroup_file_init().
+> 
+> So I move hugetlb_cgroup_file_init() into hugetlb_init().
+> 
+> Changelog:
+>   do code refactor as suggesting by Aneesh
+>   add Reviewed-by and Acked-by 
+> 
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Here are the specjbb results on a 2 node 24 GB machine.
-vm_1 was allocated 12 GB, while vm_2 and vm_3 were allocated 6 GB each
-All vms were running specjbb2005 workload
-
-All numbers presented are improvements/regression from v3.7-rc8
-
-----------------------------------------------------------------------------------------------
-|                      |     |                          nofit|                            fit|
-----------------------------------------------------------------------------------------------
-|                      |     |          noksm|            ksm|          noksm|            ksm|
-----------------------------------------------------------------------------------------------
-|                      |     |  nothp|    thp|  nothp|    thp|  nothp|    thp|  nothp|    thp|
-----------------------------------------------------------------------------------------------
-| autonuma-mels-rebase | vm_1|   2.48|  14.25|   1.80|  15.59|   8.16|  14.62|   8.56|  17.49|
-| autonuma-mels-rebase | vm_2|  23.59|  18.67|  14.20|  23.25|  10.73|  13.18|  17.94|  21.72|
-| autonuma-mels-rebase | vm_3|  16.19|  19.40|  14.42|  22.54|  11.08|  12.04|   9.79|  20.34|
-----------------------------------------------------------------------------------------------
-| mel-balancenuma v10r3| vm_1|   0.10|   1.49|   1.78|   4.00|  -1.01|  -1.16|  -1.02|  -0.60|
-| mel-balancenuma v10r3| vm_2|   3.45|  -0.67|  -1.54|   2.65|  -2.83|  -7.10|   0.10|  -2.41|
-| mel-balancenuma v10r3| vm_3|   0.56|   5.49|  -0.63|   0.09|  -7.41|  -4.52|  -0.77|  -1.80|
-----------------------------------------------------------------------------------------------
-| tip-master 11-dec    | vm_1|  -5.68|  12.34|  35.96|  13.33|  10.79|  15.22|   9.65|  12.80|
-| tip-master 11-dec    | vm_2|  14.70|  15.54|  77.45|  15.10|  12.82|  11.20|  12.66|  na   |
-| tip-master 11-dec    | vm_3|   6.66|  19.26|  na   |  14.93|   7.62|  14.72|  14.73|  12.34|
-----------------------------------------------------------------------------------------------
-
-
-there are couple na's .. In those case, the testlog for some wierd
-reason didnt have any data. this somehow seems to happen with tip/master
-kernel only. May be its just coincidence.
-
+Any reason to not add Cc: stable as I suggested earlier?
 -- 
-Thanks and Regards
-Srikar
-
-PS: benchmark was run under non-standard conditions run only for the
-purpose of relative comparision of different kernels.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
