@@ -1,238 +1,483 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id D77A86B006C
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 16:26:17 -0500 (EST)
-Message-Id: <0000013b96291ecc-16e3ac4e-3c62-4cb0-a831-4cd7d1cf9c3f-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 2BA076B0070
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 16:26:18 -0500 (EST)
+Message-Id: <0000013b96291eb4-02a02e91-61dd-4274-8632-594cb71bf9af-000000@email.amazonses.com>
 Date: Thu, 13 Dec 2012 21:26:15 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Ren [07/12] Common constants for kmalloc boundaries
+Subject: Ren [11/12] Common Kmalloc cache determination
 References: <20121213211413.134419945@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-Standardize the constants that describe the smallest and largest
-object kept in the kmalloc arrays for SLAB and SLUB.
+Extract the optimized lookup functions from slub and put them into
+slab_common.c. Then make slab use these functions as well.
 
-Differentiate between the maximum size for which a slab cache is used
-(KMALLOC_MAX_CACHE_SIZE) and the maximum allocatable size
-(KMALLOC_MAX_SIZE, KMALLOC_MAX_ORDER).
+Joonsoo notes that this fixes some issues with constant folding which
+also reduces the code size for slub. 
+
+https://lkml.org/lkml/2012/10/20/82
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/include/linux/slab.h
+Index: linux/mm/slab.c
 ===================================================================
---- linux.orig/include/linux/slab.h	2012-11-05 09:26:05.724871189 -0600
-+++ linux/include/linux/slab.h	2012-11-05 09:27:55.028851371 -0600
-@@ -156,7 +156,12 @@ struct kmem_cache {
- #else /* CONFIG_SLOB */
+--- linux.orig/mm/slab.c	2012-11-28 09:19:02.083297376 -0600
++++ linux/mm/slab.c	2012-11-28 09:19:09.507337163 -0600
+@@ -629,40 +629,6 @@ static inline struct array_cache *cpu_ca
+ 	return cachep->array[smp_processor_id()];
+ }
  
- /*
-- * The largest kmalloc size supported by the slab allocators is
-+ * Kmalloc array related definitions
-+ */
-+
-+#ifdef CONFIG_SLAB
-+/*
-+ * The largest kmalloc size supported by the SLAB allocators is
-  * 32 megabyte (2^25) or the maximum allocatable page order if that is
-  * less than 32 MB.
-  *
-@@ -166,9 +171,24 @@ struct kmem_cache {
-  */
- #define KMALLOC_SHIFT_HIGH	((MAX_ORDER + PAGE_SHIFT - 1) <= 25 ? \
- 				(MAX_ORDER + PAGE_SHIFT - 1) : 25)
-+#define KMALLOC_SHIFT_MAX	KMALLOC_SHIFT_HIGH
-+#define KMALLOC_SHIFT_LOW	5
-+#else
-+/*
-+ * SLUB allocates up to order 2 pages directly and otherwise
-+ * passes the request to the page allocator.
-+ */
-+#define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
-+#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
-+#define KMALLOC_SHIFT_LOW	3
-+#endif
- 
--#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
--#define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_HIGH - PAGE_SHIFT)
-+/* Maximum allocatable size */
-+#define KMALLOC_MAX_SIZE	(1UL << KMALLOC_SHIFT_MAX)
-+/* Maximum size for which we actually use a slab cache */
-+#define KMALLOC_MAX_CACHE_SIZE	(1UL << KMALLOC_SHIFT_HIGH)
-+/* Maximum order allocatable via the slab allocagtor */
-+#define KMALLOC_MAX_ORDER	(KMALLOC_SHIFT_MAX - PAGE_SHIFT)
- 
- /*
-  * Kmalloc subsystem.
-@@ -176,15 +196,9 @@ struct kmem_cache {
- #if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
- #define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
- #else
--#ifdef CONFIG_SLAB
--#define KMALLOC_MIN_SIZE 32
--#else
--#define KMALLOC_MIN_SIZE 8
+-static inline struct kmem_cache *__find_general_cachep(size_t size,
+-							gfp_t gfpflags)
+-{
+-	int i;
+-
+-#if DEBUG
+-	/* This happens if someone tries to call
+-	 * kmem_cache_create(), or __kmalloc(), before
+-	 * the generic caches are initialized.
+-	 */
+-	BUG_ON(kmalloc_caches[INDEX_AC] == NULL);
 -#endif
-+#define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
+-	if (!size)
+-		return ZERO_SIZE_PTR;
+-
+-	i = kmalloc_index(size);
+-
+-	/*
+-	 * Really subtle: The last entry with cs->cs_size==ULONG_MAX
+-	 * has cs_{dma,}cachep==NULL. Thus no special case
+-	 * for large kmalloc calls required.
+-	 */
+-#ifdef CONFIG_ZONE_DMA
+-	if (unlikely(gfpflags & GFP_DMA))
+-		return kmalloc_dma_caches[i];
+-#endif
+-	return kmalloc_caches[i];
+-}
+-
+-static struct kmem_cache *kmem_find_general_cachep(size_t size, gfp_t gfpflags)
+-{
+-	return __find_general_cachep(size, gfpflags);
+-}
+-
+ static size_t slab_mgmt_size(size_t nr_objs, size_t align)
+ {
+ 	return ALIGN(sizeof(struct slab)+nr_objs*sizeof(kmem_bufctl_t), align);
+@@ -2393,7 +2359,7 @@ __kmem_cache_create (struct kmem_cache *
+ 	cachep->reciprocal_buffer_size = reciprocal_value(size);
+ 
+ 	if (flags & CFLGS_OFF_SLAB) {
+-		cachep->slabp_cache = kmem_find_general_cachep(slab_size, 0u);
++		cachep->slabp_cache = kmalloc_slab(slab_size, 0u);
+ 		/*
+ 		 * This is a possibility for one of the malloc_sizes caches.
+ 		 * But since we go off slab only for object size greater than
+@@ -3691,7 +3657,7 @@ __do_kmalloc_node(size_t size, gfp_t fla
+ {
+ 	struct kmem_cache *cachep;
+ 
+-	cachep = kmem_find_general_cachep(size, flags);
++	cachep = kmalloc_slab(size, flags);
+ 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+ 		return cachep;
+ 	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
+@@ -3736,7 +3702,7 @@ static __always_inline void *__do_kmallo
+ 	 * Then kmalloc uses the uninlined functions instead of the inline
+ 	 * functions.
+ 	 */
+-	cachep = __find_general_cachep(size, flags);
++	cachep = kmalloc_slab(size, flags);
+ 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+ 		return cachep;
+ 	ret = slab_alloc(cachep, flags, caller);
+Index: linux/mm/slab.h
+===================================================================
+--- linux.orig/mm/slab.h	2012-11-28 09:19:02.083297376 -0600
++++ linux/mm/slab.h	2012-11-28 09:19:09.507337163 -0600
+@@ -38,6 +38,9 @@ unsigned long calculate_alignment(unsign
+ #ifndef CONFIG_SLOB
+ /* Kmalloc array related functions */
+ void create_kmalloc_caches(unsigned long);
++
++/* Find the kmalloc slab corresponding for a certain size */
++struct kmem_cache *kmalloc_slab(size_t, gfp_t);
  #endif
  
--#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
--
+ 
+Index: linux/mm/slab_common.c
+===================================================================
+--- linux.orig/mm/slab_common.c	2012-11-28 09:19:02.083297376 -0600
++++ linux/mm/slab_common.c	2012-11-28 09:19:09.507337163 -0600
+@@ -272,6 +272,68 @@ EXPORT_SYMBOL(kmalloc_dma_caches);
+ #endif
+ 
  /*
-  * Figure out which kmalloc slab an allocation of a certain size
-  * belongs to.
++ * Conversion table for small slabs sizes / 8 to the index in the
++ * kmalloc array. This is necessary for slabs < 192 since we have non power
++ * of two cache sizes there. The size of larger slabs can be determined using
++ * fls.
++ */
++static s8 size_index[24] = {
++	3,	/* 8 */
++	4,	/* 16 */
++	5,	/* 24 */
++	5,	/* 32 */
++	6,	/* 40 */
++	6,	/* 48 */
++	6,	/* 56 */
++	6,	/* 64 */
++	1,	/* 72 */
++	1,	/* 80 */
++	1,	/* 88 */
++	1,	/* 96 */
++	7,	/* 104 */
++	7,	/* 112 */
++	7,	/* 120 */
++	7,	/* 128 */
++	2,	/* 136 */
++	2,	/* 144 */
++	2,	/* 152 */
++	2,	/* 160 */
++	2,	/* 168 */
++	2,	/* 176 */
++	2,	/* 184 */
++	2	/* 192 */
++};
++
++static inline int size_index_elem(size_t bytes)
++{
++	return (bytes - 1) / 8;
++}
++
++/*
++ * Find the kmem_cache structure that serves a given size of
++ * allocation
++ */
++struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
++{
++	int index;
++
++	if (size <= 192) {
++		if (!size)
++			return ZERO_SIZE_PTR;
++
++		index = size_index[size_index_elem(size)];
++	} else
++		index = fls(size - 1);
++
++#ifdef CONFIG_ZONE_DMA
++	if (unlikely((flags & SLAB_CACHE_DMA)))
++		return kmalloc_dma_caches[index];
++
++#endif
++	return kmalloc_caches[index];
++}
++
++/*
+  * Create the kmalloc array. Some of the regular kmalloc arrays
+  * may already have been created because they were needed to
+  * enable allocations for slab creation.
+@@ -280,6 +342,47 @@ void __init create_kmalloc_caches(unsign
+ {
+ 	int i;
+ 
++	/*
++	 * Patch up the size_index table if we have strange large alignment
++	 * requirements for the kmalloc array. This is only the case for
++	 * MIPS it seems. The standard arches will not generate any code here.
++	 *
++	 * Largest permitted alignment is 256 bytes due to the way we
++	 * handle the index determination for the smaller caches.
++	 *
++	 * Make sure that nothing crazy happens if someone starts tinkering
++	 * around with ARCH_KMALLOC_MINALIGN
++	 */
++	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
++		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
++
++	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
++		int elem = size_index_elem(i);
++
++		if (elem >= ARRAY_SIZE(size_index))
++			break;
++		size_index[elem] = KMALLOC_SHIFT_LOW;
++	}
++
++	if (KMALLOC_MIN_SIZE >= 64) {
++		/*
++		 * The 96 byte size cache is not used if the alignment
++		 * is 64 byte.
++		 */
++		for (i = 64 + 8; i <= 96; i += 8)
++			size_index[size_index_elem(i)] = 7;
++
++	}
++
++	if (KMALLOC_MIN_SIZE >= 128) {
++		/*
++		 * The 192 byte sized cache is not used if the alignment
++		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
++		 * instead.
++		 */
++		for (i = 128 + 8; i <= 192; i += 8)
++			size_index[size_index_elem(i)] = 8;
++	}
+ 	/* Caches that are not of the two-to-the-power-of size */
+ 	if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1])
+ 		kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
+@@ -323,8 +426,6 @@ void __init create_kmalloc_caches(unsign
+ 	}
+ #endif
+ }
+-
+-
+ #endif /* !CONFIG_SLOB */
+ 
+ 
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2012-11-28 09:19:02.083297376 -0600
++++ linux/mm/slub.c	2012-11-28 09:19:09.507337163 -0600
+@@ -2983,7 +2983,7 @@ static int calculate_sizes(struct kmem_c
+ 		s->allocflags |= __GFP_COMP;
+ 
+ 	if (s->flags & SLAB_CACHE_DMA)
+-		s->allocflags |= SLUB_DMA;
++		s->allocflags |= GFP_DMA;
+ 
+ 	if (s->flags & SLAB_RECLAIM_ACCOUNT)
+ 		s->allocflags |= __GFP_RECLAIMABLE;
+@@ -3200,64 +3200,6 @@ static int __init setup_slub_nomerge(cha
+ 
+ __setup("slub_nomerge", setup_slub_nomerge);
+ 
+-/*
+- * Conversion table for small slabs sizes / 8 to the index in the
+- * kmalloc array. This is necessary for slabs < 192 since we have non power
+- * of two cache sizes there. The size of larger slabs can be determined using
+- * fls.
+- */
+-static s8 size_index[24] = {
+-	3,	/* 8 */
+-	4,	/* 16 */
+-	5,	/* 24 */
+-	5,	/* 32 */
+-	6,	/* 40 */
+-	6,	/* 48 */
+-	6,	/* 56 */
+-	6,	/* 64 */
+-	1,	/* 72 */
+-	1,	/* 80 */
+-	1,	/* 88 */
+-	1,	/* 96 */
+-	7,	/* 104 */
+-	7,	/* 112 */
+-	7,	/* 120 */
+-	7,	/* 128 */
+-	2,	/* 136 */
+-	2,	/* 144 */
+-	2,	/* 152 */
+-	2,	/* 160 */
+-	2,	/* 168 */
+-	2,	/* 176 */
+-	2,	/* 184 */
+-	2	/* 192 */
+-};
+-
+-static inline int size_index_elem(size_t bytes)
+-{
+-	return (bytes - 1) / 8;
+-}
+-
+-static struct kmem_cache *get_slab(size_t size, gfp_t flags)
+-{
+-	int index;
+-
+-	if (size <= 192) {
+-		if (!size)
+-			return ZERO_SIZE_PTR;
+-
+-		index = size_index[size_index_elem(size)];
+-	} else
+-		index = fls(size - 1);
+-
+-#ifdef CONFIG_ZONE_DMA
+-	if (unlikely((flags & SLUB_DMA)))
+-		return kmalloc_dma_caches[index];
+-
+-#endif
+-	return kmalloc_caches[index];
+-}
+-
+ void *__kmalloc(size_t size, gfp_t flags)
+ {
+ 	struct kmem_cache *s;
+@@ -3266,7 +3208,7 @@ void *__kmalloc(size_t size, gfp_t flags
+ 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
+ 		return kmalloc_large(size, flags);
+ 
+-	s = get_slab(size, flags);
++	s = kmalloc_slab(size, flags);
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+@@ -3309,7 +3251,7 @@ void *__kmalloc_node(size_t size, gfp_t
+ 		return ret;
+ 	}
+ 
+-	s = get_slab(size, flags);
++	s = kmalloc_slab(size, flags);
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+@@ -3622,7 +3564,6 @@ void __init kmem_cache_init(void)
+ {
+ 	static __initdata struct kmem_cache boot_kmem_cache,
+ 		boot_kmem_cache_node;
+-	int i;
+ 
+ 	if (debug_guardpage_minorder())
+ 		slub_max_order = 0;
+@@ -3653,45 +3594,6 @@ void __init kmem_cache_init(void)
+ 	kmem_cache_node = bootstrap(&boot_kmem_cache_node);
+ 
+ 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
+-
+-	/*
+-	 * Patch up the size_index table if we have strange large alignment
+-	 * requirements for the kmalloc array. This is only the case for
+-	 * MIPS it seems. The standard arches will not generate any code here.
+-	 *
+-	 * Largest permitted alignment is 256 bytes due to the way we
+-	 * handle the index determination for the smaller caches.
+-	 *
+-	 * Make sure that nothing crazy happens if someone starts tinkering
+-	 * around with ARCH_KMALLOC_MINALIGN
+-	 */
+-	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 256 ||
+-		(KMALLOC_MIN_SIZE & (KMALLOC_MIN_SIZE - 1)));
+-
+-	for (i = 8; i < KMALLOC_MIN_SIZE; i += 8) {
+-		int elem = size_index_elem(i);
+-		if (elem >= ARRAY_SIZE(size_index))
+-			break;
+-		size_index[elem] = KMALLOC_SHIFT_LOW;
+-	}
+-
+-	if (KMALLOC_MIN_SIZE == 64) {
+-		/*
+-		 * The 96 byte size cache is not used if the alignment
+-		 * is 64 byte.
+-		 */
+-		for (i = 64 + 8; i <= 96; i += 8)
+-			size_index[size_index_elem(i)] = 7;
+-	} else if (KMALLOC_MIN_SIZE == 128) {
+-		/*
+-		 * The 192 byte sized cache is not used if the alignment
+-		 * is 128 byte. Redirect kmalloc to use the 256 byte cache
+-		 * instead.
+-		 */
+-		for (i = 128 + 8; i <= 192; i += 8)
+-			size_index[size_index_elem(i)] = 8;
+-	}
+-
+ 	create_kmalloc_caches(0);
+ 
+ #ifdef CONFIG_SMP
+@@ -3862,7 +3764,7 @@ void *__kmalloc_track_caller(size_t size
+ 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
+ 		return kmalloc_large(size, gfpflags);
+ 
+-	s = get_slab(size, gfpflags);
++	s = kmalloc_slab(size, gfpflags);
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
+@@ -3892,7 +3794,7 @@ void *__kmalloc_node_track_caller(size_t
+ 		return ret;
+ 	}
+ 
+-	s = get_slab(size, gfpflags);
++	s = kmalloc_slab(size, gfpflags);
+ 
+ 	if (unlikely(ZERO_OR_NULL_PTR(s)))
+ 		return s;
 Index: linux/include/linux/slub_def.h
 ===================================================================
---- linux.orig/include/linux/slub_def.h	2012-11-05 09:26:05.724871189 -0600
-+++ linux/include/linux/slub_def.h	2012-11-05 09:27:55.028851371 -0600
-@@ -111,19 +111,6 @@ struct kmem_cache {
+--- linux.orig/include/linux/slub_def.h	2012-11-28 09:19:00.491288853 -0600
++++ linux/include/linux/slub_def.h	2012-11-28 09:19:09.507337163 -0600
+@@ -111,29 +111,6 @@ struct kmem_cache {
  	struct kmem_cache_node *node[MAX_NUMNODES];
  };
  
+-#ifdef CONFIG_ZONE_DMA
+-#define SLUB_DMA __GFP_DMA
+-#else
+-/* Disable DMA functionality */
+-#define SLUB_DMA (__force gfp_t)0
+-#endif
+-
 -/*
-- * Maximum kmalloc object size handled by SLUB. Larger object allocations
-- * are passed through to the page allocator. The page allocator "fastpath"
-- * is relatively slow so we need this value sufficiently high so that
-- * performance critical objects are allocated through the SLUB fastpath.
+- * Find the slab cache for a given combination of allocation flags and size.
 - *
-- * This should be dropped to PAGE_SIZE / 2 once the page allocator
-- * "fastpath" becomes competitive with the slab allocator fastpaths.
+- * This ought to end up with a global pointer to the right cache
+- * in kmalloc_caches.
 - */
--#define SLUB_MAX_SIZE (2 * PAGE_SIZE)
+-static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
+-{
+-	int index = kmalloc_index(size);
 -
--#define SLUB_PAGE_SHIFT (PAGE_SHIFT + 2)
+-	if (index == 0)
+-		return NULL;
 -
- #ifdef CONFIG_ZONE_DMA
- #define SLUB_DMA __GFP_DMA
- #else
-@@ -135,7 +122,7 @@ struct kmem_cache {
-  * We keep the general caches in an array of slab caches that are used for
-  * 2^x bytes of allocations.
-  */
--extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
-+extern struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
+-	return kmalloc_caches[index];
+-}
+-
+ void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
+ void *__kmalloc(size_t size, gfp_t flags);
  
- /*
-  * Find the slab cache for a given combination of allocation flags and size.
-@@ -204,7 +191,7 @@ static __always_inline void *kmalloc_lar
- static __always_inline void *kmalloc(size_t size, gfp_t flags)
- {
- 	if (__builtin_constant_p(size)) {
--		if (size > SLUB_MAX_SIZE)
-+		if (size > KMALLOC_MAX_CACHE_SIZE)
+@@ -188,13 +165,14 @@ static __always_inline void *kmalloc(siz
+ 		if (size > KMALLOC_MAX_CACHE_SIZE)
  			return kmalloc_large(size, flags);
  
- 		if (!(flags & SLUB_DMA)) {
-@@ -240,7 +227,7 @@ kmem_cache_alloc_node_trace(struct kmem_
+-		if (!(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++		if (!(flags & GFP_DMA)) {
++			int index = kmalloc_index(size);
+ 
+-			if (!s)
++			if (!index)
+ 				return ZERO_SIZE_PTR;
+ 
+-			return kmem_cache_alloc_trace(s, flags, size);
++			return kmem_cache_alloc_trace(kmalloc_caches[index],
++					flags, size);
+ 		}
+ 	}
+ 	return __kmalloc(size, flags);
+@@ -221,13 +199,14 @@ kmem_cache_alloc_node_trace(struct kmem_
  static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
  {
  	if (__builtin_constant_p(size) &&
--		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
-+		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & SLUB_DMA)) {
- 			struct kmem_cache *s = kmalloc_slab(size);
+-		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & SLUB_DMA)) {
+-			struct kmem_cache *s = kmalloc_slab(size);
++		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & GFP_DMA)) {
++		int index = kmalloc_index(size);
  
- 		if (!s)
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2012-11-05 09:26:05.700871190 -0600
-+++ linux/mm/slub.c	2012-11-05 09:27:55.028851371 -0600
-@@ -2776,7 +2776,7 @@ init_kmem_cache_node(struct kmem_cache_n
- static inline int alloc_kmem_cache_cpus(struct kmem_cache *s)
- {
- 	BUILD_BUG_ON(PERCPU_DYNAMIC_EARLY_SIZE <
--			SLUB_PAGE_SHIFT * sizeof(struct kmem_cache_cpu));
-+			KMALLOC_SHIFT_HIGH * sizeof(struct kmem_cache_cpu));
+-		if (!s)
++		if (!index)
+ 			return ZERO_SIZE_PTR;
  
- 	/*
- 	 * Must align to double word boundary for the double cmpxchg
-@@ -3164,11 +3164,11 @@ int __kmem_cache_shutdown(struct kmem_ca
-  *		Kmalloc subsystem
-  *******************************************************************/
- 
--struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
-+struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
- EXPORT_SYMBOL(kmalloc_caches);
- 
- #ifdef CONFIG_ZONE_DMA
--static struct kmem_cache *kmalloc_dma_caches[SLUB_PAGE_SHIFT];
-+static struct kmem_cache *kmalloc_dma_caches[KMALLOC_SHIFT_HIGH + 1];
- #endif
- 
- static int __init setup_slub_min_order(char *str)
-@@ -3270,7 +3270,7 @@ void *__kmalloc(size_t size, gfp_t flags
- 	struct kmem_cache *s;
- 	void *ret;
- 
--	if (unlikely(size > SLUB_MAX_SIZE))
-+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
- 		return kmalloc_large(size, flags);
- 
- 	s = get_slab(size, flags);
-@@ -3306,7 +3306,7 @@ void *__kmalloc_node(size_t size, gfp_t
- 	struct kmem_cache *s;
- 	void *ret;
- 
--	if (unlikely(size > SLUB_MAX_SIZE)) {
-+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
- 		ret = kmalloc_large_node(size, flags, node);
- 
- 		trace_kmalloc_node(_RET_IP_, ret,
-@@ -3711,7 +3711,7 @@ void __init kmem_cache_init(void)
- 		caches++;
+-		return kmem_cache_alloc_node_trace(s, flags, node, size);
++		return kmem_cache_alloc_node_trace(kmalloc_caches[index],
++			       flags, node, size);
  	}
- 
--	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
-+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		kmalloc_caches[i] = create_kmalloc_cache("kmalloc", 1 << i, 0);
- 		caches++;
- 	}
-@@ -3729,7 +3729,7 @@ void __init kmem_cache_init(void)
- 		BUG_ON(!kmalloc_caches[2]->name);
- 	}
- 
--	for (i = KMALLOC_SHIFT_LOW; i < SLUB_PAGE_SHIFT; i++) {
-+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		char *s = kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
- 
- 		BUG_ON(!s);
-@@ -3741,7 +3741,7 @@ void __init kmem_cache_init(void)
- #endif
- 
- #ifdef CONFIG_ZONE_DMA
--	for (i = 0; i < SLUB_PAGE_SHIFT; i++) {
-+	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
- 		struct kmem_cache *s = kmalloc_caches[i];
- 
- 		if (s && s->size) {
-@@ -3915,7 +3915,7 @@ void *__kmalloc_track_caller(size_t size
- 	struct kmem_cache *s;
- 	void *ret;
- 
--	if (unlikely(size > SLUB_MAX_SIZE))
-+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
- 		return kmalloc_large(size, gfpflags);
- 
- 	s = get_slab(size, gfpflags);
-@@ -3938,7 +3938,7 @@ void *__kmalloc_node_track_caller(size_t
- 	struct kmem_cache *s;
- 	void *ret;
- 
--	if (unlikely(size > SLUB_MAX_SIZE)) {
-+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
- 		ret = kmalloc_large_node(size, gfpflags, node);
- 
- 		trace_kmalloc_node(caller, ret,
-@@ -4297,7 +4297,7 @@ static void resiliency_test(void)
- {
- 	u8 *p;
- 
--	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 16 || SLUB_PAGE_SHIFT < 10);
-+	BUILD_BUG_ON(KMALLOC_MIN_SIZE > 16 || KMALLOC_SHIFT_HIGH < 10);
- 
- 	printk(KERN_ERR "SLUB resiliency testing\n");
- 	printk(KERN_ERR "-----------------------\n");
+ 	return __kmalloc_node(size, flags, node);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
