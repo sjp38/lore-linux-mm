@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id DC1FE6B006E
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 22:20:13 -0500 (EST)
-Message-ID: <50C94923.4060203@huawei.com>
-Date: Thu, 13 Dec 2012 11:18:59 +0800
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 53FF16B0071
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 22:40:29 -0500 (EST)
+Message-ID: <50C94DE5.2040302@huawei.com>
+Date: Thu, 13 Dec 2012 11:39:17 +0800
 From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v2] mm/hugetlb: create hugetlb cgroup file in hugetlb_init
+Subject: [PATCH v2 UPDATE] mm/hugetlb: create hugetlb cgroup file in hugetlb_init
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, tj@kernel.org, Li Zefan <lizefan@huawei.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Liujiang <jiang.liu@huawei.com>, dhillf@gmail.com, Jiang Liu <liuj97@gmail.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, tj@kernel.org, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, dhillf@gmail.com
+Cc: Liujiang <jiang.liu@huawei.com>, Jiang Liu <liuj97@gmail.com>, qiuxishi <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org, cgroups@vger.kernel.org
 
 Build kernel with CONFIG_HUGETLBFS=y,CONFIG_HUGETLB_PAGE=y
 and CONFIG_CGROUP_HUGETLB=y, then specify hugepagesz=xx boot option,
@@ -31,7 +31,7 @@ failed, and cause WARN_ON() in hugetlb_cgroup_file_init().
 So I move hugetlb_cgroup_file_init() into hugetlb_init().
 
 Changelog:
-  use huge_page_order(h) instead of h->order as suggesting by Aneesh
+  do code refactor as suggesting by Aneesh
   add Reviewed-by and Acked-by 
 
 Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
@@ -41,8 +41,8 @@ Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
  include/linux/hugetlb_cgroup.h |    7 ++-----
  mm/hugetlb.c                   |   11 +----------
- mm/hugetlb_cgroup.c            |   23 +++++++++++++++++++++--
- 3 files changed, 24 insertions(+), 17 deletions(-)
+ mm/hugetlb_cgroup.c            |   18 ++++++++++++++++--
+ 3 files changed, 19 insertions(+), 17 deletions(-)
 
 diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
 index d73878c..5bb9c28 100644
@@ -104,7 +104,7 @@ index 1ef2cd4..a30da48 100644
  	parsed_hstate = h;
  }
 diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index a3f358f..0aa8ae1 100644
+index a3f358f..7af7459 100644
 --- a/mm/hugetlb_cgroup.c
 +++ b/mm/hugetlb_cgroup.c
 @@ -340,7 +340,7 @@ static char *mem_fmt(char *buf, int size, unsigned long hsize)
@@ -116,7 +116,7 @@ index a3f358f..0aa8ae1 100644
  {
  	char buf[32];
  	struct cftype *cft;
-@@ -382,7 +382,26 @@ int __init hugetlb_cgroup_file_init(int idx)
+@@ -382,7 +382,21 @@ int __init hugetlb_cgroup_file_init(int idx)
  
  	WARN_ON(cgroup_add_cftypes(&hugetlb_subsys, h->cgroup_files));
  
@@ -127,20 +127,15 @@ index a3f358f..0aa8ae1 100644
 +void __init hugetlb_cgroup_file_init()
 +{
 +	struct hstate *h;
-+	int idx;
 +
-+	idx = 0;
-+	for_each_hstate(h) {
++	for_each_hstate(h)
 +		/*
 +		 * Add cgroup control files only if the huge page consists
 +		 * of more than two normal pages. This is because we use
 +		 * page[2].lru.next for storing cgroup details.
 +		 */
 +		if (huge_page_order(h) >= HUGETLB_CGROUP_MIN_ORDER)
-+			__hugetlb_cgroup_file_init(idx);
-+
-+		idx++;
-+	}
++			__hugetlb_cgroup_file_init(hstate_index(h));
  }
  
  /*
