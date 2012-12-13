@@ -1,68 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 14BFB6B005D
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 11:07:45 -0500 (EST)
-Date: Thu, 13 Dec 2012 17:07:42 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 5/8] mm: vmscan: improve comment on low-page cache
- handling
-Message-ID: <20121213160742.GH21644@dhcp22.suse.cz>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-6-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355348620-9382-6-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 210EB6B0069
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 11:13:01 -0500 (EST)
+Message-ID: <1355414634.18964.158.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 00/11] Hot-plug and Online/Offline framework
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 13 Dec 2012 09:03:54 -0700
+In-Reply-To: <20121213041627.GA14083@kroah.com>
+References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
+	 <20121212235657.GD22764@kroah.com>
+	 <1355359176.18964.41.camel@misato.fc.hp.com>
+	 <20121213005510.GA9220@kroah.com>
+	 <1355369864.18964.68.camel@misato.fc.hp.com>
+	 <20121213041627.GA14083@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
 
-On Wed 12-12-12 16:43:37, Johannes Weiner wrote:
-> Fix comment style and elaborate on why anonymous memory is
-> force-scanned when file cache runs low.
+On Thu, 2012-12-13 at 04:16 +0000, Greg KH wrote:
+> On Wed, Dec 12, 2012 at 08:37:44PM -0700, Toshi Kani wrote:
+> > On Wed, 2012-12-12 at 16:55 -0800, Greg KH wrote:
+> > > On Wed, Dec 12, 2012 at 05:39:36PM -0700, Toshi Kani wrote:
+> > > > On Wed, 2012-12-12 at 15:56 -0800, Greg KH wrote:
+> > > > > On Wed, Dec 12, 2012 at 04:17:12PM -0700, Toshi Kani wrote:
+> > > > > > This patchset is an initial prototype of proposed hot-plug framework
+> > > > > > for design review.  The hot-plug framework is designed to provide 
+> > > > > > the common framework for hot-plugging and online/offline operations
+> > > > > > of system devices, such as CPU, Memory and Node.  While this patchset
+> > > > > > only supports ACPI-based hot-plug operations, the framework itself is
+> > > > > > designed to be platform-neural and can support other FW architectures
+> > > > > > as necessary.
+> > > > > > 
+> > > > > > The patchset has not been fully tested yet, esp. for memory hot-plug.
+> > > > > > Any help for testing will be very appreciated since my test setup
+> > > > > > is limited.
+> > > > > > 
+> > > > > > The patchset is based on the linux-next branch of linux-pm.git tree.
+> > > > > > 
+> > > > > > Overview of the Framework
+> > > > > > =========================
+> > > > > 
+> > > > > <snip>
+> > > > > 
+> > > > > Why all the new framework, doesn't the existing bus infrastructure
+> > > > > provide everything you need here?  Shouldn't you just be putting your
+> > > > > cpus and memory sticks on a bus and handle stuff that way?  What makes
+> > > > > these types of devices so unique from all other devices that Linux has
+> > > > > been handling in a dynamic manner (i.e. hotplugging them) for many many
+> > > > > years?
+> > > > > 
+> > > > > Why are you reinventing the wheel?
+> > > > 
+> > > > Good question.  Yes, USB and PCI hotplug operate based on their bus
+> > > > structures.  USB and PCI cards only work under USB and PCI bus
+> > > > controllers.  So, their framework can be composed within the bus
+> > > > structures as you pointed out.
+> > > > 
+> > > > However, system devices such CPU and memory do not have their standard
+> > > > bus.  ACPI allows these system devices to be enumerated, but it does not
+> > > > make ACPI as the HW bus hierarchy for CPU and memory, unlike PCI and
+> > > > USB.  Therefore, CPU and memory modules manage CPU and memory outside of
+> > > > ACPI.  This makes sense because CPU and memory can be used without ACPI.
+> > > > 
+> > > > This leads us an issue when we try to manage system device hotplug
+> > > > within ACPI, because ACPI does not control everything.  This patchset
+> > > > provides a common hotplug framework for system devices, which both ACPI
+> > > > and non-ACPI modules (i.e. CPU and memory modules) can participate and
+> > > > are coordinated for their hotplug operations.  This is analogous to the
+> > > > boot-up sequence, which ACPI and non-ACPI modules can participate to
+> > > > enable CPU and memory.
+> > > 
+> > > Then create a "virtual" bus and put the devices you wish to control on
+> > > that.  That is what the "system bus" devices were supposed to be, it's
+> > > about time someone took that code and got it all working properly in
+> > > this way, that is why it was created oh so long ago.
+> > 
+> > It may be the ideal, but it will take us great effort to make such
+> > things to happen based on where we are now.  It is going to be a long
+> > way.  I believe the first step is to make the boot-up flow and hot-plug
+> > flow consistent for system devices.  This is what this patchset is
+> > trying to do.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> If you use the system "bus" for this, the "flow" will be identical, that
+> is what the driver core provides for you.  I don't see why you need to
+> implement something that sits next to it and not just use what we
+> already have here.
 
-yes, much better
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Here is very brief boot-up flow.  
 
-> ---
->  mm/vmscan.c | 12 +++++++-----
->  1 file changed, 7 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 5e1beed..05475e1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1697,13 +1697,15 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
->  		get_lru_size(lruvec, LRU_INACTIVE_FILE);
->  
-> +	/*
-> +	 * If it's foreseeable that reclaiming the file cache won't be
-> +	 * enough to get the zone back into a desirable shape, we have
-> +	 * to swap.  Better start now and leave the - probably heavily
-> +	 * thrashing - remaining file pages alone.
-> +	 */
->  	if (global_reclaim(sc)) {
-> -		free  = zone_page_state(zone, NR_FREE_PAGES);
-> +		free = zone_page_state(zone, NR_FREE_PAGES);
->  		if (unlikely(file + free <= high_wmark_pages(zone))) {
-> -			/*
-> -			 * If we have very few page cache pages, force-scan
-> -			 * anon pages.
-> -			 */
->  			fraction[0] = 1;
->  			fraction[1] = 0;
->  			denominator = 1;
-> -- 
-> 1.7.11.7
-> 
+start_kernel()
+  boot_cpu_init()         // init cpu0
+  setup_arch()
+    x86_init.paging.pagetable_init() // init mem pagetable
+  :
+kernel_init()
+  kernel_init_freeable()
+    smp_init()            // init other CPUs
+      :
+    do_basic_setup()
+      driver_init()
+        cpu_dev_init()    // build system/cpu tree
+        memory_dev_init() // build system/memory tree
+      do_initcalls()
+        acpi_init()       // build ACPI device tree
 
--- 
-Michal Hocko
-SUSE Labs
+CPU and memory are initialized at early boot.  The system device tree is
+built at the last step of the boot sequence and is only used for
+providing sysfs interfaces.  That is, the system bus structure has
+nothing to do with the actual CPU and memory initialization at boot.
+Similarly, ACPI drivers do not initialize actual CPU and memory at boot
+as they are also called at the last step.  Further, the ACPI device tree
+and system bus tree are separate entities.  Hotplug events are sent to
+ACPI.
+
+In order to keep the boot flow and hotplug flow consistent, I believe
+the first step is to keep the role of modules consistent between boot
+and hotplug.  For instance, acpi_init() only builds ACPI tree at boot,
+so ACPI should only build ACPI tree at hot-add as well.  This keeps ACPI
+drivers to do the same for both boot and hot-add.  The framework is
+designed to provide the consistency along with other high-availability
+features such as rollback.
+
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
