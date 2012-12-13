@@ -1,71 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 00D456B006E
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 11:18:14 -0500 (EST)
-Date: Thu, 13 Dec 2012 17:18:12 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 6/8] mm: vmscan: clean up get_scan_count()
-Message-ID: <20121213161812.GI21644@dhcp22.suse.cz>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-7-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355348620-9382-7-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 335626B0044
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 11:39:55 -0500 (EST)
+Message-ID: <1355416251.18964.170.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 02/11] drivers/base: Add hotplug framework code
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 13 Dec 2012 09:30:51 -0700
+In-Reply-To: <20121213042437.GA14240@kroah.com>
+References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
+	 <1355354243-18657-3-git-send-email-toshi.kani@hp.com>
+	 <20121212235418.GB22764@kroah.com>
+	 <1355371365.18964.89.camel@misato.fc.hp.com>
+	 <20121213042437.GA14240@kroah.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: "rjw@sisk.pl" <rjw@sisk.pl>, "lenb@kernel.org" <lenb@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "bhelgaas@google.com" <bhelgaas@google.com>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "guohanjun@huawei.com" <guohanjun@huawei.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "srivatsa.bhat@linux.vnet.ibm.com" <srivatsa.bhat@linux.vnet.ibm.com>
 
-On Wed 12-12-12 16:43:38, Johannes Weiner wrote:
-> Reclaim pressure balance between anon and file pages is calculated
-> through a tuple of numerators and a shared denominator.
+On Thu, 2012-12-13 at 04:24 +0000, Greg KH wrote:
+> On Wed, Dec 12, 2012 at 09:02:45PM -0700, Toshi Kani wrote:
+> > On Wed, 2012-12-12 at 15:54 -0800, Greg KH wrote:
+> > > On Wed, Dec 12, 2012 at 04:17:14PM -0700, Toshi Kani wrote:
+> > > > Added hotplug.c, which is the hotplug framework code.
+> > > 
+> > > Again, better naming please.
+> > 
+> > Yes, I will change it to be more specific, something like
+> > "sys_hotplug.c".
 > 
-> Exceptional cases that want to force-scan anon or file pages configure
-> the numerators and denominator such that one list is preferred, which
-> is not necessarily the most obvious way:
-> 
->     fraction[0] = 1;
->     fraction[1] = 0;
->     denominator = 1;
->     goto out;
-> 
-> Make this easier by making the force-scan cases explicit and use the
-> fractionals only in case they are calculated from reclaim history.
-> 
-> And bring the variable declarations/definitions in order.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Ugh, what's wrong with just a simple "system_bus.c" or something like
+> that, and then put all of the needed system bus logic in there and tie
+> the cpus and other sysdev code into that?
 
-I like this.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+The issue is that the framework does not provide the system bus
+structure.  This is because the system bus structure is not used for CPU
+and memory initialization at boot (as I explained in my other email).
+The framework manages the calling sequence of hotplug operations, which
+is similar to the boot sequence managed by start_kernel(),
+kernel_init(), do_initcalls(), etc.  In such sense, this file might not
+be a good fit for drivers/base, but I could not find a better place for
+it.
 
-[...]
-> @@ -1638,14 +1645,15 @@ static int vmscan_swappiness(struct scan_control *sc)
->  static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  			   unsigned long *nr)
->  {
-> -	unsigned long anon, file, free;
-> +	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-> +	u64 fraction[2], uninitialized_var(denominator);
-> +	struct zone *zone = lruvec_zone(lruvec);
->  	unsigned long anon_prio, file_prio;
-> +	enum scan_balance scan_balance;
-> +	unsigned long anon, file, free;
-> +	bool force_scan = false;
->  	unsigned long ap, fp;
-> -	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-> -	u64 fraction[2], denominator;
->  	enum lru_list lru;
-> -	bool force_scan = false;
-> -	struct zone *zone = lruvec_zone(lruvec);
+Thanks,
+-Toshi
 
-You really do love trees, don't you :P
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
