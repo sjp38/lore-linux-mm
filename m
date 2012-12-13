@@ -1,120 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 998296B006C
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 09:51:33 -0500 (EST)
-Message-ID: <1355409749.18964.107.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v3 0/3] acpi: Introduce prepare_remove device
- operation
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Thu, 13 Dec 2012 07:42:29 -0700
-In-Reply-To: <50C74481.7010107@gmail.com>
-References: 
-	<1353693037-21704-1-git-send-email-vasilis.liaskovitis@profitbricks.com>
-	      <50B5EFE9.3040206@huawei.com>
-	     <1354128096.26955.276.camel@misato.fc.hp.com>
-	    <50B6E936.2080308@huawei.com>
-	 <1354228028.7776.56.camel@misato.fc.hp.com>
-	    <50BC29C6.6050706@huawei.com>
-	  <1354579848.21585.54.camel@misato.fc.hp.com>  <50C0CA90.7010608@gmail.com>
-	  <1354849065.21116.61.camel@misato.fc.hp.com> <50C1852D.3000104@huawei.com>
-	 <1354928933.28379.37.camel@misato.fc.hp.com> <50C74481.7010107@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id CB37B6B0070
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 09:55:17 -0500 (EST)
+Date: Thu, 13 Dec 2012 15:55:14 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/8] mm: memcg: only evict file pages when we have plenty
+Message-ID: <20121213145514.GD21644@dhcp22.suse.cz>
+References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-2-git-send-email-hannes@cmpxchg.org>
+ <50C8FCE0.1060408@redhat.com>
+ <20121212222844.GA10257@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121212222844.GA10257@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <liuj97@gmail.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, Hanjun Guo <guohanjun@huawei.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, linux-acpi@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, wency@cn.fujitsu.com, lenb@kernel.org, gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Huxinwei <huxinwei@huawei.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2012-12-11 at 22:34 +0800, Jiang Liu wrote:
-> On 12/08/2012 09:08 AM, Toshi Kani wrote:
-> > On Fri, 2012-12-07 at 13:57 +0800, Jiang Liu wrote:
-> >> On 2012-12-7 10:57, Toshi Kani wrote:
-> >>> On Fri, 2012-12-07 at 00:40 +0800, Jiang Liu wrote:
-> >>>> On 12/04/2012 08:10 AM, Toshi Kani wrote:
-> >>>>> On Mon, 2012-12-03 at 12:25 +0800, Hanjun Guo wrote:
-> >>>>>> On 2012/11/30 6:27, Toshi Kani wrote:
-> >>>>>>> On Thu, 2012-11-29 at 12:48 +0800, Hanjun Guo wrote:
- :
-> >>> Yes, the framework should allow such future work.  I also think that the
-> >>> framework itself should be independent from such ACPI issue.  Ideally,
-> >>> it should be able to support non-ACPI platforms.
-> >> The same point here. The ACPI based hotplug framework is designed as:
-> >> 1) an ACPI based hotplug slot driver to handle platform specific logic.
-> >>    Platform may provide platform specific slot drivers to discover, manage
-> >>    hotplug slots. We have provided a default implementation of slot driver
-> >>    according to the ACPI spec.
+On Wed 12-12-12 17:28:44, Johannes Weiner wrote:
+> On Wed, Dec 12, 2012 at 04:53:36PM -0500, Rik van Riel wrote:
+> > On 12/12/2012 04:43 PM, Johannes Weiner wrote:
+> > >dc0422c "mm: vmscan: only evict file pages when we have plenty" makes
+> > >a point of not going for anonymous memory while there is still enough
+> > >inactive cache around.
+> > >
+> > >The check was added only for global reclaim, but it is just as useful
+> > >for memory cgroup reclaim.
+> > >
+> > >Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > >---
+> > >  mm/vmscan.c | 19 ++++++++++---------
+> > >  1 file changed, 10 insertions(+), 9 deletions(-)
+> > >
+> > >diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > >index 157bb11..3874dcb 100644
+> > >--- a/mm/vmscan.c
+> > >+++ b/mm/vmscan.c
+> > >@@ -1671,6 +1671,16 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> > >  		denominator = 1;
+> > >  		goto out;
+> > >  	}
+> > >+	/*
+> > >+	 * There is enough inactive page cache, do not reclaim
+> > >+	 * anything from the anonymous working set right now.
+> > >+	 */
+> > >+	if (!inactive_file_is_low(lruvec)) {
+> > >+		fraction[0] = 0;
+> > >+		fraction[1] = 1;
+> > >+		denominator = 1;
+> > >+		goto out;
+> > >+	}
+> > >
+> > >  	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+> > >  		get_lru_size(lruvec, LRU_INACTIVE_ANON);
+> > >@@ -1688,15 +1698,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> > >  			fraction[1] = 0;
+> > >  			denominator = 1;
+> > >  			goto out;
+> > >-		} else if (!inactive_file_is_low_global(zone)) {
+> > >-			/*
+> > >-			 * There is enough inactive page cache, do not
+> > >-			 * reclaim anything from the working set right now.
+> > >-			 */
+> > >-			fraction[0] = 0;
+> > >-			fraction[1] = 1;
+> > >-			denominator = 1;
+> > >-			goto out;
+> > >  		}
+> > >  	}
+> > >
+> > >
 > > 
-> > The ACPI spec does not define that _EJ0 is required to receive a hot-add
-> > request, i.e. bus/device check.  This is a major issue.  Since Windows
-> > only supports hot-add, I think there are platforms that only support
-> > hot-add today.
-> > 
-> >> 2) an ACPI based hotplug manager driver, which is a platform independent
-> >>    driver and manages all hotplug slot created by the slot driver.
-> > 
-> > It is surely impressive work, but I think is is a bit overdoing.  I
-> > expect hot-pluggable servers come with management console and/or GUI
-> > where a user can manage hardware units and initiate hot-plug operations.
-> > I do not think the kernel needs to step into such area since it tends to
-> > be platform-specific. 
-> One of the major usages of this feature is for testing. 
-> It will be hard for OSVs and OEMs to verify hotplug functionalities if it could
-> only be tested by physical hotplug or through management console. So to pave the
-> way for hotplug, we need to provide a mechanism for OEMs and OSVs to execute 
-> auto stress tests for hotplug functionalities.
+> > I believe the if() block should be moved to AFTER
+> > the check where we make sure we actually have enough
+> > file pages.
+> 
+> You are absolutely right, this makes more sense.  Although I'd figure
+> the impact would be small because if there actually is that little
+> file cache, it won't be there for long with force-file scanning... :-)
 
-Yes, but such OS->FW interface is platform-specific.  Some platforms use
-IPMI for the OS to communicate with the management console.  In this
-case, an OEM-specific command can be used to request a hotplug through
-IPMI.  Some platforms may also support test programs to run on the
-management console for validations.
+Yes, I think that the result would be worse (more swapping) so the
+change can only help.
 
-For early development testing, Yinghai's SCI emulation patch can be used
-to emulate hotplug events from the OS.  It would be part of the kernel
-debugging features once this patch is accepted. 
+> I moved the condition, but it throws conflicts in the rest of the
+> series.  Will re-run tests, wait for Michal and Mel, then resend.
 
- 
-> >> We haven't gone further enough to provide an ACPI independent hotplug framework
-> >> because we only have experience with x86 and Itanium, both are ACPI based.
-> >> We may try to implement an ACPI independent hotplug framework by pushing all
-> >> ACPI specific logic into the slot driver, I think it's doable. But we need
-> >> suggestions from experts of other architectures, such as SPARC and Power.
-> >> But seems Power already have some sorts of hotplug framework, right?
-> > 
-> > I do not know about the Linux hot-plug support on other architectures.
-> > PA-RISC SuperDome also supports Node hot-plug, but it is not supported
-> > by Linux.  Since ARM is getting used by servers, I would not surprise if
-> > there will be an ARM based server with hot-plug support in future.
-> Seems ARM is on the way to adopt ACPI, so may be we could support ARM servers
-> in the future.
+Yes the patch makes sense for memcg as well. I guess you have tested
+this primarily with memcg. Do you have any numbers? Would be nice to put
+them into the changelog if you have (it should help to reduce swapping
+with heavy streaming IO load).
 
-That's good to know.
-
- :
-> >>>> So in our framework, we have an option to relay hotplug event from firmware
-> >>>> to userspace, so the userspace has a chance to reject the hotplug operations
-> >>>> if it may cause unacceptable disturbance to userspace services.
-> >>>
-> >>> I think validation from user-space is necessary for deleting I/O
-> >>> devices.  For CPU and memory, the kernel check works fine.
-> >> Agreed. But we may need help from userspace to handle cgroup/cpuset/cpuisol
-> >> etc for cpu and memory hot-removal. Especially for telecom applications, they
-> >> have strong dependency on cgroup/cpuisol to guarantee latency.
-> > 
-> > I have not looked at the code, but isn't these cpu attributes managed in
-> > the kernel?
-> Some Telecom applications want to run in an deterministic environment, so they
-> depend on cpuisol/cpuset to provide such an environment. If hotplug event happens,
-> these Telecom application should be notified so they have a chance to redistribute
-> the workload.
-
-I agree that we need to generate an event that can be subscribed by
-those applications, so that they can react quickly on the change.
-
-Thanks,
--Toshi
-
+Acked-by: Michal Hocko <mhocko@suse.cz>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
