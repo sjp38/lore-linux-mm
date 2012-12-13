@@ -1,81 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 847646B009C
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 19:52:41 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so1019496pbc.14
-        for <linux-mm@kvack.org>; Wed, 12 Dec 2012 16:52:40 -0800 (PST)
-Date: Wed, 12 Dec 2012 16:55:10 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH 00/11] Hot-plug and Online/Offline framework
-Message-ID: <20121213005510.GA9220@kroah.com>
-References: <1355354243-18657-1-git-send-email-toshi.kani@hp.com>
- <20121212235657.GD22764@kroah.com>
- <1355359176.18964.41.camel@misato.fc.hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355359176.18964.41.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 9FD316B005A
+	for <linux-mm@kvack.org>; Wed, 12 Dec 2012 20:18:46 -0500 (EST)
+Message-ID: <1355361524.5255.9.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] mm: add node physical memory range to sysfs
+From: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Date: Wed, 12 Dec 2012 17:18:44 -0800
+In-Reply-To: <50C28720.3070205@linux.vnet.ibm.com>
+References: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net>
+	 <20121207155125.d3117244.akpm@linux-foundation.org>
+	 <50C28720.3070205@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: rjw@sisk.pl, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Dec 12, 2012 at 05:39:36PM -0700, Toshi Kani wrote:
-> On Wed, 2012-12-12 at 15:56 -0800, Greg KH wrote:
-> > On Wed, Dec 12, 2012 at 04:17:12PM -0700, Toshi Kani wrote:
-> > > This patchset is an initial prototype of proposed hot-plug framework
-> > > for design review.  The hot-plug framework is designed to provide 
-> > > the common framework for hot-plugging and online/offline operations
-> > > of system devices, such as CPU, Memory and Node.  While this patchset
-> > > only supports ACPI-based hot-plug operations, the framework itself is
-> > > designed to be platform-neural and can support other FW architectures
-> > > as necessary.
-> > > 
-> > > The patchset has not been fully tested yet, esp. for memory hot-plug.
-> > > Any help for testing will be very appreciated since my test setup
-> > > is limited.
-> > > 
-> > > The patchset is based on the linux-next branch of linux-pm.git tree.
-> > > 
-> > > Overview of the Framework
-> > > =========================
-> > 
-> > <snip>
-> > 
-> > Why all the new framework, doesn't the existing bus infrastructure
-> > provide everything you need here?  Shouldn't you just be putting your
-> > cpus and memory sticks on a bus and handle stuff that way?  What makes
-> > these types of devices so unique from all other devices that Linux has
-> > been handling in a dynamic manner (i.e. hotplugging them) for many many
-> > years?
-> > 
-> > Why are you reinventing the wheel?
+On Fri, 2012-12-07 at 16:17 -0800, Dave Hansen wrote:
+> On 12/07/2012 03:51 PM, Andrew Morton wrote:
+> >> > +static ssize_t node_read_memrange(struct device *dev,
+> >> > +				  struct device_attribute *attr, char *buf)
+> >> > +{
+> >> > +	int nid = dev->id;
+> >> > +	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+> >> > +	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+> > hm.  Is this correct for all for
+> > FLATMEM/SPARSEMEM/SPARSEMEM_VMEMMAP/DISCONTIGME/etc?
 > 
-> Good question.  Yes, USB and PCI hotplug operate based on their bus
-> structures.  USB and PCI cards only work under USB and PCI bus
-> controllers.  So, their framework can be composed within the bus
-> structures as you pointed out.
+> It's not _wrong_ per se, but it's not super precise, either.
 > 
-> However, system devices such CPU and memory do not have their standard
-> bus.  ACPI allows these system devices to be enumerated, but it does not
-> make ACPI as the HW bus hierarchy for CPU and memory, unlike PCI and
-> USB.  Therefore, CPU and memory modules manage CPU and memory outside of
-> ACPI.  This makes sense because CPU and memory can be used without ACPI.
+> The problem is, it's quite valid to have these node_start/spanned ranges
+> overlap between two or more nodes on some hardware.  So, if the desired
+> purpose is to map nodes to DIMMs, then this can only accomplish this on
+> _some_ hardware, not all.  It would be completely useless for that
+> purpose for some configurations.
 > 
-> This leads us an issue when we try to manage system device hotplug
-> within ACPI, because ACPI does not control everything.  This patchset
-> provides a common hotplug framework for system devices, which both ACPI
-> and non-ACPI modules (i.e. CPU and memory modules) can participate and
-> are coordinated for their hotplug operations.  This is analogous to the
-> boot-up sequence, which ACPI and non-ACPI modules can participate to
-> enable CPU and memory.
+> Seems like the better way to do this would be to expose the DIMMs
+> themselves in some way, and then map _those_ back to a node.
+> 
 
-Then create a "virtual" bus and put the devices you wish to control on
-that.  That is what the "system bus" devices were supposed to be, it's
-about time someone took that code and got it all working properly in
-this way, that is why it was created oh so long ago.
+Good point, and from a DIMM perspective, I agree, and will look into
+this. However, IMHO, having the range of physical addresses for every
+node still provides valuable information, from a NUMA point of view. For
+example, dealing with node related e820 mappings.
 
-greg k-h
+Andrew, with the documentation patch, would you be wiling to pickup a v2
+of this?
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
