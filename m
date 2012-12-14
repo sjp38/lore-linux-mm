@@ -1,40 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 34A836B0044
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 02:27:59 -0500 (EST)
-Date: Fri, 14 Dec 2012 07:27:55 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] mm: Downgrade mmap_sem before locking or populating on
- mmap
-Message-ID: <20121214072755.GR4939@ZenIV.linux.org.uk>
-References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 564786B005D
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 03:37:43 -0500 (EST)
+Date: Fri, 14 Dec 2012 09:37:38 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/8] mm: vmscan: disregard swappiness shortly before
+ going OOM
+Message-ID: <20121214083738.GA6898@dhcp22.suse.cz>
+References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-3-git-send-email-hannes@cmpxchg.org>
+ <20121213103420.GW1009@suse.de>
+ <20121213152959.GE21644@dhcp22.suse.cz>
+ <20121213160521.GG21644@dhcp22.suse.cz>
+ <8631DC5930FA9E468F04F3FD3A5D007214AD2FA2@USINDEM103.corp.hds.com>
+ <20121214045030.GE6317@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
+In-Reply-To: <20121214045030.GE6317@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Satoru Moriya <satoru.moriya@hds.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 13, 2012 at 09:49:43PM -0800, Andy Lutomirski wrote:
-> This is a serious cause of mmap_sem contention.  MAP_POPULATE
-> and MCL_FUTURE, in particular, are disastrous in multithreaded programs.
+On Thu 13-12-12 23:50:30, Johannes Weiner wrote:
+> On Thu, Dec 13, 2012 at 10:25:43PM +0000, Satoru Moriya wrote:
+> > 
+> > On 12/13/2012 11:05 AM, Michal Hocko wrote:> On Thu 13-12-12 16:29:59, Michal Hocko wrote:
+> > >> On Thu 13-12-12 10:34:20, Mel Gorman wrote:
+> > >>> On Wed, Dec 12, 2012 at 04:43:34PM -0500, Johannes Weiner wrote:
+> > >>>> When a reclaim scanner is doing its final scan before giving up and 
+> > >>>> there is swap space available, pay no attention to swappiness 
+> > >>>> preference anymore.  Just swap.
+> > >>>>
+> > >>>> Note that this change won't make too big of a difference for 
+> > >>>> general
+> > >>>> reclaim: anonymous pages are already force-scanned when there is 
+> > >>>> only very little file cache left, and there very likely isn't when 
+> > >>>> the reclaimer enters this final cycle.
+> > >>>>
+> > >>>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > >>>
+> > >>> Ok, I see the motivation for your patch but is the block inside 
+> > >>> still wrong for what you want? After your patch the block looks like 
+> > >>> this
+> > >>>
+> > >>>                 if (sc->priority || noswap) {
+> > >>>                         scan >>= sc->priority;
+> > >>>                         if (!scan && force_scan)
+> > >>>                                 scan = SWAP_CLUSTER_MAX;
+> > >>>                         scan = div64_u64(scan * fraction[file], denominator);
+> > >>>                 }
+> > >>>
+> > >>> if sc->priority == 0 and swappiness==0 then you enter this block but 
+> > >>> fraction[0] for anonymous pages will also be 0 and because of the 
+> > >>> ordering of statements there, scan will be
+> > >>>
+> > >>> scan = scan * 0 / denominator
+> > >>>
+> > >>> so you are still not reclaiming anonymous pages in the swappiness=0 
+> > >>> case. What did I miss?
+> > >>
+> > >> Yes, now that you have mentioned that I realized that it really 
+> > >> doesn't make any sense. fraction[0] is _always_ 0 for swappiness==0. 
+> > >> So we just made a bigger pressure on file LRUs. So this sounds like a 
+> > >> misuse of the swappiness. This all has been introduced with fe35004f 
+> > >> (mm: avoid swapping out with swappiness==0).
+> > >>
+> > >> I think that removing swappiness check make sense but I am not sure 
+> > >> it does what the changelog says. It should have said that checking 
+> > >> swappiness doesn't make any sense for small LRUs.
+> > >
+> > > Bahh, wait a moment. Now I remember why the check made sense 
+> > > especially for memcg.
+> > > It made "don't swap _at all_ for swappiness==0" for real - you are 
+> > > even willing to sacrifice OOM. Maybe this is OK for the global case 
+> > > because noswap would safe you here (assuming that there is no swap if 
+> > > somebody doesn't want to swap at all and swappiness doesn't play such 
+> > > a big role) but for memcg you really might want to prevent from 
+> > > swapping - not everybody has memcg swap extension enabled and swappiness is handy then.
+> > > So I am not sure this is actually what we want. Need to think about it.
+> > 
+> > I introduced swappiness check here with fe35004f because, in some
+> > cases, we prefer OOM to swap out pages to detect problems as soon
+> > as possible. Basically, we design the system not to swap out and
+> > so if it causes swapping, something goes wrong.
 > 
-> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
-> ---
-> 
-> Sensible people use anonymous mappings.  I write kernel patches :)
-> 
-> I'm not entirely thrilled by the aesthetics of this patch.  The MAP_POPULATE case
-> could also be improved by doing it without any lock at all.  This is still a big
-> improvement, though.
+> I might be missing something terribly obvious, but... why do you add
+> swap space to the system in the first place?  Or in case of cgroups,
+> why not set the memsw limit equal to the memory limit?
 
-Wait a minute.  get_user_pages() relies on ->mmap_sem being held.  Unless
-I'm seriously misreading your patch it removes that protection.  And yes,
-I'm aware of execve-related exception; it's in special circumstances -
-bprm->mm is guaranteed to be not shared (and we need to rearchitect that
-area anyway, but that's a separate story).
+I can answer the later. Because memsw comes with its price and
+swappiness is much cheaper. On the other hand it makes sense that
+swappiness==0 doesn't swap at all. Or do you think we should get back to
+_almost_ doesn't swap at all?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
