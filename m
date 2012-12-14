@@ -1,50 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 01DE86B0062
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 10:44:04 -0500 (EST)
-Message-ID: <50CB493B.8000900@redhat.com>
-Date: Fri, 14 Dec 2012 10:43:55 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id DD71B6B0044
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 11:06:13 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Fri, 14 Dec 2012 11:03:56 -0500
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id D9EADC90043
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 11:03:49 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBEG3nok31129644
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 11:03:49 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBEG3mKu028334
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 11:03:49 -0500
+Message-ID: <50CB4CF7.5040400@linux.vnet.ibm.com>
+Date: Fri, 14 Dec 2012 09:59:51 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [patch 2/8] mm: vmscan: disregard swappiness shortly before going
- OOM
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org> <1355348620-9382-3-git-send-email-hannes@cmpxchg.org> <20121213103420.GW1009@suse.de> <20121213152959.GE21644@dhcp22.suse.cz> <20121213160521.GG21644@dhcp22.suse.cz> <8631DC5930FA9E468F04F3FD3A5D007214AD2FA2@USINDEM103.corp.hds.com> <20121214045030.GE6317@cmpxchg.org> <20121214083738.GA6898@dhcp22.suse.cz>
-In-Reply-To: <20121214083738.GA6898@dhcp22.suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 0/8] zswap: compressed swap caching
+References: <1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com> <CAA25o9SYYmbq9oJaEKxuBoXSXaeku4=L7qK-1wXABTAsKCjrtQ@mail.gmail.com>
+In-Reply-To: <CAA25o9SYYmbq9oJaEKxuBoXSXaeku4=L7qK-1wXABTAsKCjrtQ@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On 12/14/2012 03:37 AM, Michal Hocko wrote:
+Hey Luigi,
 
-> I can answer the later. Because memsw comes with its price and
-> swappiness is much cheaper. On the other hand it makes sense that
-> swappiness==0 doesn't swap at all. Or do you think we should get back to
-> _almost_ doesn't swap at all?
+To echo Dan, it'd be great if we could move this discussion to a new
+thread as to leaving this one for code review/comments.  But I did
+want to respond.
 
-swappiness==0 will swap in emergencies, specifically when we have
-almost no page cache left, we will still swap things out:
+On 12/12/2012 04:49 PM, Luigi Semenzato wrote:
+> Just a couple of questions and comments as a user.  I apologize if
+> this is the wrong time to make them, feel free to ignore them.
+> 
+> 1. It's becoming difficult to understand how zcache, zcache2, zram,
+> and now zswap, interact and/or overlap with each other.  For instance,
+> I am examining the possibility of using zcache2 and zram in parallel.
+> Should I also/instead consider zswap, using a plain RAM disk as the
+> swap device?
 
-         if (global_reclaim(sc)) {
-                 free  = zone_page_state(zone, NR_FREE_PAGES);
-                 if (unlikely(file + free <= high_wmark_pages(zone))) {
-                         /*
-                          * If we have very few page cache pages, force-scan
-                          * anon pages.
-                          */
-                         fraction[0] = 1;
-                         fraction[1] = 0;
-                         denominator = 1;
-                         goto out;
+I guess the short answer is:
+* Zcache is no more, replaced by zcache2 (so I stop making the
+distinction)
+* You wouldn't use zcache and zswap together unless you first disabled
+the frontswap part of zcache, however this configuration isn't
+recommended since there would be no cooperation between the compressed
+page cache and compressed swap cache.
+* Zram could work with either zswap or zcache although the
+interactions would be interesting; namely, I think zram stores would
+likely fail with high frequency since the primary reason the page
+would not be captured by either zswap or zcache before it reaches zram
+is that zswap/zcache was unable to allocate space.  So zram would
+likely fail for the same reason, causing swap slots to be marked as
+bad and rapidly shrink the effective size of the zram device.
 
-This makes sense, because people who set swappiness==0 but
-do have swap space available would probably prefer some
-emergency swapping over an OOM kill.
+> 2. Zswap looks like a two-stage swap device, with one stage being
+> compressed memory.  I don't know if and where the abstraction breaks,
+> and what the implementation issues would be, but I would find it
+> easier to view and configure this as a two-stage swap, where one stage
+> is chosen as zcache (but could be something else).
 
--- 
-All rights reversed
+I didn't follow this.
+
+> 3. As far as I can tell, none of these compressors has a good way of
+> balancing the amount of memory dedicated to compression against the
+> pressure on the rest of the memory.  On both zram and zswap, we set a
+> max size for the compressed data.  That size determines how much RAM
+> is left for the working set, which should remain uncompressed.  But
+> the size of the working set can vary significantly with the load.  If
+> we choose the size based on a worst-case working set, we'll be
+> underutilizing RAM on average.  If we choose it smaller than that, the
+> worst-case working set will cause excessive CPU use and thrashing.
+
+This kind of adaptive tuning would be hard to implement and even
+harder to get right for everyone, if it could be done at all.
+However, one way to achieve this would be to have something in
+userspace periodically change the sysfs attribute that controls
+maximum compressed pool size based on your own policy.  Both zswap and
+zcache have this tunable.
+
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
