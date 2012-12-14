@@ -1,38 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id CDE486B005D
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 09:49:31 -0500 (EST)
-Date: Fri, 14 Dec 2012 14:49:27 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] mm: Downgrade mmap_sem before locking or populating on
- mmap
-Message-ID: <20121214144927.GS4939@ZenIV.linux.org.uk>
-References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
- <20121214072755.GR4939@ZenIV.linux.org.uk>
- <CALCETrVw9Pc1sUZBL=wtLvsnBnkW5LAO5iu-i=T2oMOdwQfjHg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrVw9Pc1sUZBL=wtLvsnBnkW5LAO5iu-i=T2oMOdwQfjHg@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id 019036B005A
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 10:38:08 -0500 (EST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm: clean up soft_offline_page()
+Date: Fri, 14 Dec 2012 10:37:36 -0500
+Message-Id: <1355499456-3311-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <50CA97D0.4020401@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jiang Liu <jiang.liu@huawei.com>, Borislav Petkov <bp@alien8.de>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 14, 2012 at 03:14:50AM -0800, Andy Lutomirski wrote:
+Hi Xishi,
 
-> > Wait a minute.  get_user_pages() relies on ->mmap_sem being held.  Unless
-> > I'm seriously misreading your patch it removes that protection.  And yes,
-> > I'm aware of execve-related exception; it's in special circumstances -
-> > bprm->mm is guaranteed to be not shared (and we need to rearchitect that
-> > area anyway, but that's a separate story).
+On Fri, Dec 14, 2012 at 11:06:56AM +0800, Xishi Qiu wrote:
+> On 2012/12/14 7:01, Naoya Horiguchi wrote:
+...
+> > +	ret = get_any_page(page, pfn, flags);
+> > +	if (ret < 0)
+> > +		return ret;
+> > +	if (ret) { /* for in-use pages */
+> > +		if (PageHuge(page))
+> > +			soft_offline_huge_page(page, flags);
 > 
-> Unless I completely screwed up the patch, ->mmap_sem is still held for
-> read (it's downgraded from write).  It's just not held for write
-> anymore.
+> ret = soft_offline_huge_page(page, flags);
+> 
+> > +		else
+> > +			__soft_offline_page(page, flags);
+> 
+> ret = __soft_offline_page(page, flags); right?
 
-Huh?  I'm talking about the call of get_user_pages() in aio_setup_ring().
-With your patch it's done completely outside of ->mmap_sem, isn't it?
+Ah, you're right, Thanks!
+
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
