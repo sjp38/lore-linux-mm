@@ -1,78 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 79A6A6B002B
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 19:19:43 -0500 (EST)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Thu, 13 Dec 2012 19:19:42 -0500
-Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 66FCE38C8039
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 19:18:59 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBE0Iwxx332492
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 19:18:59 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBE0IwJ4000978
-	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 19:18:58 -0500
-Message-ID: <50CA7067.4080706@linux.vnet.ibm.com>
-Date: Thu, 13 Dec 2012 16:18:47 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
+	by kanga.kvack.org (Postfix) with SMTP id 1117E6B005A
+	for <linux-mm@kvack.org>; Thu, 13 Dec 2012 20:06:39 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so1874922pbc.14
+        for <linux-mm@kvack.org>; Thu, 13 Dec 2012 17:06:39 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add node physical memory range to sysfs
-References: <1354919696.2523.6.camel@buesod1.americas.hpqcorp.net> <20121207155125.d3117244.akpm@linux-foundation.org> <50C28720.3070205@linux.vnet.ibm.com> <1355361524.5255.9.camel@buesod1.americas.hpqcorp.net> <50C933E9.2040707@linux.vnet.ibm.com> <1355364222.9244.3.camel@buesod1.americas.hpqcorp.net> <50C95E4A.9010509@linux.vnet.ibm.com> <1355440542.1823.21.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1355440542.1823.21.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20121212184207.GC10374@dhcp22.suse.cz>
+References: <1353955671-14385-1-git-send-email-mhocko@suse.cz>
+	<1353955671-14385-4-git-send-email-mhocko@suse.cz>
+	<CALWz4ixPmvguxQO8s9mqH+OLEXC5LDfzEVFx_qqe2hBaRcsXiA@mail.gmail.com>
+	<20121211155432.GC1612@dhcp22.suse.cz>
+	<CALWz4izL7fEuQhEvKa7mUqi0sa25mcFP-xnTnL3vU3Z17k7VHg@mail.gmail.com>
+	<20121212090652.GB32081@dhcp22.suse.cz>
+	<CALWz4iwq+vRN+rreOk7Jg4rHWWBSmNwBW8Kko45E-D8Vi66eQA@mail.gmail.com>
+	<20121212183446.GB10374@dhcp22.suse.cz>
+	<20121212184207.GC10374@dhcp22.suse.cz>
+Date: Thu, 13 Dec 2012 17:06:38 -0800
+Message-ID: <CALWz4ix7byi=R9_N=LbtpgpvK_rV5UCZGHyWaTECiKqCB2rGwQ@mail.gmail.com>
+Subject: Re: [patch v2 3/6] memcg: rework mem_cgroup_iter to use cgroup iterators
+From: Ying Han <yinghan@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On 12/13/2012 03:15 PM, Davidlohr Bueso wrote:
-> On Wed, 2012-12-12 at 20:49 -0800, Dave Hansen wrote:
->> How is that possible?  If NUMA nodes are defined by distances from CPUs
->> to memory, how could a DIMM have more than a single distance to any
->> given CPU?
-> 
-> Can't this occur when interleaving emulated nodes with physical ones?
-
-I'm glad you mentioned numa=fake. Its interleaving node configuration
-would also make the patch you've proposed completely useless.  Let's say
-you've got a two-node system with 16GB of RAM:
-
-|        0        |      1      |
-
-And you use numa=fake=1G, you'll get the interleaved like this:
-
-|0|1|0|1|0|1|0|1|0|1|0|1|0|1|0|1|
-
-The information that is exported from the interface you're proposing
-would be:
-
-node0: start_pfn=0  and spanned_pages = 15G
-node1: start_pfn=1G and spanned_pages = 15G
-
-In that situation, there is no way, to figure out which DIMM is backed
-by a given node since the node ranges overlap.
-
->>>> How do you plan to use this in practice, btw?
->>>
->>> It started because I needed to recognize the address of a node to remove
->>> it from the e820 mappings and have the system "ignore" the node's
->>> memory.
+On Wed, Dec 12, 2012 at 10:42 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Wed 12-12-12 19:34:46, Michal Hocko wrote:
+>> On Wed 12-12-12 10:09:43, Ying Han wrote:
+>> [...]
+>> > But If i look at the callers of mem_cgroup_iter(), they all look like
+>> > the following:
+>> >
+>> > memcg = mem_cgroup_iter(root, NULL, &reclaim);
+>> > do {
+>> >
+>> >     // do something
+>> >
+>> >     memcg = mem_cgroup_iter(root, memcg, &reclaim);
+>> > } while (memcg);
+>> >
+>> > So we get out of the loop when memcg returns as NULL, where the
+>> > last_visited is cached as NULL as well thus no css_get(). That is what
+>> > I meant by "each reclaim thread closes the loop".
 >>
->> Actually, now that I think about it, can you check in the
->> /sys/devices/system/ directories for memory and nodes?  We have linkages
->> there for each memory section to every NUMA node, and you can also
->> derive the physical address from the phys_index in each section.  That
->> should allow you to work out physical addresses for a given node.
->> 
-> I had looked at the memory-hotplug interface but found that this
-> 'phys_index' doesn't include holes, while ->node_spanned_pages does.
+>> OK
+>>
+>> > If that is true, the current implementation of mem_cgroup_iter_break()
+>> > changes that.
+>>
+>> I do not understand this though. Why should we touch the zone-iter
+>> there?  Just consider, if we did that then all the parallel targeted
+>
+> Bahh, parallel is only confusing here. Say first child triggers a hard
+> limit reclaim then root of the hierarchy will be reclaimed first.
+> iter_break would reset iter->last_visited. Then B triggers the same
+> reclaim but we will start again from root rather than the first child
+> because it doesn't know where the other one stopped.
+>
+> Hope this clarifies it and sorry for all the confusion.
 
-I'm not sure what you mean.  Each memory section in sysfs accounts for
-SECTION_SIZE where sections are 128MB by default on x86_64.
+Yes it does.
+
+I missed the point of how the target reclaim are currently
+implemented, and part of the reason is because I don't understand why
+that is the case from the beginning.
+
+Off topic of the following discussion.
+Take the following hierarchy as example:
+
+                root
+              /  |   \
+            a   b     c
+                        |  \
+                        d   e
+                        |      \
+                        g      h
+
+Let's say c hits its hardlimit and then triggers target reclaim. There
+are two reclaimers at the moment and reclaimer_1 starts earlier. The
+cgroup_next_descendant_pre() returns in order : c->d->g->e->h
+
+Then we might get the reclaim result as the following where each
+reclaimer keep hitting one node of the sub-tree for all the priorities
+like the following:
+
+                reclaimer_1  reclaimer_2
+priority 12  c                 d
+...             c                 d
+...             c                 d
+...             c                 d
+           0   c                 d
+
+However, this is not how global reclaim works:
+
+the cgroup_next_descendant_pre returns in order: root->a->b->c->d->g->e->h
+
+                reclaimer_1  reclaimer_1 reclaimer_1  reclaimer_2
+priority 12  root                 a            b                 c
+...             root                 a            b                 c
+...
+...
+0
+
+There is no reason for me to think of why target reclaim behave
+differently from global reclaim, which the later one is just the
+target reclaim of root cgroup.
+
+--Ying
+
+>
+>> reclaimers (! global case) would hammer the first node (root) as they
+>> wouldn't continue where the last one finished.
+
+
+>>
+>> [...]
+>>
+>> Thanks!
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
