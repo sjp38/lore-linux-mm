@@ -1,39 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 019036B005A
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 10:38:08 -0500 (EST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: clean up soft_offline_page()
-Date: Fri, 14 Dec 2012 10:37:36 -0500
-Message-Id: <1355499456-3311-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <50CA97D0.4020401@huawei.com>
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 01DE86B0062
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 10:44:04 -0500 (EST)
+Message-ID: <50CB493B.8000900@redhat.com>
+Date: Fri, 14 Dec 2012 10:43:55 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 2/8] mm: vmscan: disregard swappiness shortly before going
+ OOM
+References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org> <1355348620-9382-3-git-send-email-hannes@cmpxchg.org> <20121213103420.GW1009@suse.de> <20121213152959.GE21644@dhcp22.suse.cz> <20121213160521.GG21644@dhcp22.suse.cz> <8631DC5930FA9E468F04F3FD3A5D007214AD2FA2@USINDEM103.corp.hds.com> <20121214045030.GE6317@cmpxchg.org> <20121214083738.GA6898@dhcp22.suse.cz>
+In-Reply-To: <20121214083738.GA6898@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Tony Luck <tony.luck@intel.com>, Wu Fengguang <fengguang.wu@intel.com>, Jiang Liu <jiang.liu@huawei.com>, Borislav Petkov <bp@alien8.de>, Simon Jeons <simon.jeons@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Satoru Moriya <satoru.moriya@hds.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hi Xishi,
+On 12/14/2012 03:37 AM, Michal Hocko wrote:
 
-On Fri, Dec 14, 2012 at 11:06:56AM +0800, Xishi Qiu wrote:
-> On 2012/12/14 7:01, Naoya Horiguchi wrote:
-...
-> > +	ret = get_any_page(page, pfn, flags);
-> > +	if (ret < 0)
-> > +		return ret;
-> > +	if (ret) { /* for in-use pages */
-> > +		if (PageHuge(page))
-> > +			soft_offline_huge_page(page, flags);
-> 
-> ret = soft_offline_huge_page(page, flags);
-> 
-> > +		else
-> > +			__soft_offline_page(page, flags);
-> 
-> ret = __soft_offline_page(page, flags); right?
+> I can answer the later. Because memsw comes with its price and
+> swappiness is much cheaper. On the other hand it makes sense that
+> swappiness==0 doesn't swap at all. Or do you think we should get back to
+> _almost_ doesn't swap at all?
 
-Ah, you're right, Thanks!
+swappiness==0 will swap in emergencies, specifically when we have
+almost no page cache left, we will still swap things out:
 
-Naoya
+         if (global_reclaim(sc)) {
+                 free  = zone_page_state(zone, NR_FREE_PAGES);
+                 if (unlikely(file + free <= high_wmark_pages(zone))) {
+                         /*
+                          * If we have very few page cache pages, force-scan
+                          * anon pages.
+                          */
+                         fraction[0] = 1;
+                         fraction[1] = 0;
+                         denominator = 1;
+                         goto out;
+
+This makes sense, because people who set swappiness==0 but
+do have swap space available would probably prefer some
+emergency swapping over an OOM kill.
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
