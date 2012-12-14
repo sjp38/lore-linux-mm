@@ -1,94 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 596776B006C
-	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 03:46:42 -0500 (EST)
-Date: Fri, 14 Dec 2012 09:46:37 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/8] mm: vmscan: save work scanning (almost) empty LRU
- lists
-Message-ID: <20121214084637.GB6898@dhcp22.suse.cz>
-References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
- <1355348620-9382-4-git-send-email-hannes@cmpxchg.org>
- <20121213154346.GF21644@dhcp22.suse.cz>
- <20121213193820.GC6317@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id A27816B005D
+	for <linux-mm@kvack.org>; Fri, 14 Dec 2012 04:13:49 -0500 (EST)
+Date: Fri, 14 Dec 2012 17:13:46 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: livelock in __writeback_inodes_wb ?
+Message-ID: <20121214091346.GA8149@localhost>
+References: <20121128145515.GA26564@redhat.com>
+ <20121211082327.GA15706@localhost>
+ <20121211134113.GA15801@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121213193820.GC6317@cmpxchg.org>
+In-Reply-To: <20121211134113.GA15801@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Dave Jones <davej@redhat.com>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org
 
-On Thu 13-12-12 14:38:20, Johannes Weiner wrote:
-> On Thu, Dec 13, 2012 at 04:43:46PM +0100, Michal Hocko wrote:
-> > On Wed 12-12-12 16:43:35, Johannes Weiner wrote:
-> > > In certain cases (kswapd reclaim, memcg target reclaim), a fixed
-> > > minimum amount of pages is scanned from the LRU lists on each
-> > > iteration, to make progress.
+On Tue, Dec 11, 2012 at 02:41:13PM +0100, Jan Kara wrote:
+> On Tue 11-12-12 16:23:27, Wu Fengguang wrote:
+> > On Wed, Nov 28, 2012 at 09:55:15AM -0500, Dave Jones wrote:
+> > > We had a user report the soft lockup detector kicked after 22
+> > > seconds of no progress, with this trace..
+> > 
+> > Where is the original report? The reporter may help provide some clues
+> > on the workload that triggered the bug.
+> > 
+> > > :BUG: soft lockup - CPU#1 stuck for 22s! [flush-8:16:3137]
+> > > :Pid: 3137, comm: flush-8:16 Not tainted 3.6.7-4.fc17.x86_64 #1
+> > > :RIP: 0010:[<ffffffff812eeb8c>]  [<ffffffff812eeb8c>] __list_del_entry+0x2c/0xd0
+> > > :Call Trace:
+> > > : [<ffffffff811b783e>] redirty_tail+0x5e/0x80
+> > > : [<ffffffff811b8212>] __writeback_inodes_wb+0x72/0xd0
+> > > : [<ffffffff811b980b>] wb_writeback+0x23b/0x2d0
+> > > : [<ffffffff811b9b5c>] wb_do_writeback+0xac/0x1f0
+> > > : [<ffffffff8106c0e0>] ? __internal_add_timer+0x130/0x130
+> > > : [<ffffffff811b9d2b>] bdi_writeback_thread+0x8b/0x230
+> > > : [<ffffffff811b9ca0>] ? wb_do_writeback+0x1f0/0x1f0
+> > > : [<ffffffff8107fde3>] kthread+0x93/0xa0
+> > > : [<ffffffff81627e04>] kernel_thread_helper+0x4/0x10
+> > > : [<ffffffff8107fd50>] ? kthread_freezable_should_stop+0x70/0x70
+> > > : [<ffffffff81627e00>] ? gs_change+0x13/0x13
 > > > 
-> > > Do not make this minimum bigger than the respective LRU list size,
-> > > however, and save some busy work trying to isolate and reclaim pages
-> > > that are not there.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Looking over the code, is it possible that something could be
+> > > dirtying pages faster than writeback can get them written out,
+> > > keeping us in this loop indefitely ?
 > > 
-> > Hmm, shrink_lruvec would do:
-> > 	nr_to_scan = min_t(unsigned long,
-> > 			   nr[lru], SWAP_CLUSTER_MAX);
-> > 	nr[lru] -= nr_to_scan;
-> > and isolate_lru_pages does
-> > 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++)
-> > so it shouldn't matter and we shouldn't do any additional loops, right?
+> > The bug reporter should know best whether there are heavy IO.
 > > 
-> > Anyway it would be beter if get_scan_count wouldn't ask for more than is
-> > available.
-> 
-> Consider the inactive_list_is_low() check (especially expensive for
-> memcg anon), lru_add_drain(), lru lock acquisition...
+> > However I suspect it's not directly caused by heavy IO: we will
+> > release &wb->list_lock before each __writeback_single_inode() call,
+> > which starts writeback IO for each inode.
+>   Umm, it's not about releasing wb->list_lock I think. Softlockup will
+> trigger whenever we are looping in a kernel for more than given timeout
+> (e.g. those 22 s) without sleeping.
 
-Ohh, I totally missed that. Thanks for pointing out (maybe s/some busy
-wok/$WITH_ALL_THIS/)?
+Yes (and the spinlock is the typical reason to prevent it from sleeping).
 
-Thanks for clarification!
-
-> And as I wrote to Mel in the other email, this can happen a lot when
-> you have memory cgroups in a multi-node environment.
-> 
-> > Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Thanks!
-> 
-> > > @@ -1748,15 +1748,17 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
-> > >  out:
-> > >  	for_each_evictable_lru(lru) {
-> > >  		int file = is_file_lru(lru);
-> > > +		unsigned long size;
-> > >  		unsigned long scan;
-> > >  
-> > > -		scan = get_lru_size(lruvec, lru);
-> > > +		size = get_lru_size(lruvec, lru);
-> > +		size = scan = get_lru_size(lruvec, lru);
+> > > Should there be something in this loop periodically poking
+> > > the watchdog perhaps ?
 > > 
-> > >  		if (sc->priority || noswap) {
-> > > -			scan >>= sc->priority;
-> > > +			scan = size >> sc->priority;
-> > >  			if (!scan && force_scan)
-> > > -				scan = SWAP_CLUSTER_MAX;
-> > > +				scan = min(size, SWAP_CLUSTER_MAX);
-> > >  			scan = div64_u64(scan * fraction[file], denominator);
-> > > -		}
-> > > +		} else
-> > > +			scan = size;
-> > 
-> > And this is not necessary then but this is totally nit.
-> 
-> Do you actually find this more readable?  Setting size = scan and then
-> later scan = size >> sc->priority? :-)
+> > It seems we failed to release &wb->list_lock in wb_writeback() for
+> > long time (dozens of seconds). That is, the inode_sleep_on_writeback()
+> > is somehow not called. However it's not obvious to me how come this
+> > can happen..
+>   Maybe, progress is always non-zero but small and nr_pages is high (e.g.
+> when writeback is triggered by wakeup_flusher_threads()). What filesystem
+> is the guy using? I remember e.g. btrfs used to have always-dirty inodes
+> which could confuse us.
 
--- 
-Michal Hocko
-SUSE Labs
+Judging from the comm "flush-8:16", it's not btrfs. I cannot find the
+reporter's email address in the original bug report. So we may at best
+guess it's likely running the fedora's default filesystem. Also device
+mapper is used judging from the boot param "rd.lvm.lv=vg_san-pc/lv_root".
+
+> >From the backtrace it is clear there's some superblock which has s_umount
+> locked and we cannot writeback inodes there. So if this superblock contains
+> most of the dirty pages we need to write and there's another superblock
+> with always dirty inode we would livelock like observed... So my question
+> would be about what filesystems are there in the system (/proc/mounts),
+> what load does trigger this, trigger sysrq-w when the lockup happens.
+
+Yeah, it's likely related to some busy superblock.
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
