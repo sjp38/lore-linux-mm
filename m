@@ -1,52 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 9AA3A6B002B
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 15:16:25 -0500 (EST)
-Date: Sun, 16 Dec 2012 20:16:21 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] mm: Downgrade mmap_sem before locking or populating on
- mmap
-Message-ID: <20121216201621.GG4939@ZenIV.linux.org.uk>
-References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
- <20121214072755.GR4939@ZenIV.linux.org.uk>
- <CALCETrVw9Pc1sUZBL=wtLvsnBnkW5LAO5iu-i=T2oMOdwQfjHg@mail.gmail.com>
- <20121214144927.GS4939@ZenIV.linux.org.uk>
- <CALCETrUS7baKF7cdbrqX-o2qdeo1Uk=7Z4MHcxHMA3Luh+Obdw@mail.gmail.com>
- <20121216170403.GC4939@ZenIV.linux.org.uk>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 4818B6B002B
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 16:31:09 -0500 (EST)
+Date: Mon, 17 Dec 2012 08:31:04 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
+Message-ID: <20121216213104.GO9806@dastard>
+References: <20121215005448.GA7698@dcvr.yhbt.net>
+ <20121215223448.08272fd5@pyramind.ukuu.org.uk>
+ <20121216002549.GA19402@dcvr.yhbt.net>
+ <20121216030302.GI9806@dastard>
+ <20121216033549.GA30446@dcvr.yhbt.net>
+ <20121216041549.GK9806@dastard>
+ <20121216052302.GA6680@dcvr.yhbt.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121216170403.GC4939@ZenIV.linux.org.uk>
+In-Reply-To: <20121216052302.GA6680@dcvr.yhbt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>
+To: Eric Wong <normalperson@yhbt.net>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Dec 16, 2012 at 05:04:03PM +0000, Al Viro wrote:
-
-> That's just from a couple of days of RTFS.  The locking in there is far too
-> convoluted as it is; worse, it's not localized code-wise, so rechecking
-> correctness is going to remain a big time-sink ;-/
+On Sun, Dec 16, 2012 at 05:23:02AM +0000, Eric Wong wrote:
+> Dave Chinner <david@fromorbit.com> wrote:
+> > On Sun, Dec 16, 2012 at 03:35:49AM +0000, Eric Wong wrote:
+> > > Dave Chinner <david@fromorbit.com> wrote:
+> > > > On Sun, Dec 16, 2012 at 12:25:49AM +0000, Eric Wong wrote:
+> > > > > Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+> > > > > > On Sat, 15 Dec 2012 00:54:48 +0000
+> > > > > > Eric Wong <normalperson@yhbt.net> wrote:
+> > > > > > 
+> > > > > > > Applications streaming large files may want to reduce disk spinups and
+> > > > > > > I/O latency by performing large amounts of readahead up front
+> > 
+> > > This could also be a use case for an audio/video player.
+> > 
+> > Sure, but this can all be handled by a userspace application. If you
+> > want to avoid/batch IO to enable longer spindown times, then you
+> > have to load the file into RAM somewhere, and you don't need special
+> > kernel support for that.
 > 
-> Making it *more* complex doesn't look like a good idea, TBH...
+> From userspace, I don't know when/if I'm caching too much and possibly
+> getting the userspace cache itself swapped out.
 
-... and another fun place: kvm_setup_async_pf() grabs a _passive_ reference
-to current->mm (->mm_count, not ->mm_users), sticks it into work->mm and
-schedules execution of async_pf_execute().  Which does use_mm() (still no
-active refs acquired), grabs work->mm->mmap_sem shared and proceeds to call
-get_user_pages().  What's going to happen if somebody does kill -9 to
-the process that had started that?
+Which causes th disk to spin up. Now you start to see the complexity
+of what you are trying to acheive...
 
-get_user_pages() in parallel with exit_mmap() is a Bad Thing(tm) and I don't
-see anything on the exit path that would've waited for that work to finish.
-I might've missed something here, but...  Note that aio (another place
-playing with use_mm(), also without an active ref) has an explicit hook
-for mmput() to call before proceeding to exit_mmap(); I don't see anything
-similar here.
+> > > So no, there's no difference that matters between the approaches.
+> > > But I think doing this in the kernel is easier for userspace users.
+> > 
+> > The kernel provides mechanisms for applications to use. You have not
+> > mentioned anything new that requires a new kernel mechanism to
+> > acheive - you just need to have the knowledge to put the pieces
+> > together properly.  People have been solving this same problem for
+> > the last 20 years without needing to tweak fadvise(). Or even having
+> > an fadvise() syscall...
+> 
+> fadvise() is fairly new, and AFAIK few apps use it.  Perhaps if it
+> were improved, more people would use it and not have to reinvent
+> the wheel.
 
-Not that aio.c approach had been all that safe - get_task_mm() will refuse
-to pick use_mm'ed one, but there are places open-coding it without the
-check for PF_KTHREAD.  Few of them, fortunately, but...
+fadvise() is not "fairly new". It's been around for many, many
+years - it was there whan the linux kernel moved to git in 2005, and
+I haven't bothered to look any further back in history...
+
+> > Nothing about low latency IO or streaming IO is simple or easy, and
+> > changing how readahead works doesn't change that fact. All it does
+> > is change the behaviour of every other application that uses
+> > fadvise() to minimise IO latency....
+> 
+> I don't want to introduce regressions, either.
+> 
+> Perhaps if part of the FADV_WILLNEED read-ahead were handled
+> synchronously (maybe 2M?) and humongous large readaheads (like mine)
+> went to the background, that would be a good trade off?
+
+Which you can already do in userspace yourself without changing the
+kernel. i.e:
+
+	main thread			background thread:
+
+	readahead(0, 2MB)
+	spawn background thread
+	read(0, len)
+					readahead(2MB,1GB);
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
