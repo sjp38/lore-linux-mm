@@ -1,11 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 12D406B002B
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 00:23:03 -0500 (EST)
-Date: Sun, 16 Dec 2012 05:23:02 +0000
-From: Eric Wong <normalperson@yhbt.net>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 6437A6B002B
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 03:35:41 -0500 (EST)
+Received: by mail-pb0-f41.google.com with SMTP id xa7so3177972pbc.14
+        for <linux-mm@kvack.org>; Sun, 16 Dec 2012 00:35:40 -0800 (PST)
+Date: Sun, 16 Dec 2012 16:48:59 +0800
+From: Zheng Liu <gnehzuil.liu@gmail.com>
 Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
-Message-ID: <20121216052302.GA6680@dcvr.yhbt.net>
+Message-ID: <20121216084859.GA5600@gmail.com>
 References: <20121215005448.GA7698@dcvr.yhbt.net>
  <20121215223448.08272fd5@pyramind.ukuu.org.uk>
  <20121216002549.GA19402@dcvr.yhbt.net>
@@ -19,9 +21,9 @@ In-Reply-To: <20121216041549.GK9806@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Eric Wong <normalperson@yhbt.net>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Dave Chinner <david@fromorbit.com> wrote:
+On Sun, Dec 16, 2012 at 03:15:49PM +1100, Dave Chinner wrote:
 > On Sun, Dec 16, 2012 at 03:35:49AM +0000, Eric Wong wrote:
 > > Dave Chinner <david@fromorbit.com> wrote:
 > > > On Sun, Dec 16, 2012 at 12:25:49AM +0000, Eric Wong wrote:
@@ -38,10 +40,7 @@ Dave Chinner <david@fromorbit.com> wrote:
 > want to avoid/batch IO to enable longer spindown times, then you
 > have to load the file into RAM somewhere, and you don't need special
 > kernel support for that.
-
->From userspace, I don't know when/if I'm caching too much and possibly
-getting the userspace cache itself swapped out.
-
+> 
 > > So no, there's no difference that matters between the approaches.
 > > But I think doing this in the kernel is easier for userspace users.
 > 
@@ -51,21 +50,27 @@ getting the userspace cache itself swapped out.
 > together properly.  People have been solving this same problem for
 > the last 20 years without needing to tweak fadvise(). Or even having
 > an fadvise() syscall...
-
-fadvise() is fairly new, and AFAIK few apps use it.  Perhaps if it
-were improved, more people would use it and not have to reinvent
-the wheel.
-
+> 
 > Nothing about low latency IO or streaming IO is simple or easy, and
 > changing how readahead works doesn't change that fact. All it does
 > is change the behaviour of every other application that uses
 > fadvise() to minimise IO latency....
 
-I don't want to introduce regressions, either.
+Hi Dave,
 
-Perhaps if part of the FADV_WILLNEED read-ahead were handled
-synchronously (maybe 2M?) and humongous large readaheads (like mine)
-went to the background, that would be a good trade off?
+I am wondering this patch might be a good idea to reduce the latency of
+fadvise() syscall itself.  I do a really simple test in my desktop to
+measure the latency of fadvise syscall.  Before applying this patch,
+fadvise syscall takes 32 microseconds.  After applying the patch, it
+only takes 4 microseconds. (I was surprised that it takes a very long
+time!)
+
+Actually we observe a latency after using fadvise.  But I don't find a
+proper time to look at this problem.  So I guess this patch might be
+useful to reduce latency.
+
+Regards,
+                                                - Zheng
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
