@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id C558E6B005D
-	for <linux-mm@kvack.org>; Sat, 15 Dec 2012 21:15:09 -0500 (EST)
-Date: Sun, 16 Dec 2012 02:15:08 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: resend--[PATCH]  improve read ahead in kernel
-Message-ID: <20121216021508.GA3629@dcvr.yhbt.net>
-References: <50C4B4E7.60601@intel.com>
- <50C6AB45.606@intel.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 663026B002B
+	for <linux-mm@kvack.org>; Sat, 15 Dec 2012 21:45:44 -0500 (EST)
+Date: Sun, 16 Dec 2012 13:45:20 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
+Message-ID: <20121216024520.GH9806@dastard>
+References: <20121215005448.GA7698@dcvr.yhbt.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50C6AB45.606@intel.com>
+In-Reply-To: <20121215005448.GA7698@dcvr.yhbt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: xtu4 <xiaobing.tu@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org, linux-mm@kvack.org, di.zhang@intel.com
+To: Eric Wong <normalperson@yhbt.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-xtu4 <xiaobing.tu@intel.com> wrote:
-> resend it, due to format error
+On Sat, Dec 15, 2012 at 12:54:48AM +0000, Eric Wong wrote:
+> Applications streaming large files may want to reduce disk spinups and
+> I/O latency by performing large amounts of readahead up front.
+> Applications also tend to read files soon after opening them, so waiting
+> on a slow fadvise may cause unpleasant latency when the application
+> starts reading the file.
 > 
-> Subject: [PATCH] when system in low memory scenario, imaging there is a mp3
->  play, ora video play, we need to read mp3 or video file
->  from memory to page cache,but when system lack of memory,
->  page cache of mp3 or video file will be reclaimed.once read
->  in memory, then reclaimed, it will cause audio or video
->  glitch,and it will increase the io operation at the same
->  time.
+> As a userspace hacker, I'm sometimes tempted to create a background
+> thread in my app to run readahead().  However, I believe doing this
+> in the kernel will make life easier for other userspace hackers.
+> 
+> Since fadvise makes no guarantees about when (or even if) readahead
+> is performed, this change should not hurt existing applications.
+> 
+> "strace -T" timing on an uncached, one gigabyte file:
+> 
+>  Before: fadvise64(3, 0, 0, POSIX_FADV_WILLNEED) = 0 <2.484832>
+>   After: fadvise64(3, 0, 0, POSIX_FADV_WILLNEED) = 0 <0.000061>
 
-To me, this basically describes how POSIX_FADV_NOREUSE should work.
-I would like to have this ability via fadvise (and not CONFIG_).
+You've basically asked fadvise() to readahead the entire file if it
+can. That means it is likely to issue enough readahead to fill the
+IO queue, and that's where all the latency is coming from. If all
+you are trying to do is reduce the latency of the first read, then
+only readahead the initial range that you are going to need to read...
 
-Also, I think your patch has too many #ifdefs to be accepted.
+Also, Pushing readahead off to a workqueue potentially allows
+someone to DOS the system because readahead won't ever get throttled
+in the syscall context...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
