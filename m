@@ -1,76 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 6437A6B002B
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 03:35:41 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so3177972pbc.14
-        for <linux-mm@kvack.org>; Sun, 16 Dec 2012 00:35:40 -0800 (PST)
-Date: Sun, 16 Dec 2012 16:48:59 +0800
-From: Zheng Liu <gnehzuil.liu@gmail.com>
-Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
-Message-ID: <20121216084859.GA5600@gmail.com>
-References: <20121215005448.GA7698@dcvr.yhbt.net>
- <20121215223448.08272fd5@pyramind.ukuu.org.uk>
- <20121216002549.GA19402@dcvr.yhbt.net>
- <20121216030302.GI9806@dastard>
- <20121216033549.GA30446@dcvr.yhbt.net>
- <20121216041549.GK9806@dastard>
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 9B1746B002B
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 03:41:52 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id d41so2816676eek.14
+        for <linux-mm@kvack.org>; Sun, 16 Dec 2012 00:41:50 -0800 (PST)
+Date: Sun, 16 Dec 2012 09:41:46 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] mm: Downgrade mmap_sem before locking or populating on
+ mmap
+Message-ID: <20121216084146.GA21690@gmail.com>
+References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
+ <20121214072755.GR4939@ZenIV.linux.org.uk>
+ <CALCETrVw9Pc1sUZBL=wtLvsnBnkW5LAO5iu-i=T2oMOdwQfjHg@mail.gmail.com>
+ <20121214144927.GS4939@ZenIV.linux.org.uk>
+ <CALCETrUS7baKF7cdbrqX-o2qdeo1Uk=7Z4MHcxHMA3Luh+Obdw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121216041549.GK9806@dastard>
+In-Reply-To: <CALCETrUS7baKF7cdbrqX-o2qdeo1Uk=7Z4MHcxHMA3Luh+Obdw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Eric Wong <normalperson@yhbt.net>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>
 
-On Sun, Dec 16, 2012 at 03:15:49PM +1100, Dave Chinner wrote:
-> On Sun, Dec 16, 2012 at 03:35:49AM +0000, Eric Wong wrote:
-> > Dave Chinner <david@fromorbit.com> wrote:
-> > > On Sun, Dec 16, 2012 at 12:25:49AM +0000, Eric Wong wrote:
-> > > > Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> > > > > On Sat, 15 Dec 2012 00:54:48 +0000
-> > > > > Eric Wong <normalperson@yhbt.net> wrote:
-> > > > > 
-> > > > > > Applications streaming large files may want to reduce disk spinups and
-> > > > > > I/O latency by performing large amounts of readahead up front
-> 
-> > This could also be a use case for an audio/video player.
-> 
-> Sure, but this can all be handled by a userspace application. If you
-> want to avoid/batch IO to enable longer spindown times, then you
-> have to load the file into RAM somewhere, and you don't need special
-> kernel support for that.
-> 
-> > So no, there's no difference that matters between the approaches.
-> > But I think doing this in the kernel is easier for userspace users.
-> 
-> The kernel provides mechanisms for applications to use. You have not
-> mentioned anything new that requires a new kernel mechanism to
-> acheive - you just need to have the knowledge to put the pieces
-> together properly.  People have been solving this same problem for
-> the last 20 years without needing to tweak fadvise(). Or even having
-> an fadvise() syscall...
-> 
-> Nothing about low latency IO or streaming IO is simple or easy, and
-> changing how readahead works doesn't change that fact. All it does
-> is change the behaviour of every other application that uses
-> fadvise() to minimise IO latency....
 
-Hi Dave,
+* Andy Lutomirski <luto@amacapital.net> wrote:
 
-I am wondering this patch might be a good idea to reduce the latency of
-fadvise() syscall itself.  I do a really simple test in my desktop to
-measure the latency of fadvise syscall.  Before applying this patch,
-fadvise syscall takes 32 microseconds.  After applying the patch, it
-only takes 4 microseconds. (I was surprised that it takes a very long
-time!)
+> On Fri, Dec 14, 2012 at 6:49 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> > On Fri, Dec 14, 2012 at 03:14:50AM -0800, Andy Lutomirski wrote:
+> >
+> >> > Wait a minute.  get_user_pages() relies on ->mmap_sem being held.  Unless
+> >> > I'm seriously misreading your patch it removes that protection.  And yes,
+> >> > I'm aware of execve-related exception; it's in special circumstances -
+> >> > bprm->mm is guaranteed to be not shared (and we need to rearchitect that
+> >> > area anyway, but that's a separate story).
+> >>
+> >> Unless I completely screwed up the patch, ->mmap_sem is still held for
+> >> read (it's downgraded from write).  It's just not held for write
+> >> anymore.
+> >
+> > Huh?  I'm talking about the call of get_user_pages() in aio_setup_ring().
+> > With your patch it's done completely outside of ->mmap_sem, isn't it?
+> 
+> Oh, /that/ call to get_user_pages.  That would qualify as screwing up...
+> 
+> Since dropping and reacquiring mmap_sem there is probably a 
+> bad idea there, I'll rework this and post a v2.
 
-Actually we observe a latency after using fadvise.  But I don't find a
-proper time to look at this problem.  So I guess this patch might be
-useful to reduce latency.
+It probably does not matter much, as aio_setup() is an utter 
+slowpath, but I suspect you could still use the downgrading 
+variant of do_mmap_pgoff_unlock() here too:
 
-Regards,
-                                                - Zheng
+	int downgraded = 0;
+
+	...
+
+        down_write(&ctx->mm->mmap_sem);
+        /*
+         * XXX: If MCL_FUTURE is set, this will hold mmap_sem for write for
+         *      longer than necessary.
+         */
+        info->mmap_base = do_mmap_pgoff_helper(NULL, 0, info->mmap_size,
+                                        PROT_READ|PROT_WRITE,
+                                        MAP_ANONYMOUS|MAP_PRIVATE, 0, &downgraded);
+        if (IS_ERR((void *)info->mmap_base)) {
+		up_read_write(&ctx->mm->mmap_sem, downgraded);
+                info->mmap_size = 0;
+                aio_free_ring(ctx);
+                return -EAGAIN;
+        }
+
+        dprintk("mmap address: 0x%08lx\n", info->mmap_base);
+        info->nr_pages = get_user_pages(current, ctx->mm,
+                                        info->mmap_base, nr_pages,
+                                        1, 0, info->ring_pages, NULL);
+	up_read_write(&ctx->mm->mmap_sem, downgraded);
+
+Where up_read_write(lock, read) is a new primitive/wrapper that 
+does the up_read()/up_write() depending on the value of 
+'downgraded'.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
