@@ -1,90 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 803456B002B
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 07:39:55 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id l22so6489244vbn.14
-        for <linux-mm@kvack.org>; Sun, 16 Dec 2012 04:39:54 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <2e91ea19fbd30fa17718cb293473ae207ee8fd0f.1355536006.git.luto@amacapital.net>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id A862D6B002B
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 12:04:06 -0500 (EST)
+Date: Sun, 16 Dec 2012 17:04:03 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH] mm: Downgrade mmap_sem before locking or populating on
+ mmap
+Message-ID: <20121216170403.GC4939@ZenIV.linux.org.uk>
 References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
-	<2e91ea19fbd30fa17718cb293473ae207ee8fd0f.1355536006.git.luto@amacapital.net>
-Date: Sun, 16 Dec 2012 04:39:54 -0800
-Message-ID: <CANN689HG3tYAjijoeU0fMZW+sxGFyKFtzgycLMubT-rEPQhrRw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Downgrade mmap_sem before locking or populating on mmap
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+ <20121214072755.GR4939@ZenIV.linux.org.uk>
+ <CALCETrVw9Pc1sUZBL=wtLvsnBnkW5LAO5iu-i=T2oMOdwQfjHg@mail.gmail.com>
+ <20121214144927.GS4939@ZenIV.linux.org.uk>
+ <CALCETrUS7baKF7cdbrqX-o2qdeo1Uk=7Z4MHcxHMA3Luh+Obdw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUS7baKF7cdbrqX-o2qdeo1Uk=7Z4MHcxHMA3Luh+Obdw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@amacapital.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>
 
-On Fri, Dec 14, 2012 at 6:17 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> This is a serious cause of mmap_sem contention.  MAP_POPULATE
-> and MCL_FUTURE, in particular, are disastrous in multithreaded programs.
->
-> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
-> ---
->
-> Changes from v1:
->
-> The non-unlocking versions of do_mmap_pgoff and mmap_region are still
-> available for aio_setup_ring's benefit.  In theory, aio_setup_ring
-> would do better with a lock-downgrading version, but that would be
-> somewhat ugly and doesn't help my workload.
+On Fri, Dec 14, 2012 at 08:12:45AM -0800, Andy Lutomirski wrote:
+> On Fri, Dec 14, 2012 at 6:49 AM, Al Viro <viro@zeniv.linux.org.uk> wrote:
+> > On Fri, Dec 14, 2012 at 03:14:50AM -0800, Andy Lutomirski wrote:
+> >
+> >> > Wait a minute.  get_user_pages() relies on ->mmap_sem being held.  Unless
+> >> > I'm seriously misreading your patch it removes that protection.  And yes,
+> >> > I'm aware of execve-related exception; it's in special circumstances -
+> >> > bprm->mm is guaranteed to be not shared (and we need to rearchitect that
+> >> > area anyway, but that's a separate story).
+> >>
+> >> Unless I completely screwed up the patch, ->mmap_sem is still held for
+> >> read (it's downgraded from write).  It's just not held for write
+> >> anymore.
+> >
+> > Huh?  I'm talking about the call of get_user_pages() in aio_setup_ring().
+> > With your patch it's done completely outside of ->mmap_sem, isn't it?
+> 
+> Oh, /that/ call to get_user_pages.  That would qualify as screwing up...
+> 
+> Since dropping and reacquiring mmap_sem there is probably a bad idea
+> there, I'll rework this and post a v2.
 
-Hi Andy,
+FWIW, I've done some checking of ->mmap_sem uses yesterday.  Got further than
+the last time; catch so far, just from find_vma() audit:
+* arm swp_emulate.c - missing ->mmap_sem around find_vma().  Fix sent to
+rmk.
+* blackfin ptrace - find_vma() without any protection, definitely broken
+* m68k sys_cacheflush() - ditto
+* mips process_fpemu_return() - ditto
+* mips octeon_flush_cache_sigtramp() - ditto
+* omap_vout_uservirt_to_phys() - ditto, patch sent
+* vb2_get_contig_userptr() - probaly a bug, unless I've misread the (very
+twisty maze of) v4l2 code leading to it
+* vb2_get_contig_userptr() - ditto
+* gntdev_ioctl_get_offset_for_vaddr() - definitely broken
+and there's a couple of dubious places in arch/* I hadn't finished with,
+plus a lot in mm/* proper.
 
-I agree that the long mmap_sem hold times when using MAP_POPULATE,
-MAP_LOCKED or MCL_FUTURE are a problem. However, I'm not entirely
-happy with your proposed solution.
+That's just from a couple of days of RTFS.  The locking in there is far too
+convoluted as it is; worse, it's not localized code-wise, so rechecking
+correctness is going to remain a big time-sink ;-/
 
-My main concern is that just downgrading the mmap_sem only hides the
-problem: as soon as a writer gets queued on that mmap_sem,
-reader/writer fairness kicks in and blocks any new readers, which
-makes the problem reappear. So in order to completely fix the issue,
-we should look for a way that doesn't require holding the mmap_sem
-(even in read mode) for the entire duration of the populate or mlock
-operation.
+Making it *more* complex doesn't look like a good idea, TBH...
 
-I think this could be done by extending the mlock work I did as part
-of v2.6.38-rc1. The commit message for
-fed067da46ad3b9acedaf794a5f05d0bc153280b explains the idea; basically
-mlock() was split into do_mlock() which just sets the VM_LOCKED flag
-on vmas as needed, and do_mlock_pages() which goes through a range of
-addresses and actually populates/mlocks each individual page that is
-part of a VM_LOCKED vma.
+BTW, the __get_user_pages()/find_extend_vma()/mlock_vma_pages_range() pile is
+really asking for trouble; sure, the recursion there is limited, but it
+deserves a comment.  Moreover, the damn thing is reachable from coredump
+path and there we do *not* have ->mmap_sem held.  We don't reach the
+VM_BUG_ON() in __mlock_vma_pages_range(), but the reason for that also
+deserves a comment, IMO.
 
-This could be easily extended for mlocks that happen in mmap_region()
-due to MAP_LOCKED or MCL_FUTURE: mmap_region() would just set the
-VM_LOCKED flag and defer the work of actually populating/mlocking the
-individual pages. I think the only constraint here is that the pages
-must be locked before returning to userspace, so we may be able to use
-the task_work mechanism to achieve that. Later on (but before
-returning to userspace) we would notice we have some mlock work to do
-and call do_mlock_pages() to achieve that.
-
-I think the benefits of this approach would be:
-- no mmap_sem locking changes around mmap_region() - which also means
-that all code paths to mmap_region() can instantly benefit
-- do_mlock_pages() doesn't need to hold a read lock on mmap_sem for
-the entire duration of the operation, so we can fully solve the
-problem instead of just making it harder to trigger
-
-Now for handling MAP_POPULATE, we would probably want to use a similar
-mechanism as well, so that we don't need to hold the mmap_sem for the
-entire duration of the populate. This is similar in principle to the
-MAP_LOCKED case; however this may require the introduction of a new
-VM_POPULATE vma flag in order to avoid the possibility of a race where
-someone replaces our vma with another before we get a chance to
-populate it.
-
-I don't have an implementation for this idea yet; however I'm hoping
-to come up with one before xmas. Before then, any comments on the idea
-?
-
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Moreover, I'm not quite convinced that huge_memory.c and ksm.c can't run
+into all kinds of interesting races with ongoing coredump.  Looking into
+it...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
