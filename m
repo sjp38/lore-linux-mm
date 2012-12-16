@@ -1,100 +1,19 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 4818B6B002B
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 16:31:09 -0500 (EST)
-Date: Mon, 17 Dec 2012 08:31:04 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] fadvise: perform WILLNEED readahead in a workqueue
-Message-ID: <20121216213104.GO9806@dastard>
-References: <20121215005448.GA7698@dcvr.yhbt.net>
- <20121215223448.08272fd5@pyramind.ukuu.org.uk>
- <20121216002549.GA19402@dcvr.yhbt.net>
- <20121216030302.GI9806@dastard>
- <20121216033549.GA30446@dcvr.yhbt.net>
- <20121216041549.GK9806@dastard>
- <20121216052302.GA6680@dcvr.yhbt.net>
+Return-Path: <rebekahsimona@acgi.com>
+Date: Sun, 16 Dec 2012 22:30:54 +0000
+Subject: Top Selling 100% Quality & Satisfaction guaranteed! Best Buy Cialis Generic Online aso09729ez
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20121216052302.GA6680@dcvr.yhbt.net>
-Sender: owner-linux-mm@kvack.org
+From: "Natalie Shonda" <rebekahsimona@acgi.com>
+Message-ID: <51m26l29x19-36962649-776l1b51@cirmjjfz>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Dec 16, 2012 at 05:23:02AM +0000, Eric Wong wrote:
-> Dave Chinner <david@fromorbit.com> wrote:
-> > On Sun, Dec 16, 2012 at 03:35:49AM +0000, Eric Wong wrote:
-> > > Dave Chinner <david@fromorbit.com> wrote:
-> > > > On Sun, Dec 16, 2012 at 12:25:49AM +0000, Eric Wong wrote:
-> > > > > Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
-> > > > > > On Sat, 15 Dec 2012 00:54:48 +0000
-> > > > > > Eric Wong <normalperson@yhbt.net> wrote:
-> > > > > > 
-> > > > > > > Applications streaming large files may want to reduce disk spinups and
-> > > > > > > I/O latency by performing large amounts of readahead up front
-> > 
-> > > This could also be a use case for an audio/video player.
-> > 
-> > Sure, but this can all be handled by a userspace application. If you
-> > want to avoid/batch IO to enable longer spindown times, then you
-> > have to load the file into RAM somewhere, and you don't need special
-> > kernel support for that.
-> 
-> From userspace, I don't know when/if I'm caching too much and possibly
-> getting the userspace cache itself swapped out.
+           
+Best Buy Cialis Generic Online
 
-Which causes th disk to spin up. Now you start to see the complexity
-of what you are trying to acheive...
+Cialis 20mg x 80 Pills $155, Free Pills & Reorder Discount, Top Selling 100% Quality & Satisfaction guaranteed! 
 
-> > > So no, there's no difference that matters between the approaches.
-> > > But I think doing this in the kernel is easier for userspace users.
-> > 
-> > The kernel provides mechanisms for applications to use. You have not
-> > mentioned anything new that requires a new kernel mechanism to
-> > acheive - you just need to have the knowledge to put the pieces
-> > together properly.  People have been solving this same problem for
-> > the last 20 years without needing to tweak fadvise(). Or even having
-> > an fadvise() syscall...
-> 
-> fadvise() is fairly new, and AFAIK few apps use it.  Perhaps if it
-> were improved, more people would use it and not have to reinvent
-> the wheel.
-
-fadvise() is not "fairly new". It's been around for many, many
-years - it was there whan the linux kernel moved to git in 2005, and
-I haven't bothered to look any further back in history...
-
-> > Nothing about low latency IO or streaming IO is simple or easy, and
-> > changing how readahead works doesn't change that fact. All it does
-> > is change the behaviour of every other application that uses
-> > fadvise() to minimise IO latency....
-> 
-> I don't want to introduce regressions, either.
-> 
-> Perhaps if part of the FADV_WILLNEED read-ahead were handled
-> synchronously (maybe 2M?) and humongous large readaheads (like mine)
-> went to the background, that would be a good trade off?
-
-Which you can already do in userspace yourself without changing the
-kernel. i.e:
-
-	main thread			background thread:
-
-	readahead(0, 2MB)
-	spawn background thread
-	read(0, len)
-					readahead(2MB,1GB);
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+We accept VISA & MASTERCARD 90000+ Satisfied Customers! 
+http://drugtorepharmacydrugs.ru
+            
