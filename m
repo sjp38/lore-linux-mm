@@ -1,154 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id D4B986B0098
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 13:43:12 -0500 (EST)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 2/2] pageattr: prevent PSE and GLOABL leftovers to confuse pmd/pte_present and pmd_huge
-Date: Mon, 17 Dec 2012 19:00:24 +0100
-Message-Id: <1355767224-13298-3-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1355767224-13298-1-git-send-email-aarcange@redhat.com>
-References: <1355767224-13298-1-git-send-email-aarcange@redhat.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 1EB6E6B005A
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 14:44:38 -0500 (EST)
+Received: by mail-wg0-f41.google.com with SMTP id ds1so1903411wgb.2
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 11:44:36 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.00.1212170318110.21139@chino.kir.corp.google.com>
+References: <1355708488-2913-1-git-send-email-tangchen@cn.fujitsu.com>
+	<1355708488-2913-3-git-send-email-tangchen@cn.fujitsu.com>
+	<alpine.DEB.2.00.1212170318110.21139@chino.kir.corp.google.com>
+Date: Mon, 17 Dec 2012 11:44:36 -0800
+Message-ID: <CA+55aFwuT1aQt5HDTTLjk2HfyTK7jK=SAVxuQZiDfq-yS7D9BA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/2] memory-hotplug: Disable CONFIG_MOVABLE_NODE option
+ by default.
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/alternative; boundary=e89a8f13eaf874cb9204d1119c36
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, wency@cn.fujitsu.com, mel@csn.ul.ie, mingo@elte.hu, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linux-kernel@vger.kernel.org
 
-Without this patch any kernel code that reads kernel memory in non
-present kernel pte/pmds (as set by pageattr.c) will crash.
+--e89a8f13eaf874cb9204d1119c36
+Content-Type: text/plain; charset=ISO-8859-1
 
-With this kernel code:
+The only thing broken about it was the condign option and the lack of docs,
+so...
 
-static struct page *crash_page;
-static unsigned long *crash_address;
-[..]
-	crash_page = alloc_pages(GFP_KERNEL, 9);
-	crash_address = page_address(crash_page);
-	if (set_memory_np((unsigned long)crash_address, 1))
-		printk("set_memory_np failure\n");
-[..]
+     Linus
+On Dec 17, 2012 3:19 AM, "David Rientjes" <rientjes@google.com> wrote:
 
-The kernel will crash if inside the "crash tool" one would try to read
-the memory at the not present address.
+> On Mon, 17 Dec 2012, Tang Chen wrote:
+>
+> > This patch set CONFIG_MOVABLE_NODE to "default n" instead of
+> > "depends on BROKEN".
+> >
+> > Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> > Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> It's fine to change the default, but what's missing here is a rationale
+> for no longer making it depend on CONFIG_BROKEN.
+>
 
-crash> p crash_address
-crash_address = $8 = (long unsigned int *) 0xffff88023c000000
-crash> rd 0xffff88023c000000
-[ *lockup* ]
+--e89a8f13eaf874cb9204d1119c36
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-The lockup happens because _PAGE_GLOBAL and _PAGE_PROTNONE shares the
-same bit, and pageattr leaves _PAGE_GLOBAL set on a kernel pte which
-is then mistaken as _PAGE_PROTNONE (so pte_present returns true by
-mistake and the kernel fault then gets confused and loops).
+<p dir=3D"ltr">The only thing broken about it was the condign option and th=
+e lack of docs, so...</p>
+<p dir=3D"ltr">=A0=A0=A0=A0 Linus</p>
+<div class=3D"gmail_quote">On Dec 17, 2012 3:19 AM, &quot;David Rientjes&qu=
+ot; &lt;<a href=3D"mailto:rientjes@google.com">rientjes@google.com</a>&gt; =
+wrote:<br type=3D"attribution"><blockquote class=3D"gmail_quote" style=3D"m=
+argin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+On Mon, 17 Dec 2012, Tang Chen wrote:<br>
+<br>
+&gt; This patch set CONFIG_MOVABLE_NODE to &quot;default n&quot; instead of=
+<br>
+&gt; &quot;depends on BROKEN&quot;.<br>
+&gt;<br>
+&gt; Signed-off-by: Tang Chen &lt;<a href=3D"mailto:tangchen@cn.fujitsu.com=
+">tangchen@cn.fujitsu.com</a>&gt;<br>
+&gt; Reviewed-by: Yasuaki Ishimatsu &lt;<a href=3D"mailto:isimatu.yasuaki@j=
+p.fujitsu.com">isimatu.yasuaki@jp.fujitsu.com</a>&gt;<br>
+<br>
+It&#39;s fine to change the default, but what&#39;s missing here is a ratio=
+nale<br>
+for no longer making it depend on CONFIG_BROKEN.<br>
+</blockquote></div>
 
-With THP the same can happen after we taught pmd_present to check
-_PAGE_PROTNONE and _PAGE_PSE in commit
-027ef6c87853b0a9df53175063028edb4950d476. THP has the same problem
-with _PAGE_GLOBAL as the 4k pages, but it also has a problem with
-_PAGE_PSE, which must be cleared too.
-
-After the patch is applied copy_user correctly returns -EFAULT and
-doesn't lockup anymore.
-
-crash> p crash_address
-crash_address = $9 = (long unsigned int *) 0xffff88023c000000
-crash> rd 0xffff88023c000000
-rd: read error: kernel virtual address: ffff88023c000000  type: "64-bit KVADDR"
-
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- arch/x86/mm/pageattr.c |   50 +++++++++++++++++++++++++++++++++++++++++++++--
- 1 files changed, 47 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index a718e0d..2713be4 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -445,6 +445,19 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
- 
- 	/*
-+	 * Set the PSE and GLOBAL flags only if the PRESENT flag is
-+	 * set otherwise pmd_present/pmd_huge will return true even on
-+	 * a non present pmd. The canon_pgprot will clear _PAGE_GLOBAL
-+	 * for the ancient hardware that doesn't support it.
-+	 */
-+	if (pgprot_val(new_prot) & _PAGE_PRESENT)
-+		pgprot_val(new_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
-+	else
-+		pgprot_val(new_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
-+
-+	new_prot = canon_pgprot(new_prot);
-+
-+	/*
- 	 * old_pte points to the large page base address. So we need
- 	 * to add the offset of the virtual address:
- 	 */
-@@ -489,7 +502,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
- 		 * The address is aligned and the number of pages
- 		 * covers the full page.
- 		 */
--		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
-+		new_pte = pfn_pte(pte_pfn(old_pte), new_prot);
- 		__set_pmd_pte(kpte, address, new_pte);
- 		cpa->flags |= CPA_FLUSHTLB;
- 		do_split = 0;
-@@ -540,16 +553,35 @@ static int split_large_page(pte_t *kpte, unsigned long address)
- #ifdef CONFIG_X86_64
- 	if (level == PG_LEVEL_1G) {
- 		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
--		pgprot_val(ref_prot) |= _PAGE_PSE;
-+		/*
-+		 * Set the PSE flags only if the PRESENT flag is set
-+		 * otherwise pmd_present/pmd_huge will return true
-+		 * even on a non present pmd.
-+		 */
-+		if (pgprot_val(ref_prot) & _PAGE_PRESENT)
-+			pgprot_val(ref_prot) |= _PAGE_PSE;
-+		else
-+			pgprot_val(ref_prot) &= ~_PAGE_PSE;
- 	}
- #endif
- 
- 	/*
-+	 * Set the GLOBAL flags only if the PRESENT flag is set
-+	 * otherwise pmd/pte_present will return true even on a non
-+	 * present pmd/pte. The canon_pgprot will clear _PAGE_GLOBAL
-+	 * for the ancient hardware that doesn't support it.
-+	 */
-+	if (pgprot_val(ref_prot) & _PAGE_PRESENT)
-+		pgprot_val(ref_prot) |= _PAGE_GLOBAL;
-+	else
-+		pgprot_val(ref_prot) &= ~_PAGE_GLOBAL;
-+
-+	/*
- 	 * Get the target pfn from the original entry:
- 	 */
- 	pfn = pte_pfn(*kpte);
- 	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
--		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
-+		set_pte(&pbase[i], pfn_pte(pfn, canon_pgprot(ref_prot)));
- 
- 	if (address >= (unsigned long)__va(0) &&
- 		address < (unsigned long)__va(max_low_pfn_mapped << PAGE_SHIFT))
-@@ -660,6 +692,18 @@ repeat:
- 		new_prot = static_protections(new_prot, address, pfn);
- 
- 		/*
-+		 * Set the GLOBAL flags only if the PRESENT flag is
-+		 * set otherwise pte_present will return true even on
-+		 * a non present pte. The canon_pgprot will clear
-+		 * _PAGE_GLOBAL for the ancient hardware that doesn't
-+		 * support it.
-+		 */
-+		if (pgprot_val(new_prot) & _PAGE_PRESENT)
-+			pgprot_val(new_prot) |= _PAGE_GLOBAL;
-+		else
-+			pgprot_val(new_prot) &= ~_PAGE_GLOBAL;
-+
-+		/*
- 		 * We need to keep the pfn from the existing PTE,
- 		 * after all we're only going to change it's attributes
- 		 * not the memory it points to
+--e89a8f13eaf874cb9204d1119c36--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
