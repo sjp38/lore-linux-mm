@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id DC19E6B005A
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 06:49:22 -0500 (EST)
-Date: Mon, 17 Dec 2012 11:49:17 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: Suppress mm/memory.o warning on older compilers if
- !CONFIG_NUMA_BALANCING
-Message-ID: <20121217114917.GF9887@suse.de>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 58B9F6B002B
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 08:58:43 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id v19so6298384obq.14
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 05:58:42 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+In-Reply-To: <20121212201529.GD16230@one.firstfloor.org>
+References: <1355331819-8728-1-git-send-email-js1304@gmail.com>
+	<0000013b90beeb93-87f65a09-0cc3-419f-be26-5271148cb947-000000@email.amazonses.com>
+	<20121212201529.GD16230@one.firstfloor.org>
+Date: Mon, 17 Dec 2012 22:58:42 +0900
+Message-ID: <CAAmzW4P-MT9u_VzJ59t163TFPuDcyNX=tb5sC6WZ8sO20_Zjcg@mail.gmail.com>
+Subject: Re: [PATCH] mm: introduce numa_zero_pfn
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The kbuild test robot reported the following after the merge of Automatic
-NUMA Balancing when cross-compiling for avr32.
+2012/12/13 Andi Kleen <andi@firstfloor.org>:
+>> I would expect a processor to fetch the zero page cachelines from the l3
+>> cache from other sockets avoiding memory transactions altogether. The zero
+>> page is likely in use somewhere so no typically no memory accesses should
+>> occur in a system.
+>
+> It depends on how effectively the workload uses the caches. If something
+> is a cache pig of the L3 cache, then even shareable cache lines may need
+> to be refetched regularly.
+>
+> But if your workloads spends a significant part of its time reading
+> from zero page read only data there is something wrong with the workload.
+>
+> I would do some data profiling first to really prove that is the case.
 
-mm/memory.c: In function 'do_pmd_numa_page':
-mm/memory.c:3593: warning: no return statement in function returning non-void
-
-The code is unreachable but the avr32 cross-compiler was not new enough
-to know that. This patch suppresses the warning.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/memory.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index e6a3b93..23f1fdf 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3590,6 +3590,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		     unsigned long addr, pmd_t *pmdp)
- {
- 	BUG();
-+	return 0;
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
+Okay.
+I didn't know about L3 cache, before.
+Now, I think that I need some data profiling!
+Thanks for comment.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
