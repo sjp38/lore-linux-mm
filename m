@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id F034F6B0068
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 13:13:41 -0500 (EST)
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id E2E9A6B0068
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 13:13:43 -0500 (EST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/7] mm: vmscan: save work scanning (almost) empty LRU lists
-Date: Mon, 17 Dec 2012 13:12:32 -0500
-Message-Id: <1355767957-4913-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/7] mm: vmscan: clarify how swappiness, highest priority, memcg interact
+Date: Mon, 17 Dec 2012 13:12:33 -0500
+Message-Id: <1355767957-4913-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
 References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -13,70 +13,93 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In certain cases (kswapd reclaim, memcg target reclaim), a fixed
-minimum amount of pages is scanned from the LRU lists on each
-iteration, to make progress.
+A swappiness of 0 has a slightly different meaning for global reclaim
+(may swap if file cache really low) and memory cgroup reclaim (never
+swap, ever).
 
-Do not make this minimum bigger than the respective LRU list size,
-however, and save some busy work trying to isolate and reclaim pages
-that are not there.
+In addition, global reclaim at highest priority will scan all LRU
+lists equal to their size and ignore other balancing heuristics.
+UNLESS swappiness forbids swapping, then the lists are balanced based
+on recent reclaim effectiveness.  UNLESS file cache is running low,
+then anonymous pages are force-scanned.
 
-Empty LRU lists are quite common with memory cgroups in NUMA
-environments because there exists a set of LRU lists for each zone for
-each memory cgroup, while the memory of a single cgroup is expected to
-stay on just one node.  The number of expected empty LRU lists is thus
-
-  memcgs * (nodes - 1) * lru types
-
-Each attempt to reclaim from an empty LRU list does expensive size
-comparisons between lists, acquires the zone's lru lock etc.  Avoid
-that.
+This (total mess of a) behaviour is implicit and not obvious from the
+way the code is organized.  At least make it apparent in the code flow
+and document the conditions.  It will be it easier to come up with
+sane semantics later.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/swap.h |  2 +-
- mm/vmscan.c          | 10 ++++++----
- 2 files changed, 7 insertions(+), 5 deletions(-)
+ mm/vmscan.c | 39 ++++++++++++++++++++++++++++++---------
+ 1 file changed, 30 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 68df9c1..8c66486 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -156,7 +156,7 @@ enum {
- 	SWP_SCANNING	= (1 << 8),	/* refcount in scan_swap_map */
- };
- 
--#define SWAP_CLUSTER_MAX 32
-+#define SWAP_CLUSTER_MAX 32UL
- #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
- 
- /*
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 249ff94..648a4db 100644
+index 648a4db..c37deaf 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1749,15 +1749,17 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- out:
- 	for_each_evictable_lru(lru) {
- 		int file = is_file_lru(lru);
-+		unsigned long size;
+@@ -1644,7 +1644,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 	u64 fraction[2], denominator;
+ 	enum lru_list lru;
+-	int noswap = 0;
+ 	bool force_scan = false;
+ 	struct zone *zone = lruvec_zone(lruvec);
+ 
+@@ -1665,13 +1664,38 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+ 	if (!sc->may_swap || (nr_swap_pages <= 0)) {
+-		noswap = 1;
+ 		fraction[0] = 0;
+ 		fraction[1] = 1;
+ 		denominator = 1;
+ 		goto out;
+ 	}
+ 
++	/*
++	 * Global reclaim will swap to prevent OOM even with no
++	 * swappiness, but memcg users want to use this knob to
++	 * disable swapping for individual groups completely when
++	 * using the memory controller's swap limit feature would be
++	 * too expensive.
++	 */
++	if (!global_reclaim(sc) && !vmscan_swappiness(sc)) {
++		fraction[0] = 0;
++		fraction[1] = 1;
++		denominator = 1;
++		goto out;
++	}
++
++	/*
++	 * Do not apply any pressure balancing cleverness when the
++	 * system is close to OOM, scan both anon and file equally
++	 * (unless the swappiness setting disagrees with swapping).
++	 */
++	if (!sc->priority && vmscan_swappiness(sc)) {
++		fraction[0] = 1;
++		fraction[1] = 1;
++		denominator = 1;
++		goto out;
++	}
++
+ 	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+ 		get_lru_size(lruvec, LRU_INACTIVE_ANON);
+ 	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
+@@ -1753,13 +1777,10 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
  		unsigned long scan;
  
--		scan = get_lru_size(lruvec, lru);
-+		size = get_lru_size(lruvec, lru);
- 		if (sc->priority || noswap || !vmscan_swappiness(sc)) {
--			scan >>= sc->priority;
-+			scan = size >> sc->priority;
- 			if (!scan && force_scan)
--				scan = SWAP_CLUSTER_MAX;
-+				scan = min(size, SWAP_CLUSTER_MAX);
- 			scan = div64_u64(scan * fraction[file], denominator);
--		}
-+		} else
-+			scan = size;
+ 		size = get_lru_size(lruvec, lru);
+-		if (sc->priority || noswap || !vmscan_swappiness(sc)) {
+-			scan = size >> sc->priority;
+-			if (!scan && force_scan)
+-				scan = min(size, SWAP_CLUSTER_MAX);
+-			scan = div64_u64(scan * fraction[file], denominator);
+-		} else
+-			scan = size;
++		scan = size >> sc->priority;
++		if (!scan && force_scan)
++			scan = min(size, SWAP_CLUSTER_MAX);
++		scan = div64_u64(scan * fraction[file], denominator);
  		nr[lru] = scan;
  	}
  }
