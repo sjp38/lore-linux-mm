@@ -1,122 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id C40816B005A
-	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 21:25:24 -0500 (EST)
-Message-ID: <50CE823F.7020700@cn.fujitsu.com>
-Date: Mon, 17 Dec 2012 10:23:59 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 01F856B0044
+	for <linux-mm@kvack.org>; Sun, 16 Dec 2012 22:29:23 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id l22so7022428vbn.14
+        for <linux-mm@kvack.org>; Sun, 16 Dec 2012 19:29:22 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PART4 Patch v2 2/2] memory_hotplug: allow online/offline memory
- to result movable node
-References: <1353067090-19468-1-git-send-email-wency@cn.fujitsu.com> <1353067090-19468-3-git-send-email-wency@cn.fujitsu.com> <20121120142928.0aaf8fc8.akpm@linux-foundation.org>
-In-Reply-To: <20121120142928.0aaf8fc8.akpm@linux-foundation.org>
-Content-Type: multipart/mixed;
- boundary="------------080707040208070808070206"
+In-Reply-To: <CALCETrW58pb2w_r0gUDmMVSqi8PBQRdR1dRj2HX0ymq+qnz8XA@mail.gmail.com>
+References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
+	<2e91ea19fbd30fa17718cb293473ae207ee8fd0f.1355536006.git.luto@amacapital.net>
+	<CANN689HG3tYAjijoeU0fMZW+sxGFyKFtzgycLMubT-rEPQhrRw@mail.gmail.com>
+	<CALCETrW58pb2w_r0gUDmMVSqi8PBQRdR1dRj2HX0ymq+qnz8XA@mail.gmail.com>
+Date: Sun, 16 Dec 2012 19:29:22 -0800
+Message-ID: <CANN689GKp-9Bfn6HENeSXe=PZ0Qy5uOP6ju5gosMFKFDPC0D8w@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: Downgrade mmap_sem before locking or populating on mmap
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rob Landley <rob@landley.net>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, Rusty Russell <rusty@rustcorp.com.au>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-This is a multi-part message in MIME format.
---------------080707040208070808070206
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+On Sun, Dec 16, 2012 at 10:05 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Sun, Dec 16, 2012 at 4:39 AM, Michel Lespinasse <walken@google.com> wrote:
+>> My main concern is that just downgrading the mmap_sem only hides the
+>> problem: as soon as a writer gets queued on that mmap_sem,
+>> reader/writer fairness kicks in and blocks any new readers, which
+>> makes the problem reappear. So in order to completely fix the issue,
+>> we should look for a way that doesn't require holding the mmap_sem
+>> (even in read mode) for the entire duration of the populate or mlock
+>> operation.
+>
+> Ugh.
+>
+> At least with my patch, mmap in MCL_FUTURE mode is no worse than mmap
+> + mlock.  I suspect I haven't hit this because all my mmaping is done
+> by one thread, so it never ends up waiting for itself, and the other
+> thread have very short mmap_sem hold times.
 
-Hi Andrew,
+Yes, you won't hit the problems with long read-side mmap_sem hold
+times if you don't have other threads blocking for the write side.
 
-So sorry for such a long delay. I missed this one.
-Please check the attached patch if you still need it.
-All comments are followed.
+>> I think this could be done by extending the mlock work I did as part
+>> of v2.6.38-rc1. The commit message for
+>> c explains the idea; basically
+>> mlock() was split into do_mlock() which just sets the VM_LOCKED flag
+>> on vmas as needed, and do_mlock_pages() which goes through a range of
+>> addresses and actually populates/mlocks each individual page that is
+>> part of a VM_LOCKED vma.
+>
+> Doesn't this have the same problem?  It holds mmap_sem for read for a
+> long time, and if another writer comes in then r/w starvation
+> prevention will kick in.
 
-Thanks. :)
+Well, my point is that do_mlock_pages() doesn't need to hold the
+mmap_sem read side for a long time. It currently releases it when
+faulting a page requires a disk read, and could conceptually release
+it more often if needed.
 
-On 11/21/2012 06:29 AM, Andrew Morton wrote:
-> On Fri, 16 Nov 2012 19:58:10 +0800
-> Wen Congyang<wency@cn.fujitsu.com>  wrote:
->
->> From: Lai Jiangshan<laijs@cn.fujitsu.com>
->>
->> Now, memory management can handle movable node or nodes which don't have
->> any normal memory, so we can dynamic configure and add movable node by:
->> 	online a ZONE_MOVABLE memory from a previous offline node
->> 	offline the last normal memory which result a non-normal-memory-node
->>
->> movable-node is very important for power-saving,
->> hardware partitioning and high-available-system(hardware fault management).
->>
->> ...
->>
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -589,11 +589,19 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->>   	return 0;
->>   }
->>
->> +#ifdef CONFIG_MOVABLE_NODE
->> +/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
->
-> The comment is hard to understand.  Should it read "When
-> CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-> normal memory"?
->
->> +static bool can_online_high_movable(struct zone *zone)
->> +{
->> +	return true;
->> +}
->> +#else /* #ifdef CONFIG_MOVABLE_NODE */
->>   /* ensure every online node has NORMAL memory */
->>   static bool can_online_high_movable(struct zone *zone)
->>   {
->>   	return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
->>   }
->> +#endif /* #ifdef CONFIG_MOVABLE_NODE */
->>
->>   /* check which state of node_states will be changed when online memory */
->>   static void node_states_check_changes_online(unsigned long nr_pages,
->> @@ -1097,6 +1105,13 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
->>   	return offlined;
->>   }
->>
->> +#ifdef CONFIG_MOVABLE_NODE
->> +/* when CONFIG_MOVABLE_NODE, we allow online node don't have normal memory */
->
-> Ditto, after replacing "online" with offlining".
->
->> +static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
->> +{
->> +	return true;
->> +}
->> +#else /* #ifdef CONFIG_MOVABLE_NODE */
->>   /* ensure the node has NORMAL memory if it is still online */
->>   static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
->>   {
->> @@ -1120,6 +1135,7 @@ static bool can_offline_normal(struct zone *zone, unsigned long nr_pages)
->>   	 */
->>   	return present_pages == 0;
->>   }
->> +#endif /* #ifdef CONFIG_MOVABLE_NODE */
->
-> Please, spend more time over the accuracy and completeness of the
-> changelog and comments?  That will result in better and more
-> maintainable code.  And it results in *much* more effective code
-> reviewing.
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+We can't easily release mmap_sem from within mmap_region() since
+mmap_region's callers don't expect it; however we can defer the page
+mlocking and we don't have to hold mmap_sem continuously until then.
+The only constraints are the new VM_LOCKED region's pages must be
+mlocked before we return to userspace, and that if a concurrent thread
+modifies the mappings while we don't hold mmap_sem, and creates a new
+non-mlocked region, we shouldn't mlock those pages in
+do_mlock_pages().
 
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
---------------080707040208070808070206
-Content-Transfer-Encoding: 7bit
-Content-Type: text/x-patch;
- name="0002-memory_hotplug-allow-online-offline-memory-to-result.patch"
-Content-Disposition: attachment;
- filename*0="0002-memory_hotplug-allow-online-offline-memory-to-result.pa";
- filename*1="tch"
-
-
---------------080707040208070808070206--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
