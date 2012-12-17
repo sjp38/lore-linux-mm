@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 0CC366B0068
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 13:13:46 -0500 (EST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 7/7] mm: reduce rmap overhead for ex-KSM page copies created on swap faults
-Date: Mon, 17 Dec 2012 13:12:37 -0500
-Message-Id: <1355767957-4913-8-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
-References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 0621E6B0081
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 13:15:40 -0500 (EST)
+Message-ID: <50CF6145.6050207@redhat.com>
+Date: Mon, 17 Dec 2012 13:15:33 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch 1/7] mm: memcg: only evict file pages when we have plenty
+References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org> <1355767957-4913-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1355767957-4913-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When ex-KSM pages are faulted from swap cache, the fault handler is
-not capable of re-establishing anon_vma-spanning KSM pages.  In this
-case, a copy of the page is created instead, just like during a COW
-break.
+On 12/17/2012 01:12 PM, Johannes Weiner wrote:
+> e986850 "mm, vmscan: only evict file pages when we have plenty" makes
+> a point of not going for anonymous memory while there is still enough
+> inactive cache around.
+>
+> The check was added only for global reclaim, but it is just as useful
+> to reduce swapping in memory cgroup reclaim:
+>
+> 200M-memcg-defconfig-j2
+>
+>                                   vanilla                   patched
+> Real time              454.06 (  +0.00%)         453.71 (  -0.08%)
+> User time              668.57 (  +0.00%)         668.73 (  +0.02%)
+> System time            128.92 (  +0.00%)         129.53 (  +0.46%)
+> Swap in               1246.80 (  +0.00%)         814.40 ( -34.65%)
+> Swap out              1198.90 (  +0.00%)         827.00 ( -30.99%)
+> Pages allocated   16431288.10 (  +0.00%)    16434035.30 (  +0.02%)
+> Major faults           681.50 (  +0.00%)         593.70 ( -12.86%)
+> THP faults             237.20 (  +0.00%)         242.40 (  +2.18%)
+> THP collapse           241.20 (  +0.00%)         248.50 (  +3.01%)
+> THP splits             157.30 (  +0.00%)         161.40 (  +2.59%)
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
 
-These freshly made copies are known to be exclusive to the faulting
-VMA and there is no reason to go look for this page in parent and
-sibling processes during rmap operations.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Use page_add_new_anon_rmap() for these copies.  This also puts them on
-the proper LRU lists and marks them SwapBacked, so we can get rid of
-doing this ad-hoc in the KSM copy code.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
----
- mm/ksm.c    | 6 ------
- mm/memory.c | 5 ++++-
- 2 files changed, 4 insertions(+), 7 deletions(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 382d930..7275c74 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1590,13 +1590,7 @@ struct page *ksm_does_need_to_copy(struct page *page,
- 
- 		SetPageDirty(new_page);
- 		__SetPageUptodate(new_page);
--		SetPageSwapBacked(new_page);
- 		__set_page_locked(new_page);
--
--		if (!mlocked_vma_newpage(vma, new_page))
--			lru_cache_add_lru(new_page, LRU_ACTIVE_ANON);
--		else
--			add_page_to_unevictable_list(new_page);
- 	}
- 
- 	return new_page;
-diff --git a/mm/memory.c b/mm/memory.c
-index db2e9e7..7e17eb0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3020,7 +3020,10 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	}
- 	flush_icache_page(vma, page);
- 	set_pte_at(mm, address, page_table, pte);
--	do_page_add_anon_rmap(page, vma, address, exclusive);
-+	if (swapcache) /* ksm created a completely new copy */
-+		page_add_new_anon_rmap(page, vma, address);
-+	else
-+		do_page_add_anon_rmap(page, vma, address, exclusive);
- 	/* It's better to call commit-charge after rmap is established */
- 	mem_cgroup_commit_charge_swapin(page, ptr);
- 
 -- 
-1.7.11.7
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
