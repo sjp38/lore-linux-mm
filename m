@@ -1,53 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 91BF36B002B
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 03:17:09 -0500 (EST)
-Date: Mon, 17 Dec 2012 10:17:07 +0200
-From: Gleb Natapov <gleb@redhat.com>
-Subject: Re: BUG: MAX_LOCK_DEPTH too low!
-Message-ID: <20121217081707.GD11016@redhat.com>
-References: <20121217081447.GB24173@shutemov.name>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 78A2E6B002B
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 04:52:38 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id jg9so2794069bkc.14
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 01:52:36 -0800 (PST)
+Date: Mon, 17 Dec 2012 10:52:31 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2] mm: Downgrade mmap_sem before locking or populating
+ on mmap
+Message-ID: <20121217095231.GA1134@gmail.com>
+References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
+ <2e91ea19fbd30fa17718cb293473ae207ee8fd0f.1355536006.git.luto@amacapital.net>
+ <20121216090026.GB21690@gmail.com>
+ <CALCETrX=3oQMKMNF2L3K7ur35KpeiqUN12RMq3XvtRChh9OJkg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121217081447.GB24173@shutemov.name>
+In-Reply-To: <CALCETrX=3oQMKMNF2L3K7ur35KpeiqUN12RMq3XvtRChh9OJkg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, J??rn Engel <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Copying Andrea.
 
-On Mon, Dec 17, 2012 at 10:14:47AM +0200, Kirill A. Shutemov wrote:
-> Hi,
-> 
-> I've got this BUG on up-to-date Linus tree (aed606e):
-> 
-> [ 1145.439071] BUG: MAX_LOCK_DEPTH too low!
-> [ 1145.439077] turning off the locking correctness validator.
-> [ 1145.439081] Pid: 4619, comm: kvm Not tainted 3.7.0-08682-gaed606e-dirty #166
-> [ 1145.439084] Call Trace:
-> [ 1145.439094]  [<ffffffff810e6094>] __lock_acquire.isra.24+0xc54/0xe10
-> [ 1145.439099]  [<ffffffff810e6873>] lock_acquire+0x93/0x140
-> [ 1145.439106]  [<ffffffff8117bfa8>] ? mm_take_all_locks+0x148/0x1b0
-> [ 1145.439111]  [<ffffffff8173d239>] down_write+0x49/0x90
-> [ 1145.439115]  [<ffffffff8117bfa8>] ? mm_take_all_locks+0x148/0x1b0
-> [ 1145.439119]  [<ffffffff8117bfa8>] mm_take_all_locks+0x148/0x1b0
-> [ 1145.439124]  [<ffffffff81192253>] ? do_mmu_notifier_register+0x153/0x180
-> [ 1145.439128]  [<ffffffff8119217f>] do_mmu_notifier_register+0x7f/0x180
-> [ 1145.439132]  [<ffffffff811922b3>] mmu_notifier_register+0x13/0x20
-> [ 1145.439138]  [<ffffffff81006036>] kvm_dev_ioctl+0x3e6/0x520
-> [ 1145.439142]  [<ffffffff810e40e8>] ? debug_check_no_locks_freed+0xd8/0x170
-> [ 1145.439148]  [<ffffffff811be6c7>] do_vfs_ioctl+0x97/0x540
-> [ 1145.439152]  [<ffffffff811bec01>] sys_ioctl+0x91/0xb0
-> [ 1145.439158]  [<ffffffff8132464e>] ? trace_hardirqs_on_thunk+0x3a/0x3f
-> [ 1145.439163]  [<ffffffff817478c6>] system_call_fastpath+0x1a/0x1f
-> 
-> -- 
->  Kirill A. Shutemov
+* Andy Lutomirski <luto@amacapital.net> wrote:
 
---
-			Gleb.
+> > 2)
+> >
+> > More aggressively, we could just make it the _rule_ that the 
+> > mm lock gets downgraded to read in mmap_region_helper(), no 
+> > matter what.
+> >
+> > From a quick look I *think* all the usage sites (including 
+> > sys_aio_setup()) are fine with that unlocking - but I could 
+> > be wrong.
+> 
+> They are.
+
+Lets try that then - the ugliness of the current patch is 
+certainly a problem.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
