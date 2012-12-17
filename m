@@ -1,128 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 2ED3C6B0044
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 15:05:51 -0500 (EST)
-Received: by mail-ea0-f169.google.com with SMTP id a12so2751446eaa.14
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 12:05:49 -0800 (PST)
-Date: Mon, 17 Dec 2012 21:05:47 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/7] mm: vmscan: clarify how swappiness, highest
- priority, memcg interact
-Message-ID: <20121217200547.GC16375@dhcp22.suse.cz>
-References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
- <1355767957-4913-4-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355767957-4913-4-git-send-email-hannes@cmpxchg.org>
+Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
+	by kanga.kvack.org (Postfix) with SMTP id 84C916B002B
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 15:49:51 -0500 (EST)
+Date: Mon, 17 Dec 2012 12:49:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Suppress mm/memory.o warning on older compilers if
+ !CONFIG_NUMA_BALANCING
+Message-Id: <20121217124949.3024dda3.akpm@linux-foundation.org>
+In-Reply-To: <20121217114917.GF9887@suse.de>
+References: <20121217114917.GF9887@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>
 
-On Mon 17-12-12 13:12:33, Johannes Weiner wrote:
-> A swappiness of 0 has a slightly different meaning for global reclaim
-> (may swap if file cache really low) and memory cgroup reclaim (never
-> swap, ever).
+On Mon, 17 Dec 2012 11:49:17 +0000
+Mel Gorman <mgorman@suse.de> wrote:
+
+> The kbuild test robot reported the following after the merge of Automatic
+> NUMA Balancing when cross-compiling for avr32.
 > 
-> In addition, global reclaim at highest priority will scan all LRU
-> lists equal to their size and ignore other balancing heuristics.
-> UNLESS swappiness forbids swapping, then the lists are balanced based
-> on recent reclaim effectiveness.  UNLESS file cache is running low,
-> then anonymous pages are force-scanned.
+> mm/memory.c: In function 'do_pmd_numa_page':
+> mm/memory.c:3593: warning: no return statement in function returning non-void
 > 
-> This (total mess of a) behaviour is implicit and not obvious from the
-> way the code is organized.  At least make it apparent in the code flow
-> and document the conditions.  It will be it easier to come up with
-> sane semantics later.
+> The code is unreachable but the avr32 cross-compiler was not new enough
+> to know that. This patch suppresses the warning.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks!
-
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 > ---
->  mm/vmscan.c | 39 ++++++++++++++++++++++++++++++---------
->  1 file changed, 30 insertions(+), 9 deletions(-)
+>  mm/memory.c |    1 +
+>  1 file changed, 1 insertion(+)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 648a4db..c37deaf 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1644,7 +1644,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
->  	u64 fraction[2], denominator;
->  	enum lru_list lru;
-> -	int noswap = 0;
->  	bool force_scan = false;
->  	struct zone *zone = lruvec_zone(lruvec);
->  
-> @@ -1665,13 +1664,38 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  
->  	/* If we have no swap space, do not bother scanning anon pages. */
->  	if (!sc->may_swap || (nr_swap_pages <= 0)) {
-> -		noswap = 1;
->  		fraction[0] = 0;
->  		fraction[1] = 1;
->  		denominator = 1;
->  		goto out;
->  	}
->  
-> +	/*
-> +	 * Global reclaim will swap to prevent OOM even with no
-> +	 * swappiness, but memcg users want to use this knob to
-> +	 * disable swapping for individual groups completely when
-> +	 * using the memory controller's swap limit feature would be
-> +	 * too expensive.
-> +	 */
-> +	if (!global_reclaim(sc) && !vmscan_swappiness(sc)) {
-> +		fraction[0] = 0;
-> +		fraction[1] = 1;
-> +		denominator = 1;
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * Do not apply any pressure balancing cleverness when the
-> +	 * system is close to OOM, scan both anon and file equally
-> +	 * (unless the swappiness setting disagrees with swapping).
-> +	 */
-> +	if (!sc->priority && vmscan_swappiness(sc)) {
-> +		fraction[0] = 1;
-> +		fraction[1] = 1;
-> +		denominator = 1;
-> +		goto out;
-> +	}
-> +
->  	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
->  		get_lru_size(lruvec, LRU_INACTIVE_ANON);
->  	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
-> @@ -1753,13 +1777,10 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  		unsigned long scan;
->  
->  		size = get_lru_size(lruvec, lru);
-> -		if (sc->priority || noswap || !vmscan_swappiness(sc)) {
-> -			scan = size >> sc->priority;
-> -			if (!scan && force_scan)
-> -				scan = min(size, SWAP_CLUSTER_MAX);
-> -			scan = div64_u64(scan * fraction[file], denominator);
-> -		} else
-> -			scan = size;
-> +		scan = size >> sc->priority;
-> +		if (!scan && force_scan)
-> +			scan = min(size, SWAP_CLUSTER_MAX);
-> +		scan = div64_u64(scan * fraction[file], denominator);
->  		nr[lru] = scan;
->  	}
+> diff --git a/mm/memory.c b/mm/memory.c
+> index e6a3b93..23f1fdf 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3590,6 +3590,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  		     unsigned long addr, pmd_t *pmdp)
+>  {
+>  	BUG();
+> +	return 0;
 >  }
-> -- 
-> 1.7.11.7
-> 
+>  #endif /* CONFIG_NUMA_BALANCING */
 
--- 
-Michal Hocko
-SUSE Labs
+Odd.  avr32's BUG() includes a call to unreachable(), which should
+evaluate to "do { } while (1)".  Can you check that this is working?
+
+Perhaps it _is_ working, but the compiler incorrectly thinks that the
+function can return?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
