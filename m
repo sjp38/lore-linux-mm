@@ -1,50 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id AFE916B002B
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 17:01:26 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id l22so8468735vbn.14
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 14:01:25 -0800 (PST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id 5595C6B002B
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 17:24:25 -0500 (EST)
+Received: by mail-wg0-f47.google.com with SMTP id dq11so2782351wgb.26
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 14:24:23 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] CMA: call to putback_lru_pages
+In-Reply-To: <1355779504-30798-1-git-send-email-srinivas.pandruvada@linux.intel.com>
+References: <1355779504-30798-1-git-send-email-srinivas.pandruvada@linux.intel.com>
+Date: Mon, 17 Dec 2012 23:24:14 +0100
+Message-ID: <xa1tlicwiagh.fsf@mina86.com>
 MIME-Version: 1.0
-In-Reply-To: <CANN689GKp-9Bfn6HENeSXe=PZ0Qy5uOP6ju5gosMFKFDPC0D8w@mail.gmail.com>
-References: <3b624af48f4ba4affd78466b73b6afe0e2f66549.1355463438.git.luto@amacapital.net>
- <2e91ea19fbd30fa17718cb293473ae207ee8fd0f.1355536006.git.luto@amacapital.net>
- <CANN689HG3tYAjijoeU0fMZW+sxGFyKFtzgycLMubT-rEPQhrRw@mail.gmail.com>
- <CALCETrW58pb2w_r0gUDmMVSqi8PBQRdR1dRj2HX0ymq+qnz8XA@mail.gmail.com> <CANN689GKp-9Bfn6HENeSXe=PZ0Qy5uOP6ju5gosMFKFDPC0D8w@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 17 Dec 2012 14:01:05 -0800
-Message-ID: <CALCETrV_t109YwEA_ue8jYOFXLzDL55zwguKHVL09WDEJTJfRg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: Downgrade mmap_sem before locking or populating on mmap
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, =?ISO-8859-1?Q?J=F6rn_Engel?= <joern@logfs.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org
 
-On Sun, Dec 16, 2012 at 7:29 PM, Michel Lespinasse <walken@google.com> wrote:
-> On Sun, Dec 16, 2012 at 10:05 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->> On Sun, Dec 16, 2012 at 4:39 AM, Michel Lespinasse <walken@google.com> wrote:
->>> I think this could be done by extending the mlock work I did as part
->>> of v2.6.38-rc1. The commit message for
->>> c explains the idea; basically
->>> mlock() was split into do_mlock() which just sets the VM_LOCKED flag
->>> on vmas as needed, and do_mlock_pages() which goes through a range of
->>> addresses and actually populates/mlocks each individual page that is
->>> part of a VM_LOCKED vma.
->>
->> Doesn't this have the same problem?  It holds mmap_sem for read for a
->> long time, and if another writer comes in then r/w starvation
->> prevention will kick in.
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+[+marek]
+
+On Mon, Dec 17 2012, Srinivas Pandruvada wrote:
+> As per documentation and other places calling putback_lru_pages,
+> on error only, except for CMA. I am not sure this is a problem
+> for CMA or not.
+
+If ret >=3D 0 than the list is empty anyway so the effect of this patch is
+to save a function call.  It's also true that other callers call it only
+on error so __alloc_contig_migrate_range() is an odd man out here.  As
+such:
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> Signed-off-by: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+> ---
+>  mm/page_alloc.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 >
-> Well, my point is that do_mlock_pages() doesn't need to hold the
-> mmap_sem read side for a long time. It currently releases it when
-> faulting a page requires a disk read, and could conceptually release
-> it more often if needed.
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 83637df..5a887bf 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5802,8 +5802,8 @@ static int __alloc_contig_migrate_range(struct comp=
+act_control *cc,
+>  				    alloc_migrate_target,
+>  				    0, false, MIGRATE_SYNC);
+>  	}
+> -
+> -	putback_movable_pages(&cc->migratepages);
+> +	if (ret < 0)
+> +		putback_movable_pages(&cc->migratepages);
+>  	return ret > 0 ? 0 : ret;
+>  }
 
-I can't find this code.  It looks like do_mlock_pages calls
-__mlock_vma_pages_range, which calls __get_user_pages, which makes its
-way to __do_fault, which doesn't seem to drop mmap_sem.
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
 
---Andy
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQz5uOAAoJECBgQBJQdR/0RxYQAIYOaRxRLVeK36MdEMjw5te/
+nR3fvcicQVNlYuKgSEaujTjNW1o2NG7fBhoe42LtVC4meNHOND113LNP+rYH51QY
+2aGnImQ89FBur0nE+vF860D8Ec8kqRItk2z9xkSosllA/bJnNb3Svfl+QUcT9l8B
+jUufaatBlO79pCLzdJgzCuk0jMPUFNH9/msquBgS6Lu6UCFCAORauVtyYHt4f9Q8
+wL/N3lMqrV74/YPVVdlyR5SWKgE7ERAMGHfDixOjgbscVNYo7u1BWY4dh8xm5tfr
++lotXKaT1q6dkDWh1AG4A5k8PeoLyUFU/9mom2jDZ+w45wRgiqA1TfN965KSlImv
+iqO3T2ap5VQ9aFB3jGsv0cpvH2uZ7GuRasEeUltTBNjWON/loLtVfhbQcV4j4jDl
+uxLVQCgMQezKY+MakwuVSnVji2hCIdl8cAUh1fuUcXMQE1NMCfq0e3Zvq750VcHo
+kxTC31FfGMQ7zIeHIdoG1hWJuurXTLLVDHDoybcHI1PYxw34cSvHgSHP8ENaslQZ
++yhubunVH6IJC/qaItw9VL9I00qrYt0RsvrTrLl2dY1EGp2Ps9zBQ4RNCF6TVgSj
+uTEAiW7WiMu2KRp6vVECzroH/jC+acZWk3yFYj9Pu+BIhNVxlN3vgJurSWIY9Lhj
+Ff+HbPf5P8GXJl6NSMbP
+=tZM/
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
