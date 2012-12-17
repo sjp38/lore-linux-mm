@@ -1,33 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 712B46B002B
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 06:19:07 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id xa7so3756957pbc.14
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 03:19:06 -0800 (PST)
-Date: Mon, 17 Dec 2012 03:19:04 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 2/2] memory-hotplug: Disable CONFIG_MOVABLE_NODE option
- by default.
-In-Reply-To: <1355708488-2913-3-git-send-email-tangchen@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.00.1212170318110.21139@chino.kir.corp.google.com>
-References: <1355708488-2913-1-git-send-email-tangchen@cn.fujitsu.com> <1355708488-2913-3-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id DC19E6B005A
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 06:49:22 -0500 (EST)
+Date: Mon, 17 Dec 2012 11:49:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: Suppress mm/memory.o warning on older compilers if
+ !CONFIG_NUMA_BALANCING
+Message-ID: <20121217114917.GF9887@suse.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, mingo@elte.hu, penberg@kernel.org, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>
 
-On Mon, 17 Dec 2012, Tang Chen wrote:
+The kbuild test robot reported the following after the merge of Automatic
+NUMA Balancing when cross-compiling for avr32.
 
-> This patch set CONFIG_MOVABLE_NODE to "default n" instead of
-> "depends on BROKEN".
-> 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+mm/memory.c: In function 'do_pmd_numa_page':
+mm/memory.c:3593: warning: no return statement in function returning non-void
 
-It's fine to change the default, but what's missing here is a rationale 
-for no longer making it depend on CONFIG_BROKEN.
+The code is unreachable but the avr32 cross-compiler was not new enough
+to know that. This patch suppresses the warning.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/memory.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index e6a3b93..23f1fdf 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3590,6 +3590,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		     unsigned long addr, pmd_t *pmdp)
+ {
+ 	BUG();
++	return 0;
+ }
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
