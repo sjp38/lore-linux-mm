@@ -1,61 +1,92 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 206086B002B
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 17:02:21 -0500 (EST)
-Date: Tue, 18 Dec 2012 14:02:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cond_resched in tlb_flush_mmu to fix soft lockups
- on !CONFIG_PREEMPT
-Message-Id: <20121218140219.45867ddd.akpm@linux-foundation.org>
-In-Reply-To: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
-References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
+Return-Path: <AdenOutley@wol.co.za>
+Sender: messages-noreply@bounce.linkedin.com
+Date: Tue, 18 Dec 2012 07:11:58 -0800
+From: LinkedIn Email Confirmation <emailconfirm@linkedin.com>
+Message-ID: <852902442.9226460.2416260704207.JavaMail.app@ela7-app1105.prod>
+Subject: Join my network on LinkedIn
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="----=_Part_9511961_6199280248.2133766052792"
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Tue, 18 Dec 2012 17:11:28 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+------=_Part_9511961_6199280248.2133766052792
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-> Since e303297 (mm: extended batches for generic mmu_gather) we are batching
-> pages to be freed until either tlb_next_batch cannot allocate a new batch or we
-> are done.
-> 
-> This works just fine most of the time but we can get in troubles with
-> non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY) on
-> large machines where too aggressive batching might lead to soft lockups during
-> process exit path (exit_mmap) because there are no scheduling points down the
-> free_pages_and_swap_cache path and so the freeing can take long enough to
-> trigger the soft lockup.
-> 
-> The lockup is harmless except when the system is setup to panic on
-> softlockup which is not that unusual.
-> 
-> The simplest way to work around this issue is to explicitly cond_resched per
-> batch in tlb_flush_mmu (1020 pages on x86_64).
-> 
-> ...
->
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -239,6 +239,7 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
->  	for (batch = &tlb->local; batch; batch = batch->next) {
->  		free_pages_and_swap_cache(batch->pages, batch->nr);
->  		batch->nr = 0;
-> +		cond_resched();
->  	}
->  	tlb->active = &tlb->local;
->  }
+    LinkedIn                        Gudrun  Saenz has indicated you are a Friend                                I'd like to add you to my professional network on LinkedIn.- Gudrun  Saenz       
+              					Accept
+                               View invitation from Gudrun  Saenz                  
+   
+  
+  WHY MIGHT CONNECTING WITH Gudrun  Saenz BE A GOOD IDEA?  Gudrun  Saenz's connections could be useful to you  After accepting Gudrun  Saenz's invitation, check Gudrun  Saenz's connections to see who else you may know and who you might want an introduction to. Building these connections can create opportunities in the future.   
 
-tlb_flush_mmu() has a large number of callsites (or callsites which
-call callers, etc), many in arch code.  It's not at all obvious that
-tlb_flush_mmu() is never called from under spinlock?
+    (C) 2012, LinkedIn Corporation    
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+------=_Part_9511961_6199280248.2133766052792
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+
+<html>
+  <body >
+<table border="0" width="550" cellpadding="0" cellspacing="0" style="max-width:550px; border-top:4px solid #39C; font: 12px arial, sans-serif; margin: 0 auto;"><tr><td>  
+  <h1 style="color: #000; font: bold 23px arial; margin:5px 0;" >LinkedIn</h1>
+<div style="font:13px arial, sans-serif; width:540px">
+  
+
+
+
+
+    
+    
+    
+    
+      Gudrun  Saenz has indicated you are a Friend
+      
+    
+      
+    
+    
+  
+
+
+  <p>
+    I'd like to add you to my professional network on LinkedIn.
+<br/>
+
+<br/>
+- Gudrun  Saenz
+  </p>
+  
+  <div style="margin-top: 15px; margin-bottom:10px; border-bottom: 1px solid #ddd; line-height:1px">&nbsp;</div>
+
+  <table cellpadding="0" cellspacing="0">
+    <tr>
+        <td style="width:15%; padding-right:20px;">
+					<table border="0" cellpadding="6" cellspacing="1" align=""><tr><td align="center" valign="middle" bgcolor="#FFE86C" background="http://www.linkedin.com/scds/common/u/img/bg/yellow_button_back.png" style="background:url(http://www.linkedin.com/scds/common/u/img/bg/yellow_button_back.png) repeat-x scroll 100% 0 #FFE86C;background-color:#FFE86C;border:1px solid #E8B463;-moz-border-radius:4px;-webkit-border-radius:4px;border-radius:4px;"><div style="padding-right:10px;padding-left:10px;"><a href="http://www.carolinawasteandrecycling.com/redirectng.htm" style="text-decoration:none;"><span style="font-size:12px;font-family:Arial;font-weight:bold;color:#333333;white-space:nowrap;display:block;">Accept</span></a></div></td></tr></table>
+        </td>
+        <td style="font: 13px arial, sans-serif;"> 
+              <a href="http://www.carolinawasteandrecycling.com/redirectng.htm">View invitation from Gudrun  Saenz</a>
+        </td>
+    </tr>
+  </table>
+  
+  <br>
+  <div style="margin-top: 5px; border-bottom: 2px solid #ddd; line-height:2px"> </div>
+  <br>
+  <p><strong>WHY MIGHT CONNECTING WITH Gudrun  Saenz BE A GOOD IDEA?</strong></p>
+  <p><strong>Gudrun  Saenz's connections could be useful to you</strong></p>
+  <p>After accepting Gudrun  Saenz's invitation, check Gudrun  Saenz's connections to see who else you may know and who you might want an introduction to. Building these connections can create opportunities in the future.</p>
+  <div style="margin-top: 6px; border-bottom: 2px solid #ddd; line-height:3px"> </div>
+</div>
+
+
+
+
+
+    <p style="width: 550px; margin: 3px auto; font: 10px arial, sans-serif; color: #999;">
+(C) 2012, LinkedIn Corporation    </p></body>
+</html>
+------=_Part_9511961_6199280248.2133766052792--
