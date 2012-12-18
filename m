@@ -1,92 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 8C9386B006C
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 01:49:50 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id bi1so296309pad.8
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 22:49:49 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC v4 3/3] add PGVOLATILE vmstat count
-Date: Tue, 18 Dec 2012 15:47:54 +0900
-Message-Id: <1355813274-571-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1355813274-571-1-git-send-email-minchan@kernel.org>
-References: <1355813274-571-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id A74DB6B0070
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 02:30:46 -0500 (EST)
+Received: from /spool/local
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Tue, 18 Dec 2012 07:30:06 -0000
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBI7UZ5w2425192
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 07:30:35 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBI7Ugf8013729
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 00:30:43 -0700
+Date: Tue, 18 Dec 2012 08:30:41 +0100
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
+ s390
+Message-ID: <20121218083041.06f80d17@mschwide>
+In-Reply-To: <alpine.LNX.2.00.1212171459090.26086@eggly.anvils>
+References: <1350918406-11369-1-git-send-email-jack@suse.cz>
+	<20121022123852.a4bd5f2a.akpm@linux-foundation.org>
+	<20121023102153.GD3064@quack.suse.cz>
+	<20121023145636.0a9b9a3e.akpm@linux-foundation.org>
+	<20121025200141.GF3262@quack.suse.cz>
+	<20121214094505.0163bda6@mschwide>
+	<alpine.LNX.2.00.1212171459090.26086@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
 
-This patch add pgvolatile vmstat so admin can see how many of volatile
-pages are discarded by VM until now. It could be a good indicator of
-patch effect during test but still not sure we need it in real practice.
-Will rethink it.
+On Mon, 17 Dec 2012 15:31:47 -0800 (PST)
+Hugh Dickins <hughd@google.com> wrote:
 
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Arun Sharma <asharma@fb.com>
-Cc: sanjay@google.com
-Cc: Paul Turner <pjt@google.com>
-CC: David Rientjes <rientjes@google.com>
-Cc: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Android Kernel Team <kernel-team@android.com>
-Cc: Robert Love <rlove@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Neil Brown <neilb@suse.de>
-Cc: Mike Hommey <mh@glandium.org>
-Cc: Taras Glek <tglek@mozilla.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/vm_event_item.h |    2 +-
- mm/vmscan.c                   |    1 +
- mm/vmstat.c                   |    1 +
- 3 files changed, 3 insertions(+), 1 deletion(-)
+> On Fri, 14 Dec 2012, Martin Schwidefsky wrote:
+> > 
+> > The patch got delayed a bit,
+> 
+> Thanks a lot for finding the time to do this:
+> I never expected it to get priority.
+> 
+> > the main issue is to get conclusive performance
+> > measurements about the effects of the patch. I am pretty sure that the patch
+> > works and will not cause any major degradation so it is time to ask for your
+> > opinion. Here we go:
+> 
+> If if works reliably and efficiently for you on s390, then I'm strongly in
+> favour of it; and I cannot imagine who would not be - it removes several
+> hunks of surprising and poorly understood code from the generic mm end.
+> 
+> I'm slightly disappointed to be reminded of page_test_and_clear_young(),
+> and find it still there; but it's been an order of magnitude less
+> troubling than the _dirty, so not worth more effort I guess.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 3d31145..f83c3d2 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -23,7 +23,7 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
--		PGFREE, PGACTIVATE, PGDEACTIVATE,
-+		PGFREE, PGVOLATILE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- 		FOR_ALL_ZONES(PGREFILL),
- 		FOR_ALL_ZONES(PGSTEAL_KSWAPD),
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index cfe95d3..1ec7345 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -794,6 +794,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (page_mapped(page) && mapping) {
- 			switch (try_to_unmap(page, ttu_flags)) {
- 			case SWAP_DISCARD:
-+				count_vm_event(PGVOLATILE);
- 				goto discard_page;
- 			case SWAP_FAIL:
- 				goto activate_locked;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c737057..9fd8ead 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -747,6 +747,7 @@ const char * const vmstat_text[] = {
- 	TEXTS_FOR_ZONES("pgalloc")
- 
- 	"pgfree",
-+	"pgvolatile",
- 	"pgactivate",
- 	"pgdeactivate",
- 
+To remove the dependency on the referenced-bit in the storage key would
+require to set the invalid bit on the pte until the first access has been
+done. Then the referenced bit would have to be set and a valid pte can
+be established. That would be costly, because we would get a lot more
+program checks on the invalid, old ptes. So the page_test_and_clear_young
+needs to stay. The situation for the referenced bits is much more relaxed
+though, we can afford to loose the one of the other referenced bit
+without ill effect. I would not worry about page_test_and_clear_young
+too much.
+
 -- 
-1.7.9.5
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
