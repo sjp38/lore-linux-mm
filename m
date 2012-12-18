@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id A74DB6B0070
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 02:30:46 -0500 (EST)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 18 Dec 2012 07:30:06 -0000
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id qBI7UZ5w2425192
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 07:30:35 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost.localdomain [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id qBI7Ugf8013729
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 00:30:43 -0700
-Date: Tue, 18 Dec 2012 08:30:41 +0100
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-Message-ID: <20121218083041.06f80d17@mschwide>
-In-Reply-To: <alpine.LNX.2.00.1212171459090.26086@eggly.anvils>
-References: <1350918406-11369-1-git-send-email-jack@suse.cz>
-	<20121022123852.a4bd5f2a.akpm@linux-foundation.org>
-	<20121023102153.GD3064@quack.suse.cz>
-	<20121023145636.0a9b9a3e.akpm@linux-foundation.org>
-	<20121025200141.GF3262@quack.suse.cz>
-	<20121214094505.0163bda6@mschwide>
-	<alpine.LNX.2.00.1212171459090.26086@eggly.anvils>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 1F5126B0070
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 02:34:33 -0500 (EST)
+Received: by mail-da0-f42.google.com with SMTP id z17so179231dal.15
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 23:34:32 -0800 (PST)
+Date: Mon, 17 Dec 2012 23:34:30 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: Suppress mm/memory.o warning on older compilers if
+ !CONFIG_NUMA_BALANCING
+In-Reply-To: <20121217124949.3024dda3.akpm@linux-foundation.org>
+Message-ID: <alpine.DEB.2.00.1212172306150.29320@chino.kir.corp.google.com>
+References: <20121217114917.GF9887@suse.de> <20121217124949.3024dda3.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kbuild test robot <fengguang.wu@intel.com>
 
-On Mon, 17 Dec 2012 15:31:47 -0800 (PST)
-Hugh Dickins <hughd@google.com> wrote:
+On Mon, 17 Dec 2012, Andrew Morton wrote:
 
-> On Fri, 14 Dec 2012, Martin Schwidefsky wrote:
+> > The kbuild test robot reported the following after the merge of Automatic
+> > NUMA Balancing when cross-compiling for avr32.
 > > 
-> > The patch got delayed a bit,
+> > mm/memory.c: In function 'do_pmd_numa_page':
+> > mm/memory.c:3593: warning: no return statement in function returning non-void
+> > 
+> > The code is unreachable but the avr32 cross-compiler was not new enough
+> > to know that. This patch suppresses the warning.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/memory.c |    1 +
+> >  1 file changed, 1 insertion(+)
+> > 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index e6a3b93..23f1fdf 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -3590,6 +3590,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  		     unsigned long addr, pmd_t *pmdp)
+> >  {
+> >  	BUG();
+> > +	return 0;
+> >  }
+> >  #endif /* CONFIG_NUMA_BALANCING */
 > 
-> Thanks a lot for finding the time to do this:
-> I never expected it to get priority.
+> Odd.  avr32's BUG() includes a call to unreachable(), which should
+> evaluate to "do { } while (1)".  Can you check that this is working?
 > 
-> > the main issue is to get conclusive performance
-> > measurements about the effects of the patch. I am pretty sure that the patch
-> > works and will not cause any major degradation so it is time to ask for your
-> > opinion. Here we go:
+> Perhaps it _is_ working, but the compiler incorrectly thinks that the
+> function can return?
 > 
-> If if works reliably and efficiently for you on s390, then I'm strongly in
-> favour of it; and I cannot imagine who would not be - it removes several
-> hunks of surprising and poorly understood code from the generic mm end.
-> 
-> I'm slightly disappointed to be reminded of page_test_and_clear_young(),
-> and find it still there; but it's been an order of magnitude less
-> troubling than the _dirty, so not worth more effort I guess.
 
-To remove the dependency on the referenced-bit in the storage key would
-require to set the invalid bit on the pte until the first access has been
-done. Then the referenced bit would have to be set and a valid pte can
-be established. That would be costly, because we would get a lot more
-program checks on the invalid, old ptes. So the page_test_and_clear_young
-needs to stay. The situation for the referenced bits is much more relaxed
-though, we can afford to loose the one of the other referenced bit
-without ill effect. I would not worry about page_test_and_clear_young
-too much.
+This isn't the typical "control reaches end of non-void function", the 
+warning is merely stating there is no return statement in the function 
+which happens to be the case (and it has nothing to do with avr32, it 
+will be the same on all archs).  This is one of the last things that gcc 
+does after it parses a function declaration and will be emitted with 
+-Wreturn-type unless the function in question is main() and it isn't 
+marked with __attribute__((noreturn)).  If you're testing this, try making 
+the function statically defined and it should show up even with 
+do {} while(1).
 
--- 
-blue skies,
-   Martin.
-
-"Reality continues to ruin my life." - Calvin.
+And for CONFIG_BUG=n this ends up being do {} while (0) which is just a 
+no-op and would end up returning that "control reaches end of non-void 
+function" warning.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
