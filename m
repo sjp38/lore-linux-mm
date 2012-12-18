@@ -1,728 +1,447 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 6E4E66B005D
-	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 18:31:45 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id mc8so4213084pbc.4
-        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 15:31:44 -0800 (PST)
-Date: Mon, 17 Dec 2012 15:31:47 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: Fix XFS oops due to dirty pages without buffers on
- s390
-In-Reply-To: <20121214094505.0163bda6@mschwide>
-Message-ID: <alpine.LNX.2.00.1212171459090.26086@eggly.anvils>
-References: <1350918406-11369-1-git-send-email-jack@suse.cz> <20121022123852.a4bd5f2a.akpm@linux-foundation.org> <20121023102153.GD3064@quack.suse.cz> <20121023145636.0a9b9a3e.akpm@linux-foundation.org> <20121025200141.GF3262@quack.suse.cz>
- <20121214094505.0163bda6@mschwide>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 8AFFE6B002B
+	for <linux-mm@kvack.org>; Mon, 17 Dec 2012 19:56:59 -0500 (EST)
+Received: by mail-da0-f50.google.com with SMTP id h15so16856dan.37
+        for <linux-mm@kvack.org>; Mon, 17 Dec 2012 16:56:58 -0800 (PST)
+From: Andy Lutomirski <luto@amacapital.net>
+Subject: [PATCH v3] mm: Downgrade mmap_sem before locking or populating on mmap
+Date: Mon, 17 Dec 2012 16:54:49 -0800
+Message-Id: <182c75b1b598afe3ba6d59b392c223ed87c2ea00.1355791798.git.luto@amacapital.net>
+In-Reply-To: <20121217095231.GA1134@gmail.com>
+References: <20121217095231.GA1134@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, linux-s390@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Ingo Molnar <mingo@kernel.org>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, =?UTF-8?q?J=C3=B6rn=20Engel?= <joern@logfs.org>, Andy Lutomirski <luto@amacapital.net>
 
-On Fri, 14 Dec 2012, Martin Schwidefsky wrote:
-> 
-> The patch got delayed a bit,
+This is a serious cause of mmap_sem contention.  MAP_POPULATE
+and MCL_FUTURE, in particular, are disastrous in multithreaded programs.
 
-Thanks a lot for finding the time to do this:
-I never expected it to get priority.
+This is not a complete solution due to reader/writer fairness.
 
-> the main issue is to get conclusive performance
-> measurements about the effects of the patch. I am pretty sure that the patch
-> works and will not cause any major degradation so it is time to ask for your
-> opinion. Here we go:
+Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+---
 
-If if works reliably and efficiently for you on s390, then I'm strongly in
-favour of it; and I cannot imagine who would not be - it removes several
-hunks of surprising and poorly understood code from the generic mm end.
+Changes from v2:
 
-I'm slightly disappointed to be reminded of page_test_and_clear_young(),
-and find it still there; but it's been an order of magnitude less
-troubling than the _dirty, so not worth more effort I guess.
+The mmap functions now unconditionally downgrade mmap_sem.  This is
+slightly slower but a lot simpler.
 
-Hugh
+Changes from v1:
 
-> --
-> Subject: [PATCH] s390/mm: implement software dirty bits
-> 
-> From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> 
-> The s390 architecture is unique in respect to dirty page detection,
-> it uses the change bit in the per-page storage key to track page
-> modifications. All other architectures track dirty bits by means
-> of page table entries. This property of s390 has caused numerous
-> problems in the past, e.g. see git commit ef5d437f71afdf4a
-> "mm: fix XFS oops due to dirty pages without buffers on s390".
-> 
-> To avoid future issues in regard to per-page dirty bits convert
-> s390 to a fault based software dirty bit detection mechanism. All
-> user page table entries which are marked as clean will be hardware
-> read-only, even if the pte is supposed to be writable. A write by
-> the user process will trigger a protection fault which will cause
-> the user pte to be marked as dirty and the hardware read-only bit
-> is removed.
-> 
-> With this change the dirty bit in the storage key is irrelevant
-> for Linux as a host, but the storage key is still required for
-> KVM guests. The effect is that page_test_and_clear_dirty and the
-> related code can be removed. The referenced bit in the storage
-> key is still used by the page_test_and_clear_young primitive to
-> provide page age information.
-> 
-> For page cache pages of mappings with mapping_cap_account_dirty
-> there will not be any change in behavior as the dirty bit tracking
-> already uses read-only ptes to control the amount of dirty pages.
-> Only for swap cache pages and pages of mappings without
-> mapping_cap_account_dirty there can be additional protection faults.
-> To avoid an excessive number of additional faults the mk_pte
-> primitive checks for PageDirty if the pgprot value allows for writes
-> and pre-dirties the pte. That avoids all additional faults for
-> tmpfs and shmem pages until these pages are added to the swap cache.
-> 
-> Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> ---
->  arch/s390/include/asm/page.h    |  22 -------
->  arch/s390/include/asm/pgtable.h | 131 +++++++++++++++++++++++++++-------------
->  arch/s390/include/asm/sclp.h    |   1 -
->  arch/s390/include/asm/setup.h   |  16 ++---
->  arch/s390/kvm/kvm-s390.c        |   2 +-
->  arch/s390/lib/uaccess_pt.c      |   2 +-
->  arch/s390/mm/pageattr.c         |   2 +-
->  arch/s390/mm/vmem.c             |  24 +++-----
->  drivers/s390/char/sclp_cmd.c    |  10 +--
->  include/asm-generic/pgtable.h   |  10 ---
->  include/linux/page-flags.h      |   8 ---
->  mm/rmap.c                       |  23 -------
->  12 files changed, 112 insertions(+), 139 deletions(-)
-> 
-> diff --git a/arch/s390/include/asm/page.h b/arch/s390/include/asm/page.h
-> index a86ad40840..75ce9b0 100644
-> --- a/arch/s390/include/asm/page.h
-> +++ b/arch/s390/include/asm/page.h
-> @@ -155,28 +155,6 @@ static inline int page_reset_referenced(unsigned long addr)
->  #define _PAGE_ACC_BITS		0xf0	/* HW access control bits	*/
->  
->  /*
-> - * Test and clear dirty bit in storage key.
-> - * We can't clear the changed bit atomically. This is a potential
-> - * race against modification of the referenced bit. This function
-> - * should therefore only be called if it is not mapped in any
-> - * address space.
-> - *
-> - * Note that the bit gets set whenever page content is changed. That means
-> - * also when the page is modified by DMA or from inside the kernel.
-> - */
-> -#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-> -static inline int page_test_and_clear_dirty(unsigned long pfn, int mapped)
-> -{
-> -	unsigned char skey;
-> -
-> -	skey = page_get_storage_key(pfn << PAGE_SHIFT);
-> -	if (!(skey & _PAGE_CHANGED))
-> -		return 0;
-> -	page_set_storage_key(pfn << PAGE_SHIFT, skey & ~_PAGE_CHANGED, mapped);
-> -	return 1;
-> -}
-> -
-> -/*
->   * Test and clear referenced bit in storage key.
->   */
->  #define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 33aeb77..66d3b2a 100644
-> --- a/arch/s390/include/asm/pgtable.h
-> +++ b/arch/s390/include/asm/pgtable.h
-> @@ -29,6 +29,7 @@
->  #ifndef __ASSEMBLY__
->  #include <linux/sched.h>
->  #include <linux/mm_types.h>
-> +#include <linux/page-flags.h>
->  #include <asm/bug.h>
->  #include <asm/page.h>
->  
-> @@ -221,13 +222,15 @@ extern unsigned long MODULES_END;
->  /* Software bits in the page table entry */
->  #define _PAGE_SWT	0x001		/* SW pte type bit t */
->  #define _PAGE_SWX	0x002		/* SW pte type bit x */
-> -#define _PAGE_SWC	0x004		/* SW pte changed bit (for KVM) */
-> -#define _PAGE_SWR	0x008		/* SW pte referenced bit (for KVM) */
-> -#define _PAGE_SPECIAL	0x010		/* SW associated with special page */
-> +#define _PAGE_SWC	0x004		/* SW pte changed bit */
-> +#define _PAGE_SWR	0x008		/* SW pte referenced bit */
-> +#define _PAGE_SWW	0x010		/* SW pte write bit */
-> +#define _PAGE_SPECIAL	0x020		/* SW associated with special page */
->  #define __HAVE_ARCH_PTE_SPECIAL
->  
->  /* Set of bits not changed in pte_modify */
-> -#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_SPECIAL | _PAGE_SWC | _PAGE_SWR)
-> +#define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_CO | \
-> +				 _PAGE_SWC | _PAGE_SWR)
->  
->  /* Six different types of pages. */
->  #define _PAGE_TYPE_EMPTY	0x400
-> @@ -321,6 +324,7 @@ extern unsigned long MODULES_END;
->  
->  /* Bits in the region table entry */
->  #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
-> +#define _REGION_ENTRY_RO	0x200	/* region protection bit	    */
->  #define _REGION_ENTRY_INV	0x20	/* invalid region table entry	    */
->  #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
->  #define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
-> @@ -382,9 +386,10 @@ extern unsigned long MODULES_END;
->   */
->  #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
->  #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
-> -#define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
-> +#define PAGE_RW		__pgprot(_PAGE_TYPE_RO | _PAGE_SWW)
-> +#define PAGE_RWC	__pgprot(_PAGE_TYPE_RW | _PAGE_SWW | _PAGE_SWC)
->  
-> -#define PAGE_KERNEL	PAGE_RW
-> +#define PAGE_KERNEL	PAGE_RWC
->  #define PAGE_COPY	PAGE_RO
->  
->  /*
-> @@ -625,23 +630,23 @@ static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
->  	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
->  	/* Clear page changed & referenced bit in the storage key */
->  	if (bits & _PAGE_CHANGED)
-> -		page_set_storage_key(address, skey ^ bits, 1);
-> +		page_set_storage_key(address, skey ^ bits, 0);
->  	else if (bits)
->  		page_reset_referenced(address);
->  	/* Transfer page changed & referenced bit to guest bits in pgste */
->  	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
->  	/* Get host changed & referenced bits from pgste */
->  	bits |= (pgste_val(pgste) & (RCP_HR_BIT | RCP_HC_BIT)) >> 52;
-> -	/* Clear host bits in pgste. */
-> +	/* Transfer page changed & referenced bit to kvm user bits */
-> +	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
-> +	/* Clear relevant host bits in pgste. */
->  	pgste_val(pgste) &= ~(RCP_HR_BIT | RCP_HC_BIT);
->  	pgste_val(pgste) &= ~(RCP_ACC_BITS | RCP_FP_BIT);
->  	/* Copy page access key and fetch protection bit to pgste */
->  	pgste_val(pgste) |=
->  		(unsigned long) (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
-> -	/* Transfer changed and referenced to kvm user bits */
-> -	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
-> -	/* Transfer changed & referenced to pte sofware bits */
-> -	pte_val(*ptep) |= bits << 1;		/* _PAGE_SWR & _PAGE_SWC */
-> +	/* Transfer referenced bit to pte */
-> +	pte_val(*ptep) |= (bits & _PAGE_REFERENCED) << 1;
->  #endif
->  	return pgste;
->  
-> @@ -654,20 +659,25 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
->  
->  	if (!pte_present(*ptep))
->  		return pgste;
-> +	/* Get referenced bit from storage key */
->  	young = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
-> -	/* Transfer page referenced bit to pte software bit (host view) */
-> -	if (young || (pgste_val(pgste) & RCP_HR_BIT))
-> +	if (young)
-> +		pgste_val(pgste) |= RCP_GR_BIT;
-> +	/* Get host referenced bit from pgste */
-> +	if (pgste_val(pgste) & RCP_HR_BIT) {
-> +		pgste_val(pgste) &= ~RCP_HR_BIT;
-> +		young = 1;
-> +	}
-> +	/* Transfer referenced bit to kvm user bits and pte */
-> +	if (young) {
-> +		pgste_val(pgste) |= KVM_UR_BIT;
->  		pte_val(*ptep) |= _PAGE_SWR;
-> -	/* Clear host referenced bit in pgste. */
-> -	pgste_val(pgste) &= ~RCP_HR_BIT;
-> -	/* Transfer page referenced bit to guest bit in pgste */
-> -	pgste_val(pgste) |= (unsigned long) young << 50; /* set RCP_GR_BIT */
-> +	}
->  #endif
->  	return pgste;
-> -
->  }
->  
-> -static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
-> +static inline void pgste_set_key(pte_t *ptep, pgste_t pgste, pte_t entry)
->  {
->  #ifdef CONFIG_PGSTE
->  	unsigned long address;
-> @@ -681,10 +691,23 @@ static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
->  	/* Set page access key and fetch protection bit from pgste */
->  	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
->  	if (okey != nkey)
-> -		page_set_storage_key(address, nkey, 1);
-> +		page_set_storage_key(address, nkey, 0);
->  #endif
->  }
->  
-> +static inline void pgste_set_pte(pte_t *ptep, pte_t entry)
-> +{
-> +	if (!MACHINE_HAS_ESOP && (pte_val(entry) & _PAGE_SWW)) {
-> +		/*
-> +		 * Without enhanced suppression-on-protection force
-> +		 * the dirty bit on for all writable ptes.
-> +		 */
-> +		pte_val(entry) |= _PAGE_SWC;
-> +		pte_val(entry) &= ~_PAGE_RO;
-> +	}
-> +	*ptep = entry;
-> +}
-> +
->  /**
->   * struct gmap_struct - guest address space
->   * @mm: pointer to the parent mm_struct
-> @@ -743,11 +766,14 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
->  
->  	if (mm_has_pgste(mm)) {
->  		pgste = pgste_get_lock(ptep);
-> -		pgste_set_pte(ptep, pgste, entry);
-> -		*ptep = entry;
-> +		pgste_set_key(ptep, pgste, entry);
-> +		pgste_set_pte(ptep, entry);
->  		pgste_set_unlock(ptep, pgste);
-> -	} else
-> +	} else {
-> +		if (!(pte_val(entry) & _PAGE_INVALID) && MACHINE_HAS_EDAT1)
-> +			pte_val(entry) |= _PAGE_CO;
->  		*ptep = entry;
-> +	}
->  }
->  
->  /*
-> @@ -756,16 +782,12 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
->   */
->  static inline int pte_write(pte_t pte)
->  {
-> -	return (pte_val(pte) & _PAGE_RO) == 0;
-> +	return (pte_val(pte) & _PAGE_SWW) != 0;
->  }
->  
->  static inline int pte_dirty(pte_t pte)
->  {
-> -#ifdef CONFIG_PGSTE
-> -	if (pte_val(pte) & _PAGE_SWC)
-> -		return 1;
-> -#endif
-> -	return 0;
-> +	return (pte_val(pte) & _PAGE_SWC) != 0;
->  }
->  
->  static inline int pte_young(pte_t pte)
-> @@ -815,11 +837,14 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
->  {
->  	pte_val(pte) &= _PAGE_CHG_MASK;
->  	pte_val(pte) |= pgprot_val(newprot);
-> +	if ((pte_val(pte) & _PAGE_SWC) && (pte_val(pte) & _PAGE_SWW))
-> +		pte_val(pte) &= ~_PAGE_RO;
->  	return pte;
->  }
->  
->  static inline pte_t pte_wrprotect(pte_t pte)
->  {
-> +	pte_val(pte) &= ~_PAGE_SWW;
->  	/* Do not clobber _PAGE_TYPE_NONE pages!  */
->  	if (!(pte_val(pte) & _PAGE_INVALID))
->  		pte_val(pte) |= _PAGE_RO;
-> @@ -828,20 +853,26 @@ static inline pte_t pte_wrprotect(pte_t pte)
->  
->  static inline pte_t pte_mkwrite(pte_t pte)
->  {
-> -	pte_val(pte) &= ~_PAGE_RO;
-> +	pte_val(pte) |= _PAGE_SWW;
-> +	if (pte_val(pte) & _PAGE_SWC)
-> +		pte_val(pte) &= ~_PAGE_RO;
->  	return pte;
->  }
->  
->  static inline pte_t pte_mkclean(pte_t pte)
->  {
-> -#ifdef CONFIG_PGSTE
->  	pte_val(pte) &= ~_PAGE_SWC;
-> -#endif
-> +	/* Do not clobber _PAGE_TYPE_NONE pages!  */
-> +	if (!(pte_val(pte) & _PAGE_INVALID))
-> +		pte_val(pte) |= _PAGE_RO;
->  	return pte;
->  }
->  
->  static inline pte_t pte_mkdirty(pte_t pte)
->  {
-> +	pte_val(pte) |= _PAGE_SWC;
-> +	if (pte_val(pte) & _PAGE_SWW)
-> +		pte_val(pte) &= ~_PAGE_RO;
->  	return pte;
->  }
->  
-> @@ -879,10 +910,10 @@ static inline pte_t pte_mkhuge(pte_t pte)
->  		pte_val(pte) |= _SEGMENT_ENTRY_INV;
->  	}
->  	/*
-> -	 * Clear SW pte bits SWT and SWX, there are no SW bits in a segment
-> -	 * table entry.
-> +	 * Clear SW pte bits, there are no SW bits in a segment table entry.
->  	 */
-> -	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX);
-> +	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX | _PAGE_SWC |
-> +			  _PAGE_SWR | _PAGE_SWW);
->  	/*
->  	 * Also set the change-override bit because we don't need dirty bit
->  	 * tracking for hugetlbfs pages.
-> @@ -1053,9 +1084,11 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
->  					   unsigned long address,
->  					   pte_t *ptep, pte_t pte)
->  {
-> -	*ptep = pte;
-> -	if (mm_has_pgste(mm))
-> +	if (mm_has_pgste(mm)) {
-> +		pgste_set_pte(ptep, pte);
->  		pgste_set_unlock(ptep, *(pgste_t *)(ptep + PTRS_PER_PTE));
-> +	} else
-> +		*ptep = pte;
->  }
->  
->  #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-> @@ -1121,10 +1154,13 @@ static inline pte_t ptep_set_wrprotect(struct mm_struct *mm,
->  			pgste = pgste_get_lock(ptep);
->  
->  		ptep_flush_lazy(mm, address, ptep);
-> -		*ptep = pte_wrprotect(pte);
-> +		pte = pte_wrprotect(pte);
->  
-> -		if (mm_has_pgste(mm))
-> +		if (mm_has_pgste(mm)) {
-> +			pgste_set_pte(ptep, pte);
->  			pgste_set_unlock(ptep, pgste);
-> +		} else
-> +			*ptep = pte;
->  	}
->  	return pte;
->  }
-> @@ -1142,10 +1178,12 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
->  		pgste = pgste_get_lock(ptep);
->  
->  	__ptep_ipte(address, ptep);
-> -	*ptep = entry;
->  
-> -	if (mm_has_pgste(vma->vm_mm))
-> +	if (mm_has_pgste(vma->vm_mm)) {
-> +		pgste_set_pte(ptep, entry);
->  		pgste_set_unlock(ptep, pgste);
-> +	} else
-> +		*ptep = entry;
->  	return 1;
->  }
->  
-> @@ -1163,8 +1201,13 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
->  static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
->  {
->  	unsigned long physpage = page_to_phys(page);
-> +	pte_t __pte = mk_pte_phys(physpage, pgprot);
->  
-> -	return mk_pte_phys(physpage, pgprot);
-> +	if ((pte_val(__pte) & _PAGE_SWW) && PageDirty(page)) {
-> +		pte_val(__pte) |= _PAGE_SWC;
-> +		pte_val(__pte) &= ~_PAGE_RO;
-> +	}
-> +	return __pte;
->  }
->  
->  #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-> @@ -1256,6 +1299,8 @@ static inline int pmd_trans_splitting(pmd_t pmd)
->  static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
->  			      pmd_t *pmdp, pmd_t entry)
->  {
-> +	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
-> +		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
->  	*pmdp = entry;
->  }
->  
-> diff --git a/arch/s390/include/asm/sclp.h b/arch/s390/include/asm/sclp.h
-> index 8337886..06a1361 100644
-> --- a/arch/s390/include/asm/sclp.h
-> +++ b/arch/s390/include/asm/sclp.h
-> @@ -46,7 +46,6 @@ int sclp_cpu_deconfigure(u8 cpu);
->  void sclp_facilities_detect(void);
->  unsigned long long sclp_get_rnmax(void);
->  unsigned long long sclp_get_rzm(void);
-> -u8 sclp_get_fac85(void);
->  int sclp_sdias_blk_count(void);
->  int sclp_sdias_copy(void *dest, int blk_num, int nr_blks);
->  int sclp_chp_configure(struct chp_id chpid);
-> diff --git a/arch/s390/include/asm/setup.h b/arch/s390/include/asm/setup.h
-> index f69f76b..f685751 100644
-> --- a/arch/s390/include/asm/setup.h
-> +++ b/arch/s390/include/asm/setup.h
-> @@ -64,13 +64,14 @@ extern unsigned int s390_user_mode;
->  
->  #define MACHINE_FLAG_VM		(1UL << 0)
->  #define MACHINE_FLAG_IEEE	(1UL << 1)
-> -#define MACHINE_FLAG_CSP	(1UL << 3)
-> -#define MACHINE_FLAG_MVPG	(1UL << 4)
-> -#define MACHINE_FLAG_DIAG44	(1UL << 5)
-> -#define MACHINE_FLAG_IDTE	(1UL << 6)
-> -#define MACHINE_FLAG_DIAG9C	(1UL << 7)
-> -#define MACHINE_FLAG_MVCOS	(1UL << 8)
-> -#define MACHINE_FLAG_KVM	(1UL << 9)
-> +#define MACHINE_FLAG_CSP	(1UL << 2)
-> +#define MACHINE_FLAG_MVPG	(1UL << 3)
-> +#define MACHINE_FLAG_DIAG44	(1UL << 4)
-> +#define MACHINE_FLAG_IDTE	(1UL << 5)
-> +#define MACHINE_FLAG_DIAG9C	(1UL << 6)
-> +#define MACHINE_FLAG_MVCOS	(1UL << 7)
-> +#define MACHINE_FLAG_KVM	(1UL << 8)
-> +#define MACHINE_FLAG_ESOP	(1UL << 9)
->  #define MACHINE_FLAG_EDAT1	(1UL << 10)
->  #define MACHINE_FLAG_EDAT2	(1UL << 11)
->  #define MACHINE_FLAG_LPAR	(1UL << 12)
-> @@ -84,6 +85,7 @@ extern unsigned int s390_user_mode;
->  #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
->  
->  #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
-> +#define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
->  #define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
->  #define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
->  
-> diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
-> index c9011bf..4659b62 100644
-> --- a/arch/s390/kvm/kvm-s390.c
-> +++ b/arch/s390/kvm/kvm-s390.c
-> @@ -147,7 +147,7 @@ int kvm_dev_ioctl_check_extension(long ext)
->  		r = KVM_MAX_VCPUS;
->  		break;
->  	case KVM_CAP_S390_COW:
-> -		r = sclp_get_fac85() & 0x2;
-> +		r = MACHINE_HAS_ESOP;
->  		break;
->  	default:
->  		r = 0;
-> diff --git a/arch/s390/lib/uaccess_pt.c b/arch/s390/lib/uaccess_pt.c
-> index 9017a63..a70ee84 100644
-> --- a/arch/s390/lib/uaccess_pt.c
-> +++ b/arch/s390/lib/uaccess_pt.c
-> @@ -50,7 +50,7 @@ static __always_inline unsigned long follow_table(struct mm_struct *mm,
->  	ptep = pte_offset_map(pmd, addr);
->  	if (!pte_present(*ptep))
->  		return -0x11UL;
-> -	if (write && !pte_write(*ptep))
-> +	if (write && (!pte_write(*ptep) || !pte_dirty(*ptep)))
->  		return -0x04UL;
->  
->  	return (pte_val(*ptep) & PAGE_MASK) + (addr & ~PAGE_MASK);
-> diff --git a/arch/s390/mm/pageattr.c b/arch/s390/mm/pageattr.c
-> index 29ccee3..d21040e 100644
-> --- a/arch/s390/mm/pageattr.c
-> +++ b/arch/s390/mm/pageattr.c
-> @@ -127,7 +127,7 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
->  			pte_val(*pte) = _PAGE_TYPE_EMPTY;
->  			continue;
->  		}
-> -		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
-> +		pte_val(*pte) = __pa(address);
->  	}
->  }
->  
-> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-> index 6ed1426..79699f46 100644
-> --- a/arch/s390/mm/vmem.c
-> +++ b/arch/s390/mm/vmem.c
-> @@ -85,11 +85,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
->  	pud_t *pu_dir;
->  	pmd_t *pm_dir;
->  	pte_t *pt_dir;
-> -	pte_t  pte;
->  	int ret = -ENOMEM;
->  
->  	while (address < end) {
-> -		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
->  		pg_dir = pgd_offset_k(address);
->  		if (pgd_none(*pg_dir)) {
->  			pu_dir = vmem_pud_alloc();
-> @@ -101,9 +99,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
->  #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
->  		if (MACHINE_HAS_EDAT2 && pud_none(*pu_dir) && address &&
->  		    !(address & ~PUD_MASK) && (address + PUD_SIZE <= end)) {
-> -			pte_val(pte) |= _REGION3_ENTRY_LARGE;
-> -			pte_val(pte) |= _REGION_ENTRY_TYPE_R3;
-> -			pud_val(*pu_dir) = pte_val(pte);
-> +			pud_val(*pu_dir) = __pa(address) |
-> +				_REGION_ENTRY_TYPE_R3 | _REGION3_ENTRY_LARGE |
-> +				(ro ? _REGION_ENTRY_RO : 0);
->  			address += PUD_SIZE;
->  			continue;
->  		}
-> @@ -118,8 +116,9 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
->  #if defined(CONFIG_64BIT) && !defined(CONFIG_DEBUG_PAGEALLOC)
->  		if (MACHINE_HAS_EDAT1 && pmd_none(*pm_dir) && address &&
->  		    !(address & ~PMD_MASK) && (address + PMD_SIZE <= end)) {
-> -			pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
-> -			pmd_val(*pm_dir) = pte_val(pte);
-> +			pmd_val(*pm_dir) = __pa(address) |
-> +				_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE |
-> +				(ro ? _SEGMENT_ENTRY_RO : 0);
->  			address += PMD_SIZE;
->  			continue;
->  		}
-> @@ -132,7 +131,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
->  		}
->  
->  		pt_dir = pte_offset_kernel(pm_dir, address);
-> -		*pt_dir = pte;
-> +		pte_val(*pt_dir) = __pa(address) | (ro ? _PAGE_RO : 0);
->  		address += PAGE_SIZE;
->  	}
->  	ret = 0;
-> @@ -199,7 +198,6 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
->  	pud_t *pu_dir;
->  	pmd_t *pm_dir;
->  	pte_t *pt_dir;
-> -	pte_t  pte;
->  	int ret = -ENOMEM;
->  
->  	start_addr = (unsigned long) start;
-> @@ -237,9 +235,8 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
->  				new_page = vmemmap_alloc_block(PMD_SIZE, node);
->  				if (!new_page)
->  					goto out;
-> -				pte = mk_pte_phys(__pa(new_page), PAGE_RW);
-> -				pte_val(pte) |= _SEGMENT_ENTRY_LARGE;
-> -				pmd_val(*pm_dir) = pte_val(pte);
-> +				pmd_val(*pm_dir) = __pa(new_page) |
-> +					_SEGMENT_ENTRY | _SEGMENT_ENTRY_LARGE;
->  				address = (address + PMD_SIZE) & PMD_MASK;
->  				continue;
->  			}
-> @@ -260,8 +257,7 @@ int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
->  			new_page =__pa(vmem_alloc_pages(0));
->  			if (!new_page)
->  				goto out;
-> -			pte = pfn_pte(new_page >> PAGE_SHIFT, PAGE_KERNEL);
-> -			*pt_dir = pte;
-> +			pte_val(*pt_dir) = __pa(new_page);
->  		}
->  		address += PAGE_SIZE;
->  	}
-> diff --git a/drivers/s390/char/sclp_cmd.c b/drivers/s390/char/sclp_cmd.c
-> index c44d13f..30a2255 100644
-> --- a/drivers/s390/char/sclp_cmd.c
-> +++ b/drivers/s390/char/sclp_cmd.c
-> @@ -56,7 +56,6 @@ static int __initdata early_read_info_sccb_valid;
->  
->  u64 sclp_facilities;
->  static u8 sclp_fac84;
-> -static u8 sclp_fac85;
->  static unsigned long long rzm;
->  static unsigned long long rnmax;
->  
-> @@ -131,7 +130,8 @@ void __init sclp_facilities_detect(void)
->  	sccb = &early_read_info_sccb;
->  	sclp_facilities = sccb->facilities;
->  	sclp_fac84 = sccb->fac84;
-> -	sclp_fac85 = sccb->fac85;
-> +	if (sccb->fac85 & 0x02)
-> +		S390_lowcore.machine_flags |= MACHINE_FLAG_ESOP;
->  	rnmax = sccb->rnmax ? sccb->rnmax : sccb->rnmax2;
->  	rzm = sccb->rnsize ? sccb->rnsize : sccb->rnsize2;
->  	rzm <<= 20;
-> @@ -171,12 +171,6 @@ unsigned long long sclp_get_rzm(void)
->  	return rzm;
->  }
->  
-> -u8 sclp_get_fac85(void)
-> -{
-> -	return sclp_fac85;
-> -}
-> -EXPORT_SYMBOL_GPL(sclp_get_fac85);
-> -
->  /*
->   * This function will be called after sclp_facilities_detect(), which gets
->   * called from early.c code. Therefore the sccb should have valid contents.
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 83b54ed..bdd7fac 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -197,16 +197,6 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
->  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->  #endif
->  
-> -#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-> -#define page_test_and_clear_dirty(pfn, mapped)	(0)
-> -#endif
-> -
-> -#ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_DIRTY
-> -#define pte_maybe_dirty(pte)		pte_dirty(pte)
-> -#else
-> -#define pte_maybe_dirty(pte)		(1)
-> -#endif
-> -
->  #ifndef __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
->  #define page_test_and_clear_young(pfn) (0)
->  #endif
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index b5d1384..4c0c8eb 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -303,21 +303,13 @@ static inline void __SetPageUptodate(struct page *page)
->  
->  static inline void SetPageUptodate(struct page *page)
->  {
-> -#ifdef CONFIG_S390
-> -	if (!test_and_set_bit(PG_uptodate, &page->flags))
-> -		page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY, 0);
-> -#else
->  	/*
->  	 * Memory barrier must be issued before setting the PG_uptodate bit,
->  	 * so that all previous stores issued in order to bring the page
->  	 * uptodate are actually visible before PageUptodate becomes true.
-> -	 *
-> -	 * s390 doesn't need an explicit smp_wmb here because the test and
-> -	 * set bit already provides full barriers.
->  	 */
->  	smp_wmb();
->  	set_bit(PG_uptodate, &(page)->flags);
-> -#endif
->  }
->  
->  CLEARPAGEFLAG(Uptodate, uptodate)
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index face808..ef75a7d 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1144,29 +1144,6 @@ void page_remove_rmap(struct page *page)
->  		goto out;
->  
->  	/*
-> -	 * Now that the last pte has gone, s390 must transfer dirty
-> -	 * flag from storage key to struct page.  We can usually skip
-> -	 * this if the page is anon, so about to be freed; but perhaps
-> -	 * not if it's in swapcache - there might be another pte slot
-> -	 * containing the swap entry, but page not yet written to swap.
-> -	 *
-> -	 * And we can skip it on file pages, so long as the filesystem
-> -	 * participates in dirty tracking (note that this is not only an
-> -	 * optimization but also solves problems caused by dirty flag in
-> -	 * storage key getting set by a write from inside kernel); but need to
-> -	 * catch shm and tmpfs and ramfs pages which have been modified since
-> -	 * creation by read fault.
-> -	 *
-> -	 * Note that mapping must be decided above, before decrementing
-> -	 * mapcount (which luckily provides a barrier): once page is unmapped,
-> -	 * it could be truncated and page->mapping reset to NULL at any moment.
-> -	 * Note also that we are relying on page_mapping(page) to set mapping
-> -	 * to &swapper_space when PageSwapCache(page).
-> -	 */
-> -	if (mapping && !mapping_cap_account_dirty(mapping) &&
-> -	    page_test_and_clear_dirty(page_to_pfn(page), 1))
-> -		set_page_dirty(page);
-> -	/*
->  	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
->  	 * and not charged by memcg for now.
->  	 */
-> -- 
-> 1.7.12.4
-> 
-> -- 
-> blue skies,
->    Martin.
-> 
-> "Reality continues to ruin my life." - Calvin.
+The non-unlocking versions of do_mmap_pgoff and mmap_region are still
+available for aio_setup_ring's benefit.  In theory, aio_setup_ring
+would do better with a lock-downgrading version, but that would be
+somewhat ugly and doesn't help my workload.
+
+ arch/tile/mm/elf.c |  11 +++--
+ fs/aio.c           |  11 ++---
+ include/linux/mm.h |  15 +++++--
+ ipc/shm.c          |   8 +++-
+ mm/fremap.c        |   9 +++-
+ mm/mmap.c          | 122 ++++++++++++++++++++++++++++++++++++-----------------
+ mm/util.c          |   5 ++-
+ 7 files changed, 123 insertions(+), 58 deletions(-)
+
+diff --git a/arch/tile/mm/elf.c b/arch/tile/mm/elf.c
+index 3cfa98b..313acb2 100644
+--- a/arch/tile/mm/elf.c
++++ b/arch/tile/mm/elf.c
+@@ -129,12 +129,15 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
+ 	 */
+ 	if (!retval) {
+ 		unsigned long addr = MEM_USER_INTRPT;
+-		addr = mmap_region(NULL, addr, INTRPT_SIZE,
+-				   MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
+-				   VM_READ|VM_EXEC|
+-				   VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0);
++		addr = mmap_region_downgrade_write(
++			NULL, addr, INTRPT_SIZE,
++			MAP_FIXED|MAP_ANONYMOUS|MAP_PRIVATE,
++			VM_READ|VM_EXEC|
++			VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC, 0);
++		up_read(&mm->mmap-sem);
+ 		if (addr > (unsigned long) -PAGE_SIZE)
+ 			retval = (int) addr;
++		return retval;  /* We already unlocked mmap_sem. */
+ 	}
+ #endif
+ 
+diff --git a/fs/aio.c b/fs/aio.c
+index 71f613c..912d3d8 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -127,11 +127,12 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	info->mmap_size = nr_pages * PAGE_SIZE;
+ 	dprintk("attempting mmap of %lu bytes\n", info->mmap_size);
+ 	down_write(&ctx->mm->mmap_sem);
+-	info->mmap_base = do_mmap_pgoff(NULL, 0, info->mmap_size, 
+-					PROT_READ|PROT_WRITE,
+-					MAP_ANONYMOUS|MAP_PRIVATE, 0);
++	info->mmap_base = do_mmap_pgoff_downgrade_write(
++		NULL, 0, info->mmap_size,
++		PROT_READ|PROT_WRITE,
++		MAP_ANONYMOUS|MAP_PRIVATE, 0);
+ 	if (IS_ERR((void *)info->mmap_base)) {
+-		up_write(&ctx->mm->mmap_sem);
++		up_read(&ctx->mm->mmap_sem);
+ 		info->mmap_size = 0;
+ 		aio_free_ring(ctx);
+ 		return -EAGAIN;
+@@ -141,7 +142,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	info->nr_pages = get_user_pages(current, ctx->mm,
+ 					info->mmap_base, nr_pages, 
+ 					1, 0, info->ring_pages, NULL);
+-	up_write(&ctx->mm->mmap_sem);
++	up_read(&ctx->mm->mmap_sem);
+ 
+ 	if (unlikely(info->nr_pages != nr_pages)) {
+ 		aio_free_ring(ctx);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bcaab4e..a44aa00 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1441,12 +1441,19 @@ extern int install_special_mapping(struct mm_struct *mm,
+ 
+ extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+ 
+-extern unsigned long mmap_region(struct file *file, unsigned long addr,
++/*
++ * These functions are called with mmap_sem held for write and they return
++ * with mmap_sem held for read.
++ */
++extern unsigned long mmap_region_downgrade_write(
++	struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long flags,
+ 	vm_flags_t vm_flags, unsigned long pgoff);
+-extern unsigned long do_mmap_pgoff(struct file *, unsigned long,
+-        unsigned long, unsigned long,
+-        unsigned long, unsigned long);
++extern unsigned long do_mmap_pgoff_downgrade_write(
++	struct file *, unsigned long addr,
++	unsigned long len, unsigned long prot,
++	unsigned long flags, unsigned long pgoff);
++
+ extern int do_munmap(struct mm_struct *, unsigned long, size_t);
+ 
+ /* These take the mm semaphore themselves */
+diff --git a/ipc/shm.c b/ipc/shm.c
+index dff40c9..482f3d6 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -1068,12 +1068,16 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+ 		    addr > current->mm->start_stack - size - PAGE_SIZE * 5)
+ 			goto invalid;
+ 	}
+-		
+-	user_addr = do_mmap_pgoff(file, addr, size, prot, flags, 0);
++
++	user_addr = do_mmap_pgoff_downgrade_write(file, addr, size,
++						  prot, flags, 0);
++	up_read(&current->mm->mmap_sem);
+ 	*raddr = user_addr;
+ 	err = 0;
+ 	if (IS_ERR_VALUE(user_addr))
+ 		err = (long)user_addr;
++	goto out_fput;
++
+ invalid:
+ 	up_write(&current->mm->mmap_sem);
+ 
+diff --git a/mm/fremap.c b/mm/fremap.c
+index a0aaf0e..55c4a9b 100644
+--- a/mm/fremap.c
++++ b/mm/fremap.c
+@@ -200,8 +200,9 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 			struct file *file = get_file(vma->vm_file);
+ 
+ 			flags &= MAP_NONBLOCK;
+-			addr = mmap_region(file, start, size,
+-					flags, vma->vm_flags, pgoff);
++			addr = mmap_region_downgrade_write(
++				file, start, size, flags, vma->vm_flags, pgoff);
++			has_write_lock = 0;
+ 			fput(file);
+ 			if (IS_ERR_VALUE(addr)) {
+ 				err = addr;
+@@ -237,6 +238,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 			/*
+ 			 * might be mapping previously unmapped range of file
+ 			 */
++			if (unlikely(has_write_lock)) {
++				downgrade_write(&mm->mmap_sem);
++				has_write_lock = 0;
++			}
+ 			mlock_vma_pages_range(vma, start, start + size);
+ 		} else {
+ 			if (unlikely(has_write_lock)) {
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 9a796c4..3913262 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -999,9 +999,10 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
+  * The caller must hold down_write(&current->mm->mmap_sem).
+  */
+ 
+-unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+-			unsigned long len, unsigned long prot,
+-			unsigned long flags, unsigned long pgoff)
++unsigned long do_mmap_pgoff_downgrade_write(
++	struct file *file, unsigned long addr,
++	unsigned long len, unsigned long prot,
++	unsigned long flags, unsigned long pgoff)
+ {
+ 	struct mm_struct * mm = current->mm;
+ 	struct inode *inode;
+@@ -1017,31 +1018,39 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 		if (!(file && (file->f_path.mnt->mnt_flags & MNT_NOEXEC)))
+ 			prot |= PROT_EXEC;
+ 
+-	if (!len)
+-		return -EINVAL;
++	if (!len) {
++		addr = -EINVAL;
++		goto out_downgrade;
++	}
+ 
+ 	if (!(flags & MAP_FIXED))
+ 		addr = round_hint_to_min(addr);
+ 
+ 	/* Careful about overflows.. */
+ 	len = PAGE_ALIGN(len);
+-	if (!len)
+-		return -ENOMEM;
++	if (!len) {
++		addr = -ENOMEM;
++		goto out_downgrade;
++	}
+ 
+ 	/* offset overflow? */
+-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+-               return -EOVERFLOW;
++	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff) {
++		addr = -EOVERFLOW;
++		goto out_downgrade;
++	}
+ 
+ 	/* Too many mappings? */
+-	if (mm->map_count > sysctl_max_map_count)
+-		return -ENOMEM;
++	if (mm->map_count > sysctl_max_map_count) {
++		addr = -ENOMEM;
++		goto out_downgrade;
++	}
+ 
+ 	/* Obtain the address to map to. we verify (or select) it and ensure
+ 	 * that it represents a valid section of the address space.
+ 	 */
+ 	addr = get_unmapped_area(file, addr, len, pgoff, flags);
+ 	if (addr & ~PAGE_MASK)
+-		return addr;
++		goto out_downgrade;
+ 
+ 	/* Do simple checking here so the lower-level routines won't have
+ 	 * to. we assume access permissions have been handled by the open
+@@ -1050,9 +1059,12 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) |
+ 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+ 
+-	if (flags & MAP_LOCKED)
+-		if (!can_do_mlock())
+-			return -EPERM;
++	if (flags & MAP_LOCKED) {
++		if (!can_do_mlock()) {
++			addr = -EPERM;
++			goto out_downgrade;
++		}
++	}
+ 
+ 	/* mlock MCL_FUTURE? */
+ 	if (vm_flags & VM_LOCKED) {
+@@ -1061,8 +1073,10 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 		locked += mm->locked_vm;
+ 		lock_limit = rlimit(RLIMIT_MEMLOCK);
+ 		lock_limit >>= PAGE_SHIFT;
+-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-			return -EAGAIN;
++		if (locked > lock_limit && !capable(CAP_IPC_LOCK)) {
++			addr = -EAGAIN;
++			goto out_downgrade;
++		}
+ 	}
+ 
+ 	inode = file ? file->f_path.dentry->d_inode : NULL;
+@@ -1070,21 +1084,27 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 	if (file) {
+ 		switch (flags & MAP_TYPE) {
+ 		case MAP_SHARED:
+-			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE))
+-				return -EACCES;
++			if ((prot&PROT_WRITE) && !(file->f_mode&FMODE_WRITE)) {
++				addr = -EACCES;
++				goto out_downgrade;
++			}
+ 
+ 			/*
+ 			 * Make sure we don't allow writing to an append-only
+ 			 * file..
+ 			 */
+-			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
+-				return -EACCES;
++			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE)) {
++				addr = -EACCES;
++				goto out_downgrade;
++			}
+ 
+ 			/*
+ 			 * Make sure there are no mandatory locks on the file.
+ 			 */
+-			if (locks_verify_locked(inode))
+-				return -EAGAIN;
++			if (locks_verify_locked(inode)) {
++				addr = -EAGAIN;
++				goto out_downgrade;
++			}
+ 
+ 			vm_flags |= VM_SHARED | VM_MAYSHARE;
+ 			if (!(file->f_mode & FMODE_WRITE))
+@@ -1092,20 +1112,27 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 
+ 			/* fall through */
+ 		case MAP_PRIVATE:
+-			if (!(file->f_mode & FMODE_READ))
+-				return -EACCES;
++			if (!(file->f_mode & FMODE_READ)) {
++				addr = -EACCES;
++				goto out_downgrade;
++			}
+ 			if (file->f_path.mnt->mnt_flags & MNT_NOEXEC) {
+-				if (vm_flags & VM_EXEC)
+-					return -EPERM;
++				if (vm_flags & VM_EXEC) {
++					addr = -EPERM;
++					goto out_downgrade;
++				}
+ 				vm_flags &= ~VM_MAYEXEC;
+ 			}
+ 
+-			if (!file->f_op || !file->f_op->mmap)
+-				return -ENODEV;
++			if (!file->f_op || !file->f_op->mmap) {
++				addr = -ENODEV;
++				goto out_downgrade;
++			}
+ 			break;
+ 
+ 		default:
+-			return -EINVAL;
++			addr = -EINVAL;
++			goto out_downgrade;
+ 		}
+ 	} else {
+ 		switch (flags & MAP_TYPE) {
+@@ -1123,11 +1150,17 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+ 			pgoff = addr >> PAGE_SHIFT;
+ 			break;
+ 		default:
+-			return -EINVAL;
++			addr = -EINVAL;
++			goto out_downgrade;
+ 		}
+ 	}
+ 
+-	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
++	return mmap_region_downgrade_write(file, addr, len,
++		flags, vm_flags, pgoff);
++
++out_downgrade:
++	downgrade_write(&mm->mmap_sem);
++	return addr;
+ }
+ 
+ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
+@@ -1240,9 +1273,10 @@ static inline int accountable_mapping(struct file *file, vm_flags_t vm_flags)
+ 	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
+ }
+ 
+-unsigned long mmap_region(struct file *file, unsigned long addr,
+-			  unsigned long len, unsigned long flags,
+-			  vm_flags_t vm_flags, unsigned long pgoff)
++unsigned long mmap_region_downgrade_write(
++	struct file *file, unsigned long addr,
++	unsigned long len, unsigned long flags,
++	vm_flags_t vm_flags, unsigned long pgoff)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma, *prev;
+@@ -1262,8 +1296,10 @@ munmap_back:
+ 	}
+ 
+ 	/* Check against address space limit. */
+-	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
+-		return -ENOMEM;
++	if (!may_expand_vm(mm, len >> PAGE_SHIFT)) {
++		error = -ENOMEM;
++		goto unacct_error;
++	}
+ 
+ 	/*
+ 	 * Set 'VM_NORESERVE' if we should not account for the
+@@ -1284,8 +1320,10 @@ munmap_back:
+ 	 */
+ 	if (accountable_mapping(file, vm_flags)) {
+ 		charged = len >> PAGE_SHIFT;
+-		if (security_vm_enough_memory_mm(mm, charged))
+-			return -ENOMEM;
++		if (security_vm_enough_memory_mm(mm, charged)) {
++			error = -ENOMEM;
++			goto unacct_error;
++		}
+ 		vm_flags |= VM_ACCOUNT;
+ 	}
+ 
+@@ -1369,9 +1407,12 @@ munmap_back:
+ 	if (correct_wcount)
+ 		atomic_inc(&inode->i_writecount);
+ out:
++	downgrade_write(&mm->mmap_sem);
++
+ 	perf_event_mmap(vma);
+ 
+ 	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
++
+ 	if (vm_flags & VM_LOCKED) {
+ 		if (!mlock_vma_pages_range(vma, addr, addr + len))
+ 			mm->locked_vm += (len >> PAGE_SHIFT);
+@@ -1397,6 +1438,9 @@ free_vma:
+ unacct_error:
+ 	if (charged)
+ 		vm_unacct_memory(charged);
++
++	downgrade_write(&mm->mmap_sem);
++
+ 	return error;
+ }
+ 
+diff --git a/mm/util.c b/mm/util.c
+index dc3036c..ab489a7 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -359,8 +359,9 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	ret = security_mmap_file(file, prot, flag);
+ 	if (!ret) {
+ 		down_write(&mm->mmap_sem);
+-		ret = do_mmap_pgoff(file, addr, len, prot, flag, pgoff);
+-		up_write(&mm->mmap_sem);
++		ret = do_mmap_pgoff_downgrade_write(
++			file, addr, len, prot, flag, pgoff);
++		up_read(&mm->mmap_sem);
+ 	}
+ 	return ret;
+ }
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
