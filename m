@@ -1,38 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id D2D166B002B
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 13:28:31 -0500 (EST)
-Message-ID: <50D0B5A2.2010707@fb.com>
-Date: Tue, 18 Dec 2012 10:27:46 -0800
-From: Arun Sharma <asharma@fb.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 1AAAF6B002B
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 13:38:56 -0500 (EST)
+Message-ID: <50D0AF65.90701@redhat.com>
+Date: Tue, 18 Dec 2012 13:01:09 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC v4 0/3] Support volatile for anonymous range
-References: <1355813274-571-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1355813274-571-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH] mm: cond_resched in tlb_flush_mmu to fix soft lockups
+ on !CONFIG_PREEMPT
+References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 12/17/12 10:47 PM, Minchan Kim wrote:
+On 12/18/2012 11:11 AM, Michal Hocko wrote:
+> Since e303297 (mm: extended batches for generic mmu_gather) we are batching
+> pages to be freed until either tlb_next_batch cannot allocate a new batch or we
+> are done.
+>
+> This works just fine most of the time but we can get in troubles with
+> non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY) on
+> large machines where too aggressive batching might lead to soft lockups during
+> process exit path (exit_mmap) because there are no scheduling points down the
+> free_pages_and_swap_cache path and so the freeing can take long enough to
+> trigger the soft lockup.
+>
+> The lockup is harmless except when the system is setup to panic on
+> softlockup which is not that unusual.
+>
+> The simplest way to work around this issue is to explicitly cond_resched per
+> batch in tlb_flush_mmu (1020 pages on x86_64).
 
-> I hope more inputs from user-space allocator people and test patch
-> with their allocator because it might need design change of arena
-> management for getting real vaule.
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Cc: stable@vger.kernel.org # 3.0 and higher
 
-jemalloc knows how to handle MADV_FREE on platforms that support it. 
-This looks similar (we'll need a SIGBUS handler that does the right 
-thing = zero the page + mark it as non-volatile in the common case).
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-All of this of course assumes that apps madvise the kernel through APIs 
-exposed by the malloc implementation - not via a raw syscall.
-
-In other words, some new user space code needs to be written to test 
-this out fully. Sounds feasible though.
-
-  -Arun
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
