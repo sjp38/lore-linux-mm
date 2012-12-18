@@ -1,43 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 047AC6B0044
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 10:46:06 -0500 (EST)
-From: Satoru Moriya <satoru.moriya@hds.com>
-Subject: RE: [patch 3/7] mm: vmscan: clarify how swappiness, highest
- priority, memcg interact
-Date: Mon, 17 Dec 2012 19:37:55 +0000
-Message-ID: <8631DC5930FA9E468F04F3FD3A5D007214AD80D6@USINDEM103.corp.hds.com>
-References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
- <1355767957-4913-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1355767957-4913-4-git-send-email-hannes@cmpxchg.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 543606B0062
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 11:11:49 -0500 (EST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] mm: cond_resched in tlb_flush_mmu to fix soft lockups on !CONFIG_PREEMPT
+Date: Tue, 18 Dec 2012 17:11:28 +0100
+Message-Id: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 12/17/2012 01:12 PM, Johannes Weiner wrote:
-> A swappiness of 0 has a slightly different meaning for global reclaim=20
-> (may swap if file cache really low) and memory cgroup reclaim (never=20
-> swap, ever).
->=20
-> In addition, global reclaim at highest priority will scan all LRU=20
-> lists equal to their size and ignore other balancing heuristics.
-> UNLESS swappiness forbids swapping, then the lists are balanced based=20
-> on recent reclaim effectiveness.  UNLESS file cache is running low,=20
-> then anonymous pages are force-scanned.
->=20
-> This (total mess of a) behaviour is implicit and not obvious from the=20
-> way the code is organized.  At least make it apparent in the code flow=20
-> and document the conditions.  It will be it easier to come up with=20
-> sane semantics later.
->=20
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Since e303297 (mm: extended batches for generic mmu_gather) we are batching
+pages to be freed until either tlb_next_batch cannot allocate a new batch or we
+are done.
 
-Reviewed-by: Satoru Moriya <satoru.moriya@hds.com>
+This works just fine most of the time but we can get in troubles with
+non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY) on
+large machines where too aggressive batching might lead to soft lockups during
+process exit path (exit_mmap) because there are no scheduling points down the
+free_pages_and_swap_cache path and so the freeing can take long enough to
+trigger the soft lockup.
+
+The lockup is harmless except when the system is setup to panic on
+softlockup which is not that unusual.
+
+The simplest way to work around this issue is to explicitly cond_resched per
+batch in tlb_flush_mmu (1020 pages on x86_64).
+
+The following lockup has been reported for 3.0 kernel with a huge process
+(in order of hundreds gigs but I do know any more details).
+
+[65674.040540] BUG: soft lockup - CPU#56 stuck for 22s! [kernel:31053]
+[65674.040544] Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc mptctl mptbase autofs4 binfmt_misc dm_round_robin dm_multipath bonding cpufreq_conservative cpufreq_userspace cpufreq_powersave pcc_cpufreq mperf microcode fuse loop osst sg sd_mod crc_t10dif st qla2xxx scsi_transport_fc scsi_tgt netxen_nic i7core_edac iTCO_wdt joydev e1000e serio_raw pcspkr edac_core iTCO_vendor_support acpi_power_meter rtc_cmos hpwdt hpilo button container usbhid hid dm_mirror dm_region_hash dm_log linear uhci_hcd ehci_hcd usbcore usb_common scsi_dh_emc scsi_dh_alua scsi_dh_hp_sw scsi_dh_rdac scsi_dh dm_snapshot pcnet32 mii edd dm_mod raid1 ext3 mbcache jbd fan thermal processor thermal_sys hwmon cciss scsi_mod
+[65674.040602] Supported: Yes
+[65674.040604] CPU 56
+[65674.040639] Pid: 31053, comm: kernel Not tainted 3.0.31-0.9-default #1 HP ProLiant DL580 G7
+[65674.040643] RIP: 0010:[<ffffffff81443a88>]  [<ffffffff81443a88>] _raw_spin_unlock_irqrestore+0x8/0x10
+[65674.040656] RSP: 0018:ffff883ec1037af0  EFLAGS: 00000206
+[65674.040657] RAX: 0000000000000e00 RBX: ffffea01a0817e28 RCX: ffff88803ffd9e80
+[65674.040659] RDX: 0000000000000200 RSI: 0000000000000206 RDI: 0000000000000206
+[65674.040661] RBP: 0000000000000002 R08: 0000000000000001 R09: ffff887ec724a400
+[65674.040663] R10: 0000000000000000 R11: dead000000200200 R12: ffffffff8144c26e
+[65674.040665] R13: 0000000000000030 R14: 0000000000000297 R15: 000000000000000e
+[65674.040667] FS:  00007ed834282700(0000) GS:ffff88c03f200000(0000) knlGS:0000000000000000
+[65674.040669] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[65674.040671] CR2: 000000000068b240 CR3: 0000003ec13c5000 CR4: 00000000000006e0
+[65674.040673] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[65674.040675] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[65674.040678] Process kernel (pid: 31053, threadinfo ffff883ec1036000, task ffff883ebd5d4100)
+[65674.040680] Stack:
+[65674.042972]  ffffffff810fc935 ffff88a9f1e182b0 0000000000000206 0000000000000009
+[65674.042978]  0000000000000000 ffffea01a0817e60 ffffea0211d3a808 ffffea0211d3a840
+[65674.042983]  ffffea01a0827a28 ffffea01a0827a60 ffffea0288a598c0 ffffea0288a598f8
+[65674.042989] Call Trace:
+[65674.045765]  [<ffffffff810fc935>] release_pages+0xc5/0x260
+[65674.045779]  [<ffffffff811289dd>] free_pages_and_swap_cache+0x9d/0xc0
+[65674.045786]  [<ffffffff81115d6c>] tlb_flush_mmu+0x5c/0x80
+[65674.045791]  [<ffffffff8111628e>] tlb_finish_mmu+0xe/0x50
+[65674.045796]  [<ffffffff8111c65d>] exit_mmap+0xbd/0x120
+[65674.045805]  [<ffffffff810582d9>] mmput+0x49/0x120
+[65674.045813]  [<ffffffff8105cbb2>] exit_mm+0x122/0x160
+[65674.045818]  [<ffffffff8105e95a>] do_exit+0x17a/0x430
+[65674.045824]  [<ffffffff8105ec4d>] do_group_exit+0x3d/0xb0
+[65674.045831]  [<ffffffff8106f7c7>] get_signal_to_deliver+0x247/0x480
+[65674.045840]  [<ffffffff81002931>] do_signal+0x71/0x1b0
+[65674.045845]  [<ffffffff81002b08>] do_notify_resume+0x98/0xb0
+[65674.045853]  [<ffffffff8144bb60>] int_signal+0x12/0x17
+[65674.046737] DWARF2 unwinder stuck at int_signal+0x12/0x17
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Cc: stable@vger.kernel.org # 3.0 and higher
+---
+ mm/memory.c |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 1f6cae4..bcd3d5c 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -239,6 +239,7 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
+ 	for (batch = &tlb->local; batch; batch = batch->next) {
+ 		free_pages_and_swap_cache(batch->pages, batch->nr);
+ 		batch->nr = 0;
++		cond_resched();
+ 	}
+ 	tlb->active = &tlb->local;
+ }
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
