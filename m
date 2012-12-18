@@ -1,94 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 543606B0062
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 11:11:49 -0500 (EST)
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 90D546B006C
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 11:40:25 -0500 (EST)
+Date: Tue, 18 Dec 2012 17:40:22 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] mm: cond_resched in tlb_flush_mmu to fix soft lockups on !CONFIG_PREEMPT
-Date: Tue, 18 Dec 2012 17:11:28 +0100
-Message-Id: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+Subject: Re: [PATCH] memcg: don't register hotcpu notifier from ->css_alloc()
+Message-ID: <20121218164022.GB25208@dhcp22.suse.cz>
+References: <20121214012436.GA25481@localhost>
+ <20121218154030.GC10220@mtj.dyndns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121218154030.GC10220@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Balbir Singh <bsingharora@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Fengguang Wu <fengguang.wu@intel.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-Since e303297 (mm: extended batches for generic mmu_gather) we are batching
-pages to be freed until either tlb_next_batch cannot allocate a new batch or we
-are done.
+On Tue 18-12-12 07:40:30, Tejun Heo wrote:
+> 648bb56d07 ("cgroup: lock cgroup_mutex in cgroup_init_subsys()") made
+> cgroup_init_subsys() grab cgroup_mutex before invoking ->css_alloc()
+> for the root css.  Because memcg registers hotcpu notifier from
+> ->css_alloc() for the root css, this introduced circular locking
+> dependency between cgroup_mutex and cpu hotplug.
+> 
+> Fix it by moving hotcpu notifier registration to a subsys initcall.
+> 
+>   ======================================================
+>   [ INFO: possible circular locking dependency detected ]
+>   3.7.0-rc4-work+ #42 Not tainted
+>   -------------------------------------------------------
+>   bash/645 is trying to acquire lock:
+>    (cgroup_mutex){+.+.+.}, at: [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
+> 
+>   but task is already holding lock:
+>    (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff8109300f>] cpu_hotplug_begin+0x2f/0x60
+> 
+>   which lock already depends on the new lock.
+> 
+> 
+>   the existing dependency chain (in reverse order) is:
+> 
+>  -> #1 (cpu_hotplug.lock){+.+.+.}:
+>          [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
+>          [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
+>          [<ffffffff810930fc>] get_online_cpus+0x3c/0x60
+>          [<ffffffff811152fb>] rebuild_sched_domains_locked+0x1b/0x70
+>          [<ffffffff81116718>] cpuset_write_resmask+0x298/0x2c0
+>          [<ffffffff8110f70f>] cgroup_file_write+0x1ef/0x300
+>          [<ffffffff811c3b78>] vfs_write+0xa8/0x160
+>          [<ffffffff811c3e82>] sys_write+0x52/0xa0
+>          [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
+> 
+>  -> #0 (cgroup_mutex){+.+.+.}:
+>          [<ffffffff810f74de>] __lock_acquire+0x14ce/0x1d20
+>          [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
+>          [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
+>          [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
+>          [<ffffffff81116deb>] cpuset_handle_hotplug+0x1b/0x560
+>          [<ffffffff8111744e>] cpuset_update_active_cpus+0xe/0x10
+>          [<ffffffff810d0587>] cpuset_cpu_inactive+0x47/0x50
+>          [<ffffffff810c1476>] notifier_call_chain+0x66/0x150
+>          [<ffffffff810c156e>] __raw_notifier_call_chain+0xe/0x10
+>          [<ffffffff81092fa0>] __cpu_notify+0x20/0x40
+>          [<ffffffff81b9827e>] _cpu_down+0x7e/0x2f0
+>          [<ffffffff81b98526>] cpu_down+0x36/0x50
+>          [<ffffffff81b9c12d>] store_online+0x5d/0xe0
+>          [<ffffffff816b6ef8>] dev_attr_store+0x18/0x30
+>          [<ffffffff8123bb50>] sysfs_write_file+0xe0/0x150
+>          [<ffffffff811c3b78>] vfs_write+0xa8/0x160
+>          [<ffffffff811c3e82>] sys_write+0x52/0xa0
+>          [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
+>   other info that might help us debug this:
+> 
+>    Possible unsafe locking scenario:
+> 
+>          CPU0                    CPU1
+>          ----                    ----
+>     lock(cpu_hotplug.lock);
+>                                  lock(cgroup_mutex);
+>                                  lock(cpu_hotplug.lock);
+>     lock(cgroup_mutex);
+> 
+>    *** DEADLOCK ***
+> 
+>   5 locks held by bash/645:
+>    #0:  (&buffer->mutex){+.+.+.}, at: [<ffffffff8123bab8>] sysfs_write_file+0x48/0x150
+>    #1:  (s_active#42){.+.+.+}, at: [<ffffffff8123bb38>] sysfs_write_file+0xc8/0x150
+>    #2:  (x86_cpu_hotplug_driver_mutex){+.+...}, at: [<ffffffff81079277>] cpu_hotplug_driver_lock+0x1
+> +7/0x20
+>    #3:  (cpu_add_remove_lock){+.+.+.}, at: [<ffffffff81093157>] cpu_maps_update_begin+0x17/0x20
+>    #4:  (cpu_hotplug.lock){+.+.+.}, at: [<ffffffff8109300f>] cpu_hotplug_begin+0x2f/0x60
+> 
+>   stack backtrace:
+>   Pid: 645, comm: bash Not tainted 3.7.0-rc4-work+ #42
+>   Call Trace:
+>    [<ffffffff81bdadfd>] print_circular_bug+0x28e/0x29f
+>    [<ffffffff810f74de>] __lock_acquire+0x14ce/0x1d20
+>    [<ffffffff810f8357>] lock_acquire+0x97/0x1e0
+>    [<ffffffff81be4701>] mutex_lock_nested+0x61/0x3b0
+>    [<ffffffff8110c5b7>] cgroup_lock+0x17/0x20
+>    [<ffffffff81116deb>] cpuset_handle_hotplug+0x1b/0x560
+>    [<ffffffff8111744e>] cpuset_update_active_cpus+0xe/0x10
+>    [<ffffffff810d0587>] cpuset_cpu_inactive+0x47/0x50
+>    [<ffffffff810c1476>] notifier_call_chain+0x66/0x150
+>    [<ffffffff810c156e>] __raw_notifier_call_chain+0xe/0x10
+>    [<ffffffff81092fa0>] __cpu_notify+0x20/0x40
+>    [<ffffffff81b9827e>] _cpu_down+0x7e/0x2f0
+>    [<ffffffff81b98526>] cpu_down+0x36/0x50
+>    [<ffffffff81b9c12d>] store_online+0x5d/0xe0
+>    [<ffffffff816b6ef8>] dev_attr_store+0x18/0x30
+>    [<ffffffff8123bb50>] sysfs_write_file+0xe0/0x150
+>    [<ffffffff811c3b78>] vfs_write+0xa8/0x160
+>    [<ffffffff811c3e82>] sys_write+0x52/0xa0
+>    [<ffffffff81be89c2>] system_call_fastpath+0x16/0x1b
+> 
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
 
-This works just fine most of the time but we can get in troubles with
-non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY) on
-large machines where too aggressive batching might lead to soft lockups during
-process exit path (exit_mmap) because there are no scheduling points down the
-free_pages_and_swap_cache path and so the freeing can take long enough to
-trigger the soft lockup.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-The lockup is harmless except when the system is setup to panic on
-softlockup which is not that unusual.
+> ---
+> Michal, if it looks okay, can you please route this patch?
 
-The simplest way to work around this issue is to explicitly cond_resched per
-batch in tlb_flush_mmu (1020 pages on x86_64).
+Andrew, could you pick this one up, please?
 
-The following lockup has been reported for 3.0 kernel with a huge process
-(in order of hundreds gigs but I do know any more details).
+> Thanks.
+> 
+>  mm/memcontrol.c |   14 +++++++++++++-
+>  1 file changed, 13 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 12307b3..7d8a27f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4982,7 +4982,6 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  						&per_cpu(memcg_stock, cpu);
+>  			INIT_WORK(&stock->work, drain_local_stock);
+>  		}
+> -		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+>  	} else {
+>  		parent = mem_cgroup_from_cont(cont->parent);
+>  		memcg->use_hierarchy = parent->use_hierarchy;
+> @@ -5644,6 +5643,19 @@ struct cgroup_subsys mem_cgroup_subsys = {
+>  	.use_id = 1,
+>  };
+>  
+> +/*
+> + * The rest of init is performed during ->css_alloc() for root css which
+> + * happens before initcalls.  hotcpu_notifier() can't be done together as
+> + * it would introduce circular locking by adding cgroup_lock -> cpu hotplug
+> + * dependency.  Do it from a subsys_initcall().
+> + */
+> +static int __init mem_cgroup_init(void)
+> +{
+> +	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
 
-[65674.040540] BUG: soft lockup - CPU#56 stuck for 22s! [kernel:31053]
-[65674.040544] Modules linked in: af_packet nfs lockd fscache auth_rpcgss nfs_acl sunrpc mptctl mptbase autofs4 binfmt_misc dm_round_robin dm_multipath bonding cpufreq_conservative cpufreq_userspace cpufreq_powersave pcc_cpufreq mperf microcode fuse loop osst sg sd_mod crc_t10dif st qla2xxx scsi_transport_fc scsi_tgt netxen_nic i7core_edac iTCO_wdt joydev e1000e serio_raw pcspkr edac_core iTCO_vendor_support acpi_power_meter rtc_cmos hpwdt hpilo button container usbhid hid dm_mirror dm_region_hash dm_log linear uhci_hcd ehci_hcd usbcore usb_common scsi_dh_emc scsi_dh_alua scsi_dh_hp_sw scsi_dh_rdac scsi_dh dm_snapshot pcnet32 mii edd dm_mod raid1 ext3 mbcache jbd fan thermal processor thermal_sys hwmon cciss scsi_mod
-[65674.040602] Supported: Yes
-[65674.040604] CPU 56
-[65674.040639] Pid: 31053, comm: kernel Not tainted 3.0.31-0.9-default #1 HP ProLiant DL580 G7
-[65674.040643] RIP: 0010:[<ffffffff81443a88>]  [<ffffffff81443a88>] _raw_spin_unlock_irqrestore+0x8/0x10
-[65674.040656] RSP: 0018:ffff883ec1037af0  EFLAGS: 00000206
-[65674.040657] RAX: 0000000000000e00 RBX: ffffea01a0817e28 RCX: ffff88803ffd9e80
-[65674.040659] RDX: 0000000000000200 RSI: 0000000000000206 RDI: 0000000000000206
-[65674.040661] RBP: 0000000000000002 R08: 0000000000000001 R09: ffff887ec724a400
-[65674.040663] R10: 0000000000000000 R11: dead000000200200 R12: ffffffff8144c26e
-[65674.040665] R13: 0000000000000030 R14: 0000000000000297 R15: 000000000000000e
-[65674.040667] FS:  00007ed834282700(0000) GS:ffff88c03f200000(0000) knlGS:0000000000000000
-[65674.040669] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[65674.040671] CR2: 000000000068b240 CR3: 0000003ec13c5000 CR4: 00000000000006e0
-[65674.040673] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[65674.040675] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[65674.040678] Process kernel (pid: 31053, threadinfo ffff883ec1036000, task ffff883ebd5d4100)
-[65674.040680] Stack:
-[65674.042972]  ffffffff810fc935 ffff88a9f1e182b0 0000000000000206 0000000000000009
-[65674.042978]  0000000000000000 ffffea01a0817e60 ffffea0211d3a808 ffffea0211d3a840
-[65674.042983]  ffffea01a0827a28 ffffea01a0827a60 ffffea0288a598c0 ffffea0288a598f8
-[65674.042989] Call Trace:
-[65674.045765]  [<ffffffff810fc935>] release_pages+0xc5/0x260
-[65674.045779]  [<ffffffff811289dd>] free_pages_and_swap_cache+0x9d/0xc0
-[65674.045786]  [<ffffffff81115d6c>] tlb_flush_mmu+0x5c/0x80
-[65674.045791]  [<ffffffff8111628e>] tlb_finish_mmu+0xe/0x50
-[65674.045796]  [<ffffffff8111c65d>] exit_mmap+0xbd/0x120
-[65674.045805]  [<ffffffff810582d9>] mmput+0x49/0x120
-[65674.045813]  [<ffffffff8105cbb2>] exit_mm+0x122/0x160
-[65674.045818]  [<ffffffff8105e95a>] do_exit+0x17a/0x430
-[65674.045824]  [<ffffffff8105ec4d>] do_group_exit+0x3d/0xb0
-[65674.045831]  [<ffffffff8106f7c7>] get_signal_to_deliver+0x247/0x480
-[65674.045840]  [<ffffffff81002931>] do_signal+0x71/0x1b0
-[65674.045845]  [<ffffffff81002b08>] do_notify_resume+0x98/0xb0
-[65674.045853]  [<ffffffff8144bb60>] int_signal+0x12/0x17
-[65674.046737] DWARF2 unwinder stuck at int_signal+0x12/0x17
+Hmm, we can move enable_swap_cgroup() and per-cpu memcg_stock
+initialization here as well to make the css_alloc a bit cleaner.
+mem_cgroup_soft_limit_tree_init with a trivial BUG_ON() on allocation
+failure can go there as well. 
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Cc: stable@vger.kernel.org # 3.0 and higher
----
- mm/memory.c |    1 +
- 1 file changed, 1 insertion(+)
+I will do it.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 1f6cae4..bcd3d5c 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -239,6 +239,7 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
- 	for (batch = &tlb->local; batch; batch = batch->next) {
- 		free_pages_and_swap_cache(batch->pages, batch->nr);
- 		batch->nr = 0;
-+		cond_resched();
- 	}
- 	tlb->active = &tlb->local;
- }
+> +	return 0;
+> +}
+> +subsys_initcall(mem_cgroup_init);
+> +
+>  #ifdef CONFIG_MEMCG_SWAP
+>  static int __init enable_swap_account(char *s)
+>  {
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
