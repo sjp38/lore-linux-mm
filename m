@@ -1,275 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id D78146B0044
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 10:07:50 -0500 (EST)
-Date: Wed, 19 Dec 2012 16:07:46 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V5] memcg, oom: provide more precise dump info while
- memcg oom happening
-Message-ID: <20121219150746.GB12888@dhcp22.suse.cz>
-References: <1355925061-3858-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 12FC26B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 11:32:58 -0500 (EST)
+Date: Wed, 19 Dec 2012 17:32:53 +0100
+From: Petr Holasek <pholasek@redhat.com>
+Subject: Re: mm, ksm: NULL ptr deref in unstable_tree_search_insert
+Message-ID: <20121219163251.GD4381@thinkpad-work.redhat.com>
+References: <50D1158F.5070905@oracle.com>
+ <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1355925061-3858-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, Sha Zhengju <handai.szj@taobao.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Thanks, the patch seems to be ready now.
-
-On Wed 19-12-12 21:51:01, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
+On Tue, 18 Dec 2012, Hugh Dickins wrote:
+> On Tue, 18 Dec 2012, Sasha Levin wrote:
 > 
-> Current when a memcg oom is happening the oom dump messages is still
-> global state and provides few useful info for users. This patch prints
-> more pointed memcg page statistics for memcg-oom and take hierarchy
-> into consideration:
+> > Hi all,
+> > 
+> > While fuzzing with trinity inside a KVM tools guest, running latest linux-next kernel, I've
+> > stumbled on the following:
+> > 
+> > [  127.959264] BUG: unable to handle kernel NULL pointer dereference at 0000000000000110
+> > [  127.960379] IP: [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+> > [  127.960379] PGD cc54067 PUD cc55067 PMD 0
+> > [  127.960379] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> > [  127.960379] Dumping ftrace buffer:
+> > [  127.960379]    (ftrace buffer empty)
+> > [  127.960379] CPU 0
+> > [  127.960379] Pid: 3174, comm: ksmd Tainted: G        W    3.7.0-next-20121218-sasha-00023-g8e46e86 #220
+> > [  127.978032] RIP: 0010:[<ffffffff81185b60>]  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+> > [  127.978032] RSP: 0018:ffff8800137abb78  EFLAGS: 00010046
+> > [  127.978032] RAX: 0000000000000086 RBX: 0000000000000110 RCX: 0000000000000001
+> > [  127.978032] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000110
+> > [  127.978032] RBP: ffff8800137abc18 R08: 0000000000000002 R09: 0000000000000000
+> > [  127.978032] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
+> > [  127.978032] R13: 0000000000000002 R14: ffff8800137b0000 R15: 0000000000000000
+> > [  127.978032] FS:  0000000000000000(0000) GS:ffff8800bfc00000(0000) knlGS:0000000000000000
+> > [  127.978032] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [  127.978032] CR2: 0000000000000110 CR3: 000000000cc51000 CR4: 00000000000406f0
+> > [  127.978032] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> > [  127.978032] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> > [  127.978032] Process ksmd (pid: 3174, threadinfo ffff8800137aa000, task ffff8800137b0000)
+> > [  127.978032] Stack:
+> > [  127.978032]  ffff8800137abba8 ffffffff863d8b50 ffff8800137b0948 ffffffff863d8b50
+> > [  127.978032]  ffff8800137abbb8 ffffffff81180a12 ffff8800137abbb8 ffffffff81180a9e
+> > [  127.978032]  ffff8800137abbe8 ffffffff8118108e ffff8800137abc18 0000000000000000
+> > [  127.978032] Call Trace:
+> > [  127.978032]  [<ffffffff81180a12>] ? get_lock_stats+0x22/0x70
+> > [  127.978032]  [<ffffffff81180a9e>] ? put_lock_stats.isra.16+0xe/0x40
+> > [  127.978032]  [<ffffffff8118108e>] ? lock_release_holdtime+0x11e/0x130
+> > [  127.978032]  [<ffffffff811889aa>] lock_acquire+0x1ca/0x270
+> > [  127.978032]  [<ffffffff8125992f>] ? unstable_tree_search_insert+0x9f/0x260
+> > [  127.978032]  [<ffffffff83cd7337>] down_read+0x47/0x90
+> > [  127.978032]  [<ffffffff8125992f>] ? unstable_tree_search_insert+0x9f/0x260
+> > [  127.978032]  [<ffffffff8125992f>] unstable_tree_search_insert+0x9f/0x260
+> > [  127.978032]  [<ffffffff8125af27>] cmp_and_merge_page+0xe7/0x1e0
+> > [  127.978032]  [<ffffffff8125b085>] ksm_do_scan+0x65/0xa0
+> > [  127.978032]  [<ffffffff8125b12f>] ksm_scan_thread+0x6f/0x2d0
+> > [  127.978032]  [<ffffffff8113de40>] ? abort_exclusive_wait+0xb0/0xb0
+> > [  127.978032]  [<ffffffff8125b0c0>] ? ksm_do_scan+0xa0/0xa0
+> > [  127.978032]  [<ffffffff8113cbd3>] kthread+0xe3/0xf0
+> > [  127.978032]  [<ffffffff8113caf0>] ? __kthread_bind+0x40/0x40
+> > [  127.978032]  [<ffffffff83cdae7c>] ret_from_fork+0x7c/0xb0
+> > [  127.978032]  [<ffffffff8113caf0>] ? __kthread_bind+0x40/0x40
+> > [  127.978032] Code: 00 83 3d c3 2b b0 05 00 0f 85 d5 09 00 00 be f9 0b 00 00 48 c7 c7 1c d0 b2 84 89 55 88 e8 89 82 f8 ff 8b 55
+> > 88 e9 b9 09 00 00 90 <48> 81 3b 60 59 22 86 b8 01 00 00 00 44 0f 44 e8 41 83 fc 01 77
+> > [  127.978032] RIP  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+> > [  127.978032]  RSP <ffff8800137abb78>
+> > [  127.978032] CR2: 0000000000000110
+> > [  127.978032] ---[ end trace 3dc1b0c5db8c1230 ]---
+> > 
+> > The relevant piece of code is:
+> > 
+> > 	static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+> > 	{
+> > 	        struct mm_struct *mm = rmap_item->mm;
+> > 	        unsigned long addr = rmap_item->address;
+> > 	        struct vm_area_struct *vma;
+> > 	        struct page *page;
+> > 	
+> > 	        down_read(&mm->mmap_sem);
+> > 
+> > Where 'mm' is NULL. I'm not really sure how it happens though.
 > 
-> Based on Michal's advice, we take hierarchy into consideration:
-> supppose we trigger an OOM on A's limit
->         root_memcg
->             |
->             A (use_hierachy=1)
->            / \
->           B   C
->           |
->           D
-> then the printed info will be:
-> Memory cgroup stats for /A:...
-> Memory cgroup stats for /A/B:...
-> Memory cgroup stats for /A/C:...
-> Memory cgroup stats for /A/B/D:...
+> Thanks, yes, I got that, and it's not peculiar to fuzzing at all:
+> I'm testing the fix at the moment, but just hit something else too
+> (ksmd oops on NULL p->mm in task_numa_fault i.e. task_numa_placement).
 > 
-> Following are samples of oom output:
-> (1)Before change:
-> [  609.917309] mal-80 invoked oom-killer:gfp_mask=0xd0, order=0, oom_score_adj=0
-> [  609.917313] mal-80 cpuset=/ mems_allowed=0
-> [  609.917315] Pid: 2976, comm: mal-80 Not tainted 3.7.0+ #10
-> [  609.917316] Call Trace:
-> [  609.917327]  [<ffffffff8167fbfb>] dump_header+0x83/0x1ca
->                 ..... (call trace)
-> [  609.917389]  [<ffffffff8168a818>] page_fault+0x28/0x30
-> 					<<<<<<<<<<<<<<<<<<<<< memcg specific information
-> [  609.917391] Task in /A/B/D killed as a result of limit of /A
-> [  609.917393] memory: usage 101376kB, limit 101376kB, failcnt 57
-> [  609.917394] memory+swap: usage 101376kB, limit 101376kB, failcnt 0
-> [  609.917395] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
-> 					<<<<<<<<<<<<<<<<<<<<< print per cpu pageset stat
-> [  609.917396] Mem-Info:
-> [  609.917397] Node 0 DMA per-cpu:
-> [  609.917399] CPU    0: hi:    0, btch:   1 usd:   0
->                ......
-> [  609.917402] CPU    3: hi:    0, btch:   1 usd:   0
-> [  609.917403] Node 0 DMA32 per-cpu:
-> [  609.917404] CPU    0: hi:  186, btch:  31 usd: 173
->                ......
-> [  609.917407] CPU    3: hi:  186, btch:  31 usd: 130
-> 					<<<<<<<<<<<<<<<<<<<<< print global page state
-> [  609.917415] active_anon:92963 inactive_anon:40777 isolated_anon:0
-> [  609.917415]  active_file:33027 inactive_file:51718 isolated_file:0
-> [  609.917415]  unevictable:0 dirty:3 writeback:0 unstable:0
-> [  609.917415]  free:729995 slab_reclaimable:6897 slab_unreclaimable:6263
-> [  609.917415]  mapped:20278 shmem:35971 pagetables:5885 bounce:0
-> [  609.917415]  free_cma:0
-> 					<<<<<<<<<<<<<<<<<<<<< print per zone page state
-> [  609.917418] Node 0 DMA free:15836kB ... all_unreclaimable? no
-> [  609.917423] lowmem_reserve[]: 0 3175 3899 3899
-> [  609.917426] Node 0 DMA32 free:2888564kB ... all_unrelaimable? no
-> [  609.917430] lowmem_reserve[]: 0 0 724 724
-> [  609.917436] lowmem_reserve[]: 0 0 0 0
-> [  609.917438] Node 0 DMA: 1*4kB (U) ... 3*4096kB (M) = 15836kB
-> [  609.917447] Node 0 DMA32: 41*4kB (UM) ... 702*4096kB (MR) = 2888316kB
-> [  609.917466] 120710 total pagecache pages
-> [  609.917467] 0 pages in swap cache
-> 					<<<<<<<<<<<<<<<<<<<<< print global swap cache stat
-> [  609.917468] Swap cache stats: add 0, delete 0, find 0/0
-> [  609.917469] Free swap  = 499708kB
-> [  609.917470] Total swap = 499708kB
-> [  609.929057] 1040368 pages RAM
-> [  609.929059] 58678 pages reserved
-> [  609.929060] 169065 pages shared
-> [  609.929061] 173632 pages non-shared
-> [  609.929062] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
-> [  609.929101] [ 2693]     0  2693     6005     1324      17        0             0 god
-> [  609.929103] [ 2754]     0  2754     6003     1320      16        0             0 god
-> [  609.929105] [ 2811]     0  2811     5992     1304      18        0             0 god
-> [  609.929107] [ 2874]     0  2874     6005     1323      18        0             0 god
-> [  609.929109] [ 2935]     0  2935     8720     7742      21        0             0 mal-30
-> [  609.929111] [ 2976]     0  2976    21520    17577      42        0             0 mal-80
-> [  609.929112] Memory cgroup out of memory: Kill process 2976 (mal-80) score 665 or sacrifice child
-> [  609.929114] Killed process 2976 (mal-80) total-vm:86080kB, anon-rss:69964kB, file-rss:344kB
-> 
-> We can see that messages dumped by show_free_areas() are longsome and can
-> provide so limited info for memcg that just happen oom.
-> 
-> (2) After change
-> [  293.235042] mal-80 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
-> [  293.235046] mal-80 cpuset=/ mems_allowed=0
-> [  293.235048] Pid: 2704, comm: mal-80 Not tainted 3.7.0+ #10
-> [  293.235049] Call Trace:
-> [  293.235058]  [<ffffffff8167fd0b>] dump_header+0x83/0x1d1
-> 		.......(call trace)
-> [  293.235108]  [<ffffffff8168a918>] page_fault+0x28/0x30
-> [  293.235110] Task in /A/B/D killed as a result of limit of /A
-> 					<<<<<<<<<<<<<<<<<<<<< memcg specific information
-> [  293.235111] memory: usage 102400kB, limit 102400kB, failcnt 140
-> [  293.235112] memory+swap: usage 102400kB, limit 102400kB, failcnt 0
-> [  293.235114] kmem: usage 0kB, limit 9007199254740991kB, failcnt 0
-> [  293.235114] Memory cgroup stats for /A: cache:32KB rss:30984KB mapped_file:0KB swap:0KB inactive_anon:6912KB active_anon:24072KB inactive_file:32KB active_file:0KB unevictable:0KB
-> [  293.235122] Memory cgroup stats for /A/B: cache:0KB rss:0KB mapped_file:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
-> [  293.235127] Memory cgroup stats for /A/C: cache:0KB rss:0KB mapped_file:0KB swap:0KB inactive_anon:0KB active_anon:0KB inactive_file:0KB active_file:0KB unevictable:0KB
-> [  293.235132] Memory cgroup stats for /A/B/D: cache:32KB rss:71352KB mapped_file:0KB swap:0KB inactive_anon:6656KB active_anon:64696KB inactive_file:16KB active_file:16KB unevictable:0KB
-> [  293.235137] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents oom_score_adj name
-> [  293.235153] [ 2260]     0  2260     6006     1325      18        0             0 god
-> [  293.235155] [ 2383]     0  2383     6003     1319      17        0             0 god
-> [  293.235156] [ 2503]     0  2503     6004     1321      18        0             0 god
-> [  293.235158] [ 2622]     0  2622     6004     1321      16        0             0 god
-> [  293.235159] [ 2695]     0  2695     8720     7741      22        0             0 mal-30
-> [  293.235160] [ 2704]     0  2704    21520    17839      43        0             0 mal-80
-> [  293.235161] Memory cgroup out of memory: Kill process 2704 (mal-80) score 669 or sacrifice child
-> [  293.235163] Killed process 2704 (mal-80) total-vm:86080kB, anon-rss:71016kB, file-rss:340kB
-> 
-> This version provides more pointed info for memcg in "Memory cgroup stats
-> for XXX" section.
-> 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> ---
-> Change log:
-> v5 <---V4
-> 	1. rebase on -mm since-3.7
-> 	2. modification of commit log
-> v4 <--- v3
-> 	1. print more info in hierarchy	
-> v3 <--- v2
->         1. fix towards hierarchy
->         2. undo rework dump_tasks
-> v2 <--- v1
->         1. some modification towards hierarchy
->         2. rework dump_tasks
->         3. rebased on Michal's mm tree since-3.6
-> 
->  mm/memcontrol.c |   47 +++++++++++++++++++++++++++++++++++++----------
->  mm/oom_kill.c   |    6 ++++--
->  2 files changed, 41 insertions(+), 12 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1ea8951..b2fffb4 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -120,6 +120,14 @@ static const char * const mem_cgroup_events_names[] = {
->  	"pgmajfault",
->  };
->  
-> +static const char * const mem_cgroup_lru_names[] = {
-> +	"inactive_anon",
-> +	"active_anon",
-> +	"inactive_file",
-> +	"active_file",
-> +	"unevictable",
-> +};
-> +
->  /*
->   * Per memcg event counter is incremented at every pagein/pageout. With THP,
->   * it will be incremated by the number of pages. This counter is used for
-> @@ -1590,8 +1598,9 @@ static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
->  	spin_unlock_irqrestore(&memcg->move_lock, *flags);
->  }
->  
-> +#define K(x) ((x) << (PAGE_SHIFT-10))
->  /**
-> - * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
-> + * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
->   * @memcg: The memory cgroup that went over limit
->   * @p: Task that is going to be killed
->   *
-> @@ -1609,8 +1618,10 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  	 */
->  	static char memcg_name[PATH_MAX];
->  	int ret;
-> +	struct mem_cgroup *iter;
-> +	unsigned int i;
->  
-> -	if (!memcg || !p)
-> +	if (!p)
->  		return;
->  
->  	rcu_read_lock();
-> @@ -1658,6 +1669,30 @@ done:
->  		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
->  		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
->  		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
-> +
-> +	for_each_mem_cgroup_tree(iter, memcg) {
-> +		pr_info("Memory cgroup stats");
-> +
-> +		rcu_read_lock();
-> +		ret = cgroup_path(iter->css.cgroup, memcg_name, PATH_MAX);
-> +		if (!ret)
-> +			pr_cont(" for %s", memcg_name);
-> +		rcu_read_unlock();
-> +		pr_cont(":");
-> +
-> +		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
-> +			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
-> +				continue;
-> +			pr_cont(" %s:%ldKB", mem_cgroup_stat_names[i],
-> +				K(mem_cgroup_read_stat(iter, i)));
-> +		}
-> +
-> +		for (i = 0; i < NR_LRU_LISTS; i++)
-> +			pr_cont(" %s:%luKB", mem_cgroup_lru_names[i],
-> +				K(mem_cgroup_nr_lru_pages(iter, BIT(i))));
-> +
-> +		pr_cont("\n");
-> +	}
->  }
->  
->  /*
-> @@ -5379,14 +5414,6 @@ static int memcg_numa_stat_show(struct cgroup *cont, struct cftype *cft,
->  }
->  #endif /* CONFIG_NUMA */
->  
-> -static const char * const mem_cgroup_lru_names[] = {
-> -	"inactive_anon",
-> -	"active_anon",
-> -	"inactive_file",
-> -	"active_file",
-> -	"unevictable",
-> -};
-> -
->  static inline void mem_cgroup_lru_names_not_uptodate(void)
->  {
->  	BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0399f14..79e451a 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -386,8 +386,10 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
->  	cpuset_print_task_mems_allowed(current);
->  	task_unlock(current);
->  	dump_stack();
-> -	mem_cgroup_print_oom_info(memcg, p);
-> -	show_mem(SHOW_MEM_FILTER_NODES);
-> +	if (memcg)
-> +		mem_cgroup_print_oom_info(memcg, p);
-> +	else
-> +		show_mem(SHOW_MEM_FILTER_NODES);
->  	if (sysctl_oom_dump_tasks)
->  		dump_tasks(memcg, nodemask);
->  }
-> -- 
-> 1.7.9.5
+> For the moment, you're safer not to run KSM: configure it out or don't
+> set it to run.  Fixes to follow later, I'll try to remember to Cc you.
 > 
 
--- 
-Michal Hocko
-SUSE Labs
+Thanks to trinity inside of KVM guest, I've reproduced it too.
+
+[ 1193.299397] Call Trace:
+[ 1193.328506]  [<ffffffff811785c7>] ksm_scan_thread+0x967/0xd70
+[ 1193.397097]  [<ffffffff810818d0>] ? wake_up_bit+0x40/0x40
+[ 1193.461528]  [<ffffffff81177c60>] ? run_store+0x2b0/0x2b0
+[ 1193.525962]  [<ffffffff81080fb0>] kthread+0xc0/0xd0
+[ 1193.584157]  [<ffffffff81080ef0>] ? kthread_create_on_node+0x120/0x120
+[ 1193.662101]  [<ffffffff8165c3ac>] ret_from_fork+0x7c/0xb0
+[ 1193.726535]  [<ffffffff81080ef0>] ? kthread_create_on_node+0x120/0x120
+[ 1193.804475] Code: fe 4a cc ff 48 83 c4 08 5b 5d c3 0f 1f 80 00 00 00 00 66
+66 66 66 90 55 48 89 e5 53 48 89 fb 48 83 ec 08 e8 9a 0a 00 00 48 89 d8 <f0>
+48 ff 00 79 05 e8 9c 4a cc ff 48 83 c4 08 5b 5d c3 55 48 89 
+[ 1194.030380] RIP  [<ffffffff81651ed9>] down_read+0x19/0x2b
+[ 1194.094816]  RSP <ffff880122a73de8>
+[ 1194.136385] CR2: 00007fb4c6e01268
+[ 1194.176280] ---[ end trace 17dda1cb9a62bc36 ]---
+
+With enabled CONFIG_NUMA_BALANCING this one, but not sure if we should use
+new numasched code or ksm:
+
+[ 4706.859796] Call Trace:
+[ 4706.888904]  [<ffffffff811577d5>] do_numa_page+0xe5/0x130
+[ 4706.953335]  [<ffffffff81157a79>] handle_pte_fault+0x259/0xa50
+[ 4707.023012]  [<ffffffffa008a025>] ? kvm_set_spte_hva+0x25/0x30 [kvm]
+[ 4707.098878]  [<ffffffff8115903e>] handle_mm_fault+0x26e/0x660
+[ 4707.167470]  [<ffffffff811775a2>] ?
+__mmu_notifier_invalidate_range_end+0x72/0x90
+[ 4707.256850]  [<ffffffff8112e68e>] ? unlock_page+0x2e/0x40
+[ 4707.321283]  [<ffffffff811779d5>] break_ksm+0x75/0xa0
+[ 4707.381560]  [<ffffffff81177c0d>] break_cow+0x5d/0x80
+[ 4707.441833]  [<ffffffff811794c7>] ksm_scan_thread+0xc87/0xd70
+[ 4707.510427]  [<ffffffff810818e0>] ? wake_up_bit+0x40/0x40
+[ 4707.574860]  [<ffffffff81178840>] ? run_store+0x2b0/0x2b0
+[ 4707.639294]  [<ffffffff81080fc0>] kthread+0xc0/0xd0
+[ 4707.697489]  [<ffffffff81080f00>] ? kthread_create_on_node+0x120/0x120
+[ 4707.775435]  [<ffffffff8165d8ec>] ret_from_fork+0x7c/0xb0
+[ 4707.839869]  [<ffffffff81080f00>] ? kthread_create_on_node+0x120/0x120
+[ 4707.917806] Code: f8 65 48 8b 1c 25 40 c7 00 00 e9 11 00 00 00 48 8b 5d e8
+4c 8b 65 f0 4c 8b 6d f8 c9 c3 0f 1f 00 84 d2 74 2c 48 8b 83 98 02 00 00 <8b>
+80 68 03 00 00 3b 83 94 07 00 00 74 d6 89 83 94 07 00 00 48 
+[ 4708.143711] RIP  [<ffffffff81098db3>] task_numa_fault+0x43/0xa0
+[ 4708.214389]  RSP <ffff880122a1fbc8>
+[ 4708.255957] CR2: 0000000000000368
+[ 4708.295722] ---[ end trace 5ffe704785995d40 ]---
+
+I am starting looking into it.
+
+thanks!
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
