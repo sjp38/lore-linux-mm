@@ -1,110 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 0CB516B002B
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 06:56:04 -0500 (EST)
-Date: Wed, 19 Dec 2012 09:55:58 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [RFC 1/2] virtio_balloon: move locking to the balloon thread
-Message-ID: <20121219115557.GA1809@t510.redhat.com>
-References: <1355861850-2702-1-git-send-email-lcapitulino@redhat.com>
- <1355861850-2702-2-git-send-email-lcapitulino@redhat.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id CA46A6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 06:58:45 -0500 (EST)
+Received: by mail-ob0-f181.google.com with SMTP id oi10so1877839obb.12
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 03:58:45 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355861850-2702-2-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <20121218172155.GC25208@dhcp22.suse.cz>
+References: <1355742187-4111-1-git-send-email-handai.szj@taobao.com>
+	<20121218172155.GC25208@dhcp22.suse.cz>
+Date: Wed, 19 Dec 2012 19:58:44 +0800
+Message-ID: <CAFj3OHWG9=sXwr3czHS_eB8Udn_x9afxdS9ScyaNTOMB_foj7g@mail.gmail.com>
+Subject: Re: [PATCH V4] memcg, oom: provide more precise dump info while memcg
+ oom happening
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com, mst@redhat.com, amit.shah@redhat.com, agl@us.ibm.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue, Dec 18, 2012 at 06:17:29PM -0200, Luiz Capitulino wrote:
-> Today, the balloon_lock mutex is taken and released by fill_balloon()
-> and leak_balloon() when both functions are entered and when they
-> return.
-> 
-> This commit moves the locking to the caller instead, which is
-> the balloon() thread. The balloon thread is the sole caller of those
-> functions today.
-> 
-> The reason for this move is that the next commit will introduce
-> a shrinker callback for the balloon driver, which will also call
-> leak_balloon() but will require different locking semantics.
-> 
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> ---
->  drivers/virtio/virtio_balloon.c | 6 ++----
->  1 file changed, 2 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index 2a70558..877e695 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -133,7 +133,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  	/* We can only do one array worth at a time. */
->  	num = min(num, ARRAY_SIZE(vb->pfns));
->  
-> -	mutex_lock(&vb->balloon_lock);
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
->  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
->  		struct page *page = balloon_page_enqueue(vb_dev_info);
-> @@ -155,7 +154,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
->  	/* Did we get any? */
->  	if (vb->num_pfns != 0)
->  		tell_host(vb, vb->inflate_vq);
-> -	mutex_unlock(&vb->balloon_lock);
->  }
+On Wed, Dec 19, 2012 at 1:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> The patch doesn't apply cleanly on top of the current mm tree. The
+> resolving is trivial but please make sure you work on top of the latest
+> mmotm tree (or -mm git tree since-3.7 branch at the moment).
 >
 
-Since you're removing the locking scheme from within this function, I think it
-would be a good idea introduce a comment stating its caller must held the mutex
-vb->balloon_lock.
+Oh, sorry for the trial, I'll rebase it on -mm since-3.7 branch.
 
-  
->  static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
-> @@ -177,7 +175,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  	/* We can only do one array worth at a time. */
->  	num = min(num, ARRAY_SIZE(vb->pfns));
->  
-> -	mutex_lock(&vb->balloon_lock);
->  	for (vb->num_pfns = 0; vb->num_pfns < num;
->  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
->  		page = balloon_page_dequeue(vb_dev_info);
-> @@ -193,7 +190,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
->  	 * is true, we *have* to do it in this order
->  	 */
->  	tell_host(vb, vb->deflate_vq);
-> -	mutex_unlock(&vb->balloon_lock);
->  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
->  }
+> This also touches mm/oom_kill.c so please add David into the CC list.
+>
+> More comments below.
 >
 
-ditto
+OK. Next version soon will fix these issues you've mentioned.
 
-  
-> @@ -306,11 +302,13 @@ static int balloon(void *_vballoon)
->  					 || freezing(current));
->  		if (vb->need_stats_update)
->  			stats_handle_request(vb);
-> +		mutex_lock(&vb->balloon_lock);
->  		if (diff > 0)
->  			fill_balloon(vb, diff);
->  		else if (diff < 0)
->  			leak_balloon(vb, -diff);
->  		update_balloon_size(vb);
-> +		mutex_unlock(&vb->balloon_lock);
->  	}
->  	return 0;
->  }
-
-Just a nitpick:
-As leak_balloon() is also called at remove_common(), you'll need to introduce the
-mutex there, similarly.
+Thanks for reviewing!
 
 
-Thanks for move this forward.
-
-Cheers!
--- Rafael
+Regards,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
