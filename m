@@ -1,73 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id C924F6B002B
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 07:16:51 -0500 (EST)
-Date: Wed, 19 Dec 2012 13:16:48 +0100
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: mm, ksm: NULL ptr deref in unstable_tree_search_insert
-Message-ID: <20121219121647.GB4381@thinkpad-work.redhat.com>
-References: <50D1158F.5070905@oracle.com>
- <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 4590F6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 07:47:50 -0500 (EST)
+Date: Wed, 19 Dec 2012 10:47:48 -0200
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [RFC 1/2] virtio_balloon: move locking to the balloon thread
+Message-ID: <20121219104748.336fc33f@doriath.home>
+In-Reply-To: <20121219115557.GA1809@t510.redhat.com>
+References: <1355861850-2702-1-git-send-email-lcapitulino@redhat.com>
+	<1355861850-2702-2-git-send-email-lcapitulino@redhat.com>
+	<20121219115557.GA1809@t510.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com, mst@redhat.com, amit.shah@redhat.com, agl@us.ibm.com
 
-On Tue, 18 Dec 2012, Hugh Dickins wrote:
-> On Tue, 18 Dec 2012, Sasha Levin wrote:
+On Wed, 19 Dec 2012 09:55:58 -0200
+Rafael Aquini <aquini@redhat.com> wrote:
+
+> On Tue, Dec 18, 2012 at 06:17:29PM -0200, Luiz Capitulino wrote:
+> > Today, the balloon_lock mutex is taken and released by fill_balloon()
+> > and leak_balloon() when both functions are entered and when they
+> > return.
+> > 
+> > This commit moves the locking to the caller instead, which is
+> > the balloon() thread. The balloon thread is the sole caller of those
+> > functions today.
+> > 
+> > The reason for this move is that the next commit will introduce
+> > a shrinker callback for the balloon driver, which will also call
+> > leak_balloon() but will require different locking semantics.
+> > 
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > ---
+> >  drivers/virtio/virtio_balloon.c | 6 ++----
+> >  1 file changed, 2 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > index 2a70558..877e695 100644
+> > --- a/drivers/virtio/virtio_balloon.c
+> > +++ b/drivers/virtio/virtio_balloon.c
+> > @@ -133,7 +133,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+> >  	/* We can only do one array worth at a time. */
+> >  	num = min(num, ARRAY_SIZE(vb->pfns));
+> >  
+> > -	mutex_lock(&vb->balloon_lock);
+> >  	for (vb->num_pfns = 0; vb->num_pfns < num;
+> >  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> >  		struct page *page = balloon_page_enqueue(vb_dev_info);
+> > @@ -155,7 +154,6 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
+> >  	/* Did we get any? */
+> >  	if (vb->num_pfns != 0)
+> >  		tell_host(vb, vb->inflate_vq);
+> > -	mutex_unlock(&vb->balloon_lock);
+> >  }
+> >
 > 
-> > Hi all,
-> > 
-> > While fuzzing with trinity inside a KVM tools guest, running latest linux-next kernel, I've
-> > stumbled on the following:
-> > 
-> > [  127.959264] BUG: unable to handle kernel NULL pointer dereference at 0000000000000110
-> > [  127.960379] IP: [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
-...
+> Since you're removing the locking scheme from within this function, I think it
+> would be a good idea introduce a comment stating its caller must held the mutex
+> vb->balloon_lock.
 
-> > 88 e9 b9 09 00 00 90 <48> 81 3b 60 59 22 86 b8 01 00 00 00 44 0f 44 e8 41 83 fc 01 77
-> > [  127.978032] RIP  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
-> > [  127.978032]  RSP <ffff8800137abb78>
-> > [  127.978032] CR2: 0000000000000110
-> > [  127.978032] ---[ end trace 3dc1b0c5db8c1230 ]---
-> > 
-> > The relevant piece of code is:
-> > 
-> > 	static struct page *get_mergeable_page(struct rmap_item *rmap_item)
-> > 	{
-> > 	        struct mm_struct *mm = rmap_item->mm;
-> > 	        unsigned long addr = rmap_item->address;
-> > 	        struct vm_area_struct *vma;
-> > 	        struct page *page;
-> > 	
-> > 	        down_read(&mm->mmap_sem);
-> > 
-> > Where 'mm' is NULL. I'm not really sure how it happens though.
+Will address all comments for v1 (or rfc v2), thanks Rafael.
+
 > 
-> Thanks, yes, I got that, and it's not peculiar to fuzzing at all:
-> I'm testing the fix at the moment, but just hit something else too
-> (ksmd oops on NULL p->mm in task_numa_fault i.e. task_numa_placement).
+>   
+> >  static void release_pages_by_pfn(const u32 pfns[], unsigned int num)
+> > @@ -177,7 +175,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+> >  	/* We can only do one array worth at a time. */
+> >  	num = min(num, ARRAY_SIZE(vb->pfns));
+> >  
+> > -	mutex_lock(&vb->balloon_lock);
+> >  	for (vb->num_pfns = 0; vb->num_pfns < num;
+> >  	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+> >  		page = balloon_page_dequeue(vb_dev_info);
+> > @@ -193,7 +190,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
+> >  	 * is true, we *have* to do it in this order
+> >  	 */
+> >  	tell_host(vb, vb->deflate_vq);
+> > -	mutex_unlock(&vb->balloon_lock);
+> >  	release_pages_by_pfn(vb->pfns, vb->num_pfns);
+> >  }
+> >
 > 
-> For the moment, you're safer not to run KSM: configure it out or don't
-> set it to run.  Fixes to follow later, I'll try to remember to Cc you.
+> ditto
 > 
-
-Hello all,
-
-I've also tried fuzzing with trinity inside of kvm guest when tested KSM
-patch, but applied on top of 3.7-rc8, but didn't trigger that oops. So
-going to do the same testing on linux-next.
-
-Hugh, does it seem like bug in unstable_tree_search_insert() you mentioned
-in yesterday email of something else?
-
-Thank you for your testing && feedback!
-
-Petr
+>   
+> > @@ -306,11 +302,13 @@ static int balloon(void *_vballoon)
+> >  					 || freezing(current));
+> >  		if (vb->need_stats_update)
+> >  			stats_handle_request(vb);
+> > +		mutex_lock(&vb->balloon_lock);
+> >  		if (diff > 0)
+> >  			fill_balloon(vb, diff);
+> >  		else if (diff < 0)
+> >  			leak_balloon(vb, -diff);
+> >  		update_balloon_size(vb);
+> > +		mutex_unlock(&vb->balloon_lock);
+> >  	}
+> >  	return 0;
+> >  }
+> 
+> Just a nitpick:
+> As leak_balloon() is also called at remove_common(), you'll need to introduce the
+> mutex there, similarly.
+> 
+> 
+> Thanks for move this forward.
+> 
+> Cheers!
+> -- Rafael
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
