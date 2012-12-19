@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
-	by kanga.kvack.org (Postfix) with SMTP id F10356B005D
-	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 19:00:31 -0500 (EST)
-Date: Tue, 18 Dec 2012 16:00:30 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: cond_resched in tlb_flush_mmu to fix soft lockups
- on !CONFIG_PREEMPT
-Message-Id: <20121218160030.baf723aa.akpm@linux-foundation.org>
-In-Reply-To: <20121218235042.GA10350@dhcp22.suse.cz>
-References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
-	<20121218140219.45867ddd.akpm@linux-foundation.org>
-	<20121218235042.GA10350@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 6A7E96B002B
+	for <linux-mm@kvack.org>; Tue, 18 Dec 2012 20:17:36 -0500 (EST)
+Message-ID: <50D1158F.5070905@oracle.com>
+Date: Tue, 18 Dec 2012 20:17:03 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: mm, ksm: NULL ptr deref in unstable_tree_search_insert
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, 19 Dec 2012 00:50:42 +0100
-Michal Hocko <mhocko@suse.cz> wrote:
+Hi all,
 
-> On Tue 18-12-12 14:02:19, Andrew Morton wrote:
-> > On Tue, 18 Dec 2012 17:11:28 +0100
-> > Michal Hocko <mhocko@suse.cz> wrote:
-> > 
-> > > Since e303297 (mm: extended batches for generic mmu_gather) we are batching
-> > > pages to be freed until either tlb_next_batch cannot allocate a new batch or we
-> > > are done.
-> > > 
-> > > This works just fine most of the time but we can get in troubles with
-> > > non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY) on
-> > > large machines where too aggressive batching might lead to soft lockups during
-> > > process exit path (exit_mmap) because there are no scheduling points down the
-> > > free_pages_and_swap_cache path and so the freeing can take long enough to
-> > > trigger the soft lockup.
-> > > 
-> > > The lockup is harmless except when the system is setup to panic on
-> > > softlockup which is not that unusual.
-> > > 
-> > > The simplest way to work around this issue is to explicitly cond_resched per
-> > > batch in tlb_flush_mmu (1020 pages on x86_64).
-> > > 
-> > > ...
-> > >
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -239,6 +239,7 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
-> > >  	for (batch = &tlb->local; batch; batch = batch->next) {
-> > >  		free_pages_and_swap_cache(batch->pages, batch->nr);
-> > >  		batch->nr = 0;
-> > > +		cond_resched();
-> > >  	}
-> > >  	tlb->active = &tlb->local;
-> > >  }
-> > 
-> > tlb_flush_mmu() has a large number of callsites (or callsites which
-> > call callers, etc), many in arch code.  It's not at all obvious that
-> > tlb_flush_mmu() is never called from under spinlock?
-> 
-> free_pages_and_swap_cache calls lru_add_drain which in turn calls
-> put_cpu (aka preempt_enable) which is a scheduling point for
-> CONFIG_PREEMPT.
+While fuzzing with trinity inside a KVM tools guest, running latest linux-next kernel, I've
+stumbled on the following:
 
-No, that inference doesn't work.  Because preempt_enable() inside
-spinlock is OK - it will not call schedule() because
-current->preempt_count is still elevated (by spin_lock).
+[  127.959264] BUG: unable to handle kernel NULL pointer dereference at 0000000000000110
+[  127.960379] IP: [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+[  127.960379] PGD cc54067 PUD cc55067 PMD 0
+[  127.960379] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  127.960379] Dumping ftrace buffer:
+[  127.960379]    (ftrace buffer empty)
+[  127.960379] CPU 0
+[  127.960379] Pid: 3174, comm: ksmd Tainted: G        W    3.7.0-next-20121218-sasha-00023-g8e46e86 #220
+[  127.978032] RIP: 0010:[<ffffffff81185b60>]  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+[  127.978032] RSP: 0018:ffff8800137abb78  EFLAGS: 00010046
+[  127.978032] RAX: 0000000000000086 RBX: 0000000000000110 RCX: 0000000000000001
+[  127.978032] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000110
+[  127.978032] RBP: ffff8800137abc18 R08: 0000000000000002 R09: 0000000000000000
+[  127.978032] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
+[  127.978032] R13: 0000000000000002 R14: ffff8800137b0000 R15: 0000000000000000
+[  127.978032] FS:  0000000000000000(0000) GS:ffff8800bfc00000(0000) knlGS:0000000000000000
+[  127.978032] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  127.978032] CR2: 0000000000000110 CR3: 000000000cc51000 CR4: 00000000000406f0
+[  127.978032] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  127.978032] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+[  127.978032] Process ksmd (pid: 3174, threadinfo ffff8800137aa000, task ffff8800137b0000)
+[  127.978032] Stack:
+[  127.978032]  ffff8800137abba8 ffffffff863d8b50 ffff8800137b0948 ffffffff863d8b50
+[  127.978032]  ffff8800137abbb8 ffffffff81180a12 ffff8800137abbb8 ffffffff81180a9e
+[  127.978032]  ffff8800137abbe8 ffffffff8118108e ffff8800137abc18 0000000000000000
+[  127.978032] Call Trace:
+[  127.978032]  [<ffffffff81180a12>] ? get_lock_stats+0x22/0x70
+[  127.978032]  [<ffffffff81180a9e>] ? put_lock_stats.isra.16+0xe/0x40
+[  127.978032]  [<ffffffff8118108e>] ? lock_release_holdtime+0x11e/0x130
+[  127.978032]  [<ffffffff811889aa>] lock_acquire+0x1ca/0x270
+[  127.978032]  [<ffffffff8125992f>] ? unstable_tree_search_insert+0x9f/0x260
+[  127.978032]  [<ffffffff83cd7337>] down_read+0x47/0x90
+[  127.978032]  [<ffffffff8125992f>] ? unstable_tree_search_insert+0x9f/0x260
+[  127.978032]  [<ffffffff8125992f>] unstable_tree_search_insert+0x9f/0x260
+[  127.978032]  [<ffffffff8125af27>] cmp_and_merge_page+0xe7/0x1e0
+[  127.978032]  [<ffffffff8125b085>] ksm_do_scan+0x65/0xa0
+[  127.978032]  [<ffffffff8125b12f>] ksm_scan_thread+0x6f/0x2d0
+[  127.978032]  [<ffffffff8113de40>] ? abort_exclusive_wait+0xb0/0xb0
+[  127.978032]  [<ffffffff8125b0c0>] ? ksm_do_scan+0xa0/0xa0
+[  127.978032]  [<ffffffff8113cbd3>] kthread+0xe3/0xf0
+[  127.978032]  [<ffffffff8113caf0>] ? __kthread_bind+0x40/0x40
+[  127.978032]  [<ffffffff83cdae7c>] ret_from_fork+0x7c/0xb0
+[  127.978032]  [<ffffffff8113caf0>] ? __kthread_bind+0x40/0x40
+[  127.978032] Code: 00 83 3d c3 2b b0 05 00 0f 85 d5 09 00 00 be f9 0b 00 00 48 c7 c7 1c d0 b2 84 89 55 88 e8 89 82 f8 ff 8b 55
+88 e9 b9 09 00 00 90 <48> 81 3b 60 59 22 86 b8 01 00 00 00 44 0f 44 e8 41 83 fc 01 77
+[  127.978032] RIP  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+[  127.978032]  RSP <ffff8800137abb78>
+[  127.978032] CR2: 0000000000000110
+[  127.978032] ---[ end trace 3dc1b0c5db8c1230 ]---
 
-> There are more down the call chain probably. None of
-> them for non-preempt kernel.
+The relevant piece of code is:
+
+	static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+	{
+	        struct mm_struct *mm = rmap_item->mm;
+	        unsigned long addr = rmap_item->address;
+	        struct vm_area_struct *vma;
+	        struct page *page;
+	
+	        down_read(&mm->mmap_sem);
+
+Where 'mm' is NULL. I'm not really sure how it happens though.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
