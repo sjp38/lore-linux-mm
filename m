@@ -1,57 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 73D996B0068
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 17:24:06 -0500 (EST)
-Date: Wed, 19 Dec 2012 23:24:00 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 2389C6B006C
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 17:26:54 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id bh2so1622192pad.33
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 14:26:53 -0800 (PST)
+Date: Wed, 19 Dec 2012 14:26:51 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 04/15] mm/huge_memory: use new hashtable implementation
+In-Reply-To: <1355756497-15834-4-git-send-email-sasha.levin@oracle.com>
+Message-ID: <alpine.DEB.2.00.1212191416410.32757@chino.kir.corp.google.com>
+References: <1355756497-15834-1-git-send-email-sasha.levin@oracle.com> <1355756497-15834-4-git-send-email-sasha.levin@oracle.com>
 MIME-Version: 1.0
-References: <20121203194208.GZ24381@cmpxchg.org> <20121204214210.GB20253@cmpxchg.org> <20121205030133.GA17438@wolff.to> <20121206173742.GA27297@wolff.to> <CA+55aFzZsCUk6snrsopWQJQTXLO__G7=SjrGNyK3ePCEtZo7Sw@mail.gmail.com> <50C32D32.6040800@iskon.hr> <50C3AF80.8040700@iskon.hr> <alpine.LFD.2.02.1212081651270.4593@air.linux-foundation.org> <20121210110337.GH1009@suse.de> <20121210163904.GA22101@cmpxchg.org> <20121210180141.GK1009@suse.de> <50C62AE6.3030000@iskon.hr> <CA+55aFwNE2y5t2uP3esCnHsaNo0NTDnGvzN6KF0qTw_y+QbtFA@mail.gmail.com> <50C6477A.4090005@iskon.hr> <50C67C13.6090702@iskon.hr>
-In-Reply-To: <50C67C13.6090702@iskon.hr>
-Message-ID: <50D23E80.3010408@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: kswapd craziness in 3.7
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11.12.2012 01:19, Zlatko Calusic wrote:
->> On 10.12.2012 20:13, Linus Torvalds wrote:
->>>
->>> It's worth giving this as much testing as is at all possible, but at
->>> the same time I really don't think I can delay 3.7 any more without
->>> messing up the holiday season too much. So unless something obvious
->>> pops up, I will do the release tonight. So testing will be minimal -
->>> but it's not like we haven't gone back-and-forth on this several times
->>> already, and we revert to *mostly* the same old state as 3.6 anyway,
->>> so it should be fairly safe.
->>>
->
-> So, here's what I found. In short: close, but no cigar!
->
-> Kswapd is certainly no more CPU pig, and memory seems to be utilized
-> properly (the kernel still likes to keep 400MB free, somebody else can
-> confirm if that's to be expected on a 4GB THP-enabled machine). So it
-> looks very decent, and much better than anything I run in last 10 days,
-> barring !THP kernel.
->
-> What remains a mystery is that kswapd occassionaly still likes to get
-> stuck in a D state, only now it recovers faster than before (sometimes
-> in a matter of seconds, but sometimes it takes a few minutes). Now, I
-> admit it's a small, maybe even cosmetic issue. But, it could also be a
-> warning sign of a bigger problem that will reveal itself on a more
-> loaded machine.
->
+On Mon, 17 Dec 2012, Sasha Levin wrote:
 
-Ha, I nailed it!
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 827d9c8..2a0ef01 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -20,6 +20,7 @@
+>  #include <linux/mman.h>
+>  #include <linux/pagemap.h>
+>  
+> +#include <linux/hashtable.h>
+>  #include <asm/tlb.h>
+>  #include <asm/pgalloc.h>
+>  #include "internal.h"
 
-The cigar aka the explanation together with a patch will follow shortly 
-in a separate topic.
+Why group this with the asm includes?
 
-It's a genuine bug that has been with us for a long long time.
--- 
-Zlatko
+> @@ -61,12 +62,12 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+>  static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
+>  
+>  static int khugepaged(void *none);
+> -static int mm_slots_hash_init(void);
+>  static int khugepaged_slab_init(void);
+>  static void khugepaged_slab_free(void);
+>  
+
+You're removing khugepaged_slab_free() too.
+
+> -#define MM_SLOTS_HASH_HEADS 1024
+> -static struct hlist_head *mm_slots_hash __read_mostly;
+> +#define MM_SLOTS_HASH_BITS 10
+> +static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
+> +
+
+What happened to the __read_mostly?
+
+This used to be dynamically allocated and would save the 8KB that you 
+statically allocate if transparent hugepages cannot be used.  The generic 
+hashtable implementation does not support dynamic allocation?
+
+>  static struct kmem_cache *mm_slot_cache __read_mostly;
+>  
+>  /**
+> @@ -633,12 +634,6 @@ static int __init hugepage_init(void)
+>  	if (err)
+>  		goto out;
+>  
+> -	err = mm_slots_hash_init();
+> -	if (err) {
+> -		khugepaged_slab_free();
+
+This is the only use of khugepaged_slab_free(), so the function should be 
+removed as well.
+
+> -		goto out;
+> -	}
+> -
+>  	register_shrinker(&huge_zero_page_shrinker);
+>  
+>  	/*
+> @@ -1821,47 +1816,23 @@ static inline void free_mm_slot(struct mm_slot *mm_slot)
+>  	kmem_cache_free(mm_slot_cache, mm_slot);
+>  }
+>  
+> -static int __init mm_slots_hash_init(void)
+> -{
+> -	mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
+> -				GFP_KERNEL);
+> -	if (!mm_slots_hash)
+> -		return -ENOMEM;
+> -	return 0;
+> -}
+> -
+> -#if 0
+> -static void __init mm_slots_hash_free(void)
+> -{
+> -	kfree(mm_slots_hash);
+> -	mm_slots_hash = NULL;
+> -}
+> -#endif
+> -
+>  static struct mm_slot *get_mm_slot(struct mm_struct *mm)
+>  {
+> -	struct mm_slot *mm_slot;
+> -	struct hlist_head *bucket;
+> +	struct mm_slot *slot;
+>  	struct hlist_node *node;
+>  
+> -	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+> -				% MM_SLOTS_HASH_HEADS];
+> -	hlist_for_each_entry(mm_slot, node, bucket, hash) {
+> -		if (mm == mm_slot->mm)
+> -			return mm_slot;
+> -	}
+> +	hash_for_each_possible(mm_slots_hash, slot, node, hash, (unsigned long) mm)
+> +		if (slot->mm == mm)
+> +			return slot;
+
+Why these other changes (the naming of the variable, the ordering of the 
+conditional)?
+
+> +
+>  	return NULL;
+>  }
+>  
+>  static void insert_to_mm_slots_hash(struct mm_struct *mm,
+>  				    struct mm_slot *mm_slot)
+>  {
+> -	struct hlist_head *bucket;
+> -
+> -	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+> -				% MM_SLOTS_HASH_HEADS];
+>  	mm_slot->mm = mm;
+> -	hlist_add_head(&mm_slot->hash, bucket);
+> +	hash_add(mm_slots_hash, &mm_slot->hash, (long)mm);
+>  }
+>  
+>  static inline int khugepaged_test_exit(struct mm_struct *mm)
+> @@ -1930,7 +1901,7 @@ void __khugepaged_exit(struct mm_struct *mm)
+>  	spin_lock(&khugepaged_mm_lock);
+>  	mm_slot = get_mm_slot(mm);
+>  	if (mm_slot && khugepaged_scan.mm_slot != mm_slot) {
+> -		hlist_del(&mm_slot->hash);
+> +		hash_del(&mm_slot->hash);
+>  		list_del(&mm_slot->mm_node);
+>  		free = 1;
+>  	}
+> @@ -2379,7 +2350,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+>  
+>  	if (khugepaged_test_exit(mm)) {
+>  		/* free mm_slot */
+> -		hlist_del(&mm_slot->hash);
+> +		hash_del(&mm_slot->hash);
+>  		list_del(&mm_slot->mm_node);
+>  
+>  		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
