@@ -1,155 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id EF81C6B0062
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 14:25:31 -0500 (EST)
-Message-ID: <50D214FC.8000405@infradead.org>
-Date: Wed, 19 Dec 2012 11:26:52 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: Re: [PART5 Patch 1/5] page_alloc: add kernelcore_max_addr
-References: <1351675303-11786-1-git-send-email-wency@cn.fujitsu.com> <1351675303-11786-2-git-send-email-wency@cn.fujitsu.com>
-In-Reply-To: <1351675303-11786-2-git-send-email-wency@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 8C48F6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 16:13:18 -0500 (EST)
+Date: Wed, 19 Dec 2012 13:13:16 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: limit mmu_gather batching to fix soft lockups on
+ !CONFIG_PREEMPT
+Message-Id: <20121219131316.7d13fcb1.akpm@linux-foundation.org>
+In-Reply-To: <20121219150423.GA12888@dhcp22.suse.cz>
+References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+	<20121218140219.45867ddd.akpm@linux-foundation.org>
+	<20121218235042.GA10350@dhcp22.suse.cz>
+	<20121218160030.baf723aa.akpm@linux-foundation.org>
+	<20121219150423.GA12888@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wen Congyang <wency@cn.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 10/31/12 02:21, Wen Congyang wrote:
-> From: Lai Jiangshan <laijs@cn.fujitsu.com>
-> 
-> Current ZONE_MOVABLE (kernelcore=) setting policy with boot option doesn't meet
-> our requirement. We need something like kernelcore_max_addr=XX boot option
-> to limit the kernelcore upper address.
-> 
-> The memory with higher address will be migratable(movable) and they
-> are easier to be offline(always ready to be offline when the system don't require
-> so much memory).
-> 
-> It makes things easy when we dynamic hot-add/remove memory, make better
-> utilities of memories, and helps for THP.
-> 
-> All kernelcore_max_addr=, kernelcore= and movablecore= can be safely specified
-> at the same time(or any 2 of them).
-> 
-> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
-> ---
->  Documentation/kernel-parameters.txt |  9 +++++++++
->  mm/page_alloc.c                     | 29 ++++++++++++++++++++++++++++-
->  2 files changed, 37 insertions(+), 1 deletion(-)
-> 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 9776f06..2b72ffb 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -1223,6 +1223,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  			use the HighMem zone if it exists, and the Normal
->  			zone if it does not.
->  
-> +	kernelcore_max_addr=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
-> +			is the same effect as kernelcore parameter, except it
-> +			specifies the up physical address of memory range
+On Wed, 19 Dec 2012 16:04:37 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-			              upper (or maximum)
-
-> +			usable by the kernel for non-movable allocations.
-> +			If both kernelcore and kernelcore_max_addr are
-> +			specified, this requested's priority is higher than
-
-			specified, this parameter has a higher priority than
-			the kernelcore parameter.
-
-> +			kernelcore's.
-> +			See the kernelcore parameter.
-> +
->  	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
->  			Format: <Controller#>[,poll interval]
->  			The controller # is the number of the ehci usb debug
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b74de6..9c35fe5 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -200,6 +200,7 @@ static unsigned long __meminitdata dma_reserve;
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
->  static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
-> +static unsigned long __initdata required_kernelcore_max_pfn;
->  static unsigned long __initdata required_kernelcore;
->  static unsigned long __initdata required_movablecore;
->  static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
-> @@ -4715,6 +4716,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->  {
->  	int i, nid;
->  	unsigned long usable_startpfn;
-> +	unsigned long kernelcore_max_pfn;
->  	unsigned long kernelcore_node, kernelcore_remaining;
->  	/* save the state before borrow the nodemask */
->  	nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
-> @@ -4743,6 +4745,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->  		required_kernelcore = max(required_kernelcore, corepages);
->  	}
+> Since e303297 (mm: extended batches for generic mmu_gather) we are batching
+> pages to be freed until either tlb_next_batch cannot allocate a new batch or we
+> are done.
+> 
+> This works just fine most of the time but we can get in troubles with
+> non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY)
+> on large machines where too aggressive batching might lead to soft
+> lockups during process exit path (exit_mmap) because there are no
+> scheduling points down the free_pages_and_swap_cache path and so the
+> freeing can take long enough to trigger the soft lockup.
+> 
+> The lockup is harmless except when the system is setup to panic on
+> softlockup which is not that unusual.
+> 
+> The simplest way to work around this issue is to limit the maximum
+> number of batches in a single mmu_gather for !CONFIG_PREEMPT kernels.
+> Let's use 1G of resident memory for the limit for now. This shouldn't
+> make the batching less effective and it shouldn't trigger lockups as
+> well because freeing 262144 should be OK.
+> 
+> ...
+>
+> diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+> index ed6642a..5843f59 100644
+> --- a/include/asm-generic/tlb.h
+> +++ b/include/asm-generic/tlb.h
+> @@ -78,6 +78,19 @@ struct mmu_gather_batch {
+>  #define MAX_GATHER_BATCH	\
+>  	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
 >  
-> +	if (required_kernelcore_max_pfn && !required_kernelcore)
-> +		required_kernelcore = totalpages;
-> +
->  	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
->  	if (!required_kernelcore)
->  		goto out;
-> @@ -4751,6 +4756,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
->  	find_usable_zone_for_movable();
->  	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
->  
-> +	if (required_kernelcore_max_pfn)
-> +		kernelcore_max_pfn = required_kernelcore_max_pfn;
-> +	else
-> +		kernelcore_max_pfn = ULONG_MAX >> PAGE_SHIFT;
-> +	kernelcore_max_pfn = max(kernelcore_max_pfn, usable_startpfn);
-> +
->  restart:
->  	/* Spread kernelcore memory as evenly as possible throughout nodes */
->  	kernelcore_node = required_kernelcore / usable_nodes;
-> @@ -4777,8 +4788,12 @@ restart:
->  			unsigned long size_pages;
->  
->  			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
-> -			if (start_pfn >= end_pfn)
-> +			end_pfn = min(kernelcore_max_pfn, end_pfn);
-> +			if (start_pfn >= end_pfn) {
-> +				if (!zone_movable_pfn[nid])
-> +					zone_movable_pfn[nid] = start_pfn;
->  				continue;
-> +			}
->  
->  			/* Account for what is only usable for kernelcore */
->  			if (start_pfn < usable_startpfn) {
-> @@ -4965,6 +4980,18 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
->  	return 0;
->  }
->  
-> +#ifdef CONFIG_MOVABLE_NODE
 > +/*
-> + * kernelcore_max_addr=addr sets the up physical address of memory range
-
-                                        upper
-
-> + * for use for allocations that cannot be reclaimed or migrated.
+> + * Limit the maximum number of mmu_gather batches for non-preemptible kernels
+> + * to reduce a risk of soft lockups on huge machines when a lot of memory is
+> + * zapped during unmapping.
+> + * 1GB of resident memory should be safe to free up at once even without
+> + * explicit preemption point.
 > + */
-> +static int __init cmdline_parse_kernelcore_max_addr(char *p)
-> +{
-> +	return cmdline_parse_core(p, &required_kernelcore_max_pfn);
-> +}
-> +early_param("kernelcore_max_addr", cmdline_parse_kernelcore_max_addr);
-> +#endif
-> +
->  /*
->   * kernelcore=size sets the amount of memory for use for allocations that
->   * cannot be reclaimed or migrated.
-> 
+> +#if defined(CONFIG_PREEMPT_COUNT)
+> +#define MAX_GATHER_BATCH_COUNT	(UINT_MAX)
+> +#else
+> +#define MAX_GATHER_BATCH_COUNT	(((1UL<<(30-PAGE_SHIFT))/MAX_GATHER_BATCH))
+
+Geeze.  I spent waaaaay too long staring at that expression trying to
+work out "how many pages is in a batch" and gave up.
+
+Realistically, I don't think we need to worry about CONFIG_PREEMPT here
+- if we just limit the thing to, say, 64k pages per batch then that
+will be OK for preemptible and non-preemptible kernels.  The
+performance difference between "64k" and "infinite" will be miniscule
+and unmeasurable.
+
+Also, the batch count should be independent of PAGE_SIZE.  Because
+PAGE_SIZE can vary by a factor of 16 and you don't want to fix the
+problem on 4k page size but leave it broken on 64k page size.
+
+Also, while the patch might prevent softlockup warnings, the kernel
+will still exhibit large latency glitches and those are undesirable.
+
+Also, does this patch actually work?  It doesn't add a scheduling
+point.  It assumes that by returning zero from tlb_next_batch(), the
+process will back out to some point where it hits a cond_resched()?
 
 
--- 
-~Randy
+So I'm thinking that to address both the softlockup-detector problem
+and the large-latency-glitch problem we should do something like:
+
+	if (need_resched() && tlb->batch_count > 64k)
+		return 0;
+
+and then ensure that there's a cond_resched() at a safe point between
+batches?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
