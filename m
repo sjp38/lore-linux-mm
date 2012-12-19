@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id AA38E6B0069
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 822F76B0068
 	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 09:03:15 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 3/3] sl[auo]b: retry allocation once in case of failure.
-Date: Wed, 19 Dec 2012 18:01:42 +0400
-Message-Id: <1355925702-7537-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH 1/3] slab: single entry-point for slab allocation
+Date: Wed, 19 Dec 2012 18:01:40 +0400
+Message-Id: <1355925702-7537-2-git-send-email-glommer@parallels.com>
 In-Reply-To: <1355925702-7537-1-git-send-email-glommer@parallels.com>
 References: <1355925702-7537-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,224 +13,193 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-When we are out of space in the caches, we will try to allocate a new
-page.  If we still fail, the page allocator will try to free pages
-through direct reclaim. Which means that if an object allocation failed
-we can be sure that no new pages could be given to us, even though
-direct reclaim was likely invoked.
+This patch modifies slab's slab_alloc so it becomes node-aware at
+all times. The code sharing is already quite big. The main difference
+is how to behave when nodeid is specified as -1.
 
-However, direct reclaim will also try to shrink objects from registered
-shrinkers. They won't necessarily free a full page, but if our cache
-happens to be one with a shrinker, this may very well open up the space
-we need. So we retry the allocation in this case.
+This is always the case for the not node aware allocation entry point,
+that would do unconditionally:
 
-We can't know for sure if this happened. So the best we can do is try to
-derive from our allocation flags how likely it is for direct reclaim to
-have been called, and retry if we conclude that this is highly likely
-(GFP_NOWAIT | GFP_FS | !GFP_NORETRY).
+        if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY)))
+        {
+                objp = alternate_node_alloc(cache, flags);
+                if (objp)
+                        goto out;
+        }
 
-The common case is for the allocation to succeed. So we carefuly insert
-a likely branch for that case.
+meaning that it will allocate from the current node unless some
+task flags are set, in which case we'll try to spread it around.
+
+We can easily assume that any call to kmem_cache_alloc_node() that
+passes -1 as node would not mind seeing this behavior. So what this
+patch does is to add a check like that to the nodeid == -1 case of
+slab_alloc_node, and then convert every caller to slab_alloc to
+slab_alloc_node.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 CC: Christoph Lameter <cl@linux.com>
 CC: David Rientjes <rientjes@google.com>
 CC: Pekka Enberg <penberg@cs.helsinki.fi>
 CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Mel Gorman <mgorman@suse.de>
 ---
- mm/slab.c |  2 ++
- mm/slab.h | 42 ++++++++++++++++++++++++++++++++++++++++++
- mm/slob.c | 27 +++++++++++++++++++++++----
- mm/slub.c | 26 ++++++++++++++++++++------
- 4 files changed, 87 insertions(+), 10 deletions(-)
+ mm/slab.c | 88 +++++++++++++++------------------------------------------------
+ 1 file changed, 21 insertions(+), 67 deletions(-)
 
 diff --git a/mm/slab.c b/mm/slab.c
-index a98295f..7e82f99 100644
+index e7667a3..a98295f 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3535,6 +3535,8 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+@@ -3475,33 +3475,23 @@ done:
+  * Fallback to other node is possible if __GFP_THISNODE is not set.
+  */
+ static __always_inline void *
+-slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+-		   unsigned long caller)
++__do_slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
+-	unsigned long save_flags;
+ 	void *ptr;
+ 	int slab_node = numa_mem_id();
+ 
+-	flags &= gfp_allowed_mask;
+-
+-	lockdep_trace_alloc(flags);
+-
+-	if (slab_should_failslab(cachep, flags))
+-		return NULL;
+-
+-	cachep = memcg_kmem_get_cache(cachep, flags);
+-
+-	cache_alloc_debugcheck_before(cachep, flags);
+-	local_irq_save(save_flags);
+-
+-	if (nodeid == NUMA_NO_NODE)
++	if (nodeid == NUMA_NO_NODE) {
++		if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
++			ptr = alternate_node_alloc(cachep, flags);
++			if (ptr)
++				return ptr;
++		}
+ 		nodeid = slab_node;
++	}
+ 
+-	if (unlikely(!cachep->nodelists[nodeid])) {
++	if (unlikely(!cachep->nodelists[nodeid]))
+ 		/* Node not bootstrapped yet */
+-		ptr = fallback_alloc(cachep, flags);
+-		goto out;
+-	}
++		return fallback_alloc(cachep, flags);
+ 
+ 	if (nodeid == slab_node) {
+ 		/*
+@@ -3512,59 +3502,23 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 		 */
+ 		ptr = ____cache_alloc(cachep, flags);
+ 		if (ptr)
+-			goto out;
++			return ptr;
+ 	}
+ 	/* ___cache_alloc_node can fall back to other nodes */
+-	ptr = ____cache_alloc_node(cachep, flags, nodeid);
+-  out:
+-	local_irq_restore(save_flags);
+-	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
+-	kmemleak_alloc_recursive(ptr, cachep->object_size, 1, cachep->flags,
+-				 flags);
+-
+-	if (likely(ptr))
+-		kmemcheck_slab_alloc(cachep, flags, ptr, cachep->object_size);
+-
+-	if (unlikely((flags & __GFP_ZERO) && ptr))
+-		memset(ptr, 0, cachep->object_size);
+-
+-	return ptr;
+-}
+-
+-static __always_inline void *
+-__do_cache_alloc(struct kmem_cache *cache, gfp_t flags)
+-{
+-	void *objp;
+-
+-	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
+-		objp = alternate_node_alloc(cache, flags);
+-		if (objp)
+-			goto out;
+-	}
+-	objp = ____cache_alloc(cache, flags);
+-
+-	/*
+-	 * We may just have run out of memory on the local node.
+-	 * ____cache_alloc_node() knows how to locate memory on other nodes
+-	 */
+-	if (!objp)
+-		objp = ____cache_alloc_node(cache, flags, numa_mem_id());
+-
+-  out:
+-	return objp;
++	return ____cache_alloc_node(cachep, flags, nodeid);
+ }
+ #else
+-
+ static __always_inline void *
+-__do_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
++__do_slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+ {
++
+ 	return ____cache_alloc(cachep, flags);
+ }
+-
+ #endif /* CONFIG_NUMA */
+ 
+ static __always_inline void *
+-slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
++slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
++		unsigned long caller)
+ {
+ 	unsigned long save_flags;
+ 	void *objp;
+@@ -3580,11 +3534,11 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+ 
  	cache_alloc_debugcheck_before(cachep, flags);
  	local_irq_save(save_flags);
- 	objp = __do_slab_alloc_node(cachep, flags, nodeid);
-+	if (slab_should_retry(objp, flags))
-+		objp = __do_slab_alloc_node(cachep, flags, nodeid);
+-	objp = __do_cache_alloc(cachep, flags);
++	objp = __do_slab_alloc_node(cachep, flags, nodeid);
  	local_irq_restore(save_flags);
  	objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
  	kmemleak_alloc_recursive(objp, cachep->object_size, 1, cachep->flags,
-diff --git a/mm/slab.h b/mm/slab.h
-index 34a98d6..03d1590 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -104,6 +104,48 @@ void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
- ssize_t slabinfo_write(struct file *file, const char __user *buffer,
- 		       size_t count, loff_t *ppos);
+-				 flags);
++				flags);
+ 	prefetchw(objp);
  
-+/*
-+ * When we are out of space in the caches, we will try to allocate a new page.
-+ * If we still fail, the page allocator will try to free pages through direct
-+ * reclaim. Which means that if an object allocation failed we can be sure that
-+ * no new pages could be given to us.
-+ *
-+ * However, direct reclaim will also try to shrink objects from registered
-+ * shrinkers. They won't necessarily free a full page, but if our cache happens
-+ * to be one with a shrinker, this may very well open up the space we need. So
-+ * we retry the allocation in this case.
-+ *
-+ * We can't know for sure if this is the case. So the best we can do is try
-+ * to derive from our allocation flags how likely it is for direct reclaim to
-+ * have been called.
-+ *
-+ * Most of the time the allocation will succeed, and this will be just a branch
-+ * with a very high hit ratio.
-+ */
-+static inline bool slab_should_retry(void *obj, gfp_t flags)
-+{
-+	if (likely(obj))
-+		return false;
-+
-+	/*
-+	 * those are obvious. We can't retry if the flags either explicitly
-+	 * prohibit, or disallow waiting.
-+	 */
-+	if ((flags & __GFP_NORETRY) && !(flags & __GFP_WAIT))
-+		return false;
-+
-+	/*
-+	 * If this is not a __GFP_FS allocation, we are unlikely to have
-+	 * reclaimed many objects - if at all. We may have succeeded in
-+	 * allocating a new page, in which case the object allocation would
-+	 * have succeeded, but most of the shrinkable objects would still be
-+	 * in their caches. So retrying is likely futile.
-+	 */
-+	if (!(flags & __GFP_FS))
-+		return false;
-+	return true;
-+}
-+
- #ifdef CONFIG_MEMCG_KMEM
- static inline bool is_root_cache(struct kmem_cache *s)
- {
-diff --git a/mm/slob.c b/mm/slob.c
-index a99fdf7..f00127b 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -424,7 +424,7 @@ out:
+ 	if (likely(objp))
+@@ -3742,7 +3696,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
   */
- 
- static __always_inline void *
--__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
-+___do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
  {
- 	unsigned int *m;
- 	int align = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
-@@ -462,6 +462,16 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
- 	return ret;
- }
+-	void *ret = slab_alloc(cachep, flags, _RET_IP_);
++	void *ret = slab_alloc_node(cachep, flags, NUMA_NO_NODE, _RET_IP_);
  
-+
-+static __always_inline void *
-+__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
-+{
-+	void *obj = ___do_kmalloc_node(size, gfp, node, caller);
-+        if (slab_should_retry(obj, gfp))
-+		obj = ___do_kmalloc_node(size, gfp, node, caller);
-+	return obj;
-+}
-+
- void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+ 	trace_kmem_cache_alloc(_RET_IP_, ret,
+ 			       cachep->object_size, cachep->size, flags);
+@@ -3757,7 +3711,7 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
  {
- 	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
-@@ -534,7 +544,9 @@ int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
- 	return 0;
- }
+ 	void *ret;
  
--void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
-+static __always_inline void *
-+slab_alloc_node(struct kmem_cache *c, gfp_t flags, int node,
-+		unsigned long caller)
- {
- 	void *b;
+-	ret = slab_alloc(cachep, flags, _RET_IP_);
++	ret = slab_alloc_node(cachep, flags, NUMA_NO_NODE, _RET_IP_);
  
-@@ -544,12 +556,12 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ 	trace_kmalloc(_RET_IP_, ret,
+ 		      size, cachep->size, flags);
+@@ -3850,7 +3804,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+ 	cachep = __find_general_cachep(size, flags);
+ 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+ 		return cachep;
+-	ret = slab_alloc(cachep, flags, caller);
++	ret = slab_alloc_node(cachep, flags, NUMA_NO_NODE, caller);
  
- 	if (c->size < PAGE_SIZE) {
- 		b = slob_alloc(c->size, flags, c->align, node);
--		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
-+		trace_kmem_cache_alloc_node(caller, b, c->object_size,
- 					    SLOB_UNITS(c->size) * SLOB_UNIT,
- 					    flags, node);
- 	} else {
- 		b = slob_new_pages(flags, get_order(c->size), node);
--		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
-+		trace_kmem_cache_alloc_node(caller, b, c->object_size,
- 					    PAGE_SIZE << get_order(c->size),
- 					    flags, node);
- 	}
-@@ -562,6 +574,13 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node);
- 
-+void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
-+{
-+	void *obj = slab_alloc_node(c, flags, node, _RET_IP_);
-+        if (slab_should_retry(obj, flags))
-+		obj = slab_alloc_node(c, flags, node, _RET_IP_);
-+	return obj;
-+}
- static void __kmem_cache_free(void *b, int size)
- {
- 	if (size < PAGE_SIZE)
-diff --git a/mm/slub.c b/mm/slub.c
-index b72569c..580dfa8 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2318,18 +2318,15 @@ new_slab:
-  *
-  * Otherwise we can simply pick the next object from the lockless free list.
-  */
--static __always_inline void *slab_alloc_node(struct kmem_cache *s,
--		gfp_t gfpflags, int node, unsigned long addr)
-+static __always_inline void *
-+do_slab_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node,
-+		   unsigned long addr)
- {
- 	void **object;
- 	struct kmem_cache_cpu *c;
- 	struct page *page;
- 	unsigned long tid;
- 
--	if (slab_pre_alloc_hook(s, gfpflags))
--		return NULL;
--
--	s = memcg_kmem_get_cache(s, gfpflags);
- redo:
- 
- 	/*
-@@ -2389,6 +2386,23 @@ redo:
- 	return object;
- }
- 
-+static __always_inline void *
-+slab_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
-+		int node, unsigned long addr)
-+{
-+	void *obj;
-+
-+	if (slab_pre_alloc_hook(s, gfpflags))
-+		return NULL;
-+
-+	s = memcg_kmem_get_cache(s, gfpflags);
-+
-+	obj = do_slab_alloc_node(s, gfpflags, node, addr);
-+	if (slab_should_retry(obj, gfpflags))
-+		obj = do_slab_alloc_node(s, gfpflags, node, addr);
-+	return obj;
-+}
-+
- void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
- {
- 	void *ret = slab_alloc_node(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
+ 	trace_kmalloc(caller, ret,
+ 		      size, cachep->size, flags);
 -- 
 1.7.11.7
 
