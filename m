@@ -1,44 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id CA46A6B002B
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 06:58:45 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id oi10so1877839obb.12
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 03:58:45 -0800 (PST)
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id C924F6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 07:16:51 -0500 (EST)
+Date: Wed, 19 Dec 2012 13:16:48 +0100
+From: Petr Holasek <pholasek@redhat.com>
+Subject: Re: mm, ksm: NULL ptr deref in unstable_tree_search_insert
+Message-ID: <20121219121647.GB4381@thinkpad-work.redhat.com>
+References: <50D1158F.5070905@oracle.com>
+ <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20121218172155.GC25208@dhcp22.suse.cz>
-References: <1355742187-4111-1-git-send-email-handai.szj@taobao.com>
-	<20121218172155.GC25208@dhcp22.suse.cz>
-Date: Wed, 19 Dec 2012 19:58:44 +0800
-Message-ID: <CAFj3OHWG9=sXwr3czHS_eB8Udn_x9afxdS9ScyaNTOMB_foj7g@mail.gmail.com>
-Subject: Re: [PATCH V4] memcg, oom: provide more precise dump info while memcg
- oom happening
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1212181728400.1091@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, linux-mm@kvack.org, Sha Zhengju <handai.szj@taobao.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 19, 2012 at 1:21 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> The patch doesn't apply cleanly on top of the current mm tree. The
-> resolving is trivial but please make sure you work on top of the latest
-> mmotm tree (or -mm git tree since-3.7 branch at the moment).
->
+On Tue, 18 Dec 2012, Hugh Dickins wrote:
+> On Tue, 18 Dec 2012, Sasha Levin wrote:
+> 
+> > Hi all,
+> > 
+> > While fuzzing with trinity inside a KVM tools guest, running latest linux-next kernel, I've
+> > stumbled on the following:
+> > 
+> > [  127.959264] BUG: unable to handle kernel NULL pointer dereference at 0000000000000110
+> > [  127.960379] IP: [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+...
 
-Oh, sorry for the trial, I'll rebase it on -mm since-3.7 branch.
+> > 88 e9 b9 09 00 00 90 <48> 81 3b 60 59 22 86 b8 01 00 00 00 44 0f 44 e8 41 83 fc 01 77
+> > [  127.978032] RIP  [<ffffffff81185b60>] __lock_acquire+0xb0/0xa90
+> > [  127.978032]  RSP <ffff8800137abb78>
+> > [  127.978032] CR2: 0000000000000110
+> > [  127.978032] ---[ end trace 3dc1b0c5db8c1230 ]---
+> > 
+> > The relevant piece of code is:
+> > 
+> > 	static struct page *get_mergeable_page(struct rmap_item *rmap_item)
+> > 	{
+> > 	        struct mm_struct *mm = rmap_item->mm;
+> > 	        unsigned long addr = rmap_item->address;
+> > 	        struct vm_area_struct *vma;
+> > 	        struct page *page;
+> > 	
+> > 	        down_read(&mm->mmap_sem);
+> > 
+> > Where 'mm' is NULL. I'm not really sure how it happens though.
+> 
+> Thanks, yes, I got that, and it's not peculiar to fuzzing at all:
+> I'm testing the fix at the moment, but just hit something else too
+> (ksmd oops on NULL p->mm in task_numa_fault i.e. task_numa_placement).
+> 
+> For the moment, you're safer not to run KSM: configure it out or don't
+> set it to run.  Fixes to follow later, I'll try to remember to Cc you.
+> 
 
-> This also touches mm/oom_kill.c so please add David into the CC list.
->
-> More comments below.
->
+Hello all,
 
-OK. Next version soon will fix these issues you've mentioned.
+I've also tried fuzzing with trinity inside of kvm guest when tested KSM
+patch, but applied on top of 3.7-rc8, but didn't trigger that oops. So
+going to do the same testing on linux-next.
 
-Thanks for reviewing!
+Hugh, does it seem like bug in unstable_tree_search_insert() you mentioned
+in yesterday email of something else?
 
+Thank you for your testing && feedback!
 
-Regards,
-Sha
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
