@@ -1,54 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 48DA06B0080
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 03:40:50 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH 1/2] super: fix calculation of shrinkable objects for small numbers
-Date: Wed, 19 Dec 2012 12:40:17 +0400
-Message-Id: <1355906418-3603-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1355906418-3603-1-git-send-email-glommer@parallels.com>
-References: <1355906418-3603-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 3FF0E6B0082
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 04:12:51 -0500 (EST)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v4 3/6] ACPI: Restructure movablecore_map with memory info from SRAT.
+Date: Wed, 19 Dec 2012 17:11:48 +0800
+Message-Id: <1355908308-24744-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1355904903-22699-4-git-send-email-tangchen@cn.fujitsu.com>
+References: <1355904903-22699-4-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>
 
-The sysctl knob sysctl_vfs_cache_pressure is used to determine which
-percentage of the shrinkable objects in our cache we should actively try
-to shrink.
+The Hot Plugable bit in SRAT flags specifys if the memory range
+could be hotplugged.
 
-It works great in situations in which we have many objects (at least
-more than 100), because the aproximation errors will be negligible. But
-if this is not the case, specially when total_objects < 100, we may end
-up concluding that we have no objects at all (total / 100 = 0,  if total
-< 100).
+If user specified movablecore_map=nn[KMG]@ss[KMG], reset
+movablecore_map.map to the intersection of hotpluggable ranges from
+SRAT and old movablecore_map.map.
+Else if user specified movablecore_map=acpi, just use the hotpluggable
+ranges from SRAT.
+Otherwise, do nothing. The kernel will use all the memory in all nodes
+evenly.
 
-This is certainly not the biggest killer in the world, but may matter in
-very low kernel memory situations.
+The idea "getting info from SRAT" was from Liu Jiang <jiang.liu@huawei.com>.
+And the idea "do more limit for memblock" was from Wu Jianguo <wujianguo@huawei.com>
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-CC: Dave Chinner <david@fromorbit.com>
-CC: "Theodore Ts'o" <tytso@mit.edu>
-CC: Al Viro <viro@zeniv.linux.org.uk>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Tested-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
 ---
- fs/super.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/mm/srat.c |   55 +++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 files changed, 52 insertions(+), 3 deletions(-)
 
-diff --git a/fs/super.c b/fs/super.c
-index 12f1237..660552c 100644
---- a/fs/super.c
-+++ b/fs/super.c
-@@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
- 				sb->s_nr_inodes_unused + fs_objects;
- 	}
+diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+index 4ddf497..a8856d2 100644
+--- a/arch/x86/mm/srat.c
++++ b/arch/x86/mm/srat.c
+@@ -146,7 +146,12 @@ int __init
+ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ {
+ 	u64 start, end;
++	u32 hotpluggable;
+ 	int node, pxm;
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++	int overlap;
++	unsigned long start_pfn, end_pfn;
++#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
  
--	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
-+	total_objects = mult_frac(total_objects, sysctl_vfs_cache_pressure, 100);
- 	drop_super(sb);
- 	return total_objects;
+ 	if (srat_disabled())
+ 		return -1;
+@@ -157,8 +162,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
+ 		return -1;
+ 
+-	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
++	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
++	if (hotpluggable && !save_add_info())
+ 		return -1;
++
+ 	start = ma->base_address;
+ 	end = start + ma->length;
+ 	pxm = ma->proximity_domain;
+@@ -178,9 +185,51 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+ 
+ 	node_set(node, numa_nodes_parsed);
+ 
+-	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
++	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+ 	       node, pxm,
+-	       (unsigned long long) start, (unsigned long long) end - 1);
++	       (unsigned long long) start, (unsigned long long) end - 1,
++	       hotpluggable ? "Hot Pluggable": "");
++
++#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
++	start_pfn = PFN_DOWN(start);
++	end_pfn = PFN_UP(end);
++
++	if (!hotpluggable) {
++		/* Clear the range overlapped in movablecore_map.map */
++		remove_movablecore_map(start_pfn, end_pfn);
++		goto out;
++	}
++
++	if (!movablecore_map.acpi) {
++		for (overlap = 0; overlap < movablecore_map.nr_map; overlap++) {
++			if (start_pfn < movablecore_map.map[overlap].end_pfn)
++				break;
++		}
++
++		/*
++		 * If there is no overlapped range, or the end of the overlapped
++		 * range is higher than end_pfn, then insert nothing.
++		 */
++		if (end_pfn <= movablecore_map.map[overlap].end_pfn)
++			goto out;
++
++		/*
++		 * Otherwise, insert the rest of this range to prevent memblock
++		 * from allocating memory in it.
++		 */
++		start_pfn = movablecore_map.map[overlap].end_pfn;
++		start = start_pfn >> PAGE_SHIFT;
++	}
++
++	/* If user chose to use SRAT info, insert the range anyway. */
++	if (insert_movablecore_map(start_pfn, end_pfn))
++		pr_err("movablecore_map: too many entries;"
++			" ignoring [mem %#010llx-%#010llx]\n",
++			(unsigned long long) start,
++			(unsigned long long) (end - 1));
++
++out:
++#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 	return 0;
  }
+ 
 -- 
-1.7.11.7
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
