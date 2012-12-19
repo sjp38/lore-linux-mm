@@ -1,195 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 4B28D6B002B
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 04:18:39 -0500 (EST)
-Message-ID: <50D18631.5050707@cn.fujitsu.com>
-Date: Wed, 19 Dec 2012 17:17:37 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id C6CDF6B0044
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 04:20:15 -0500 (EST)
+Date: Wed, 19 Dec 2012 09:20:09 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/8] mm: memcg: only evict file pages when we have plenty
+Message-ID: <20121219092009.GM9887@suse.de>
+References: <1355348620-9382-1-git-send-email-hannes@cmpxchg.org>
+ <1355348620-9382-2-git-send-email-hannes@cmpxchg.org>
+ <50C8FCE0.1060408@redhat.com>
+ <20121212222844.GA10257@cmpxchg.org>
+ <20121213145514.GD21644@dhcp22.suse.cz>
+ <50CD2232.8020909@gmail.com>
+ <20121217155416.GC25432@dhcp22.suse.cz>
+ <1355894515.1657.2.camel@kernel-VirtualBox>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 5/5] page_alloc: Bootmem limit with movablecore_map
-References: <1353667445-7593-1-git-send-email-tangchen@cn.fujitsu.com> <1353667445-7593-6-git-send-email-tangchen@cn.fujitsu.com> <50B36354.7040501@gmail.com>
-In-Reply-To: <50B36354.7040501@gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1355894515.1657.2.camel@kernel-VirtualBox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wujianguo <wujianguo106@gmail.com>
-Cc: hpa@zytor.com, akpm@linux-foundation.org, rob@landley.net, isimatu.yasuaki@jp.fujitsu.com, laijs@cn.fujitsu.com, wency@cn.fujitsu.com, linfeng@cn.fujitsu.com, jiang.liu@huawei.com, yinghai@kernel.org, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, rusty@rustcorp.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, wujianguo@huawei.com, qiuxishi@huawei.com
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Wu,
+On Wed, Dec 19, 2012 at 12:21:55AM -0500, Simon Jeons wrote:
+> On Mon, 2012-12-17 at 16:54 +0100, Michal Hocko wrote:
+> > On Sun 16-12-12 09:21:54, Simon Jeons wrote:
+> > > On 12/13/2012 10:55 PM, Michal Hocko wrote:
+> > > >On Wed 12-12-12 17:28:44, Johannes Weiner wrote:
+> > > >>On Wed, Dec 12, 2012 at 04:53:36PM -0500, Rik van Riel wrote:
+> > > >>>On 12/12/2012 04:43 PM, Johannes Weiner wrote:
+> > > >>>>dc0422c "mm: vmscan: only evict file pages when we have plenty" makes
+> > > >>>>a point of not going for anonymous memory while there is still enough
+> > > >>>>inactive cache around.
+> > > >>>>
+> > > >>>>The check was added only for global reclaim, but it is just as useful
+> > > >>>>for memory cgroup reclaim.
+> > > >>>>
+> > > >>>>Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > >>>>---
+> > > >>>>  mm/vmscan.c | 19 ++++++++++---------
+> > > >>>>  1 file changed, 10 insertions(+), 9 deletions(-)
+> > > >>>>
+> > > >>>>diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > >>>>index 157bb11..3874dcb 100644
+> > > >>>>--- a/mm/vmscan.c
+> > > >>>>+++ b/mm/vmscan.c
+> > > >>>>@@ -1671,6 +1671,16 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> > > >>>>  		denominator = 1;
+> > > >>>>  		goto out;
+> > > >>>>  	}
+> > > >>>>+	/*
+> > > >>>>+	 * There is enough inactive page cache, do not reclaim
+> > > >>>>+	 * anything from the anonymous working set right now.
+> > > >>>>+	 */
+> > > >>>>+	if (!inactive_file_is_low(lruvec)) {
+> > > >>>>+		fraction[0] = 0;
+> > > >>>>+		fraction[1] = 1;
+> > > >>>>+		denominator = 1;
+> > > >>>>+		goto out;
+> > > >>>>+	}
+> > > >>>>
+> > > >>>>  	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+> > > >>>>  		get_lru_size(lruvec, LRU_INACTIVE_ANON);
+> > > >>>>@@ -1688,15 +1698,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> > > >>>>  			fraction[1] = 0;
+> > > >>>>  			denominator = 1;
+> > > >>>>  			goto out;
+> > > >>>>-		} else if (!inactive_file_is_low_global(zone)) {
+> > > >>>>-			/*
+> > > >>>>-			 * There is enough inactive page cache, do not
+> > > >>>>-			 * reclaim anything from the working set right now.
+> > > >>>>-			 */
+> > > >>>>-			fraction[0] = 0;
+> > > >>>>-			fraction[1] = 1;
+> > > >>>>-			denominator = 1;
+> > > >>>>-			goto out;
+> > > >>>>  		}
+> > > >>>>  	}
+> > > >>>>
+> > > >>>>
+> > > >>>I believe the if() block should be moved to AFTER
+> > > >>>the check where we make sure we actually have enough
+> > > >>>file pages.
+> > > >>You are absolutely right, this makes more sense.  Although I'd figure
+> > > >>the impact would be small because if there actually is that little
+> > > >>file cache, it won't be there for long with force-file scanning... :-)
+> > > >Yes, I think that the result would be worse (more swapping) so the
+> > > >change can only help.
+> > > >
+> > > >>I moved the condition, but it throws conflicts in the rest of the
+> > > >>series.  Will re-run tests, wait for Michal and Mel, then resend.
+> > > >Yes the patch makes sense for memcg as well. I guess you have tested
+> > > >this primarily with memcg. Do you have any numbers? Would be nice to put
+> > > >them into the changelog if you have (it should help to reduce swapping
+> > > >with heavy streaming IO load).
+> > > >
+> > > >Acked-by: Michal Hocko <mhocko@suse.cz>
+> > > 
+> > > Hi Michal,
+> > > 
+> > > I still can't understand why "The goto out means that it should be
+> > > fine either way.",
+> > 
+> > Not sure I understand your question. goto out just says that either page
+> > cache is low or inactive file LRU is too small. And it works for both
+> > memcg and global because the page cache is low condition is evaluated
+> > only for the global reclaim and always before inactive file is small.
+> > Makes more sense?
+> 
+> Hi Michal,
+> 
+> I confuse of Gorman's comments below, why the logic change still fine.  
+> 
 
-Sorry for such a long delay.
+Those comments were wrong.
 
-On 11/26/2012 08:40 PM, wujianguo wrote:
-> Hi Tang,
-> 	I tested this patchset in x86_64, and I found that this patch didn't
-> work as expected.
-> 	For example, if node2's memory pfn range is [0x680000-0x980000),
-> I boot kernel with movablecore_map=4G@0x680000000, all memory in node2 will be
-> in ZONE_MOVABLE, but bootmem still can be allocated from [0x780000000-0x980000000),
-> that means bootmem *is allocated* from ZONE_MOVABLE. This because movablecore_map
-> only contains [0x680000000-0x780000000). I think we can fixup movablecore_map, how
-> about this:
->
-> Signed-off-by: Jianguo Wu<wujianguo@huawei.com>
-> Signed-off-by: Jiang Liu<jiang.liu@huawei.com>
-> ---
->   arch/x86/mm/srat.c |   15 +++++++++++++++
->   include/linux/mm.h |    3 +++
->   mm/page_alloc.c    |    2 +-
->   3 files changed, 19 insertions(+), 1 deletions(-)
->
-> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-> index 4ddf497..f1aac08 100644
-> --- a/arch/x86/mm/srat.c
-> +++ b/arch/x86/mm/srat.c
-> @@ -147,6 +147,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   {
->   	u64 start, end;
->   	int node, pxm;
-> +	int i;
-> +	unsigned long start_pfn, end_pfn;
->
->   	if (srat_disabled())
->   		return -1;
-> @@ -181,6 +183,19 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
->   	       node, pxm,
->   	       (unsigned long long) start, (unsigned long long) end - 1);
-> +
-> +	start_pfn = PFN_DOWN(start);
-> +	end_pfn = PFN_UP(end);
-
-I think the logic here has some problems.
-
-Let's assume the range here is [3G, 5G), and
-movablecore_map.map[] is like: [1G, 2G), [3G, 4G), [7G,8G).
-
-> +	for (i = 0; i<  movablecore_map.nr_map; i++) {
-> +		if (end_pfn<= movablecore_map.map[i].start)
-> +			break;
-
-When i = 0, 5G > 1G, no break.
-
-> +
-> +		if (movablecore_map.map[i].end<  end_pfn) {
-> +			insert_movablecore_map(movablecore_map.map[i].end,
-> +						end_pfn);
-
-2G < 5G, so insert [2G, 5G). It's incorrect.
-We should insert [4G, 5G).
-
-I got your idea, and I also add SRAT support. So I made a new patch to
-do this. Please have a look if you like. :)
-
-Thanks. :)
-
-> +		}
-> +	}
-> +
->   	return 0;
->   }
->
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 5a65251..7a23403 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1356,6 +1356,9 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn);
->   #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
->   #endif
->
-> +extern void insert_movablecore_map(unsigned long start_pfn,
-> +					  unsigned long end_pfn);
-> +
->   extern void set_dma_reserve(unsigned long new_dma_reserve);
->   extern void memmap_init_zone(unsigned long, int, unsigned long,
->   				unsigned long, enum memmap_context);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 544c829..e6b5090 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5089,7 +5089,7 @@ early_param("movablecore", cmdline_parse_movablecore);
->    * This function will also merge the overlapped ranges, and sort the array
->    * by start_pfn in monotonic increasing order.
->    */
-> -static void __init insert_movablecore_map(unsigned long start_pfn,
-> +void __init insert_movablecore_map(unsigned long start_pfn,
->   					  unsigned long end_pfn)
->   {
->   	int pos, overlap;
-> -- 1.7.6.1
-> .
->
-> Thanks,
-> Jianguo Wu
->
-> On 2012-11-23 18:44, Tang Chen wrote:
->> This patch make sure bootmem will not allocate memory from areas that
->> may be ZONE_MOVABLE. The map info is from movablecore_map boot option.
->>
->> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
->> Signed-off-by: Lai Jiangshan<laijs@cn.fujitsu.com>
->> Reviewed-by: Wen Congyang<wency@cn.fujitsu.com>
->> Tested-by: Lin Feng<linfeng@cn.fujitsu.com>
->> ---
->>   include/linux/memblock.h |    1 +
->>   mm/memblock.c            |   15 ++++++++++++++-
->>   2 files changed, 15 insertions(+), 1 deletions(-)
->>
->> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
->> index d452ee1..6e25597 100644
->> --- a/include/linux/memblock.h
->> +++ b/include/linux/memblock.h
->> @@ -42,6 +42,7 @@ struct memblock {
->>
->>   extern struct memblock memblock;
->>   extern int memblock_debug;
->> +extern struct movablecore_map movablecore_map;
->>
->>   #define memblock_dbg(fmt, ...) \
->>   	if (memblock_debug) printk(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 6259055..33b3b4d 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -101,6 +101,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
->>   {
->>   	phys_addr_t this_start, this_end, cand;
->>   	u64 i;
->> +	int curr = movablecore_map.nr_map - 1;
->>
->>   	/* pump up @end */
->>   	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
->> @@ -114,13 +115,25 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
->>   		this_start = clamp(this_start, start, end);
->>   		this_end = clamp(this_end, start, end);
->>
->> -		if (this_end<  size)
->> +restart:
->> +		if (this_end<= this_start || this_end<  size)
->>   			continue;
->>
->> +		for (; curr>= 0; curr--) {
->> +			if (movablecore_map.map[curr].start<  this_end)
->> +				break;
->> +		}
->> +
->>   		cand = round_down(this_end - size, align);
->> +		if (curr>= 0&&  cand<  movablecore_map.map[curr].end) {
->> +			this_end = movablecore_map.map[curr].start;
->> +			goto restart;
->> +		}
->> +
->>   		if (cand>= this_start)
->>   			return cand;
->>   	}
->> +
->>   	return 0;
->>   }
->>
->>
->
->
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
