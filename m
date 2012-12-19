@@ -1,106 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id CF2046B0074
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 18:25:18 -0500 (EST)
-Date: Thu, 20 Dec 2012 00:25:13 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-MIME-Version: 1.0
-References: <50D24AF3.1050809@iskon.hr>
-In-Reply-To: <50D24AF3.1050809@iskon.hr>
-Message-ID: <50D24CD9.8070507@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 175246B0078
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 18:27:38 -0500 (EST)
+Date: Wed, 19 Dec 2012 15:27:36 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] CMA: call to putback_lru_pages
+Message-Id: <20121219152736.1daa3d58.akpm@linux-foundation.org>
+In-Reply-To: <xa1tlicwiagh.fsf@mina86.com>
+References: <1355779504-30798-1-git-send-email-srinivas.pandruvada@linux.intel.com>
+	<xa1tlicwiagh.fsf@mina86.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org
 
-On a 4GB RAM machine, where Normal zone is much smaller than
-DMA32 zone, the Normal zone gets fragmented in time. This requires
-relatively more pressure in balance_pgdat to get the zone above the
-required watermark. Unfortunately, the congestion_wait() call in there
-slows it down for a completely wrong reason, expecting that there's
-a lot of writeback/swapout, even when there's none (much more common).
-After a few days, when fragmentation progresses, this flawed logic
-translates to a very high CPU iowait times, even though there's no
-I/O congestion at all. If THP is enabled, the problem occurs sooner,
-but I was able to see it even on !THP kernels, just by giving it a bit
-more time to occur.
+On Mon, 17 Dec 2012 23:24:14 +0100
+Michal Nazarewicz <mina86@mina86.com> wrote:
 
-The proper way to deal with this is to not wait, unless there's
-congestion. Thanks to Mel Gorman, we already have the function that
-perfectly fits the job. The patch was tested on a machine which
-nicely revealed the problem after only 1 day of uptime, and it's been
-working great.
+> [+marek]
+> 
+> On Mon, Dec 17 2012, Srinivas Pandruvada wrote:
+> > As per documentation and other places calling putback_lru_pages,
+> > on error only, except for CMA. I am not sure this is a problem
+> > for CMA or not.
+> 
+> If ret >= 0 than the list is empty anyway so the effect of this patch is
+> to save a function call.  It's also true that other callers call it only
+> on error so __alloc_contig_migrate_range() is an odd man out here.  As
+> such:
+> 
+> Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
+__alloc_contig_migrate_range() is a bit twisty.  How does this look?
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/page_alloc.c:__alloc_contig_migrate_range(): cleanup
+
+- `ret' is always zero in the we-timed-out case
+
+- remove a test-n-branch in the wrapup code
+
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/vmscan.c |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b7ed376..4588d1d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2546,7 +2546,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
- static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 							int *classzone_idx)
- {
--	int all_zones_ok;
-+	struct zone *unbalanced_zone;
- 	unsigned long balanced;
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-@@ -2580,7 +2580,7 @@ loop_again:
- 		unsigned long lru_pages = 0;
- 		int has_under_min_watermark_zone = 0;
- 
--		all_zones_ok = 1;
-+		unbalanced_zone = NULL;
- 		balanced = 0;
- 
- 		/*
-@@ -2719,7 +2719,7 @@ loop_again:
+ mm/page_alloc.c |    7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_contig_migrate_range-cleanup mm/page_alloc.c
+--- a/mm/page_alloc.c~mm-page_allocc-__alloc_contig_migrate_range-cleanup
++++ a/mm/page_alloc.c
+@@ -5804,7 +5804,6 @@ static int __alloc_contig_migrate_range(
  			}
- 
- 			if (!zone_balanced(zone, testorder, 0, end_zone)) {
--				all_zones_ok = 0;
-+				unbalanced_zone = zone;
- 				/*
- 				 * We are still under min water mark.  This
- 				 * means that we have a GFP_ATOMIC allocation
-@@ -2752,7 +2752,7 @@ loop_again:
- 				pfmemalloc_watermark_ok(pgdat))
- 			wake_up(&pgdat->pfmemalloc_wait);
- 
--		if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
-+		if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
- 			break;		/* kswapd: all done */
- 		/*
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
-@@ -2762,7 +2762,7 @@ loop_again:
- 			if (has_under_min_watermark_zone)
- 				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
- 			else
--				congestion_wait(BLK_RW_ASYNC, HZ/10);
-+				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+ 			tries = 0;
+ 		} else if (++tries == 5) {
+-			ret = ret < 0 ? ret : -EBUSY;
+ 			break;
  		}
  
- 		/*
-@@ -2781,7 +2781,7 @@ out:
- 	 * high-order: Balanced zones must make up at least 25% of the node
- 	 *             for the node to be balanced
- 	 */
--	if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))) {
-+	if (unbalanced_zone && (!order || !pgdat_balanced(pgdat, balanced, *classzone_idx))) {
- 		cond_resched();
+@@ -5817,9 +5816,11 @@ static int __alloc_contig_migrate_range(
+ 				    0, false, MIGRATE_SYNC,
+ 				    MR_CMA);
+ 	}
+-	if (ret < 0)
++	if (ret < 0) {
+ 		putback_movable_pages(&cc->migratepages);
+-	return ret > 0 ? 0 : ret;
++		return ret;
++	}
++	return 0;
+ }
  
- 		try_to_freeze();
--- 1.7.10.4
+ /**
+_
 
--- 
-Zlatko (this time with proper Signed-off-by line)
+
+Also, what's happening here?
+
+			pfn = isolate_migratepages_range(cc->zone, cc,
+							 pfn, end, true);
+			if (!pfn) {
+				ret = -EINTR;
+				break;
+			}
+
+The isolate_migratepages_range() return value is undocumented and
+appears to make no sense.  It returns zero if fatal_signal_pending()
+and if too_many_isolated&&!cc->sync.  Returning -EINTR in the latter
+case is daft.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
