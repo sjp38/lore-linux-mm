@@ -1,14 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id ACD2D6B0072
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 18:17:11 -0500 (EST)
-Date: Thu, 20 Dec 2012 00:17:07 +0100
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id CF2046B0074
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 18:25:18 -0500 (EST)
+Date: Thu, 20 Dec 2012 00:25:13 +0100
 From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Message-ID: <50D24AF3.1050809@iskon.hr>
+References: <50D24AF3.1050809@iskon.hr>
+In-Reply-To: <50D24AF3.1050809@iskon.hr>
+Message-ID: <50D24CD9.8070507@iskon.hr>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
+Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
@@ -31,6 +33,8 @@ congestion. Thanks to Mel Gorman, we already have the function that
 perfectly fits the job. The patch was tested on a machine which
 nicely revealed the problem after only 1 day of uptime, and it's been
 working great.
+
+Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
 ---
  mm/vmscan.c |   12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
@@ -93,11 +97,10 @@ index b7ed376..4588d1d 100644
  		cond_resched();
  
  		try_to_freeze();
--- 
-1.7.10.4
+-- 1.7.10.4
 
 -- 
-Zlatko
+Zlatko (this time with proper Signed-off-by line)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
