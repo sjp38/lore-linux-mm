@@ -1,43 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id D73AC6B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 02:09:06 -0500 (EST)
-Date: Thu, 20 Dec 2012 18:08:52 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/2] vmscan: take at least one pass with shrinkers
-Message-ID: <20121220070852.GW15182@dastard>
-References: <1355906418-3603-1-git-send-email-glommer@parallels.com>
- <1355906418-3603-3-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id C19C96B0044
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 05:21:41 -0500 (EST)
+Date: Thu, 20 Dec 2012 11:21:34 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH] mm: compaction: count compaction events only if compaction
+ is enabled
+Message-ID: <alpine.LNX.2.00.1212201118080.17797@pobox.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1355906418-3603-3-git-send-email-glommer@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Dec 19, 2012 at 12:40:18PM +0400, Glauber Costa wrote:
-> In very low free kernel memory situations, it may be the case that we
-> have less objects to free than our initial batch size. If this is the
-> case, it is better to shrink those, and open space for the new workload
-> then to keep them and fail the new allocations.
-> 
-> More specifically, this happens because we encode this in a loop with
-> the condition: "while (total_scan >= batch_size)". So if we are in such
-> a case, we'll not even enter the loop.
-> 
-> This patch modifies turns it into a do () while {} loop, that will
-> guarantee that we scan it at least once, while keeping the behaviour
-> exactly the same for the cases in which total_scan > batch_size.
+On configs which have CONFIG_CMA but no CONFIG_COMPACTION, 
+isolate_migratepages_range() and isolate_freepages_block() must not 
+account for COMPACTFREE_SCANNED and COMPACTISOLATED events (those 
+constants are even undefined in such case, causing a build error).
 
-Looks good to me, seems to work just fine.
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
+ mm/compaction.c |    4 ++++
+ 1 files changed, 4 insertions(+), 0 deletions(-)
 
-Reviewed-by: Dave Chinner <dchinner@redhat.com>
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 5ad7f4f..ca4cd82 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -303,9 +303,11 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 	if (blockpfn == end_pfn)
+ 		update_pageblock_skip(cc, valid_page, total_isolated, false);
+ 
++#ifdef CONFIG_COMPACTION
+ 	count_vm_events(COMPACTFREE_SCANNED, nr_scanned);
+ 	if (total_isolated)
+ 		count_vm_events(COMPACTISOLATED, total_isolated);
++#endif
+ 
+ 	return total_isolated;
+ }
+@@ -613,9 +615,11 @@ next_pageblock:
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
++#ifdef CONFIG_COMPACTION
+ 	count_vm_events(COMPACTMIGRATE_SCANNED, nr_scanned);
+ 	if (nr_isolated)
+ 		count_vm_events(COMPACTISOLATED, nr_isolated);
++#endif
+ 
+ 	return low_pfn;
+ }
 
 -- 
-Dave Chinner
-david@fromorbit.com
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
