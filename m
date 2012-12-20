@@ -1,78 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 06CD96B006C
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 20:21:32 -0500 (EST)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
-	<20121219161856.e6aa984f.akpm@linux-foundation.org>
-	<878v8ty200.fsf@xmission.com>
-	<20121219170038.f7b260c3.akpm@linux-foundation.org>
-Date: Wed, 19 Dec 2012 17:20:42 -0800
-In-Reply-To: <20121219170038.f7b260c3.akpm@linux-foundation.org> (Andrew
-	Morton's message of "Wed, 19 Dec 2012 17:00:38 -0800")
-Message-ID: <87ip7xwmc5.fsf@xmission.com>
+	by kanga.kvack.org (Postfix) with SMTP id E2A936B0070
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 20:34:52 -0500 (EST)
+Date: Thu, 20 Dec 2012 10:34:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC v4 0/3] Support volatile for anonymous range
+Message-ID: <20121220013447.GA2686@blaptop>
+References: <1355813274-571-1-git-send-email-minchan@kernel.org>
+ <50D0B5A2.2010707@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH v2] Add the values related to buddy system for filtering free pages.
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50D0B5A2.2010707@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, linux-kernel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org
+To: Arun Sharma <asharma@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
+On Tue, Dec 18, 2012 at 10:27:46AM -0800, Arun Sharma wrote:
+> On 12/17/12 10:47 PM, Minchan Kim wrote:
+> 
+> >I hope more inputs from user-space allocator people and test patch
+> >with their allocator because it might need design change of arena
+> >management for getting real vaule.
+> 
+> jemalloc knows how to handle MADV_FREE on platforms that support it.
+> This looks similar (we'll need a SIGBUS handler that does the right
+> thing = zero the page + mark it as non-volatile in the common case).
 
-> On Wed, 19 Dec 2012 16:57:03 -0800
-> ebiederm@xmission.com (Eric W. Biederman) wrote:
->
->> Andrew Morton <akpm@linux-foundation.org> writes:
->> 
->> > Is there any way in which we can move some of this logic into the
->> > kernel?  In this case, add some kernel code which uses PageBuddy() on
->> > behalf of makedumpfile, rather than replicating the PageBuddy() logic
->> > in userspace?
->> 
->> All that exists when makedumpfile runs is a core file.  So it would have
->> to be something like a share library that builds with the kernel and
->> then makedumpfile loads.
->
-> Can we omit free pages from that core file?
->
-> And/or add a section to that core file which flags free pages?
+Don't work because it's too late to mark it as non-volatile in signal
+handler in case of malloc.
 
-Ommitting pages is what makedumpfile does.
+For example,
+free(P1-P4) -> mvolatile(P1-P4) -> VM discard(P3) -> alloc(P1-P4) ->
+use P1 -> VM discard(P1) -> use P3 -> SIGBUS -> mark nonvolatile ->
+lost P1.
 
-Very loosely shortly after boot when things are running fine /sbin/kexec
-runs.
+So, we should call mnovolatile before giving the free space to user.
 
-/sbin/kexec constructs a set of elf headers that describe where the
-memory is and load the crashdump kernel an initrd and those elf headers
-into memory.
+> 
+> All of this of course assumes that apps madvise the kernel through
+> APIs exposed by the malloc implementation - not via a raw syscall.
+> 
+> In other words, some new user space code needs to be written to test
 
-Years later when the running kernel calls panic.
-panic calls machine_kexec
-machine_kexec jmps to the preloaded crashdump kernel.
+Agreed. I might want to design new allocator with this system calls if
+existing allocators cannot use this system calls efficiently because it
+might need allocator's design change. MADV_FREE/MADV_DONTNEED isn't cheap
+due to enumerating ptes/page descriptors in that range to mark something
+so I guess allocator avoids frequent calling of the such advise system call
+and even if they call it, they want to call the big range as batch.
+Just my imagine.
 
-I think it is /proc/vmcore that reads the elf headers out of memory and
-presents them to userspace.
+But mvolatile/mnovolatile is cheaper so you can call it more frequently
+with smaller range so VM could have easy-reclaimable pages easily.
+Another benefit of the mvolatile is it can change the behavior when memory
+pressure is severe where it can zap all pages like DONTNEED so it could
+work very flexible.
+The downside of that approach is that if we call it with small range,
+it can increase the number of VMA so we might tune point for VMA size.
 
-Then we have options.
-vmcore-to-dmesg will just read the dmesg ring buffer so we have that.
+> this out fully. Sounds feasible though.
 
-makedumpfile reads the kernel data structures and filters out the free
-pages for people who don't want to write everything to disk.
+Thanks!
 
-So the basic interface is strongly kernel version agnostic.  The
-challenge is how to filter out undesirable pages from the core dump
-quickly and reliably.
+> 
+>  -Arun
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Right now what we have are a set of ELF notes that describe struct page.
-
-For my uses I have either had enough disk space that saving everything
-didn't matter or so little disk space that all I could afford was
-getting out the dmesg ring buffer.  So I don't know how robust the
-solution adopted by makedumpfile is.
-
-Eric
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
