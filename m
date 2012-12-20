@@ -1,46 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id BAE0D6B0044
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 23:52:35 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id um15so1703442pbc.30
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 20:52:34 -0800 (PST)
-Date: Wed, 19 Dec 2012 20:52:37 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: migrate_misplaced_transhuge_page: no page_count check?
-Message-ID: <alpine.LNX.2.00.1212192011320.25992@eggly.anvils>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id A276E6B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 00:24:18 -0500 (EST)
+From: Dietmar Maurer <dietmar@proxmox.com>
+Subject: RE: [Qemu-devel] [RFC 3/3] virtio-balloon: add auto-ballooning
+	support
+Date: Thu, 20 Dec 2012 05:24:12 +0000
+Message-ID: <24E144B8C0207547AD09C467A8259F75578B8BD8@lisa.maurer-it.com>
+References: <1355861815-2607-1-git-send-email-lcapitulino@redhat.com>
+	<1355861815-2607-4-git-send-email-lcapitulino@redhat.com>
+	<20121218225330.GA28297@lizard.mcd00620.sjc.wayport.net>
+ <20121219093039.51831f6f@doriath.home>
+In-Reply-To: <20121219093039.51831f6f@doriath.home>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Luiz Capitulino <lcapitulino@redhat.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Michal Hocko <mhocko@suse.cz>, "aquini@redhat.com" <aquini@redhat.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, "agl@us.ibm.com" <agl@us.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "kirill@shutemov.name" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
 
-Mel, Ingo,
+> > Wow, you're fast! And I'm glad that it works for you, so we have two
+> > full-featured mempressure cgroup users already.
+>=20
+> Thanks, although I think we need more testing to be sure this does what w=
+e
+> want. I mean, the basic mechanics does work, but my testing has been very
+> light so far.
 
-I want to raise again a question I raised (in offline mail with Mel)
-a couple of weeks ago.
-
-I see only a page_mapcount check in migrate_misplaced_transhuge_page,
-and don't understand how migration can be safe against the possibility
-of an earlier call to get_user_pages or get_user_pages_fast (intended
-to pin a part of the THP) without a page_count check.
-
-(I'm also still somewhat worried about unidentified attempts to
-pin the page concurrently; but since I don't have an example to give,
-and concurrent get_user_pages or get_user_pages_fast wouldn't get past
-the pmd_numa, let's not worry too much about my unidentified anxiety ;)
-
-migrate_page_move_mapping and migrate_huge_page_move_mapping check
-page_count, but migrate_misplaced_transhuge_page doesn't use those.
-__collapse_huge_page_isolate and khugepaged_scan_pmd (over in
-huge_memory.c) take commented care to check page_count lest GUP.
-
-I can see that page_count might often be raised by concurrent faults
-on the same pmd_numa, waiting on the lock_page in do_huge_pmd_numa_page.
-That's unfortunate, and maybe you can find a clever way to discount
-those.  But safety must come first: don't we need to check page_count?
-
-Hugh
+Is it possible to assign different weights for different VMs, something lik=
+e the vmware 'shares' setting?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
