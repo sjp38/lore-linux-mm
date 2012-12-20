@@ -1,127 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 031FF6B0068
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 07:47:13 -0500 (EST)
-Received: by mail-ea0-f174.google.com with SMTP id e13so1362724eaa.33
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 04:47:12 -0800 (PST)
-Date: Thu, 20 Dec 2012 13:47:10 +0100
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 19BF26B006C
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 08:15:35 -0500 (EST)
+Received: by mail-ea0-f173.google.com with SMTP id i13so1319134eaa.4
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 05:15:33 -0800 (PST)
+Date: Thu, 20 Dec 2012 14:15:31 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm: limit mmu_gather batching to fix soft lockups on
- !CONFIG_PREEMPT
-Message-ID: <20121220124710.GA31912@dhcp22.suse.cz>
-References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
- <20121218140219.45867ddd.akpm@linux-foundation.org>
- <20121218235042.GA10350@dhcp22.suse.cz>
- <20121218160030.baf723aa.akpm@linux-foundation.org>
- <20121219150423.GA12888@dhcp22.suse.cz>
- <20121219131316.7d13fcb1.akpm@linux-foundation.org>
+Subject: Re: [PATCH V5] memcg, oom: provide more precise dump info while
+ memcg oom happening
+Message-ID: <20121220131531.GB31912@dhcp22.suse.cz>
+References: <1355925061-3858-1-git-send-email-handai.szj@taobao.com>
+ <20121219141218.c1bb423b.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121219131316.7d13fcb1.akpm@linux-foundation.org>
+In-Reply-To: <20121219141218.c1bb423b.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Sha Zhengju <handai.szj@gmail.com>, cgroups@vger.kernel.org, kamezawa.hiroyu@jp.fujitsu.com, rientjes@google.com, linux-mm@kvack.org, Sha Zhengju <handai.szj@taobao.com>
 
-On Wed 19-12-12 13:13:16, Andrew Morton wrote:
-> On Wed, 19 Dec 2012 16:04:37 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
+On Wed 19-12-12 14:12:18, Andrew Morton wrote:
+> On Wed, 19 Dec 2012 21:51:01 +0800
+> Sha Zhengju <handai.szj@gmail.com> wrote:
 > 
-> > Since e303297 (mm: extended batches for generic mmu_gather) we are batching
-> > pages to be freed until either tlb_next_batch cannot allocate a new batch or we
-> > are done.
-> > 
-> > This works just fine most of the time but we can get in troubles with
-> > non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY)
-> > on large machines where too aggressive batching might lead to soft
-> > lockups during process exit path (exit_mmap) because there are no
-> > scheduling points down the free_pages_and_swap_cache path and so the
-> > freeing can take long enough to trigger the soft lockup.
-> > 
-> > The lockup is harmless except when the system is setup to panic on
-> > softlockup which is not that unusual.
-> > 
-> > The simplest way to work around this issue is to limit the maximum
-> > number of batches in a single mmu_gather for !CONFIG_PREEMPT kernels.
-> > Let's use 1G of resident memory for the limit for now. This shouldn't
-> > make the batching less effective and it shouldn't trigger lockups as
-> > well because freeing 262144 should be OK.
-> > 
-> > ...
-> >
-> > diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-> > index ed6642a..5843f59 100644
-> > --- a/include/asm-generic/tlb.h
-> > +++ b/include/asm-generic/tlb.h
-> > @@ -78,6 +78,19 @@ struct mmu_gather_batch {
-> >  #define MAX_GATHER_BATCH	\
-> >  	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
-> >  
-> > +/*
-> > + * Limit the maximum number of mmu_gather batches for non-preemptible kernels
-> > + * to reduce a risk of soft lockups on huge machines when a lot of memory is
-> > + * zapped during unmapping.
-> > + * 1GB of resident memory should be safe to free up at once even without
-> > + * explicit preemption point.
-> > + */
-> > +#if defined(CONFIG_PREEMPT_COUNT)
-> > +#define MAX_GATHER_BATCH_COUNT	(UINT_MAX)
-> > +#else
-> > +#define MAX_GATHER_BATCH_COUNT	(((1UL<<(30-PAGE_SHIFT))/MAX_GATHER_BATCH))
+> > +		pr_info("Memory cgroup stats");
 > 
-> Geeze.  I spent waaaaay too long staring at that expression trying to
-> work out "how many pages is in a batch" and gave up.
+> Well if we're going to do that, we may as well finish the job:
 > 
-> Realistically, I don't think we need to worry about CONFIG_PREEMPT here
-> - if we just limit the thing to, say, 64k pages per batch then that
-> will be OK for preemptible and non-preemptible kernels. 
-
-I wanted the fix to be as non-intrusive as possible so I didn't want to
-touch PREEMPT (which is default in many configs) at all. I am OK to a
-single limit of course.
-
-> The performance difference between "64k" and "infinite" will be
-> miniscule and unmeasurable.
 > 
-> Also, the batch count should be independent of PAGE_SIZE.  Because
-> PAGE_SIZE can vary by a factor of 16 and you don't want to fix the
-> problem on 4k page size but leave it broken on 64k page size.
-
-MAX_GATHER_BATCH depends on the page size so I didn't want to differ
-without a good reason.
-
-> Also, while the patch might prevent softlockup warnings, the kernel
-> will still exhibit large latency glitches and those are undesirable.
-
-Not really. cond_resched is called per pmd. This patch just helps the
-case where there is enough free memory to batch too much and then soft
-lockup while flushing mmu_gather after the whole zapping is done because
-tlb_flush_mmu is called more often.
-
-> Also, does this patch actually work?  It doesn't add a scheduling
-> point.  It assumes that by returning zero from tlb_next_batch(), the
-> process will back out to some point where it hits a cond_resched()?
-
-No, as mentioned above. cond_resched is called per pmd independently
-on how much batching we do but then after free_pgtables is done we
-call tlb_finish_mmu and that one needs to free all the gathered
-pages. Without the limit we can have too many pages to free and that is
-what triggers soft lockup. My original patch was more obvious because it
-added the cond_resched but as you pointed out it could be problematic so
-this patch tries to eliminate the problem in the very beginning instead.
-
-> So I'm thinking that to address both the softlockup-detector problem
-> and the large-latency-glitch problem we should do something like:
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/memcontrol.c: convert printk(KERN_FOO) to pr_foo()
 > 
-> 	if (need_resched() && tlb->batch_count > 64k)
-> 		return 0;
+> Cc: Sha Zhengju <handai.szj@taobao.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-need_resched is not needed because of cond_resched in zap_pmd_range. I
-am OK with a fixed limit.
+Thanks Andrew!
 
-> and then ensure that there's a cond_resched() at a safe point between
-> batches?
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+> 
+>  mm/memcontrol.c |   15 +++++++--------
+>  1 file changed, 7 insertions(+), 8 deletions(-)
+> 
+> diff -puN mm/memcontrol.c~mm-memcontrolc-convert-printkkern_foo-to-pr_foo mm/memcontrol.c
+> --- a/mm/memcontrol.c~mm-memcontrolc-convert-printkkern_foo-to-pr_foo
+> +++ a/mm/memcontrol.c
+> @@ -1574,7 +1574,7 @@ void mem_cgroup_print_oom_info(struct me
+>  	}
+>  	rcu_read_unlock();
+>  
+> -	printk(KERN_INFO "Task in %s killed", memcg_name);
+> +	pr_info("Task in %s killed", memcg_name);
+>  
+>  	rcu_read_lock();
+>  	ret = cgroup_path(mem_cgrp, memcg_name, PATH_MAX);
+> @@ -1587,19 +1587,18 @@ void mem_cgroup_print_oom_info(struct me
+>  	/*
+>  	 * Continues from above, so we don't need an KERN_ level
+>  	 */
+> -	printk(KERN_CONT " as a result of limit of %s\n", memcg_name);
+> +	pr_cont(" as a result of limit of %s\n", memcg_name);
+>  done:
+>  
+> -	printk(KERN_INFO "memory: usage %llukB, limit %llukB, failcnt %llu\n",
+> +	pr_info("memory: usage %llukB, limit %llukB, failcnt %llu\n",
+>  		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
+>  		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
+>  		res_counter_read_u64(&memcg->res, RES_FAILCNT));
+> -	printk(KERN_INFO "memory+swap: usage %llukB, limit %llukB, "
+> -		"failcnt %llu\n",
+> +	pr_info("memory+swap: usage %llukB, limit %llukB, failcnt %llu\n",
+>  		res_counter_read_u64(&memcg->memsw, RES_USAGE) >> 10,
+>  		res_counter_read_u64(&memcg->memsw, RES_LIMIT) >> 10,
+>  		res_counter_read_u64(&memcg->memsw, RES_FAILCNT));
+> -	printk(KERN_INFO "kmem: usage %llukB, limit %llukB, failcnt %llu\n",
+> +	pr_info("kmem: usage %llukB, limit %llukB, failcnt %llu\n",
+>  		res_counter_read_u64(&memcg->kmem, RES_USAGE) >> 10,
+>  		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
+>  		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
+> @@ -4424,8 +4423,8 @@ void mem_cgroup_print_bad_page(struct pa
+>  
+>  	pc = lookup_page_cgroup_used(page);
+>  	if (pc) {
+> -		printk(KERN_ALERT "pc:%p pc->flags:%lx pc->mem_cgroup:%p\n",
+> -		       pc, pc->flags, pc->mem_cgroup);
+> +		pr_alert("pc:%p pc->flags:%lx pc->mem_cgroup:%p\n",
+> +			 pc, pc->flags, pc->mem_cgroup);
+>  	}
+>  }
+>  #endif
+> _
+> 
 
 -- 
 Michal Hocko
