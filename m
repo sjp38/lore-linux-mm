@@ -1,38 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id A36D96B007D
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 15:43:54 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fa1so2350994pad.21
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 12:43:53 -0800 (PST)
-Date: Thu, 20 Dec 2012 12:43:52 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/sparse: don't check return value of alloc_bootmem
- calls
-In-Reply-To: <50D376E9.9030507@oracle.com>
-Message-ID: <alpine.DEB.2.00.1212201238460.29839@chino.kir.corp.google.com>
-References: <1356030701-16284-1-git-send-email-sasha.levin@oracle.com> <1356030701-16284-30-git-send-email-sasha.levin@oracle.com> <alpine.DEB.2.00.1212201218590.29839@chino.kir.corp.google.com> <50D376E9.9030507@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 45B926B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 15:58:04 -0500 (EST)
+Date: Thu, 20 Dec 2012 12:58:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o
+ congestion
+Message-Id: <20121220125802.23e9b22d.akpm@linux-foundation.org>
+In-Reply-To: <20121220111208.GD10819@suse.de>
+References: <50D24AF3.1050809@iskon.hr>
+	<20121220111208.GD10819@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 20 Dec 2012, Sasha Levin wrote:
+On Thu, 20 Dec 2012 11:12:08 +0000
+Mel Gorman <mgorman@suse.de> wrote:
 
-> So what we really need is to update the documentation of __alloc_bootmem_node, I'll send
-> a patch that does that instead.
+> On Thu, Dec 20, 2012 at 12:17:07AM +0100, Zlatko Calusic wrote:
+> > On a 4GB RAM machine, where Normal zone is much smaller than
+> > DMA32 zone, the Normal zone gets fragmented in time. This requires
+> > relatively more pressure in balance_pgdat to get the zone above the
+> > required watermark. Unfortunately, the congestion_wait() call in there
+> > slows it down for a completely wrong reason, expecting that there's
+> > a lot of writeback/swapout, even when there's none (much more common).
+> > After a few days, when fragmentation progresses, this flawed logic
+> > translates to a very high CPU iowait times, even though there's no
+> > I/O congestion at all. If THP is enabled, the problem occurs sooner,
+> > but I was able to see it even on !THP kernels, just by giving it a bit
+> > more time to occur.
+> > 
+> > The proper way to deal with this is to not wait, unless there's
+> > congestion. Thanks to Mel Gorman, we already have the function that
+> > perfectly fits the job. The patch was tested on a machine which
+> > nicely revealed the problem after only 1 day of uptime, and it's been
+> > working great.
+> > ---
+> >  mm/vmscan.c |   12 ++++++------
+> >  1 file changed, 6 insertions(+), 6 deletions(-)
+> > 
 > 
+> Acked-by: Mel Gorman <mgorman@suse.de
 
-It panics iff slab is not available to allocate from yet, otherwise it's 
-just a wrapper around kmalloc().  This emits a warning to the kernel log, 
-though, so __alloc_bootmem_node() should certainly not be called that late 
-in the boot sequence.
+There seems to be some complexity/duplication here between the new
+unbalanced_zone() and pgdat_balanced().
 
-Since __alloc_bootmem_node_nopanic() is the way to avoid the panic, I 
-think the change that should be made here so to panic even when the 
-kmalloc() fails in __alloc_bootmem_node(), __alloc_bootmem_node_high(), 
-and __alloc_bootmem_low_node().
+Can we modify pgdat_balanced() so that it also handles order=0, then do
+
+-		if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
++		if (!pgdat_balanced(...))
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
