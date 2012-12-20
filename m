@@ -1,70 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
-	by kanga.kvack.org (Postfix) with SMTP id 47CCD6B0044
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 19:08:07 -0500 (EST)
-Date: Wed, 19 Dec 2012 16:08:05 -0800
+Received: from psmtp.com (na3sys010amx116.postini.com [74.125.245.116])
+	by kanga.kvack.org (Postfix) with SMTP id C482B6B0044
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 19:18:57 -0500 (EST)
+Date: Wed, 19 Dec 2012 16:18:56 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 5/7] mm: vmscan: clean up get_scan_count()
-Message-Id: <20121219160805.658f724f.akpm@linux-foundation.org>
-In-Reply-To: <1355767957-4913-6-git-send-email-hannes@cmpxchg.org>
-References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
-	<1355767957-4913-6-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] Add the values related to buddy system for filtering
+ free pages.
+Message-Id: <20121219161856.e6aa984f.akpm@linux-foundation.org>
+In-Reply-To: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
+References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+Cc: ebiederm@xmission.com, linux-kernel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org
 
-On Mon, 17 Dec 2012 13:12:35 -0500
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Mon, 10 Dec 2012 10:39:13 +0900
+Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp> wrote:
 
-> Reclaim pressure balance between anon and file pages is calculated
-> through a tuple of numerators and a shared denominator.
+> This patch adds the values related to buddy system to vmcoreinfo data
+> so that makedumpfile (dump filtering command) can filter out all free
+> pages with the new logic.
+> It's faster than the current logic because it can distinguish free page
+> by analyzing page structure at the same time as filtering for other
+> unnecessary pages (e.g. anonymous page).
+> OTOH, the current logic has to trace free_list to distinguish free 
+> pages while analyzing page structure to filter out other unnecessary
+> pages.
 > 
-> Exceptional cases that want to force-scan anon or file pages configure
-> the numerators and denominator such that one list is preferred, which
-> is not necessarily the most obvious way:
+> The new logic uses the fact that buddy page is marked by _mapcount == 
+> PAGE_BUDDY_MAPCOUNT_VALUE. But, _mapcount shares its memory with other
+> fields for SLAB/SLUB when PG_slab is set, so we need to check if PG_slab
+> is set or not before looking up _mapcount value.
+> And we can get the order of buddy system from private field.
+> To sum it up, the values below are required for this logic.
 > 
->     fraction[0] = 1;
->     fraction[1] = 0;
->     denominator = 1;
->     goto out;
+> Required values:
+>   - OFFSET(page._mapcount)
+>   - OFFSET(page.private)
+>   - NUMBER(PG_slab)
+>   - NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE)
 > 
-> Make this easier by making the force-scan cases explicit and use the
-> fractionals only in case they are calculated from reclaim history.
+> Changelog from v1 to v2:
+> 1. remove SIZE(pageflags)
+>   The new logic was changed after I sent v1 patch.  
+>   Accordingly, SIZE(pageflags) has been unnecessary for makedumpfile.
 > 
-> And bring the variable declarations/definitions in order.
-> 
-> ...
->
-> +	u64 fraction[2], uninitialized_var(denominator);
+> What's makedumpfile:
+>   makedumpfile creates a small dumpfile by excluding unnecessary pages
+>   for the analysis. To distinguish unnecessary pages, makedumpfile gets
+>   the vmcoreinfo data which has the minimum debugging information only
+>   for dump filtering.
 
-Using uninitialized_var() puts Linus into rant mode.  Unkindly, IMO:
-uninitialized_var() is documentarily useful and reduces bloat.  There is
-a move afoot to replace it with
+Gee, this info is getting highly dependent upon deep internal kernel
+behaviour.
 
-	int foo = 0;	/* gcc */
+> index 5e4bd78..b27efe4 100644
+> --- a/kernel/kexec.c
+> +++ b/kernel/kexec.c
+> @@ -1490,6 +1490,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+> 	VMCOREINFO_OFFSET(page, _count);
+> 	VMCOREINFO_OFFSET(page, mapping);
+> 	VMCOREINFO_OFFSET(page, lru);
+> +	VMCOREINFO_OFFSET(page, _mapcount);
+> +	VMCOREINFO_OFFSET(page, private);
+> 	VMCOREINFO_OFFSET(pglist_data, node_zones);
+> 	VMCOREINFO_OFFSET(pglist_data, nr_zones);
+>  #ifdef CONFIG_FLAT_NODE_MEM_MAP
+> @@ -1512,6 +1514,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+> 	VMCOREINFO_NUMBER(PG_lru);
+> 	VMCOREINFO_NUMBER(PG_private);
+> 	VMCOREINFO_NUMBER(PG_swapcache);
+> +	VMCOREINFO_NUMBER(PG_slab);
+> +	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
 
-To avoid getting ranted at we can do
+We might change the PageBuddy() implementation at any time, and
+makedumpfile will break.  Or in this case, become less efficient.
 
---- a/mm/vmscan.c~mm-vmscan-clean-up-get_scan_count-fix
-+++ a/mm/vmscan.c
-@@ -1658,7 +1658,8 @@ static void get_scan_count(struct lruvec
- 			   unsigned long *nr)
- {
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
--	u64 fraction[2], uninitialized_var(denominator);
-+	u64 fraction[2];
-+	u64 denominator = 0;
- 	struct zone *zone = lruvec_zone(lruvec);
- 	unsigned long anon_prio, file_prio;
- 	enum scan_balance scan_balance;
-_
-
-Which bloats the text by six bytes, but will force a nice div-by-zero
-if we ever hit that can't-happen path.
+Is there any way in which we can move some of this logic into the
+kernel?  In this case, add some kernel code which uses PageBuddy() on
+behalf of makedumpfile, rather than replicating the PageBuddy() logic
+in userspace?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
