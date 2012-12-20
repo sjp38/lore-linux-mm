@@ -1,112 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 6D44F6B005D
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 05:24:43 -0500 (EST)
-Date: Thu, 20 Dec 2012 10:24:38 +0000
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id 043ED6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 05:47:12 -0500 (EST)
+Date: Thu, 20 Dec 2012 10:47:07 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH v2] mm: limit mmu_gather batching to fix soft lockups on
- !CONFIG_PREEMPT
-Message-ID: <20121220102438.GA10819@suse.de>
-References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
- <20121218140219.45867ddd.akpm@linux-foundation.org>
- <20121218235042.GA10350@dhcp22.suse.cz>
- <20121218160030.baf723aa.akpm@linux-foundation.org>
- <20121219150423.GA12888@dhcp22.suse.cz>
- <20121219131316.7d13fcb1.akpm@linux-foundation.org>
+Subject: Re: [PATCH] compaction: fix build error in CMA && !COMPACTION
+Message-ID: <20121220104707.GB10819@suse.de>
+References: <1355981130-2382-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20121219131316.7d13fcb1.akpm@linux-foundation.org>
+In-Reply-To: <1355981130-2382-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Wed, Dec 19, 2012 at 01:13:16PM -0800, Andrew Morton wrote:
-> On Wed, 19 Dec 2012 16:04:37 +0100
-> Michal Hocko <mhocko@suse.cz> wrote:
+On Thu, Dec 20, 2012 at 02:25:30PM +0900, Minchan Kim wrote:
+> isolate_freepages_block and isolate_migratepages_range is used for CMA
+> as well as compaction so it breaks build for CONFIG_CMA &&
+> !CONFIG_COMPACTION.
 > 
-> > Since e303297 (mm: extended batches for generic mmu_gather) we are batching
-> > pages to be freed until either tlb_next_batch cannot allocate a new batch or we
-> > are done.
-> > 
-> > This works just fine most of the time but we can get in troubles with
-> > non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY)
-> > on large machines where too aggressive batching might lead to soft
-> > lockups during process exit path (exit_mmap) because there are no
-> > scheduling points down the free_pages_and_swap_cache path and so the
-> > freeing can take long enough to trigger the soft lockup.
-> > 
-> > The lockup is harmless except when the system is setup to panic on
-> > softlockup which is not that unusual.
-> > 
-> > The simplest way to work around this issue is to limit the maximum
-> > number of batches in a single mmu_gather for !CONFIG_PREEMPT kernels.
-> > Let's use 1G of resident memory for the limit for now. This shouldn't
-> > make the batching less effective and it shouldn't trigger lockups as
-> > well because freeing 262144 should be OK.
-> > 
-> > ...
-> >
-> > diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-> > index ed6642a..5843f59 100644
-> > --- a/include/asm-generic/tlb.h
-> > +++ b/include/asm-generic/tlb.h
-> > @@ -78,6 +78,19 @@ struct mmu_gather_batch {
-> >  #define MAX_GATHER_BATCH	\
-> >  	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
-> >  
-> > +/*
-> > + * Limit the maximum number of mmu_gather batches for non-preemptible kernels
-> > + * to reduce a risk of soft lockups on huge machines when a lot of memory is
-> > + * zapped during unmapping.
-> > + * 1GB of resident memory should be safe to free up at once even without
-> > + * explicit preemption point.
-> > + */
-> > +#if defined(CONFIG_PREEMPT_COUNT)
-> > +#define MAX_GATHER_BATCH_COUNT	(UINT_MAX)
-> > +#else
-> > +#define MAX_GATHER_BATCH_COUNT	(((1UL<<(30-PAGE_SHIFT))/MAX_GATHER_BATCH))
+> This patch fixes it.
 > 
-> Geeze.  I spent waaaaay too long staring at that expression trying to
-> work out "how many pages is in a batch" and gave up.
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/compaction.c |   26 ++++++++++++++++++++------
+>  1 file changed, 20 insertions(+), 6 deletions(-)
 > 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 5ad7f4f..70f4443 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -17,6 +17,21 @@
+>  #include <linux/balloon_compaction.h>
+>  #include "internal.h"
+>  
+> +#ifdef CONFIG_COMPACTION
+> +static inline void count_compact_event(enum vm_event_item item)
+> +{
+> +	count_vm_event(item);
+> +}
+> +
+> +static inline void count_compact_events(enum vm_event_item item, long delta)
+> +{
+> +	count_vm_events(item, delta);
+> +}
+> +#else
+> +#define count_compact_event(item)
+> +#define count_compact_events(item, delta)
+> +#endif
+> +
 
-1G.
+That should be
 
-> Realistically, I don't think we need to worry about CONFIG_PREEMPT here
-> - if we just limit the thing to, say, 64k pages per batch then that
-> will be OK for preemptible and non-preemptible kernels.  The
-> performance difference between "64k" and "infinite" will be miniscule
-> and unmeasurable.
-> 
+do {} while (0)
 
-That was my fault due to a private conversation. Michal originally had
-a fixed counter that was commented to be related to address space size
-on x86-64. I felt if it was based on address space size then it should be
-expressed in terms of PAGE_SIZE. It really is about the number of TLB flush
-operations though and a fixed counter works. I'm happy either way but the
-comment should not mention address space size if it's a fixed counter.
+otherwise a block like this
 
-> Also, the batch count should be independent of PAGE_SIZE.  Because
-> PAGE_SIZE can vary by a factor of 16 and you don't want to fix the
-> problem on 4k page size but leave it broken on 64k page size.
-> 
-> Also, while the patch might prevent softlockup warnings, the kernel
-> will still exhibit large latency glitches and those are undesirable.
-> 
-> Also, does this patch actually work?  It doesn't add a scheduling
-> point.  It assumes that by returning zero from tlb_next_batch(), the
-> process will back out to some point where it hits a cond_resched()?
-> 
+if (foo)
+	count_compact_event(COMPACTFREE_SCANNED)
+bar;
 
-I expected it to work for two reasons.
+will get parsed as
 
-1. returning here hits the cond_resched() in zap_pmd_range()
-2. The original soft lockup was in tlb_finish_mmu and this patch should
-   limit the amount of work that thing has to do
+if (foo)
+	bar;
 
-I didn't test it though.
+which is wrong.
+
+Now that I look at the do {} while (0) thing it is also strictly speaking
+wrong for count_vm_numa_events() too because it would do the wrong thing for
+
+count_compact_events(COMPACTFREE_SCANNED, foo++);
+
+There happens to be no examples where we depend on such side-effects but
+I've taken a TODO item to fix it up in the New Year.
 
 -- 
 Mel Gorman
