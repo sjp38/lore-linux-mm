@@ -1,198 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 8F1816B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 06:45:25 -0500 (EST)
-Message-ID: <50D2FA58.9030605@parallels.com>
-Date: Thu, 20 Dec 2012 15:45:28 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 031FF6B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 07:47:13 -0500 (EST)
+Received: by mail-ea0-f174.google.com with SMTP id e13so1362724eaa.33
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 04:47:12 -0800 (PST)
+Date: Thu, 20 Dec 2012 13:47:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm: limit mmu_gather batching to fix soft lockups on
+ !CONFIG_PREEMPT
+Message-ID: <20121220124710.GA31912@dhcp22.suse.cz>
+References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+ <20121218140219.45867ddd.akpm@linux-foundation.org>
+ <20121218235042.GA10350@dhcp22.suse.cz>
+ <20121218160030.baf723aa.akpm@linux-foundation.org>
+ <20121219150423.GA12888@dhcp22.suse.cz>
+ <20121219131316.7d13fcb1.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC, PATCH 00/19] Numa aware LRU lists and shrinkers
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
-In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20121219131316.7d13fcb1.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On 11/28/2012 03:14 AM, Dave Chinner wrote:
-> Hi Glauber,
+On Wed 19-12-12 13:13:16, Andrew Morton wrote:
+> On Wed, 19 Dec 2012 16:04:37 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
 > 
-> Here's a working version of my patchset for generic LRU lists and
-> NUMA-aware shrinkers.
+> > Since e303297 (mm: extended batches for generic mmu_gather) we are batching
+> > pages to be freed until either tlb_next_batch cannot allocate a new batch or we
+> > are done.
+> > 
+> > This works just fine most of the time but we can get in troubles with
+> > non-preemptible kernel (CONFIG_PREEMPT_NONE or CONFIG_PREEMPT_VOLUNTARY)
+> > on large machines where too aggressive batching might lead to soft
+> > lockups during process exit path (exit_mmap) because there are no
+> > scheduling points down the free_pages_and_swap_cache path and so the
+> > freeing can take long enough to trigger the soft lockup.
+> > 
+> > The lockup is harmless except when the system is setup to panic on
+> > softlockup which is not that unusual.
+> > 
+> > The simplest way to work around this issue is to limit the maximum
+> > number of batches in a single mmu_gather for !CONFIG_PREEMPT kernels.
+> > Let's use 1G of resident memory for the limit for now. This shouldn't
+> > make the batching less effective and it shouldn't trigger lockups as
+> > well because freeing 262144 should be OK.
+> > 
+> > ...
+> >
+> > diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
+> > index ed6642a..5843f59 100644
+> > --- a/include/asm-generic/tlb.h
+> > +++ b/include/asm-generic/tlb.h
+> > @@ -78,6 +78,19 @@ struct mmu_gather_batch {
+> >  #define MAX_GATHER_BATCH	\
+> >  	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
+> >  
+> > +/*
+> > + * Limit the maximum number of mmu_gather batches for non-preemptible kernels
+> > + * to reduce a risk of soft lockups on huge machines when a lot of memory is
+> > + * zapped during unmapping.
+> > + * 1GB of resident memory should be safe to free up at once even without
+> > + * explicit preemption point.
+> > + */
+> > +#if defined(CONFIG_PREEMPT_COUNT)
+> > +#define MAX_GATHER_BATCH_COUNT	(UINT_MAX)
+> > +#else
+> > +#define MAX_GATHER_BATCH_COUNT	(((1UL<<(30-PAGE_SHIFT))/MAX_GATHER_BATCH))
 > 
-> There are several parts to this patch set. The NUMA aware shrinkers
-> are based on having a generic node-based LRU list implementation,
-> and there are subsystems that need to be converted to use these
-> lists as part of the process. There is also a long overdue change to
-> the shrinker API to give it separate object count and object scan
-> callbacks, getting rid of the magic and confusing "nr_to_scan = 0"
-> semantics.
+> Geeze.  I spent waaaaay too long staring at that expression trying to
+> work out "how many pages is in a batch" and gave up.
 > 
-> First of all, the patch set is based on a current 3.7-rc7 tree with
-> the current xfs dev tree merged into it [can be found at
-> git://oss.sgi.com/xfs/xfs]. That's because there are lots of XFS
-> changes in the patch set, and theres no way I'm going to write them
-> a second time in a couple of weeks when the current dev tree is
-> merged into 3.8-rc1....
-> 
-> So, where's what the patches do:
-> 
-> [PATCH 01/19] dcache: convert dentry_stat.nr_unused to per-cpu
-> [PATCH 02/19] dentry: move to per-sb LRU locks
-> [PATCH 03/19] dcache: remove dentries from LRU before putting on
-> 
-> These three patches are preparation of the dcache for moving to the
-> generic LRU list API. it basically gets rid of the global dentry LRU
-> lock, and in doing so has to avoid several creative abuses of the
-> lru list detection to allow dentries on shrink lists to be still
-> magically be on the LRU list. The main change here is that now
-> dentries on the shrink lists *must* have the DCACHE_SHRINK_LIST flag
-> set and be entirely removed from the LRU before being disposed of.
-> 
-> This is probably a good cleanup to do regardless of the rest of the
-> patch set because it removes a couple of landmines in
-> shrink_dentry_list() that took me a while to work out...
-> 
-> [PATCH 04/19] mm: new shrinker API
-> [PATCH 05/19] shrinker: convert superblock shrinkers to new API
-> 
-> These introduce the count/scan shrinker API, and for testing
-> purposes convert the superblock shrinker to use it before any other
-> changes are made. This gives a clean separation of counting the
-> number of objects in a cache for pressure calculations, and the act
-> of scanning objects in an attempt to free memory. Indeed, the
-> scan_objects() callback now returns the number of objects freed by
-> the scan instead of having to try to work out whether any progress
-> was made by comparing absolute counts.
-> 
-> This is also more efficient as we don't have to count all the
-> objects in a cache on every scan pass. It is now done once per
-> shrink_slab() invocation to calculate how much to scan, and we get
-> direct feedback on how much gets reclaimed in that pass. i.e. we get
-> reliable, accurate feedback on shrinker progress.
-> 
-> [PATCH 06/19] list: add a new LRU list type
-> [PATCH 07/19] inode: convert inode lru list to generic lru list
-> [PATCH 08/19] dcache: convert to use new lru list infrastructure
-> 
-> These add the generic LRU list API and infrastructure and convert
-> the inode and dentry caches to use it. This is still just a single
-> global list per LRU at this point, so it's really only changing the
-> where the LRU implemenation is rather than the fundamental
-> algorithm. It does, however, introduce a new method of walking the
-> LRU lists and building the dispose list of items for shrinkers, but
-> because we are still dealing with a global list the algorithmic
-> changes are minimal.
-> 
-> [PATCH 09/19] list_lru: per-node list infrastructure
-> 
-> This makes the generic LRU list much more scalable by changing it to
-> a {list,lock,count} tuple per node. There are no external API
-> changes to this changeover, so is transparent to current users.
-> 
-> [PATCH 10/19] shrinker: add node awareness
-> [PATCH 11/19] fs: convert inode and dentry shrinking to be node
-> 
-> Adds a nodemask to the struct shrink_control for callers of
-> shrink_slab to set appropriately for their reclaim context. This
-> nodemask is then passed by the inode and dentry cache reclaim code
-> to the generic LRU list code to implement node aware shrinking.
-> 
-> What this doesn't do is convert the internal shrink_slab() algorithm
-> to be node aware. I'm not sure what the best approach is here, but
-> it strikes me that it should really be calculating and keeping track
-> of scan counts and pressure on a per-node basis. The current code
-> seems to work OK at the moment, though.
-> 
-> [PATCH 12/19] xfs: convert buftarg LRU to generic code
-> [PATCH 13/19] xfs: Node aware direct inode reclaim
-> [PATCH 14/19] xfs: use generic AG walk for background inode reclaim
-> [PATCH 15/19] xfs: convert dquot cache lru to list_lru
-> 
-> These patches convert all the XFS LRUs and shrinkers to be node
-> aware. This gets rid of a lot of hairy, special case code in the
-> inode cache shrinker for avoiding concurrent shrinker contention and
-> to throttle direct reclaim to prevent premature OOM conditions.
-> Removing this code greatly simplifies inode cache reclaim whilst
-> reducing overhead and improving performance. In all, it converts
-> three separate caches and shrinkers to use the generic LRU lists and
-> pass nodemasks around appropriately.
-> 
-> This is how I've really tested the code - lots of interesting
-> filesystem workloads that generate simultaneous slab and page cache
-> pressure on VM's with and without fake_numa configs....
-> 
-> [PATCH 16/19] fs: convert fs shrinkers to new scan/count API
-> [PATCH 17/19] drivers: convert shrinkers to new count/scan API
-> [PATCH 18/19] shrinker: convert remaining shrinkers to count/scan
-> [PATCH 19/19] shrinker: Kill old ->shrink API.
-> 
-> These last three patches convert all the other shrinker
-> implementations to the new count/scan API.  The fs, android and dm
-> shrinkers are pretty well behaved and are implemented as is expected
-> for there intended purposes. The driver and staging code, however,
-> is basically a bunch of hacks to try to do something resembling
-> reclaim when a shrinker tells it there is memory pressure. Looking
-> at all the driver and staging code is not an exercise I recommend if
-> you value your eyes and/or your sanity.
-> 
-> I haven't even tried to compile this on a CONFIG_SMP=n
-> configuration, nor have I done extensive allmod style build tests
-> and it's only been built and tested on x86-64. That said, apart from
-> CONFIG_SMP=n, I don't see there being any major problems here.
-> 
-> There's still a bunch of cleanup work needed. e.g. the LRU list
-> walk/isolation code needs to use enums for the isolate callback
-> return code, there needs to be a generic list_lru_for_each() style
-> function for walking all the objects in the cache (which will allow
-> the list_lru structures to be used for things like the per-sb inode
-> list). Indeed, even the name "list_lru" is probably something that
-> should be changed - I think the list has become more of a general
-> per-node list than it's initial functionality as a scalable LRU list
-> implementation and I can see uses for it outside of LRUs...
-> 
-> Comments, thoughts and flames all welcome.
-> 
+> Realistically, I don't think we need to worry about CONFIG_PREEMPT here
+> - if we just limit the thing to, say, 64k pages per batch then that
+> will be OK for preemptible and non-preemptible kernels. 
 
-I like the general idea, and after a small PoC on my side, I can say it
-can at least provide us with a good and sound route to solve the
-targetted memcg shrinking problem.
+I wanted the fix to be as non-intrusive as possible so I didn't want to
+touch PREEMPT (which is default in many configs) at all. I am OK to a
+single limit of course.
 
-I've already provided you some small feedback about the interface in the
-specific patches.
+> The performance difference between "64k" and "infinite" will be
+> miniscule and unmeasurable.
+> 
+> Also, the batch count should be independent of PAGE_SIZE.  Because
+> PAGE_SIZE can vary by a factor of 16 and you don't want to fix the
+> problem on 4k page size but leave it broken on 64k page size.
 
-But on a broader sense: The only thing that still bothers me personally
-(meaning: it created particular pain points), is the very loose coupling
-between all the elements involved in the shrinking process:
+MAX_GATHER_BATCH depends on the page size so I didn't want to differ
+without a good reason.
 
-1) the shrinker, always present
-2) the lru, usually present
-3) the cache, usually present, specially when there is an LRU.
+> Also, while the patch might prevent softlockup warnings, the kernel
+> will still exhibit large latency glitches and those are undesirable.
 
-I of course understand that they are not always present, and when they
-are, they are not in a 1:1 relation.
+Not really. cond_resched is called per pmd. This patch just helps the
+case where there is enough free memory to batch too much and then soft
+lockup while flushing mmu_gather after the whole zapping is done because
+tlb_flush_mmu is called more often.
 
-But still, it would be nice to be able to register them to one another,
-so that we can easily answer things like:
+> Also, does this patch actually work?  It doesn't add a scheduling
+> point.  It assumes that by returning zero from tlb_next_batch(), the
+> process will back out to some point where it hits a cond_resched()?
 
-"Given a set of caches, what is the set of shrinkers that will shrink them?"
+No, as mentioned above. cond_resched is called per pmd independently
+on how much batching we do but then after free_pgtables is done we
+call tlb_finish_mmu and that one needs to free all the gathered
+pages. Without the limit we can have too many pages to free and that is
+what triggers soft lockup. My original patch was more obvious because it
+added the cond_resched but as you pointed out it could be problematic so
+this patch tries to eliminate the problem in the very beginning instead.
 
-"What are the lrus that are driven by this shrinker?"
+> So I'm thinking that to address both the softlockup-detector problem
+> and the large-latency-glitch problem we should do something like:
+> 
+> 	if (need_resched() && tlb->batch_count > 64k)
+> 		return 0;
 
-This would allow me to do things like this:
+need_resched is not needed because of cond_resched in zap_pmd_range. I
+am OK with a fixed limit.
 
-* When a per-memcg cache is created (not all of the caches are
-replicated), find the shrinkers that can shrink them.
+> and then ensure that there's a cond_resched() at a safe point between
+> batches?
 
-* For each shrinker, also replicate the LRUs that are driven by them.
-
-Does that make any sense to you ?
-
-
-
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
