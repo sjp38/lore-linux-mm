@@ -1,57 +1,50 @@
-Return-Path: <MercedesSchabowski@waldonet.net.mt>
-Message-ID: <974BFDA213D3DA0C513DA05136EFDA29@LinPEARLINEr2>
-From: "Felisa Mcgrath" <MercedesSchabowski@waldonet.net.mt>
-Subject: Attention! Changes in the bank reports!
-Date: Thu, 20 Dec 2012 12:53:16 +0100
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 12B526B005A
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 17:27:04 -0500 (EST)
+Received: by mail-wi0-f172.google.com with SMTP id o1so4634107wic.5
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 14:27:03 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----=_NextPart_000_0F6E_01CDDF04.CC496E00"
-To: linux-mm@kvack.org
+In-Reply-To: <50D387FD.4020008@oracle.com>
+References: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils>
+ <alpine.LNX.2.00.1212191742440.25409@eggly.anvils> <50D387FD.4020008@oracle.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 20 Dec 2012 14:26:43 -0800
+Message-ID: <CA+55aFxfS0SBbRBRULX4Hm7a-xOY7ebJ=Ncu2cAdH2xvcZFO+Q@mail.gmail.com>
+Subject: Re: [PATCH] ksm: make rmap walks more scalable
+Content-Type: text/plain; charset=ISO-8859-1
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Petr Holasek <pholasek@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-This is a multi-part message in MIME format.
+On Thu, Dec 20, 2012 at 1:49 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
+> On 12/19/2012 08:44 PM, Hugh Dickins wrote:
+>> The rmap walks in ksm.c are like those in rmap.c:
+>> they can safely be done with anon_vma_lock_read().
+>>
+>> Signed-off-by: Hugh Dickins <hughd@google.com>
+>> ---
+>
+> Hi Hugh,
+>
+> This patch didn't fix the ksm oopses I'm seeing.
+>
+> This is with both patches applied:
 
-------=_NextPart_000_0F6E_01CDDF04.CC496E00
-Content-Type: text/plain;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
+Looks like another NULL mm pointer in ksmd.. Hugh fixed one in
+2832bc19f666 ("sched: numa: ksm: fix oops in task_numa_placment()"),
+this looks like more of the same.
 
-Dear client!According to the new rules of the Ministry of Finance, we hav=
-e to change the rules of record keeping on your bank account. We ask you =
-to familiarize yourself with the said regulations. To confirm your agreem=
-ent, print out the last sheet, sign it and send it back to us.
+At a guess, it looks like get_mergeable_page() has a rmap_item with no
+mm. No idea how that happened. Hugh? Some race due to something that
+depended on the mmap_sem being exclusive, rather than for
+read-ownership?
 
+              Linus
 
-new rules.doc 588kb
-
-With Best Regards
-
-
-Felisa Mcgrath
-
-------=_NextPart_000_0F6E_01CDDF04.CC496E00
-Content-Type: text/html;
-	charset="iso-8859-2"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
-<HTML><HEAD>
-<META http-equiv=3DContent-Type content=3D"text/html; charset=3Diso-8859-=
-2">
-<META content=3D"MSHTML 5.00.2919.6700" name=3DGENERATOR>
-<STYLE></STYLE>
-</HEAD>
-<BODY>
-Dear client!
-According to the new rules of the Ministry of Finance, we have to change =
-the rules of record keeping on your bank account. We ask you to familiari=
-ze yourself with the said regulations. To confirm your agreement, print o=
-ut the last sheet, sign it and send it back to us.<br><br><br>
-<a href=3D"http://school32.centerstart.ru/sites/default/mail.htm?5SHRWT6=
-=3DU55IYJ6&SXC=3D6DZ3Z93KPFHJ7BK0LI8U11&BJ0PHS=3DAZSANAWILBL2&G61H303=3DV=
-AZXD57&ZW0D9OV=3D20P0O68A9PHSA52O0H16C97Z&UDDO=3DN0Y5QHEOR&NSAMTOK=3D8F3Z=
-LPJY8H&">new rules.doc 588kb</a><br><br>With Best Regards<br><br><br>Feli=
-sa Mcgrath<br>
-</BODY></HTML>
-
-------=_NextPart_000_0F6E_01CDDF04.CC496E00--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
