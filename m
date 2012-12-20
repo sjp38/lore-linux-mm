@@ -1,124 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 1CFB26B002B
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 21:19:01 -0500 (EST)
-Received: by mail-da0-f41.google.com with SMTP id e20so1234108dak.14
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 18:19:00 -0800 (PST)
-Subject: Re: [PATCH] mm: protect against concurrent vma expansion
-From: Simon Jeons <simon.jeons@gmail.com>
-In-Reply-To: <20121204144820.GA13916@google.com>
-References: <1354344987-28203-1-git-send-email-walken@google.com>
-	 <20121203150110.39c204ff.akpm@linux-foundation.org>
-	 <CANN689FfWVV4MyTUPKZQgQAWW9Dfdw9f0fqx98kc+USKj9g7TA@mail.gmail.com>
-	 <20121203164322.b967d461.akpm@linux-foundation.org>
-	 <20121204144820.GA13916@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Wed, 19 Dec 2012 20:56:34 -0500
-Message-ID: <1355968594.1415.4.camel@kernel-VirtualBox>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id 2FA6A6B005D
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 21:22:39 -0500 (EST)
+Date: Thu, 20 Dec 2012 11:21:03 +0900
+From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
+Subject: Re: [PATCH v2] Add the values related to buddy system for filtering
+ free pages.
+Message-Id: <20121220112103.d698c09a9d1f27a253a63d37@mxc.nes.nec.co.jp>
+In-Reply-To: <20121219161856.e6aa984f.akpm@linux-foundation.org>
+References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
+	<20121219161856.e6aa984f.akpm@linux-foundation.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: ebiederm@xmission.com, cpw@sgi.com, linux-kernel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org
 
-On Tue, 2012-12-04 at 06:48 -0800, Michel Lespinasse wrote:
-> expand_stack() runs with a shared mmap_sem lock. Because of this, there
-> could be multiple concurrent stack expansions in the same mm, which may
-> cause problems in the vma gap update code.
-> 
-> I propose to solve this by taking the mm->page_table_lock around such vma
-> expansions, in order to avoid the concurrency issue. We only have to worry
-> about concurrent expand_stack() calls here, since we hold a shared mmap_sem
-> lock and all vma modificaitons other than expand_stack() are done under
-> an exclusive mmap_sem lock.
+Hello Andrew,
 
-Hi Michel and Andrew,
+On Wed, 19 Dec 2012 16:18:56 -0800
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-One question.
+> On Mon, 10 Dec 2012 10:39:13 +0900
+> Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp> wrote:
+> 
+> > This patch adds the values related to buddy system to vmcoreinfo data
+> > so that makedumpfile (dump filtering command) can filter out all free
+> > pages with the new logic.
+> > It's faster than the current logic because it can distinguish free page
+> > by analyzing page structure at the same time as filtering for other
+> > unnecessary pages (e.g. anonymous page).
+> > OTOH, the current logic has to trace free_list to distinguish free 
+> > pages while analyzing page structure to filter out other unnecessary
+> > pages.
+> > 
+> > The new logic uses the fact that buddy page is marked by _mapcount == 
+> > PAGE_BUDDY_MAPCOUNT_VALUE. But, _mapcount shares its memory with other
+> > fields for SLAB/SLUB when PG_slab is set, so we need to check if PG_slab
+> > is set or not before looking up _mapcount value.
+> > And we can get the order of buddy system from private field.
+> > To sum it up, the values below are required for this logic.
+> > 
+> > Required values:
+> >   - OFFSET(page._mapcount)
+> >   - OFFSET(page.private)
+> >   - NUMBER(PG_slab)
+> >   - NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE)
+> > 
+> > Changelog from v1 to v2:
+> > 1. remove SIZE(pageflags)
+> >   The new logic was changed after I sent v1 patch.  
+> >   Accordingly, SIZE(pageflags) has been unnecessary for makedumpfile.
+> > 
+> > What's makedumpfile:
+> >   makedumpfile creates a small dumpfile by excluding unnecessary pages
+> >   for the analysis. To distinguish unnecessary pages, makedumpfile gets
+> >   the vmcoreinfo data which has the minimum debugging information only
+> >   for dump filtering.
+> 
+> Gee, this info is getting highly dependent upon deep internal kernel
+> behaviour.
 
-I found that mainly callsite of expand_stack() is #PF, but it holds
-mmap_sem each time before call expand_stack(), how can hold a *shared*
-mmap_sem happen?
+Yes. makedumpfile should be changed depend on kernel version and we did it.
 
+> > index 5e4bd78..b27efe4 100644
+> > --- a/kernel/kexec.c
+> > +++ b/kernel/kexec.c
+> > @@ -1490,6 +1490,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+> > 	VMCOREINFO_OFFSET(page, _count);
+> > 	VMCOREINFO_OFFSET(page, mapping);
+> > 	VMCOREINFO_OFFSET(page, lru);
+> > +	VMCOREINFO_OFFSET(page, _mapcount);
+> > +	VMCOREINFO_OFFSET(page, private);
+> > 	VMCOREINFO_OFFSET(pglist_data, node_zones);
+> > 	VMCOREINFO_OFFSET(pglist_data, nr_zones);
+> >  #ifdef CONFIG_FLAT_NODE_MEM_MAP
+> > @@ -1512,6 +1514,8 @@ static int __init crash_save_vmcoreinfo_init(void)
+> > 	VMCOREINFO_NUMBER(PG_lru);
+> > 	VMCOREINFO_NUMBER(PG_private);
+> > 	VMCOREINFO_NUMBER(PG_swapcache);
+> > +	VMCOREINFO_NUMBER(PG_slab);
+> > +	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
 > 
-> I previously tried to achieve the same effect by making sure all
-> growable vmas in a given mm would share the same anon_vma, which we
-> already lock here. However this turned out to be difficult - all of the
-> schemes I tried for refcounting the growable anon_vma and clearing
-> turned out ugly. So, I'm now proposing only the minimal fix.
+> We might change the PageBuddy() implementation at any time, and
+> makedumpfile will break.  Or in this case, become less efficient.
 > 
-> The overhead of taking the page table lock during stack expansion is
-> expected to be small: glibc doesn't use expandable stacks for the
-> threads it creates, so having multiple growable stacks is actually
-> uncommon and we don't expect the page table lock to get bounced
-> between threads.
-> 
-> Signed-off-by: Michel Lespinasse <walken@google.com>
-> 
-> ---
->  mm/mmap.c |   28 ++++++++++++++++++++++++++++
->  1 files changed, 28 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 9ed3a06242a0..2b7d9e78a569 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2069,6 +2069,18 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
->  		if (vma->vm_pgoff + (size >> PAGE_SHIFT) >= vma->vm_pgoff) {
->  			error = acct_stack_growth(vma, size, grow);
->  			if (!error) {
-> +				/*
-> +				 * vma_gap_update() doesn't support concurrent
-> +				 * updates, but we only hold a shared mmap_sem
-> +				 * lock here, so we need to protect against
-> +				 * concurrent vma expansions.
-> +				 * vma_lock_anon_vma() doesn't help here, as
-> +				 * we don't guarantee that all growable vmas
-> +				 * in a mm share the same root anon vma.
-> +				 * So, we reuse mm->page_table_lock to guard
-> +				 * against concurrent vma expansions.
-> +				 */
-> +				spin_lock(&vma->vm_mm->page_table_lock);
->  				anon_vma_interval_tree_pre_update_vma(vma);
->  				vma->vm_end = address;
->  				anon_vma_interval_tree_post_update_vma(vma);
-> @@ -2076,6 +2088,8 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
->  					vma_gap_update(vma->vm_next);
->  				else
->  					vma->vm_mm->highest_vm_end = address;
-> +				spin_unlock(&vma->vm_mm->page_table_lock);
-> +
->  				perf_event_mmap(vma);
->  			}
->  		}
-> @@ -2126,11 +2140,25 @@ int expand_downwards(struct vm_area_struct *vma,
->  		if (grow <= vma->vm_pgoff) {
->  			error = acct_stack_growth(vma, size, grow);
->  			if (!error) {
-> +				/*
-> +				 * vma_gap_update() doesn't support concurrent
-> +				 * updates, but we only hold a shared mmap_sem
-> +				 * lock here, so we need to protect against
-> +				 * concurrent vma expansions.
-> +				 * vma_lock_anon_vma() doesn't help here, as
-> +				 * we don't guarantee that all growable vmas
-> +				 * in a mm share the same root anon vma.
-> +				 * So, we reuse mm->page_table_lock to guard
-> +				 * against concurrent vma expansions.
-> +				 */
-> +				spin_lock(&vma->vm_mm->page_table_lock);
->  				anon_vma_interval_tree_pre_update_vma(vma);
->  				vma->vm_start = address;
->  				vma->vm_pgoff -= grow;
->  				anon_vma_interval_tree_post_update_vma(vma);
->  				vma_gap_update(vma);
-> +				spin_unlock(&vma->vm_mm->page_table_lock);
-> +
->  				perf_event_mmap(vma);
->  			}
->  		}
+> Is there any way in which we can move some of this logic into the
+> kernel?  In this case, add some kernel code which uses PageBuddy() on
+> behalf of makedumpfile, rather than replicating the PageBuddy() logic
+> in userspace?
 
+In last month, Cliff Wickman proposed such idea:
+
+  [PATCH v2] makedumpfile: request the kernel do page scans
+  http://lists.infradead.org/pipermail/kexec/2012-November/007318.html
+
+  [PATCH] scan page tables for makedumpfile, 3.0.13 kernel
+  http://lists.infradead.org/pipermail/kexec/2012-November/007319.html
+
+In his idea, the kernel does page scans to distinguish unnecessary pages
+(free pages and others) and returns the list of PFN's which should be
+excluded for makedumpfile.
+As a result, makedumpfile doesn't need to consider internal kernel
+behavior.
+
+I think it's a good idea from the viewpoint of maintainability and
+performance.
+
+
+Thanks
+Atsushi Kumagai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
