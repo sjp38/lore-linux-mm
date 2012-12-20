@@ -1,46 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 475116B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 06:12:14 -0500 (EST)
-Date: Thu, 20 Dec 2012 11:12:08 +0000
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 7A39E6B0044
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 06:14:10 -0500 (EST)
+Date: Thu, 20 Dec 2012 11:14:05 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o
- congestion
-Message-ID: <20121220111208.GD10819@suse.de>
-References: <50D24AF3.1050809@iskon.hr>
+Subject: Re: [PATCH] sched: numa: ksm: fix oops in task_numa_placment()
+Message-ID: <20121220111405.GE10819@suse.de>
+References: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <50D24AF3.1050809@iskon.hr>
+In-Reply-To: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Dec 20, 2012 at 12:17:07AM +0100, Zlatko Calusic wrote:
-> On a 4GB RAM machine, where Normal zone is much smaller than
-> DMA32 zone, the Normal zone gets fragmented in time. This requires
-> relatively more pressure in balance_pgdat to get the zone above the
-> required watermark. Unfortunately, the congestion_wait() call in there
-> slows it down for a completely wrong reason, expecting that there's
-> a lot of writeback/swapout, even when there's none (much more common).
-> After a few days, when fragmentation progresses, this flawed logic
-> translates to a very high CPU iowait times, even though there's no
-> I/O congestion at all. If THP is enabled, the problem occurs sooner,
-> but I was able to see it even on !THP kernels, just by giving it a bit
-> more time to occur.
+On Wed, Dec 19, 2012 at 05:42:16PM -0800, Hugh Dickins wrote:
+> task_numa_placement() oopsed on NULL p->mm when task_numa_fault()
+> got called in the handling of break_ksm() for ksmd.  That might be a
+> peculiar case, which perhaps KSM could takes steps to avoid? but it's
+> more robust if task_numa_placement() allows for such a possibility.
 > 
-> The proper way to deal with this is to not wait, unless there's
-> congestion. Thanks to Mel Gorman, we already have the function that
-> perfectly fits the job. The patch was tested on a machine which
-> nicely revealed the problem after only 1 day of uptime, and it's been
-> working great.
-> ---
->  mm/vmscan.c |   12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
-> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Acked-by: Mel Gorman <mgorman@suse.de
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
 Mel Gorman
