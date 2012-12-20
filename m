@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id A235A6B006C
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 15:23:41 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so2324528pad.2
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 12:23:40 -0800 (PST)
-Date: Thu, 20 Dec 2012 12:23:38 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/sparse: don't check return value of alloc_bootmem
- calls
-In-Reply-To: <1356030701-16284-30-git-send-email-sasha.levin@oracle.com>
-Message-ID: <alpine.DEB.2.00.1212201218590.29839@chino.kir.corp.google.com>
-References: <1356030701-16284-1-git-send-email-sasha.levin@oracle.com> <1356030701-16284-30-git-send-email-sasha.levin@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id A17A96B0070
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 15:27:48 -0500 (EST)
+Date: Thu, 20 Dec 2012 12:27:46 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: limit mmu_gather batching to fix soft lockups on
+ !CONFIG_PREEMPT
+Message-Id: <20121220122746.72d889fd.akpm@linux-foundation.org>
+In-Reply-To: <20121220124710.GA31912@dhcp22.suse.cz>
+References: <1355847088-1207-1-git-send-email-mhocko@suse.cz>
+	<20121218140219.45867ddd.akpm@linux-foundation.org>
+	<20121218235042.GA10350@dhcp22.suse.cz>
+	<20121218160030.baf723aa.akpm@linux-foundation.org>
+	<20121219150423.GA12888@dhcp22.suse.cz>
+	<20121219131316.7d13fcb1.akpm@linux-foundation.org>
+	<20121220124710.GA31912@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Thu, 20 Dec 2012, Sasha Levin wrote:
+On Thu, 20 Dec 2012 13:47:10 +0100
+Michal Hocko <mhocko@suse.cz> wrote:
 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 6b5fb76..ae64d6e 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -403,15 +403,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
->  	size = PAGE_ALIGN(size);
->  	map = __alloc_bootmem_node_high(NODE_DATA(nodeid), size * map_count,
->  					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
-> -	if (map) {
-> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> -			if (!present_section_nr(pnum))
-> -				continue;
-> -			map_map[pnum] = map;
-> -			map += size;
-> -		}
-> -		return;
-> +	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
-> +		if (!present_section_nr(pnum))
-> +			continue;
-> +		map_map[pnum] = map;
-> +		map += size;
->  	}
-> +	return;
->  
->  	/* fallback */
->  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> > > + */
+> > > +#if defined(CONFIG_PREEMPT_COUNT)
+> > > +#define MAX_GATHER_BATCH_COUNT	(UINT_MAX)
+> > > +#else
+> > > +#define MAX_GATHER_BATCH_COUNT	(((1UL<<(30-PAGE_SHIFT))/MAX_GATHER_BATCH))
+> > 
+> > Geeze.  I spent waaaaay too long staring at that expression trying to
+> > work out "how many pages is in a batch" and gave up.
+> > 
+> > Realistically, I don't think we need to worry about CONFIG_PREEMPT here
+> > - if we just limit the thing to, say, 64k pages per batch then that
+> > will be OK for preemptible and non-preemptible kernels. 
+> 
+> I wanted the fix to be as non-intrusive as possible so I didn't want to
+> touch PREEMPT (which is default in many configs) at all. I am OK to a
+> single limit of course.
 
-That's not true when slab_is_available() and why would you possibly add a 
-return statement right before fallback code in such cases?
+non-intrusive is nice, but best-implementation is nicer.
+
+> > The performance difference between "64k" and "infinite" will be
+> > miniscule and unmeasurable.
+> > 
+> > Also, the batch count should be independent of PAGE_SIZE.  Because
+> > PAGE_SIZE can vary by a factor of 16 and you don't want to fix the
+> > problem on 4k page size but leave it broken on 64k page size.
+> 
+> MAX_GATHER_BATCH depends on the page size so I didn't want to differ
+> without a good reason.
+
+There's a good reason!  PAGE_SIZE can vary by a factor of 16, and if
+this results in the unpreemptible-CPU-effort varying by a factor of 16
+then that's bad, and we should change things so the
+unpreemptible-CPU-effort is independent of PAGE_SIZE.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
