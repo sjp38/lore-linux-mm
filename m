@@ -1,81 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id E2A936B0070
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 20:34:52 -0500 (EST)
-Date: Thu, 20 Dec 2012 10:34:47 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC v4 0/3] Support volatile for anonymous range
-Message-ID: <20121220013447.GA2686@blaptop>
-References: <1355813274-571-1-git-send-email-minchan@kernel.org>
- <50D0B5A2.2010707@fb.com>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 8ED126B005D
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 20:42:19 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id wy7so1596542pbc.19
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 17:42:18 -0800 (PST)
+Date: Wed, 19 Dec 2012 17:42:16 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] sched: numa: ksm: fix oops in task_numa_placment()
+Message-ID: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50D0B5A2.2010707@fb.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arun Sharma <asharma@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Sasha Levin <sasha.levin@oracle.com>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Dec 18, 2012 at 10:27:46AM -0800, Arun Sharma wrote:
-> On 12/17/12 10:47 PM, Minchan Kim wrote:
-> 
-> >I hope more inputs from user-space allocator people and test patch
-> >with their allocator because it might need design change of arena
-> >management for getting real vaule.
-> 
-> jemalloc knows how to handle MADV_FREE on platforms that support it.
-> This looks similar (we'll need a SIGBUS handler that does the right
-> thing = zero the page + mark it as non-volatile in the common case).
+task_numa_placement() oopsed on NULL p->mm when task_numa_fault()
+got called in the handling of break_ksm() for ksmd.  That might be a
+peculiar case, which perhaps KSM could takes steps to avoid? but it's
+more robust if task_numa_placement() allows for such a possibility.
 
-Don't work because it's too late to mark it as non-volatile in signal
-handler in case of malloc.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-For example,
-free(P1-P4) -> mvolatile(P1-P4) -> VM discard(P3) -> alloc(P1-P4) ->
-use P1 -> VM discard(P1) -> use P3 -> SIGBUS -> mark nonvolatile ->
-lost P1.
+ kernel/sched/fair.c |    5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-So, we should call mnovolatile before giving the free space to user.
-
-> 
-> All of this of course assumes that apps madvise the kernel through
-> APIs exposed by the malloc implementation - not via a raw syscall.
-> 
-> In other words, some new user space code needs to be written to test
-
-Agreed. I might want to design new allocator with this system calls if
-existing allocators cannot use this system calls efficiently because it
-might need allocator's design change. MADV_FREE/MADV_DONTNEED isn't cheap
-due to enumerating ptes/page descriptors in that range to mark something
-so I guess allocator avoids frequent calling of the such advise system call
-and even if they call it, they want to call the big range as batch.
-Just my imagine.
-
-But mvolatile/mnovolatile is cheaper so you can call it more frequently
-with smaller range so VM could have easy-reclaimable pages easily.
-Another benefit of the mvolatile is it can change the behavior when memory
-pressure is severe where it can zap all pages like DONTNEED so it could
-work very flexible.
-The downside of that approach is that if we call it with small range,
-it can increase the number of VMA so we might tune point for VMA size.
-
-> this out fully. Sounds feasible though.
-
-Thanks!
-
-> 
->  -Arun
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+--- 3.7+git/kernel/sched/fair.c	2012-12-16 16:35:08.724441527 -0800
++++ linux/kernel/sched/fair.c	2012-12-18 21:37:24.727964195 -0800
+@@ -793,8 +793,11 @@ unsigned int sysctl_numa_balancing_scan_
+ 
+ static void task_numa_placement(struct task_struct *p)
+ {
+-	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
++	int seq;
+ 
++	if (!p->mm)	/* for example, ksmd faulting in a user's mm */
++		return;
++	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
+ 	if (p->numa_scan_seq == seq)
+ 		return;
+ 	p->numa_scan_seq = seq;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
