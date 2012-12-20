@@ -1,44 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 96AA16B0068
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 14:44:01 -0500 (EST)
-Message-ID: <1356032637.24462.4.camel@buesod1.americas.hpqcorp.net>
-Subject: [PATCH] Documentation: ABI: remove testing/sysfs-devices-node
-From: Davidlohr Bueso <davidlohr.bueso@hp.com>
-Date: Thu, 20 Dec 2012 11:43:57 -0800
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id A235A6B006C
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 15:23:41 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id fb10so2324528pad.2
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 12:23:40 -0800 (PST)
+Date: Thu, 20 Dec 2012 12:23:38 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/sparse: don't check return value of alloc_bootmem
+ calls
+In-Reply-To: <1356030701-16284-30-git-send-email-sasha.levin@oracle.com>
+Message-ID: <alpine.DEB.2.00.1212201218590.29839@chino.kir.corp.google.com>
+References: <1356030701-16284-1-git-send-email-sasha.levin@oracle.com> <1356030701-16284-30-git-send-email-sasha.levin@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Mel Gorman <mel@csn.ul.ie>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This file is already documented in the stable ABI (commit 5bbe1ec1).
+On Thu, 20 Dec 2012, Sasha Levin wrote:
 
-Signed-off-by: Davidlohr Bueso <davidlohr.bueso@hp.com>
----
- Documentation/ABI/testing/sysfs-devices-node | 7 -------
- 1 file changed, 7 deletions(-)
- delete mode 100644 Documentation/ABI/testing/sysfs-devices-node
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 6b5fb76..ae64d6e 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -403,15 +403,13 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>  	size = PAGE_ALIGN(size);
+>  	map = __alloc_bootmem_node_high(NODE_DATA(nodeid), size * map_count,
+>  					 PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+> -	if (map) {
+> -		for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> -			if (!present_section_nr(pnum))
+> -				continue;
+> -			map_map[pnum] = map;
+> -			map += size;
+> -		}
+> -		return;
+> +	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
+> +		if (!present_section_nr(pnum))
+> +			continue;
+> +		map_map[pnum] = map;
+> +		map += size;
+>  	}
+> +	return;
+>  
+>  	/* fallback */
+>  	for (pnum = pnum_begin; pnum < pnum_end; pnum++) {
 
-diff --git a/Documentation/ABI/testing/sysfs-devices-node b/Documentation/ABI/testing/sysfs-devices-node
-deleted file mode 100644
-index 453a210..0000000
---- a/Documentation/ABI/testing/sysfs-devices-node
-+++ /dev/null
-@@ -1,7 +0,0 @@
--What:		/sys/devices/system/node/nodeX/compact
--Date:		February 2010
--Contact:	Mel Gorman <mel@csn.ul.ie>
--Description:
--		When this file is written to, all memory within that node
--		will be compacted. When it completes, memory will be freed
--		into blocks which have as many contiguous pages as possible
--- 
-1.7.11.7
-
-
+That's not true when slab_is_available() and why would you possibly add a 
+return statement right before fallback code in such cases?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
