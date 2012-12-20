@@ -1,37 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id B2D506B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 06:06:39 -0500 (EST)
-Message-ID: <50D2F142.401@parallels.com>
-Date: Thu, 20 Dec 2012 15:06:42 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id 475116B0044
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 06:12:14 -0500 (EST)
+Date: Thu, 20 Dec 2012 11:12:08 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o
+ congestion
+Message-ID: <20121220111208.GD10819@suse.de>
+References: <50D24AF3.1050809@iskon.hr>
 MIME-Version: 1.0
-Subject: Re: [PATCH 05/19] shrinker: convert superblock shrinkers to new API
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com> <1354058086-27937-6-git-send-email-david@fromorbit.com>
-In-Reply-To: <1354058086-27937-6-git-send-email-david@fromorbit.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <50D24AF3.1050809@iskon.hr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 11/28/2012 03:14 AM, Dave Chinner wrote:
-> +static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc)
-> +{
-> +	struct super_block *sb;
-> +	long	total_objects = 0;
-> +
-> +	sb = container_of(shrink, struct super_block, s_shrink);
-> +
-> +	if (!grab_super_passive(sb))
-> +		return -1;
-> +
+On Thu, Dec 20, 2012 at 12:17:07AM +0100, Zlatko Calusic wrote:
+> On a 4GB RAM machine, where Normal zone is much smaller than
+> DMA32 zone, the Normal zone gets fragmented in time. This requires
+> relatively more pressure in balance_pgdat to get the zone above the
+> required watermark. Unfortunately, the congestion_wait() call in there
+> slows it down for a completely wrong reason, expecting that there's
+> a lot of writeback/swapout, even when there's none (much more common).
+> After a few days, when fragmentation progresses, this flawed logic
+> translates to a very high CPU iowait times, even though there's no
+> I/O congestion at all. If THP is enabled, the problem occurs sooner,
+> but I was able to see it even on !THP kernels, just by giving it a bit
+> more time to occur.
+> 
+> The proper way to deal with this is to not wait, unless there's
+> congestion. Thanks to Mel Gorman, we already have the function that
+> perfectly fits the job. The patch was tested on a machine which
+> nicely revealed the problem after only 1 day of uptime, and it's been
+> working great.
+> ---
+>  mm/vmscan.c |   12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+> 
 
+Acked-by: Mel Gorman <mgorman@suse.de
 
-You're missing the GFP_FS check here. This leads to us doing all the
-counting only to find out later, in the scanner, that we won't be able
-to free it. Better exit early.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
