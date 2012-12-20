@@ -1,53 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id D9D536B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 01:21:43 -0500 (EST)
-Received: by mail-da0-f48.google.com with SMTP id k18so1329782dae.35
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 22:21:43 -0800 (PST)
-Subject: Re: resend--[PATCH]  improve read ahead in kernel
-From: Simon Jeons <simon.jeons@gmail.com>
-In-Reply-To: <20121216021508.GA3629@dcvr.yhbt.net>
-References: <50C4B4E7.60601@intel.com> <50C6AB45.606@intel.com>
-	 <20121216021508.GA3629@dcvr.yhbt.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 20 Dec 2012 01:20:35 -0500
-Message-ID: <1355984435.1374.3.camel@kernel-VirtualBox>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id F1CAE6B0044
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 02:07:01 -0500 (EST)
+Date: Thu, 20 Dec 2012 18:06:57 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] super: fix calculation of shrinkable objects for
+ small numbers
+Message-ID: <20121220070657.GV15182@dastard>
+References: <1355906418-3603-1-git-send-email-glommer@parallels.com>
+ <1355906418-3603-2-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1355906418-3603-2-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
-Cc: xtu4 <xiaobing.tu@intel.com>, linux-kernel@vger.kernel.org, linux-tip-commits@vger.kernel.org, linux-mm@kvack.org, di.zhang@intel.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Sun, 2012-12-16 at 02:15 +0000, Eric Wong wrote:
-> xtu4 <xiaobing.tu@intel.com> wrote:
-> > resend it, due to format error
-> > 
-> > Subject: [PATCH] when system in low memory scenario, imaging there is a mp3
-> >  play, ora video play, we need to read mp3 or video file
-> >  from memory to page cache,but when system lack of memory,
-> >  page cache of mp3 or video file will be reclaimed.once read
-> >  in memory, then reclaimed, it will cause audio or video
-> >  glitch,and it will increase the io operation at the same
-> >  time.
+On Wed, Dec 19, 2012 at 12:40:17PM +0400, Glauber Costa wrote:
+> The sysctl knob sysctl_vfs_cache_pressure is used to determine which
+> percentage of the shrinkable objects in our cache we should actively try
+> to shrink.
 > 
-> To me, this basically describes how POSIX_FADV_NOREUSE should work.
-
-Hi Eric,
-
-But why fadvise POSIX_FADV_NOREUSE almost do nothing? Why not set some
-flag or other things for these use once data?
-
-> I would like to have this ability via fadvise (and not CONFIG_).
+> It works great in situations in which we have many objects (at least
+> more than 100), because the aproximation errors will be negligible. But
+> if this is not the case, specially when total_objects < 100, we may end
+> up concluding that we have no objects at all (total / 100 = 0,  if total
+> < 100).
 > 
-> Also, I think your patch has too many #ifdefs to be accepted.
+> This is certainly not the biggest killer in the world, but may matter in
+> very low kernel memory situations.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Dave Chinner <david@fromorbit.com>
+> CC: "Theodore Ts'o" <tytso@mit.edu>
+> CC: Al Viro <viro@zeniv.linux.org.uk>
+> ---
+>  fs/super.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/fs/super.c b/fs/super.c
+> index 12f1237..660552c 100644
+> --- a/fs/super.c
+> +++ b/fs/super.c
+> @@ -104,7 +104,7 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+>  				sb->s_nr_inodes_unused + fs_objects;
+>  	}
+>  
+> -	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
+> +	total_objects = mult_frac(total_objects, sysctl_vfs_cache_pressure, 100);
+>  	drop_super(sb);
+>  	return total_objects;
 
+Hi Glauber,
+
+sysctl_vfs_cache_pressure all over the place with exactly the same
+calculation. Can you fix all of them in one pass?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
