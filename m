@@ -1,233 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 8BA256B0044
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 19:22:35 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id uo1so1563789pbc.31
-        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 16:22:34 -0800 (PST)
-Date: Wed, 19 Dec 2012 16:21:54 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm, ksm: NULL ptr deref in unstable_tree_search_insert
-In-Reply-To: <alpine.LNX.2.00.1212190929530.7767@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1212191517150.21603@eggly.anvils>
-References: <50D1158F.5070905@oracle.com> <alpine.LNX.2.00.1212181728400.1091@eggly.anvils> <20121219121647.GB4381@thinkpad-work.redhat.com> <alpine.LNX.2.00.1212190929530.7767@eggly.anvils>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id 6328B6B002B
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 19:57:07 -0500 (EST)
+Date: Thu, 20 Dec 2012 09:57:04 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: fix zone_watermark_ok_safe() accounting of isolated
+ pages
+Message-ID: <20121220005704.GA2556@blaptop>
+References: <201212181018.41753.b.zolnierkie@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201212181018.41753.b.zolnierkie@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Hugh Dickins <hughd@google.com>, Kyungmin Park <kyungmin.park@samsung.com>, Tomasz Stanislawski <t.stanislaws@samsung.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Aaditya Kumar <aaditya.kumar.30@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 19 Dec 2012, Hugh Dickins wrote:
-> On Wed, 19 Dec 2012, Petr Holasek wrote:
-> > > 
-> > > For the moment, you're safer not to run KSM: configure it out or don't
-> > > set it to run.  Fixes to follow later, I'll try to remember to Cc you.
+Hi Bart,
+
+On Tue, Dec 18, 2012 at 10:18:41AM +0100, Bartlomiej Zolnierkiewicz wrote:
+> From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Subject: [PATCH] mm: fix zone_watermark_ok_safe() accounting of isolated pages
 > 
-> Sadly I couldn't send out fixes yesterday, because my testing then
-> met another more subtle problem, that I've still not yet resolved.
-> 
-> > I've also tried fuzzing with trinity inside of kvm guest when tested KSM
-> > patch, but applied on top of 3.7-rc8, but didn't trigger that oops. So
-> > going to do the same testing on linux-next.
-> 
-> I haven't tried linux-next myself, it being in a transitional state
-> until 3.8-rc1.  I've been testing on Linus's git from last weekend
-> (head at a4f1de176614f634c367e5994a7bcc428c940df0 to be precise),
-> plus your patch, plus my fixes.
-> 
-> > 
-> > Hugh, does it seem like bug in unstable_tree_search_insert() you mentioned
-> > in yesterday email of something else?
-> 
-> Yes, Sasha's is exactly the one I got earlier: hitting in
-> get_mergeable_page() due to bug in unstable_tree_search_insert().
-> 
-> From your next mail, I see you've started looking into it; so I'd
-> better show what I have at the moment, although I do hate posting
-> incomplete known-buggy patches: this on top of git + your patch.
-> 
-> The kernel/sched/fair.c part to go to Mel and 3.8-rc1 when I've a
-> moment to separate it out.
+> In kernel v3.6 commit 702d1a6e0766d45642c934444fd41f658d251305
+> ("memory-hotplug: fix kswapd looping forever problem") added
+> isolated pageblocks counter (nr_pageblock_isolate in struct zone)
+> and used it to adjust free pages counter in zone_watermark_ok_safe()
+> to prevent kswapd looping forever problem.  In kernel v3.7 commit
+> 2139cbe627b8910ded55148f87ee10f7485408ed ("cma: fix counting of
+> isolated pages") fixed accounting of isolated pages in global free
+> pages counter.  It made previous zone_watermark_ok_safe() fix
+> unnecessary and potentially harmful (cause now isolated pages may
+> be accounted twice making free pages counter incorrect).  This
+> patch removes special isolated pageblocks counter altogether which
+> fixes zone_watermark_ok_safe() free pages check.
 
-I'd better accelerate on that.
+Hmm, I didn't care about your 2139cbe at that time. Sorry.
+It easily added new branch into one of hotpath, which was what I really
+want to avoid with 702d1a6e.
 
-> 
-> The CONFIG_NUMA section in stable_tree_append() I added late
-> last night, but it's not enough to fix the issue I'm still seeing:
-> merge_across_nodes 0 and 1 cases are stable, but switching between
-> them can bring pages_shared down to 0 but leave something behind
-> in the stable_tree.  I suspect it's a wrong-nid issue, but I've
-> not yet tracked it down with the BUG_ONs I've been adding (not
-> included below).
+Sigh, it's very unfair, sometime someone really have a concern about it
+so many people really have given up adding a branch into hotpath.
+I think you're a lucky guy, any reviewer didn't complain about it and
+even akpm merged it without any Reviewed-by/Acked-by.
 
-I half understand this now.  The lifetime of the stable_nodes is
-different from that of the rmap_items hanging off them: a stable_node
-has to stay around until the PageKsm page pointing to it has been freed;
-which is why remove_rmap_item_from_tree() may bring ksm_pages_shared
-down to 0, but even so does not call remove_node_from_stable_tree().
+I know some CMA patches already depends on it and memory-hotplug might be
+so it seems we are far from returning to the old.
 
-That means that merge_across_nodes_store() can find ksm_pages_shared
-0 as it wishes, but there still be nodes in the stable_tree(s):
-including nodes which are wrongly placed once ksm_merge_across_nodes
-switches behaviour - nodes which will end up causing oopses (e.g.
-because kpfn belongs to NUMAnode 1 but it's left in tree 0).
+Let's think about it again.
 
-I say half understand, because to bring ksm_pages_shared down to 0,
-of course I've been setting run to 2 (KSM_RUN_UNMERGE): that has
-succeeded, so why has it not freed all the PageKsm pages?  I did
-experiment this morning with extra code in merge_across_nodes_store()
-to run get_ksm_page() on every stable_node remaining, but that was
-not enough to free these nodes.
+MIGRATE_ISOLATE type is used in only CONFIG_MEMORY_ISOLATION(ex, CMA,
+hotplug, memory-failure). They are not common configs so it doesn't make
+sense to add the overhead casused by them to others although you might
+think it's trivial. They should own the overead.
 
-Ah, perhaps it's due to pages queued up on a pagevec, which need to
-be drained: I hadn't thought of that until writing now, I'll try it
-out tonight.  Or perhaps we've messed up the ordering versus fork
-(I am testing under concurrent load).
+1. Couldn't we consider nr_zone_isolate_freepages in CMA watermark checking path
+   with removing calling of nr_zone_isolate_freepages in zone_watermark_ok_safe
+   instead of adding a new general branch?
 
-Whatever it is, I think the solution to this would best be a separate
-patch on top of yours: it is only a problem when changing the sense of
-merge_across_nodes after running the other way, which is something few
-people will often do, but something which ought not to be prohibited
-(it would be lame for people to have to reboot when experimenting with
-which way they want to set it), and ought not to cause oopses.
+@@ -1626,6 +1630,9 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long 
+        if (!(alloc_flags & ALLOC_CMA))
+                free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+ #endif
++#ifdef CONFIG_MEMORY_ISOLATION
++               free_pages -= nr_zone_isolate_freepages();
++#endif
+        if (free_pages <= min + lowmem_reserve)
+                return false;
+        for (o = 0; o < order; o++) {
 
-The answer is going to need a separate explanation.  I expect it will
-involve a combination of something to improve the freeing rate (draining
-pagevecs if that is effective), the loop to free residual stable_nodes,
-and an -EBUSY for safety if those measures fail.  I'll experiment over
-the coming days, and send in a patch once I'm satisfied.
 
-I'm glad to see that akpm has now dropped your v5 patch from his mm tree;
-but if you'd like to send him a v6 merging in my ksm.c mods from below
-(ask if you need any explanations), go ahead - I think it's okay in
-mmotm/next for a few days without the further fixup, but does need
-further fixup before it reaches Linus (for 3.9 I presume).
+2. Another approach. Let's avoid a branch in free_one_page if we don't enable
+   CONFIG_MEMORY_ISOLATION? It's simpler/less-churning/more accurate/removing
+   unnecessary codes compared to 1.
 
-Hugh
+index 7e208f0..35c0e82 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -683,8 +683,12 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+        zone->pages_scanned = 0;
+ 
+        __free_one_page(page, zone, order, migratetype);
++#ifdef CONFIG_MEMORY_ISOLATION
+        if (unlikely(migratetype != MIGRATE_ISOLATE))
+                __mod_zone_freepage_state(zone, 1 << order, migratetype);
++#else
++       __mod_zone_freepage_state(zone, 1 << order, migratetype);
++#endif
+        spin_unlock(&zone->lock);
+ }
+
+So I will
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+Then, will send 2 as follow-up patch soon if anyone doesn't oppose.
+
+Thanks.
 
 > 
-> Removing the KSM_RUN_MERGE test: unimportant, but so far as I could
-> see it should be unnecessary, and if it is necessary, then I think
-> we would need to check for another state too.
+> Reported-by: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Aaditya Kumar <aaditya.kumar.30@gmail.com>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>  include/linux/mmzone.h |    8 --------
+>  mm/page_alloc.c        |   27 ---------------------------
+>  mm/page_isolation.c    |   26 ++------------------------
+>  3 files changed, 2 insertions(+), 59 deletions(-)
 > 
-> Hastily back to debugging,
-> Hugh
-> 
-> --- 3.7+git+petr/kernel/sched/fair.c	2012-12-16 16:35:08.724441527 -0800
-> +++ linux/kernel/sched/fair.c	2012-12-18 21:37:24.727964195 -0800
-> @@ -793,8 +793,11 @@ unsigned int sysctl_numa_balancing_scan_
->  
->  static void task_numa_placement(struct task_struct *p)
->  {
-> -	int seq = ACCESS_ONCE(p->mm->numa_scan_seq);
-> +	int seq;
->  
-> +	if (!p->mm)	/* for example, ksmd faulting in a user's mm */
-> +		return;
-> +	seq = ACCESS_ONCE(p->mm->numa_scan_seq);
->  	if (p->numa_scan_seq == seq)
->  		return;
->  	p->numa_scan_seq = seq;
-> --- 3.7+git+petr/mm/ksm.c	2012-12-18 12:15:04.972032321 -0800
-> +++ linux/mm/ksm.c	2012-12-19 09:21:12.004004777 -0800
-> @@ -1151,7 +1151,6 @@ struct rmap_item *unstable_tree_search_i
->  
->  	nid = get_kpfn_nid(page_to_pfn(page));
->  	root = &root_unstable_tree[nid];
-> -
->  	new = &root->rb_node;
->  
->  	while (*new) {
-> @@ -1174,22 +1173,16 @@ struct rmap_item *unstable_tree_search_i
->  		}
->  
->  		/*
-> -		 * When there isn't same page location, don't do anything.
-> -		 * If tree_page was migrated previously, it will be flushed
-> -		 * out and put into right unstable tree next time. If the
-> -		 * page was migrated in the meantime, it will be ignored
-> -		 * this round. When both pages were migrated to the same
-> -		 * node, ignore them too.
-> +		 * If tree_page has been migrated to another NUMA node, it
-> +		 * will be flushed out and put into the right unstable tree
-> +		 * next time: only merge with it if merge_across_nodes.
->  		 * Just notice, we don't have similar problem for PageKsm
-> -		 * because their migration is disabled now. (62b61f611e) */
-> -
-> -#ifdef CONFIG_NUMA
-> -		if (page_to_nid(page) != page_to_nid(tree_page) ||
-> -			tree_rmap_item->nid != page_to_nid(tree_page)) {
-> +		 * because their migration is disabled now. (62b61f611e)
-> +		 */
-> +		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
->  			put_page(tree_page);
->  			return NULL;
->  		}
+> Index: b/include/linux/mmzone.h
+> ===================================================================
+> --- a/include/linux/mmzone.h	2012-12-17 11:49:25.067058393 +0100
+> +++ b/include/linux/mmzone.h	2012-12-17 11:49:34.507058390 +0100
+> @@ -503,14 +503,6 @@ struct zone {
+>  	 * rarely used fields:
+>  	 */
+>  	const char		*name;
+> -#ifdef CONFIG_MEMORY_ISOLATION
+> -	/*
+> -	 * the number of MIGRATE_ISOLATE *pageblock*.
+> -	 * We need this for free page counting. Look at zone_watermark_ok_safe.
+> -	 * It's protected by zone->lock
+> -	 */
+> -	int		nr_pageblock_isolate;
 > -#endif
+>  } ____cacheline_internodealigned_in_smp;
 >  
->  		ret = memcmp_pages(page, tree_page);
+>  typedef enum {
+> Index: b/mm/page_alloc.c
+> ===================================================================
+> --- a/mm/page_alloc.c	2012-12-17 11:45:13.019058423 +0100
+> +++ b/mm/page_alloc.c	2012-12-17 11:46:48.663058410 +0100
+> @@ -221,11 +221,6 @@ EXPORT_SYMBOL(nr_online_nodes);
 >  
-> @@ -1209,7 +1202,7 @@ struct rmap_item *unstable_tree_search_i
->  	rmap_item->address |= UNSTABLE_FLAG;
->  	rmap_item->address |= (ksm_scan.seqnr & SEQNR_MASK);
->  #ifdef CONFIG_NUMA
-> -	rmap_item->nid = page_to_nid(page);
-> +	rmap_item->nid = nid;
->  #endif
->  	rb_link_node(&rmap_item->node, parent, new);
->  	rb_insert_color(&rmap_item->node, root);
-> @@ -1226,6 +1219,13 @@ struct rmap_item *unstable_tree_search_i
->  static void stable_tree_append(struct rmap_item *rmap_item,
->  			       struct stable_node *stable_node)
+>  int page_group_by_mobility_disabled __read_mostly;
+>  
+> -/*
+> - * NOTE:
+> - * Don't use set_pageblock_migratetype(page, MIGRATE_ISOLATE) directly.
+> - * Instead, use {un}set_pageblock_isolate.
+> - */
+>  void set_pageblock_migratetype(struct page *page, int migratetype)
 >  {
-> +#ifdef CONFIG_NUMA
-> +	/*
-> +	 * Usually rmap_item->nid is already set correctly,
-> +	 * but it may be wrong after switching merge_across_nodes.
-> +	 */
-> +	rmap_item->nid = get_kpfn_nid(stable_node->kpfn);
-> +#endif
->  	rmap_item->head = stable_node;
->  	rmap_item->address |= STABLE_FLAG;
->  	hlist_add_head(&rmap_item->hlist, &stable_node->hlist);
-> @@ -1852,7 +1852,7 @@ static struct stable_node *ksm_check_sta
->  	struct rb_node *node;
->  	int nid;
 >  
-> -	for (nid = 0; nid < MAX_NUMNODES; nid++)
-> +	for (nid = 0; nid < nr_node_ids; nid++)
->  		for (node = rb_first(&root_stable_tree[nid]); node;
->  				node = rb_next(node)) {
->  			struct stable_node *stable_node;
-> @@ -2030,22 +2030,15 @@ static ssize_t merge_across_nodes_store(
->  		return -EINVAL;
->  
->  	mutex_lock(&ksm_thread_mutex);
-> -	if (ksm_run & KSM_RUN_MERGE) {
-> -		err = -EBUSY;
-> -	} else {
-> -		if (ksm_merge_across_nodes != knob) {
-> -			if (ksm_pages_shared > 0)
-> -				err = -EBUSY;
-> -			else
-> -				ksm_merge_across_nodes = knob;
-> -		}
-> +	if (ksm_merge_across_nodes != knob) {
-> +		if (ksm_pages_shared)
-> +			err = -EBUSY;
-> +		else
-> +			ksm_merge_across_nodes = knob;
->  	}
-> -
-> -	if (err)
-> -		count = err;
->  	mutex_unlock(&ksm_thread_mutex);
->  
-> -	return count;
-> +	return err ? err : count;
+> @@ -1654,20 +1649,6 @@ static bool __zone_watermark_ok(struct z
+>  	return true;
 >  }
->  KSM_ATTR(merge_across_nodes);
->  #endif
+>  
+> -#ifdef CONFIG_MEMORY_ISOLATION
+> -static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
+> -{
+> -	if (unlikely(zone->nr_pageblock_isolate))
+> -		return zone->nr_pageblock_isolate * pageblock_nr_pages;
+> -	return 0;
+> -}
+> -#else
+> -static inline unsigned long nr_zone_isolate_freepages(struct zone *zone)
+> -{
+> -	return 0;
+> -}
+> -#endif
+> -
+>  bool zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>  		      int classzone_idx, int alloc_flags)
+>  {
+> @@ -1683,14 +1664,6 @@ bool zone_watermark_ok_safe(struct zone 
+>  	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
+>  		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
+>  
+> -	/*
+> -	 * If the zone has MIGRATE_ISOLATE type free pages, we should consider
+> -	 * it.  nr_zone_isolate_freepages is never accurate so kswapd might not
+> -	 * sleep although it could do so.  But this is more desirable for memory
+> -	 * hotplug than sleeping which can cause a livelock in the direct
+> -	 * reclaim path.
+> -	 */
+> -	free_pages -= nr_zone_isolate_freepages(z);
+>  	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+>  								free_pages);
+>  }
+> Index: b/mm/page_isolation.c
+> ===================================================================
+> --- a/mm/page_isolation.c	2012-12-17 11:43:41.135058434 +0100
+> +++ b/mm/page_isolation.c	2012-12-17 11:45:00.995058424 +0100
+> @@ -8,28 +8,6 @@
+>  #include <linux/memory.h>
+>  #include "internal.h"
+>  
+> -/* called while holding zone->lock */
+> -static void set_pageblock_isolate(struct page *page)
+> -{
+> -	if (get_pageblock_migratetype(page) == MIGRATE_ISOLATE)
+> -		return;
+> -
+> -	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> -	page_zone(page)->nr_pageblock_isolate++;
+> -}
+> -
+> -/* called while holding zone->lock */
+> -static void restore_pageblock_isolate(struct page *page, int migratetype)
+> -{
+> -	struct zone *zone = page_zone(page);
+> -	if (WARN_ON(get_pageblock_migratetype(page) != MIGRATE_ISOLATE))
+> -		return;
+> -
+> -	BUG_ON(zone->nr_pageblock_isolate <= 0);
+> -	set_pageblock_migratetype(page, migratetype);
+> -	zone->nr_pageblock_isolate--;
+> -}
+> -
+>  int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
+>  {
+>  	struct zone *zone;
+> @@ -80,7 +58,7 @@ out:
+>  		unsigned long nr_pages;
+>  		int migratetype = get_pageblock_migratetype(page);
+>  
+> -		set_pageblock_isolate(page);
+> +		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+>  		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
+>  
+>  		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
+> @@ -103,7 +81,7 @@ void unset_migratetype_isolate(struct pa
+>  		goto out;
+>  	nr_pages = move_freepages_block(zone, page, migratetype);
+>  	__mod_zone_freepage_state(zone, nr_pages, migratetype);
+> -	restore_pageblock_isolate(page, migratetype);
+> +	set_pageblock_migratetype(page, migratetype);
+>  out:
+>  	spin_unlock_irqrestore(&zone->lock, flags);
+>  }
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
