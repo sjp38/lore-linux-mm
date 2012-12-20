@@ -1,107 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 141456B0044
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 10:13:42 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id dr1so954172wgb.1
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 07:13:40 -0800 (PST)
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id B9B386B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 10:49:53 -0500 (EST)
+Received: by mail-we0-f179.google.com with SMTP id r6so1648331wey.24
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 07:49:52 -0800 (PST)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] CMA: call to putback_lru_pages
-In-Reply-To: <20121219152736.1daa3d58.akpm@linux-foundation.org>
-References: <1355779504-30798-1-git-send-email-srinivas.pandruvada@linux.intel.com> <xa1tlicwiagh.fsf@mina86.com> <20121219152736.1daa3d58.akpm@linux-foundation.org>
-Date: Thu, 20 Dec 2012 16:13:33 +0100
-Message-ID: <xa1tobhohi3m.fsf@mina86.com>
+Subject: Re: [PATCH] mm: compare MIGRATE_ISOLATE selectively
+In-Reply-To: <1355981152-2505-1-git-send-email-minchan@kernel.org>
+References: <1355981152-2505-1-git-send-email-minchan@kernel.org>
+Date: Thu, 20 Dec 2012 16:49:44 +0100
+Message-ID: <xa1tfw30hgfb.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 --=-=-=
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-On Thu, Dec 20 2012, Andrew Morton <akpm@linux-foundation.org> wrote:
-> __alloc_contig_migrate_range() is a bit twisty.  How does this look?
->
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm/page_alloc.c:__alloc_contig_migrate_range(): cleanup
->
-> - `ret' is always zero in the we-timed-out case
-> - remove a test-n-branch in the wrapup code
->
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->
->  mm/page_alloc.c |    7 ++++---
->  1 file changed, 4 insertions(+), 3 deletions(-)
->
-> diff -puN mm/page_alloc.c~mm-page_allocc-__alloc_contig_migrate_range-cle=
-anup mm/page_alloc.c
-> --- a/mm/page_alloc.c~mm-page_allocc-__alloc_contig_migrate_range-cleanup
-> +++ a/mm/page_alloc.c
-> @@ -5804,7 +5804,6 @@ static int __alloc_contig_migrate_range(
->  			}
->  			tries =3D 0;
->  		} else if (++tries =3D=3D 5) {
-> -			ret =3D ret < 0 ? ret : -EBUSY;
-
-I don't really follow this change.
-
-If migration for a page failed, migrate_pages() will return a positive
-value, which _alloc_contig_migrate_range() must interpret as a failure,
-but with this change, it is possible to exit the loop after migration of
-some pages failed and with ret > 0 which will be interpret as success.
-
-On top of that, because ret > 0, =E2=80=9Cif (ret < 0) putback_movable_page=
-s()=E2=80=9D
-won't be executed thus pages from cc->migratepages will leak.  I must be
-missing something here...
-
->  			break;
->  		}
+On Thu, Dec 20 2012, Minchan Kim wrote:
+> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolatio=
+n.h
+> index a92061e..4ada4ef 100644
+> --- a/include/linux/page-isolation.h
+> +++ b/include/linux/page-isolation.h
+> @@ -1,6 +1,25 @@
+>  #ifndef __LINUX_PAGEISOLATION_H
+>  #define __LINUX_PAGEISOLATION_H
 >=20=20
-> @@ -5817,9 +5816,11 @@ static int __alloc_contig_migrate_range(
->  				    0, false, MIGRATE_SYNC,
->  				    MR_CMA);
->  	}
-> -	if (ret < 0)
-> +	if (ret < 0) {
->  		putback_movable_pages(&cc->migratepages);
-> -	return ret > 0 ? 0 : ret;
-> +		return ret;
-> +	}
-> +	return 0;
->  }
+> +#ifdef CONFIG_MEMORY_ISOLATION
+> +static inline bool page_isolated_pageblock(struct page *page)
+> +{
+> +	return get_pageblock_migratetype(page) =3D=3D MIGRATE_ISOLATE;
+> +}
+> +static inline bool mt_isolated_pageblock(int migratetype)
+> +{
+> +	return migratetype =3D=3D MIGRATE_ISOLATE;
+> +}
 
-This second hunk looks right.
+Perhaps =E2=80=9Cis_migrate_isolate=E2=80=9D to match already existing =E2=
+=80=9Cis_migrate_cma=E2=80=9D?
+Especially as the =E2=80=9Cmt_isolated_pageblock=E2=80=9D sound confusing t=
+o me, it
+implies that it works on pageblocks which it does not.
 
+> +#else
+> +static inline bool page_isolated_pageblock(struct page *page)
+> +{
+> +	return false;
+> +}
+> +static inline bool mt_isolated_pageblock(int migratetype)
+> +{
+> +	return false;
+> +}
+> +#endif
 >=20=20
->  /**
-> _
->
->
-> Also, what's happening here?
->
-> 			pfn =3D isolate_migratepages_range(cc->zone, cc,
-> 							 pfn, end, true);
-> 			if (!pfn) {
-> 				ret =3D -EINTR;
-> 				break;
-> 			}
->
-> The isolate_migratepages_range() return value is undocumented and
-> appears to make no sense.  It returns zero if fatal_signal_pending()
-> and if too_many_isolated&&!cc->sync.  Returning -EINTR in the latter
-> case is daft.
-
-__alloc_contig_migrate_range() is always called with cc->sync =3D=3D true,
-so the latter never happens in our case.  As such, the condition
-terminates the loop if a fatal signal is pending.
-
+>  bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  			 bool skip_hwpoisoned_pages);
 --=20
 Best regards,                                         _     _
 .o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
@@ -122,19 +80,19 @@ Content-Type: application/pgp-signature
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJQ0ysdAAoJECBgQBJQdR/0kmoP/2RDwLHeieOMaQg7hXyOz1/9
-E9XLsq+OTEptnOo+7RiM1D/2lamdLN6r++YIPIwFp51O7HjGDubgZlRS+7lMuZCe
-RE3wHq5VjHlxkLT/hZXjuKU1zWiKnBMxQ0fea8KOu+uZKO9vK7AwdyVK+ojvdu8k
-W4VPey/ZwZx6AHFJYs68zh3KYHAB08oaskXio7B7M0/8wEka1NWH66h2xpxdTwsq
-45/hN3UAWmONIYiL2gkwWskKDEVwatHypEZCulQYzSngpxyTk47I7kIqTkseogcg
-B+beAYhT3qKvlIeIoEwjJ7pGJ+XFzobjpQn4H2AstvhsYAPdSAN2lgRF/EInbSUm
-1PFalC7OtcTJniDp+t7pwonJvHFIaUVB/aCJJE+eMsx1wUqvLNfuLga7mQmwDHFk
-0YLsUrRUYbFc5jj2o3vUUt6zzMmY2XfoL5pz983qPyBb5qS74qAXdsQQRZXAtRoI
-xsnnDVVOZVUS+1dMrbDORj26mf3wXgoPw0UqUfCv3xouie719Nmsnjed3ryi4pxA
-va7dbpcx8rmp2eTcQtOFsqo5dXSfbLVUwIoR9GeOC3nYIV5ZiZzCHsdSL0g3FK9E
-Fodf4uwaerc0SSQoHhTKEjBvcY9FAMjY7Mb4dILpGz8h24TPAVuQA1yQXWCezMEa
-PHAfit6UvdADrVhW4Bj0
-=4Ltn
+iQIcBAEBAgAGBQJQ0zOZAAoJECBgQBJQdR/0JaQP+wUiFmn/WVrdrXO37kDHr1uw
+unGc45gwZizHjGZdnTEAGiJVOTyeA1nicUZ8SoMEuv1N/L1iPjqa+diWGlqh7S2+
+3NoXVlzitMEqy1aWQEl8NZIQbcAEak29WlpVDQZhC7CyyoY3qC/tn3z9OC63AiuG
+lKxRRvMnF0GcIqBSnj4XLOkO+tIviooIiGxdbERstim8okxojQs894NDrQkrKzA7
+94thgXChhGEsx3BmRGVbYnoT0Z7Hcz8WAM3Jjv+hxQtNW1x+7oo6G2uWNMnwspfG
+L3oajPjVYxrMxg3JtGq//ISF0THg6NMJbnhCZnYZrffFe+r45eELKX+mIulojcNp
+yRmZojuobVGmKIulWan+F/LjZaVmMHb8n6TH7Rs5jXx4D7XA58SgC8mLCfZg6wrJ
+mjeNZWFgmDuF6M+cDovTW0xdfuCmJajPvSxvXtNNa3KFpFOphMq/6YuVfzaJoqfL
+slDkQ47slEtSlbFWuPhXdHbsK9xddScOHL8aAmEe6EyrRW2hdDD1pwVsY/ThDRL3
+BzFIuejZmcEe6pYUzmMlJ0uGS0TtmT4vkiDdbUieo+Hp53i8Du0Gy35Dd2bY0GUB
+L6o61GLFx3Fge5yq9DSU7MwghJdcmNla//y0y3GmmEz2V6LJdHyDgobt8KMF6+Zf
+cn7HO40PeY0lUnRpXALq
+=7hVI
 -----END PGP SIGNATURE-----
 --==-=-=--
 
