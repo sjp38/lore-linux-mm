@@ -1,114 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 2AC526B0069
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 17:37:58 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id um15so2300996pbc.30
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 14:37:57 -0800 (PST)
-Date: Thu, 20 Dec 2012 14:37:59 -0800 (PST)
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id B6B876B005A
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 17:40:51 -0500 (EST)
+Received: by mail-da0-f43.google.com with SMTP id u36so1743029dak.2
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 14:40:50 -0800 (PST)
+Date: Thu, 20 Dec 2012 14:40:59 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
 Subject: Re: [PATCH] ksm: make rmap walks more scalable
-In-Reply-To: <50D387FD.4020008@oracle.com>
-Message-ID: <alpine.LNX.2.00.1212201409170.977@eggly.anvils>
-References: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils> <alpine.LNX.2.00.1212191742440.25409@eggly.anvils> <50D387FD.4020008@oracle.com>
+In-Reply-To: <CA+55aFxfS0SBbRBRULX4Hm7a-xOY7ebJ=Ncu2cAdH2xvcZFO+Q@mail.gmail.com>
+Message-ID: <alpine.LNX.2.00.1212201438190.977@eggly.anvils>
+References: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils> <alpine.LNX.2.00.1212191742440.25409@eggly.anvils> <50D387FD.4020008@oracle.com> <CA+55aFxfS0SBbRBRULX4Hm7a-xOY7ebJ=Ncu2cAdH2xvcZFO+Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Petr Holasek <pholasek@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Petr Holasek <pholasek@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, 20 Dec 2012, Sasha Levin wrote:
-> On 12/19/2012 08:44 PM, Hugh Dickins wrote:
-> > The rmap walks in ksm.c are like those in rmap.c:
-> > they can safely be done with anon_vma_lock_read().
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > ---
+On Thu, 20 Dec 2012, Linus Torvalds wrote:
+> On Thu, Dec 20, 2012 at 1:49 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
+> > On 12/19/2012 08:44 PM, Hugh Dickins wrote:
+> >> The rmap walks in ksm.c are like those in rmap.c:
+> >> they can safely be done with anon_vma_lock_read().
+> >>
+> >> Signed-off-by: Hugh Dickins <hughd@google.com>
+> >> ---
+> >
+> > Hi Hugh,
+> >
+> > This patch didn't fix the ksm oopses I'm seeing.
+> >
+> > This is with both patches applied:
 > 
-> Hi Hugh,
+> Looks like another NULL mm pointer in ksmd.. Hugh fixed one in
+> 2832bc19f666 ("sched: numa: ksm: fix oops in task_numa_placment()"),
+> this looks like more of the same.
 > 
-> This patch didn't fix the ksm oopses I'm seeing.
+> At a guess, it looks like get_mergeable_page() has a rmap_item with no
+> mm. No idea how that happened. Hugh? Some race due to something that
+> depended on the mmap_sem being exclusive, rather than for
+> read-ownership?
 
-I wouldn't expect it to (and should certainly have mentioned oopses
-in the commit message if I'd intended): this patch was merely an
-optimization/clarification of a commit gone in for 3.8-rc1.
-
-Understandable misunderstanding: you took my Cc too seriously,
-I just thought I'd better keep Petr in the loop on current changes
-to ksm.c, and foolishly kept you in too ;)
-
-Your oopses are on linux-next, which as of 20121220 still had Petr's
-nice but buggy NUMA KSM patch in: it should go away when Stephen gets
-a fresh mm update from Andrew, then reappear once his v6 goes into mm.
-
-To stop these oopses in get_mergeable_page (inlined in
-unstable_tree_search_insert) you need the patch I showed on
-Tuesday, which I hope he'll merge in for his v6.  That doesn't fix
-all of the problems, but hopefully all that you'll encounter before
-I've devised a fix for the separate stale stable_nodes issue.
+No, it's just a misunderstanding: Sasha's problem is with a linux-next
+that has Petr's NUMA KSM patch in, and we're still ironing known issues
+out of that one.  Not a problem for 3.8-rc1.
 
 Hugh
-
-> 
-> This is with both patches applied:
-
-
-> 
-> 
-> [  191.221082] BUG: unable to handle kernel NULL pointer dereference at 0000000000000110
-> [  191.226749] IP: [<ffffffff81185bf0>] __lock_acquire+0xb0/0xa90
-> [  191.228437] PGD 1469f067 PUD 1466a067 PMD 0
-> [  191.229185] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  191.230031] Dumping ftrace buffer:
-> [  191.230031]    (ftrace buffer empty)
-> [  191.230031] CPU 3
-> [  191.230031] Pid: 3174, comm: ksmd Tainted: G        W    3.7.0-next-20121220-sasha-00015-g5dc79b2-dirty #223
-> [  191.230031] RIP: 0010:[<ffffffff81185bf0>]  [<ffffffff81185bf0>] __lock_acquire+0xb0/0xa90
-> [  191.230031] RSP: 0018:ffff8800be933b78  EFLAGS: 00010046
-> [  191.230031] RAX: 0000000000000086 RBX: 0000000000000110 RCX: 0000000000000001
-> [  191.230031] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000110
-> [  191.230031] RBP: ffff8800be933c18 R08: 0000000000000002 R09: 0000000000000000
-> [  191.230031] R10: 0000000000000000 R11: 0000000000000001 R12: 0000000000000000
-> [  191.230031] R13: 0000000000000002 R14: ffff8800be940000 R15: 0000000000000000
-> [  191.230031] FS:  0000000000000000(0000) GS:ffff88000fc00000(0000) knlGS:0000000000000000
-> [  191.230031] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  191.230031] CR2: 0000000000000110 CR3: 000000001469e000 CR4: 00000000000406e0
-> [  191.230031] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> [  191.230031] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> [  191.230031] Process ksmd (pid: 3174, threadinfo ffff8800be932000, task ffff8800be940000)
-> [  191.230031] Stack:
-> [  191.230031]  ffff8800be933fd8 0000000000000000 ffff8800be933bb8 ffffffff810a4ec8
-> [  191.230031]  ffff8800be933bc8 ffffffff811572a8 ffff88000fdd78c0 ffff88000fdd78d0
-> [  191.230031]  ffff8800be933bc8 ffffffff81077ce5 ffff8800be933bf8 ffffffff81157075
-> [  191.230031] Call Trace:
-> [  191.230031]  [<ffffffff810a4ec8>] ? kvm_clock_read+0x38/0x70
-> [  191.230031]  [<ffffffff811572a8>] ? sched_clock_cpu+0x108/0x120
-> [  191.230031]  [<ffffffff81077ce5>] ? sched_clock+0x15/0x20
-> [  191.230031]  [<ffffffff81157075>] ? sched_clock_local+0x25/0x90
-> [  191.230031]  [<ffffffff81188a3a>] lock_acquire+0x1ca/0x270
-> [  191.230031]  [<ffffffff812599cf>] ? unstable_tree_search_insert+0x9f/0x260
-> [  191.230031]  [<ffffffff83cd7f27>] down_read+0x47/0x90
-> [  191.230031]  [<ffffffff812599cf>] ? unstable_tree_search_insert+0x9f/0x260
-> [  191.230031]  [<ffffffff812599cf>] unstable_tree_search_insert+0x9f/0x260
-> [  191.230031]  [<ffffffff8125afc7>] cmp_and_merge_page+0xe7/0x1e0
-> [  191.230031]  [<ffffffff8125b125>] ksm_do_scan+0x65/0xa0
-> [  191.230031]  [<ffffffff8125b1cf>] ksm_scan_thread+0x6f/0x2d0
-> [  191.230031]  [<ffffffff8113deb0>] ? abort_exclusive_wait+0xb0/0xb0
-> [  191.230031]  [<ffffffff8125b160>] ? ksm_do_scan+0xa0/0xa0
-> [  191.230031]  [<ffffffff8113cc43>] kthread+0xe3/0xf0
-> [  191.230031]  [<ffffffff8113cb60>] ? __kthread_bind+0x40/0x40
-> [  191.230031]  [<ffffffff83cdba7c>] ret_from_fork+0x7c/0xb0
-> [  191.230031]  [<ffffffff8113cb60>] ? __kthread_bind+0x40/0x40
-> [  191.230031] Code: 00 83 3d 33 2b b0 05 00 0f 85 d5 09 00 00 be f9 0b 00 00 48 c7 c7 24 d1 b2 84 89 55 88 e8 09 80 f8 ff 8b 55
-> 88 e9 b9 09 00 00 90 <48> 81 3b 60 59 22 86 b8 01 00 00 00 44 0f 44 e8 41 83 fc 01 77
-> [  191.230031] RIP  [<ffffffff81185bf0>] __lock_acquire+0xb0/0xa90
-> [  191.230031]  RSP <ffff8800be933b78>
-> [  191.230031] CR2: 0000000000000110
-> [  191.230031] ---[ end trace 55f664bfe0f01693 ]---
-> 
-> 
-> Thanks,
-> Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
