@@ -1,36 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id A276E6B0068
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 00:24:18 -0500 (EST)
-From: Dietmar Maurer <dietmar@proxmox.com>
-Subject: RE: [Qemu-devel] [RFC 3/3] virtio-balloon: add auto-ballooning
-	support
-Date: Thu, 20 Dec 2012 05:24:12 +0000
-Message-ID: <24E144B8C0207547AD09C467A8259F75578B8BD8@lisa.maurer-it.com>
-References: <1355861815-2607-1-git-send-email-lcapitulino@redhat.com>
-	<1355861815-2607-4-git-send-email-lcapitulino@redhat.com>
-	<20121218225330.GA28297@lizard.mcd00620.sjc.wayport.net>
- <20121219093039.51831f6f@doriath.home>
-In-Reply-To: <20121219093039.51831f6f@doriath.home>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 7A92B6B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 00:25:35 -0500 (EST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] compaction: fix build error in CMA && !COMPACTION
+Date: Thu, 20 Dec 2012 14:25:30 +0900
+Message-Id: <1355981130-2382-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: Michal Hocko <mhocko@suse.cz>, "aquini@redhat.com" <aquini@redhat.com>, "mst@redhat.com" <mst@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Rientjes <rientjes@google.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, Glauber Costa <glommer@parallels.com>, Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, John Stultz <john.stultz@linaro.org>, Mel Gorman <mgorman@suse.de>, "agl@us.ibm.com" <agl@us.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "kirill@shutemov.name" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-> > Wow, you're fast! And I'm glad that it works for you, so we have two
-> > full-featured mempressure cgroup users already.
->=20
-> Thanks, although I think we need more testing to be sure this does what w=
-e
-> want. I mean, the basic mechanics does work, but my testing has been very
-> light so far.
+isolate_freepages_block and isolate_migratepages_range is used for CMA
+as well as compaction so it breaks build for CONFIG_CMA &&
+!CONFIG_COMPACTION.
 
-Is it possible to assign different weights for different VMs, something lik=
-e the vmware 'shares' setting?
+This patch fixes it.
+
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/compaction.c |   26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 5ad7f4f..70f4443 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -17,6 +17,21 @@
+ #include <linux/balloon_compaction.h>
+ #include "internal.h"
+ 
++#ifdef CONFIG_COMPACTION
++static inline void count_compact_event(enum vm_event_item item)
++{
++	count_vm_event(item);
++}
++
++static inline void count_compact_events(enum vm_event_item item, long delta)
++{
++	count_vm_events(item, delta);
++}
++#else
++#define count_compact_event(item)
++#define count_compact_events(item, delta)
++#endif
++
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+ #define CREATE_TRACE_POINTS
+@@ -303,10 +318,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 	if (blockpfn == end_pfn)
+ 		update_pageblock_skip(cc, valid_page, total_isolated, false);
+ 
+-	count_vm_events(COMPACTFREE_SCANNED, nr_scanned);
++	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
+ 	if (total_isolated)
+-		count_vm_events(COMPACTISOLATED, total_isolated);
+-
++		count_compact_events(COMPACTISOLATED, total_isolated);
+ 	return total_isolated;
+ }
+ 
+@@ -613,9 +627,9 @@ next_pageblock:
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
+-	count_vm_events(COMPACTMIGRATE_SCANNED, nr_scanned);
++	count_compact_events(COMPACTMIGRATE_SCANNED, nr_scanned);
+ 	if (nr_isolated)
+-		count_vm_events(COMPACTISOLATED, nr_isolated);
++		count_compact_events(COMPACTISOLATED, nr_isolated);
+ 
+ 	return low_pfn;
+ }
+@@ -1110,7 +1124,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 	if (!order || !may_enter_fs || !may_perform_io)
+ 		return rc;
+ 
+-	count_vm_event(COMPACTSTALL);
++	count_compact_event(COMPACTSTALL);
+ 
+ #ifdef CONFIG_CMA
+ 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
