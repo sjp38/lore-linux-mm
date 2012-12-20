@@ -1,38 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 088F16B0068
-	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 21:25:38 -0500 (EST)
-Message-ID: <50D27707.7060309@oracle.com>
-Date: Wed, 19 Dec 2012 21:25:11 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 0C7176B006C
+	for <linux-mm@kvack.org>; Wed, 19 Dec 2012 22:01:31 -0500 (EST)
+Received: by mail-vb0-f53.google.com with SMTP id b23so3113960vbz.26
+        for <linux-mm@kvack.org>; Wed, 19 Dec 2012 19:01:31 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH 04/15] mm/huge_memory: use new hashtable implementation
-References: <1355756497-15834-1-git-send-email-sasha.levin@oracle.com> <1355756497-15834-4-git-send-email-sasha.levin@oracle.com> <alpine.DEB.2.00.1212191416410.32757@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.00.1212191416410.32757@chino.kir.corp.google.com>
+In-Reply-To: <1355968594.1415.4.camel@kernel-VirtualBox>
+References: <1354344987-28203-1-git-send-email-walken@google.com>
+	<20121203150110.39c204ff.akpm@linux-foundation.org>
+	<CANN689FfWVV4MyTUPKZQgQAWW9Dfdw9f0fqx98kc+USKj9g7TA@mail.gmail.com>
+	<20121203164322.b967d461.akpm@linux-foundation.org>
+	<20121204144820.GA13916@google.com>
+	<1355968594.1415.4.camel@kernel-VirtualBox>
+Date: Wed, 19 Dec 2012 19:01:30 -0800
+Message-ID: <CANN689FoSGMUi0mC6dzXe5tXo-BL_4eFZ1NF-De38x8mNhPXcg@mail.gmail.com>
+Subject: Re: [PATCH] mm: protect against concurrent vma expansion
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On 12/19/2012 05:26 PM, David Rientjes wrote:
-> This used to be dynamically allocated and would save the 8KB that you 
-> statically allocate if transparent hugepages cannot be used.  The generic 
-> hashtable implementation does not support dynamic allocation?
+Hi Simon,
 
-No, currently the hashtable only handles statically allocated hashtables.
+On Wed, Dec 19, 2012 at 5:56 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
+> One question.
+>
+> I found that mainly callsite of expand_stack() is #PF, but it holds
+> mmap_sem each time before call expand_stack(), how can hold a *shared*
+> mmap_sem happen?
 
-In this case, the downside is that you'll waste 8KB if hugepages aren't available,
-but the upside is that you'll have one less dereference when accessing the
-hashtable.
+the #PF handler calls down_read(&mm->mmap_sem) before calling expand_stack.
 
-If the 8KB saving is preferable here I'll drop the patch and come back when
-dynamic hashtable is supported.
+I think I'm just confusing you with my terminology; shared lock ==
+read lock == several readers might hold it at once (I'd say they share
+it)
 
-
-Thanks,
-Sasha
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
