@@ -1,55 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 7FAD66B0070
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 17:55:25 -0500 (EST)
-Received: by mail-da0-f42.google.com with SMTP id z17so1751499dal.15
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 14:55:24 -0800 (PST)
-Date: Thu, 20 Dec 2012 14:55:22 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, mempolicy: Introduce spinlock to read shared policy
- tree
-In-Reply-To: <CA+55aFyrSVzGZ438DGnTFuyFb1BOXaMmvxtkW0Xhnx+BxAg2PA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.00.1212201440250.7807@chino.kir.corp.google.com>
-References: <1353624594-1118-1-git-send-email-mingo@kernel.org> <1353624594-1118-19-git-send-email-mingo@kernel.org> <alpine.DEB.2.00.1212031644440.32354@chino.kir.corp.google.com> <CA+55aFyrSVzGZ438DGnTFuyFb1BOXaMmvxtkW0Xhnx+BxAg2PA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 1637B6B0072
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 18:35:27 -0500 (EST)
+Date: Thu, 20 Dec 2012 15:35:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] cma: use unsigned type for count argument
+Message-Id: <20121220153525.97841100.akpm@linux-foundation.org>
+In-Reply-To: <52fd3c7b677ff01f1cd6d54e38a567b463ec1294.1355938871.git.mina86@mina86.com>
+References: <52fd3c7b677ff01f1cd6d54e38a567b463ec1294.1355938871.git.mina86@mina86.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <levinsasha928@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Michal Nazarewicz <mpn@google.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On Thu, 20 Dec 2012, Linus Torvalds wrote:
+On Wed, 19 Dec 2012 18:44:40 +0100
+Michal Nazarewicz <mpn@google.com> wrote:
 
-> Going through some old emails before -rc1 rlease..
+> From: Michal Nazarewicz <mina86@mina86.com>
 > 
-> What is the status of this patch? The patch that is reported to cause
-> the problem hasn't been merged, but that mpol_misplaced() thing did
-> happen in commit 771fb4d806a9. And it looks like it's called from
-> numa_migrate_prep() under the pte map lock. Or am I missing something?
-
-Andrew pinged both Ingo and I about it privately two weeks ago.  It 
-probably doesn't trigger right now because there's no pte_mknuma() on 
-shared pages (yet) but will eventually be needed for correctness.  So it's 
-not required for -rc1 as it sits in the tree today but will be needed 
-later (and hopefully not forgotten about until Sasha fuzzes again).
-
-> See commit 9532fec118d ("mm: numa: Migrate pages handled during a
-> pmd_numa hinting fault").
+> Specifying negative size of buffer makes no sense and thus this commit
+> changes the type of the count argument to unsigned.
 > 
-> Am I missing something? Mel, please take another look.
-> 
-> I despise these kinds of dual-locking models, and am wondering if we
-> can't have *just* the spinlock?
-> 
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1038,9 +1038,9 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+>  					  gfp_t gfp, struct dma_attrs *attrs)
+>  {
+>  	struct page **pages;
+> -	int count = size >> PAGE_SHIFT;
+> -	int array_size = count * sizeof(struct page *);
+> -	int i = 0;
+> +	unsigned int count = size >> PAGE_SHIFT;
+> +	unsigned int array_size = count * sizeof(struct page *);
+> +	unsigned int i = 0;
 
-Adding KOSAKI to the cc.
+C programmers expect a variable called `i' to have type `int'.  It
+would be clearer to find a new name for this.  `idx', perhaps.
 
-This is probably worth discussing now to see if we can't revert 
-b22d127a39dd ("mempolicy: fix a race in shared_policy_replace()"), keep it 
-only as a spinlock as you suggest, and do what KOSAKI suggested in 
-http://marc.info/?l=linux-kernel&m=133940650731255 instead.  I don't think 
-it's worth trying to optimize this path at the cost of having both a 
-spinlock and mutex.
+Also, we later do
+
+	int j;
+	..
+	pages[i + j] ...
+
+So `j' should also be converted to unsigned.  And perhaps renamed, but
+`j' isn't as egregious as `i'.
+
+>  	if (array_size <= PAGE_SIZE)
+>  		pages = kzalloc(array_size, gfp);
+> @@ -1102,9 +1102,9 @@ error:
+>  static int __iommu_free_buffer(struct device *dev, struct page **pages,
+>  			       size_t size, struct dma_attrs *attrs)
+>  {
+> -	int count = size >> PAGE_SHIFT;
+> -	int array_size = count * sizeof(struct page *);
+> -	int i;
+> +	unsigned int count = size >> PAGE_SHIFT;
+> +	unsigned int array_size = count * sizeof(struct page *);
+> +	unsigned int i;
+
+ditto.
+
+
+--- a/arch/arm/mm/dma-mapping.c~cma-use-unsigned-type-for-count-argument-fix
++++ a/arch/arm/mm/dma-mapping.c
+@@ -1040,7 +1040,7 @@ static struct page **__iommu_alloc_buffe
+ 	struct page **pages;
+ 	unsigned int count = size >> PAGE_SHIFT;
+ 	unsigned int array_size = count * sizeof(struct page *);
+-	unsigned int i = 0;
++	unsigned int idx = 0;
+ 
+ 	if (array_size <= PAGE_SIZE)
+ 		pages = kzalloc(array_size, gfp);
+@@ -1049,8 +1049,7 @@ static struct page **__iommu_alloc_buffe
+ 	if (!pages)
+ 		return NULL;
+ 
+-	if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS, attrs))
+-	{
++	if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS, attrs)) {
+ 		unsigned long order = get_order(size);
+ 		struct page *page;
+ 
+@@ -1060,38 +1059,39 @@ static struct page **__iommu_alloc_buffe
+ 
+ 		__dma_clear_buffer(page, size);
+ 
+-		for (i = 0; i < count; i++)
+-			pages[i] = page + i;
++		for (idx = 0; idx < count; idx++)
++			pages[i] = page + idx;
+ 
+ 		return pages;
+ 	}
+ 
+ 	while (count) {
+-		int j, order = __fls(count);
++		unsigned int j;
++		unnsigned int order = __fls(count);
+ 
+-		pages[i] = alloc_pages(gfp | __GFP_NOWARN, order);
+-		while (!pages[i] && order)
+-			pages[i] = alloc_pages(gfp | __GFP_NOWARN, --order);
+-		if (!pages[i])
++		pages[idx] = alloc_pages(gfp | __GFP_NOWARN, order);
++		while (!pages[idx] && order)
++			pages[idx] = alloc_pages(gfp | __GFP_NOWARN, --order);
++		if (!pages[idx])
+ 			goto error;
+ 
+ 		if (order) {
+-			split_page(pages[i], order);
++			split_page(pages[idx], order);
+ 			j = 1 << order;
+ 			while (--j)
+-				pages[i + j] = pages[i] + j;
++				pages[idx + j] = pages[idx] + j;
+ 		}
+ 
+-		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
+-		i += 1 << order;
++		__dma_clear_buffer(pages[idx], PAGE_SIZE << order);
++		idx += 1 << order;
+ 		count -= 1 << order;
+ 	}
+ 
+ 	return pages;
+ error:
+-	while (i--)
+-		if (pages[i])
+-			__free_pages(pages[i], 0);
++	while (idx--)
++		if (pages[idx])
++			__free_pages(pages[idx], 0);
+ 	if (array_size <= PAGE_SIZE)
+ 		kfree(pages);
+ 	else
+@@ -1104,14 +1104,15 @@ static int __iommu_free_buffer(struct de
+ {
+ 	unsigned int count = size >> PAGE_SHIFT;
+ 	unsigned int array_size = count * sizeof(struct page *);
+-	unsigned int i;
+ 
+ 	if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS, attrs)) {
+ 		dma_release_from_contiguous(dev, pages[0], count);
+ 	} else {
+-		for (i = 0; i < count; i++)
+-			if (pages[i])
+-				__free_pages(pages[i], 0);
++		unsigned int idx;
++
++		for (idx = 0; idx < count; idx++)
++			if (pages[idx])
++				__free_pages(pages[idx], 0);
+ 	}
+ 
+ 	if (array_size <= PAGE_SIZE)
+diff -puN drivers/base/dma-contiguous.c~cma-use-unsigned-type-for-count-argument-fix drivers/base/dma-contiguous.c
+diff -puN include/linux/dma-contiguous.h~cma-use-unsigned-type-for-count-argument-fix include/linux/dma-contiguous.h
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
