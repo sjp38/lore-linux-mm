@@ -1,78 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 2EDD76B005D
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 06:10:43 -0500 (EST)
-Date: Fri, 21 Dec 2012 09:10:13 -0200
-From: Carlos Maiolino <cmaiolino@redhat.com>
-Subject: Re: [PATCH v2 2/2] vmscan: take at least one pass with shrinkers
-Message-ID: <20121221111013.GB8852@andromeda.usersys.redhat.com>
-References: <1356086810-6950-1-git-send-email-glommer@parallels.com>
- <1356086810-6950-3-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 04CB66B005A
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 06:51:32 -0500 (EST)
+Received: by mail-ob0-f174.google.com with SMTP id ta14so4435328obb.5
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 03:51:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1356086810-6950-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <50D24CD9.8070507@iskon.hr>
+References: <50D24AF3.1050809@iskon.hr>
+	<50D24CD9.8070507@iskon.hr>
+Date: Fri, 21 Dec 2012 19:51:31 +0800
+Message-ID: <CAJd=RBCQN1GxOUCwGPXL27d_q8hv50uHK5LhDnsv7mdv_2Usaw@mail.gmail.com>
+Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
+From: Hillf Danton <dhillf@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Dave Shrinnker <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 21, 2012 at 02:46:50PM +0400, Glauber Costa wrote:
-> In very low free kernel memory situations, it may be the case that we
-> have less objects to free than our initial batch size. If this is the
-> case, it is better to shrink those, and open space for the new workload
-> then to keep them and fail the new allocations.
-> 
-> More specifically, this happens because we encode this in a loop with
-> the condition: "while (total_scan >= batch_size)". So if we are in such
-> a case, we'll not even enter the loop.
-> 
-> This patch modifies turns it into a do () while {} loop, that will
-> guarantee that we scan it at least once, while keeping the behaviour
-> exactly the same for the cases in which total_scan > batch_size.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
-> Acked-by: Dave Chinner <david@fromorbit.com>
-> CC: "Theodore Ts'o" <tytso@mit.edu>
-> CC: Al Viro <viro@zeniv.linux.org.uk>
-> ---
->  mm/vmscan.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 7f30961..fcd1aa0 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -280,7 +280,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->  					nr_pages_scanned, lru_pages,
->  					max_pass, delta, total_scan);
->  
-> -		while (total_scan >= batch_size) {
-> +		do {
->  			int nr_before;
->  
->  			nr_before = do_shrinker_shrink(shrinker, shrink, 0);
-> @@ -294,7 +294,7 @@ unsigned long shrink_slab(struct shrink_control *shrink,
->  			total_scan -= batch_size;
->  
->  			cond_resched();
-> -		}
-> +		} while (total_scan >= batch_size);
->  
->  		/*
->  		 * move the unused scan count back into the shrinker in a
-> -- 
-> 1.7.11.7
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+On Thu, Dec 20, 2012 at 7:25 AM, Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
+>  static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>                                                         int *classzone_idx)
+>  {
+> -       int all_zones_ok;
+> +       struct zone *unbalanced_zone;
 
-Looks Good,
-Reviewed-by: Carlos Maiolino <cmaiolino@redhat.com>
--- 
-Carlos
+nit: less hunks if not erase that mark
+
+Hillf
+>         unsigned long balanced;
+>         int i;
+>         int end_zone = 0;       /* Inclusive.  0 = ZONE_DMA */
+> @@ -2580,7 +2580,7 @@ loop_again:
+>                 unsigned long lru_pages = 0;
+>                 int has_under_min_watermark_zone = 0;
+>
+> -               all_zones_ok = 1;
+> +               unbalanced_zone = NULL;
+>                 balanced = 0;
+>
+>                 /*
+> @@ -2719,7 +2719,7 @@ loop_again:
+>                         }
+>
+>                         if (!zone_balanced(zone, testorder, 0, end_zone)) {
+> -                               all_zones_ok = 0;
+> +                               unbalanced_zone = zone;
+>                                 /*
+>                                  * We are still under min water mark.  This
+>                                  * means that we have a GFP_ATOMIC allocation
+> @@ -2752,7 +2752,7 @@ loop_again:
+>                                 pfmemalloc_watermark_ok(pgdat))
+>                         wake_up(&pgdat->pfmemalloc_wait);
+>
+> -               if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+> +               if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+>                         break;          /* kswapd: all done */
+>                 /*
+>                  * OK, kswapd is getting into trouble.  Take a nap, then take
+> @@ -2762,7 +2762,7 @@ loop_again:
+>                         if (has_under_min_watermark_zone)
+>                                 count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+>                         else
+> -                               congestion_wait(BLK_RW_ASYNC, HZ/10);
+> +                               wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+>                 }
+>
+>                 /*
+> @@ -2781,7 +2781,7 @@ out:
+>          * high-order: Balanced zones must make up at least 25% of the node
+>          *             for the node to be balanced
+>          */
+> -       if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))) {
+> +       if (unbalanced_zone && (!order || !pgdat_balanced(pgdat, balanced, *classzone_idx))) {
+>                 cond_resched();
+>
+>                 try_to_freeze();
+> -- 1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
