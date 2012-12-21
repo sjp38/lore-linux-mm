@@ -1,148 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 928486B006C
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 13:38:43 -0500 (EST)
-Received: by mail-da0-f49.google.com with SMTP id v40so2203649dad.22
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 10:38:42 -0800 (PST)
-Date: Fri, 21 Dec 2012 10:38:45 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: migrate_misplaced_transhuge_page: no page_count check?
-In-Reply-To: <20121220164923.GB13367@suse.de>
-Message-ID: <alpine.LNX.2.00.1212211030540.1893@eggly.anvils>
-References: <alpine.LNX.2.00.1212192011320.25992@eggly.anvils> <20121220164923.GB13367@suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
+	by kanga.kvack.org (Postfix) with SMTP id D5FDD6B0070
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 13:59:37 -0500 (EST)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [PATCH] mm/huge_memory: use new hashtable implementation
+Date: Fri, 21 Dec 2012 13:59:00 -0500
+Message-Id: <1356116342-2121-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Sasha Levin <sasha.levin@oracle.com>
 
-On Thu, 20 Dec 2012, Mel Gorman wrote:
-> On Wed, Dec 19, 2012 at 08:52:37PM -0800, Hugh Dickins wrote:
-> > Mel, Ingo,
-> > 
-> > I want to raise again a question I raised (in offline mail with Mel)
-> > a couple of weeks ago.
-> > 
-> 
-> It's a good question and thanks for kicking me on this again because I
-> had not followed up properly.
-> 
-> > I see only a page_mapcount check in migrate_misplaced_transhuge_page,
-> > and don't understand how migration can be safe against the possibility
-> > of an earlier call to get_user_pages or get_user_pages_fast (intended
-> > to pin a part of the THP) without a page_count check.
-> > 
-> 
-> It would be hard to trigger bugs in relation to it but it's not fundamentally
-> safe either and just happens to work due to limitations of THP as much as
-> anything else. Adding Andrea to cc in case I'm lacking imagination. IMO,
-> the GUP would need to be relatively long-lived to trigger a bug so the
-> realistic candidate is direct IO.  it. It would look something like;
-> 
-> 1. pin for direct IO
-> 2. PTE scanner run, mark pte_numa
-> 3. Incur a fault on a remote node, migrate the page
-> 4. direct IO completes on old page and is lost
-> 
-> Steps 1 and 2 can happen in either order. I am reasonably sure specjbb,
-> autonumabench and friends are not exercising such paths so I would not
-> have encountered it.
-> 
-> The end result would look like a read or write corruption to the application
-> but I also expect that applications that are accessing pages under direct
-> IO are already buggy and it'd be hard to tell the difference.  It's a
-> completely different situation than what khugepaged has to deal with.
-> The migration concerns for base pages are also much more involvedi.
-> 
-> > (I'm also still somewhat worried about unidentified attempts to
-> > pin the page concurrently; but since I don't have an example to give,
-> > and concurrent get_user_pages or get_user_pages_fast wouldn't get past
-> > the pmd_numa, let's not worry too much about my unidentified anxiety ;)
-> > 
-> 
-> You are right to be worried.
-> 
-> > migrate_page_move_mapping and migrate_huge_page_move_mapping check
-> > page_count, but migrate_misplaced_transhuge_page doesn't use those.
-> > __collapse_huge_page_isolate and khugepaged_scan_pmd (over in
-> > huge_memory.c) take commented care to check page_count lest GUP.
-> > 
-> > I can see that page_count might often be raised by concurrent faults
-> > on the same pmd_numa, waiting on the lock_page in do_huge_pmd_numa_page.
-> > That's unfortunate, and maybe you can find a clever way to discount
-> > those.  But safety must come first: don't we need to check page_count?
-> > 
-> 
-> We do and I'm not super-worried about the concurrent faults as a brief
-> check indicated that only 2% of migration attempts failed due to parallel
-> faults elevating the count when running autonumabench. The impact is that
-> the migration is delayed until the next PTE scan which is bad, but not
-> bad enough to delay the obvious safety fix first. How about this?
-> 
-> ---8<---
-> mm: migrate: Check page_count of THP before migrating
-> 
-> Hugh Dickins poined out that migrate_misplaced_transhuge_page() does not
-> check page_count before migrating like base page migration and khugepage. He
-> could not see why this was safe and he is right.
-> 
-> It happens to work for the most part. The page_mapcount() check ensures that
-> only a single address space is using this page and as THPs are typically
-> private it should not be possible for another address space to fault it in
-> parallel. If the address space has one associated task then it's difficult to
-> have both a GUP pin and be referencing the page at the same time. If there
-> are multiple tasks then a buggy scenario requires that another thread be
-> accessing the page while the direct IO is in flight. This is dodgy behaviour
-> as there is a possibility of corruption with or without THP migration. It
-> would be difficult to identify the corruption as being a migration bug.
-> 
-> While we happen to be ok for THP migration versus GUP it is shoddy to
-> depend on such "safety" so this patch checks the page count similar to
-> anonymous pages. Note that this does not mean that the page_mapcount()
-> check can go away. If we were to remove the page_mapcount() check then
-> the THP would have to be unmapped from all referencing PTEs, replaced with
-> migration PTEs and restored properly afterwards.
-> 
-> Reported-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Switch hugemem to use the new hashtable implementation. This reduces the
+amount of generic unrelated code in the hugemem.
 
-Thanks very much for responding so quickly on this, Mel.  It pains
-me that I cannot yet say acked-by, because I need to spend more time
-checking it, and cannot do so today.
+This also removes the dymanic allocation of the hash table. The upside is that
+we save a pointer dereference when accessing the hashtable, but we lose 8KB
+if CONFIG_TRANSPARENT_HUGEPAGE is enabled but the processor doesn't
+support hugepages.
 
-I like where you've placed the check, that's just right.  But I'm
-worried that perhaps there's a putback_lru_page missing, and wonder
-if it's missing even without this additional patch.  It would not
-be immediately obvious if it's missing, the pages wouldn't leak,
-but more and more would become unreclaimable until freed.
+This patch depends on d9b482c ("hashtable: introduce a small and naive
+hashtable") which was merged in v3.6.
 
-Hugh
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+---
+Changes in v2:
+ - Addressed comments by David Rientjes.
 
-> ---
->  mm/migrate.c |    8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 3b676b0..7636b90 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1679,7 +1679,13 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  	page_xchg_last_nid(new_page, page_last_nid(page));
->  
->  	isolated = numamigrate_isolate_page(pgdat, page);
-> -	if (!isolated) {
-> +
-> +	/*
-> +	 * Failing to isolate or a GUP pin prevents migration. The expected
-> +	 * page count is 2. 1 for anonymous pages without a mapping and 1
-> +	 * for the callers pin
-> +	 */
-> +	if (!isolated || page_count(page) != 2) {
->  		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
->  		put_page(new_page);
->  		goto out_keep_locked;
-> 
+ mm/huge_memory.c | 54 +++++++++---------------------------------------------
+ 1 file changed, 9 insertions(+), 45 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9e894ed..f62654c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -20,6 +20,7 @@
+ #include <linux/mman.h>
+ #include <linux/pagemap.h>
+ #include <linux/migrate.h>
++#include <linux/hashtable.h>
+ 
+ #include <asm/tlb.h>
+ #include <asm/pgalloc.h>
+@@ -62,12 +63,11 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
+ static unsigned int khugepaged_max_ptes_none __read_mostly = HPAGE_PMD_NR-1;
+ 
+ static int khugepaged(void *none);
+-static int mm_slots_hash_init(void);
+ static int khugepaged_slab_init(void);
+-static void khugepaged_slab_free(void);
+ 
+-#define MM_SLOTS_HASH_HEADS 1024
+-static struct hlist_head *mm_slots_hash __read_mostly;
++#define MM_SLOTS_HASH_BITS 10
++static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
++
+ static struct kmem_cache *mm_slot_cache __read_mostly;
+ 
+ /**
+@@ -634,12 +634,6 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		goto out;
+ 
+-	err = mm_slots_hash_init();
+-	if (err) {
+-		khugepaged_slab_free();
+-		goto out;
+-	}
+-
+ 	register_shrinker(&huge_zero_page_shrinker);
+ 
+ 	/*
+@@ -1893,12 +1887,6 @@ static int __init khugepaged_slab_init(void)
+ 	return 0;
+ }
+ 
+-static void __init khugepaged_slab_free(void)
+-{
+-	kmem_cache_destroy(mm_slot_cache);
+-	mm_slot_cache = NULL;
+-}
+-
+ static inline struct mm_slot *alloc_mm_slot(void)
+ {
+ 	if (!mm_slot_cache)	/* initialization failed */
+@@ -1911,47 +1899,23 @@ static inline void free_mm_slot(struct mm_slot *mm_slot)
+ 	kmem_cache_free(mm_slot_cache, mm_slot);
+ }
+ 
+-static int __init mm_slots_hash_init(void)
+-{
+-	mm_slots_hash = kzalloc(MM_SLOTS_HASH_HEADS * sizeof(struct hlist_head),
+-				GFP_KERNEL);
+-	if (!mm_slots_hash)
+-		return -ENOMEM;
+-	return 0;
+-}
+-
+-#if 0
+-static void __init mm_slots_hash_free(void)
+-{
+-	kfree(mm_slots_hash);
+-	mm_slots_hash = NULL;
+-}
+-#endif
+-
+ static struct mm_slot *get_mm_slot(struct mm_struct *mm)
+ {
+ 	struct mm_slot *mm_slot;
+-	struct hlist_head *bucket;
+ 	struct hlist_node *node;
+ 
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+-	hlist_for_each_entry(mm_slot, node, bucket, hash) {
++	hash_for_each_possible(mm_slots_hash, mm_slot, node, hash, (unsigned long) mm)
+ 		if (mm == mm_slot->mm)
+ 			return mm_slot;
+-	}
++
+ 	return NULL;
+ }
+ 
+ static void insert_to_mm_slots_hash(struct mm_struct *mm,
+ 				    struct mm_slot *mm_slot)
+ {
+-	struct hlist_head *bucket;
+-
+-	bucket = &mm_slots_hash[((unsigned long)mm / sizeof(struct mm_struct))
+-				% MM_SLOTS_HASH_HEADS];
+ 	mm_slot->mm = mm;
+-	hlist_add_head(&mm_slot->hash, bucket);
++	hash_add(mm_slots_hash, &mm_slot->hash, (long)mm);
+ }
+ 
+ static inline int khugepaged_test_exit(struct mm_struct *mm)
+@@ -2020,7 +1984,7 @@ void __khugepaged_exit(struct mm_struct *mm)
+ 	spin_lock(&khugepaged_mm_lock);
+ 	mm_slot = get_mm_slot(mm);
+ 	if (mm_slot && khugepaged_scan.mm_slot != mm_slot) {
+-		hlist_del(&mm_slot->hash);
++		hash_del(&mm_slot->hash);
+ 		list_del(&mm_slot->mm_node);
+ 		free = 1;
+ 	}
+@@ -2469,7 +2433,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
+ 
+ 	if (khugepaged_test_exit(mm)) {
+ 		/* free mm_slot */
+-		hlist_del(&mm_slot->hash);
++		hash_del(&mm_slot->hash);
+ 		list_del(&mm_slot->mm_node);
+ 
+ 		/*
+-- 
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
