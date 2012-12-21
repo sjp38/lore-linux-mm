@@ -1,107 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 17B656B005A
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 15:36:02 -0500 (EST)
-Date: Fri, 21 Dec 2012 20:35:56 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: migrate_misplaced_transhuge_page: no page_count check?
-Message-ID: <20121221203556.GF13367@suse.de>
-References: <alpine.LNX.2.00.1212192011320.25992@eggly.anvils>
- <20121220164923.GB13367@suse.de>
- <alpine.LNX.2.00.1212211030540.1893@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1212211030540.1893@eggly.anvils>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id E6B686B005D
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 16:28:38 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so3057496pad.26
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 13:28:38 -0800 (PST)
+From: Andy Lutomirski <luto@amacapital.net>
+Subject: [PATCH v2 0/3] Rework mtime and ctime updates on mmaped writes
+Date: Fri, 21 Dec 2012 13:28:25 -0800
+Message-Id: <cover.1356124965.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>
 
-On Fri, Dec 21, 2012 at 10:38:45AM -0800, Hugh Dickins wrote:
-> > While we happen to be ok for THP migration versus GUP it is shoddy to
-> > depend on such "safety" so this patch checks the page count similar to
-> > anonymous pages. Note that this does not mean that the page_mapcount()
-> > check can go away. If we were to remove the page_mapcount() check then
-> > the THP would have to be unmapped from all referencing PTEs, replaced with
-> > migration PTEs and restored properly afterwards.
-> > 
-> > Reported-by: Hugh Dickins <hughd@google.com>
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> Thanks very much for responding so quickly on this, Mel.  It pains
-> me that I cannot yet say acked-by, because I need to spend more time
-> checking it, and cannot do so today.
-> 
-> I like where you've placed the check, that's just right.  But I'm
-> worried that perhaps there's a putback_lru_page missing, and wonder
-> if it's missing even without this additional patch. 
+Writes via mmap currently update mtime and ctime in ->page_mkwrite.
+This is unfortunate from a performance and a correctness point of view.
+The file times should be updated after writes, not before (so that every
+write eventually results in a fresh timestamp).  This is needed for
+POSIX compliance.  More importantly (for me), ->page_mkwrite is called
+periodically even on mlocked pages, and some filesystems can sleep in
+mark_inode_dirty.
 
-*hangs head*
+This patchset attempts to fix both issues at once.  It adds a new
+address_space flag AS_CMTIME that is set atomically whenever the system
+transfers a pte dirty bit to a struct page backed by the address_space.
+This can happen with various locks held and when low on memory.
 
-Failing to migrate due to GUP needs to put the page back on
-the LRU. After this patch;
+Later on, whenever syncing an inode (which happens indirectly in msync)
+or whenever a vma is torn down, if AS_CMTIME is set, then the file times
+are updated.  This happens in a context from which (I think) it's safe
+to dirty inodes.
 
-1. fail to isolate from LRU, old page is still on LRU
-2. fail due to GUP or parallel fault, old page is put back on LRU
-3. fail because PMD changed while PTL was released, old page put back on LRU
-4. Successful migration, new page added to LRU by
-   page_add_new_anon_rmap()->lru_cache_add_lru()
+One nice property of this approach is that it requires no fs-specific
+work.  It's actually quite a bit simpler than I expected.
 
----8<---
-mm: migrate: Check page_count of THP before migrating
+I've tested this, and mtime and ctime are updated on munmap, exit, MS_SYNC,
+and fsync after writing via mmap.  The times are also updated 30 seconds
+after writing, all by themselves :)  xfstest #215 also passes.Lockdep has
+no complaints.
 
-Hugh Dickins poined out that migrate_misplaced_transhuge_page() does not
-check page_count before migrating like base page migration and khugepage. He
-could not see why this was safe and he is right.
+Changes from v1:
+ - inode_update_time_writable now locks against the fs freezer
+ - Minor cleanups
+ - Major changelog improvements
 
-It happens to work for the most part. The page_mapcount() check ensures that
-only a single address space is using this page and as THPs are typically
-private it should not be possible for another address space to fault it in
-parallel. If the address space has one associated task then it's difficult to
-have both a GUP pin and be referencing the page at the same time. If there
-are multiple tasks then a buggy scenario requires that another thread be
-accessing the page while the direct IO is in flight. This is dodgy behaviour
-as there is a possibility of corruption with or without THP migration. It
-would be difficult to identify the corruption as being a migration bug.
+Andy Lutomirski (3):
+  mm: Explicitly track when the page dirty bit is transferred from a
+    pte
+  mm: Update file times when inodes are written after mmaped writes
+  Remove file_update_time from all mkwrite paths
 
-While we happen to be ok for THP migration versus GUP it is shoddy to
-depend on such "safety" so this patch checks the page count similar to
-anonymous pages. Note that this does not mean that the page_mapcount()
-check can go away. If we were to remove the page_mapcount() check the the
-THP would have to be unmapped from all referencing PTEs, replaced with
-migration PTEs and restored properly afterwards.
+ fs/9p/vfs_file.c        |  3 ---
+ fs/btrfs/inode.c        |  4 +--
+ fs/buffer.c             |  6 -----
+ fs/ceph/addr.c          |  3 ---
+ fs/ext4/inode.c         |  1 -
+ fs/gfs2/file.c          |  3 ---
+ fs/inode.c              | 72 ++++++++++++++++++++++++++++++++++++++-----------
+ fs/nilfs2/file.c        |  1 -
+ fs/sysfs/bin.c          |  2 --
+ include/linux/fs.h      |  1 +
+ include/linux/mm.h      |  1 +
+ include/linux/pagemap.h |  3 +++
+ mm/filemap.c            |  1 -
+ mm/memory-failure.c     |  4 +--
+ mm/memory.c             |  5 +---
+ mm/mmap.c               |  4 +++
+ mm/page-writeback.c     | 42 +++++++++++++++++++++++++++--
+ mm/rmap.c               |  9 ++++---
+ 18 files changed, 115 insertions(+), 50 deletions(-)
 
-Reported-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/migrate.c |   11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3b676b0..f466827 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1679,9 +1679,18 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	page_xchg_last_nid(new_page, page_last_nid(page));
- 
- 	isolated = numamigrate_isolate_page(pgdat, page);
--	if (!isolated) {
-+
-+	/*
-+	 * Failing to isolate or a GUP pin prevents migration. The expected
-+	 * page count is 2. 1 for anonymous pages without a mapping and 1
-+	 * for the callers pin. If the page was isolated, the page will
-+	 * need to be put back on the LRU.
-+	 */
-+	if (!isolated || page_count(page) != 2) {
- 		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
- 		put_page(new_page);
-+		if (isolated)
-+			putback_lru_page(page);
- 		goto out_keep_locked;
- 	}
- 
+-- 
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
