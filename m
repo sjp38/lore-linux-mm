@@ -1,90 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 596656B005A
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 04:58:13 -0500 (EST)
-Message-ID: <50D43270.8010506@synopsys.com>
-Date: Fri, 21 Dec 2012 15:27:04 +0530
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id A280A6B0068
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 05:17:57 -0500 (EST)
+Message-ID: <50D43757.3000604@parallels.com>
+Date: Fri, 21 Dec 2012 14:17:59 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Subject: trailing flush_tlb_fix_spurious_fault in handle_pte_fault (was Re:
- [PATCH 1/3] x86/mm: only do a local TLB flush in ptep_set_access_flags())
-References: <20121025121617.617683848@chello.nl> <20121025124832.840241082@chello.nl> <CA+55aFxRh43832cEW39t0+d1Sdz46Up6Za9w641jpWukmi4zFw@mail.gmail.com> <5089F5B5.1050206@redhat.com> <CA+55aFwcj=nh1RUmEXUk6W3XwfbdQdQofkkCstbLGVo1EoKryA@mail.gmail.com> <508A0A0D.4090001@redhat.com> <CA+55aFx2fSdDcFxYmu00JP9rHiZ1BjH3tO4CfYXOhf_rjRP_Eg@mail.gmail.com> <CANN689EHj2inp+wjJGcqMHZQUV3Xm+3dAkLPOsnV4RZU+Kq5nA@mail.gmail.com> <m2pq45qu0s.fsf@firstfloor.org> <508A8D31.9000106@redhat.com> <20121026132601.GC9886@gmail.com> <20121026144419.7e666023@dull> <CA+55aFwdcMzMQ2ns6-p97GXuNhxiDO-nFa0h1A-tjN363mJniQ@mail.gmail.com> <508AE1A3.6030607@redhat.com> <CA+55aFxOywu=6pqejQi5DFm0KQYj0i9yQexwxgzdM5z3kcDgrg@mail.gmail.com> <508E9F5B.5010402@redhat.com>
-In-Reply-To: <508E9F5B.5010402@redhat.com>
+Subject: Re: [PATCH 05/19] shrinker: convert superblock shrinkers to new API
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com> <1354058086-27937-6-git-send-email-david@fromorbit.com> <50D2F142.401@parallels.com> <20121221014647.GA15182@dastard>
+In-Reply-To: <20121221014647.GA15182@dastard>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Andi Kleen <andi@firstfloor.org>, Michel Lespinasse <walken@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea
- Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes
- Weiner <hannes@cmpxchg.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew
- Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gilad Ben Yossef <giladb@ezchip.com>Andrea Arcangeli <aarcange@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
 
-On Monday 29 October 2012 08:53 PM, Rik van Riel wrote:
-> On 10/26/2012 03:18 PM, Linus Torvalds wrote:
->> On Fri, Oct 26, 2012 at 12:16 PM, Rik van Riel <riel@redhat.com> wrote:
->>>
->>> I can change the text of the changelog, however it looks
->>> like do_wp_page does actually use ptep_set_access_flags
->>> to set the write bit in the pte...
->>>
->>> I guess both need to be reflected in the changelog text
->>> somehow?
+On 12/21/2012 05:46 AM, Dave Chinner wrote:
+> On Thu, Dec 20, 2012 at 03:06:42PM +0400, Glauber Costa wrote:
+>> On 11/28/2012 03:14 AM, Dave Chinner wrote:
+>>> +static long super_cache_count(struct shrinker *shrink, struct shrink_control *sc)
+>>> +{
+>>> +	struct super_block *sb;
+>>> +	long	total_objects = 0;
+>>> +
+>>> +	sb = container_of(shrink, struct super_block, s_shrink);
+>>> +
+>>> +	if (!grab_super_passive(sb))
+>>> +		return -1;
+>>> +
 >>
->> Yeah, and by now, after all this discussion, I suspect it should be
->> committed with a comment too. Commit messages are good and all, but
->> unless chasing a particular bug they introduced, we shouldn't expect
->> people to read them for background information.
+>>
+>> You're missing the GFP_FS check here. This leads to us doing all the
+>> counting only to find out later, in the scanner, that we won't be able
+>> to free it. Better exit early.
 > 
-> Now that we have the TLB things taken care of, and
-> comments to patches 10/31 and 26/31 have been addressed,
-> is there anything else that needs to be done before
-> these NUMA patches can be merged?
+> No, I did that intentionally.
 > 
-> Anyone, this is a good time to speak up. We have some
-> time to address whatever concern you may have.
+> The shrinker has a method of deferring work from one invocation to
+> another - the shrinker->nr_in_batch variable. This is intended to be
+> used to ensure that a shrinker does the work it is supposed to, even
+> if it can't do the work immediately due to something like a GFP
+> context mismatch.
+> 
+> The problem with that mechanism right now is that it is not applied
+> consistently across the shrinkers. Some shrinkers will return a
+> count whenever nr_to_scan == 0, regardless of the gfp_mask, while
+> others will immediately return -1.
+> 
+> What this patch set does is make the shrinkers *always* return the
+> count of objects so the scan count can be calculated, and then let
+> the actually scanner determine whether progress can be made. The
+> result of doing this is that if the scanner cannot make progress,
+> the work is correctly deferred to the next shrinker invocation that
+> may be made under a different GFP context.
+> 
+> This is important because when you have a workload that involves a
+> lot of filesytsem modifications, the number of GFP_NOFS allocations
+> greatly outweights GFP_KERNEL allocations. Hence the majority of the
+> time we try to shrink the filesystem caches, they cannot do any
+> work. Hence we need the work to be deferred to the next GFP_KERNEL
+> shrinker invocation so the reclaim of the caches remains in balance.
+> 
+> This is also the reason for "We need to avoid excessive windup on
+> filesystem shrinkers" limiting of total_scan, so that we don't allow
+> this deferal to completely trash the caches when so much deferal
+> happens that the scan count grows to exceed the size of the cache
+> and we get a GFP_KERNEL reclaim context...
+> 
+> IOWs, for this deferal mechanism to work consistently, we always
+> need to calculate the amount of work we are supposed to do when the
+> shrinker is invoked. That means we always need to return the current
+> count of objects iand calculate the amount of scanning we need to
+> do. The check in the scan context determines if the work then gets
+> deferred or not....
 > 
 
-Hi,
 
-I know I'm very late in speaking up - but still I'll hazard a try. This is not
-exactly the same topic but closely related.
+While it makes sense, and it is clear to me now, could you document that
+to the benefit of future less gifted readers as myself?
 
-There is a a different call to flush_tlb_fix_spurious( ), towards the end of
-handle_pte_fault( ) which commit 61c77326d "x86, mm: Avoid unnecessary TLB flush"
-made no-op for X86. However is this really needed for any arch at all - even if we
-don't know all the arch specific quirks.
+Otherwise, should you be bitten by a giant poisonous spider and turn
+into a spider-zombie, this knowledge disappears. And you live in
+Australia, mate, this is totally possible.
 
-Given the code flow below
-
-handle_pte_fault( )
-....
-....
-if ptep_set_access_flags()-> if PTE chg remote TLB shot (pgtable-generic.c ver)
-   update_mmu_cache       -> if PTE chg local TLB possibly shot too
-else
-   flush_tlb_fix_spurious_fault -> PTE didn't change - still remote TLB shotdown
-
-So for PTE unchanged case, we default to doing remote TLB IPIs (barring X86) -
-unless arch makes this macro NULL.
-
-Thing is, in case of SMP races - due to PTE being different - any fixups to
-local/remote will be handled within ptep_set_access_flags( ) - arch-specific or
-generic versions. What I fail to understand is need to do anything - specially a
-remote shootdown, for PTE not changed case.
-
-I could shut up and just make it NO-OP for ARC, but ....
-
-Please note that for the record, the addition of this special case was done via
-following change. It might help answer what I feel to comprehend.
-
-2005-10-29 1a44e14 [PATCH] .text page fault SMP scalability optimization
-
-I might be totally off track so please feel free to bash me - but atleast I would
-end up knowing more !
-
-Thx,
--Vineet
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
