@@ -1,82 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id 04CB66B005A
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 06:51:32 -0500 (EST)
-Received: by mail-ob0-f174.google.com with SMTP id ta14so4435328obb.5
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 03:51:32 -0800 (PST)
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id C15146B005A
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 07:46:31 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id z2so2069304wey.4
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 04:46:30 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm: compare MIGRATE_ISOLATE selectively
+In-Reply-To: <20121221010902.GD2686@blaptop>
+References: <1355981152-2505-1-git-send-email-minchan@kernel.org> <xa1tfw30hgfb.fsf@mina86.com> <20121221010902.GD2686@blaptop>
+Date: Fri, 21 Dec 2012 13:46:23 +0100
+Message-ID: <xa1tr4mjpo80.fsf@mina86.com>
 MIME-Version: 1.0
-In-Reply-To: <50D24CD9.8070507@iskon.hr>
-References: <50D24AF3.1050809@iskon.hr>
-	<50D24CD9.8070507@iskon.hr>
-Date: Fri, 21 Dec 2012 19:51:31 +0800
-Message-ID: <CAJd=RBCQN1GxOUCwGPXL27d_q8hv50uHK5LhDnsv7mdv_2Usaw@mail.gmail.com>
-Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 20, 2012 at 7:25 AM, Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
->  static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->                                                         int *classzone_idx)
->  {
-> -       int all_zones_ok;
-> +       struct zone *unbalanced_zone;
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-nit: less hunks if not erase that mark
+> On Thu, Dec 20, 2012 at 04:49:44PM +0100, Michal Nazarewicz wrote:
+>> Perhaps =E2=80=9Cis_migrate_isolate=E2=80=9D to match already existing =
+=E2=80=9Cis_migrate_cma=E2=80=9D?
 
-Hillf
->         unsigned long balanced;
->         int i;
->         int end_zone = 0;       /* Inclusive.  0 = ZONE_DMA */
-> @@ -2580,7 +2580,7 @@ loop_again:
->                 unsigned long lru_pages = 0;
->                 int has_under_min_watermark_zone = 0;
+On Fri, Dec 21 2012, Minchan Kim wrote:
+> Good poking. In fact, while I made this patch, I was very tempted by rena=
+ming
+> is_migrate_cma to cma_pageblock.
 >
-> -               all_zones_ok = 1;
-> +               unbalanced_zone = NULL;
->                 balanced = 0;
+>         is_migrate_cma(mt)
 >
->                 /*
-> @@ -2719,7 +2719,7 @@ loop_again:
->                         }
+> I don't know who start to use "mt" instead of "migratetype" but anyway, i=
+t's
+> not a good idea.
 >
->                         if (!zone_balanced(zone, testorder, 0, end_zone)) {
-> -                               all_zones_ok = 0;
-> +                               unbalanced_zone = zone;
->                                 /*
->                                  * We are still under min water mark.  This
->                                  * means that we have a GFP_ATOMIC allocation
-> @@ -2752,7 +2752,7 @@ loop_again:
->                                 pfmemalloc_watermark_ok(pgdat))
->                         wake_up(&pgdat->pfmemalloc_wait);
+>         is_migrate_cma(migratetype)
 >
-> -               if (all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
-> +               if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
->                         break;          /* kswapd: all done */
->                 /*
->                  * OK, kswapd is getting into trouble.  Take a nap, then take
-> @@ -2762,7 +2762,7 @@ loop_again:
->                         if (has_under_min_watermark_zone)
->                                 count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
->                         else
-> -                               congestion_wait(BLK_RW_ASYNC, HZ/10);
-> +                               wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
->                 }
+> It's very clear for me because migratetype is per pageblock, we can know =
+the
+> function works per pageblock unit.
 >
->                 /*
-> @@ -2781,7 +2781,7 @@ out:
->          * high-order: Balanced zones must make up at least 25% of the node
->          *             for the node to be balanced
->          */
-> -       if (!(all_zones_ok || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))) {
-> +       if (unbalanced_zone && (!order || !pgdat_balanced(pgdat, balanced, *classzone_idx))) {
->                 cond_resched();
+>> Especially as the =E2=80=9Cmt_isolated_pageblock=E2=80=9D sound confusin=
+g to me, it
+>> implies that it works on pageblocks which it does not.
 >
->                 try_to_freeze();
-> -- 1.7.10.4
+> -ENOPARSE.
+>
+> migratetype works on pageblock.
+
+migratetype is a number, which can be assigned to a pageblock.  In some
+transitional cases, the migratetype associated with a page can differ
+from the migratetype associated with the pageblock the page is in.  As
+such, I think it's confusing to add =E2=80=9Cpageblock=E2=80=9D to the name=
+ of the
+function which does not read migratetype from pageblock but rather
+operates on the number it is provided.
+
+> I admit mt is really dirty but I used page_alloc.c already has lots of
+> mt, SIGH.
+
+I don't really have an issue with =E2=80=9Cmt=E2=80=9D myself, especially s=
+ince the few
+times =E2=80=9Cmt=E2=80=9D is used in page_alloc.c it is a local variable w=
+hich I don't
+think needs a long descriptive name since context is all there.
+
+> How about this?
+>
+> 1. Let's change all "mt" with "migratetype" again.
+> 2. use is_migrate_isolate and is_migrate_cma for "migratetype".
+> 3. use is_migrate_isolate_page instead of page_isolated_pageblock for
+>    "page".
+
+Like I've said.  Personally I don't really think 1 is needed, but 2 and
+3 look good to me.
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQ1FofAAoJECBgQBJQdR/0jiIP/jrryaTKAjAoBj4jyX7qtFXi
+utw9C5umaqLKIQOmErQSAwHdIbyrwnqPnITXKvOjV2oLUTScJ4idlbVWvxogvCub
+BSlVyw3/IARt14F2NEN8PkTib4EJNAOHPDIirVn/UId10Dy4u4iPKE4KXkNqtAEE
+juM+s8GMt4gFsZ25b3QbvBFlsn4PNKap629KLZ1J3yvdq+Gp1ldWJKnZyKHtsIsy
+UkzurFKX+qJYK8dUoDaFnkgcMInaZFhf7GRe9L6FIdRcUECBoDdzX6cnCJnn+ru8
+XBBczIv0N/WXhw4NA7uTX+Jn8dSY0LDjYiKoDjdaDgG4SFtS5FspexCMCH2uVnIl
+bEOqj+9K9tiCgfvcc4d0xV7IFFvu+6UnDuA9/ktKhX+zSGcjOwJAT5v/b2scuR5d
+PalqlvS8PTVByjhjm1g33e4EMyBu6wBe3QrGav0/8qcWkEuf73lWtOF4Rok9yy/s
++/SvO4FljTKRpqNu2eJMHh6Qhw3YQDAI4lnvCgAohwPadUxrA8T36gbseEXdzv1Z
+NQP/ipgNkEM0MrZAMtIpqq5jczeJTClzY1XoE4d3+iOwmbRoEpVeqbMRj5rixkIA
+BgA384AjldkI+Esbsn+G6IXhu9XSM7SPfFBssPXYPa2GsHOBQ1V0zBWJ2+lrvRoI
+1SMUcvpOSsuttlRbrjlA
+=h6PU
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
