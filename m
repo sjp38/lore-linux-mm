@@ -1,91 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id B378C6B006C
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 20:54:12 -0500 (EST)
-Date: Fri, 21 Dec 2012 12:54:10 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
-Message-ID: <20121221015410.GB15182@dastard>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
- <1354058086-27937-10-git-send-email-david@fromorbit.com>
- <50D2F4B6.9040108@parallels.com>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 651286B0070
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 20:55:49 -0500 (EST)
+Message-ID: <50D3C167.3090401@cn.fujitsu.com>
+Date: Fri, 21 Dec 2012 09:54:47 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50D2F4B6.9040108@parallels.com>
+Subject: Re: [PART5 Patch 1/5] page_alloc: add kernelcore_max_addr
+References: <1351675303-11786-1-git-send-email-wency@cn.fujitsu.com> <1351675303-11786-2-git-send-email-wency@cn.fujitsu.com> <50D214FC.8000405@infradead.org>
+In-Reply-To: <50D214FC.8000405@infradead.org>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, Rob Landley <rob@landley.net>, Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Minchan Kim <minchan.kim@gmail.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Yinghai Lu <yinghai@kernel.org>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>
 
-On Thu, Dec 20, 2012 at 03:21:26PM +0400, Glauber Costa wrote:
-> On 11/28/2012 03:14 AM, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > Now that we have an LRU list API, we can start to enhance the
-> > implementation.  This splits the single LRU list into per-node lists
-> > and locks to enhance scalability. Items are placed on lists
-> > according to the node the memory belongs to. To make scanning the
-> > lists efficient, also track whether the per-node lists have entries
-> > in them in a active nodemask.
-> > 
-> 
-> I think it is safe to assume that these functions could benefit from
-> having more metadata available for them when they run.
-> 
-> Let's say for instance that a hypothetical person, for some unknown
-> reasons, comes with the idea of replicating those lists transparently
-> per memcg.
-> 
-> In this case, it is very useful to know which memcg drives the current
-> call. In general, the struct shrink_control already contains a lot of
-> data that we use to drive the process. Wouldn't it make sense to also
-> pass shrink_control as data to those lists as well?
+Hi Randy,
 
-I considered it, but:
+Thank you for your reviewing. :)
 
-> The only drawback of this, is that it would tie it to the shrinking
-> process.
+I think this boot option has been dropped. And we are implementing a new
+boot option called "movablecore_map" to replace it.
 
-and that's exactly what I didn't want to do. Yes, the shrinkers need
-to walk the list, but they will not be/are not the only reason we
-need to walk lists and isolate items....
+Please refer to the following url if you like:
+https://lkml.org/lkml/2012/12/19/51
 
-> I am not sure if this is a concern, but it if is, maybe we
-> could replace things like :
-> 
-> +static long
-> +list_lru_walk_node(
-> +	struct list_lru		*lru,
-> +	int			nid,
-> +	list_lru_walk_cb	isolate,
-> +	void			*cb_arg,
-> +	long			*nr_to_walk)
-> +{
-> 
-> with
-> 
-> +static long
-> +list_lru_walk_node(
-> +	struct list_lru		*lru,
-> +       struct something_like_shrink_control_not_shrink_control *a)
-> +{
-> 
-> This way we can augment the data available for the interface, for
-> instance, passing the memcg context, without going patching all the callers.
+Thanks. :)
 
-Yes, that is also something I considered. I just never got around to
-doing it as I wasn't sure whether the walking interface woul dbe
-acceptible in the first place. If we do use the list walk interface
-list this, then we shoul definitely encapsulate all the parameters
-in a struct something_like_shrink_control_not_shrink_control. :)
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+On 12/20/2012 03:26 AM, Randy Dunlap wrote:
+> On 10/31/12 02:21, Wen Congyang wrote:
+>> From: Lai Jiangshan<laijs@cn.fujitsu.com>
+>>
+>> Current ZONE_MOVABLE (kernelcore=) setting policy with boot option doesn't meet
+>> our requirement. We need something like kernelcore_max_addr=XX boot option
+>> to limit the kernelcore upper address.
+>>
+>> The memory with higher address will be migratable(movable) and they
+>> are easier to be offline(always ready to be offline when the system don't require
+>> so much memory).
+>>
+>> It makes things easy when we dynamic hot-add/remove memory, make better
+>> utilities of memories, and helps for THP.
+>>
+>> All kernelcore_max_addr=, kernelcore= and movablecore= can be safely specified
+>> at the same time(or any 2 of them).
+>>
+>> Signed-off-by: Lai Jiangshan<laijs@cn.fujitsu.com>
+>> ---
+>>   Documentation/kernel-parameters.txt |  9 +++++++++
+>>   mm/page_alloc.c                     | 29 ++++++++++++++++++++++++++++-
+>>   2 files changed, 37 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+>> index 9776f06..2b72ffb 100644
+>> --- a/Documentation/kernel-parameters.txt
+>> +++ b/Documentation/kernel-parameters.txt
+>> @@ -1223,6 +1223,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>>   			use the HighMem zone if it exists, and the Normal
+>>   			zone if it does not.
+>>
+>> +	kernelcore_max_addr=nn[KMG]	[KNL,X86,IA-64,PPC] This parameter
+>> +			is the same effect as kernelcore parameter, except it
+>> +			specifies the up physical address of memory range
+>
+> 			upper (or maximum)
+>
+>> +			usable by the kernel for non-movable allocations.
+>> +			If both kernelcore and kernelcore_max_addr are
+>> +			specified, this requested's priority is higher than
+>
+> 			specified, this parameter has a higher priority than
+> 			the kernelcore parameter.
+>
+>> +			kernelcore's.
+>> +			See the kernelcore parameter.
+>> +
+>>   	kgdbdbgp=	[KGDB,HW] kgdb over EHCI usb debug port.
+>>   			Format:<Controller#>[,poll interval]
+>>   			The controller # is the number of the ehci usb debug
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 5b74de6..9c35fe5 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -200,6 +200,7 @@ static unsigned long __meminitdata dma_reserve;
+>>   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>>   static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+>>   static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
+>> +static unsigned long __initdata required_kernelcore_max_pfn;
+>>   static unsigned long __initdata required_kernelcore;
+>>   static unsigned long __initdata required_movablecore;
+>>   static unsigned long __meminitdata zone_movable_pfn[MAX_NUMNODES];
+>> @@ -4715,6 +4716,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>>   {
+>>   	int i, nid;
+>>   	unsigned long usable_startpfn;
+>> +	unsigned long kernelcore_max_pfn;
+>>   	unsigned long kernelcore_node, kernelcore_remaining;
+>>   	/* save the state before borrow the nodemask */
+>>   	nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
+>> @@ -4743,6 +4745,9 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>>   		required_kernelcore = max(required_kernelcore, corepages);
+>>   	}
+>>
+>> +	if (required_kernelcore_max_pfn&&  !required_kernelcore)
+>> +		required_kernelcore = totalpages;
+>> +
+>>   	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+>>   	if (!required_kernelcore)
+>>   		goto out;
+>> @@ -4751,6 +4756,12 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+>>   	find_usable_zone_for_movable();
+>>   	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+>>
+>> +	if (required_kernelcore_max_pfn)
+>> +		kernelcore_max_pfn = required_kernelcore_max_pfn;
+>> +	else
+>> +		kernelcore_max_pfn = ULONG_MAX>>  PAGE_SHIFT;
+>> +	kernelcore_max_pfn = max(kernelcore_max_pfn, usable_startpfn);
+>> +
+>>   restart:
+>>   	/* Spread kernelcore memory as evenly as possible throughout nodes */
+>>   	kernelcore_node = required_kernelcore / usable_nodes;
+>> @@ -4777,8 +4788,12 @@ restart:
+>>   			unsigned long size_pages;
+>>
+>>   			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
+>> -			if (start_pfn>= end_pfn)
+>> +			end_pfn = min(kernelcore_max_pfn, end_pfn);
+>> +			if (start_pfn>= end_pfn) {
+>> +				if (!zone_movable_pfn[nid])
+>> +					zone_movable_pfn[nid] = start_pfn;
+>>   				continue;
+>> +			}
+>>
+>>   			/* Account for what is only usable for kernelcore */
+>>   			if (start_pfn<  usable_startpfn) {
+>> @@ -4965,6 +4980,18 @@ static int __init cmdline_parse_core(char *p, unsigned long *core)
+>>   	return 0;
+>>   }
+>>
+>> +#ifdef CONFIG_MOVABLE_NODE
+>> +/*
+>> + * kernelcore_max_addr=addr sets the up physical address of memory range
+>
+>                                          upper
+>
+>> + * for use for allocations that cannot be reclaimed or migrated.
+>> + */
+>> +static int __init cmdline_parse_kernelcore_max_addr(char *p)
+>> +{
+>> +	return cmdline_parse_core(p,&required_kernelcore_max_pfn);
+>> +}
+>> +early_param("kernelcore_max_addr", cmdline_parse_kernelcore_max_addr);
+>> +#endif
+>> +
+>>   /*
+>>    * kernelcore=size sets the amount of memory for use for allocations that
+>>    * cannot be reclaimed or migrated.
+>>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
