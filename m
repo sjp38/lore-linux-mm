@@ -1,75 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id D35976B005D
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 21:50:54 -0500 (EST)
-Date: Thu, 20 Dec 2012 21:49:57 -0500
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 1771D6B0068
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 22:03:29 -0500 (EST)
+Date: Thu, 20 Dec 2012 22:02:36 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 5/7] mm: vmscan: clean up get_scan_count()
-Message-ID: <20121221024957.GE7147@cmpxchg.org>
+Subject: Re: [patch 2/7] mm: vmscan: save work scanning (almost) empty LRU
+ lists
+Message-ID: <20121221030236.GF7147@cmpxchg.org>
 References: <1355767957-4913-1-git-send-email-hannes@cmpxchg.org>
- <1355767957-4913-6-git-send-email-hannes@cmpxchg.org>
- <20121219160805.658f724f.akpm@linux-foundation.org>
+ <1355767957-4913-3-git-send-email-hannes@cmpxchg.org>
+ <20121219155901.c488bac2.akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121219160805.658f724f.akpm@linux-foundation.org>
+In-Reply-To: <20121219155901.c488bac2.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Satoru Moriya <satoru.moriya@hds.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Dec 19, 2012 at 04:08:05PM -0800, Andrew Morton wrote:
-> On Mon, 17 Dec 2012 13:12:35 -0500
+On Wed, Dec 19, 2012 at 03:59:01PM -0800, Andrew Morton wrote:
+> On Mon, 17 Dec 2012 13:12:32 -0500
 > Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> > Reclaim pressure balance between anon and file pages is calculated
-> > through a tuple of numerators and a shared denominator.
+> > In certain cases (kswapd reclaim, memcg target reclaim), a fixed
+> > minimum amount of pages is scanned from the LRU lists on each
+> > iteration, to make progress.
 > > 
-> > Exceptional cases that want to force-scan anon or file pages configure
-> > the numerators and denominator such that one list is preferred, which
-> > is not necessarily the most obvious way:
+> > Do not make this minimum bigger than the respective LRU list size,
+> > however, and save some busy work trying to isolate and reclaim pages
+> > that are not there.
 > > 
-> >     fraction[0] = 1;
-> >     fraction[1] = 0;
-> >     denominator = 1;
-> >     goto out;
+> > Empty LRU lists are quite common with memory cgroups in NUMA
+> > environments because there exists a set of LRU lists for each zone for
+> > each memory cgroup, while the memory of a single cgroup is expected to
+> > stay on just one node.  The number of expected empty LRU lists is thus
 > > 
-> > Make this easier by making the force-scan cases explicit and use the
-> > fractionals only in case they are calculated from reclaim history.
+> >   memcgs * (nodes - 1) * lru types
 > > 
-> > And bring the variable declarations/definitions in order.
+> > Each attempt to reclaim from an empty LRU list does expensive size
+> > comparisons between lists, acquires the zone's lru lock etc.  Avoid
+> > that.
 > > 
 > > ...
 > >
-> > +	u64 fraction[2], uninitialized_var(denominator);
+> > -#define SWAP_CLUSTER_MAX 32
+> > +#define SWAP_CLUSTER_MAX 32UL
 > 
-> Using uninitialized_var() puts Linus into rant mode.  Unkindly, IMO:
-> uninitialized_var() is documentarily useful and reduces bloat.  There is
-> a move afoot to replace it with
+> You made me review the effects of this change.  It looks OK.  A few
+> cleanups are possible, please review.
 > 
-> 	int foo = 0;	/* gcc */
-> 
-> To avoid getting ranted at we can do
-> 
-> --- a/mm/vmscan.c~mm-vmscan-clean-up-get_scan_count-fix
-> +++ a/mm/vmscan.c
-> @@ -1658,7 +1658,8 @@ static void get_scan_count(struct lruvec
->  			   unsigned long *nr)
->  {
->  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
-> -	u64 fraction[2], uninitialized_var(denominator);
-> +	u64 fraction[2];
-> +	u64 denominator = 0;
->  	struct zone *zone = lruvec_zone(lruvec);
->  	unsigned long anon_prio, file_prio;
->  	enum scan_balance scan_balance;
+> I wonder what happens in __setup_per_zone_wmarks() if we set
+> SWAP_CLUSTER_MAX greater than 128.
 
-Makes sense, I guess, but then you have to delete this line from the
-changelog:
+In the current clamp() implementation max overrides min, so...
 
-"And bring the variable declarations/definitions in order."
+BUILD_BUG_ON()?  Probably unnecessary, it seems like a rather
+arbitrary range to begin with.
 
-Or change it to "partial" order or something... :-)
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/page_alloc.c:__setup_per_zone_wmarks: make min_pages unsigned long
+> 
+> `int' is an inappropriate type for a number-of-pages counter.
+> 
+> While we're there, use the clamp() macro.
+> 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Satoru Moriya <satoru.moriya@hds.com>
+> Cc: Simon Jeons <simon.jeons@gmail.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/vmscan.c:shrink_lruvec(): switch to min()
+> 
+> "mm: vmscan: save work scanning (almost) empty LRU lists" made
+> SWAP_CLUSTER_MAX an unsigned long.
+> 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Satoru Moriya <satoru.moriya@hds.com>
+> Cc: Simon Jeons <simon.jeons@gmail.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm/vmscan.c:__zone_reclaim(): replace max_t() with max()
+> 
+> "mm: vmscan: save work scanning (almost) empty LRU lists" made
+> SWAP_CLUSTER_MAX an unsigned long.
+> 
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Satoru Moriya <satoru.moriya@hds.com>
+> Cc: Simon Jeons <simon.jeons@gmail.com>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
