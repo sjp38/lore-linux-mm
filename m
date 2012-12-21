@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id B6C216B0070
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 17:00:03 -0500 (EST)
-Message-ID: <50D4DBC8.2020008@oracle.com>
-Date: Fri, 21 Dec 2012 16:59:36 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8DAF66B0072
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 17:02:26 -0500 (EST)
+Received: by mail-wi0-f169.google.com with SMTP id hq12so2262602wib.0
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 14:02:24 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm,ksm: use new hashtable implementation
-References: <1356112012-24584-1-git-send-email-sasha.levin@oracle.com> <20121221133610.bb516813.akpm@linux-foundation.org>
-In-Reply-To: <20121221133610.bb516813.akpm@linux-foundation.org>
+In-Reply-To: <20121221195817.GE13367@suse.de>
+References: <1353624594-1118-1-git-send-email-mingo@kernel.org>
+ <1353624594-1118-19-git-send-email-mingo@kernel.org> <alpine.DEB.2.00.1212031644440.32354@chino.kir.corp.google.com>
+ <CA+55aFyrSVzGZ438DGnTFuyFb1BOXaMmvxtkW0Xhnx+BxAg2PA@mail.gmail.com>
+ <alpine.DEB.2.00.1212201440250.7807@chino.kir.corp.google.com>
+ <20121221134740.GC13367@suse.de> <CA+55aFxrdPpMWLD8LF0NNqgJqmB-L-HW3Xyxht6e5AwnoaueTw@mail.gmail.com>
+ <20121221195817.GE13367@suse.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 21 Dec 2012 14:02:04 -0800
+Message-ID: <CA+55aFwDXj3LqCRepsaeZMjOg0YsWV=7GFLHqHe2CxoF4JchCQ@mail.gmail.com>
+Subject: Re: [patch] mm, mempolicy: Introduce spinlock to read shared policy tree
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <levinsasha928@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Turner <pjt@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <levinsasha928@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On 12/21/2012 04:36 PM, Andrew Morton wrote:
-> On Fri, 21 Dec 2012 12:46:50 -0500
-> Sasha Levin <sasha.levin@oracle.com> wrote:
-> 
->> Switch ksm to use the new hashtable implementation. This reduces the amount of
->> generic unrelated code in the ksm module.
-> 
-> hm, include/linux/hashtable.h:hash_min() is rather dangerous - it
-> returns different values depending on the size of the first argument. 
-> So if the calling code mixes up its ints and longs (and boy we do that
-> a lot), the result will work on 32-bit and fail on 64-bit.
+On Fri, Dec 21, 2012 at 11:58 AM, Mel Gorman <mgorman@suse.de> wrote:
+>
+> Kosaki's patch does not fix the actual problem with NUMA hinting
+> faults. Converting to a spinlock is nice but we'd still hold the PTL at
+> the time sp_alloc is called and potentially allocating GFP_KERNEL with a
+> spinlock held.
 
-The reason for doing so is because hashing 32 bits is much faster than
-hashing 64 bits.
+The problem I saw reported - and the problem that the "mutex+spinlock"
+patch was fixing - wasn't actually sp_alloc(), but just sp_lookup()
+through mpol_shared_policy_lookup().
 
-I'd really prefer to fix the code the mixes up ints and longs instead
-of removing optimizations. Not only because of the optimizations themselves
-but because these mixups will be rather obvious with the hashtable as
-opposed to all the other places that just misbehave silently.
+And converting that to a spinlock would definitely fix it - taking
+that spinlock quickly for the lookup while holding the pt lock is
+fine.
 
-> Also, is there ever likely to be a situation where the first arg to
-> hash_min() is *not* a pointer?  Perhaps it would be better to concede
-> to reality: rename `key' to `ptr' and remove all those typcasts you
-> just added.
+Now, if we have to call sp_alloc() too at some point, that's
+different, but that wouldn't be helped by the "mutex+spinlock" patch
+(that started this thread) anyway.
 
-There actually are several. This is the reason for hash_min really - several
-places that used 32bit keys would have been slowed down by switch to
-hash_long(), which is why hash_min() was introduced.
+> At the risk of making your head explode, here is another patch.
 
-The first places that come to mind are userns, 9p and tracepoints, I guess
-there are a few more which I don't remember.
+So I don't hate this patch, but I don't see the point of your games in
+do_pmd_numa_page(). I'm not seeing the allocation in mpol_misplaced(),
+and that wasn't what the original report was.
 
+The backtrace you quote is literally *only* about the fact that you
+cannot take a mutex inside a spinlock. No allocation, just a lookup.
 
-Thanks,
-Sasha
+So where's the sp_alloc()?
+
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
