@@ -1,77 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id C2E5E6B005D
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 19:36:53 -0500 (EST)
-Date: Fri, 21 Dec 2012 01:36:49 +0100
-From: Petr Holasek <pholasek@redhat.com>
-Subject: Re: [PATCH] ksm: make rmap walks more scalable
-Message-ID: <20121221003648.GA9649@thinkpad-work.redhat.com>
-References: <alpine.LNX.2.00.1212191735530.25409@eggly.anvils>
- <alpine.LNX.2.00.1212191742440.25409@eggly.anvils>
- <50D387FD.4020008@oracle.com>
- <alpine.LNX.2.00.1212201409170.977@eggly.anvils>
- <50D3947F.2060503@oracle.com>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 758546B006C
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 19:49:38 -0500 (EST)
+Date: Fri, 21 Dec 2012 09:49:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] compaction: fix build error in CMA && !COMPACTION
+Message-ID: <20121221004935.GC2686@blaptop>
+References: <1355981130-2382-1-git-send-email-minchan@kernel.org>
+ <20121220104707.GB10819@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50D3947F.2060503@oracle.com>
+In-Reply-To: <20121220104707.GB10819@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On Thu, 20 Dec 2012, Sasha Levin wrote:
-> On 12/20/2012 05:37 PM, Hugh Dickins wrote:
-> > On Thu, 20 Dec 2012, Sasha Levin wrote:
-> >> On 12/19/2012 08:44 PM, Hugh Dickins wrote:
-> >>> The rmap walks in ksm.c are like those in rmap.c:
-> >>> they can safely be done with anon_vma_lock_read().
-> >>>
-> >>> Signed-off-by: Hugh Dickins <hughd@google.com>
-> >>> ---
-> >>
-> >> Hi Hugh,
-> >>
-> >> This patch didn't fix the ksm oopses I'm seeing.
+On Thu, Dec 20, 2012 at 10:47:07AM +0000, Mel Gorman wrote:
+> On Thu, Dec 20, 2012 at 02:25:30PM +0900, Minchan Kim wrote:
+> > isolate_freepages_block and isolate_migratepages_range is used for CMA
+> > as well as compaction so it breaks build for CONFIG_CMA &&
+> > !CONFIG_COMPACTION.
 > > 
-> > I wouldn't expect it to (and should certainly have mentioned oopses
-> > in the commit message if I'd intended): this patch was merely an
-> > optimization/clarification of a commit gone in for 3.8-rc1.
+> > This patch fixes it.
 > > 
-> > Understandable misunderstanding: you took my Cc too seriously,
-> > I just thought I'd better keep Petr in the loop on current changes
-> > to ksm.c, and foolishly kept you in too ;)
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/compaction.c |   26 ++++++++++++++++++++------
+> >  1 file changed, 20 insertions(+), 6 deletions(-)
 > > 
-> > Your oopses are on linux-next, which as of 20121220 still had Petr's
-> > nice but buggy NUMA KSM patch in: it should go away when Stephen gets
-> > a fresh mm update from Andrew, then reappear once his v6 goes into mm.
-> > 
-> > To stop these oopses in get_mergeable_page (inlined in
-> > unstable_tree_search_insert) you need the patch I showed on
-> > Tuesday, which I hope he'll merge in for his v6.  That doesn't fix
-> > all of the problems, but hopefully all that you'll encounter before
-> > I've devised a fix for the separate stale stable_nodes issue.
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 5ad7f4f..70f4443 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -17,6 +17,21 @@
+> >  #include <linux/balloon_compaction.h>
+> >  #include "internal.h"
+> >  
+> > +#ifdef CONFIG_COMPACTION
+> > +static inline void count_compact_event(enum vm_event_item item)
+> > +{
+> > +	count_vm_event(item);
+> > +}
+> > +
+> > +static inline void count_compact_events(enum vm_event_item item, long delta)
+> > +{
+> > +	count_vm_events(item, delta);
+> > +}
+> > +#else
+> > +#define count_compact_event(item)
+> > +#define count_compact_events(item, delta)
+> > +#endif
+> > +
 > 
-> My bad! I thought that this is the finalized version of the patch from
-> Tuesday and was surprised when the oops was still there :)
+> That should be
 > 
-> fwiw I'll use this to report that I'm not seeing any unexpected behaviour
-> with this patch applied.
+> do {} while (0)
 > 
+> otherwise a block like this
 > 
-> Thanks,
-> Sasha
+> if (foo)
+> 	count_compact_event(COMPACTFREE_SCANNED)
+> bar;
 > 
+> will get parsed as
+> 
+> if (foo)
+> 	bar;
+> 
+> which is wrong.
 
-Hugh, big thanks for your Tuesday fix, I am not able to reproduce reported
-oops any more. I will continue with testing overnight and submit v6 version
-tomorrow if there won't be any problem.
+Indeed.
 
-Should I also add [PATCH] ksm: make rmap walks more scalable into v6 or
-can I rely on it?
+> 
+> Now that I look at the do {} while (0) thing it is also strictly speaking
+> wrong for count_vm_numa_events() too because it would do the wrong thing for
 
-thanks,
-Petr H
+If I noticed it, I should named it as count_vm_compact_events for the consistency.
+
+> 
+> count_compact_events(COMPACTFREE_SCANNED, foo++);
+> 
+> There happens to be no examples where we depend on such side-effects but
+
+Agreed.
+
+> I've taken a TODO item to fix it up in the New Year.
+
+Andrew picked up the patch with your fix. Please correct it for New Year's
+present. :)
+
+Thanks, Mel.
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
