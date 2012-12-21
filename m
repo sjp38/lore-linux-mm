@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 4080C6B007B
-	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 19:50:18 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id un15so2326583pbc.22
-        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 16:50:17 -0800 (PST)
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id A68666B0078
+	for <linux-mm@kvack.org>; Thu, 20 Dec 2012 19:50:19 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so2444646pad.40
+        for <linux-mm@kvack.org>; Thu, 20 Dec 2012 16:50:18 -0800 (PST)
 From: Michel Lespinasse <walken@google.com>
-Subject: [PATCH 4/9] mm: use mm_populate() for blocking remap_file_pages()
-Date: Thu, 20 Dec 2012 16:49:52 -0800
-Message-Id: <1356050997-2688-5-git-send-email-walken@google.com>
+Subject: [PATCH 5/9] mm: use mm_populate() when adjusting brk with MCL_FUTURE in effect.
+Date: Thu, 20 Dec 2012 16:49:53 -0800
+Message-Id: <1356050997-2688-6-git-send-email-walken@google.com>
 In-Reply-To: <1356050997-2688-1-git-send-email-walken@google.com>
 References: <1356050997-2688-1-git-send-email-walken@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -18,68 +18,65 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@
 Signed-off-by: Michel Lespinasse <walken@google.com>
 
 ---
- mm/fremap.c |   22 ++++++----------------
- 1 files changed, 6 insertions(+), 16 deletions(-)
+ mm/mmap.c |   18 ++++++++++++++----
+ 1 files changed, 14 insertions(+), 4 deletions(-)
 
-diff --git a/mm/fremap.c b/mm/fremap.c
-index 2db886e31044..b42e32171530 100644
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -129,6 +129,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 	struct vm_area_struct *vma;
- 	int err = -EINVAL;
- 	int has_write_lock = 0;
-+	vm_flags_t vm_flags;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index a16fc499dbd1..4c8d39e64e80 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -240,6 +240,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ 	unsigned long newbrk, oldbrk;
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long min_brk;
++	bool populate;
  
- 	if (prot)
- 		return err;
-@@ -228,30 +229,16 @@ get_write_lock:
- 		/*
- 		 * drop PG_Mlocked flag for over-mapped range
- 		 */
--		vm_flags_t saved_flags = vma->vm_flags;
- 		if (!has_write_lock)
- 			goto get_write_lock;
-+		vm_flags = vma->vm_flags;
- 		munlock_vma_pages_range(vma, start, start + size);
--		vma->vm_flags = saved_flags;
-+		vma->vm_flags = vm_flags;
- 	}
+ 	down_write(&mm->mmap_sem);
  
- 	mmu_notifier_invalidate_range_start(mm, start, start + size);
- 	err = vma->vm_ops->remap_pages(vma, start, size, pgoff);
- 	mmu_notifier_invalidate_range_end(mm, start, start + size);
--	if (!err) {
--		if (vma->vm_flags & VM_LOCKED) {
--			/*
--			 * might be mapping previously unmapped range of file
--			 */
--			mlock_vma_pages_range(vma, start, start + size);
--		} else if (!(flags & MAP_NONBLOCK)) {
--			if (unlikely(has_write_lock)) {
--				downgrade_write(&mm->mmap_sem);
--				has_write_lock = 0;
--			}
--			make_pages_present(start, start+size);
--		}
--	}
- 
- 	/*
- 	 * We can't clear VM_NONLINEAR because we'd have to do
-@@ -260,10 +247,13 @@ get_write_lock:
- 	 */
- 
+@@ -289,8 +290,15 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ 	/* Ok, looks good - let it rip. */
+ 	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk)
+ 		goto out;
++
+ set_brk:
+ 	mm->brk = brk;
++	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
++	up_write(&mm->mmap_sem);
++	if (populate)
++		mm_populate(oldbrk, newbrk - oldbrk);
++	return brk;
++
  out:
-+	vm_flags = vma->vm_flags;
- 	if (likely(!has_write_lock))
- 		up_read(&mm->mmap_sem);
- 	else
- 		up_write(&mm->mmap_sem);
-+	if (!err && ((vm_flags & VM_LOCKED) || !(flags & MAP_NONBLOCK)))
-+		mm_populate(start, size);
- 
- 	return err;
+ 	retval = mm->brk;
+ 	up_write(&mm->mmap_sem);
+@@ -2274,10 +2282,8 @@ static unsigned long do_brk(unsigned long addr, unsigned long len)
+ out:
+ 	perf_event_mmap(vma);
+ 	mm->total_vm += len >> PAGE_SHIFT;
+-	if (flags & VM_LOCKED) {
+-		if (!mlock_vma_pages_range(vma, addr, addr + len))
+-			mm->locked_vm += (len >> PAGE_SHIFT);
+-	}
++	if (flags & VM_LOCKED)
++		mm->locked_vm += (len >> PAGE_SHIFT);
+ 	return addr;
  }
+ 
+@@ -2285,10 +2291,14 @@ unsigned long vm_brk(unsigned long addr, unsigned long len)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long ret;
++	bool populate;
+ 
+ 	down_write(&mm->mmap_sem);
+ 	ret = do_brk(addr, len);
++	populate = ((mm->def_flags & VM_LOCKED) != 0);
+ 	up_write(&mm->mmap_sem);
++	if (populate)
++		mm_populate(addr, len);
+ 	return ret;
+ }
+ EXPORT_SYMBOL(vm_brk);
 -- 
 1.7.7.3
 
