@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id 09C086B006C
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 16:28:43 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id bg2so3072736pad.32
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 13:28:43 -0800 (PST)
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 8F1DC6B0070
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 16:28:46 -0500 (EST)
+Received: by mail-da0-f54.google.com with SMTP id n2so2275195dad.27
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 13:28:45 -0800 (PST)
 From: Andy Lutomirski <luto@amacapital.net>
-Subject: [PATCH v2 2/3] mm: Update file times when inodes are written after mmaped writes
-Date: Fri, 21 Dec 2012 13:28:27 -0800
-Message-Id: <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
+Subject: [PATCH v2 3/3] Remove file_update_time from all mkwrite paths
+Date: Fri, 21 Dec 2012 13:28:28 -0800
+Message-Id: <71eda8f19427d043be9e0a48c6236df3084e2804.1356124965.git.luto@amacapital.net>
 In-Reply-To: <cover.1356124965.git.luto@amacapital.net>
 References: <cover.1356124965.git.luto@amacapital.net>
 In-Reply-To: <cover.1356124965.git.luto@amacapital.net>
@@ -17,282 +17,160 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>
 Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@amacapital.net>
 
-The onus is currently on filesystems to call file_update_time
-somewhere in the page_mkwrite path.  This is unfortunate for three
-reasons:
-
-1. page_mkwrite on a locked page should be fast.  ext4, for example,
-   often sleeps while dirtying inodes.  (This could be considered a
-   fixable problem with ext4, but this approach makes it
-   irrelevant.)
-
-2. The current behavior is surprising -- the timestamp resulting
-   from an mmaped write will be before the write, not after.  This
-   contradicts POSIX, which says:
-
-      The st_ctime and st_mtime fields of a file that is mapped with
-      MAP_SHARED and PROT_WRITE, will be marked for update at some
-      point in the interval between a write reference to the mapped
-      region and the next call to msync() with MS_ASYNC or MS_SYNC
-      for that portion of the file by any process. If there is no
-      such call, these fields may be marked for update at any time
-      after a write reference if the underlying file is modified as
-      a result.
-
-   We currently get this wrong:
-
-    addr = mmap(..., PROT_WRITE, MAP_SHARED, fd, 0);
-    *addr = 0;  <-- mtime is updated here
-    sleep(5);
-    *addr = 1;  <-- this write will never trigger an mtime update
-    msync(fd, MS_SYNC);
-
-   For now, MS_ASYNC still doesn't trigger an mtime update because
-   it doesn't do anything at all.  This would be easy enough to fix.
-
-   POSIX (oddly IMO) does not require that munmap(2), fsync(2), or
-   _exit(2) cause mtime writes, but this patch is careful to do that
-   as well.  According to Jan Kara, people have complained about
-   ld(1) writing its output via mmap and the timestamp magically
-   changing well after ld is done.
-
-3. (An ulterior motive) I'd like to use hardware dirty tracking for
-   shared, locked, writable mappings (instead of page faults).
-   Moving important work out of the page_mkwrite path is an
-   important first step.
-
-This patch moves the time update into the core pagecache code.  When
-a pte dirty bit is transferred to struct page, a new address_space
-flag AS_CMTIME is atomically set on the mapping.  (This happens
-during writeback and when ptes are unmapped.)  Subsequently (after
-an inode is written back or when a vma is removed), the AS_CMTIME
-bit is checked, and, if set, the inode's time is updated.
-
-The next patch will remove the now-unnecessary file_update_time
-calls in ->page_mkwrite.
+The times are now updated at sync time.
 
 Signed-off-by: Andy Lutomirski <luto@amacapital.net>
 ---
- fs/inode.c              | 72 ++++++++++++++++++++++++++++++++++++++-----------
- include/linux/fs.h      |  1 +
- include/linux/pagemap.h |  3 +++
- mm/memory.c             |  2 +-
- mm/mmap.c               |  4 +++
- mm/page-writeback.c     | 30 +++++++++++++++++++--
- 6 files changed, 94 insertions(+), 18 deletions(-)
+ fs/9p/vfs_file.c | 3 ---
+ fs/btrfs/inode.c | 4 +---
+ fs/buffer.c      | 6 ------
+ fs/ceph/addr.c   | 3 ---
+ fs/ext4/inode.c  | 1 -
+ fs/gfs2/file.c   | 3 ---
+ fs/nilfs2/file.c | 1 -
+ fs/sysfs/bin.c   | 2 --
+ mm/filemap.c     | 1 -
+ mm/memory.c      | 3 ---
+ 10 files changed, 1 insertion(+), 26 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index 64999f1..1d2e303 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -1640,6 +1640,34 @@ int file_remove_suid(struct file *file)
- }
- EXPORT_SYMBOL(file_remove_suid);
+diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
+index c2483e9..34b84f0 100644
+--- a/fs/9p/vfs_file.c
++++ b/fs/9p/vfs_file.c
+@@ -610,9 +610,6 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
+ 		 page, (unsigned long)filp->private_data);
  
-+/*
-+ * This does the work that's common to file_update_time and
-+ * inode_update_time.
-+ */
-+static int prepare_update_cmtime(struct inode *inode, struct timespec *now)
-+{
-+	int sync_it;
-+
-+	/* First try to exhaust all avenues to not sync */
-+	if (IS_NOCMTIME(inode))
-+		return 0;
-+
-+	*now = current_fs_time(inode->i_sb);
-+	if (!timespec_equal(&inode->i_mtime, now))
-+		sync_it = S_MTIME;
-+
-+	if (!timespec_equal(&inode->i_ctime, now))
-+		sync_it |= S_CTIME;
-+
-+	if (IS_I_VERSION(inode))
-+		sync_it |= S_VERSION;
-+
-+	if (!sync_it)
-+		return 0;
-+
-+	return sync_it;
-+}
-+
- /**
-  *	file_update_time	-	update mtime and ctime time
-  *	@file: file accessed
-@@ -1657,23 +1685,9 @@ int file_update_time(struct file *file)
- {
- 	struct inode *inode = file->f_path.dentry->d_inode;
- 	struct timespec now;
--	int sync_it = 0;
-+	int sync_it = prepare_update_cmtime(inode, &now);
+-	/* Update file times before taking page lock */
+-	file_update_time(filp);
+-
+ 	v9inode = V9FS_I(inode);
+ 	/* make sure the cache has finished storing the page */
+ 	v9fs_fscache_wait_on_page_write(inode, page);
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 95542a1..6fb8558 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -6747,10 +6747,8 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	sb_start_pagefault(inode->i_sb);
+ 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
+ 	if (!ret) {
+-		ret = file_update_time(vma->vm_file);
+ 		reserved = 1;
+-	}
+-	if (ret) {
++	} else if (ret) {
+ 		if (ret == -ENOMEM)
+ 			ret = VM_FAULT_OOM;
+ 		else /* -ENOSPC, -EIO, etc */
+diff --git a/fs/buffer.c b/fs/buffer.c
+index ec0aca8..a9a8f2a 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -2379,12 +2379,6 @@ int block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 
+ 	sb_start_pagefault(sb);
+ 
+-	/*
+-	 * Update file times before taking page lock. We may end up failing the
+-	 * fault so this update may be superfluous but who really cares...
+-	 */
+-	file_update_time(vma->vm_file);
+-
+ 	ret = __block_page_mkwrite(vma, vmf, get_block);
+ 	sb_end_pagefault(sb);
+ 	return block_page_mkwrite_return(ret);
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index 6690269..19af339 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -1183,9 +1183,6 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	loff_t size, len;
  	int ret;
  
--	/* First try to exhaust all avenues to not sync */
--	if (IS_NOCMTIME(inode))
--		return 0;
+-	/* Update time before taking page lock */
+-	file_update_time(vma->vm_file);
 -
--	now = current_fs_time(inode->i_sb);
--	if (!timespec_equal(&inode->i_mtime, &now))
--		sync_it = S_MTIME;
+ 	size = i_size_read(inode);
+ 	if (off + PAGE_CACHE_SIZE <= size)
+ 		len = PAGE_CACHE_SIZE;
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index b3c243b..5ddbc75 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -4780,7 +4780,6 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	int retries = 0;
+ 
+ 	sb_start_pagefault(inode->i_sb);
+-	file_update_time(vma->vm_file);
+ 	/* Delalloc case is easy... */
+ 	if (test_opt(inode->i_sb, DELALLOC) &&
+ 	    !ext4_should_journal_data(inode) &&
+diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
+index e056b4c..999b1ed 100644
+--- a/fs/gfs2/file.c
++++ b/fs/gfs2/file.c
+@@ -398,9 +398,6 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 
+ 	sb_start_pagefault(inode->i_sb);
+ 
+-	/* Update file times before taking page lock */
+-	file_update_time(vma->vm_file);
 -
--	if (!timespec_equal(&inode->i_ctime, &now))
--		sync_it |= S_CTIME;
--
--	if (IS_I_VERSION(inode))
--		sync_it |= S_VERSION;
--
- 	if (!sync_it)
- 		return 0;
+ 	ret = gfs2_rs_alloc(ip);
+ 	if (ret)
+ 		return ret;
+diff --git a/fs/nilfs2/file.c b/fs/nilfs2/file.c
+index 16f35f7..185b8e6 100644
+--- a/fs/nilfs2/file.c
++++ b/fs/nilfs2/file.c
+@@ -116,7 +116,6 @@ static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	if (unlikely(ret))
+ 		goto out;
  
-@@ -1688,6 +1702,34 @@ int file_update_time(struct file *file)
- }
- EXPORT_SYMBOL(file_update_time);
+-	file_update_time(vma->vm_file);
+ 	ret = __block_page_mkwrite(vma, vmf, nilfs_get_block);
+ 	if (ret) {
+ 		nilfs_transaction_abort(inode->i_sb);
+diff --git a/fs/sysfs/bin.c b/fs/sysfs/bin.c
+index 614b2b5..a475983 100644
+--- a/fs/sysfs/bin.c
++++ b/fs/sysfs/bin.c
+@@ -228,8 +228,6 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	ret = 0;
+ 	if (bb->vm_ops->page_mkwrite)
+ 		ret = bb->vm_ops->page_mkwrite(vma, vmf);
+-	else
+-		file_update_time(file);
  
-+/**
-+ *	inode_update_time_writable	-	update mtime and ctime time
-+ *	@inode: inode accessed
-+ *
-+ *	This is like file_update_time, but it assumes the mnt is writable
-+ *	and takes an inode parameter instead.  (We need to assume the mnt
-+ *	was writable because inodes aren't associated with any particular
-+ *	mnt.
-+ */
-+
-+int inode_update_time_writable(struct inode *inode)
-+{
-+	struct timespec now;
-+	int sync_it = prepare_update_cmtime(inode, &now);
-+	int ret;
-+
-+	if (!sync_it)
-+		return 0;
-+
-+	/* sb_start_pagefault and update_time can both sleep. */
-+	sb_start_pagefault(inode->i_sb);
-+	ret = update_time(inode, &now, sync_it);
-+	sb_end_pagefault(inode->i_sb);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(inode_update_time_writable);
-+
- int inode_needs_sync(struct inode *inode)
- {
- 	if (IS_SYNC(inode))
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 75fe9a1..c95f9fa 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2554,6 +2554,7 @@ extern int inode_newsize_ok(const struct inode *, loff_t offset);
- extern void setattr_copy(struct inode *inode, const struct iattr *attr);
+ 	sysfs_put_active(attr_sd);
+ 	return ret;
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 83efee7..feb0540 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1715,7 +1715,6 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	int ret = VM_FAULT_LOCKED;
  
- extern int file_update_time(struct file *file);
-+extern int inode_update_time_writable(struct inode *inode);
- 
- extern int generic_show_options(struct seq_file *m, struct dentry *root);
- extern void save_mount_options(struct super_block *sb, char *options);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e42c762..a038ed9 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -24,6 +24,7 @@ enum mapping_flags {
- 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
- 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
- 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
-+	AS_CMTIME	= __GFP_BITS_SHIFT + 4, /* written via pte */
- };
- 
- static inline void mapping_set_error(struct address_space *mapping, int error)
-@@ -68,6 +69,8 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
- 				(__force unsigned long)mask;
- }
- 
-+extern void mapping_flush_cmtime(struct address_space *mapping);
-+
- /*
-  * The page cache can done in larger chunks than
-  * one page, because it allows for more efficient
+ 	sb_start_pagefault(inode->i_sb);
+-	file_update_time(vma->vm_file);
+ 	lock_page(page);
+ 	if (page->mapping != inode->i_mapping) {
+ 		unlock_page(page);
 diff --git a/mm/memory.c b/mm/memory.c
-index 221fc9f..086b901 100644
+index 086b901..07a0b0d 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -1160,7 +1160,7 @@ again:
- 				rss[MM_ANONPAGES]--;
- 			else {
- 				if (pte_dirty(ptent))
--					set_page_dirty(page);
-+					set_page_dirty_from_pte(page);
- 				if (pte_young(ptent) &&
- 				    likely(!VM_SequentialReadHint(vma)))
- 					mark_page_accessed(page);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3913262..60301dc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -223,6 +223,10 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
- 	struct vm_area_struct *next = vma->vm_next;
- 
- 	might_sleep();
-+
-+	if (vma->vm_file)
-+		mapping_flush_cmtime(vma->vm_file->f_mapping);
-+
- 	if (vma->vm_ops && vma->vm_ops->close)
- 		vma->vm_ops->close(vma);
- 	if (vma->vm_file)
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index cdea11a..9f5d50f 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -1910,6 +1910,13 @@ int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
- 		ret = mapping->a_ops->writepages(mapping, wbc);
- 	else
- 		ret = generic_writepages(mapping, wbc);
-+
-+	/*
-+	 * This is after writepages because the AS_CMTIME bit won't
-+	 * bet set until writepages is called.
-+	 */
-+	mapping_flush_cmtime(mapping);
-+
- 	return ret;
- }
- 
-@@ -2117,8 +2124,17 @@ EXPORT_SYMBOL(set_page_dirty);
-  */
- int set_page_dirty_from_pte(struct page *page)
- {
--	/* Doesn't do anything interesting yet. */
--	return set_page_dirty(page);
-+	int ret = set_page_dirty(page);
-+	struct address_space *mapping = page_mapping(page);
-+
-+	/*
-+	 * We may be out of memory and/or have various locks held, so
-+	 * there isn't much we can do in here.
-+	 */
-+	if (mapping)
-+		set_bit(AS_CMTIME, &mapping->flags);
-+
-+	return ret;
- }
- 
- /*
-@@ -2287,3 +2303,13 @@ int mapping_tagged(struct address_space *mapping, int tag)
- 	return radix_tree_tagged(&mapping->page_tree, tag);
- }
- EXPORT_SYMBOL(mapping_tagged);
-+
-+/*
-+ * Call from any context from which inode_update_time_writable would be okay
-+ * to flush deferred cmtime changes.
-+ */
-+void mapping_flush_cmtime(struct address_space *mapping)
-+{
-+	if (test_and_clear_bit(AS_CMTIME, &mapping->flags))
-+		inode_update_time_writable(mapping->host);
-+}
+@@ -2658,9 +2658,6 @@ reuse:
+ 		if (!page_mkwrite) {
+ 			wait_on_page_locked(dirty_page);
+ 			set_page_dirty_balance(dirty_page, page_mkwrite);
+-			/* file_update_time outside page_lock */
+-			if (vma->vm_file)
+-				file_update_time(vma->vm_file);
+ 		}
+ 		put_page(dirty_page);
+ 		if (page_mkwrite) {
 -- 
 1.7.11.7
 
