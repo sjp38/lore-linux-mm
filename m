@@ -1,119 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id C15146B005A
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 07:46:31 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id z2so2069304wey.4
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 04:46:30 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] mm: compare MIGRATE_ISOLATE selectively
-In-Reply-To: <20121221010902.GD2686@blaptop>
-References: <1355981152-2505-1-git-send-email-minchan@kernel.org> <xa1tfw30hgfb.fsf@mina86.com> <20121221010902.GD2686@blaptop>
-Date: Fri, 21 Dec 2012 13:46:23 +0100
-Message-ID: <xa1tr4mjpo80.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 175136B0068
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 08:04:50 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id wz12so2737021pbc.41
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 05:04:49 -0800 (PST)
+Content-Type: text/plain; charset=GB2312
+Mime-Version: 1.0 (Mac OS X Mail 6.0 \(1485\))
+Subject: Re: [PATCH 2/2] mm: support MIGRATE_DISCARD
+From: lihanhui <hanhui.li@gmail.com>
+In-Reply-To: <1346832673-12512-2-git-send-email-minchan@kernel.org>
+Date: Fri, 21 Dec 2012 21:04:37 +0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <E270108E-B7EC-4A12-9662-4CF1CC7B69DE@gmail.com>
+References: <1346832673-12512-1-git-send-email-minchan@kernel.org> <1346832673-12512-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-
-> On Thu, Dec 20, 2012 at 04:49:44PM +0100, Michal Nazarewicz wrote:
->> Perhaps =E2=80=9Cis_migrate_isolate=E2=80=9D to match already existing =
-=E2=80=9Cis_migrate_cma=E2=80=9D?
-
-On Fri, Dec 21 2012, Minchan Kim wrote:
-> Good poking. In fact, while I made this patch, I was very tempted by rena=
-ming
-> is_migrate_cma to cma_pageblock.
->
->         is_migrate_cma(mt)
->
-> I don't know who start to use "mt" instead of "migratetype" but anyway, i=
-t's
-> not a good idea.
->
->         is_migrate_cma(migratetype)
->
-> It's very clear for me because migratetype is per pageblock, we can know =
-the
-> function works per pageblock unit.
->
->> Especially as the =E2=80=9Cmt_isolated_pageblock=E2=80=9D sound confusin=
-g to me, it
->> implies that it works on pageblocks which it does not.
->
-> -ENOPARSE.
->
-> migratetype works on pageblock.
-
-migratetype is a number, which can be assigned to a pageblock.  In some
-transitional cases, the migratetype associated with a page can differ
-from the migratetype associated with the pageblock the page is in.  As
-such, I think it's confusing to add =E2=80=9Cpageblock=E2=80=9D to the name=
- of the
-function which does not read migratetype from pageblock but rather
-operates on the number it is provided.
-
-> I admit mt is really dirty but I used page_alloc.c already has lots of
-> mt, SIGH.
-
-I don't really have an issue with =E2=80=9Cmt=E2=80=9D myself, especially s=
-ince the few
-times =E2=80=9Cmt=E2=80=9D is used in page_alloc.c it is a local variable w=
-hich I don't
-think needs a long descriptive name since context is all there.
-
-> How about this?
->
-> 1. Let's change all "mt" with "migratetype" again.
-> 2. use is_migrate_isolate and is_migrate_cma for "migratetype".
-> 3. use is_migrate_isolate_page instead of page_isolated_pageblock for
->    "page".
-
-Like I've said.  Personally I don't really think 1 is needed, but 2 and
-3 look good to me.
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
 
 
---==-=-=
-Content-Type: application/pgp-signature
+=D4=DA 2012-9-5=A3=AC=CF=C2=CE=E74:11=A3=ACMinchan Kim =
+<minchan@kernel.org> =D0=B4=B5=C0=A3=BA
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQ1FofAAoJECBgQBJQdR/0jiIP/jrryaTKAjAoBj4jyX7qtFXi
-utw9C5umaqLKIQOmErQSAwHdIbyrwnqPnITXKvOjV2oLUTScJ4idlbVWvxogvCub
-BSlVyw3/IARt14F2NEN8PkTib4EJNAOHPDIirVn/UId10Dy4u4iPKE4KXkNqtAEE
-juM+s8GMt4gFsZ25b3QbvBFlsn4PNKap629KLZ1J3yvdq+Gp1ldWJKnZyKHtsIsy
-UkzurFKX+qJYK8dUoDaFnkgcMInaZFhf7GRe9L6FIdRcUECBoDdzX6cnCJnn+ru8
-XBBczIv0N/WXhw4NA7uTX+Jn8dSY0LDjYiKoDjdaDgG4SFtS5FspexCMCH2uVnIl
-bEOqj+9K9tiCgfvcc4d0xV7IFFvu+6UnDuA9/ktKhX+zSGcjOwJAT5v/b2scuR5d
-PalqlvS8PTVByjhjm1g33e4EMyBu6wBe3QrGav0/8qcWkEuf73lWtOF4Rok9yy/s
-+/SvO4FljTKRpqNu2eJMHh6Qhw3YQDAI4lnvCgAohwPadUxrA8T36gbseEXdzv1Z
-NQP/ipgNkEM0MrZAMtIpqq5jczeJTClzY1XoE4d3+iOwmbRoEpVeqbMRj5rixkIA
-BgA384AjldkI+Esbsn+G6IXhu9XSM7SPfFBssPXYPa2GsHOBQ1V0zBWJ2+lrvRoI
-1SMUcvpOSsuttlRbrjlA
-=h6PU
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+> This patch introudes MIGRATE_DISCARD mode in migration.
+> It drops *clean cache pages* instead of migration so that
+> migration latency could be reduced by avoiding (memcpy + page =
+remapping).
+> It's useful for CMA because latency of migration is very important =
+rather
+> than eviction of background processes's workingset. In addition, it =
+needs
+> less free pages for migration targets so it could avoid memory =
+reclaiming
+> to get free pages, which is another factor increase latency.
+>=20
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+> include/linux/migrate_mode.h |    7 +++++++
+> mm/migrate.c                 |   41 =
+++++++++++++++++++++++++++++++++++++++---
+> mm/page_alloc.c              |    2 +-
+> 3 files changed, 46 insertions(+), 4 deletions(-)
+>=20
+> diff --git a/include/linux/migrate_mode.h =
+b/include/linux/migrate_mode.h
+> index 8848cad..4eb1646 100644
+> --- a/include/linux/migrate_mode.h
+> +++ b/include/linux/migrate_mode.h
+> @@ -14,6 +14,13 @@
+>  */
+> #define MIGRATE_SYNC		((__force migrate_mode_t)0x4)
+>=20
+> +/*
+> + * MIGRTATE_DISCARD will discard clean cache page instead of =
+migration.
+> + * MIGRATE_ASYNC, MIGRATE_SYNC_LIGHT, MIGRATE_SYNC shouldn't be used
+> + * together with OR flag in current implementation.
+> + */
+> +#define MIGRATE_DISCARD		((__force migrate_mode_t)0x8)
+> +
+> typedef unsigned __bitwise__ migrate_mode_t;
+>=20
+> #endif		/* MIGRATE_MODE_H_INCLUDED */
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 28d464b..2de7709 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -678,6 +678,19 @@ static int move_to_new_page(struct page *newpage, =
+struct page *page,
+> 	return rc;
+> }
+>=20
+> +static int discard_page(struct page *page)
+> +{
+> +	int ret =3D -EAGAIN;
+> +
+> +	struct address_space *mapping =3D page_mapping(page);
+> +	if (page_has_private(page))
+> +		if (!try_to_release_page(page, GFP_KERNEL))
+> +			return ret;
+> +	if (remove_mapping(mapping, page))
+> +		ret =3D 0;
+> +	return ret;
+> +}
+> +
+> static int __unmap_and_move(struct page *page, struct page *newpage,
+> 			int force, bool offlining, migrate_mode_t mode)
+> {
+> @@ -685,6 +698,9 @@ static int __unmap_and_move(struct page *page, =
+struct page *newpage,
+> 	int remap_swapcache =3D 1;
+> 	struct mem_cgroup *mem;
+> 	struct anon_vma *anon_vma =3D NULL;
+> +	enum ttu_flags ttu_flags;
+> +	bool discard_mode =3D false;
+> +	bool file =3D false;
+>=20
+> 	if (!trylock_page(page)) {
+> 		if (!force || (mode & MIGRATE_ASYNC))
+> @@ -799,12 +815,31 @@ static int __unmap_and_move(struct page *page, =
+struct page *newpage,
+> 		goto skip_unmap;
+> 	}
+>=20
+> +	file =3D page_is_file_cache(page);
+> +	ttu_flags =3D TTU_IGNORE_ACCESS;
+> +retry:
+> +	if (!(mode & MIGRATE_DISCARD) || !file || PageDirty(page))
+> +		ttu_flags |=3D (TTU_MIGRATION | TTU_IGNORE_MLOCK);
+> +	else
+> +		discard_mode =3D true;
+> +
+> 	/* Establish migration ptes or remove ptes */
+> -	try_to_unmap(page, =
+TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
+> +	rc =3D try_to_unmap(page, ttu_flags);
+>=20
+> skip_unmap:
+> -	if (!page_mapped(page))
+> -		rc =3D move_to_new_page(newpage, page, remap_swapcache, =
+mode);
+> +	if (rc =3D=3D SWAP_SUCCESS) {
+> +		if (!discard_mode) {
+> +			rc =3D move_to_new_page(newpage, page,
+> +					remap_swapcache, mode);
+> +		} else {
+> +			rc =3D discard_page(page);
+> +			goto uncharge;
+> +		}
+> +	} else if (rc =3D=3D SWAP_MLOCK && discard_mode) {
+> +		mode &=3D ~MIGRATE_DISCARD;
+> +		discard_mode =3D false;
+> +		goto retry;
+> +	}
+>=20
+> 	if (rc && remap_swapcache)
+> 		remove_migration_ptes(page, page);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index ba3100a..e14b960 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -5670,7 +5670,7 @@ static int __alloc_contig_migrate_range(unsigned =
+long start, unsigned long end)
+>=20
+> 		ret =3D migrate_pages(&cc.migratepages,
+> 				    __alloc_contig_migrate_alloc,
+> -				    0, false, MIGRATE_SYNC);
+> +				    0, false, =
+MIGRATE_SYNC|MIGRATE_DISCARD);
+> 	}
+>=20
+> 	putback_lru_pages(&cc.migratepages);
+> --=20
+> 1.7.9.5
+>=20
+> --
+> To unsubscribe from this list: send the line "unsubscribe =
+linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
