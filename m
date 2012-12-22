@@ -1,86 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 106DE6B0078
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 20:09:52 -0500 (EST)
-Received: by mail-vb0-f50.google.com with SMTP id fr13so5731527vbb.23
-        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 17:09:52 -0800 (PST)
+Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
+	by kanga.kvack.org (Postfix) with SMTP id C6FAC6B0078
+	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 20:59:55 -0500 (EST)
+Received: by mail-vb0-f50.google.com with SMTP id fr13so5851529vbb.9
+        for <linux-mm@kvack.org>; Fri, 21 Dec 2012 17:59:54 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CANN689H+yOeA3pvBMGu52q7brfoDwtkh0pA==c8VVoCkapkx6g@mail.gmail.com>
+In-Reply-To: <CALCETrU7u7P67QCwmj4qTMHti1=MXyjy3V9FejWbbrMVi01mDw@mail.gmail.com>
 References: <1356050997-2688-1-git-send-email-walken@google.com>
- <CALCETrUi4JJSahrDKBARrwGsGE=1RbH8WL4tk1YgDmEowzXtSQ@mail.gmail.com> <CANN689H+yOeA3pvBMGu52q7brfoDwtkh0pA==c8VVoCkapkx6g@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 21 Dec 2012 17:09:31 -0800
-Message-ID: <CALCETrU7u7P67QCwmj4qTMHti1=MXyjy3V9FejWbbrMVi01mDw@mail.gmail.com>
+	<CALCETrUi4JJSahrDKBARrwGsGE=1RbH8WL4tk1YgDmEowzXtSQ@mail.gmail.com>
+	<CANN689H+yOeA3pvBMGu52q7brfoDwtkh0pA==c8VVoCkapkx6g@mail.gmail.com>
+	<CALCETrU7u7P67QCwmj4qTMHti1=MXyjy3V9FejWbbrMVi01mDw@mail.gmail.com>
+Date: Fri, 21 Dec 2012 17:59:54 -0800
+Message-ID: <CANN689GBCsZWKkAQuNGfF4OJwVOyZ5neUcJo=ajzMKNmFug+XQ@mail.gmail.com>
 Subject: Re: [PATCH 0/9] Avoid populating unbounded num of ptes with mmap_sem held
+From: Michel Lespinasse <walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
+To: Andy Lutomirski <luto@amacapital.net>
 Cc: Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 21, 2012 at 4:59 PM, Michel Lespinasse <walken@google.com> wrote:
-> On Fri, Dec 21, 2012 at 4:36 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> On Thu, Dec 20, 2012 at 4:49 PM, Michel Lespinasse <walken@google.com> wrote:
->>> We have many vma manipulation functions that are fast in the typical case,
->>> but can optionally be instructed to populate an unbounded number of ptes
->>> within the region they work on:
->>> - mmap with MAP_POPULATE or MAP_LOCKED flags;
->>> - remap_file_pages() with MAP_NONBLOCK not set or when working on a
->>>   VM_LOCKED vma;
->>> - mmap_region() and all its wrappers when mlock(MCL_FUTURE) is in effect;
->>> - brk() when mlock(MCL_FUTURE) is in effect.
+On Fri, Dec 21, 2012 at 5:09 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Fri, Dec 21, 2012 at 4:59 PM, Michel Lespinasse <walken@google.com> wrote:
+>> On Fri, Dec 21, 2012 at 4:36 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>>> Something's buggy here.  My evil test case is stuck with lots of
+>>> threads spinning at 100% system time.
 >>>
+>>> The tasks in question use MCL_FUTURE but not MAP_POPULATE.  These
+>>> tasks are immune to SIGKILL.
 >>
->> Something's buggy here.  My evil test case is stuck with lots of
->> threads spinning at 100% system time.  Stack traces look like:
+>> Looking into it.
 >>
->> [<0000000000000000>] __mlock_vma_pages_range+0x66/0x70
->> [<0000000000000000>] __mm_populate+0xf9/0x150
->> [<0000000000000000>] vm_mmap_pgoff+0x9f/0xc0
->> [<0000000000000000>] sys_mmap_pgoff+0x7e/0x150
->> [<0000000000000000>] sys_mmap+0x22/0x30
->> [<0000000000000000>] system_call_fastpath+0x16/0x1b
->> [<0000000000000000>] 0xffffffffffffffff
+>> There seems to be a problem with mlockall - the following program
+>> fails in an unkillable way even before my changes:
 >>
->> perf top says:
+>> #include <sys/mman.h>
+>> #include <stdio.h>
+>> #include <stdint.h>
 >>
->>  38.45%  [kernel]            [k] __mlock_vma_pages_range
->>  33.04%  [kernel]            [k] __get_user_pages
->>  28.18%  [kernel]            [k] __mm_populate
+>> int main(void) {
+>>   void *p = mmap(NULL, 0x100000000000,
+>>                  PROT_READ | PROT_WRITE,
+>>                  MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+>>                  -1, 0);
+>>   printf("p: %p\n", p);
+>>   mlockall(MCL_CURRENT);
+>>   return 0;
+>> }
 >>
->> The tasks in question use MCL_FUTURE but not MAP_POPULATE.  These
->> tasks are immune to SIGKILL.
->
-> Looking into it.
->
-> There seems to be a problem with mlockall - the following program
-> fails in an unkillable way even before my changes:
->
-> #include <sys/mman.h>
-> #include <stdio.h>
-> #include <stdint.h>
->
-> int main(void) {
->   void *p = mmap(NULL, 0x100000000000,
->                  PROT_READ | PROT_WRITE,
->                  MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
->                  -1, 0);
->   printf("p: %p\n", p);
->   mlockall(MCL_CURRENT);
->   return 0;
-> }
->
-> I think my changes propagate this existing problem so it now shows up
-> in more places :/
+>> I think my changes propagate this existing problem so it now shows up
+>> in more places :/
 
-Hmm.  I'm using MCL_FUTURE with MAP_NORESERVE, but those mappings are
-not insanely large.  Should MAP_NORESERVE would negate MCL_FUTURE?
-I'm doing MAP_NORESERVE, PROT_NONE to prevent pages from being
-allocated in the future -- I have no intention of ever using them.
+So in my test case, the issue was caused by the mapping being 2^32
+pages, which overflowed the integer 'nr_pages' argument to
+__get_user_pages, which caused an infinite loop as __get_user_pages()
+would return 0 so __mm_populate() would make no progress.
 
-The other odd thing I do is use MAP_FIXED to replace MAP_NORESERVE pages.
+When dropping one zero from that humongous size in the test case, the
+test case becomes at least killable.
 
---Andy
+> Hmm.  I'm using MCL_FUTURE with MAP_NORESERVE, but those mappings are
+> not insanely large.  Should MAP_NORESERVE would negate MCL_FUTURE?
+> I'm doing MAP_NORESERVE, PROT_NONE to prevent pages from being
+> allocated in the future -- I have no intention of ever using them.
+
+MAP_NORESERVE doesn't prevent page allocation, but PROT_NONE does
+(precisely because people use it the same way as you do :)
+
+> The other odd thing I do is use MAP_FIXED to replace MAP_NORESERVE pages.
+Yes, I've seen people do that here too.
+
+Could you share your test case so I can try reproducing the issue
+you're seeing ?
+
+Thanks,
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
