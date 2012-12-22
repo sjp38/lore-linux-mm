@@ -1,31 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 2F9296B0078
-	for <linux-mm@kvack.org>; Fri, 21 Dec 2012 23:21:54 -0500 (EST)
-Message-ID: <50D53639.6040604@redhat.com>
-Date: Fri, 21 Dec 2012 23:25:29 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 2C4B86B005A
+	for <linux-mm@kvack.org>; Sat, 22 Dec 2012 03:29:38 -0500 (EST)
+Date: Sat, 22 Dec 2012 03:29:33 -0500
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 2/3] mm: Update file times when inodes are written
+ after mmaped writes
+Message-ID: <20121222082933.GA26477@infradead.org>
+References: <cover.1356124965.git.luto@amacapital.net>
+ <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/9] mm: make mlockall preserve flags other than VM_LOCKED
- in def_flags
-References: <1356050997-2688-1-git-send-email-walken@google.com> <1356050997-2688-2-git-send-email-walken@google.com>
-In-Reply-To: <1356050997-2688-2-git-send-email-walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Al Viro <viro@zeniv.linux.org.uk>
 
-On 12/20/2012 07:49 PM, Michel Lespinasse wrote:
-> On most architectures, def_flags is either 0 or VM_LOCKED depending on
-> whether mlockall(MCL_FUTURE) was called. However, this is not an absolute
-> rule as kvm support on s390 may set the VM_NOHUGEPAGE flag in def_flags.
-> We don't want mlockall to clear that.
->
-> Signed-off-by: Michel Lespinasse <walken@google.com>
+NAK, we went through great trouble to get rid of the nasty layering
+violation where the VM called file_update_time directly just a short
+while ago, reintroducing that is a massive step back.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Make sure whatever "solution" for your problem you come up with keeps
+the file update in the filesystem or generic helpers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
