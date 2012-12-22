@@ -1,122 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 224A76B005D
-	for <linux-mm@kvack.org>; Sat, 22 Dec 2012 10:02:48 -0500 (EST)
-Message-ID: <50D5CB93.6060501@westnet.com.au>
-Date: Sun, 23 Dec 2012 01:02:43 +1000
-From: Greg Ungerer <gregungerer@westnet.com.au>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 3BE166B006C
+	for <linux-mm@kvack.org>; Sat, 22 Dec 2012 10:31:39 -0500 (EST)
+Received: by mail-ee0-f46.google.com with SMTP id e53so2883478eek.19
+        for <linux-mm@kvack.org>; Sat, 22 Dec 2012 07:31:37 -0800 (PST)
+From: Michal Nazarewicz <mpn@google.com>
+Subject: Re: [PATCH] cma: use unsigned type for count argument
+In-Reply-To: <alpine.DEB.2.00.1212201557270.13223@chino.kir.corp.google.com>
+References: <52fd3c7b677ff01f1cd6d54e38a567b463ec1294.1355938871.git.mina86@mina86.com> <20121220153525.97841100.akpm@linux-foundation.org> <alpine.DEB.2.00.1212201557270.13223@chino.kir.corp.google.com>
+Date: Sat, 22 Dec 2012 16:31:29 +0100
+Message-ID: <xa1tip7u14tq.fsf@mina86.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9] Avoid populating unbounded num of ptes with mmap_sem
- held
-References: <1356050997-2688-1-git-send-email-walken@google.com> <CANN689Eeh-s_npXe5nuEb1ryAcU-7CzSZ=X_6SUpUjA2FGh4ag@mail.gmail.com>
-In-Reply-To: <CANN689Eeh-s_npXe5nuEb1ryAcU-7CzSZ=X_6SUpUjA2FGh4ag@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Greg Ungerer <gerg@uclinux.org>, Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Howells <dhowells@redhat.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Michel,
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-On 12/21/2012 08:46 PM, Michel Lespinasse wrote:
-> I wanted to ask if you could check the sanity of the following patches
-> in nommu configurations. My understanding is that these always
+On Fri, Dec 21 2012, David Rientjes wrote:
+> > Specifying negative size of buffer makes no sense and thus this commit
+> > changes the type of the count argument to unsigned.
+> >=20
+> > --- a/arch/arm/mm/dma-mapping.c
+> > +++ b/arch/arm/mm/dma-mapping.c
+> > @@ -1038,9 +1038,9 @@ static struct page **__iommu_alloc_buffer(struct =
+device *dev, size_t size,
+> >  					  gfp_t gfp, struct dma_attrs *attrs)
+> >  {
+> >  	struct page **pages;
+> > -	int count =3D size >> PAGE_SHIFT;
+> > -	int array_size =3D count * sizeof(struct page *);
+> > -	int i =3D 0;
+> > +	unsigned int count =3D size >> PAGE_SHIFT;
+> > +	unsigned int array_size =3D count * sizeof(struct page *);
+> > +	unsigned int i =3D 0;
 
-Sure. I think it is worth CC'ing David Howells on these as well,
-he has spent a fair bit of time in the mmap code for nommu.
+> I didn't ack this because there's no bounds checking on=20
+> dma_alloc_from_contiguous() and bitmap_set() has a dangerous side-effect=
+=20
+> when called with an overflowed nr since it takes a signed argument.=20=20
 
-Regards
-Greg
+Mystery solved.  I recalled that there was some reason why the count is
+specified as a signed int and thought bitmap_find_next_zero_area() was
+the culprit, but now it seems that bitmap_set() was the reason.
+
+> Marek, is there some sane upper bound we can put on count?
+
+INT_MAX would be sufficient.  After all, it maps to a 8 TiB buffer (if
+page is 4 KiB).
+
+Moreover, in reality, the few places that call
+dma_alloc_from_contiguous() pass a value that cannot be higher than
+INT_MAX, ie. (listings heavily stripped):
+
+arch/arm/mm/dma-mapping.c-static void *__alloc_from_contiguous(struct devic=
+e *dev, size_t size,
+arch/arm/mm/dma-mapping.c-                                   pgprot_t prot,=
+ struct page **ret_page)
+arch/arm/mm/dma-mapping.c-{
+arch/arm/mm/dma-mapping.c-      size_t count =3D size >> PAGE_SHIFT;
+arch/arm/mm/dma-mapping.c:      page =3D dma_alloc_from_contiguous(dev, cou=
+nt, order);
+arch/arm/mm/dma-mapping.c-}
+
+arch/arm/mm/dma-mapping.c-static void *__alloc_from_contiguous(struct devic=
+e *dev, size_t size,
+arch/arm/mm/dma-mapping.c-                                   pgprot_t prot,=
+ struct page **ret_page)
+arch/arm/mm/dma-mapping.c-{
+arch/arm/mm/dma-mapping.c-      size_t count =3D size >> PAGE_SHIFT;
+arch/arm/mm/dma-mapping.c:      page =3D dma_alloc_from_contiguous(dev, cou=
+nt, order);
+arch/arm/mm/dma-mapping.c-}
+
+arch/arm/mm/dma-mapping.c-static struct page **__iommu_alloc_buffer(struct =
+device *dev, size_t size,
+arch/arm/mm/dma-mapping.c-                                        gfp_t gfp=
+, struct dma_attrs *attrs)
+arch/arm/mm/dma-mapping.c-{
+arch/arm/mm/dma-mapping.c-      unsigned int count =3D size >> PAGE_SHIFT;
+arch/arm/mm/dma-mapping.c-      if (dma_get_attr(DMA_ATTR_FORCE_CONTIGUOUS,=
+ attrs)) {
+arch/arm/mm/dma-mapping.c:              page =3D dma_alloc_from_contiguous(=
+dev, count, order);
+arch/arm/mm/dma-mapping.c-      }
+arch/arm/mm/dma-mapping.c-}
+
+arch/x86/kernel/pci-dma.c-void *dma_generic_alloc_coherent(struct device *d=
+ev, size_t size,
+arch/x86/kernel/pci-dma.c-                               dma_addr_t *dma_ad=
+dr, gfp_t flag,
+arch/x86/kernel/pci-dma.c-                               struct dma_attrs *=
+attrs)
+arch/x86/kernel/pci-dma.c-{
+arch/x86/kernel/pci-dma.c-      unsigned int count =3D PAGE_ALIGN(size) >> =
+PAGE_SHIFT;
+arch/x86/kernel/pci-dma.c-      if (!(flag & GFP_ATOMIC))
+arch/x86/kernel/pci-dma.c:              page =3D dma_alloc_from_contiguous(=
+dev, count, get_order(size));
+arch/x86/kernel/pci-dma.c-}
+
+So I think just adding the following, should be sufficient to make
+everyone happy:
+
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index e34e3e0..e91743b 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -320,7 +320,7 @@ struct page *dma_alloc_from_contiguous(struct device *d=
+ev, unsigned int count,
+ 	pr_debug("%s(cma %p, count %u, align %u)\n", __func__, (void *)cma,
+ 		 count, align);
+=20
+-	if (!count)
++	if (!count || count > INT_MAX)
+ 		return NULL;
+=20
+ 	mask =3D (1 << align) - 1;
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
 
 
-> populate mappings when they are created, so that MAP_POPULATE and
-> MAP_LOCKED are actually no-ops. Is this an accurate description ?
->
-> Thanks,
->
-> On Thu, Dec 20, 2012 at 4:49 PM, Michel Lespinasse <walken@google.com> wrote:
->> We have many vma manipulation functions that are fast in the typical case,
->> but can optionally be instructed to populate an unbounded number of ptes
->> within the region they work on:
->> - mmap with MAP_POPULATE or MAP_LOCKED flags;
->> - remap_file_pages() with MAP_NONBLOCK not set or when working on a
->>    VM_LOCKED vma;
->> - mmap_region() and all its wrappers when mlock(MCL_FUTURE) is in effect;
->> - brk() when mlock(MCL_FUTURE) is in effect.
->>
->> Current code handles these pte operations locally, while the sourrounding
->> code has to hold the mmap_sem write side since it's manipulating vmas.
->> This means we're doing an unbounded amount of pte population work with
->> mmap_sem held, and this causes problems as Andy Lutomirski reported
->> (we've hit this at Google as well, though it's not entirely clear why
->> people keep trying to use mlock(MCL_FUTURE) in the first place).
->>
->> I propose introducing a new mm_populate() function to do this pte
->> population work after the mmap_sem has been released. mm_populate()
->> does need to acquire the mmap_sem read side, but critically, it
->> doesn't need to hold continuously for the entire duration of the
->> operation - it can drop it whenever things take too long (such as when
->> hitting disk for a file read) and re-acquire it later on.
->>
->> The following patches are against v3.7:
->>
->> - Patches 1-2 fix some issues I noticed while working on the existing code.
->>    If needed, they could potentially go in before the rest of the patches.
->>
->> - Patch 3 introduces the new mm_populate() function and changes
->>    mmap_region() call sites to use it after they drop mmap_sem. This is
->>    inspired from Andy Lutomirski's proposal and is built as an extension
->>    of the work I had previously done for mlock() and mlockall() around
->>    v2.6.38-rc1. I had tried doing something similar at the time but had
->>    given up as there were so many do_mmap() call sites; the recent cleanups
->>    by Linus and Viro are a tremendous help here.
->>
->> - Patches 4-6 convert some of the less-obvious places doing unbounded
->>    pte populates to the new mm_populate() mechanism.
->>
->> - Patches 7-8 are code cleanups that are made possible by the
->>    mm_populate() work. In particular, they remove more code than the
->>    entire patch series added, which should be a good thing :)
->>
->> - Patch 9 is optional to this entire series. It only helps to deal more
->>    nicely with racy userspace programs that might modify their mappings
->>    while we're trying to populate them. It adds a new VM_POPULATE flag
->>    on the mappings we do want to populate, so that if userspace replaces
->>    them with mappings it doesn't want populated, mm_populate() won't
->>    populate those replacement mappings.
->>
->> Michel Lespinasse (9):
->>    mm: make mlockall preserve flags other than VM_LOCKED in def_flags
->>    mm: remap_file_pages() fixes
->>    mm: introduce mm_populate() for populating new vmas
->>    mm: use mm_populate() for blocking remap_file_pages()
->>    mm: use mm_populate() when adjusting brk with MCL_FUTURE in effect.
->>    mm: use mm_populate() for mremap() of VM_LOCKED vmas
->>    mm: remove flags argument to mmap_region
->>    mm: directly use __mlock_vma_pages_range() in find_extend_vma()
->>    mm: introduce VM_POPULATE flag to better deal with racy userspace programs
->>
->>   arch/tile/mm/elf.c   |    1 -
->>   fs/aio.c             |    6 +++-
->>   include/linux/mm.h   |   23 +++++++++---
->>   include/linux/mman.h |    4 ++-
->>   ipc/shm.c            |   12 ++++---
->>   mm/fremap.c          |   51 ++++++++++++++-------------
->>   mm/internal.h        |    4 +-
->>   mm/memory.c          |   24 -------------
->>   mm/mlock.c           |   94 +++++++++++++------------------------------------
->>   mm/mmap.c            |   77 ++++++++++++++++++++++++----------------
->>   mm/mremap.c          |   25 +++++++------
->>   mm/nommu.c           |    5 ++-
->>   mm/util.c            |    6 +++-
->>   13 files changed, 154 insertions(+), 178 deletions(-)
->>
->> --
->> 1.7.7.3
->
->
->
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQ1dJRAAoJECBgQBJQdR/0P18P/2fpWbgSuMx3x6oOmd7qGKeS
+ThE6Z4z3KoOtNVKMUh8HFU6VPmgK543WDOFTG6SoSGTE7+R/6fzB+wnHznGPnfcV
+JHQYa/qAE5C3EzZurkD40Pvbl6phkdbk2zM3OkEv9U7X10boMJhWxaicsOkFZOl7
+Xjs/EszA3ywqyBvpIx5OK+mXaieDsQS2negjMuPoYctun8fp3+BRRdud3pt0zkRM
+WopRUVtiHUihYjrapMBCfsNgF0Np2Nj0LQc5tmJORwrH35z0948dlZ2lyerp9aON
+VQsVw9LN9LrSBE+lHpXsiZv1OSCvqN4We84qXC16yvPzxdFO5i6IKENlzD1TGb6C
+zjmUmnw+9FdJI0hsdgvMgnAd6la8XWXma8mMOnMcD4KJKr0rOPnDpjZp3iI3Brz6
+xhJbU5IHoX4umrX+GS+BwUktgklTJlH+SrjrNND+qUcZlePPNz7N/9EaZ7x4NWQh
+aBJjL8C6lebS9kD+VEJHMpplVl/OLdfCDlIgxlXNIzcNYVzuK0DENjFraNkxSBDO
+GsRpl6yJwVBigOpRj1Dt6VsOMTpZwtvxdAphrcawT2nIImdZ1QGXVd6nJvJzRaU8
+l4liDdtR4NqCDZ3DytIbfXdtx1kspiPuNyXHGpjSRCEKQScgybBs7ZSjWE5Zdyag
+HlXaKIouslY3uvE3RoQL
+=ZhUt
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
