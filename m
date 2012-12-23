@@ -1,47 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 13F488D0004
-	for <linux-mm@kvack.org>; Sun, 23 Dec 2012 15:15:59 -0500 (EST)
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 17DF98D0003
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2012 15:16:02 -0500 (EST)
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 3/3] mm, sparse: don't check return value of alloc_bootmem calls
-Date: Sun, 23 Dec 2012 15:15:08 -0500
-Message-Id: <1356293711-23864-3-git-send-email-sasha.levin@oracle.com>
+Subject: [PATCH 2/3] mm, bootmem: panic in bootmem alloc functions even if slab is available
+Date: Sun, 23 Dec 2012 15:15:07 -0500
+Message-Id: <1356293711-23864-2-git-send-email-sasha.levin@oracle.com>
 In-Reply-To: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
 References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Gavin Shan <shangw@linux.vnet.ibm.com>, Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Sasha Levin <sasha.levin@oracle.com>
 
-There's no need to check the result of alloc_bootmem() functions since
-they'll panic if allocation fails.
+Bootmem alloc functions are supposed to panic if allocation fails unless a
+*_nopanic() function is used. However, if slab is available this is not the
+case currently, and the function might return a NULL.
+
+Currect it to panic on failed allocations even if slab is available.
 
 Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- mm/sparse.c | 4 ----
- 1 file changed, 4 deletions(-)
+ mm/bootmem.c   | 9 ---------
+ mm/nobootmem.c | 6 ------
+ 2 files changed, 15 deletions(-)
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 72a0db6..949fb38 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -497,8 +497,6 @@ void __init sparse_init(void)
- 	 */
- 	size = sizeof(unsigned long *) * NR_MEM_SECTIONS;
- 	usemap_map = alloc_bootmem(size);
--	if (!usemap_map)
--		panic("can not allocate usemap_map\n");
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 1324cd7..198a92f 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -763,9 +763,6 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+ 				   unsigned long align, unsigned long goal)
+ {
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+ 	return  ___alloc_bootmem_node(pgdat, size, align, goal, 0);
+ }
  
- 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
- 		struct mem_section *ms;
-@@ -538,8 +536,6 @@ void __init sparse_init(void)
- #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
- 	size2 = sizeof(struct page *) * NR_MEM_SECTIONS;
- 	map_map = alloc_bootmem(size2);
--	if (!map_map)
--		panic("can not allocate map_map\n");
+@@ -775,9 +772,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
+ #ifdef MAX_DMA32_PFN
+ 	unsigned long end_pfn;
  
- 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
- 		struct mem_section *ms;
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+ 	/* update goal according ...MAX_DMA32_PFN */
+ 	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
+ 
+@@ -839,9 +833,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+ 				       unsigned long align, unsigned long goal)
+ {
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+ 	return ___alloc_bootmem_node(pgdat, size, align,
+ 				     goal, ARCH_LOW_ADDRESS_LIMIT);
+ }
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index b8294fc..7c4c608 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -371,9 +371,6 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
+ 				   unsigned long align, unsigned long goal)
+ {
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+ 	return ___alloc_bootmem_node(pgdat, size, align, goal, 0);
+ }
+ 
+@@ -424,9 +421,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
+ void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
+ 				       unsigned long align, unsigned long goal)
+ {
+-	if (WARN_ON_ONCE(slab_is_available()))
+-		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
+-
+ 	return ___alloc_bootmem_node(pgdat, size, align, goal,
+ 				     ARCH_LOW_ADDRESS_LIMIT);
+ }
 -- 
 1.8.0
 
