@@ -1,55 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
-	by kanga.kvack.org (Postfix) with SMTP id 99A456B005A
-	for <linux-mm@kvack.org>; Sat, 22 Dec 2012 18:57:04 -0500 (EST)
-Message-ID: <50D648BF.7070103@parallels.com>
-Date: Sun, 23 Dec 2012 03:56:47 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
+	by kanga.kvack.org (Postfix) with SMTP id 47FCA6B005A
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2012 09:13:00 -0500 (EST)
+Date: Sun, 23 Dec 2012 15:12:54 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] vmscan: take at least one pass with shrinkers
-References: <1356086810-6950-1-git-send-email-glommer@parallels.com> <1356086810-6950-3-git-send-email-glommer@parallels.com> <20121222235340.GI15182@dastard>
-In-Reply-To: <20121222235340.GI15182@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
+References: <50D24AF3.1050809@iskon.hr> <20121220111208.GD10819@suse.de> <20121220125802.23e9b22d.akpm@linux-foundation.org> <50D601C9.9060803@iskon.hr>
+In-Reply-To: <50D601C9.9060803@iskon.hr>
+Message-ID: <50D71166.6030608@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Subject: [PATCH v2] mm: modify pgdat_balanced() so that it also handles order=0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Theodore Ts'o <tytso@mit.edu>, Al Viro <viro@zeniv.linux.org.uk>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 12/23/2012 03:53 AM, Dave Chinner wrote:
-> On Fri, Dec 21, 2012 at 02:46:50PM +0400, Glauber Costa wrote:
->> In very low free kernel memory situations, it may be the case that we
->> have less objects to free than our initial batch size. If this is the
->> case, it is better to shrink those, and open space for the new workload
->> then to keep them and fail the new allocations.
+On 22.12.2012 19:54, Zlatko Calusic wrote:
+> On 20.12.2012 21:58, Andrew Morton wrote:
+>> There seems to be some complexity/duplication here between the new
+>> unbalanced_zone() and pgdat_balanced().
 >>
->> More specifically, this happens because we encode this in a loop with
->> the condition: "while (total_scan >= batch_size)". So if we are in such
->> a case, we'll not even enter the loop.
+>> Can we modify pgdat_balanced() so that it also handles order=0, then do
 >>
->> This patch modifies turns it into a do () while {} loop, that will
->> guarantee that we scan it at least once, while keeping the behaviour
->> exactly the same for the cases in which total_scan > batch_size.
+>> -		if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
+>> +		if (!pgdat_balanced(...))
 >>
->> Signed-off-by: Glauber Costa <glommer@parallels.com>
->> Acked-by: Dave Chinner <david@fromorbit.com>
+>> ?
+>>
 > 
-> I think you'll find I said:
-> 
-> Reviewed-by: Dave Chinner <dchinner@redhat.com>
-> 
-> That has a significantly different meaning to Acked-by, so you
-> should be careful to correctly transcribe tags back to the
-> patches...
+> Makes sense, I like the idea! Took me some time to wrap my mind around
+> all the logic in balance_pgdat(), while writing my previous patch. Also had
+> to revert one if-case logic to avoid double negation, which would be even
+> harder to grok. But unbalanced_zone (var, not a function!) has to stay because
+> wait_iff_congested() needs a struct zone* param. Here's my take on the subject:
 > 
 
-Ooops
+And now also with 3 unused variables removed, no other changes.
+prepare_kswapd_sleep() now looks so beautiful. ;)
 
-You are right Dave. That was obviously just lack of attention on my
-side, not any attempt to upgrade your tag.
+I've been testing the patch on 3 different machines, and no problem at all. One of
+those I pushed hard, and it survived.
 
-Thanks for spotting
+---8<---
+mm: modify pgdat_balanced() so that it also handles order=0
 
+Teach pgdat_balanced() about order-0 allocations so that we can simplify
+code in a few places in vmstat.c.
+
+Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
+---
+ mm/vmscan.c | 105 ++++++++++++++++++++++++++----------------------------------
+ 1 file changed, 45 insertions(+), 60 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index adc7e90..23291b9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2452,12 +2452,16 @@ static bool zone_balanced(struct zone *zone, int order,
+ }
+ 
+ /*
+- * pgdat_balanced is used when checking if a node is balanced for high-order
+- * allocations. Only zones that meet watermarks and are in a zone allowed
+- * by the callers classzone_idx are added to balanced_pages. The total of
+- * balanced pages must be at least 25% of the zones allowed by classzone_idx
+- * for the node to be considered balanced. Forcing all zones to be balanced
+- * for high orders can cause excessive reclaim when there are imbalanced zones.
++ * pgdat_balanced() is used when checking if a node is balanced.
++ *
++ * For order-0, all zones must be balanced!
++ *
++ * For high-order allocations only zones that meet watermarks and are in a
++ * zone allowed by the callers classzone_idx are added to balanced_pages. The
++ * total of balanced pages must be at least 25% of the zones allowed by
++ * classzone_idx for the node to be considered balanced. Forcing all zones to
++ * be balanced for high orders can cause excessive reclaim when there are
++ * imbalanced zones.
+  * The choice of 25% is due to
+  *   o a 16M DMA zone that is balanced will not balance a zone on any
+  *     reasonable sized machine
+@@ -2467,17 +2471,43 @@ static bool zone_balanced(struct zone *zone, int order,
+  *     Similarly, on x86-64 the Normal zone would need to be at least 1G
+  *     to balance a node on its own. These seemed like reasonable ratios.
+  */
+-static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+-						int classzone_idx)
++static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
+ {
+ 	unsigned long present_pages = 0;
++	unsigned long balanced_pages = 0;
+ 	int i;
+ 
+-	for (i = 0; i <= classzone_idx; i++)
+-		present_pages += pgdat->node_zones[i].present_pages;
++	/* Check the watermark levels */
++	for (i = 0; i <= classzone_idx; i++) {
++		struct zone *zone = pgdat->node_zones + i;
+ 
+-	/* A special case here: if zone has no page, we think it's balanced */
+-	return balanced_pages >= (present_pages >> 2);
++		if (!populated_zone(zone))
++			continue;
++
++		present_pages += zone->present_pages;
++
++		/*
++		 * A special case here:
++		 *
++		 * balance_pgdat() skips over all_unreclaimable after
++		 * DEF_PRIORITY. Effectively, it considers them balanced so
++		 * they must be considered balanced here as well!
++		 */
++		if (zone->all_unreclaimable) {
++			balanced_pages += zone->present_pages;
++			continue;
++		}
++
++		if (zone_balanced(zone, order, 0, i))
++			balanced_pages += zone->present_pages;
++		else if (!order)
++			return false;
++	}
++
++	if (order)
++		return balanced_pages >= (present_pages >> 2);
++	else
++		return true;
+ }
+ 
+ /*
+@@ -2489,10 +2519,6 @@ static bool pgdat_balanced(pg_data_t *pgdat, unsigned long balanced_pages,
+ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 					int classzone_idx)
+ {
+-	int i;
+-	unsigned long balanced = 0;
+-	bool all_zones_ok = true;
+-
+ 	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+ 	if (remaining)
+ 		return false;
+@@ -2511,39 +2537,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ 		return false;
+ 	}
+ 
+-	/* Check the watermark levels */
+-	for (i = 0; i <= classzone_idx; i++) {
+-		struct zone *zone = pgdat->node_zones + i;
+-
+-		if (!populated_zone(zone))
+-			continue;
+-
+-		/*
+-		 * balance_pgdat() skips over all_unreclaimable after
+-		 * DEF_PRIORITY. Effectively, it considers them balanced so
+-		 * they must be considered balanced here as well if kswapd
+-		 * is to sleep
+-		 */
+-		if (zone->all_unreclaimable) {
+-			balanced += zone->present_pages;
+-			continue;
+-		}
+-
+-		if (!zone_balanced(zone, order, 0, i))
+-			all_zones_ok = false;
+-		else
+-			balanced += zone->present_pages;
+-	}
+-
+-	/*
+-	 * For high-order requests, the balanced zones must contain at least
+-	 * 25% of the nodes pages for kswapd to sleep. For order-0, all zones
+-	 * must be balanced
+-	 */
+-	if (order)
+-		return pgdat_balanced(pgdat, balanced, classzone_idx);
+-	else
+-		return all_zones_ok;
++	return pgdat_balanced(pgdat, order, classzone_idx);
+ }
+ 
+ /*
+@@ -2571,7 +2565,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 							int *classzone_idx)
+ {
+ 	struct zone *unbalanced_zone;
+-	unsigned long balanced;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 	unsigned long total_scanned;
+@@ -2605,7 +2598,6 @@ loop_again:
+ 		int has_under_min_watermark_zone = 0;
+ 
+ 		unbalanced_zone = NULL;
+-		balanced = 0;
+ 
+ 		/*
+ 		 * Scan in the highmem->dma direction for the highest
+@@ -2761,8 +2753,6 @@ loop_again:
+ 				 * speculatively avoid congestion waits
+ 				 */
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+-				if (i <= *classzone_idx)
+-					balanced += zone->present_pages;
+ 			}
+ 
+ 		}
+@@ -2776,7 +2766,7 @@ loop_again:
+ 				pfmemalloc_watermark_ok(pgdat))
+ 			wake_up(&pgdat->pfmemalloc_wait);
+ 
+-		if (!unbalanced_zone || (order && pgdat_balanced(pgdat, balanced, *classzone_idx)))
++		if (pgdat_balanced(pgdat, order, *classzone_idx))
+ 			break;		/* kswapd: all done */
+ 		/*
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+@@ -2800,12 +2790,7 @@ loop_again:
+ 	} while (--sc.priority >= 0);
+ out:
+ 
+-	/*
+-	 * order-0: All zones must meet high watermark for a balanced node
+-	 * high-order: Balanced zones must make up at least 25% of the node
+-	 *             for the node to be balanced
+-	 */
+-	if (unbalanced_zone && (!order || !pgdat_balanced(pgdat, balanced, *classzone_idx))) {
++	if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
+ 		cond_resched();
+ 
+ 		try_to_freeze();
+-- 
+1.8.1.rc0
+
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
