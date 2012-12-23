@@ -1,90 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id 17DF98D0003
-	for <linux-mm@kvack.org>; Sun, 23 Dec 2012 15:16:02 -0500 (EST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 2/3] mm, bootmem: panic in bootmem alloc functions even if slab is available
-Date: Sun, 23 Dec 2012 15:15:07 -0500
-Message-Id: <1356293711-23864-2-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
-References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 5F23A8D0001
+	for <linux-mm@kvack.org>; Sun, 23 Dec 2012 18:26:41 -0500 (EST)
+Date: Mon, 24 Dec 2012 08:26:39 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: compare MIGRATE_ISOLATE selectively
+Message-ID: <20121223231547.GA2453@blaptop>
+References: <1355981152-2505-1-git-send-email-minchan@kernel.org>
+ <xa1tfw30hgfb.fsf@mina86.com>
+ <20121221010902.GD2686@blaptop>
+ <xa1tr4mjpo80.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <xa1tr4mjpo80.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Sasha Levin <sasha.levin@oracle.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Bootmem alloc functions are supposed to panic if allocation fails unless a
-*_nopanic() function is used. However, if slab is available this is not the
-case currently, and the function might return a NULL.
+On Fri, Dec 21, 2012 at 01:46:23PM +0100, Michal Nazarewicz wrote:
+> > On Thu, Dec 20, 2012 at 04:49:44PM +0100, Michal Nazarewicz wrote:
+> >> Perhaps a??is_migrate_isolatea?? to match already existing a??is_migrate_cmaa???
+> 
+> On Fri, Dec 21 2012, Minchan Kim wrote:
+> > Good poking. In fact, while I made this patch, I was very tempted by renaming
+> > is_migrate_cma to cma_pageblock.
+> >
+> >         is_migrate_cma(mt)
+> >
+> > I don't know who start to use "mt" instead of "migratetype" but anyway, it's
+> > not a good idea.
+> >
+> >         is_migrate_cma(migratetype)
+> >
+> > It's very clear for me because migratetype is per pageblock, we can know the
+> > function works per pageblock unit.
+> >
+> >> Especially as the a??mt_isolated_pageblocka?? sound confusing to me, it
+> >> implies that it works on pageblocks which it does not.
+> >
+> > -ENOPARSE.
+> >
+> > migratetype works on pageblock.
+> 
+> migratetype is a number, which can be assigned to a pageblock.  In some
+> transitional cases, the migratetype associated with a page can differ
+> from the migratetype associated with the pageblock the page is in.  As
+> such, I think it's confusing to add a??pageblocka?? to the name of the
+> function which does not read migratetype from pageblock but rather
+> operates on the number it is provided.
 
-Currect it to panic on failed allocations even if slab is available.
+Fair enough.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/bootmem.c   | 9 ---------
- mm/nobootmem.c | 6 ------
- 2 files changed, 15 deletions(-)
+> 
+> > I admit mt is really dirty but I used page_alloc.c already has lots of
+> > mt, SIGH.
+> 
+> I don't really have an issue with a??mta?? myself, especially since the few
+> times a??mta?? is used in page_alloc.c it is a local variable which I don't
+> think needs a long descriptive name since context is all there.
+> 
+> > How about this?
+> >
+> > 1. Let's change all "mt" with "migratetype" again.
+> > 2. use is_migrate_isolate and is_migrate_cma for "migratetype".
+> > 3. use is_migrate_isolate_page instead of page_isolated_pageblock for
+> >    "page".
+> 
+> Like I've said.  Personally I don't really think 1 is needed, but 2 and
+> 3 look good to me.
 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 1324cd7..198a92f 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -763,9 +763,6 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
- void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
- 				   unsigned long align, unsigned long goal)
- {
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
- 	return  ___alloc_bootmem_node(pgdat, size, align, goal, 0);
- }
- 
-@@ -775,9 +772,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
- #ifdef MAX_DMA32_PFN
- 	unsigned long end_pfn;
- 
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
- 	/* update goal according ...MAX_DMA32_PFN */
- 	end_pfn = pgdat->node_start_pfn + pgdat->node_spanned_pages;
- 
-@@ -839,9 +833,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
- void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
- 				       unsigned long align, unsigned long goal)
- {
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
- 	return ___alloc_bootmem_node(pgdat, size, align,
- 				     goal, ARCH_LOW_ADDRESS_LIMIT);
- }
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index b8294fc..7c4c608 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -371,9 +371,6 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
- void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
- 				   unsigned long align, unsigned long goal)
- {
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
- 	return ___alloc_bootmem_node(pgdat, size, align, goal, 0);
- }
- 
-@@ -424,9 +421,6 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
- void * __init __alloc_bootmem_low_node(pg_data_t *pgdat, unsigned long size,
- 				       unsigned long align, unsigned long goal)
- {
--	if (WARN_ON_ONCE(slab_is_available()))
--		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
--
- 	return ___alloc_bootmem_node(pgdat, size, align, goal,
- 				     ARCH_LOW_ADDRESS_LIMIT);
- }
+Okay. It would be a first patch in New Year.
+Thanks for the review, Michal.
+
+> 
+> -- 
+> Best regards,                                         _     _
+> .o. | Liege of Serenely Enlightened Majesty of      o' \,=./ `o
+> ..o | Computer Science,  MichaA? a??mina86a?? Nazarewicz    (o o)
+> ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+
+
+
+
+
 -- 
-1.8.0
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
