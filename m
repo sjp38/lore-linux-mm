@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 6EE378D0001
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 07:10:29 -0500 (EST)
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 441AB8D000C
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 07:10:33 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v5 09/14] memory-hotplug: remove page table of x86_64 architecture
-Date: Mon, 24 Dec 2012 20:09:19 +0800
-Message-Id: <1356350964-13437-10-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v5 11/14] memory-hotplug: Integrated __remove_section() of CONFIG_SPARSEMEM_VMEMMAP.
+Date: Mon, 24 Dec 2012 20:09:21 +0800
+Message-Id: <1356350964-13437-12-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,45 +13,45 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-This patch searches a page table about the removed memory, and clear
-page table for x86_64 architecture.
+Currently __remove_section for SPARSEMEM_VMEMMAP does nothing. But even if
+we use SPARSEMEM_VMEMMAP, we can unregister the memory_section.
 
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/init_64.c |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+ mm/memory_hotplug.c |   11 -----------
+ 1 files changed, 0 insertions(+), 11 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index b30df3c..4b160d8 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -979,6 +979,15 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
- 	flush_tlb_all();
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index c12bd55..71cb656 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -430,16 +430,6 @@ static int __meminit __add_section(int nid, struct zone *zone,
+ 	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
  }
  
-+void __meminit
-+kernel_physical_mapping_remove(unsigned long start, unsigned long end)
-+{
-+	start = (unsigned long)__va(start);
-+	end = (unsigned long)__va(end);
-+
-+	remove_pagetable(start, end, true);
-+}
-+
- #ifdef CONFIG_MEMORY_HOTREMOVE
- int __ref arch_remove_memory(u64 start, u64 size)
+-#ifdef CONFIG_SPARSEMEM_VMEMMAP
+-static int __remove_section(struct zone *zone, struct mem_section *ms)
+-{
+-	/*
+-	 * XXX: Freeing memmap with vmemmap is not implement yet.
+-	 *      This should be removed later.
+-	 */
+-	return -EBUSY;
+-}
+-#else
+ static int __remove_section(struct zone *zone, struct mem_section *ms)
  {
-@@ -988,6 +997,7 @@ int __ref arch_remove_memory(u64 start, u64 size)
- 	int ret;
+ 	int ret = -EINVAL;
+@@ -454,7 +444,6 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ 	sparse_remove_one_section(zone, ms);
+ 	return 0;
+ }
+-#endif
  
- 	zone = page_zone(pfn_to_page(start_pfn));
-+	kernel_physical_mapping_remove(start, start + size);
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	WARN_ON_ONCE(ret);
- 
+ /*
+  * Reasonably generic function for adding memory.  It is
 -- 
 1.7.1
 
