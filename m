@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 31B6A6B002B
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 08:25:28 -0500 (EST)
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 074546B002B
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 08:38:52 -0500 (EST)
 Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Mon, 24 Dec 2012 14:25:26 +0100
+Date: Mon, 24 Dec 2012 14:38:50 +0100
 From: "azurIt" <azurit@pobox.sk>
 References: <20121206095423.GB10931@dhcp22.suse.cz>, <20121210022038.E6570D37@pobox.sk>, <20121210094318.GA6777@dhcp22.suse.cz>, <20121210111817.F697F53E@pobox.sk>, <20121210155205.GB6777@dhcp22.suse.cz>, <20121217023430.5A390FD7@pobox.sk>, <20121217163203.GD25432@dhcp22.suse.cz>, <20121217192301.829A7020@pobox.sk>, <20121217195510.GA16375@dhcp22.suse.cz>, <20121218152223.6912832C@pobox.sk> <20121218152004.GA25208@dhcp22.suse.cz>
 In-Reply-To: <20121218152004.GA25208@dhcp22.suse.cz>
 MIME-Version: 1.0
-Message-Id: <20121224142526.020165D3@pobox.sk>
+Message-Id: <20121224143850.B611B3C3@pobox.sk>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
@@ -21,13 +21,9 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailingl
 >all the things settle a bit.
 
 
-Michal, problem, unfortunately, happened again :( twice. When it happened first time (two days ago) i don't want to believe it so i recompiled the kernel and boot it again to be sure i really used your patch. Today it happened again, here is report:
-http://watchdog.sk/lkml/memcg-bug-3.tar.gz
+Btw, i noticed one more thing when problem is happening (=when any cgroup is stucked), i fogot to mention it before, sorry :( . It's related to HDDs, something is slowing them down in a strange way. All services are working normally and i really cannot notice any slowness, the only thing which i noticed is affeceted is our backup software ( www.Bacula.org ). When problem occurs at night, so it's happening when backup is running, backup is extremely slow and usually don't finish until i kill processes inside affected cgroup (=until i resolve the problem). Backup software is NOT doing big HDD bandwidth BUT it's doing quite huge number of disk operations (it needs to stat every file and directory). I believe that only speed of disk operations are affected and are very slow.
 
-Here is patch which i used (kernel 3.2.35, i didn't use any other from your patches):
-http://watchdog.sk/lkml/5-memcg-fix.patch
-
-azur
+Merry christmas!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
