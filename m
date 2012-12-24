@@ -1,29 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 074546B002B
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 08:38:52 -0500 (EST)
-Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
-Date: Mon, 24 Dec 2012 14:38:50 +0100
-From: "azurIt" <azurit@pobox.sk>
-References: <20121206095423.GB10931@dhcp22.suse.cz>, <20121210022038.E6570D37@pobox.sk>, <20121210094318.GA6777@dhcp22.suse.cz>, <20121210111817.F697F53E@pobox.sk>, <20121210155205.GB6777@dhcp22.suse.cz>, <20121217023430.5A390FD7@pobox.sk>, <20121217163203.GD25432@dhcp22.suse.cz>, <20121217192301.829A7020@pobox.sk>, <20121217195510.GA16375@dhcp22.suse.cz>, <20121218152223.6912832C@pobox.sk> <20121218152004.GA25208@dhcp22.suse.cz>
-In-Reply-To: <20121218152004.GA25208@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id B0B826B0044
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 13:53:12 -0500 (EST)
+Received: by mail-da0-f53.google.com with SMTP id x6so3249651dac.26
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2012 10:53:11 -0800 (PST)
 MIME-Version: 1.0
-Message-Id: <20121224143850.B611B3C3@pobox.sk>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Date: Mon, 24 Dec 2012 13:53:11 -0500
+Message-ID: <CAEDV+gLg838ua2Bgu0sTRjSAWYGPwELtH=ncoKPP-5t7_gxUYw@mail.gmail.com>
+Subject: PageHead macro broken?
+From: Christoffer Dall <cdall@cs.columbia.edu>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, torvalds@linux-foundation.org, clameter@sgi.com, Will Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>
 
->OK, good to hear and fingers crossed. I will try to get back to the
->original problem and a better solution sometimes early next year when
->all the things settle a bit.
+Hi everyone,
+
+I think I may have found an issue with the PageHead macro, which
+returns true for tail compound pages when CONFIG_PAGEFLAGS_EXTENDED is
+not defined.
+
+I'm not sure however, if this indeed is the intended behavior and I'm
+missing something overall. In any case, the below patch is a proposed
+fix, which does fix a bug showing up on KVM/ARM with huge pages.
+
+Your input would be greatly appreciated.
+
+From: Christoffer Dall <cdall@cs.columbia.edu>
+Date: Fri, 21 Dec 2012 13:03:50 -0500
+Subject: [PATCH] mm: Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED
+
+Unfortunately with !CONFIG_PAGEFLAGS_EXTENDED, (!PageHead) is false, and
+(PageHead) is true, for tail pages.  If this is indeed the intended
+behavior, which I doubt because it breaks cache cleaning on some ARM
+systems, then the nomenclature is highly problematic.
+
+This patch makes sure PageHead is only true for head pages and PageTail
+is only true for tail pages, and neither is true for non-compound pages.
+
+Signed-off-by: Christoffer Dall <cdall@cs.columbia.edu>
+---
+ include/linux/page-flags.h |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index b5d1384..70473da 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -362,7 +362,7 @@ static inline void ClearPageCompound(struct page *page)
+  * pages on the LRU and/or pagecache.
+  */
+ TESTPAGEFLAG(Compound, compound)
+-__PAGEFLAG(Head, compound)
++__SETPAGEFLAG(Head, compound)  __CLEARPAGEFLAG(Head, compound)
+
+ /*
+  * PG_reclaim is used in combination with PG_compound to mark the
+@@ -374,8 +374,14 @@ __PAGEFLAG(Head, compound)
+  * PG_compound & PG_reclaim => Tail page
+  * PG_compound & ~PG_reclaim => Head page
+  */
++#define PG_head_mask ((1L << PG_compound))
+ #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
+
++static inline int PageHead(struct page *page)
++{
++ return ((page->flags & PG_head_tail_mask) == PG_head_mask);
++}
++
+ static inline int PageTail(struct page *page)
+ {
+  return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
+--
+1.7.9.5
 
 
-Btw, i noticed one more thing when problem is happening (=when any cgroup is stucked), i fogot to mention it before, sorry :( . It's related to HDDs, something is slowing them down in a strange way. All services are working normally and i really cannot notice any slowness, the only thing which i noticed is affeceted is our backup software ( www.Bacula.org ). When problem occurs at night, so it's happening when backup is running, backup is extremely slow and usually don't finish until i kill processes inside affected cgroup (=until i resolve the problem). Backup software is NOT doing big HDD bandwidth BUT it's doing quite huge number of disk operations (it needs to stat every file and directory). I believe that only speed of disk operations are affected and are very slow.
-
-Merry christmas!
+Thanks!
+-Christoffer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
