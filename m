@@ -1,33 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 7D3946B002B
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 07:05:05 -0500 (EST)
-Received: by mail-ob0-f181.google.com with SMTP id oi10so7203915obb.26
-        for <linux-mm@kvack.org>; Tue, 25 Dec 2012 04:05:04 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
-	<535932623.34838584.1356410331076.JavaMail.root@redhat.com>
-Date: Tue, 25 Dec 2012 20:05:04 +0800
-Message-ID: <CAJd=RBB9Tqv9c_Wv+N8yJOftfkJeUS10vLuz14eoLH1eEtjmBQ@mail.gmail.com>
-Subject: Re: kernel BUG at mm/huge_memory.c:1798!
-From: Hillf Danton <dhillf@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 286F06B002B
+	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 10:27:48 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id bg2so4531653pad.32
+        for <linux-mm@kvack.org>; Tue, 25 Dec 2012 07:27:47 -0800 (PST)
+From: Joonsoo Kim <js1304@gmail.com>
+Subject: [PATCH] slub: assign refcount for kmalloc_caches
+Date: Wed, 26 Dec 2012 00:24:42 +0900
+Message-Id: <1356449082-3016-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
+References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Paul Hargrove <phhargrove@lbl.gov>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
 
-On Tue, Dec 25, 2012 at 12:38 PM, Zhouping Liu <zliu@redhat.com> wrote:
-> Hello all,
->
-> I found the below kernel bug using latest mainline(637704cbc95),
-> my hardware has 2 numa nodes, and it's easy to reproduce the issue
-> using LTP test case: "# ./mmap10 -a -s -c 200":
+commit cce89f4f6911286500cf7be0363f46c9b0a12ce0('Move kmem_cache
+refcounting to common code') moves some refcount manipulation code to
+common code. Unfortunately, it also removed refcount assignment for
+kmalloc_caches. So, kmalloc_caches's refcount is initially 0.
+This makes errornous situation.
 
-Can you test with 5a505085f0 and 4fc3f1d66b1 reverted?
+Paul Hargrove report that when he create a 8-byte kmem_cache and
+destory it, he encounter below message.
+'Objects remaining in kmalloc-8 on kmem_cache_close()'
 
-Hillf
+8-byte kmem_cache merge with 8-byte kmalloc cache and refcount is
+increased by one. So, resulting refcount is 1. When destory it, it hit
+refcount = 0, then kmem_cache_close() is executed and error message is
+printed.
+
+This patch assign initial refcount 1 to kmalloc_caches, so fix this
+errornous situtation.
+
+Cc: <stable@vger.kernel.org> # v3.7
+Cc: Christoph Lameter <cl@linux.com>
+Reported-by: Paul Hargrove <phhargrove@lbl.gov>
+Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+
+diff --git a/mm/slub.c b/mm/slub.c
+index a0d6984..321afab 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3279,6 +3279,7 @@ static struct kmem_cache *__init create_kmalloc_cache(const char *name,
+ 	if (kmem_cache_open(s, flags))
+ 		goto panic;
+ 
++	s->refcount = 1;
+ 	list_add(&s->list, &slab_caches);
+ 	return s;
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
