@@ -1,67 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 3F5C36B0044
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 10:30:16 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id n5so7522370oag.31
-        for <linux-mm@kvack.org>; Tue, 25 Dec 2012 07:30:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
+	by kanga.kvack.org (Postfix) with SMTP id 7CBD66B002B
+	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 10:32:45 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id un3so7297707obb.21
+        for <linux-mm@kvack.org>; Tue, 25 Dec 2012 07:32:44 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1356449082-3016-1-git-send-email-js1304@gmail.com>
+In-Reply-To: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
 References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
-	<1356449082-3016-1-git-send-email-js1304@gmail.com>
-Date: Wed, 26 Dec 2012 00:30:15 +0900
-Message-ID: <CAAmzW4Nz6if==JjxLQGYwwQwKPDXfUbeioyPHWZQQFNu=xXUeQ@mail.gmail.com>
-Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+Date: Wed, 26 Dec 2012 00:32:44 +0900
+Message-ID: <CAAmzW4P-T3NC1E73KOFFExMJR3S5+iTX0MWJhLzXZsyykbtmDQ@mail.gmail.com>
+Subject: Re: BUG: slub creates kmalloc slabs with refcount=0
 From: JoonSoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Paul Hargrove <phhargrove@lbl.gov>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <js1304@gmail.com>, Christoph Lameter <cl@linux.com>
+To: Paul Hargrove <phhargrove@lbl.gov>
+Cc: linux-mm@kvack.org
 
-2012/12/26 Joonsoo Kim <js1304@gmail.com>:
-> commit cce89f4f6911286500cf7be0363f46c9b0a12ce0('Move kmem_cache
-> refcounting to common code') moves some refcount manipulation code to
-> common code. Unfortunately, it also removed refcount assignment for
-> kmalloc_caches. So, kmalloc_caches's refcount is initially 0.
-> This makes errornous situation.
+Hello, Paul.
+
+2012/12/25 Paul Hargrove <phhargrove@lbl.gov>:
 >
-> Paul Hargrove report that when he create a 8-byte kmem_cache and
-> destory it, he encounter below message.
-> 'Objects remaining in kmalloc-8 on kmem_cache_close()'
+> I have a 3.7.1 kernel on x86-86
+> It is configured with
+>   CONFIG_SLUB=y
+>   CONFIG_SLUB_DEBUG=y
 >
-> 8-byte kmem_cache merge with 8-byte kmalloc cache and refcount is
-> increased by one. So, resulting refcount is 1. When destory it, it hit
-> refcount = 0, then kmem_cache_close() is executed and error message is
-> printed.
+> I have an out-of-tree module calling KMEM_CACHE for an 8-byte struct:
+>         cr_pdata_cachep = KMEM_CACHE(cr_pdata_s,0);
+>         if (!cr_pdata_cachep) goto no_pdata_cachep;
+>         printk(KERN_ERR "@ refcount = %d name = '%s'\n",
+> cr_pdata_cachep->refcount, cr_pdata_cachep->name);
 >
-> This patch assign initial refcount 1 to kmalloc_caches, so fix this
-> errornous situtation.
+> The output of the printk, below, shows that the request has been merged with
+> the built-in 8-byte kmalloc pool, BUT the resulting refcount is 1, rather
+> than 2 (or more):
+>     @ refcount = 1 name = 'kmalloc-8'
 >
-> Cc: <stable@vger.kernel.org> # v3.7
-> Cc: Christoph Lameter <cl@linux.com>
-> Reported-by: Paul Hargrove <phhargrove@lbl.gov>
-> Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> This results in a very unhappy kernel when the module calls
+>     kmem_cache_destroy(cr_pdata_cachep);
+> at rmmod time, resulting is messages like
+>     BUG kmalloc-8 (Tainted: G           O): Objects remaining in kmalloc-96
+> on kmem_cache_close()
 >
-> diff --git a/mm/slub.c b/mm/slub.c
-> index a0d6984..321afab 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3279,6 +3279,7 @@ static struct kmem_cache *__init create_kmalloc_cache(const char *name,
->         if (kmem_cache_open(s, flags))
->                 goto panic;
+> A quick look through mm/slub.c appears to confirm my suspicion that
+> "s->refcount" is never incremented for the built-in kmalloc-* caches.
+> However, I leave it to the experts to determine where the increment belongs.
 >
-> +       s->refcount = 1;
->         list_add(&s->list, &slab_caches);
->         return s;
+> FWIW: I am currently passing SLAB_POISON for the flags argument to
+> KMEM_CACHE() as a work-around (it prevents merging and, if I understand
+> correctly, has no overhead in a non-debug build).
+>
+> -Paul
 >
 > --
-> 1.7.9.5
->
+> Paul H. Hargrove                          PHHargrove@lbl.gov
+> Future Technologies Group
+> Computer and Data Sciences Department     Tel: +1-510-495-2352
+> Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
 
-I missed some explanation.
-In v3.8-rc1, this problem is already solved.
-See create_kmalloc_cache() in mm/slab_common.c.
-So this patch is just for v3.7 stable.
+My e-mail client's 'Reply to message ID' is not working properly.
+I sent a patch('slub:assign refcount for kmalloc_caches') for fixing
+this and Cc'ed you.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
