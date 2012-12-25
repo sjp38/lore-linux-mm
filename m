@@ -1,126 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 88F756B0044
-	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 14:55:38 -0500 (EST)
-Received: by mail-pa0-f54.google.com with SMTP id bi5so4254858pad.41
-        for <linux-mm@kvack.org>; Mon, 24 Dec 2012 11:55:37 -0800 (PST)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id A09406B0044
+	for <linux-mm@kvack.org>; Mon, 24 Dec 2012 19:55:33 -0500 (EST)
+Received: by mail-vc0-f200.google.com with SMTP id f13so11001093vcb.3
+        for <linux-mm@kvack.org>; Mon, 24 Dec 2012 16:55:21 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFxb63WMysJ-HQbam_JH05Bqp=XhrzokrSM-yvoaAzPASg@mail.gmail.com>
-References: <CAEDV+gLg838ua2Bgu0sTRjSAWYGPwELtH=ncoKPP-5t7_gxUYw@mail.gmail.com>
-	<CA+55aFxb63WMysJ-HQbam_JH05Bqp=XhrzokrSM-yvoaAzPASg@mail.gmail.com>
-Date: Mon, 24 Dec 2012 14:55:37 -0500
-Message-ID: <CAEDV+gL=N3LzAD-xqvU-4KnJOWBoi8ZRXiAaWxokkr06KtgYvA@mail.gmail.com>
-Subject: Re: PageHead macro broken?
-From: Christoffer Dall <cdall@cs.columbia.edu>
-Content-Type: text/plain; charset=ISO-8859-1
+Date: Mon, 24 Dec 2012 16:55:21 -0800
+Message-ID: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
+Subject: BUG: slub creates kmalloc slabs with refcount=0
+From: Paul Hargrove <phhargrove@lbl.gov>
+Content-Type: multipart/alternative; boundary=bcaec54fbbb8adeb8604d1a2c47c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>
+To: linux-mm@kvack.org
 
-On Mon, Dec 24, 2012 at 2:21 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> On Mon, Dec 24, 2012 at 10:53 AM, Christoffer Dall
-> <cdall@cs.columbia.edu> wrote:
->>
->> I think I may have found an issue with the PageHead macro, which
->> returns true for tail compound pages when CONFIG_PAGEFLAGS_EXTENDED is
->> not defined.
+--bcaec54fbbb8adeb8604d1a2c47c
+Content-Type: text/plain; charset=ISO-8859-1
+
+I have a 3.7.1 kernel on x86-86
+It is configured with
+  CONFIG_SLUB=y
+  CONFIG_SLUB_DEBUG=y
+
+I have an out-of-tree module calling KMEM_CACHE for an 8-byte struct:
+        cr_pdata_cachep = KMEM_CACHE(cr_pdata_s,0);
+        if (!cr_pdata_cachep) goto no_pdata_cachep;
+        printk(KERN_ERR "@ refcount = %d name = '%s'\n",
+cr_pdata_cachep->refcount, cr_pdata_cachep->name);
+
+The output of the printk, below, shows that the request has been merged
+with the built-in 8-byte kmalloc pool, BUT the resulting refcount is 1,
+rather than 2 (or more):
+    @ refcount = 1 name = 'kmalloc-8'
+
+This results in a very unhappy kernel when the module calls
+    kmem_cache_destroy(cr_pdata_cachep);
+at rmmod time, resulting is messages like
+    BUG kmalloc-8 (Tainted: G           O): Objects remaining in kmalloc-96
+on kmem_cache_close()
+
+A quick look through mm/slub.c appears to confirm my suspicion that
+"s->refcount" is never incremented for the built-in kmalloc-* caches.
+ However, I leave it to the experts to determine where the increment
+belongs.
+
+FWIW: I am currently passing SLAB_POISON for the flags argument to
+KMEM_CACHE() as a work-around (it prevents merging and, if I understand
+correctly, has no overhead in a non-debug build).
+
+-Paul
+
+-- 
+Paul H. Hargrove                          PHHargrove@lbl.gov
+Future Technologies Group
+Computer and Data Sciences Department     Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+--bcaec54fbbb8adeb8604d1a2c47c
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div><br></div>I have a 3.7.1 kernel on x86-86<div>It is c=
+onfigured with</div><div style>=A0 CONFIG_SLUB=3Dy</div><div style>=A0 CONF=
+IG_SLUB_DEBUG=3Dy</div><div style><br></div><div style>I have an out-of-tre=
+e module calling KMEM_CACHE for an 8-byte struct:</div>
+<div style><div>=A0 =A0 =A0 =A0 cr_pdata_cachep =3D KMEM_CACHE(cr_pdata_s,0=
+);</div><div>=A0 =A0 =A0 =A0 if (!cr_pdata_cachep) goto no_pdata_cachep;</d=
+iv><div>=A0 =A0 =A0 =A0 printk(KERN_ERR &quot;@ refcount =3D %d name =3D &#=
+39;%s&#39;\n&quot;, cr_pdata_cachep-&gt;refcount, cr_pdata_cachep-&gt;name)=
+;=A0</div>
+<div><br></div><div style>The output of the printk, below, shows that the r=
+equest has been merged with the built-in 8-byte kmalloc pool, BUT the resul=
+ting refcount is 1, rather than 2 (or more): =A0</div></div><div style>=A0 =
+=A0 @ refcount =3D 1 name =3D &#39;kmalloc-8&#39;<br>
+</div><div><div><br></div><div style>This results in a very unhappy kernel =
+when the module calls</div><div style>=A0=A0 =A0kmem_cache_destroy(cr_pdata=
+_cachep);</div><div style>at rmmod time, resulting is messages like</div><d=
+iv style>
+=A0 =A0=A0BUG kmalloc-8 (Tainted: G =A0 =A0 =A0 =A0 =A0 O): Objects remaini=
+ng in kmalloc-96 on kmem_cache_close()</div><div style><br></div><div style=
+>A quick look through mm/slub.c appears to confirm my=A0suspicion=A0that &q=
+uot;s-&gt;refcount&quot; is never incremented for the built-in kmalloc-* ca=
+ches. =A0However, I leave it to the experts to determine where the incremen=
+t belongs.</div>
+<div style><br></div><div style>FWIW: I am currently passing SLAB_POISON fo=
+r the flags argument to KMEM_CACHE() as a work-around (it prevents merging =
+and, if I understand correctly, has no overhead in a non-debug build).</div=
 >
-> Hmm. Your patch *looks* obviously correct, in that it actually makes
-> the code match the comment just above it. And making PageHead() test
-> just the "compound" flag (and thus a tail-page would trigger it too)
-> sounds wrong. But I join you in the "let's check the expected
-> semantics with the people who use it" chorus.
->
-> The fact that it fixes a problem on KVM/ARM is obviously another good sign.
->
-> At the same time, I wonder why it hasn't shown up as a problem on
-> x86-32. On x86-64 PAGEFLAGS_EXTENDED is always true, but afaik, it
-> should be possible to trigger this on 32-bit architectures if you just
-> have SPARSEMEM && !SPARSEMEM_VMEMMAP.
->
-> And SPARSEMEM on x86-32 is enabled with NUMA or EXPERIMENTAL set. And
-> afaik, x86-32 never has SPARSEMEM_VMEMMAP. So this should not be a
-> very uncommon setup.
+<div style><br></div><div style>-Paul</div><div style><br></div>-- <br><fon=
+t face=3D"courier new, monospace"><div>Paul H. Hargrove =A0 =A0 =A0 =A0 =A0=
+ =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0<a href=3D"mailto:PHHargrove@lbl.gov" targe=
+t=3D"_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Departm=
+ent =A0 =A0 Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Labor=
+atory =A0 =A0 Fax: +1-510-486-6900</div></font>
+</div></div>
 
-That's exactly why I was hesitant with just sending this out as a
-patch. Then on the other hand, bugs from this problem *might* be so
-subtle that it was simply not noticed.
-
->
-> Added Andrea and Kirill to the Cc, since most of the *uses* of
-> PageHead() in the generic VM code are attributed to either of them
-> according to "git blame". Left the rest of the email quoted for the
-> new participants.. Also, you seem to have used Christoph's old SGI
-> email address that I don't think is in use any more.
-
-Yep, just grabbed the e-mail from the commit that introduced the
-problem, wasn't aware of the address change. Sorry about that.
-
-Oh, and merry christmas :)
-
--Christoffer
-
->
-> ---
->> I'm not sure however, if this indeed is the intended behavior and I'm
->> missing something overall. In any case, the below patch is a proposed
->> fix, which does fix a bug showing up on KVM/ARM with huge pages.
->>
->> Your input would be greatly appreciated.
->>
->> From: Christoffer Dall <cdall@cs.columbia.edu>
->> Date: Fri, 21 Dec 2012 13:03:50 -0500
->> Subject: [PATCH] mm: Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED
->>
->> Unfortunately with !CONFIG_PAGEFLAGS_EXTENDED, (!PageHead) is false, and
->> (PageHead) is true, for tail pages.  If this is indeed the intended
->> behavior, which I doubt because it breaks cache cleaning on some ARM
->> systems, then the nomenclature is highly problematic.
->>
->> This patch makes sure PageHead is only true for head pages and PageTail
->> is only true for tail pages, and neither is true for non-compound pages.
->>
->> Signed-off-by: Christoffer Dall <cdall@cs.columbia.edu>
->> ---
->>  include/linux/page-flags.h |    8 +++++++-
->>  1 file changed, 7 insertions(+), 1 deletion(-)
->>
->> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
->> index b5d1384..70473da 100644
->> --- a/include/linux/page-flags.h
->> +++ b/include/linux/page-flags.h
->> @@ -362,7 +362,7 @@ static inline void ClearPageCompound(struct page *page)
->>   * pages on the LRU and/or pagecache.
->>   */
->>  TESTPAGEFLAG(Compound, compound)
->> -__PAGEFLAG(Head, compound)
->> +__SETPAGEFLAG(Head, compound)  __CLEARPAGEFLAG(Head, compound)
->>
->>  /*
->>   * PG_reclaim is used in combination with PG_compound to mark the
->> @@ -374,8 +374,14 @@ __PAGEFLAG(Head, compound)
->>   * PG_compound & PG_reclaim => Tail page
->>   * PG_compound & ~PG_reclaim => Head page
->>   */
->> +#define PG_head_mask ((1L << PG_compound))
->>  #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
->>
->> +static inline int PageHead(struct page *page)
->> +{
->> + return ((page->flags & PG_head_tail_mask) == PG_head_mask);
->> +}
->> +
->>  static inline int PageTail(struct page *page)
->>  {
->>   return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
->> --
->> 1.7.9.5
->>
->>
->> Thanks!
->> -Christoffer
+--bcaec54fbbb8adeb8604d1a2c47c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
