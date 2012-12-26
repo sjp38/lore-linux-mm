@@ -1,155 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 00DA86B002B
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 01:54:00 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AA2973EE0C0
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 946D545DEA1
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7966F45DD74
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 667391DB8038
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
-Received: from g01jpexchkw05.g01.fujitsu.local (g01jpexchkw05.g01.fujitsu.local [10.0.194.44])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 224A51DB802C
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
-Message-ID: <50DA9ED5.4000501@jp.fujitsu.com>
-Date: Wed, 26 Dec 2012 15:53:09 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 406726B002B
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 02:13:41 -0500 (EST)
+Date: Wed, 26 Dec 2012 08:13:38 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [3.8-rc1+] BUG: unable to handle kernel NULL pointer
+ dereference, wait_iff_congested+0x45/0xdd
+Message-ID: <20121226071338.GA11555@liondog.tnic>
+References: <27934635.301401356500288241.JavaMail.weblogic@epml05>
+ <CAHdPZaMGtDGW-yBULuTkJxMSUXLZRQd22S-bsFG-jqR+5LyB6A@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 3/6] ACPI: Restructure movablecore_map with memory
- info from SRAT.
-References: <1355904903-22699-4-git-send-email-tangchen@cn.fujitsu.com> <1355908308-24744-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1355908308-24744-1-git-send-email-tangchen@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAHdPZaMGtDGW-yBULuTkJxMSUXLZRQd22S-bsFG-jqR+5LyB6A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "devendra.aaru" <devendra.aaru@gmail.com>
+Cc: jongman.heo@samsung.com, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Hi Tang,
++ linux-mm.
 
-I don't think it can work well.
-The patch gets memory range of hotpluggable memory by
-acpi_numa_memory_affinity_init(). But it too late.
-For example, if we use log_buf_len boot options, memblock allocator
-runs before getting SRAT information. In this case, this movablecore_map
-boot option does not work well.
+There's that kswapd deal again.
 
-Thanks,
-Yasuaki Ishimatsu
+On Wed, Dec 26, 2012 at 11:12:45AM +0530, devendra.aaru wrote:
+> Hello,
+> 
+> On Wed, Dec 26, 2012 at 11:08 AM, Jongman Heo <jongman.heo@samsung.com> wrote:
+> >
+> > Hi,
+> >
+> > During SVN checkout (means heavy I/O), I hit this kernel BUG with current linus git (637704cb : Merge branch 'i2c-embedded/for-next'), in my VMWare Linux guest.
+> >
+> i can too with the make -j144 on kernel source code, attached the .config.
+> 
+> > [ 9141.015123] BUG: unable to handle kernel NULL pointer dereference at 00000280
+> > [ 9141.017870] IP: [<c04ba69c>] wait_iff_congested+0x45/0xdd
+> > [ 9141.034799] *pde = 00000000
+> > [ 9141.034803] Oops: 0000 [#1] SMP
+> > [ 9141.044282] Modules linked in: vmwgfx ttm drm
+> > [ 9141.044331] Pid: 42, comm: kswapd0 Not tainted 3.8.0-rc1+ #120 VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform
+> > [ 9141.044334] EIP: 0060:[<c04ba69c>] EFLAGS: 00010202 CPU: 3
+> > [ 9141.044342] EIP is at wait_iff_congested+0x45/0xdd
+> > [ 9141.044343] EAX: 00000001 EBX: 00000000 ECX: 00000000 EDX: 00000000
+> > [ 9141.044345] ESI: 0000001e EDI: f633fec0 EBP: f633fecc ESP: f633fea8
+> > [ 9141.044347]  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
+> > [ 9141.044348] CR0: 8005003b CR2: 00000280 CR3: 33ab7000 CR4: 000007d0
+> > [ 9141.045817] DR0: 00000000 DR1: 00000000 DR2: 00000000 DR3: 00000000
+> > [ 9141.045834] DR6: ffff0ff0 DR7: 00000400
+> > [ 9141.045836] Process kswapd0 (pid: 42, ti=f633e000 task=f6331920 task.ti=f633e000)
+> > [ 9141.045838] Stack:
+> > [ 9141.045839]  002889e6 00000000 f6331920 c04462a2 f633feb8 f633feb8 c0beba54 c0bead00
+> > [ 9141.045844]  00000003 f633ff68 c04b3ffb 00000002 00000000 000086d1 f6331920 f633ff58
+> > [ 9141.045849]  00000000 f6331920 00037b92 00000000 00000045 00000000 00000038 00000001
+> > [ 9141.045854] Call Trace:
+> > [ 9141.045934]  [<c04462a2>] ? remove_wait_queue+0x27/0x27
+> > [ 9141.045939]  [<c04b3ffb>] kswapd+0x5ef/0x705
+> > [ 9141.045942]  [<c04462a2>] ? remove_wait_queue+0x27/0x27
+> > [ 9141.045945]  [<c0445cbc>] kthread+0x6b/0x70
+> > [ 9141.045947]  [<c04b3a0c>] ? shrink_lruvec+0x492/0x492
+> > [ 9141.083149]  [<c0907637>] ret_from_kernel_thread+0x1b/0x28
+> > [ 9141.083166]  [<c0445c51>] ? kthread_freezable_should_stop+0x36/0x36
+> > [ 9141.083169] Code: 89 45 dc 31 c0 f3 ab 64 a1 58 66 c7 c0 89 45 e4 8d 45 ec 89 45 ec 89 45 f0 8b 04 95 24 2b cf c0 c7 45 e8 a2 62 44 c0 85 c0 74 0a <8b> 83 80 02 00 00 a8 04 75 1b e8 e9 6f 44 00 a1 40 9a b8 c0 8b
+> > [ 9141.089753] EIP: [<c04ba69c>] wait_iff_congested+0x45/0xdd SS:ESP 0068:f633fea8
+> > [ 9141.089764] CR2: 0000000000000280
+> > [ 9141.090296] ---[ end trace 58a34900f079b57e ]---
 
-2012/12/19 18:11, Tang Chen wrote:
-> The Hot Plugable bit in SRAT flags specifys if the memory range
-> could be hotplugged.
-> 
-> If user specified movablecore_map=nn[KMG]@ss[KMG], reset
-> movablecore_map.map to the intersection of hotpluggable ranges from
-> SRAT and old movablecore_map.map.
-> Else if user specified movablecore_map=acpi, just use the hotpluggable
-> ranges from SRAT.
-> Otherwise, do nothing. The kernel will use all the memory in all nodes
-> evenly.
-> 
-> The idea "getting info from SRAT" was from Liu Jiang <jiang.liu@huawei.com>.
-> And the idea "do more limit for memblock" was from Wu Jianguo <wujianguo@huawei.com>
-> 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Tested-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> ---
->   arch/x86/mm/srat.c |   55 +++++++++++++++++++++++++++++++++++++++++++++++++--
->   1 files changed, 52 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-> index 4ddf497..a8856d2 100644
-> --- a/arch/x86/mm/srat.c
-> +++ b/arch/x86/mm/srat.c
-> @@ -146,7 +146,12 @@ int __init
->   acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   {
->   	u64 start, end;
-> +	u32 hotpluggable;
->   	int node, pxm;
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +	int overlap;
-> +	unsigned long start_pfn, end_pfn;
-> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->   
->   	if (srat_disabled())
->   		return -1;
-> @@ -157,8 +162,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
->   		return -1;
->   
-> -	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
-> +	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
-> +	if (hotpluggable && !save_add_info())
->   		return -1;
-> +
->   	start = ma->base_address;
->   	end = start + ma->length;
->   	pxm = ma->proximity_domain;
-> @@ -178,9 +185,51 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   
->   	node_set(node, numa_nodes_parsed);
->   
-> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
-> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
->   	       node, pxm,
-> -	       (unsigned long long) start, (unsigned long long) end - 1);
-> +	       (unsigned long long) start, (unsigned long long) end - 1,
-> +	       hotpluggable ? "Hot Pluggable": "");
-> +
-> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-> +	start_pfn = PFN_DOWN(start);
-> +	end_pfn = PFN_UP(end);
-> +
-> +	if (!hotpluggable) {
-> +		/* Clear the range overlapped in movablecore_map.map */
-> +		remove_movablecore_map(start_pfn, end_pfn);
-> +		goto out;
-> +	}
-> +
-> +	if (!movablecore_map.acpi) {
-> +		for (overlap = 0; overlap < movablecore_map.nr_map; overlap++) {
-> +			if (start_pfn < movablecore_map.map[overlap].end_pfn)
-> +				break;
-> +		}
-> +
-> +		/*
-> +		 * If there is no overlapped range, or the end of the overlapped
-> +		 * range is higher than end_pfn, then insert nothing.
-> +		 */
-> +		if (end_pfn <= movablecore_map.map[overlap].end_pfn)
-> +			goto out;
-> +
-> +		/*
-> +		 * Otherwise, insert the rest of this range to prevent memblock
-> +		 * from allocating memory in it.
-> +		 */
-> +		start_pfn = movablecore_map.map[overlap].end_pfn;
-> +		start = start_pfn >> PAGE_SHIFT;
-> +	}
-> +
-> +	/* If user chose to use SRAT info, insert the range anyway. */
-> +	if (insert_movablecore_map(start_pfn, end_pfn))
-> +		pr_err("movablecore_map: too many entries;"
-> +			" ignoring [mem %#010llx-%#010llx]\n",
-> +			(unsigned long long) start,
-> +			(unsigned long long) (end - 1));
-> +
-> +out:
-> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->   	return 0;
->   }
->   
-> 
 
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Sent from a fat crate under my desk. Formatting is fine.
+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
