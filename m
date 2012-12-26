@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 22C576B002B
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 22:48:33 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 697563EE0C2
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:48:31 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4E96245DE9D
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:48:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 1A1BE45DE9C
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:48:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 063FCE08003
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:48:31 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id AC5DD1DB8037
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:48:30 +0900 (JST)
-Message-ID: <50DA7357.109@jp.fujitsu.com>
-Date: Wed, 26 Dec 2012 12:47:35 +0900
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 11DA56B002B
+	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 22:56:36 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 7E5B43EE0BC
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:56:34 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D25145DE68
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:56:34 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EAEF845DE58
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:56:33 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id D5BB41DB8049
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:56:33 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 86AB21DB8041
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 12:56:33 +0900 (JST)
+Message-ID: <50DA7533.6060407@jp.fujitsu.com>
+Date: Wed, 26 Dec 2012 12:55:31 +0900
 From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 07/14] memory-hotplug: move pgdat_resize_lock into
- sparse_remove_one_section()
-References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-8-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1356350964-13437-8-git-send-email-tangchen@cn.fujitsu.com>
+Subject: Re: [PATCH v5 14/14] memory-hotplug: free node_data when a node is
+ offlined
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-15-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1356350964-13437-15-git-send-email-tangchen@cn.fujitsu.com>
 Content-Type: text/plain; charset=ISO-2022-JP
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -33,21 +33,65 @@ To: Tang Chen <tangchen@cn.fujitsu.com>
 Cc: akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
 (2012/12/24 21:09), Tang Chen wrote:
-> In __remove_section(), we locked pgdat_resize_lock when calling
-> sparse_remove_one_section(). This lock will disable irq. But we don't need
-> to lock the whole function. If we do some work to free pagetables in
-> free_section_usemap(), we need to call flush_tlb_all(), which need
-> irq enabled. Otherwise the WARN_ON_ONCE() in smp_call_function_many()
-> will be triggered.
+> From: Wen Congyang <wency@cn.fujitsu.com>
 > 
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+> We call hotadd_new_pgdat() to allocate memory to store node_data. So we
+> should free it when removing a node.
+> 
 > Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 
-If this is a bug fix, call-trace in your log and BUGFIX or -fix- in patch title
-will be appreciated, I think.
+I'm sorry but is it safe to remove pgdat ? All zone cache and zonelists are
+properly cleared/rebuilded in synchronous way ? and No threads are visinting
+zone in vmscan.c ?
 
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Thanks,
+-Kame
+
+> ---
+>   mm/memory_hotplug.c |   20 +++++++++++++++++++-
+>   1 files changed, 19 insertions(+), 1 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index f8a1d2f..447fa24 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -1680,9 +1680,12 @@ static int check_cpu_on_node(void *data)
+>   /* offline the node if all memory sections of this node are removed */
+>   static void try_offline_node(int nid)
+>   {
+> +	pg_data_t *pgdat = NODE_DATA(nid);
+>   	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+> -	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+> +	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+>   	unsigned long pfn;
+> +	struct page *pgdat_page = virt_to_page(pgdat);
+> +	int i;
+>   
+>   	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+>   		unsigned long section_nr = pfn_to_section_nr(pfn);
+> @@ -1709,6 +1712,21 @@ static void try_offline_node(int nid)
+>   	 */
+>   	node_set_offline(nid);
+>   	unregister_one_node(nid);
+> +
+> +	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
+> +		/* node data is allocated from boot memory */
+> +		return;
+> +
+> +	/* free waittable in each zone */
+> +	for (i = 0; i < MAX_NR_ZONES; i++) {
+> +		struct zone *zone = pgdat->node_zones + i;
+> +
+> +		if (zone->wait_table)
+> +			vfree(zone->wait_table);
+> +	}
+> +
+> +	arch_refresh_nodedata(nid, NULL);
+> +	arch_free_nodedata(pgdat);
+>   }
+>   
+>   int __ref remove_memory(int nid, u64 start, u64 size)
+> 
 
 
 --
