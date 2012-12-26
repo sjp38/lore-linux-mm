@@ -1,141 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 1D79A6B002B
-	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 19:33:49 -0500 (EST)
-Date: Wed, 26 Dec 2012 02:34:35 +0200
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: 3.8-rc1 build failure with MIPS/SPARSEMEM
-Message-ID: <20121226003434.GA27760@otc-wbsnb-06>
-References: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id DE68C6B002B
+	for <linux-mm@kvack.org>; Tue, 25 Dec 2012 21:16:42 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 066353EE0C7
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 11:16:41 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AD0D645DE84
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 11:16:40 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 7B26845DE76
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 11:16:40 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D2811DB8050
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 11:16:40 +0900 (JST)
+Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 19FE6E38003
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 11:16:40 +0900 (JST)
+Message-ID: <50DA5DE3.9060809@jp.fujitsu.com>
+Date: Wed, 26 Dec 2012 11:16:03 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="mP3DRpeJDSE+ciuQ"
-Content-Disposition: inline
-In-Reply-To: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi>
+Subject: Re: [PATCH 3/3] sl[auo]b: retry allocation once in case of failure.
+References: <1355925702-7537-1-git-send-email-glommer@parallels.com> <1355925702-7537-4-git-send-email-glommer@parallels.com>
+In-Reply-To: <1355925702-7537-4-git-send-email-glommer@parallels.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaro Koskinen <aaro.koskinen@iki.fi>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+
+(2012/12/19 23:01), Glauber Costa wrote:
+> When we are out of space in the caches, we will try to allocate a new
+> page.  If we still fail, the page allocator will try to free pages
+> through direct reclaim. Which means that if an object allocation failed
+> we can be sure that no new pages could be given to us, even though
+> direct reclaim was likely invoked.
+> 
+> However, direct reclaim will also try to shrink objects from registered
+> shrinkers. They won't necessarily free a full page, but if our cache
+> happens to be one with a shrinker, this may very well open up the space
+> we need. So we retry the allocation in this case.
+> 
+> We can't know for sure if this happened. So the best we can do is try to
+> derive from our allocation flags how likely it is for direct reclaim to
+> have been called, and retry if we conclude that this is highly likely
+> (GFP_NOWAIT | GFP_FS | !GFP_NORETRY).
+> 
+> The common case is for the allocation to succeed. So we carefuly insert
+> a likely branch for that case.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> CC: Christoph Lameter <cl@linux.com>
+> CC: David Rientjes <rientjes@google.com>
+> CC: Pekka Enberg <penberg@cs.helsinki.fi>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Mel Gorman <mgorman@suse.de>
+> ---
+>   mm/slab.c |  2 ++
+>   mm/slab.h | 42 ++++++++++++++++++++++++++++++++++++++++++
+>   mm/slob.c | 27 +++++++++++++++++++++++----
+>   mm/slub.c | 26 ++++++++++++++++++++------
+>   4 files changed, 87 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index a98295f..7e82f99 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3535,6 +3535,8 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+>   	cache_alloc_debugcheck_before(cachep, flags);
+>   	local_irq_save(save_flags);
+>   	objp = __do_slab_alloc_node(cachep, flags, nodeid);
+> +	if (slab_should_retry(objp, flags))
+> +		objp = __do_slab_alloc_node(cachep, flags, nodeid);
+
+3 questions. 
+
+1. why can't we do retry in memcg's code (or kmem/memcg code) rather than slab.c ?
+2. It should be retries even if memory allocator returns NULL page ?
+3. What's relationship with oom-killer ? The first __do_slab_alloc() will not
+   invoke oom-killer and returns NULL ?
+
+Thanks,
+-Kame
 
 
---mP3DRpeJDSE+ciuQ
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Sat, Dec 22, 2012 at 02:27:57PM +0200, Aaro Koskinen wrote:
-> Hi,
->=20
-> It looks like commit 816422ad76474fed8052b6f7b905a054d082e59a
-> (asm-generic, mm: pgtable: consolidate zero page helpers) broke
-> MIPS/SPARSEMEM build in 3.8-rc1:
->=20
->   CHK     include/generated/uapi/linux/version.h
->   CHK     include/generated/utsrelease.h
->   Checking missing-syscalls for N32
->   CC      arch/mips/kernel/asm-offsets.s
-> In file included from /home/aaro/git/linux/arch/mips/include/asm/pgtable.=
-h:388:0,
->                  from include/linux/mm.h:44,
->                  from arch/mips/kernel/asm-offsets.c:14:
-> include/asm-generic/pgtable.h: In function 'my_zero_pfn':
-> include/asm-generic/pgtable.h:462:9: error: implicit declaration of funct=
-ion 'page_to_section' [-Werror=3Dimplicit-function-declaration]
-> In file included from arch/mips/kernel/asm-offsets.c:14:0:
-> include/linux/mm.h: At top level:
-> include/linux/mm.h:708:29: error: conflicting types for 'page_to_section'
-> In file included from /home/aaro/git/linux/arch/mips/include/asm/pgtable.=
-h:388:0,
->                  from include/linux/mm.h:44,
->                  from arch/mips/kernel/asm-offsets.c:14:
-> include/asm-generic/pgtable.h:462:9: note: previous implicit declaration =
-of 'page_to_section' was here
-> cc1: some warnings being treated as errors
-> make[1]: *** [arch/mips/kernel/asm-offsets.s] Error 1
-> make: *** [archprepare] Error 2
-
-The patch below works for me. Could you try?
-
-=46rom a123a406fdc3aee7ca0eae04b6b4a231872dbb51 Mon Sep 17 00:00:00 2001
-=46rom: "Kirill A. Shutemov" <kirill@shutemov.name>
-Date: Wed, 26 Dec 2012 03:19:55 +0300
-Subject: [PATCH] asm-generic, mm: pgtable: convert my_zero_pfn() to macros =
-to
- fix build
-MIME-Version: 1.0
-Content-Type: text/plain; charset=3DUTF-8
-Content-Transfer-Encoding: 8bit
-
-On MIPS if SPARSEMEM is enabled we've got this:
-
-In file included from /home/kas/git/public/linux/arch/mips/include/asm/pgta=
-ble.h:552,
-                 from include/linux/mm.h:44,
-                 from arch/mips/kernel/asm-offsets.c:14:
-include/asm-generic/pgtable.h: In function =E2=80=98my_zero_pfn=E2=80=99:
-include/asm-generic/pgtable.h:466: error: implicit declaration of function =
-=E2=80=98page_to_section=E2=80=99
-In file included from arch/mips/kernel/asm-offsets.c:14:
-include/linux/mm.h: At top level:
-include/linux/mm.h:738: error: conflicting types for =E2=80=98page_to_secti=
-on=E2=80=99
-include/asm-generic/pgtable.h:466: note: previous implicit declaration of =
-=E2=80=98page_to_section=E2=80=99 was here
-
-Due header files inter-dependencies, the only way I see to fix it is
-convert my_zero_pfn() for __HAVE_COLOR_ZERO_PAGE to macros.
-
-Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
----
- include/asm-generic/pgtable.h | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 701beab..5cf680a 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -461,10 +461,8 @@ static inline int is_zero_pfn(unsigned long pfn)
- 	return offset_from_zero_pfn <=3D (zero_page_mask >> PAGE_SHIFT);
- }
-=20
--static inline unsigned long my_zero_pfn(unsigned long addr)
--{
--	return page_to_pfn(ZERO_PAGE(addr));
--}
-+#define my_zero_pfn(addr)	page_to_pfn(ZERO_PAGE(addr))
-+
- #else
- static inline int is_zero_pfn(unsigned long pfn)
- {
---=20
-1.8.0.2
-
---=20
- Kirill A. Shutemov
-
---mP3DRpeJDSE+ciuQ
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQ2kYaAAoJEAd+omnVudOMDEgP/iUqZr7TalBS0Wz0s0kXnF6Q
-fZkCIZInO98chygGuCZWo/3OggufeaLopnhDazJN4jSkxPwLDWTGlcIJCSZh4vNK
-hc/ojg3UOb28u9gRDQDDoPxrzIFFIKZTZXb6NAE3nVsv/3xNy3lNRwnPxUIwmnjY
-cGyV37H6Eofi4E5d/MEIvoO/DbfBy8Aa4ZJ2/aasbbJE2o0jnvaL9Wji1zJfCj+X
-ZD3dUvchrddzSzkL0K7KJ4If2euCIy1xiiIm6hQgCio9BXHTNzgj2mwkBwWe0JSl
-KMYXSGbwv5FrAa8r4wdWW/VxIQavXZtaO05zkGsLe1wdLStJ/Z4YKZoBbvX6YU4V
-IbDd0Zg230pO7Rf0dsdCUfJE43kUFresPV88rTlYKjhM8nKqVUSpHeROTtePZUBX
-fbgUT1QLXMWgGnCljiPWxQtm5tHunHIycZwIO7N8sq+f42IxSOMQG6j4Z3KCR/iG
-MT0c4RYFpsSvdy5DPvSY75kdPzQDjK/VQta7SEMWp1URpISOQ8yZyAp0XrhhUwXu
-4Kfiig+pp0QNkvtO7TNJCxHxQVkKn8u2YWj7+KS6P7IMp8bgY8FVdBSNf3VTH6d9
-2/iL4Dblezjabc3esav4wW5Wirpe2/GZzEa3nK2dlJm7QTPlZbaM5P3FdFvGAIBK
-wvYS/w1LURzEbwIEz/zT
-=1Y63
------END PGP SIGNATURE-----
-
---mP3DRpeJDSE+ciuQ--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
