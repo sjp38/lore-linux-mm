@@ -1,99 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
-	by kanga.kvack.org (Postfix) with SMTP id 7995A6B002B
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 01:21:40 -0500 (EST)
-Message-ID: <50DA9739.3070907@cn.fujitsu.com>
-Date: Wed, 26 Dec 2012 14:20:41 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 00DA86B002B
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 01:54:00 -0500 (EST)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id AA2973EE0C0
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 946D545DEA1
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7966F45DD74
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 667391DB8038
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
+Received: from g01jpexchkw05.g01.fujitsu.local (g01jpexchkw05.g01.fujitsu.local [10.0.194.44])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 224A51DB802C
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 15:53:56 +0900 (JST)
+Message-ID: <50DA9ED5.4000501@jp.fujitsu.com>
+Date: Wed, 26 Dec 2012 15:53:09 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 07/14] memory-hotplug: move pgdat_resize_lock into
- sparse_remove_one_section()
-References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-8-git-send-email-tangchen@cn.fujitsu.com> <50DA7357.109@jp.fujitsu.com>
-In-Reply-To: <50DA7357.109@jp.fujitsu.com>
+Subject: Re: [PATCH v4 3/6] ACPI: Restructure movablecore_map with memory
+ info from SRAT.
+References: <1355904903-22699-4-git-send-email-tangchen@cn.fujitsu.com> <1355908308-24744-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1355908308-24744-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, akpm@linux-foundation.org, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 12/26/2012 11:47 AM, Kamezawa Hiroyuki wrote:
-> (2012/12/24 21:09), Tang Chen wrote:
->> In __remove_section(), we locked pgdat_resize_lock when calling
->> sparse_remove_one_section(). This lock will disable irq. But we don't need
->> to lock the whole function. If we do some work to free pagetables in
->> free_section_usemap(), we need to call flush_tlb_all(), which need
->> irq enabled. Otherwise the WARN_ON_ONCE() in smp_call_function_many()
->> will be triggered.
->>
->> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
->> Signed-off-by: Lai Jiangshan<laijs@cn.fujitsu.com>
->> Signed-off-by: Wen Congyang<wency@cn.fujitsu.com>
+Hi Tang,
+
+I don't think it can work well.
+The patch gets memory range of hotpluggable memory by
+acpi_numa_memory_affinity_init(). But it too late.
+For example, if we use log_buf_len boot options, memblock allocator
+runs before getting SRAT information. In this case, this movablecore_map
+boot option does not work well.
+
+Thanks,
+Yasuaki Ishimatsu
+
+2012/12/19 18:11, Tang Chen wrote:
+> The Hot Plugable bit in SRAT flags specifys if the memory range
+> could be hotplugged.
 > 
-> If this is a bug fix, call-trace in your log and BUGFIX or -fix- in patch title
-> will be appreciated, I think.
+> If user specified movablecore_map=nn[KMG]@ss[KMG], reset
+> movablecore_map.map to the intersection of hotpluggable ranges from
+> SRAT and old movablecore_map.map.
+> Else if user specified movablecore_map=acpi, just use the hotpluggable
+> ranges from SRAT.
+> Otherwise, do nothing. The kernel will use all the memory in all nodes
+> evenly.
 > 
-> Acked-by: KAMEZAWA Hiroyuki<kamezawa.hiroyu@jp.fujitsu.com>
+> The idea "getting info from SRAT" was from Liu Jiang <jiang.liu@huawei.com>.
+> And the idea "do more limit for memblock" was from Wu Jianguo <wujianguo@huawei.com>
 > 
-Hi Kamezawa-san,
-
-Thanks for the reviewing.
-
-I don't think this would be a bug. It is OK to lock the whole
-sparse_remove_one_section() if no tlb flushing in free_section_usemap().
-
-But we need to flush tlb in free_section_usemap(), so we need to take
-free_section_usemap() out of the lock. :)
-
-I add the call trace to the patch so that people could review it more
-easily.
-
-And here is the call trace for this version:
-
-[  454.796248] ------------[ cut here ]------------
-[  454.851408] WARNING: at kernel/smp.c:461
-smp_call_function_many+0xbd/0x260()
-[  454.935620] Hardware name: PRIMEQUEST 1800E
-......
-[  455.652201] Call Trace:
-[  455.681391]  [<ffffffff8106e73f>] warn_slowpath_common+0x7f/0xc0
-[  455.753151]  [<ffffffff810560a0>] ? leave_mm+0x50/0x50
-[  455.814527]  [<ffffffff8106e79a>] warn_slowpath_null+0x1a/0x20
-[  455.884208]  [<ffffffff810e7a9d>] smp_call_function_many+0xbd/0x260
-[  455.959082]  [<ffffffff810e7ecb>] smp_call_function+0x3b/0x50
-[  456.027722]  [<ffffffff810560a0>] ? leave_mm+0x50/0x50
-[  456.089098]  [<ffffffff810e7f4b>] on_each_cpu+0x3b/0xc0
-[  456.151512]  [<ffffffff81055f0c>] flush_tlb_all+0x1c/0x20
-[  456.216004]  [<ffffffff8104f8de>] remove_pagetable+0x14e/0x1d0
-[  456.285683]  [<ffffffff8104f978>] vmemmap_free+0x18/0x20
-[  456.349139]  [<ffffffff811b8797>] sparse_remove_one_section+0xf7/0x100
-[  456.427126]  [<ffffffff811c5fc2>] __remove_section+0xa2/0xb0
-[  456.494726]  [<ffffffff811c6070>] __remove_pages+0xa0/0xd0
-[  456.560258]  [<ffffffff81669c7b>] arch_remove_memory+0x6b/0xc0
-[  456.629937]  [<ffffffff8166ad28>] remove_memory+0xb8/0xf0
-[  456.694431]  [<ffffffff813e686f>] acpi_memory_device_remove+0x53/0x96
-[  456.771379]  [<ffffffff813b33c4>] acpi_device_remove+0x90/0xb2
-[  456.841059]  [<ffffffff8144b02c>] __device_release_driver+0x7c/0xf0
-[  456.915928]  [<ffffffff8144b1af>] device_release_driver+0x2f/0x50
-[  456.988719]  [<ffffffff813b4476>] acpi_bus_remove+0x32/0x6d
-[  457.055285]  [<ffffffff813b4542>] acpi_bus_trim+0x91/0x102
-[  457.120814]  [<ffffffff813b463b>] acpi_bus_hot_remove_device+0x88/0x16b
-[  457.199840]  [<ffffffff813afda7>] acpi_os_execute_deferred+0x27/0x34
-[  457.275756]  [<ffffffff81091ece>] process_one_work+0x20e/0x5c0
-[  457.345434]  [<ffffffff81091e5f>] ? process_one_work+0x19f/0x5c0
-[  457.417190]  [<ffffffff813afd80>] ?
-acpi_os_wait_events_complete+0x23/0x23
-[  457.499332]  [<ffffffff81093f6e>] worker_thread+0x12e/0x370
-[  457.565896]  [<ffffffff81093e40>] ? manage_workers+0x180/0x180
-[  457.635574]  [<ffffffff8109a09e>] kthread+0xee/0x100
-[  457.694871]  [<ffffffff810dfaf9>] ? __lock_release+0x129/0x190
-[  457.764552]  [<ffffffff81099fb0>] ? __init_kthread_worker+0x70/0x70
-[  457.839427]  [<ffffffff81690aac>] ret_from_fork+0x7c/0xb0
-[  457.903914]  [<ffffffff81099fb0>] ? __init_kthread_worker+0x70/0x70
-[  457.978784] ---[ end trace 25e85300f542aa01 ]---
-
-Thanks. :)
-
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+> Tested-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> ---
+>   arch/x86/mm/srat.c |   55 +++++++++++++++++++++++++++++++++++++++++++++++++--
+>   1 files changed, 52 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
+> index 4ddf497..a8856d2 100644
+> --- a/arch/x86/mm/srat.c
+> +++ b/arch/x86/mm/srat.c
+> @@ -146,7 +146,12 @@ int __init
+>   acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+>   {
+>   	u64 start, end;
+> +	u32 hotpluggable;
+>   	int node, pxm;
+> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> +	int overlap;
+> +	unsigned long start_pfn, end_pfn;
+> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>   
+>   	if (srat_disabled())
+>   		return -1;
+> @@ -157,8 +162,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+>   	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
+>   		return -1;
+>   
+> -	if ((ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE) && !save_add_info())
+> +	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
+> +	if (hotpluggable && !save_add_info())
+>   		return -1;
+> +
+>   	start = ma->base_address;
+>   	end = start + ma->length;
+>   	pxm = ma->proximity_domain;
+> @@ -178,9 +185,51 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
+>   
+>   	node_set(node, numa_nodes_parsed);
+>   
+> -	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]\n",
+> +	printk(KERN_INFO "SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx] %s\n",
+>   	       node, pxm,
+> -	       (unsigned long long) start, (unsigned long long) end - 1);
+> +	       (unsigned long long) start, (unsigned long long) end - 1,
+> +	       hotpluggable ? "Hot Pluggable": "");
+> +
+> +#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> +	start_pfn = PFN_DOWN(start);
+> +	end_pfn = PFN_UP(end);
+> +
+> +	if (!hotpluggable) {
+> +		/* Clear the range overlapped in movablecore_map.map */
+> +		remove_movablecore_map(start_pfn, end_pfn);
+> +		goto out;
+> +	}
+> +
+> +	if (!movablecore_map.acpi) {
+> +		for (overlap = 0; overlap < movablecore_map.nr_map; overlap++) {
+> +			if (start_pfn < movablecore_map.map[overlap].end_pfn)
+> +				break;
+> +		}
+> +
+> +		/*
+> +		 * If there is no overlapped range, or the end of the overlapped
+> +		 * range is higher than end_pfn, then insert nothing.
+> +		 */
+> +		if (end_pfn <= movablecore_map.map[overlap].end_pfn)
+> +			goto out;
+> +
+> +		/*
+> +		 * Otherwise, insert the rest of this range to prevent memblock
+> +		 * from allocating memory in it.
+> +		 */
+> +		start_pfn = movablecore_map.map[overlap].end_pfn;
+> +		start = start_pfn >> PAGE_SHIFT;
+> +	}
+> +
+> +	/* If user chose to use SRAT info, insert the range anyway. */
+> +	if (insert_movablecore_map(start_pfn, end_pfn))
+> +		pr_err("movablecore_map: too many entries;"
+> +			" ignoring [mem %#010llx-%#010llx]\n",
+> +			(unsigned long long) start,
+> +			(unsigned long long) (end - 1));
+> +
+> +out:
+> +#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+>   	return 0;
+>   }
+>   
+> 
 
 
 --
