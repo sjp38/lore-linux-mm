@@ -1,56 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id E1AC46B002B
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 17:27:13 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id i12so3998741eaa.38
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2012 14:27:12 -0800 (PST)
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 465646B005A
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 17:28:16 -0500 (EST)
+Received: by mail-da0-f41.google.com with SMTP id e20so4492900dak.14
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2012 14:28:15 -0800 (PST)
+Date: Thu, 27 Dec 2012 14:28:13 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 3/3] mm, sparse: don't check return value of alloc_bootmem
+ calls
+In-Reply-To: <1356293711-23864-3-git-send-email-sasha.levin@oracle.com>
+Message-ID: <alpine.DEB.2.00.1212271428020.18214@chino.kir.corp.google.com>
+References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com> <1356293711-23864-3-git-send-email-sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.00.1212271423210.18214@chino.kir.corp.google.com>
-References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
-	<1356293711-23864-2-git-send-email-sasha.levin@oracle.com>
-	<alpine.DEB.2.00.1212271423210.18214@chino.kir.corp.google.com>
-Date: Fri, 28 Dec 2012 00:27:11 +0200
-Message-ID: <CAOJsxLH4RzWdxdVXyn+eFc56JfJtije2jK1eWaBYVaoZSHuUBA@mail.gmail.com>
-Subject: Re: [PATCH 2/3] mm, bootmem: panic in bootmem alloc functions even if
- slab is available
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Gavin Shan <shangw@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Sun, 23 Dec 2012, Sasha Levin wrote:
->> diff --git a/mm/bootmem.c b/mm/bootmem.c
->> index 1324cd7..198a92f 100644
->> --- a/mm/bootmem.c
->> +++ b/mm/bootmem.c
->> @@ -763,9 +763,6 @@ void * __init ___alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
->>  void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
->>                                  unsigned long align, unsigned long goal)
->>  {
->> -     if (WARN_ON_ONCE(slab_is_available()))
->> -             return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
->> -
->>       return  ___alloc_bootmem_node(pgdat, size, align, goal, 0);
->>  }
 
-On Fri, Dec 28, 2012 at 12:25 AM, David Rientjes <rientjes@google.com> wrote:
-> All you're doing is removing the fallback if this happens to be called
-> with slab_is_available().  It's still possible that the slab allocator can
-> successfully allocate the memory, though.  So it would be rather
-> unfortunate to start panicking in a situation that used to only emit a
-> warning.
->
-> Why can't you panic only kzalloc_node() returns NULL and otherwise just
-> return the allocated memory?
+> There's no need to check the result of alloc_bootmem() functions since
+> they'll panic if allocation fails.
+> 
+> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 
-I'm not sure what Sasha's patch is trying to do here but the fall-back
-is there simply to let the caller know it's calling the bootmem
-allocator *too late*. That is, the slab allocator is already up and
-running so you're expected to use that.
-
-                        Pekka
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
