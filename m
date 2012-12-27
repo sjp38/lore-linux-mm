@@ -1,79 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
-	by kanga.kvack.org (Postfix) with SMTP id 8224D6B005A
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 09:53:37 -0500 (EST)
-Date: Thu, 27 Dec 2012 15:53:34 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Linux 3.3+ and memory cgroup kernel panics
-Message-ID: <20121227145334.GB21267@dhcp22.suse.cz>
-References: <CAKz8sYXcY9kP=QPVAWdP4a-6Nuq-04yDJNuvBojDTfKbvj=x9A@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 8C1546B005A
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 09:58:59 -0500 (EST)
+Date: Thu, 27 Dec 2012 15:58:51 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKz8sYXcY9kP=QPVAWdP4a-6Nuq-04yDJNuvBojDTfKbvj=x9A@mail.gmail.com>
+References: <692539675.35132464.1356520940797.JavaMail.root@redhat.com>
+In-Reply-To: <692539675.35132464.1356520940797.JavaMail.root@redhat.com>
+Message-ID: <50DC622B.7000802@iskon.hr>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Strauss <david@davidstrauss.net>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Zhouping Liu <zliu@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>
 
-[Adding linux-mm to CC]
+On 26.12.2012 12:22, Zhouping Liu wrote:
+> Hello everyone,
+> 
+> The latest mainline(637704cbc95c) would trigger the following error when the system was under
+> some pressure condition(in my testing, I used oom01 case inside LTP test suite to trigger the issue):
+> 
+> [ 5462.920151] BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
+> [ 5462.927991] IP: [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
+> [ 5462.934176] PGD 0
+> [ 5462.936191] Oops: 0000 [#2] SMP
+> [ 5462.939428] Modules linked in: lockd sunrpc iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter ebtables ip6table_filter ip6_tables iptable_filter ip_tabled
+> [ 5462.984261] CPU 13
+> [ 5462.986184] Pid: 117, comm: kswapd3 Tainted: G      D      3.8.0-rc1+ #1 Dell Inc. PowerEdge M905/0D413F
+> [ 5462.995814] RIP: 0010:[<ffffffff811542d9>]  [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
+> [ 5463.004411] RSP: 0018:ffff88007c97fd48  EFLAGS: 00010202
+> [ 5463.009701] RAX: 0000000000000001 RBX: 0000000000000064 RCX: 0000000000000001
+> [ 5463.016818] RDX: 0000000000000064 RSI: 0000000000000000 RDI: 0000000000000000
+> [ 5463.023926] RBP: ffff88007c97fd98 R08: 0000000000000000 R09: ffff88022ffd9d80
+> [ 5463.031033] R10: 0000000000003189 R11: 0000000000000000 R12: 00000001004ee87e
+> [ 5463.038140] R13: 0000000000000002 R14: 0000000000000000 R15: ffff88022ffd9000
+> [ 5463.045258] FS:  00007f3e570de740(0000) GS:ffff88022fcc0000(0000) knlGS:0000000000000000
+> [ 5463.053317] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [ 5463.059041] CR2: 0000000000000500 CR3: 00000000018dc000 CR4: 00000000000007e0
+> [ 5463.066157] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> [ 5463.073276] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> [ 5463.080400] Process kswapd3 (pid: 117, threadinfo ffff88007c97e000, task ffff88007c981970)
+> [ 5463.088633] Stack:
+> [ 5463.090646]  ffff88007c97fd98 0000000000000000 ffff88007c981970 ffffffff81086080
+> [ 5463.098090]  ffff88007c97fd68 ffff88007c97fd68 ffff88022ffd9d80 0000000000000002
+> [ 5463.105527]  0000000000000002 0000000000000000 ffff88007c97feb8 ffffffff8114b0e3
+> [ 5463.112998] Call Trace:
+> [ 5463.115446]  [<ffffffff81086080>] ? wake_up_bit+0x40/0x40
+> [ 5463.120826]  [<ffffffff8114b0e3>] kswapd+0x6c3/0xa50
+> [ 5463.125775]  [<ffffffff8114aa20>] ? zone_reclaim+0x270/0x270
+> [ 5463.131415]  [<ffffffff81085680>] kthread+0xc0/0xd0
+> [ 5463.136278]  [<ffffffff810855c0>] ? kthread_create_on_node+0x120/0x120
+> [ 5463.142786]  [<ffffffff8160a0ac>] ret_from_fork+0x7c/0xb0
+> [ 5463.148166]  [<ffffffff810855c0>] ? kthread_create_on_node+0x120/0x120
+> [ 5463.154668] Code: 4e 6d 88 00 48 c7 45 b8 00 00 00 00 48 83 c0 18 48 c7 45 c8 80 60 08 81 48 89 45 d0 48 89 45 d8 8b 04 b5 a0 9a cd 81 85 c0 74 0f <48> 8b 87 00 05 00 00 a8 04 0f 85 98 00 00 00 e8 b3 c3
+> [ 5463.174097] RIP  [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
+> [ 5463.180352]  RSP <ffff88007c97fd48>
+> [ 5463.183824] CR2: 0000000000000500
+> [ 5463.203717] ---[ end trace 9ff4ff9087c13a36 ]---
+> 
+> I attached the config file, hope it can make some help.
+> 
+> Thanks,
+> Zhouping
+> 
 
-On Fri 21-12-12 18:44:23, David Strauss wrote:
-> The kernel seemed to replace the cgroups memory "charging" mechanism
-> in 3.3 with a more efficient implementation [1], but we think it may
-> be broken under Xen virtualization and load.
+Thank you for the report Zhouping!
 
-What are the steps to reproduce this?
+Would you be so kind to test the following patch and report results? Apply the patch to the latest mainline.
 
-> We do not see any issue in Linux 3.2 and earlier.
-> 
-> We have documented panics for Fedora kernels 3.3.4-5.fc17.x86_64,
-> 3.3.5-2.fc16.x86_64, and 3.6.10-2.fc16.x86_64 but *not* on Fedora
-> kernels 3.1.0-7.fc16.x86_64 or 3.2.6-3.fc16.x86_64.
+Thanks,
 
-Are you able to reproduce with the vanilla kernel as well? Ideally with
-the current Linus tree?
-
-> Many of our services use MemoryLimit= and similar systemd options that
-> create a memory cgroup for the service. This correlates with kernel
-> panics under the following call path (full listing here [2]):
-> 
-> [20488075.457394]  [<ffffffff811825e7>] ? mem_cgroup_charge_statistics+0x17/0x60
-> [20488075.457403]  [<ffffffff81184ade>] __mem_cgroup_uncharge_common+0xfe/0x330
-> [20488075.457410]  [<ffffffff8100632d>] ? xen_pte_val+0x1d/0x40
-> [20488075.457417]  [<ffffffff81188457>] mem_cgroup_uncharge_page+0x37/0x40
-> [20488075.457424]  [<ffffffff8115e6d1>] page_remove_rmap+0xb1/0x140
-> 
-> It culminates in this failure:
-> 
-> [20488075.457183] kernel BUG at arch/x86/mm/fault.c:396!
-> [20488075.457189] invalid opcode: 0000 [#1] SMP
-> 
-> There are also reports of similar failures [3] unrelated to systemd
-> use and on non-Fedora kernels.
-> 
-> It appears to be an issue with re-attributing the charge for a page to
-> a different cgroup. Any ideas why we would be seeing this with Linux
-> 3.3+? I can generally reproduce the issue (often minutes after
-> booting) on any heavily loaded machine in order to collect any
-> additional data to help troubleshooting.
-> 
-> [1] https://lwn.net/Articles/443241/
-> [2] https://gist.github.com/raw/70afc901a73e427a0a71
-> [3] https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1073238/comments/6
-> 
-> --
-> David Strauss
->    | david@davidstrauss.net
->    | +1 512 577 5827 [mobile]
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 23291b9..e55ce55 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2564,6 +2564,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 							int *classzone_idx)
+ {
++	bool pgdat_is_balanced = false;
+ 	struct zone *unbalanced_zone;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+@@ -2638,8 +2639,11 @@ loop_again:
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+ 			}
+ 		}
+-		if (i < 0)
++
++		if (i < 0) {
++			pgdat_is_balanced = true;
+ 			goto out;
++		}
+ 
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+@@ -2766,8 +2770,11 @@ loop_again:
+ 				pfmemalloc_watermark_ok(pgdat))
+ 			wake_up(&pgdat->pfmemalloc_wait);
+ 
+-		if (pgdat_balanced(pgdat, order, *classzone_idx))
++		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
++			pgdat_is_balanced = true;
+ 			break;		/* kswapd: all done */
++		}
++
+ 		/*
+ 		 * OK, kswapd is getting into trouble.  Take a nap, then take
+ 		 * another pass across the zones.
+@@ -2775,7 +2782,7 @@ loop_again:
+ 		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
+ 			if (has_under_min_watermark_zone)
+ 				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+-			else
++			else if (unbalanced_zone)
+ 				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+ 		}
+ 
+@@ -2788,9 +2795,9 @@ loop_again:
+ 		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+ 			break;
+ 	} while (--sc.priority >= 0);
+-out:
+ 
+-	if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
++out:
++	if (!pgdat_is_balanced) {
+ 		cond_resched();
+ 
+ 		try_to_freeze();
 
 -- 
-Michal Hocko
-SUSE Labs
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
