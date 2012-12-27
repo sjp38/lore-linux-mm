@@ -1,115 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id DBDA66B002B
-	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 10:14:48 -0500 (EST)
-Received: by mail-ob0-f173.google.com with SMTP id xn12so7804142obc.4
-        for <linux-mm@kvack.org>; Wed, 26 Dec 2012 07:14:48 -0800 (PST)
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id CD6B36B002B
+	for <linux-mm@kvack.org>; Wed, 26 Dec 2012 19:32:00 -0500 (EST)
+Received: by mail-vb0-f48.google.com with SMTP id fc21so9188486vbb.21
+        for <linux-mm@kvack.org>; Wed, 26 Dec 2012 16:31:59 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <50DAFA8C.2030906@redhat.com>
-References: <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
-	<692539675.35132464.1356520940797.JavaMail.root@redhat.com>
-	<CAJd=RBD0mjdUZA82UDv134w=TvNtgRNGXWON8CnG0FPexj7vXQ@mail.gmail.com>
-	<50DAFA8C.2030906@redhat.com>
-Date: Wed, 26 Dec 2012 23:14:47 +0800
-Message-ID: <CAJd=RBB+hw3ybwtMkmLr8ef7FbktU0r0aHEn4qH0xpUObS0B1Q@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
-From: Hillf Danton <dhillf@gmail.com>
+In-Reply-To: <CAJd=RBB9Tqv9c_Wv+N8yJOftfkJeUS10vLuz14eoLH1eEtjmBQ@mail.gmail.com>
+References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
+	<535932623.34838584.1356410331076.JavaMail.root@redhat.com>
+	<CAJd=RBB9Tqv9c_Wv+N8yJOftfkJeUS10vLuz14eoLH1eEtjmBQ@mail.gmail.com>
+Date: Thu, 27 Dec 2012 03:31:59 +0300
+Message-ID: <CAA1sL1TNq5QiA_6A9+qNjndr0dRL37hhhHgvvLLqr6tgj7CgOw@mail.gmail.com>
+Subject: Re: kernel BUG at mm/huge_memory.c:1798!
+From: Alexander Beregalov <a.beregalov@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>, "devendra.aaru" <devendra.aaru@gmail.com>, Jongman Heo <jongman.heo@samsung.com>
+To: Hillf Danton <dhillf@gmail.com>
+Cc: Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, Dec 26, 2012 at 9:24 PM, Zhouping Liu <zliu@redhat.com> wrote:
-> On 12/26/2012 08:01 PM, Hillf Danton wrote:
+On 25 December 2012 16:05, Hillf Danton <dhillf@gmail.com> wrote:
+> On Tue, Dec 25, 2012 at 12:38 PM, Zhouping Liu <zliu@redhat.com> wrote:
+>> Hello all,
 >>
->> On Wed, Dec 26, 2012 at 7:22 PM, Zhouping Liu <zliu@redhat.com> wrote:
->>>
->>> Hello everyone,
->>>
->>> The latest mainline(637704cbc95c) would trigger the following error when
->>> the system was under
->>> some pressure condition(in my testing, I used oom01 case inside LTP test
->>> suite to trigger the issue):
->>>
->>> [ 5462.920151] BUG: unable to handle kernel NULL pointer dereference at
->>> 0000000000000500
->>> [ 5462.927991] IP: [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
->>> [ 5462.934176] PGD 0
->>> [ 5462.936191] Oops: 0000 [#2] SMP
->>> [ 5462.939428] Modules linked in: lockd sunrpc iptable_mangle ipt_REJECT
->>> nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack ebtable_filter
->>> ebtables ip6table_filter ip6_tables iptable_filter ip_tabled
->>> [ 5462.984261] CPU 13
->>> [ 5462.986184] Pid: 117, comm: kswapd3 Tainted: G      D      3.8.0-rc1+
->>> #1 Dell Inc. PowerEdge M905/0D413F
->>> [ 5462.995814] RIP: 0010:[<ffffffff811542d9>]  [<ffffffff811542d9>]
->>> wait_iff_congested+0x59/0x140
->>> [ 5463.004411] RSP: 0018:ffff88007c97fd48  EFLAGS: 00010202
->>> [ 5463.009701] RAX: 0000000000000001 RBX: 0000000000000064 RCX:
->>> 0000000000000001
->>> [ 5463.016818] RDX: 0000000000000064 RSI: 0000000000000000 RDI:
->>> 0000000000000000
->>> [ 5463.023926] RBP: ffff88007c97fd98 R08: 0000000000000000 R09:
->>> ffff88022ffd9d80
->>> [ 5463.031033] R10: 0000000000003189 R11: 0000000000000000 R12:
->>> 00000001004ee87e
->>> [ 5463.038140] R13: 0000000000000002 R14: 0000000000000000 R15:
->>> ffff88022ffd9000
->>> [ 5463.045258] FS:  00007f3e570de740(0000) GS:ffff88022fcc0000(0000)
->>> knlGS:0000000000000000
->>> [ 5463.053317] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->>> [ 5463.059041] CR2: 0000000000000500 CR3: 00000000018dc000 CR4:
->>> 00000000000007e0
->>> [ 5463.066157] DR0: 0000000000000000 DR1: 0000000000000000 DR2:
->>> 0000000000000000
->>> [ 5463.073276] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
->>> 0000000000000400
->>> [ 5463.080400] Process kswapd3 (pid: 117, threadinfo ffff88007c97e000,
->>> task ffff88007c981970)
->>> [ 5463.088633] Stack:
->>> [ 5463.090646]  ffff88007c97fd98 0000000000000000 ffff88007c981970
->>> ffffffff81086080
->>> [ 5463.098090]  ffff88007c97fd68 ffff88007c97fd68 ffff88022ffd9d80
->>> 0000000000000002
->>> [ 5463.105527]  0000000000000002 0000000000000000 ffff88007c97feb8
->>> ffffffff8114b0e3
->>> [ 5463.112998] Call Trace:
->>> [ 5463.115446]  [<ffffffff81086080>] ? wake_up_bit+0x40/0x40
->>> [ 5463.120826]  [<ffffffff8114b0e3>] kswapd+0x6c3/0xa50
->>> [ 5463.125775]  [<ffffffff8114aa20>] ? zone_reclaim+0x270/0x270
->>> [ 5463.131415]  [<ffffffff81085680>] kthread+0xc0/0xd0
->>> [ 5463.136278]  [<ffffffff810855c0>] ? kthread_create_on_node+0x120/0x120
->>> [ 5463.142786]  [<ffffffff8160a0ac>] ret_from_fork+0x7c/0xb0
->>> [ 5463.148166]  [<ffffffff810855c0>] ? kthread_create_on_node+0x120/0x120
->>> [ 5463.154668] Code: 4e 6d 88 00 48 c7 45 b8 00 00 00 00 48 83 c0 18 48
->>> c7 45 c8 80 60 08 81 48 89 45 d0 48 89 45 d8 8b 04 b5 a0 9a cd 81 85 c0 74
->>> 0f <48> 8b 87 00 05 00 00 a8 04 0f 85 98 00 00 00 e8 b3 c3
->>> [ 5463.174097] RIP  [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
->>> [ 5463.180352]  RSP <ffff88007c97fd48>
->>> [ 5463.183824] CR2: 0000000000000500
->>> [ 5463.203717] ---[ end trace 9ff4ff9087c13a36 ]---
->>>
->>> I attached the config file, hope it can make some help.
->>
->> Hey Zhouping,
->>
->> Can you please run with the following commit reverted?
->>
->> Hillf
->>
->>     commit cda73a10eb3f
->>     mm: do not sleep in balance_pgdat if there's no i/o congestion
+>> I found the below kernel bug using latest mainline(637704cbc95),
+>> my hardware has 2 numa nodes, and it's easy to reproduce the issue
+>> using LTP test case: "# ./mmap10 -a -s -c 200":
 >
+> Can you test with 5a505085f0 and 4fc3f1d66b1 reverted?
 >
-> Hello Hillf,
->
-> Tested it with cda73a10eb3f reverted on two machines, no such issue occurred
-> again.
 
-It is really good news;) thank you a ton for testing.
+Hello,
+does it look like the same problem?
 
-Hillf
+mapcount 0 page_mapcount 1
+------------[ cut here ]------------
+kernel BUG at mm/huge_memory.c:1798!
+invalid opcode: 0000 [#1] PREEMPT SMP
+Modules linked in: r8169 radeon cfbfillrect cfbimgblt cfbcopyarea
+i2c_algo_bit backlight drm_kms_helper ttm drm agpgart
+CPU 3
+Pid: 15825, comm: firefox Not tainted 3.8.0-rc1-00004-g637704c #1
+Gigabyte Technology Co., Ltd. P35-DS3/P35-DS3
+RIP: 0010:[<ffffffff810e89c9>]  [<ffffffff810e89c9>] split_huge_page+0x739/0x7a0
+RSP: 0018:ffff880193b43b78  EFLAGS: 00010297
+RAX: 0000000000000001 RBX: ffffea0002fd0000 RCX: ffffffff8175e078
+RDX: 000000000000003e RSI: ffffea0002fd0000 RDI: 0000000000000246
+RBP: ffff880193b43c48 R08: 000000000000ffff R09: 0000000000000000
+R10: 00000000000002d5 R11: 0000000000000000 R12: 0000000000000000
+R13: ffff880173533464 R14: 00007f0973000000 R15: ffffea0002fd0000
+FS:  00007f09b8db6740(0000) GS:ffff88019fd80000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007ff210e78008 CR3: 0000000195379000 CR4: 00000000000007e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
+Process firefox (pid: 15825, threadinfo ffff880193b42000, task ffff880198af9f90)
+Stack:
+ 0000000000000000 ffff880193b43e1c 0000000000000000 0000000000000019
+ ffff880193b43c08 ffff880100000000 ffff88017af80180 ffff880100000000
+ ffff880173533400 ffff880198af9f90 000000009fc91540 ffff88017af801b0
+Call Trace:
+ [<ffffffff810e9d74>] __split_huge_page_pmd+0xe4/0x280
+ [<ffffffff810a9b9e>] ? free_hot_cold_page_list+0x3e/0x60
+ [<ffffffff810c22cd>] unmap_single_vma+0x77d/0x820
+ [<ffffffff810c2c14>] zap_page_range+0xa4/0xe0
+ [<ffffffff813d9846>] ? sys_recvfrom+0xd6/0x120
+ [<ffffffff810bfa7d>] sys_madvise+0x31d/0x660
+ [<ffffffff81482b2d>] system_call_fastpath+0x1a/0x1f
+Code: 83 39 00 f3 90 49 8b 45 00 a9 00 00 80 00 75 f3 41 ff 84 24 44
+e0 ff ff f0 41 0f ba 6d 00 17 19 c0 85 c0 0f 84 d7 fa ff ff eb c8 <0f>
+0b 8b 53 18 8b 75 9c ff c2 48 c7 c7 60 95 5c 81 31 c0 e8 ac
+RIP  [<ffffffff810e89c9>] split_huge_page+0x739/0x7a0
+ RSP <ffff880193b43b78>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
