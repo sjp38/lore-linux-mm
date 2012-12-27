@@ -1,27 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id BA06F6B002B
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 11:00:25 -0500 (EST)
-Date: Thu, 27 Dec 2012 16:00:24 +0000
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id 848ED6B002B
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 11:06:06 -0500 (EST)
+Date: Thu, 27 Dec 2012 16:06:05 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: PageHead macro broken?
-In-Reply-To: <CAEDV+gLg838ua2Bgu0sTRjSAWYGPwELtH=ncoKPP-5t7_gxUYw@mail.gmail.com>
-Message-ID: <0000013bdd17d2fd-5a694644-bcf1-4233-af7d-5c590940367d-000000@email.amazonses.com>
-References: <CAEDV+gLg838ua2Bgu0sTRjSAWYGPwELtH=ncoKPP-5t7_gxUYw@mail.gmail.com>
+Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+In-Reply-To: <1356449082-3016-1-git-send-email-js1304@gmail.com>
+Message-ID: <0000013bdd1d06aa-03085f43-6fa4-41dd-86aa-f0bf152e2851-000000@email.amazonses.com>
+References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com> <1356449082-3016-1-git-send-email-js1304@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoffer Dall <cdall@cs.columbia.edu>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, torvalds@linux-foundation.org, clameter@sgi.com, Will Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Paul Hargrove <phhargrove@lbl.gov>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 24 Dec 2012, Christoffer Dall wrote:
+On Wed, 26 Dec 2012, Joonsoo Kim wrote:
 
-> I think I may have found an issue with the PageHead macro, which
-> returns true for tail compound pages when CONFIG_PAGEFLAGS_EXTENDED is
-> not defined.
+> This patch assign initial refcount 1 to kmalloc_caches, so fix this
+> errornous situtation.
 
-Yep that all looks sane.
+Ok Only for 3.7:
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
