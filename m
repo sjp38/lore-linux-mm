@@ -1,106 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id C9F806B002B
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 03:37:21 -0500 (EST)
-Date: Thu, 27 Dec 2012 17:35:23 +0900
-From: Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>
-Subject: Re: [PATCH v2] Add the values related to buddy system for filtering
- free pages.
-Message-Id: <20121227173523.5e414c342fed3e59a887fa87@mxc.nes.nec.co.jp>
-In-Reply-To: <87licsrwpg.fsf@xmission.com>
-References: <20121210103913.020858db777e2f48c59713b6@mxc.nes.nec.co.jp>
-	<20121219161856.e6aa984f.akpm@linux-foundation.org>
-	<20121220112103.d698c09a9d1f27a253a63d37@mxc.nes.nec.co.jp>
-	<33710E6CAA200E4583255F4FB666C4E20AB2DEA3@G01JPEXMBYT03>
-	<87licsrwpg.fsf@xmission.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx177.postini.com [74.125.245.177])
+	by kanga.kvack.org (Postfix) with SMTP id D01676B002B
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 07:09:55 -0500 (EST)
+Message-ID: <50DC3C26.6060308@cn.fujitsu.com>
+Date: Thu, 27 Dec 2012 20:16:38 +0800
+From: Wen Congyang <wency@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 14/14] memory-hotplug: free node_data when a node is
+ offlined
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-15-git-send-email-tangchen@cn.fujitsu.com> <50DA7533.6060407@jp.fujitsu.com>
+In-Reply-To: <50DA7533.6060407@jp.fujitsu.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-2022-JP
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kexec@lists.infradead.org
-Cc: ebiederm@xmission.com, d.hatayama@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cpw@sgi.com, akpm@linux-foundation.org
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-Hello,
+At 12/26/2012 11:55 AM, Kamezawa Hiroyuki Wrote:
+> (2012/12/24 21:09), Tang Chen wrote:
+>> From: Wen Congyang <wency@cn.fujitsu.com>
+>>
+>> We call hotadd_new_pgdat() to allocate memory to store node_data. So we
+>> should free it when removing a node.
+>>
+>> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
+> 
+> I'm sorry but is it safe to remove pgdat ? All zone cache and zonelists are
+> properly cleared/rebuilded in synchronous way ? and No threads are visinting
+> zone in vmscan.c ?
 
-On Thu, 20 Dec 2012 18:00:11 -0800
-ebiederm@xmission.com (Eric W. Biederman) wrote:
-
-> "Hatayama, Daisuke" <d.hatayama@jp.fujitsu.com> writes:
-> 
-> >> From: kexec-bounces@lists.infradead.org
-> >> [mailto:kexec-bounces@lists.infradead.org] On Behalf Of Atsushi Kumagai
-> >> Sent: Thursday, December 20, 2012 11:21 AM
-> >
-> >> On Wed, 19 Dec 2012 16:18:56 -0800
-> >> Andrew Morton <akpm@linux-foundation.org> wrote:
-> >> 
-> >> > On Mon, 10 Dec 2012 10:39:13 +0900
-> >> > Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp> wrote:
-> >> >
-> >
-> >> >
-> >> > We might change the PageBuddy() implementation at any time, and
-> >> > makedumpfile will break.  Or in this case, become less efficient.
-> >> >
-> >> > Is there any way in which we can move some of this logic into the
-> >> > kernel?  In this case, add some kernel code which uses PageBuddy() on
-> >> > behalf of makedumpfile, rather than replicating the PageBuddy() logic
-> >> > in userspace?
-> >> 
-> >> In last month, Cliff Wickman proposed such idea:
-> >> 
-> >>   [PATCH v2] makedumpfile: request the kernel do page scans
-> >>   http://lists.infradead.org/pipermail/kexec/2012-November/007318.html
-> >> 
-> >>   [PATCH] scan page tables for makedumpfile, 3.0.13 kernel
-> >>   http://lists.infradead.org/pipermail/kexec/2012-November/007319.html
-> >> 
-> >> In his idea, the kernel does page scans to distinguish unnecessary pages
-> >> (free pages and others) and returns the list of PFN's which should be
-> >> excluded for makedumpfile.
-> >> As a result, makedumpfile doesn't need to consider internal kernel
-> >> behavior.
-> >> 
-> >> I think it's a good idea from the viewpoint of maintainability and
-> >> performance.
-> 
-> > I also think wide part of his code can be reused in this work. But the bad
-> > performance is caused by a lot of ioremap, not a lot of copying. See my
-> > profiling result I posted some days ago. Two issues, ioremap one and filtering
-> > maintainability, should be considered separately. Even on ioremap issue,
-> > there is secondary one to consider in memory consumption on the 2nd
-> > kernel.
-> 
-> Thanks.  I was wondering why moving the code into /proc/vmcore would
-> make things faster.
-
-Thanks HATAYAMA-san, I've understood the issues correctly.
-We should continue improving the ioremap issue as Cliff and HATAYAMA-san
-are doing now.
-
-> 
-> > Also, I have one question. Can we always think of 1st and 2nd kernels
-> > are same?
-> 
-> Not at all.  Distros frequently implement it with the same kernel in
-> both role but it should be possible to use an old crusty stable kernel
-> as the 2nd kernel.
-> 
-> > If I understand correctly, kexec/kdump can use the 2nd kernel different
-> > from the 1st's. So, differnet kernels need to do the same thing as makedumpfile
-> > does. If assuming two are same, problem is mush simplified.
-> 
-> As a developer it becomes attractive to use a known stable kernel to
-> capture the crash dump even as I experiment with a brand new kernel.
-
-To allow to use the 2nd kernel different from the 1st's, I think we have
-to take care of each kernel version with the logic included in makedumpfile
-for them. That's to say, makedumpfile goes on as before.
-
+We have rebuilt zonelists when a zone has no memory after offlining some pages.
 
 Thanks
-Atsushi Kumagai
+Wen Congyang
+
+> 
+> Thanks,
+> -Kame
+> 
+>> ---
+>>   mm/memory_hotplug.c |   20 +++++++++++++++++++-
+>>   1 files changed, 19 insertions(+), 1 deletions(-)
+>>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index f8a1d2f..447fa24 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1680,9 +1680,12 @@ static int check_cpu_on_node(void *data)
+>>   /* offline the node if all memory sections of this node are removed */
+>>   static void try_offline_node(int nid)
+>>   {
+>> +	pg_data_t *pgdat = NODE_DATA(nid);
+>>   	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+>> -	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+>> +	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+>>   	unsigned long pfn;
+>> +	struct page *pgdat_page = virt_to_page(pgdat);
+>> +	int i;
+>>   
+>>   	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+>>   		unsigned long section_nr = pfn_to_section_nr(pfn);
+>> @@ -1709,6 +1712,21 @@ static void try_offline_node(int nid)
+>>   	 */
+>>   	node_set_offline(nid);
+>>   	unregister_one_node(nid);
+>> +
+>> +	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
+>> +		/* node data is allocated from boot memory */
+>> +		return;
+>> +
+>> +	/* free waittable in each zone */
+>> +	for (i = 0; i < MAX_NR_ZONES; i++) {
+>> +		struct zone *zone = pgdat->node_zones + i;
+>> +
+>> +		if (zone->wait_table)
+>> +			vfree(zone->wait_table);
+>> +	}
+>> +
+>> +	arch_refresh_nodedata(nid, NULL);
+>> +	arch_free_nodedata(pgdat);
+>>   }
+>>   
+>>   int __ref remove_memory(int nid, u64 start, u64 size)
+>>
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
