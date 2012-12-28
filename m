@@ -1,60 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id E89BD8D0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 21:16:44 -0500 (EST)
-Date: Fri, 28 Dec 2012 03:16:38 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 66F088D0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 21:45:20 -0500 (EST)
+Date: Thu, 27 Dec 2012 21:45:10 -0500 (EST)
+From: Zhouping Liu <zliu@redhat.com>
+Message-ID: <1828895463.36547216.1356662710202.JavaMail.root@redhat.com>
+In-Reply-To: <50DC622B.7000802@iskon.hr>
+Subject: Re: BUG: unable to handle kernel NULL pointer dereference at
+ 0000000000000500
 MIME-Version: 1.0
-References: <50D24AF3.1050809@iskon.hr> <20121220111208.GD10819@suse.de> <20121220125802.23e9b22d.akpm@linux-foundation.org> <50D601C9.9060803@iskon.hr> <50D71166.6030608@iskon.hr> <50DB129E.7010000@iskon.hr>
-In-Reply-To: <50DB129E.7010000@iskon.hr>
-Message-ID: <50DD0106.7040001@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
-Subject: [PATCH] mm: fix null pointer dereference in wait_iff_congested()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Zhouping Liu <zliu@redhat.com>, Sedat Dilek <sedat.dilek@gmail.com>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, sedat.dilek@gmail.com
 
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+> 
+> Thank you for the report Zhouping!
+> 
+> Would you be so kind to test the following patch and report results?
+> Apply the patch to the latest mainline.
 
-The unintended consequence of commit 4ae0a48b is that
-wait_iff_congested() can now be called with NULL struct zone*
-producing kernel oops like this:
+Hello Zlatko,
 
-BUG: unable to handle kernel NULL pointer dereference
-IP: [<ffffffff811542d9>] wait_iff_congested+0x59/0x140
+I have tested the below patch(applied it on mainline directly),
+but IMO, I'd like to say it maybe don't fix the issue completely.
 
-This trivial patch fixes it.
+run the reproducer[1] on two machine, one machine has 2 numa nodes(8Gb RAM),
+another one has 4 numa nodes(8Gb RAM), then the system hung all the time, such as the dmesg log:
 
-Reported-by: Zhouping Liu <zliu@redhat.com>
-Reported-and-tested-by: Sedat Dilek <sedat.dilek@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>
-Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
----
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+[  713.066937] Killed process 6085 (oom01) total-vm:18880768kB, anon-rss:7915612kB, file-rss:4kB
+[  959.555269] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[  959.562144] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 1079.382018] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[ 1079.388872] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 1199.209709] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[ 1199.216562] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 1319.036939] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[ 1319.043794] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 1438.864797] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[ 1438.871649] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 1558.691611] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
+[ 1558.698466] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+......
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 02bcfa3..e55ce55 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2782,7 +2782,7 @@ loop_again:
- 		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
- 			if (has_under_min_watermark_zone)
- 				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
--			else
-+			else if (unbalanced_zone)
- 				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
- 		}
- 
+I'm not sure whether it's your patch triggering the hung task or not, but reverted cda73a10eb3,
+the reproducer(oom01) can PASS without both 'NULL pointer dereference at 0000000000000500' and hung task issues.
+
+but some time, it's possible that the reproducer(oom01) cause hung task on a box with large RAM(100Gb+), so I can't judge it...
+
+Thanks,
+Zhouping
+
+> 
+> Thanks,
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 23291b9..e55ce55 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2564,6 +2564,7 @@ static bool prepare_kswapd_sleep(pg_data_t
+> *pgdat, int order, long remaining,
+>  static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>  							int *classzone_idx)
+>  {
+> +	bool pgdat_is_balanced = false;
+>  	struct zone *unbalanced_zone;
+>  	int i;
+>  	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+> @@ -2638,8 +2639,11 @@ loop_again:
+>  				zone_clear_flag(zone, ZONE_CONGESTED);
+>  			}
+>  		}
+> -		if (i < 0)
+> +
+> +		if (i < 0) {
+> +			pgdat_is_balanced = true;
+>  			goto out;
+> +		}
+>  
+>  		for (i = 0; i <= end_zone; i++) {
+>  			struct zone *zone = pgdat->node_zones + i;
+> @@ -2766,8 +2770,11 @@ loop_again:
+>  				pfmemalloc_watermark_ok(pgdat))
+>  			wake_up(&pgdat->pfmemalloc_wait);
+>  
+> -		if (pgdat_balanced(pgdat, order, *classzone_idx))
+> +		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
+> +			pgdat_is_balanced = true;
+>  			break;		/* kswapd: all done */
+> +		}
+> +
+>  		/*
+>  		 * OK, kswapd is getting into trouble.  Take a nap, then take
+>  		 * another pass across the zones.
+> @@ -2775,7 +2782,7 @@ loop_again:
+>  		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
+>  			if (has_under_min_watermark_zone)
+>  				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+> -			else
+> +			else if (unbalanced_zone)
+>  				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+>  		}
+>  
+> @@ -2788,9 +2795,9 @@ loop_again:
+>  		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
+>  			break;
+>  	} while (--sc.priority >= 0);
+> -out:
+>  
+> -	if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
+> +out:
+> +	if (!pgdat_is_balanced) {
+>  		cond_resched();
+>  
+>  		try_to_freeze();
+> 
+> --
+> Zlatko
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+
 -- 
-1.8.1.rc3
-
--- 
-Zlatko
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
