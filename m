@@ -1,95 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 119EA6B002B
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 19:24:23 -0500 (EST)
-Received: by mail-qc0-f177.google.com with SMTP id u28so5167668qcs.8
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2012 16:24:23 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 8210E6B005A
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 19:26:07 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id AF75D3EE0C0
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:26:05 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 8D86D45DEBE
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:26:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 7578945DEB7
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:26:05 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 665701DB8041
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:26:05 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 1BB811DB803E
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:26:05 +0900 (JST)
+Message-ID: <50DCE6D5.7000901@jp.fujitsu.com>
+Date: Fri, 28 Dec 2012 09:24:53 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <50DCDEE5.9000700@iskon.hr>
-References: <CA+icZUV_CdAvq1nmOVZeLSAu0mZj+BO0T++REc6U1hevt50hXA@mail.gmail.com>
-	<50DCDC21.6080303@iskon.hr>
-	<CA+icZUX2g0R46QNFpntA1r6E3wu0HNhBjk+Kjm581aUBgM6VKA@mail.gmail.com>
-	<50DCDEE5.9000700@iskon.hr>
-Date: Fri, 28 Dec 2012 01:24:22 +0100
-Message-ID: <CA+icZUUXbCCtPaimG6hKsSUQTmnoMAZHsd_nrn7eityepqYUkQ@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC v4 0/3] Support volatile for anonymous range
+References: <1355813274-571-1-git-send-email-minchan@kernel.org> <50DA62CE.30604@jp.fujitsu.com> <20121226034600.GB2453@blaptop>
+In-Reply-To: <20121226034600.GB2453@blaptop>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
 
-On Fri, Dec 28, 2012 at 12:51 AM, Zlatko Calusic
-<zlatko.calusic@iskon.hr> wrote:
-> On 28.12.2012 00:42, Sedat Dilek wrote:
->>
->> On Fri, Dec 28, 2012 at 12:39 AM, Zlatko Calusic
->> <zlatko.calusic@iskon.hr> wrote:
->>>
->>> On 28.12.2012 00:30, Sedat Dilek wrote:
->>>>
->>>>
->>>> Hi Zlatko,
->>>>
->>>> I am not sure if I hit the same problem as described in this thread.
->>>>
->>>> Under heavy load, while building a customized toolchain for the Freetz
->>>> router project I got a BUG || NULL pointer derefence || kswapd ||
->>>> zone_balanced || pgdat_balanced() etc. (details see my screenshot).
->>>>
->>>> I will try your patch from [1] ***only*** on top of my last
->>>> Linux-v3.8-rc1 GIT setup (post-v3.8-rc1 mainline + some net-fixes).
->>>>
->>>
->>> Yes, that's the same bug. It should be fixed with my latest patch, so I'd
->>> appreciate you testing it, to be on the safe side this time. There should
->>> be
->>> no difference if you apply it to anything newer than 3.8-rc1, so go for
->>> it.
->>> Thanks!
->>>
->>
->> Not sure how I can really reproduce this bug as one build worked fine
->> within my last v3.8-rc1 kernel.
->> I increased the parallel-make-jobs-number from "4" to "8" to stress a
->> bit harder.
->> Just building right now... and will report.
->>
->> If you have any test-case (script or whatever), please let me/us know.
->>
+(2012/12/26 12:46), Minchan Kim wrote:
+> Hi Kame,
 >
-> Unfortunately not, I haven't reproduced it yet on my machines. But it seems
-> that bug will hit only under heavy memory pressure. When close to OOM, or
-> possibly with lots of writing to disk. It's also possible that fragmentation
-> of memory zones could provoke it, that means testing it for a longer time.
+> What are you doing these holiday season? :)
+> I can't believe you sit down in front of computer.
+>
+Honestly, my holiday starts tomorrow ;) (but until 1/5 in the next year.)
+
+>>
+>> Hm, by the way, the user need to attach pages to the process by causing page-fault
+>> (as you do by memset()) before calling mvolatile() ?
+>
+> For effectiveness, Yes.
 >
 
-I tested successfully by doing simultaneously...
-- building Freetz with 8 parallel make-jobs
-- building Linux GIT with 1 make-job
-- 9 tabs open in firefox
-- In one tab I ran YouTube music video
-- etc.
+Isn't it better to make page-fault by get_user_pages() in mvolatile() ?
+Calling page fault in userland seems just to increase burden of apps.
 
-I am reading [1] and [2] where another user reports success by reverting this...
+>>
+>> I think your approach is interesting, anyway.
+>
+> Thanks for your interest, Kame.
+>
+> a??a??a? 3/4 a??a?|a??a??a??a??a??.
+>
 
-commit cda73a10eb3f493871ed39f468db50a65ebeddce
-"mm: do not sleep in balance_pgdat if there's no i/o congestion"
+A happy new year.
 
-BTW, this machine has also 4GiB RAM (Ubuntu/precise AMD64).
+Thanks,
+-Kame
 
-Feel free to add a "Reported-by/Tested-by" if you think this is a
-positive report.
-
-- Sedat -
-
-[1] http://marc.info/?l=linux-mm&m=135652835931174&w=2
-[2] http://marc.info/?l=linux-mm&m=135653399800655&w=2
-
-> --
-> Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
