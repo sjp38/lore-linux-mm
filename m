@@ -1,92 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 2855E8D0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 20:00:51 -0500 (EST)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MFP00DNQUTDK680@mailout1.samsung.com> for
- linux-mm@kvack.org; Fri, 28 Dec 2012 10:00:49 +0900 (KST)
-Received: from daeinki-desktop.10.32.193.11 ([10.90.51.53])
- by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MFP00H0HUTD0A30@mmp1.samsung.com> for linux-mm@kvack.org;
- Fri, 28 Dec 2012 10:00:49 +0900 (KST)
-From: daeinki@gmail.com
-Subject: [RFC] ARM: DMA-Mapping: add a new attribute to clear buffer
-Date: Fri, 28 Dec 2012 10:00:33 +0900
-Message-id: <1356656433-2278-1-git-send-email-daeinki@gmail.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id DAE5B6B0062
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 20:04:42 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E0F343EE0AE
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 10:04:40 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id C720745DE5B
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 10:04:40 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id AED4F45DE59
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 10:04:40 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9F715E38002
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 10:04:40 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 575AC1DB8046
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 10:04:40 +0900 (JST)
+Message-ID: <50DCF00B.5040100@jp.fujitsu.com>
+Date: Fri, 28 Dec 2012 10:04:11 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH V3 6/8] memcg: Don't account root_mem_cgroup page statistics
+References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com> <1356456447-14740-1-git-send-email-handai.szj@taobao.com>
+In-Reply-To: <1356456447-14740-1-git-send-email-handai.szj@taobao.com>
+Content-Type: text/plain; charset=ISO-2022-JP
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
-Cc: m.szyprowski@samsung.com, kyungmin.park@samsung.com, Inki Dae <inki.dae@samsung.com>
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
 
-From: Inki Dae <inki.dae@samsung.com>
+(2012/12/26 2:27), Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
+> 
+> If memcg is enabled and no non-root memcg exists, all allocated pages
+> belongs to root_mem_cgroup and go through root memcg statistics routines
+> which brings some overheads. So for the sake of performance, we can give
+> up accounting stats of root memcg for MEM_CGROUP_STAT_FILE_MAPPED/FILE_DIRTY
+> /WRITEBACK and instead we pay special attention while showing root
+> memcg numbers in memcg_stat_show(): as we don't account root memcg stats
+> anymore, the root_mem_cgroup->stat numbers are actually 0. But because of
+> hierachy, figures of root_mem_cgroup may just represent numbers of pages
+> used by its own tasks(not belonging to any other child cgroup). So here we
+> fake these root numbers by using stats of global state and all other memcg.
+> That is for root memcg:
+> 	nr(MEM_CGROUP_STAT_FILE_MAPPED) = global_page_state(NR_FILE_MAPPED) -
+>                                sum_of_all_memcg(MEM_CGROUP_STAT_FILE_MAPPED);
+> Dirty/Writeback pages accounting are in the similar way.
+> 
+> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 
-This patch adds a new attribute, DMA_ATTR_SKIP_BUFFER_CLEAR
-to skip buffer clearing. The buffer clearing also flushes CPU cache
-so this operation has performance deterioration a little bit.
+isn't it better to use mem_cgroup_is_root() call rather than
+direct comparison (memcg == root_mem_cgroup) ?
 
-With this patch, allocated buffer region is cleared as default.
-So if you want to skip the buffer clearing, just set this attribute.
+Anyway, Ack to this approach. 
 
-But this flag should be used carefully because this use might get
-access to some vulnerable content such as security data. So with this
-patch, we make sure that all pages will be somehow cleared before
-exposing to userspace.
-
-For example, let's say that the security data had been stored
-in some memory and freed without clearing it.
-And then malicious process allocated the region though some buffer
-allocator such as gem and ion without clearing it, and requested blit
-operation with cleared another buffer though gpu or other drivers.
-At this time, the malicious process could access the security data.
-
-Signed-off-by: Inki Dae <inki.dae@samsung.com>
-Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
----
- arch/arm/mm/dma-mapping.c |    6 ++++--
- include/linux/dma-attrs.h |    1 +
- 2 files changed, 5 insertions(+), 2 deletions(-)
-
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 6b2fb87..fbe9dff 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1058,7 +1058,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
- 		if (!page)
- 			goto error;
- 
--		__dma_clear_buffer(page, size);
-+		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
-+			__dma_clear_buffer(page, size);
- 
- 		for (i = 0; i < count; i++)
- 			pages[i] = page + i;
-@@ -1082,7 +1083,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
- 				pages[i + j] = pages[i] + j;
- 		}
- 
--		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
-+		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
-+			__dma_clear_buffer(pages[i], PAGE_SIZE << order);
- 		i += 1 << order;
- 		count -= 1 << order;
- 	}
-diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
-index c8e1831..2592c05 100644
---- a/include/linux/dma-attrs.h
-+++ b/include/linux/dma-attrs.h
-@@ -18,6 +18,7 @@ enum dma_attr {
- 	DMA_ATTR_NO_KERNEL_MAPPING,
- 	DMA_ATTR_SKIP_CPU_SYNC,
- 	DMA_ATTR_FORCE_CONTIGUOUS,
-+	DMA_ATTR_SKIP_BUFFER_CLEAR,
- 	DMA_ATTR_MAX,
- };
- 
--- 
-1.7.4.1
+Thanks,
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
