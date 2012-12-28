@@ -1,138 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id E4E7E8D0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 21:49:50 -0500 (EST)
-Message-ID: <50DD0874.1060901@redhat.com>
-Date: Fri, 28 Dec 2012 10:48:20 +0800
-From: Zhouping Liu <zliu@redhat.com>
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 62D5B8D0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 23:23:48 -0500 (EST)
+Received: by mail-da0-f45.google.com with SMTP id w4so4593792dam.18
+        for <linux-mm@kvack.org>; Thu, 27 Dec 2012 20:23:47 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
-References: <1828895463.36547216.1356662710202.JavaMail.root@redhat.com>
-In-Reply-To: <1828895463.36547216.1356662710202.JavaMail.root@redhat.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <50DC580C.7080507@samsung.com>
+References: <1356592458-11077-1-git-send-email-prathyush.k@samsung.com>
+	<50DC580C.7080507@samsung.com>
+Date: Fri, 28 Dec 2012 09:53:47 +0530
+Message-ID: <CAH=HWYP5r18qjQSc_2121vikbTMpYv6DKOfW=hpOpGB7rUyNRA@mail.gmail.com>
+Subject: Re: [PATCH] arm: dma mapping: export arm iommu functions
+From: Prathyush K <prathyush@chromium.org>
+Content-Type: multipart/alternative; boundary=f46d042dff519c652c04d1e20725
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>, Hillf Danton <dhillf@gmail.com>, sedat.dilek@gmail.com
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Prathyush K <prathyush.k@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
 
-On 12/28/2012 10:45 AM, Zhouping Liu wrote:
->> Thank you for the report Zhouping!
+--f46d042dff519c652c04d1e20725
+Content-Type: text/plain; charset=ISO-8859-1
+
+On Thu, Dec 27, 2012 at 7:45 PM, Marek Szyprowski
+<m.szyprowski@samsung.com>wrote:
+
+> Hello,
+>
+>
+> On 12/27/2012 8:14 AM, Prathyush K wrote:
+>
+>> This patch adds EXPORT_SYMBOL calls to the three arm iommu
+>> functions - arm_iommu_create_mapping, arm_iommu_free_mapping
+>> and arm_iommu_attach_device. These functions can now be called
+>> from dynamic modules.
 >>
->> Would you be so kind to test the following patch and report results?
->> Apply the patch to the latest mainline.
-> Hello Zlatko,
 >
-> I have tested the below patch(applied it on mainline directly),
-> but IMO, I'd like to say it maybe don't fix the issue completely.
+> Could You describe a bit more why those functions might be needed by
+> dynamic modules?
 >
-> run the reproducer[1] on two machine, one machine has 2 numa nodes(8Gb RAM),
-> another one has 4 numa nodes(8Gb RAM), then the system hung all the time, such as the dmesg log:
->
-> [  713.066937] Killed process 6085 (oom01) total-vm:18880768kB, anon-rss:7915612kB, file-rss:4kB
-> [  959.555269] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [  959.562144] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 1079.382018] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [ 1079.388872] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 1199.209709] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [ 1199.216562] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 1319.036939] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [ 1319.043794] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 1438.864797] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [ 1438.871649] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> [ 1558.691611] INFO: task kworker/13:2:147 blocked for more than 120 seconds.
-> [ 1558.698466] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> ......
->
-> I'm not sure whether it's your patch triggering the hung task or not, but reverted cda73a10eb3,
-> the reproducer(oom01) can PASS without both 'NULL pointer dereference at 0000000000000500' and hung task issues.
->
-> but some time, it's possible that the reproducer(oom01) cause hung task on a box with large RAM(100Gb+), so I can't judge it...
+> Hi Marek,
 
-sorry, I forgot to link the reproducer.
-oom01 in LTP test suite: 
-https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/mem/oom/oom01.c
+We are adding iommu support to exynos gsc and s5p-mfc.
+And these two drivers need to be built as modules to improve boot time.
 
-from my site, it can 100% reproduce the bug using oom01 test case.
+We're calling these three functions from inside these drivers:
+e.g.
+mapping = arm_iommu_create_mapping(&platform_bus_type, 0x20000000, SZ_256M,
+4);
+arm_iommu_attach_device(mdev, mapping);
 
-Thanks,
-Zhouping
+
+
 >
-> Thanks,
-> Zhouping
->
->> Thanks,
+>  Signed-off-by: Prathyush K <prathyush.k@samsung.com>
+>> ---
+>>   arch/arm/mm/dma-mapping.c | 3 +++
+>>   1 file changed, 3 insertions(+)
 >>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index 23291b9..e55ce55 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -2564,6 +2564,7 @@ static bool prepare_kswapd_sleep(pg_data_t
->> *pgdat, int order, long remaining,
->>   static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->>   							int *classzone_idx)
+>> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+>> index 6b2fb87..c0f0f43 100644
+>> --- a/arch/arm/mm/dma-mapping.c
+>> +++ b/arch/arm/mm/dma-mapping.c
+>> @@ -1797,6 +1797,7 @@ err2:
+>>   err:
+>>         return ERR_PTR(err);
+>>   }
+>> +EXPORT_SYMBOL(arm_iommu_**create_mapping);
+>>
+>
+> EXPORT_SYMOBL_GPL() ?
+>
+>
+Right, it should be EXPORT_SYMOBL_GPL().
+
+Will update in next patch.
+
+
+
+>
+>    static void release_iommu_mapping(struct kref *kref)
 >>   {
->> +	bool pgdat_is_balanced = false;
->>   	struct zone *unbalanced_zone;
->>   	int i;
->>   	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
->> @@ -2638,8 +2639,11 @@ loop_again:
->>   				zone_clear_flag(zone, ZONE_CONGESTED);
->>   			}
->>   		}
->> -		if (i < 0)
->> +
->> +		if (i < 0) {
->> +			pgdat_is_balanced = true;
->>   			goto out;
->> +		}
->>   
->>   		for (i = 0; i <= end_zone; i++) {
->>   			struct zone *zone = pgdat->node_zones + i;
->> @@ -2766,8 +2770,11 @@ loop_again:
->>   				pfmemalloc_watermark_ok(pgdat))
->>   			wake_up(&pgdat->pfmemalloc_wait);
->>   
->> -		if (pgdat_balanced(pgdat, order, *classzone_idx))
->> +		if (pgdat_balanced(pgdat, order, *classzone_idx)) {
->> +			pgdat_is_balanced = true;
->>   			break;		/* kswapd: all done */
->> +		}
->> +
->>   		/*
->>   		 * OK, kswapd is getting into trouble.  Take a nap, then take
->>   		 * another pass across the zones.
->> @@ -2775,7 +2782,7 @@ loop_again:
->>   		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
->>   			if (has_under_min_watermark_zone)
->>   				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
->> -			else
->> +			else if (unbalanced_zone)
->>   				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
->>   		}
->>   
->> @@ -2788,9 +2795,9 @@ loop_again:
->>   		if (sc.nr_reclaimed >= SWAP_CLUSTER_MAX)
->>   			break;
->>   	} while (--sc.priority >= 0);
->> -out:
->>   
->> -	if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
->> +out:
->> +	if (!pgdat_is_balanced) {
->>   		cond_resched();
->>   
->>   		try_to_freeze();
+>> @@ -1813,6 +1814,7 @@ void arm_iommu_release_mapping(**struct
+>> dma_iommu_mapping *mapping)
+>>         if (mapping)
+>>                 kref_put(&mapping->kref, release_iommu_mapping);
+>>   }
+>> +EXPORT_SYMBOL(arm_iommu_**release_mapping);
+>>     /**
+>>    * arm_iommu_attach_device
+>> @@ -1841,5 +1843,6 @@ int arm_iommu_attach_device(struct device *dev,
+>>         pr_debug("Attached IOMMU controller to %s device.\n",
+>> dev_name(dev));
+>>         return 0;
+>>   }
+>> +EXPORT_SYMBOL(arm_iommu_**attach_device);
+>>     #endif
 >>
->> --
->> Zlatko
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+>
+> Best regards
+> --
+> Marek Szyprowski
+> Samsung Poland R&D Center
+>
+>
+> Regards,
+Prathyush
+
+--f46d042dff519c652c04d1e20725
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
+_quote">On Thu, Dec 27, 2012 at 7:45 PM, Marek Szyprowski <span dir=3D"ltr"=
+>&lt;<a href=3D"mailto:m.szyprowski@samsung.com" target=3D"_blank">m.szypro=
+wski@samsung.com</a>&gt;</span> wrote:<br>
+
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">Hello,<div><br>
+<br>
+On 12/27/2012 8:14 AM, Prathyush K wrote:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">
+This patch adds EXPORT_SYMBOL calls to the three arm iommu<br>
+functions - arm_iommu_create_mapping, arm_iommu_free_mapping<br>
+and arm_iommu_attach_device. These functions can now be called<br>
+from dynamic modules.<br>
+</blockquote>
+<br></div>
+Could You describe a bit more why those functions might be needed by dynami=
+c modules?<div><br></div></blockquote><div>Hi Marek,</div><div><br></div><d=
+iv>We are adding iommu support to exynos gsc and s5p-mfc.</div><div style>
+And these two drivers need to be built as modules to improve boot time.</di=
+v><div style><br></div><div style>We&#39;re calling these three functions f=
+rom inside these drivers:</div><div style><div style>e.g.</div><div>mapping=
+ =3D arm_iommu_create_mapping(&amp;platform_bus_type, 0x20000000,=A0SZ_256M=
+, 4);</div>
+<div>arm_iommu_attach_device(mdev, mapping);<br></div></div>
+<div><br></div><div style>=A0<br></div><blockquote class=3D"gmail_quote" st=
+yle=3D"margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb=
+(204,204,204);border-left-style:solid;padding-left:1ex"><div>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">
+Signed-off-by: Prathyush K &lt;<a href=3D"mailto:prathyush.k@samsung.com" t=
+arget=3D"_blank">prathyush.k@samsung.com</a>&gt;<br>
+---<br>
+=A0 arch/arm/mm/dma-mapping.c | 3 +++<br>
+=A0 1 file changed, 3 insertions(+)<br>
+<br>
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c<br>
+index 6b2fb87..c0f0f43 100644<br>
+--- a/arch/arm/mm/dma-mapping.c<br>
++++ b/arch/arm/mm/dma-mapping.c<br>
+@@ -1797,6 +1797,7 @@ err2:<br>
+=A0 err:<br>
+=A0 =A0 =A0 =A0 return ERR_PTR(err);<br>
+=A0 }<br>
++EXPORT_SYMBOL(arm_iommu_<u></u>create_mapping);<br>
+</blockquote>
+<br></div>
+EXPORT_SYMOBL_GPL() ?<div><br></div></blockquote><div><br></div><div style>=
+Right, it should be=A0EXPORT_SYMOBL_GPL().</div><div style><br></div><div s=
+tyle>Will update in next patch.</div><div><br></div><div>=A0</div><blockquo=
+te class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-left-widt=
+h:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-le=
+ft:1ex">
+<div>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0px 0px 0px 0.8ex;border-=
+left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;p=
+adding-left:1ex">
+=A0 static void release_iommu_mapping(struct kref *kref)<br>
+=A0 {<br>
+@@ -1813,6 +1814,7 @@ void arm_iommu_release_mapping(<u></u>struct dma_iomm=
+u_mapping *mapping)<br>
+=A0 =A0 =A0 =A0 if (mapping)<br>
+=A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 kref_put(&amp;mapping-&gt;kref, release_iom=
+mu_mapping);<br>
+=A0 }<br>
++EXPORT_SYMBOL(arm_iommu_<u></u>release_mapping);<br>
+=A0 =A0 /**<br>
+=A0 =A0* arm_iommu_attach_device<br>
+@@ -1841,5 +1843,6 @@ int arm_iommu_attach_device(struct device *dev,<br>
+=A0 =A0 =A0 =A0 pr_debug(&quot;Attached IOMMU controller to %s device.\n&qu=
+ot;, dev_name(dev));<br>
+=A0 =A0 =A0 =A0 return 0;<br>
+=A0 }<br>
++EXPORT_SYMBOL(arm_iommu_<u></u>attach_device);<br>
+=A0 =A0 #endif<br>
+</blockquote>
+<br></div>
+Best regards<span><font color=3D"#888888"><br>
+-- <br>
+Marek Szyprowski<br>
+Samsung Poland R&amp;D Center<br>
+<br>
+<br>
+</font></span></blockquote></div>Regards,</div><div class=3D"gmail_extra" s=
+tyle>Prathyush</div><div class=3D"gmail_extra"><br></div><div class=3D"gmai=
+l_extra"><br></div><div class=3D"gmail_extra"><br></div></div>
+
+--f46d042dff519c652c04d1e20725--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
