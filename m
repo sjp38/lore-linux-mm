@@ -1,144 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id 500488D0001
-	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 19:56:09 -0500 (EST)
-Received: by mail-qa0-f44.google.com with SMTP id z4so9441895qan.3
-        for <linux-mm@kvack.org>; Thu, 27 Dec 2012 16:56:08 -0800 (PST)
-MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <50DCEB01.3060903@iskon.hr>
-References: <CA+icZUV_CdAvq1nmOVZeLSAu0mZj+BO0T++REc6U1hevt50hXA@mail.gmail.com>
-	<50DCDC21.6080303@iskon.hr>
-	<CA+icZUX2g0R46QNFpntA1r6E3wu0HNhBjk+Kjm581aUBgM6VKA@mail.gmail.com>
-	<50DCDEE5.9000700@iskon.hr>
-	<CA+icZUUXbCCtPaimG6hKsSUQTmnoMAZHsd_nrn7eityepqYUkQ@mail.gmail.com>
-	<50DCE8C8.8050103@iskon.hr>
-	<CA+icZUWDPux3QAzQ85ntfUTHMr5m3Ueo-zjfnoGGxi=VrB9_7A@mail.gmail.com>
-	<50DCEB01.3060903@iskon.hr>
-Date: Fri, 28 Dec 2012 01:56:08 +0100
-Message-ID: <CA+icZUWMrZSh_0Lc3kGXsjMYZeBhuJx7ia6rs+CyW=yFb7bdxQ@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference at 0000000000000500
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
+	by kanga.kvack.org (Postfix) with SMTP id 2855E8D0001
+	for <linux-mm@kvack.org>; Thu, 27 Dec 2012 20:00:51 -0500 (EST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MFP00DNQUTDK680@mailout1.samsung.com> for
+ linux-mm@kvack.org; Fri, 28 Dec 2012 10:00:49 +0900 (KST)
+Received: from daeinki-desktop.10.32.193.11 ([10.90.51.53])
+ by mmp1.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTPA id <0MFP00H0HUTD0A30@mmp1.samsung.com> for linux-mm@kvack.org;
+ Fri, 28 Dec 2012 10:00:49 +0900 (KST)
+From: daeinki@gmail.com
+Subject: [RFC] ARM: DMA-Mapping: add a new attribute to clear buffer
+Date: Fri, 28 Dec 2012 10:00:33 +0900
+Message-id: <1356656433-2278-1-git-send-email-daeinki@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org
+Cc: m.szyprowski@samsung.com, kyungmin.park@samsung.com, Inki Dae <inki.dae@samsung.com>
 
-On Fri, Dec 28, 2012 at 1:42 AM, Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
-> On 28.12.2012 01:37, Sedat Dilek wrote:
->>
->> On Fri, Dec 28, 2012 at 1:33 AM, Zlatko Calusic <zlatko.calusic@iskon.hr>
->> wrote:
->>>
->>> On 28.12.2012 01:24, Sedat Dilek wrote:
->>>>
->>>>
->>>> On Fri, Dec 28, 2012 at 12:51 AM, Zlatko Calusic
->>>> <zlatko.calusic@iskon.hr> wrote:
->>>>>
->>>>>
->>>>> On 28.12.2012 00:42, Sedat Dilek wrote:
->>>>>>
->>>>>>
->>>>>>
->>>>>> On Fri, Dec 28, 2012 at 12:39 AM, Zlatko Calusic
->>>>>> <zlatko.calusic@iskon.hr> wrote:
->>>>>>>
->>>>>>>
->>>>>>>
->>>>>>> On 28.12.2012 00:30, Sedat Dilek wrote:
->>>>>>>>
->>>>>>>>
->>>>>>>>
->>>>>>>>
->>>>>>>> Hi Zlatko,
->>>>>>>>
->>>>>>>> I am not sure if I hit the same problem as described in this thread.
->>>>>>>>
->>>>>>>> Under heavy load, while building a customized toolchain for the
->>>>>>>> Freetz
->>>>>>>> router project I got a BUG || NULL pointer derefence || kswapd ||
->>>>>>>> zone_balanced || pgdat_balanced() etc. (details see my screenshot).
->>>>>>>>
->>>>>>>> I will try your patch from [1] ***only*** on top of my last
->>>>>>>> Linux-v3.8-rc1 GIT setup (post-v3.8-rc1 mainline + some net-fixes).
->>>>>>>>
->>>>>>>
->>>>>>> Yes, that's the same bug. It should be fixed with my latest patch, so
->>>>>>> I'd
->>>>>>> appreciate you testing it, to be on the safe side this time. There
->>>>>>> should
->>>>>>> be
->>>>>>> no difference if you apply it to anything newer than 3.8-rc1, so go
->>>>>>> for
->>>>>>> it.
->>>>>>> Thanks!
->>>>>>>
->>>>>>
->>>>>> Not sure how I can really reproduce this bug as one build worked fine
->>>>>> within my last v3.8-rc1 kernel.
->>>>>> I increased the parallel-make-jobs-number from "4" to "8" to stress a
->>>>>> bit harder.
->>>>>> Just building right now... and will report.
->>>>>>
->>>>>> If you have any test-case (script or whatever), please let me/us know.
->>>>>>
->>>>>
->>>>> Unfortunately not, I haven't reproduced it yet on my machines. But it
->>>>> seems
->>>>> that bug will hit only under heavy memory pressure. When close to OOM,
->>>>> or
->>>>> possibly with lots of writing to disk. It's also possible that
->>>>> fragmentation
->>>>> of memory zones could provoke it, that means testing it for a longer
->>>>> time.
->>>>>
->>>>
->>>> I tested successfully by doing simultaneously...
->>>> - building Freetz with 8 parallel make-jobs
->>>> - building Linux GIT with 1 make-job
->>>> - 9 tabs open in firefox
->>>> - In one tab I ran YouTube music video
->>>> - etc.
->>>>
->>>> I am reading [1] and [2] where another user reports success by reverting
->>>> this...
->>>>
->>>> commit cda73a10eb3f493871ed39f468db50a65ebeddce
->>>> "mm: do not sleep in balance_pgdat if there's no i/o congestion"
->>>>
->>>> BTW, this machine has also 4GiB RAM (Ubuntu/precise AMD64).
->>>>
->>>> Feel free to add a "Reported-by/Tested-by" if you think this is a
->>>> positive report.
->>>>
->>>
->>> Thanks for the testing! And keep running it in case something interesting
->>> pops up. ;)
->>>
->>> No need to revert cda73a10eb because it fixes another bug. And the patch
->>> you're now running fixes the new bug I introduced with a combination of
->>> my
->>> latest 2 patches. Nah, it gets complicated... :)
->>>
->>> But, at least I found the culprit and as soon as Linus applies the fix,
->>> everything will be hunky dory again, at least on this front. :P
->>>
->>
->> I am not subscribed to LKML and linux-mm,,,
->> Do you have a patch with a proper subject and descriptive text? URL?
->>
->
-> Soon to follow. I'd appreciate Zhouping Liu testing it too, though.
+From: Inki Dae <inki.dae@samsung.com>
 
-I understand, but I want to push your patch with a proper subject-line
-as a pending patch with reference to patchwork, so...
+This patch adds a new attribute, DMA_ATTR_SKIP_BUFFER_CLEAR
+to skip buffer clearing. The buffer clearing also flushes CPU cache
+so this operation has performance deterioration a little bit.
 
-- Sedat -
+With this patch, allocated buffer region is cleared as default.
+So if you want to skip the buffer clearing, just set this attribute.
 
-> --
-> Zlatko
+But this flag should be used carefully because this use might get
+access to some vulnerable content such as security data. So with this
+patch, we make sure that all pages will be somehow cleared before
+exposing to userspace.
+
+For example, let's say that the security data had been stored
+in some memory and freed without clearing it.
+And then malicious process allocated the region though some buffer
+allocator such as gem and ion without clearing it, and requested blit
+operation with cleared another buffer though gpu or other drivers.
+At this time, the malicious process could access the security data.
+
+Signed-off-by: Inki Dae <inki.dae@samsung.com>
+Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+---
+ arch/arm/mm/dma-mapping.c |    6 ++++--
+ include/linux/dma-attrs.h |    1 +
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 6b2fb87..fbe9dff 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1058,7 +1058,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 		if (!page)
+ 			goto error;
+ 
+-		__dma_clear_buffer(page, size);
++		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
++			__dma_clear_buffer(page, size);
+ 
+ 		for (i = 0; i < count; i++)
+ 			pages[i] = page + i;
+@@ -1082,7 +1083,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+ 				pages[i + j] = pages[i] + j;
+ 		}
+ 
+-		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
++		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
++			__dma_clear_buffer(pages[i], PAGE_SIZE << order);
+ 		i += 1 << order;
+ 		count -= 1 << order;
+ 	}
+diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
+index c8e1831..2592c05 100644
+--- a/include/linux/dma-attrs.h
++++ b/include/linux/dma-attrs.h
+@@ -18,6 +18,7 @@ enum dma_attr {
+ 	DMA_ATTR_NO_KERNEL_MAPPING,
+ 	DMA_ATTR_SKIP_CPU_SYNC,
+ 	DMA_ATTR_FORCE_CONTIGUOUS,
++	DMA_ATTR_SKIP_BUFFER_CLEAR,
+ 	DMA_ATTR_MAX,
+ };
+ 
+-- 
+1.7.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
