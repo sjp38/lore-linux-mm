@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 329CE6B002B
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 12:07:35 -0500 (EST)
-Received: by mail-qc0-f181.google.com with SMTP id x40so5500129qcp.26
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:07:34 -0800 (PST)
-From: c.dall@virtualopensystems.com
-Subject: [PATCH] mm: Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED
-Date: Fri, 28 Dec 2012 12:07:22 -0500
-Message-Id: <1356714442-27028-1-git-send-email-cdall@cs.columbia.edu>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 5AB146B002B
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 12:18:43 -0500 (EST)
+Received: by mail-vb0-f44.google.com with SMTP id fc26so10945139vbb.17
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:18:42 -0800 (PST)
+From: cdall@cs.columbia.edu
+Subject: [PATCH v2] mm: Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED
+Date: Fri, 28 Dec 2012 12:18:35 -0500
+Message-Id: <1356715115-32435-1-git-send-email-cdall@cs.columbia.edu>
+In-Reply-To: <1356714442-27028-1-git-send-email-cdall@cs.columbia.edu>
+References: <1356714442-27028-1-git-send-email-cdall@cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cl@linux.com, Christoffer Dall <cdall@cs.columbia.edu>, Steve Capper <steve.capper@arm.com>, Will Deacon <will.deacon@arm.com>, Andrea Arcangeli <arcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: cl@linux.com, Christoffer Dall <cdall@cs.columbia.edu>, Steve Capper <steve.capper@arm.com>, Will Deacon <will.deacon@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
 From: Christoffer Dall <cdall@cs.columbia.edu>
 
@@ -24,11 +26,15 @@ is only true for tail pages, and neither is true for non-compound pages.
 
 Cc: Steve Capper <steve.capper@arm.com>
 Cc: Will Deacon <will.deacon@arm.com>
-Cc: Andrea Arcangeli <arcange@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Christoffer Dall <cdall@cs.columbia.edu>
 ---
+
+Changes since v1:
+ - Andrea's e-mail address was misspelled
+
  include/linux/page-flags.h |    8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
 
