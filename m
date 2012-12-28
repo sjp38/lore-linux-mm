@@ -1,59 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 5B6396B002B
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:28:59 -0500 (EST)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout3.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0MFQ002RPW7EN0B0@mailout3.samsung.com> for
- linux-mm@kvack.org; Fri, 28 Dec 2012 23:28:46 +0900 (KST)
-Received: from amdc1032.localnet ([106.116.147.136])
- by mmp2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTPA id <0MFQ004KNW7XPF60@mmp2.samsung.com> for linux-mm@kvack.org;
- Fri, 28 Dec 2012 23:28:46 +0900 (KST)
-From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Subject: [announce] Timeout Based User-space Low Memory Killer Daemon
-Date: Fri, 28 Dec 2012 15:27:43 +0100
-MIME-version: 1.0
-Message-id: <201212281527.43430.b.zolnierkie@samsung.com>
-Content-type: Text/Plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 38C6A6B005D
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:42:25 -0500 (EST)
+Received: by mail-oa0-f46.google.com with SMTP id h16so9898147oag.5
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 06:42:24 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <50DCD4CB.50205@oracle.com>
+References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
+	<1356293711-23864-2-git-send-email-sasha.levin@oracle.com>
+	<alpine.DEB.2.00.1212271423210.18214@chino.kir.corp.google.com>
+	<50DCCE5A.4000805@oracle.com>
+	<alpine.DEB.2.00.1212271502070.23127@chino.kir.corp.google.com>
+	<50DCD4CB.50205@oracle.com>
+Date: Fri, 28 Dec 2012 23:42:24 +0900
+Message-ID: <CAAmzW4MhCyYkdpOaHnJtoMoJeFsXQJXN=Cpo3s67=s+id-hrMg@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm, bootmem: panic in bootmem alloc functions even if
+ slab is available
+From: JoonSoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Kyungmin Park <kyungmin.park@samsung.com>, Anton Vorontsov <anton.vorontsov@linaro.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, Yinghai Lu <yinghai@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Hello, Sasha.
 
-Hi,
+2012/12/28 Sasha Levin <sasha.levin@oracle.com>:
+> On 12/27/2012 06:04 PM, David Rientjes wrote:
+>> On Thu, 27 Dec 2012, Sasha Levin wrote:
+>>
+>>> That's exactly what happens with the patch. Note that in the current upstream
+>>> version there are several slab checks scattered all over.
+>>>
+>>> In this case for example, I'm removing it from __alloc_bootmem_node(), but the
+>>> first code line of__alloc_bootmem_node_nopanic() is:
+>>>
+>>>         if (WARN_ON_ONCE(slab_is_available()))
+>>>                 return kzalloc(size, GFP_NOWAIT);
+>>>
+>>
+>> You're only talking about mm/bootmem.c and not mm/nobootmem.c, and notice
+>> that __alloc_bootmem_node() does not call __alloc_bootmem_node_nopanic(),
+>> it calls ___alloc_bootmem_node_nopanic().
+>
+> Holy cow, this is an underscore hell.
+>
+>
+> Thanks,
+> Sasha
+>
 
-I would like to announce the first public version of my timeout based
-user-space low memory killer daemon (tbulmkd).  It is based on idea
-that user-space applications can be divided into two classes,
-foreground and background ones.  Foreground processes are visible in
-graphical user interface (GUI) and therefore shouldn't be terminated
-first when memory usage gets too high.  OTOH background processes are
-no longer visible in GUI and are pro-actively being killed to keep
-overall memory usage smaller.  Actual daemon implementation is heavily
-based on the user-space low memory killer daemon (ulmkd) from Anton
-Vorontsov (http://thread.gmane.org/gmane.linux.kernel.mm/84302).
+I have a different idea.
+How about removing fallback allocation in bootmem.c completely?
+I don't know why it is there exactly.
+But, warning for 'slab_is_available()' is there for a long time.
+So, most people who misuse fallback allocation change their code adequately.
+I think that removing fallback at this time is valid. Isn't it?
 
-The program is available at:
+Fallback allocation may cause possible bug.
+If someone free a memory from fallback allocation,
+it can't be handled properly.
 
-	https://github.com/bzolnier/tbulmkd
+So, IMHO, at this time, we should remove fallback allocation in
+bootmem.c entirely.
+Please let me know what I misunderstand.
 
-kernel/add-tbulmkd-entries.patch needs to be applied to the kernel
-that would be used with tbulmkd.  It adds /proc/$pid/activity and
-/proc/$pid/activity_time files.  Write '0' to activity file to mark
-the process as background one and '1' (the default value) to mark
-it as foreground one.  Please note that this interface is just for
-a demonstration of tbulmkd functionality and will be changed in
-the future.
-
-Best regards,
---
-Bartlomiej Zolnierkiewicz
-Samsung Poland R&D Center
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
