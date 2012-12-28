@@ -1,73 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
-	by kanga.kvack.org (Postfix) with SMTP id 5AB146B002B
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 12:18:43 -0500 (EST)
-Received: by mail-vb0-f44.google.com with SMTP id fc26so10945139vbb.17
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 09:18:42 -0800 (PST)
-From: cdall@cs.columbia.edu
-Subject: [PATCH v2] mm: Fix PageHead when !CONFIG_PAGEFLAGS_EXTENDED
-Date: Fri, 28 Dec 2012 12:18:35 -0500
-Message-Id: <1356715115-32435-1-git-send-email-cdall@cs.columbia.edu>
-In-Reply-To: <1356714442-27028-1-git-send-email-cdall@cs.columbia.edu>
-References: <1356714442-27028-1-git-send-email-cdall@cs.columbia.edu>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 421A86B002B
+	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 14:16:37 -0500 (EST)
+Received: by mail-bk0-f46.google.com with SMTP id q16so4791134bkw.5
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 11:16:35 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAAmzW4MhCyYkdpOaHnJtoMoJeFsXQJXN=Cpo3s67=s+id-hrMg@mail.gmail.com>
+References: <1356293711-23864-1-git-send-email-sasha.levin@oracle.com>
+	<1356293711-23864-2-git-send-email-sasha.levin@oracle.com>
+	<alpine.DEB.2.00.1212271423210.18214@chino.kir.corp.google.com>
+	<50DCCE5A.4000805@oracle.com>
+	<alpine.DEB.2.00.1212271502070.23127@chino.kir.corp.google.com>
+	<50DCD4CB.50205@oracle.com>
+	<CAAmzW4MhCyYkdpOaHnJtoMoJeFsXQJXN=Cpo3s67=s+id-hrMg@mail.gmail.com>
+Date: Fri, 28 Dec 2012 11:16:35 -0800
+Message-ID: <CAE9FiQVXsv1c1KAs7F6yeE_BS8Zg_s6qk8Hb0qgPFNCmEfz5gA@mail.gmail.com>
+Subject: Re: [PATCH 2/3] mm, bootmem: panic in bootmem alloc functions even if
+ slab is available
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cl@linux.com, Christoffer Dall <cdall@cs.columbia.edu>, Steve Capper <steve.capper@arm.com>, Will Deacon <will.deacon@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Christoffer Dall <cdall@cs.columbia.edu>
+On Fri, Dec 28, 2012 at 6:42 AM, JoonSoo Kim <js1304@gmail.com> wrote:
+>
+> I have a different idea.
+> How about removing fallback allocation in bootmem.c completely?
+> I don't know why it is there exactly.
+> But, warning for 'slab_is_available()' is there for a long time.
+> So, most people who misuse fallback allocation change their code adequately.
+> I think that removing fallback at this time is valid. Isn't it?
 
-Unfortunately with !CONFIG_PAGEFLAGS_EXTENDED, (!PageHead) is false, and
-(PageHead) is true, for tail pages.  This breaks cache cleaning on some
-ARM systems, and may cause other bugs.
+if you guys really want to make thing simple, please do try to help to kill
+mm/bootmem.c and use memblock instead.
 
-This patch makes sure PageHead is only true for head pages and PageTail
-is only true for tail pages, and neither is true for non-compound pages.
+at last we could the wrapper mm/nobootmem.c.
 
-Cc: Steve Capper <steve.capper@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Christoffer Dall <cdall@cs.columbia.edu>
----
+Thanks
 
-Changes since v1:
- - Andrea's e-mail address was misspelled
-
- include/linux/page-flags.h |    8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
-
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index b5d1384..70473da 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -362,7 +362,7 @@ static inline void ClearPageCompound(struct page *page)
-  * pages on the LRU and/or pagecache.
-  */
- TESTPAGEFLAG(Compound, compound)
--__PAGEFLAG(Head, compound)
-+__SETPAGEFLAG(Head, compound)  __CLEARPAGEFLAG(Head, compound)
- 
- /*
-  * PG_reclaim is used in combination with PG_compound to mark the
-@@ -374,8 +374,14 @@ __PAGEFLAG(Head, compound)
-  * PG_compound & PG_reclaim	=> Tail page
-  * PG_compound & ~PG_reclaim	=> Head page
-  */
-+#define PG_head_mask ((1L << PG_compound))
- #define PG_head_tail_mask ((1L << PG_compound) | (1L << PG_reclaim))
- 
-+static inline int PageHead(struct page *page)
-+{
-+	return ((page->flags & PG_head_tail_mask) == PG_head_mask);
-+}
-+
- static inline int PageTail(struct page *page)
- {
- 	return ((page->flags & PG_head_tail_mask) == PG_head_tail_mask);
--- 
-1.7.9.5
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
