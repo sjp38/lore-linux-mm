@@ -1,66 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 73DB96B0062
-	for <linux-mm@kvack.org>; Fri, 28 Dec 2012 17:51:34 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id rl6so6291452pac.1
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 14:51:33 -0800 (PST)
-Date: Fri, 28 Dec 2012 14:48:01 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [announce] Timeout Based User-space Low Memory Killer Daemon
-Message-ID: <20121228224800.GA14273@lizard.sbx05280.losalca.wayport.net>
-References: <201212281527.43430.b.zolnierkie@samsung.com>
+Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
+	by kanga.kvack.org (Postfix) with SMTP id 169DD6B0068
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2012 01:53:51 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id bh2so6356461pad.5
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 22:53:50 -0800 (PST)
+Date: Fri, 28 Dec 2012 22:53:56 -0800
+From: Olof Johansson <olof@lixom.net>
+Subject: Re: [PATCH] arm: dma mapping: export arm iommu functions
+Message-ID: <20121229065356.GA13760@quad.lixom.net>
+References: <1356592458-11077-1-git-send-email-prathyush.k@samsung.com>
+ <50DC580C.7080507@samsung.com>
+ <CAH=HWYP5r18qjQSc_2121vikbTMpYv6DKOfW=hpOpGB7rUyNRA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201212281527.43430.b.zolnierkie@samsung.com>
+In-Reply-To: <CAH=HWYP5r18qjQSc_2121vikbTMpYv6DKOfW=hpOpGB7rUyNRA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, John Stultz <john.stultz@linaro.org>
+To: Prathyush K <prathyush@chromium.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Prathyush K <prathyush.k@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
 
-On Fri, Dec 28, 2012 at 03:27:43PM +0100, Bartlomiej Zolnierkiewicz wrote:
+On Fri, Dec 28, 2012 at 09:53:47AM +0530, Prathyush K wrote:
+> On Thu, Dec 27, 2012 at 7:45 PM, Marek Szyprowski
+> <m.szyprowski@samsung.com>wrote:
 > 
-> Hi,
+> > Hello,
+> >
+> >
+> > On 12/27/2012 8:14 AM, Prathyush K wrote:
+> >
+> >> This patch adds EXPORT_SYMBOL calls to the three arm iommu
+> >> functions - arm_iommu_create_mapping, arm_iommu_free_mapping
+> >> and arm_iommu_attach_device. These functions can now be called
+> >> from dynamic modules.
+> >>
+> >
+> > Could You describe a bit more why those functions might be needed by
+> > dynamic modules?
+> >
+> > Hi Marek,
 > 
-> I would like to announce the first public version of my timeout based
-> user-space low memory killer daemon (tbulmkd).  It is based on idea
-> that user-space applications can be divided into two classes,
-> foreground and background ones.  Foreground processes are visible in
-> graphical user interface (GUI) and therefore shouldn't be terminated
-> first when memory usage gets too high.  OTOH background processes are
-> no longer visible in GUI and are pro-actively being killed to keep
-> overall memory usage smaller.  Actual daemon implementation is heavily
-> based on the user-space low memory killer daemon (ulmkd) from Anton
-> Vorontsov (http://thread.gmane.org/gmane.linux.kernel.mm/84302).
+> We are adding iommu support to exynos gsc and s5p-mfc.
+> And these two drivers need to be built as modules to improve boot time.
 > 
-> The program is available at:
-> 
-> 	https://github.com/bzolnier/tbulmkd
+> We're calling these three functions from inside these drivers:
+> e.g.
+> mapping = arm_iommu_create_mapping(&platform_bus_type, 0x20000000, SZ_256M,
+> 4);
+> arm_iommu_attach_device(mdev, mapping);
 
-Wow, that's so great. Now it seems more like an Activity Manager.
+The driver shouldn't have to call these low-level functions directly,
+something's wrong if you need that.
 
-I didn't look very close to it, but I see that you extensively use cgroups
-to actually group the processes, i.e. 'daemons' cgroup, 'apps' cgroup.
+How is the DMA address management different here from other system/io mmus? is
+that 256M window a hardware restriction?
 
-So, it might be a very good start for truly cross-platform, truly generic
-way to implement Activity Manager. :)
-
-I'm surely interested in how it evolves, and will take a closer look soon.
-
-Thanks!
-
-> kernel/add-tbulmkd-entries.patch needs to be applied to the kernel
-> that would be used with tbulmkd.  It adds /proc/$pid/activity and
-> /proc/$pid/activity_time files.  Write '0' to activity file to mark
-> the process as background one and '1' (the default value) to mark
-> it as foreground one.  Please note that this interface is just for
-> a demonstration of tbulmkd functionality and will be changed in
-> the future.
-> 
-> Best regards,
-> --
-> Bartlomiej Zolnierkiewicz
-> Samsung Poland R&D Center
+-Olof
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
