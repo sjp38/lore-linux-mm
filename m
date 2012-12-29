@@ -1,50 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id 4E6096B0068
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2012 02:22:15 -0500 (EST)
-Received: by mail-oa0-f48.google.com with SMTP id h2so10245655oag.7
-        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 23:22:14 -0800 (PST)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 528056B0068
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2012 02:25:57 -0500 (EST)
+Received: by mail-oa0-f48.google.com with SMTP id h2so10246946oag.7
+        for <linux-mm@kvack.org>; Fri, 28 Dec 2012 23:25:56 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <50DC7287.1080302@yahoo.ca>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
-	<535932623.34838584.1356410331076.JavaMail.root@redhat.com>
-	<CAJd=RBB9Tqv9c_Wv+N8yJOftfkJeUS10vLuz14eoLH1eEtjmBQ@mail.gmail.com>
-	<50DC7287.1080302@yahoo.ca>
-Date: Sat, 29 Dec 2012 15:22:14 +0800
-Message-ID: <CAJd=RBB-Q21KDiNqWV6+2-e8+t=Udirsrv50A+_KAPg2mrywOg@mail.gmail.com>
-Subject: Re: kernel BUG at mm/huge_memory.c:1798!
+In-Reply-To: <50DC6C6F.6050703@iskon.hr>
+References: <50D24AF3.1050809@iskon.hr>
+	<50D24CD9.8070507@iskon.hr>
+	<CAJd=RBCQN1GxOUCwGPXL27d_q8hv50uHK5LhDnsv7mdv_2Usaw@mail.gmail.com>
+	<50DC6C6F.6050703@iskon.hr>
+Date: Sat, 29 Dec 2012 15:25:56 +0800
+Message-ID: <CAJd=RBB0bwyjoMc5yt5SfgxCt3JcLUo8Fiz1r3oQ0RRhE1i59w@mail.gmail.com>
+Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
 From: Hillf Danton <dhillf@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Xu <alex_y_xu@yahoo.ca>
-Cc: Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, mgorman@suse.de, hughd@google.com, Andrea Arcangeli <aarcange@redhat.com>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Dec 28, 2012 at 12:08 AM, Alex Xu <alex_y_xu@yahoo.ca> wrote:
-> On 25/12/12 07:05 AM, Hillf Danton wrote:
->> On Tue, Dec 25, 2012 at 12:38 PM, Zhouping Liu <zliu@redhat.com> wrote:
->>> Hello all,
->>>
->>> I found the below kernel bug using latest mainline(637704cbc95),
->>> my hardware has 2 numa nodes, and it's easy to reproduce the issue
->>> using LTP test case: "# ./mmap10 -a -s -c 200":
+On Thu, Dec 27, 2012 at 11:42 PM, Zlatko Calusic
+<zlatko.calusic@iskon.hr> wrote:
+> On 21.12.2012 12:51, Hillf Danton wrote:
 >>
->> Can you test with 5a505085f0 and 4fc3f1d66b1 reverted?
+>> On Thu, Dec 20, 2012 at 7:25 AM, Zlatko Calusic <zlatko.calusic@iskon.hr>
+>> wrote:
+>>>
+>>>   static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+>>>                                                          int
+>>> *classzone_idx)
+>>>   {
+>>> -       int all_zones_ok;
+>>> +       struct zone *unbalanced_zone;
+>>
+>>
+>> nit: less hunks if not erase that mark
 >>
 >> Hillf
->>
 >
-> (for people from mailing lists, please cc me when replying)
 >
-> Same thing?
-
-Yes and thank you very much for reporting it.
+> This one left unanswered and forgotten because I didn't understand what you
+> meant. Could you elaborate?
+>
+Sure, the patch looks simpler(and nicer) if we dont
+erase all_zones_ok.
 
 Hillf
->
-> mapcount 0 page_mapcount 1
-> ------------[ cut here ]------------
-> kernel BUG at mm/huge_memory.c:1798!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
