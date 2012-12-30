@@ -1,106 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx138.postini.com [74.125.245.138])
-	by kanga.kvack.org (Postfix) with SMTP id 987A16B005A
-	for <linux-mm@kvack.org>; Sat, 29 Dec 2012 07:11:32 -0500 (EST)
-Date: Sat, 29 Dec 2012 13:11:28 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id BF2DF6B006C
+	for <linux-mm@kvack.org>; Sat, 29 Dec 2012 20:09:49 -0500 (EST)
+Subject: =?utf-8?q?Re=3A_=5BPATCH_for_3=2E2=2E34=5D_memcg=3A_do_not_trigger_OOM_from_add=5Fto=5Fpage=5Fcache=5Flocked?=
+Date: Sun, 30 Dec 2012 02:09:47 +0100
+From: "azurIt" <azurit@pobox.sk>
+References: <20121210094318.GA6777@dhcp22.suse.cz>, <20121210111817.F697F53E@pobox.sk>, <20121210155205.GB6777@dhcp22.suse.cz>, <20121217023430.5A390FD7@pobox.sk>, <20121217163203.GD25432@dhcp22.suse.cz>, <20121217192301.829A7020@pobox.sk>, <20121217195510.GA16375@dhcp22.suse.cz>, <20121218152223.6912832C@pobox.sk>, <20121218152004.GA25208@dhcp22.suse.cz>, <20121224142526.020165D3@pobox.sk> <20121228162209.GA1455@dhcp22.suse.cz>
+In-Reply-To: <20121228162209.GA1455@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <50D24AF3.1050809@iskon.hr> <50D24CD9.8070507@iskon.hr> <CAJd=RBCQN1GxOUCwGPXL27d_q8hv50uHK5LhDnsv7mdv_2Usaw@mail.gmail.com> <50DC6C6F.6050703@iskon.hr> <CAJd=RBB0bwyjoMc5yt5SfgxCt3JcLUo8Fiz1r3oQ0RRhE1i59w@mail.gmail.com>
-In-Reply-To: <CAJd=RBB0bwyjoMc5yt5SfgxCt3JcLUo8Fiz1r3oQ0RRhE1i59w@mail.gmail.com>
-Message-ID: <50DEDDF0.8090405@iskon.hr>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] mm: do not sleep in balance_pgdat if there's no i/o congestion
+Message-Id: <20121230020947.AA002F34@pobox.sk>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: =?utf-8?q?Michal_Hocko?= <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?utf-8?q?cgroups_mailinglist?= <cgroups@vger.kernel.org>, =?utf-8?q?KAMEZAWA_Hiroyuki?= <kamezawa.hiroyu@jp.fujitsu.com>, =?utf-8?q?Johannes_Weiner?= <hannes@cmpxchg.org>
 
-On 29.12.2012 08:25, Hillf Danton wrote:
-> On Thu, Dec 27, 2012 at 11:42 PM, Zlatko Calusic
-> <zlatko.calusic@iskon.hr> wrote:
->> On 21.12.2012 12:51, Hillf Danton wrote:
->>>
->>> On Thu, Dec 20, 2012 at 7:25 AM, Zlatko Calusic <zlatko.calusic@iskon.hr>
->>> wrote:
->>>>
->>>>    static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->>>>                                                           int
->>>> *classzone_idx)
->>>>    {
->>>> -       int all_zones_ok;
->>>> +       struct zone *unbalanced_zone;
->>>
->>>
->>> nit: less hunks if not erase that mark
->>>
->>> Hillf
->>
->>
->> This one left unanswered and forgotten because I didn't understand what you
->> meant. Could you elaborate?
->>
-> Sure, the patch looks simpler(and nicer) if we dont
-> erase all_zones_ok.
->
+>which suggests that the patch is incomplete and that I am blind :/
+>mem_cgroup_cache_charge calls __mem_cgroup_try_charge for the page cache
+>and that one doesn't check GFP_MEMCG_NO_OOM. So you need the following
+>follow-up patch on top of the one you already have (which should catch
+>all the remaining cases).
+>Sorry about that...
 
-Ah, yes. I gave it a good thought. But, when I introduced 
-unbalanced_zone it just didn't make much sense to me to have two 
-variables with very similar meaning. If I decided to keep all_zones_ok, 
-it would be either:
 
-all_zones_ok = true
-unbalanced_zone = NULL
-(meaning: if no zone in unbalanced, then all zones must be ok)
-
-or
-
-all_zones_ok = false
-unbalanced_zone = struct zone *
-(meaning: if there's an unbalanced zone, then certainly not all zones 
-are ok)
-
-So I decided to use only unbalanced_zone (because I had to!), and remove 
-all_zones_ok to avoid redundancy. I hope it makes sense.
-
-If you check my latest (and still queued) optimization (mm: avoid 
-calling pgdat_balanced() needlessly), there again popped up a need for a 
-boolean, but I called it pgdat_is_balanced this time, just to match the 
-name of two other functions. It could've also been called all_zones_ok 
-if you prefer the name? Of course, I have no strong feelings about the 
-name, both are OK, so if you want me to redo the patch, just say.
-
-Generally speaking, while I always attempt to make a smaller patch (less 
-hunks and less changes = easier to review), before that I'll always try 
-to make the code that results from the commit cleaner, simpler, more 
-readable.
-
-For example, I'll always check that I don't mess with whitespace 
-needlessly, unless I think it's actually desirable, here's just one example:
-
-"mm: avoid calling pgdat_balanced() needlessly" changes
-
----
-         } while (--sc.priority >= 0);
-out:
-
-         if (!pgdat_balanced(pgdat, order, *classzone_idx)) {
----
-
-to
-
----
-         } while (--sc.priority >= 0);
-
-out:
-         if (!pgdat_is_balanced) {
----
-
-because I find the latter more correct place for the label "out".
-
-Thanks for the comment.
--- 
-Zlatko
+This was, again, killing my MySQL server (search for "(mysqld)"):
+http://www.watchdog.sk/lkml/oom_mysqld5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
