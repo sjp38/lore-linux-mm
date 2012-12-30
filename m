@@ -1,88 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 03F306B006C
-	for <linux-mm@kvack.org>; Sun, 30 Dec 2012 05:38:00 -0500 (EST)
-Date: Sun, 30 Dec 2012 12:38:50 +0200
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: 3.8-rc1 build failure with MIPS/SPARSEMEM
-Message-ID: <20121230103850.GA5424@otc-wbsnb-06>
-References: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi>
- <20121226003434.GA27760@otc-wbsnb-06>
- <20121227121607.GA7097@blackmetal.musicnaut.iki.fi>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 934756B006C
+	for <linux-mm@kvack.org>; Sun, 30 Dec 2012 06:08:18 -0500 (EST)
+Date: Sun, 30 Dec 2012 12:08:15 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH for 3.2.34] memcg: do not trigger OOM from
+ add_to_page_cache_locked
+Message-ID: <20121230110815.GA12940@dhcp22.suse.cz>
+References: <20121210155205.GB6777@dhcp22.suse.cz>
+ <20121217023430.5A390FD7@pobox.sk>
+ <20121217163203.GD25432@dhcp22.suse.cz>
+ <20121217192301.829A7020@pobox.sk>
+ <20121217195510.GA16375@dhcp22.suse.cz>
+ <20121218152223.6912832C@pobox.sk>
+ <20121218152004.GA25208@dhcp22.suse.cz>
+ <20121224142526.020165D3@pobox.sk>
+ <20121228162209.GA1455@dhcp22.suse.cz>
+ <20121230020947.AA002F34@pobox.sk>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="vkogqOf2sHV7VnPd"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20121227121607.GA7097@blackmetal.musicnaut.iki.fi>
+In-Reply-To: <20121230020947.AA002F34@pobox.sk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, Aaro Koskinen <aaro.koskinen@iki.fi>
+To: azurIt <azurit@pobox.sk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups mailinglist <cgroups@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+On Sun 30-12-12 02:09:47, azurIt wrote:
+> >which suggests that the patch is incomplete and that I am blind :/
+> >mem_cgroup_cache_charge calls __mem_cgroup_try_charge for the page cache
+> >and that one doesn't check GFP_MEMCG_NO_OOM. So you need the following
+> >follow-up patch on top of the one you already have (which should catch
+> >all the remaining cases).
+> >Sorry about that...
+> 
+> 
+> This was, again, killing my MySQL server (search for "(mysqld)"):
+> http://www.watchdog.sk/lkml/oom_mysqld5
 
---vkogqOf2sHV7VnPd
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+grep "Kill process" oom_mysqld5 
+Dec 30 01:53:34 server01 kernel: [  367.061801] Memory cgroup out of memory: Kill process 5512 (apache2) score 716 or sacrifice child
+Dec 30 01:53:35 server01 kernel: [  367.338024] Memory cgroup out of memory: Kill process 5517 (apache2) score 718 or sacrifice child
+Dec 30 01:53:35 server01 kernel: [  367.747888] Memory cgroup out of memory: Kill process 5513 (apache2) score 721 or sacrifice child
+Dec 30 01:53:36 server01 kernel: [  368.159860] Memory cgroup out of memory: Kill process 5516 (apache2) score 726 or sacrifice child
+Dec 30 01:53:36 server01 kernel: [  368.665606] Memory cgroup out of memory: Kill process 5520 (apache2) score 733 or sacrifice child
+Dec 30 01:53:36 server01 kernel: [  368.765652] Out of memory: Kill process 1778 (mysqld) score 39 or sacrifice child
+Dec 30 01:53:36 server01 kernel: [  369.101753] Memory cgroup out of memory: Kill process 5519 (apache2) score 754 or sacrifice child
+Dec 30 01:53:37 server01 kernel: [  369.464262] Memory cgroup out of memory: Kill process 5583 (apache2) score 762 or sacrifice child
+Dec 30 01:53:37 server01 kernel: [  369.465017] Out of memory: Kill process 5506 (apache2) score 18 or sacrifice child
+Dec 30 01:53:37 server01 kernel: [  369.574932] Memory cgroup out of memory: Kill process 5523 (apache2) score 759 or sacrifice child
 
-On Thu, Dec 27, 2012 at 02:16:07PM +0200, Aaro Koskinen wrote:
-> Hi,
->=20
-> On Wed, Dec 26, 2012 at 02:34:35AM +0200, Kirill A. Shutemov wrote:
-> > On MIPS if SPARSEMEM is enabled we've got this:
-> >=20
-> > In file included from /home/kas/git/public/linux/arch/mips/include/asm/=
-pgtable.h:552,
-> >                  from include/linux/mm.h:44,
-> >                  from arch/mips/kernel/asm-offsets.c:14:
-> > include/asm-generic/pgtable.h: In function =E2=80=98my_zero_pfn=E2=80=
-=99:
-> > include/asm-generic/pgtable.h:466: error: implicit declaration of funct=
-ion =E2=80=98page_to_section=E2=80=99
-> > In file included from arch/mips/kernel/asm-offsets.c:14:
-> > include/linux/mm.h: At top level:
-> > include/linux/mm.h:738: error: conflicting types for =E2=80=98page_to_s=
-ection=E2=80=99
-> > include/asm-generic/pgtable.h:466: note: previous implicit declaration =
-of =E2=80=98page_to_section=E2=80=99 was here
-> >=20
-> > Due header files inter-dependencies, the only way I see to fix it is
-> > convert my_zero_pfn() for __HAVE_COLOR_ZERO_PAGE to macros.
-> >=20
-> > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
->=20
-> Thanks, this works.
->=20
-> Tested-by: Aaro Koskinen <aaro.koskinen@iki.fi>
+So your mysqld has been killed by the global OOM not memcg. But why when
+you seem to be perfectly fine regarding memory? I guess the following
+backtrace is relevant:
+Dec 30 01:53:36 server01 kernel: [  368.569720] DMA: 0*4kB 1*8kB 0*16kB 1*32kB 2*64kB 1*128kB 1*256kB 0*512kB 1*1024kB 1*2048kB 3*4096kB = 15912kB
+Dec 30 01:53:36 server01 kernel: [  368.570447] DMA32: 9*4kB 10*8kB 8*16kB 6*32kB 5*64kB 6*128kB 4*256kB 2*512kB 3*1024kB 3*2048kB 613*4096kB = 2523636kB
+Dec 30 01:53:36 server01 kernel: [  368.571175] Normal: 5*4kB 2060*8kB 4122*16kB 2550*32kB 2667*64kB 722*128kB 197*256kB 68*512kB 15*1024kB 4*2048kB 1855*4096kB = 8134036kB
+Dec 30 01:53:36 server01 kernel: [  368.571906] 308964 total pagecache pages
+Dec 30 01:53:36 server01 kernel: [  368.572023] 0 pages in swap cache
+Dec 30 01:53:36 server01 kernel: [  368.572140] Swap cache stats: add 0, delete 0, find 0/0
+Dec 30 01:53:36 server01 kernel: [  368.572260] Free swap  = 0kB
+Dec 30 01:53:36 server01 kernel: [  368.572375] Total swap = 0kB
+Dec 30 01:53:36 server01 kernel: [  368.597836] apache2 invoked oom-killer: gfp_mask=0x0, order=0, oom_adj=0, oom_score_adj=0
+Dec 30 01:53:36 server01 kernel: [  368.598034] apache2 cpuset=uid mems_allowed=0
+Dec 30 01:53:36 server01 kernel: [  368.598152] Pid: 5385, comm: apache2 Not tainted 3.2.35-grsec #1
+Dec 30 01:53:36 server01 kernel: [  368.598273] Call Trace:
+Dec 30 01:53:36 server01 kernel: [  368.598396]  [<ffffffff810cc89e>] dump_header+0x7e/0x1e0
+Dec 30 01:53:36 server01 kernel: [  368.598516]  [<ffffffff810cc79f>] ? find_lock_task_mm+0x2f/0x70
+Dec 30 01:53:36 server01 kernel: [  368.598638]  [<ffffffff810ccd65>] oom_kill_process+0x85/0x2a0
+Dec 30 01:53:36 server01 kernel: [  368.598759]  [<ffffffff810cd415>] out_of_memory+0xe5/0x200
+Dec 30 01:53:36 server01 kernel: [  368.598880]  [<ffffffff810cd5ed>] pagefault_out_of_memory+0xbd/0x110
+Dec 30 01:53:36 server01 kernel: [  368.599006]  [<ffffffff81026e96>] mm_fault_error+0xb6/0x1a0
+Dec 30 01:53:36 server01 kernel: [  368.599127]  [<ffffffff8102736e>] do_page_fault+0x3ee/0x460
+Dec 30 01:53:36 server01 kernel: [  368.599250]  [<ffffffff81131ccf>] ? mntput+0x1f/0x30
+Dec 30 01:53:36 server01 kernel: [  368.599371]  [<ffffffff811134e6>] ? fput+0x156/0x200
+Dec 30 01:53:36 server01 kernel: [  368.599496]  [<ffffffff815b567f>] page_fault+0x1f/0x30
 
-Andrew, could you take the patch?
+This would suggest that an unexpected ENOMEM leaked during page fault
+path. I do not see which one could that be because you said THP
+(CONFIG_TRANSPARENT_HUGEPAGE) are disabled (and the other patch I have
+mentioned in the thread should fix that issue - btw. the patch is
+already scheduled for stable tree).
+ __do_fault, do_anonymous_page and do_wp_page call
+mem_cgroup_newpage_charge with GFP_KERNEL which means that
+we do memcg OOM and never return ENOMEM. do_swap_page calls
+mem_cgroup_try_charge_swapin with GFP_KERNEL as well.
 
---=20
- Kirill A. Shutemov
-
---vkogqOf2sHV7VnPd
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJQ4Bm5AAoJEAd+omnVudOMz1oP/3Gv20OjCZOhdYhdsufNiNDN
-Hw5t2YwyzXVQ+HtHpqQuMXzdbHJYDWGALwvoyw1QMBxYkD8hVpc6bD7DpL23QHqv
-JhV3luv30NrXIFaIhnu2ZPjNST43jVCI1SOrg35hTqCGehYtQIYuIWvDytXNlJtu
-6chzAon5KgGS1fY60G7t0uL8CyLzywDZ7Gs0Y5S3TizR0Z/J5kk3R3uHN6oRsN3Y
-WWKKebJgLtzq6cWoVjJhFvB+HqAHK7I4+6hpcE7FvC0phjJubCcnLDQ8g7O2XKBY
-jOTOVZt4SbOuzsBYvNzVPIkxOW4M9pfy4NUw9MWPR/ilJGWlM6k2dJ+9Zum2fKLE
-dJ3J1McnfSgf5HUIR7icPxeklCGUsWl2qjqINP7k0j4bYmlHLdYKV1N0FPdSTb/F
-f0nuzbHB1DbvID9OXgyzkrznTdZ7vx67RJSLkR6tFzeaKZJbqlVcGc+l9B+EA6o1
-E8VHlXWpyH7kncIHXUOgoY93LESWAMF6/lLjCUZqVIxMZV9/T+bpkcAAuambS10Q
-tswy3L5I6oMvkfXviSjUfa7HFxfhkvGPoocDdStS4v8SAlK/aM6K12U/Vlr/Svif
-5lfavj8P9S+R0ECyn+4wdzP71zRkmB4MP+eJdG8jSnos0zpZq21nntKCeD+EcWEC
-/3r3MPDCqj+vz32O6xke
-=VVis
------END PGP SIGNATURE-----
-
---vkogqOf2sHV7VnPd--
+I might have missed something but I will not get to look closer before
+2nd January.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
