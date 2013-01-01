@@ -1,84 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 959E56B006C
-	for <linux-mm@kvack.org>; Mon, 31 Dec 2012 20:07:50 -0500 (EST)
-Received: by mail-ye0-f171.google.com with SMTP id m8so2056559yen.30
-        for <linux-mm@kvack.org>; Mon, 31 Dec 2012 17:07:49 -0800 (PST)
-Message-ID: <50E236E2.9050305@gmail.com>
-Date: Mon, 31 Dec 2012 17:07:46 -0800
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id C2C646B006C
+	for <linux-mm@kvack.org>; Mon, 31 Dec 2012 20:16:02 -0500 (EST)
+Received: by mail-yh0-f50.google.com with SMTP id q3so164843yhf.37
+        for <linux-mm@kvack.org>; Mon, 31 Dec 2012 17:16:01 -0800 (PST)
+Message-ID: <50E238CF.1050708@gmail.com>
+Date: Mon, 31 Dec 2012 17:15:59 -0800
 From: Subash Patel <subashrp@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] arm: dma mapping: export arm iommu functions
-References: <1356592458-11077-1-git-send-email-prathyush.k@samsung.com> <50DC580C.7080507@samsung.com> <CAH=HWYP5r18qjQSc_2121vikbTMpYv6DKOfW=hpOpGB7rUyNRA@mail.gmail.com> <20121229065356.GA13760@quad.lixom.net>
-In-Reply-To: <20121229065356.GA13760@quad.lixom.net>
+Subject: Re: [RFC] ARM: DMA-Mapping: add a new attribute to clear buffer
+References: <1356656433-2278-1-git-send-email-daeinki@gmail.com>
+In-Reply-To: <1356656433-2278-1-git-send-email-daeinki@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Olof Johansson <olof@lixom.net>
-Cc: Prathyush K <prathyush@chromium.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Prathyush K <prathyush.k@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
+To: daeinki@gmail.com
+Cc: linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, Inki Dae <inki.dae@samsung.com>
 
 
 
-On Friday 28 December 2012 10:53 PM, Olof Johansson wrote:
-> On Fri, Dec 28, 2012 at 09:53:47AM +0530, Prathyush K wrote:
->> On Thu, Dec 27, 2012 at 7:45 PM, Marek Szyprowski
->> <m.szyprowski@samsung.com>wrote:
->>
->>> Hello,
->>>
->>>
->>> On 12/27/2012 8:14 AM, Prathyush K wrote:
->>>
->>>> This patch adds EXPORT_SYMBOL calls to the three arm iommu
->>>> functions - arm_iommu_create_mapping, arm_iommu_free_mapping
->>>> and arm_iommu_attach_device. These functions can now be called
->>>> from dynamic modules.
->>>>
->>>
->>> Could You describe a bit more why those functions might be needed by
->>> dynamic modules?
->>>
->>> Hi Marek,
->>
->> We are adding iommu support to exynos gsc and s5p-mfc.
->> And these two drivers need to be built as modules to improve boot time.
->>
->> We're calling these three functions from inside these drivers:
->> e.g.
->> mapping = arm_iommu_create_mapping(&platform_bus_type, 0x20000000, SZ_256M,
->> 4);
->> arm_iommu_attach_device(mdev, mapping);
+On Thursday 27 December 2012 05:00 PM, daeinki@gmail.com wrote:
+> From: Inki Dae <inki.dae@samsung.com>
 >
-> The driver shouldn't have to call these low-level functions directly,
-> something's wrong if you need that.
+> This patch adds a new attribute, DMA_ATTR_SKIP_BUFFER_CLEAR
+> to skip buffer clearing. The buffer clearing also flushes CPU cache
+> so this operation has performance deterioration a little bit.
+>
+> With this patch, allocated buffer region is cleared as default.
+> So if you want to skip the buffer clearing, just set this attribute.
+>
+> But this flag should be used carefully because this use might get
+> access to some vulnerable content such as security data. So with this
+> patch, we make sure that all pages will be somehow cleared before
+> exposing to userspace.
+>
+> For example, let's say that the security data had been stored
+> in some memory and freed without clearing it.
+> And then malicious process allocated the region though some buffer
+> allocator such as gem and ion without clearing it, and requested blit
+> operation with cleared another buffer though gpu or other drivers.
+> At this time, the malicious process could access the security data.
 
-These are not truly low-level calls, but arm specific wrappers to the 
-dma-mapping implementations. Drivers need to call former to declare 
-mappings requirement needed for their IOMMU and later to start using it.
+Isnt it always good to use such security related buffers through TZ 
+rather than trying to guard them in the non-secure zone?
 
 >
-> How is the DMA address management different here from other system/io mmus? is
-> that 256M window a hardware restriction?
+> Signed-off-by: Inki Dae <inki.dae@samsung.com>
+> Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+> ---
+>   arch/arm/mm/dma-mapping.c |    6 ++++--
+>   include/linux/dma-attrs.h |    1 +
+>   2 files changed, 5 insertions(+), 2 deletions(-)
+>
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 6b2fb87..fbe9dff 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1058,7 +1058,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+>   		if (!page)
+>   			goto error;
+>
+> -		__dma_clear_buffer(page, size);
+> +		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
+> +			__dma_clear_buffer(page, size);
+>
+>   		for (i = 0; i < count; i++)
+>   			pages[i] = page + i;
+> @@ -1082,7 +1083,8 @@ static struct page **__iommu_alloc_buffer(struct device *dev, size_t size,
+>   				pages[i + j] = pages[i] + j;
+>   		}
+>
+> -		__dma_clear_buffer(pages[i], PAGE_SIZE << order);
+> +		if (!dma_get_attr(DMA_ATTR_SKIP_BUFFER_CLEAR, attrs))
+> +			__dma_clear_buffer(pages[i], PAGE_SIZE << order);
+>   		i += 1 << order;
+>   		count -= 1 << order;
+>   	}
+> diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
+> index c8e1831..2592c05 100644
+> --- a/include/linux/dma-attrs.h
+> +++ b/include/linux/dma-attrs.h
+> @@ -18,6 +18,7 @@ enum dma_attr {
+>   	DMA_ATTR_NO_KERNEL_MAPPING,
+>   	DMA_ATTR_SKIP_CPU_SYNC,
+>   	DMA_ATTR_FORCE_CONTIGUOUS,
+> +	DMA_ATTR_SKIP_BUFFER_CLEAR,
+>   	DMA_ATTR_MAX,
 
-No, each IOMMU is capable of 4G. But to keep the IOMMU address space to 
-what is required, various sizes were used earlier and later fixed on to 
-256M. This can be increased if the drivers demand more buffers mapped to 
-the device at anytime.
+How is this new macro different from SKIP_CPU_SYNC?
 
+>   };
+>
+>
 
 Regards,
 Subash
-
->
-> -Olof
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
