@@ -1,130 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id F163F6B0072
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 04:08:08 -0500 (EST)
-Date: Wed, 2 Jan 2013 10:08:03 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V3 2/8] Make TestSetPageDirty and dirty page accounting
- in one func
-Message-ID: <20130102090803.GB22160@dhcp22.suse.cz>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
- <1356456156-14535-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id 23A5A6B006C
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 05:01:40 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id rl6so7943042pac.29
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 02:01:39 -0800 (PST)
+Date: Wed, 2 Jan 2013 02:01:33 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 1/2] tmpfs mempolicy: fix /proc/mounts corrupting memory
+Message-ID: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1356456156-14535-1-git-send-email-handai.szj@taobao.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 26-12-12 01:22:36, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
-> 
-> Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
-> extracts TestSetPageDirty from __set_page_dirty and is far away from
-> account_page_dirtied. But it's better to make the two operations in one single
-> function to keep modular. So in order to avoid the potential race mentioned in
-> commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
-> There's no deadlock between ->private_lock and ->tree_lock after confirmation.
+Recently I suggested using "mount -o remount,mpol=local /tmp" in NUMA
+mempolicy testing.  Very nasty.  Reading /proc/mounts, /proc/pid/mounts
+or /proc/pid/mountinfo may then corrupt one bit of kernel memory, often
+in a page table (causing "Bad swap" or "Bad page map" warning or "Bad
+pagetable" oops), sometimes in a vm_area_struct or rbnode or somewhere
+worse.  "mpol=prefer" and "mpol=prefer:Node" are equally toxic.
 
-Could you be more specific here? E.g. quote mm/filemap.c comment I have
-mentioned during the first round of review?
+Recent NUMA enhancements are not to blame: this dates back to 2.6.35,
+when commit e17f74af351c "mempolicy: don't call mpol_set_nodemask()
+when no_context" skipped mpol_parse_str()'s call to mpol_set_nodemask(),
+which used to initialize v.preferred_node, or set MPOL_F_LOCAL in flags.
+With slab poisoning, you can then rely on mpol_to_str() to set the bit
+for node 0x6b6b, probably in the next page above the caller's stack.
 
-> It's a prepare patch for following memcg dirty page accounting patches.
-> 
-> 
-> Here is some test numbers that before/after this patch:
-> Test steps(Mem-4g, ext4):
-> drop_cache; sync
-> fio (ioengine=sync/write/buffered/bs=4k/size=1g/numjobs=2/group_reporting/thread)
+mpol_parse_str() is only called from shmem_parse_options(): no_context
+is always true, so call it unused for now, and remove !no_context code.
+Set v.nodes or v.preferred_node or MPOL_F_LOCAL as mpol_to_str() might
+expect.  Then mpol_to_str() can ignore its no_context argument also,
+the mpol being appropriately initialized whether contextualized or not.
+Rename its no_context unused too, and let subsequent patch remove them
+(that's not needed for stable backporting, which would involve rejects).
 
-Could also add some rationale why you think this test is relevant?
+I don't understand why MPOL_LOCAL is described as a pseudo-policy:
+it's a reasonable policy which suffers from a confusing implementation
+in terms of MPOL_PREFERRED with MPOL_F_LOCAL.  I believe this would be
+much more robust if MPOL_LOCAL were recognized in switch statements
+throughout, MPOL_F_LOCAL deleted, and MPOL_PREFERRED use the (possibly
+empty) nodes mask like everyone else, instead of its preferred_node
+variant (I presume an optimization from the days before MPOL_LOCAL).
+But that would take me too long to get right and fully tested.
 
-> We test it for 10 times and get the average numbers:
-> Before:
-> write: io=2048.0MB, bw=254117KB/s, iops=63528.9 , runt=  8279msec
-> lat (usec): min=1 , max=742361 , avg=30.918, stdev=1601.02
-> After:
-> write: io=2048.0MB, bw=254044KB/s, iops=63510.3 , runt=  8274.4msec
-> lat (usec): min=1 , max=856333 , avg=31.043, stdev=1769.32
-> 
-> Note that the impact is little(<1%).
-> 
-> 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
-> Reviewed-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  fs/buffer.c |   24 ++++++++++++------------
->  1 file changed, 12 insertions(+), 12 deletions(-)
-> 
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index c017a2d..3b032b9 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -609,9 +609,15 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
->   * If warn is true, then emit a warning if the page is not uptodate and has
->   * not been truncated.
->   */
-> -static void __set_page_dirty(struct page *page,
-> +static int __set_page_dirty(struct page *page,
->  		struct address_space *mapping, int warn)
->  {
-> +	if (unlikely(!mapping))
-> +		return !TestSetPageDirty(page);
-> +
-> +	if (TestSetPageDirty(page))
-> +		return 0;
-> +
->  	spin_lock_irq(&mapping->tree_lock);
->  	if (page->mapping) {	/* Race with truncate? */
->  		WARN_ON_ONCE(warn && !PageUptodate(page));
-> @@ -621,6 +627,8 @@ static void __set_page_dirty(struct page *page,
->  	}
->  	spin_unlock_irq(&mapping->tree_lock);
->  	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-> +
-> +	return 1;
->  }
->  
->  /*
-> @@ -666,11 +674,9 @@ int __set_page_dirty_buffers(struct page *page)
->  			bh = bh->b_this_page;
->  		} while (bh != head);
->  	}
-> -	newly_dirty = !TestSetPageDirty(page);
-> +	newly_dirty = __set_page_dirty(page, mapping, 1);
->  	spin_unlock(&mapping->private_lock);
->  
-> -	if (newly_dirty)
-> -		__set_page_dirty(page, mapping, 1);
->  	return newly_dirty;
->  }
->  EXPORT_SYMBOL(__set_page_dirty_buffers);
-> @@ -1125,14 +1131,8 @@ void mark_buffer_dirty(struct buffer_head *bh)
->  			return;
->  	}
->  
-> -	if (!test_set_buffer_dirty(bh)) {
-> -		struct page *page = bh->b_page;
-> -		if (!TestSetPageDirty(page)) {
-> -			struct address_space *mapping = page_mapping(page);
-> -			if (mapping)
-> -				__set_page_dirty(page, mapping, 0);
-> -		}
-> -	}
-> +	if (!test_set_buffer_dirty(bh))
-> +		__set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
->  }
->  EXPORT_SYMBOL(mark_buffer_dirty);
->  
-> -- 
-> 1.7.9.5
-> 
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: stable@vger.kernel.org
+---
 
--- 
-Michal Hocko
-SUSE Labs
+ mm/mempolicy.c |   64 +++++++++++++++++++----------------------------
+ 1 file changed, 26 insertions(+), 38 deletions(-)
+
+--- 3.8-rc1/mm/mempolicy.c	2012-12-22 09:43:27.636015582 -0800
++++ linux/mm/mempolicy.c	2013-01-01 23:44:10.715017466 -0800
+@@ -2595,8 +2595,7 @@ void numa_default_policy(void)
+  */
+ 
+ /*
+- * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
+- * Used only for mpol_parse_str() and mpol_to_str()
++ * "local" is implemented internally by MPOL_PREFERRED with MPOL_F_LOCAL flag.
+  */
+ static const char * const policy_modes[] =
+ {
+@@ -2610,28 +2609,21 @@ static const char * const policy_modes[]
+ 
+ #ifdef CONFIG_TMPFS
+ /**
+- * mpol_parse_str - parse string to mempolicy
++ * mpol_parse_str - parse string to mempolicy, for tmpfs mpol mount option.
+  * @str:  string containing mempolicy to parse
+  * @mpol:  pointer to struct mempolicy pointer, returned on success.
+- * @no_context:  flag whether to "contextualize" the mempolicy
++ * @unused:  redundant argument, to be removed later.
+  *
+  * Format of input:
+  *	<mode>[=<flags>][:<nodelist>]
+  *
+- * if @no_context is true, save the input nodemask in w.user_nodemask in
+- * the returned mempolicy.  This will be used to "clone" the mempolicy in
+- * a specific context [cpuset] at a later time.  Used to parse tmpfs mpol
+- * mount option.  Note that if 'static' or 'relative' mode flags were
+- * specified, the input nodemask will already have been saved.  Saving
+- * it again is redundant, but safe.
+- *
+  * On success, returns 0, else 1
+  */
+-int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
++int mpol_parse_str(char *str, struct mempolicy **mpol, int unused)
+ {
+ 	struct mempolicy *new = NULL;
+ 	unsigned short mode;
+-	unsigned short uninitialized_var(mode_flags);
++	unsigned short mode_flags;
+ 	nodemask_t nodes;
+ 	char *nodelist = strchr(str, ':');
+ 	char *flags = strchr(str, '=');
+@@ -2719,24 +2711,23 @@ int mpol_parse_str(char *str, struct mem
+ 	if (IS_ERR(new))
+ 		goto out;
+ 
+-	if (no_context) {
+-		/* save for contextualization */
+-		new->w.user_nodemask = nodes;
+-	} else {
+-		int ret;
+-		NODEMASK_SCRATCH(scratch);
+-		if (scratch) {
+-			task_lock(current);
+-			ret = mpol_set_nodemask(new, &nodes, scratch);
+-			task_unlock(current);
+-		} else
+-			ret = -ENOMEM;
+-		NODEMASK_SCRATCH_FREE(scratch);
+-		if (ret) {
+-			mpol_put(new);
+-			goto out;
+-		}
+-	}
++	/*
++	 * Save nodes for mpol_to_str() to show the tmpfs mount options
++	 * for /proc/mounts, /proc/pid/mounts and /proc/pid/mountinfo.
++	 */
++	if (mode != MPOL_PREFERRED)
++		new->v.nodes = nodes;
++	else if (nodelist)
++		new->v.preferred_node = first_node(nodes);
++	else
++		new->flags |= MPOL_F_LOCAL;
++
++	/*
++	 * Save nodes for contextualization: this will be used to "clone"
++	 * the mempolicy in a specific context [cpuset] at a later time.
++	 */
++	new->w.user_nodemask = nodes;
++
+ 	err = 0;
+ 
+ out:
+@@ -2756,13 +2747,13 @@ out:
+  * @buffer:  to contain formatted mempolicy string
+  * @maxlen:  length of @buffer
+  * @pol:  pointer to mempolicy to be formatted
+- * @no_context:  "context free" mempolicy - use nodemask in w.user_nodemask
++ * @unused:  redundant argument, to be removed later.
+  *
+  * Convert a mempolicy into a string.
+  * Returns the number of characters in buffer (if positive)
+  * or an error (negative)
+  */
+-int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int no_context)
++int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int unused)
+ {
+ 	char *p = buffer;
+ 	int l;
+@@ -2788,7 +2779,7 @@ int mpol_to_str(char *buffer, int maxlen
+ 	case MPOL_PREFERRED:
+ 		nodes_clear(nodes);
+ 		if (flags & MPOL_F_LOCAL)
+-			mode = MPOL_LOCAL;	/* pseudo-policy */
++			mode = MPOL_LOCAL;
+ 		else
+ 			node_set(pol->v.preferred_node, nodes);
+ 		break;
+@@ -2796,10 +2787,7 @@ int mpol_to_str(char *buffer, int maxlen
+ 	case MPOL_BIND:
+ 		/* Fall through */
+ 	case MPOL_INTERLEAVE:
+-		if (no_context)
+-			nodes = pol->w.user_nodemask;
+-		else
+-			nodes = pol->v.nodes;
++		nodes = pol->v.nodes;
+ 		break;
+ 
+ 	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
