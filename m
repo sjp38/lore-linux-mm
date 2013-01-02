@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id 658976B0078
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 11:03:02 -0500 (EST)
-Date: Wed, 2 Jan 2013 16:03:01 +0000
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id BFFEC6B007D
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 11:10:22 -0500 (EST)
+Date: Wed, 2 Jan 2013 16:10:21 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/3] slub: remove slab_alloc wrapper
-In-Reply-To: <1355925702-7537-3-git-send-email-glommer@parallels.com>
-Message-ID: <0000013bfc005f2d-96a7ff69-35d5-4b93-ac3d-f5aa67eeae4e-000000@email.amazonses.com>
-References: <1355925702-7537-1-git-send-email-glommer@parallels.com> <1355925702-7537-3-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH 3/3] sl[auo]b: retry allocation once in case of
+ failure.
+In-Reply-To: <1355925702-7537-4-git-send-email-glommer@parallels.com>
+Message-ID: <0000013bfc071798-e09146e7-8c3c-41be-a700-1676fd418e59-000000@email.amazonses.com>
+References: <1355925702-7537-1-git-send-email-glommer@parallels.com> <1355925702-7537-4-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,11 +18,16 @@ Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@c
 
 On Wed, 19 Dec 2012, Glauber Costa wrote:
 
-> Being slab_alloc such a simple and unconditional wrapper around
-> slab_alloc_node, we should get rid of it for simplicity, patching
-> the callers directly.
+> When we are out of space in the caches, we will try to allocate a new
+> page.  If we still fail, the page allocator will try to free pages
+> through direct reclaim. Which means that if an object allocation failed
+> we can be sure that no new pages could be given to us, even though
+> direct reclaim was likely invoked.
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Well this hits the hot allocation path with lots of additional checks
+that also require the touching of more cachelines.
+
+How much impact will this have?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
