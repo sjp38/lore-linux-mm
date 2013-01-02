@@ -1,132 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
-	by kanga.kvack.org (Postfix) with SMTP id 9DF9A6B006C
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 05:04:23 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id ro2so7825016pbb.39
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 02:04:22 -0800 (PST)
-Date: Wed, 2 Jan 2013 02:04:23 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 2/2] mempolicy: remove arg from mpol_parse_str, mpol_to_str
-In-Reply-To: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
-Message-ID: <alpine.LNX.2.00.1301020201510.18049@eggly.anvils>
-References: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id E46826B006C
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 05:44:27 -0500 (EST)
+Date: Wed, 2 Jan 2013 11:44:21 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
+Message-ID: <20130102104421.GC22160@dhcp22.suse.cz>
+References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
+ <1356456367-14660-1-git-send-email-handai.szj@taobao.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1356456367-14660-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sha Zhengju <handai.szj@gmail.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
 
-Remove the unused argument (formerly no_context) from mpol_parse_str()
-and from mpol_to_str().
+On Wed 26-12-12 01:26:07, Sha Zhengju wrote:
+> From: Sha Zhengju <handai.szj@taobao.com>
+> 
+> This patch adds memcg routines to count dirty pages, which allows memory controller
+> to maintain an accurate view of the amount of its dirty memory and can provide some
+> info for users while cgroup's direct reclaim is working.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
+I guess you meant targeted resp. (hard/soft) limit reclaim here,
+right? It is true that this is direct reclaim but it is not clear to me
+why the usefulnes should be limitted to the reclaim for users. I would
+understand this if the users was in fact in-kernel users.
 
- fs/proc/task_mmu.c        |    2 +-
- include/linux/mempolicy.h |   11 ++++-------
- mm/mempolicy.c            |    6 ++----
- mm/shmem.c                |    4 ++--
- 4 files changed, 9 insertions(+), 14 deletions(-)
+[...]
+> To prevent AB/BA deadlock mentioned by Greg Thelen in previous version
+> (https://lkml.org/lkml/2012/7/30/227), we adjust the lock order:
+> ->private_lock --> mapping->tree_lock --> memcg->move_lock.
+> So we need to make mapping->tree_lock ahead of TestSetPageDirty in __set_page_dirty()
+> and __set_page_dirty_nobuffers(). But in order to avoiding useless spinlock contention,
+> a prepare PageDirty() checking is added.
 
---- 3.8-rc1+/fs/proc/task_mmu.c	2012-12-22 09:43:26.916015565 -0800
-+++ linux/fs/proc/task_mmu.c	2013-01-01 23:26:30.174992261 -0800
-@@ -1278,7 +1278,7 @@ static int show_numa_map(struct seq_file
- 	walk.mm = mm;
- 
- 	pol = get_vma_policy(task, vma, vma->vm_start);
--	mpol_to_str(buffer, sizeof(buffer), pol, 0);
-+	mpol_to_str(buffer, sizeof(buffer), pol);
- 	mpol_cond_put(pol);
- 
- 	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
---- 3.8-rc1+/include/linux/mempolicy.h	2012-12-22 09:43:27.172015571 -0800
-+++ linux/include/linux/mempolicy.h	2013-01-01 23:26:30.174992261 -0800
-@@ -165,11 +165,10 @@ int do_migrate_pages(struct mm_struct *m
- 
- 
- #ifdef CONFIG_TMPFS
--extern int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context);
-+extern int mpol_parse_str(char *str, struct mempolicy **mpol);
- #endif
- 
--extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
--			int no_context);
-+extern int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol);
- 
- /* Check if a vma is migratable */
- static inline int vma_migratable(struct vm_area_struct *vma)
-@@ -296,15 +295,13 @@ static inline void check_highest_zone(in
- }
- 
- #ifdef CONFIG_TMPFS
--static inline int mpol_parse_str(char *str, struct mempolicy **mpol,
--				int no_context)
-+static inline int mpol_parse_str(char *str, struct mempolicy **mpol)
- {
- 	return 1;	/* error */
- }
- #endif
- 
--static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol,
--				int no_context)
-+static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
- {
- 	return 0;
- }
---- 3.8-rc1+/mm/mempolicy.c	2013-01-01 23:44:10.715017466 -0800
-+++ linux/mm/mempolicy.c	2013-01-01 23:47:34.223022303 -0800
-@@ -2612,14 +2612,13 @@ static const char * const policy_modes[]
-  * mpol_parse_str - parse string to mempolicy, for tmpfs mpol mount option.
-  * @str:  string containing mempolicy to parse
-  * @mpol:  pointer to struct mempolicy pointer, returned on success.
-- * @unused:  redundant argument, to be removed later.
-  *
-  * Format of input:
-  *	<mode>[=<flags>][:<nodelist>]
-  *
-  * On success, returns 0, else 1
-  */
--int mpol_parse_str(char *str, struct mempolicy **mpol, int unused)
-+int mpol_parse_str(char *str, struct mempolicy **mpol)
- {
- 	struct mempolicy *new = NULL;
- 	unsigned short mode;
-@@ -2747,13 +2746,12 @@ out:
-  * @buffer:  to contain formatted mempolicy string
-  * @maxlen:  length of @buffer
-  * @pol:  pointer to mempolicy to be formatted
-- * @unused:  redundant argument, to be removed later.
-  *
-  * Convert a mempolicy into a string.
-  * Returns the number of characters in buffer (if positive)
-  * or an error (negative)
-  */
--int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int unused)
-+int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
- {
- 	char *p = buffer;
- 	int l;
---- 3.8-rc1+/mm/shmem.c	2012-12-22 09:43:27.660015583 -0800
-+++ linux/mm/shmem.c	2013-01-01 23:26:30.174992261 -0800
-@@ -889,7 +889,7 @@ static void shmem_show_mpol(struct seq_f
- 	if (!mpol || mpol->mode == MPOL_DEFAULT)
- 		return;		/* show nothing */
- 
--	mpol_to_str(buffer, sizeof(buffer), mpol, 1);
-+	mpol_to_str(buffer, sizeof(buffer), mpol);
- 
- 	seq_printf(seq, ",mpol=%s", buffer);
- }
-@@ -2463,7 +2463,7 @@ static int shmem_parse_options(char *opt
- 			if (!gid_valid(sbinfo->gid))
- 				goto bad_val;
- 		} else if (!strcmp(this_char,"mpol")) {
--			if (mpol_parse_str(value, &sbinfo->mpol, 1))
-+			if (mpol_parse_str(value, &sbinfo->mpol))
- 				goto bad_val;
- 		} else {
- 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
+But there is another AA deadlock here I believe.
+page_remove_rmap
+  mem_cgroup_begin_update_page_stat		<<< 1
+  set_page_dirty
+    __set_page_dirty_buffers
+      __set_page_dirty
+        mem_cgroup_begin_update_page_stat	<<< 2
+	  move_lock_mem_cgroup
+	    spin_lock_irqsave(&memcg->move_lock, *flags);
+
+mem_cgroup_begin_update_page_stat is not recursive wrt. locking AFAICS
+because we might race with the moving charges:
+	CPU0						CPU1					
+page_remove_rmap
+						mem_cgroup_can_attach
+  mem_cgroup_begin_update_page_stat (1)
+    rcu_read_lock
+						  mem_cgroup_start_move
+						    atomic_inc(&memcg_moving)
+						    atomic_inc(&memcg->moving_account)
+						    synchronize_rcu
+    __mem_cgroup_begin_update_page_stat
+      mem_cgroup_stolen	<<< TRUE
+      move_lock_mem_cgroup
+  [...]
+        mem_cgroup_begin_update_page_stat (2)
+	  __mem_cgroup_begin_update_page_stat
+	    mem_cgroup_stolen	  <<< still TRUE
+	    move_lock_mem_cgroup  <<< DEADLOCK
+  [...]
+  mem_cgroup_end_update_page_stat
+    rcu_unlock
+    						  # wake up from synchronize_rcu
+						[...]
+						mem_cgroup_move_task
+						  mem_cgroup_move_charge
+						    walk_page_range
+						      mem_cgroup_move_account
+						        move_lock_mem_cgroup
+
+
+Maybe I have missed some other locking which would prevent this from
+happening but the locking relations are really complicated in this area
+so if mem_cgroup_{begin,end}_update_page_stat might be called
+recursively then we need a fat comment which justifies that.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
