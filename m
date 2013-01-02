@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 988FA6B006C
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 09:32:17 -0500 (EST)
-Date: Wed, 2 Jan 2013 14:32:16 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/2] tmpfs mempolicy: fix /proc/mounts corrupting
- memory
-In-Reply-To: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
-Message-ID: <0000013bfbad4630-c888f29b-7294-4685-8164-87e2fb136796-000000@email.amazonses.com>
-References: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 108196B0071
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 10:34:42 -0500 (EST)
+Received: by mail-qc0-f181.google.com with SMTP id x40so7273818qcp.26
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 07:34:42 -0800 (PST)
+Date: Wed, 2 Jan 2013 10:34:39 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 06/13] cpuset: cleanup cpuset[_can]_attach()
+Message-ID: <20130102153439.GA11220@mtj.dyndns.org>
+References: <1354138460-19286-1-git-send-email-tj@kernel.org>
+ <1354138460-19286-7-git-send-email-tj@kernel.org>
+ <50DACF5B.6050705@huawei.com>
+ <20121226120415.GA18193@mtj.dyndns.org>
+ <87zk0s5h7c.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87zk0s5h7c.fsf@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Li Zefan <lizefan@huawei.com>, paul@paulmenage.org, glommer@parallels.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 2 Jan 2013, Hugh Dickins wrote:
+Hello, Rusty.
 
-> Recent NUMA enhancements are not to blame: this dates back to 2.6.35,
-> when commit e17f74af351c "mempolicy: don't call mpol_set_nodemask()
-> when no_context" skipped mpol_parse_str()'s call to mpol_set_nodemask(),
-> which used to initialize v.preferred_node, or set MPOL_F_LOCAL in flags.
-> With slab poisoning, you can then rely on mpol_to_str() to set the bit
-> for node 0x6b6b, probably in the next page above the caller's stack.
+On Wed, Jan 02, 2013 at 03:12:15PM +1030, Rusty Russell wrote:
+> > Hmmm?  cpumask_t can't be used for stack but other than that I don't
+> > see how it would be deprecated completely.  Rusty, can you please
+> > chime in?
+> 
+> The long-never-quite-complete-plan was for struct cpumask to be
+> undefined when CONFIG_CPUMASK_OFFSTACK=y.  That means noone can declare
+> them, or pass them on the stack, since they'll get a compiler error.
+> 
+> Now, there are some cases where it really is a reason to use a static
+> bitmap, and 1/2 a K of wasted space be damned.  There's a
+> deliberately-ugly way of doing that: declare a bitmap and use
+> to_cpumask().  Of course, if we ever really want to remove NR_CPUS and
+> make it completely generic, we have to kill all these too, but noone is
+> serious about that.
 
-Ugly. But 2.6.35 means that the patch was not included in several
-enterprise linux releases.
+So, I guess this currently is caught in a place which isn't here or
+there.  I'm pretty skeptical whether it makes sense to bother about
+static usages tho.  Can I keep them for static ones?
 
-> I don't understand why MPOL_LOCAL is described as a pseudo-policy:
-> it's a reasonable policy which suffers from a confusing implementation
-> in terms of MPOL_PREFERRED with MPOL_F_LOCAL.  I believe this would be
-> much more robust if MPOL_LOCAL were recognized in switch statements
-> throughout, MPOL_F_LOCAL deleted, and MPOL_PREFERRED use the (possibly
-> empty) nodes mask like everyone else, instead of its preferred_node
-> variant (I presume an optimization from the days before MPOL_LOCAL).
-> But that would take me too long to get right and fully tested.
+Thanks.
 
-The current approaches to implementing NUMA scheduling are making
-MPOL_LOCAL an explicit policy. See
-https://patchwork.kernel.org/patch/1703641/.
-
-Does that address the concerns?
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
