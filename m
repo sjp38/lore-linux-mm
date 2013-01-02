@@ -1,29 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 74C5B6B0068
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 15:40:03 -0500 (EST)
-Received: by mail-oa0-f47.google.com with SMTP id h1so13242902oag.20
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 12:40:02 -0800 (PST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id A52116B0068
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 15:47:13 -0500 (EST)
+Date: Wed, 2 Jan 2013 20:47:12 +0000
+From: Eric Wong <normalperson@yhbt.net>
+Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
+Message-ID: <20130102204712.GA17806@dcvr.yhbt.net>
+References: <20121228014503.GA5017@dcvr.yhbt.net>
+ <20130102200848.GA4500@dcvr.yhbt.net>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1301020201510.18049@eggly.anvils>
-References: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils> <alpine.LNX.2.00.1301020201510.18049@eggly.anvils>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Wed, 2 Jan 2013 15:39:42 -0500
-Message-ID: <CAHGf_=rfmdmC+u48gjPvCTQ9=t5MEKY4DmxUuHrkJf9AN9BZ8w@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mempolicy: remove arg from mpol_parse_str, mpol_to_str
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130102200848.GA4500@dcvr.yhbt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+Cc: netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Wed, Jan 2, 2013 at 5:04 AM, Hugh Dickins <hughd@google.com> wrote:
-> Remove the unused argument (formerly no_context) from mpol_parse_str()
-> and from mpol_to_str().
->
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+Eric Wong <normalperson@yhbt.net> wrote:
+> [1] my full setup is very strange.
+> 
+>     Other than the FUSE component I forgot to mention, little depends on
+>     the kernel.  With all this, the standalone toosleepy can get stuck.
+>     I'll try to reproduce it with less...
 
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+I just confirmed my toosleepy processes will get stuck while just
+doing "rsync -a" between local disks.  So this does not depend on
+sendfile or FUSE to reproduce.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
