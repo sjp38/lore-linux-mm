@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id 550796B006C
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 09:24:19 -0500 (EST)
-Date: Wed, 2 Jan 2013 14:24:17 +0000
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 988FA6B006C
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 09:32:17 -0500 (EST)
+Date: Wed, 2 Jan 2013 14:32:16 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v5 04/14] memory-hotplug: remove /sys/firmware/memmap/X
- sysfs
-In-Reply-To: <50DBBBEF.70701@cn.fujitsu.com>
-Message-ID: <0000013bfba5f7f2-ba70da31-0707-48fd-949e-0bad11ba0e10-000000@email.amazonses.com>
-References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-5-git-send-email-tangchen@cn.fujitsu.com> <50DA6F5A.2070601@jp.fujitsu.com> <50DBBBEF.70701@cn.fujitsu.com>
+Subject: Re: [PATCH 1/2] tmpfs mempolicy: fix /proc/mounts corrupting
+ memory
+In-Reply-To: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
+Message-ID: <0000013bfbad4630-c888f29b-7294-4685-8164-87e2fb136796-000000@email.amazonses.com>
+References: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 27 Dec 2012, Tang Chen wrote:
+On Wed, 2 Jan 2013, Hugh Dickins wrote:
 
-> On 12/26/2012 11:30 AM, Kamezawa Hiroyuki wrote:
-> >> @@ -41,6 +42,7 @@ struct firmware_map_entry {
-> >>    	const char		*type;	/* type of the memory range */
-> >>    	struct list_head	list;	/* entry for the linked list */
-> >>    	struct kobject		kobj;   /* kobject for each entry */
-> >> +	unsigned int		bootmem:1; /* allocated from bootmem */
-> >>    };
-> >
-> > Can't we detect from which the object is allocated from, slab or bootmem ?
-> >
-> > Hm, for example,
-> >
-> >      PageReserved(virt_to_page(address_of_obj)) ?
-> >      PageSlab(virt_to_page(address_of_obj)) ?
-> >
->
-> Hi Kamezawa-san,
->
-> I think we can detect it without a new member. I think bootmem:1 member
-> is just for convenience. I think I can remove it. :)
+> Recent NUMA enhancements are not to blame: this dates back to 2.6.35,
+> when commit e17f74af351c "mempolicy: don't call mpol_set_nodemask()
+> when no_context" skipped mpol_parse_str()'s call to mpol_set_nodemask(),
+> which used to initialize v.preferred_node, or set MPOL_F_LOCAL in flags.
+> With slab poisoning, you can then rely on mpol_to_str() to set the bit
+> for node 0x6b6b, probably in the next page above the caller's stack.
 
-Larger size slab allocations may fall back to the page allocator but then
-the slabs do not track this allocation. That memory can be freed using the
-page allocator.
+Ugly. But 2.6.35 means that the patch was not included in several
+enterprise linux releases.
 
-If you see pageslab then you can always remove using the slab allocator.
-Otherwise the page allocator should work (unless it was some
-special case bootmem allocation).
+> I don't understand why MPOL_LOCAL is described as a pseudo-policy:
+> it's a reasonable policy which suffers from a confusing implementation
+> in terms of MPOL_PREFERRED with MPOL_F_LOCAL.  I believe this would be
+> much more robust if MPOL_LOCAL were recognized in switch statements
+> throughout, MPOL_F_LOCAL deleted, and MPOL_PREFERRED use the (possibly
+> empty) nodes mask like everyone else, instead of its preferred_node
+> variant (I presume an optimization from the days before MPOL_LOCAL).
+> But that would take me too long to get right and fully tested.
+
+The current approaches to implementing NUMA scheduling are making
+MPOL_LOCAL an explicit policy. See
+https://patchwork.kernel.org/patch/1703641/.
+
+Does that address the concerns?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
