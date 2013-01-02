@@ -1,64 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id BBECB6B0074
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 13:48:45 -0500 (EST)
-Received: by mail-da0-f48.google.com with SMTP id k18so6611335dae.21
-        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 10:48:45 -0800 (PST)
-Date: Wed, 2 Jan 2013 10:48:42 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/2] tmpfs mempolicy: fix /proc/mounts corrupting
- memory
-In-Reply-To: <CA+55aFyH63agfbf+pYNRGHaprPqAJF=F19GR6ASP_RhoyDGLdA@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1301021031230.30549@eggly.anvils>
-References: <alpine.LNX.2.00.1301020153090.18049@eggly.anvils> <0000013bfbfbb293-ccc455ed-2db6-46e2-8362-dc418bae0def-000000@email.amazonses.com> <CA+55aFyH63agfbf+pYNRGHaprPqAJF=F19GR6ASP_RhoyDGLdA@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 9E5766B006C
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 14:04:35 -0500 (EST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <9955b9e0-731b-4cbf-9db0-683fcd32f944@default>
+Date: Wed, 2 Jan 2013 11:04:24 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 7/8] zswap: add to mm/
+References: <<1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <<1355262966-15281-8-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <0e91c1e5-7a62-4b89-9473-09fff384a334@default>
+ <50E32255.60901@linux.vnet.ibm.com> <50E4588E.6080001@linux.vnet.ibm.com>
+ <28a63847-7659-44c4-9c33-87f5d50b2ea0@default>
+ <50E479AD.9030502@linux.vnet.ibm.com>
+In-Reply-To: <50E479AD.9030502@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Lee Schermerhorn <lee.schermerhorn@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Dave Hansen <dave@linux.vnet.ibm.com>
+Cc: Seth Jennings <sjenning@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, 2 Jan 2013, Linus Torvalds wrote:
-> On Wed, Jan 2, 2013 at 7:57 AM, Christoph Lameter <cl@linux.com> wrote:
-> > On Wed, 2 Jan 2013, Hugh Dickins wrote:
-> >
-> >> @@ -2796,10 +2787,7 @@ int mpol_to_str(char *buffer, int maxlen
-> >>       case MPOL_BIND:
-> >>               /* Fall through */
-> >>       case MPOL_INTERLEAVE:
-> >> -             if (no_context)
-> >> -                     nodes = pol->w.user_nodemask;
-> >> -             else
-> >> -                     nodes = pol->v.nodes;
-> >> +             nodes = pol->v.nodes;
-> >>               break;
-> >>
-> >
-> > no_context was always true. Why is the code from the false branch kept?
-> 
-> no_context is zero in the caller in fs/proc/task_mmu.c, and one in the
-> mm/shmem.c caller. So it's not always true (for mpol_parse_str() there
-> is only one caller, and it's always true as Hugh said).
+> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+> Subject: Re: [PATCH 7/8] zswap: add to mm/
 
-Yes, I think Christoph was remembering the old days when mpol_to_str()
-started out just for tmpfs; later /proc/pid/numa_maps extended it for
-use on vmas (the "contextualized" !no_context case).
+Hi Dave --
 
-> 
-> Anyway, I do not know why Hugh took the true case, but I don't really
-> imagine that it matters. So I'll take these two patches, but it would
-> be good if you double-checked this, Hugh.
+I suspect we are in violent agreement but just to make sure...
 
-Thanks, yes, I played with a number of ways of fixing it (and sat on my
-original fix for several days, rightly guessing this an area where more
-problems would emerge - only later realizing mpol=prefer:Node wrong too).
+Although zswap is the current example, I guess I am discussing
+a bigger issue, which IMHO is much more important:  How should
+compression be utilized in the kernel (if at all)?  Zswap is
+simply one implementation of in-kernel compression (handling
+anonymous pages only) and zcache is another (handling both
+anonymous pages and pagecache pages).   Each has some
+limited policy, and policy defaults built-in, but neither IMHO
+is adequately aware of (let alone integrated with) MM policy to
+be useful to a broad set of end users and to be enabled by default
+by generic distros.
+=20
+> On 01/02/2013 09:26 AM, Dan Magenheimer wrote:
+> > However if one compares the total percentage
+> > of RAM used for zpages by zswap vs the total percentage of RAM
+> > used by slab, I suspect that the zswap number will dominate,
+> > perhaps because zswap is storing primarily data and slab is
+> > storing primarily metadata?
+>=20
+> That's *obviously* 100% dependent on how you configure zswap.  But, that
+> said, most of _my_ systems tend to sit with about 5% of memory in
+> reclaimable slab=20
 
-I could probably have kept mpol_to_str()'s no_context arg, and done
-something with it in the MPOL_PREFERRED case; perhaps would have chosen
-that if the arg had been more understandably named than "no_context";
-but in the end thought removing the need for the arg was simplest.
+The 5% "sitting" number for slab is somewhat interesting, but
+IMHO irrelevant here. The really interesting value is what percent
+is used by slab when the system is under high memory pressure; I'd
+imagine that number would be much smaller.  True?
 
-Hugh
+> which is certainly on par with how I'd expect to see
+> zswap used.
+
+You are suggesting that the default zswap_max_pool_percent
+should be set to 5?  (Current default is 20.)  Zswap has little
+or no value on a system that would otherwise never swap.
+Why would you set the zswap limit so low?  IMHO, even 20
+may be too low.
+
+> > I don't claim to be any kind of expert here, but I'd imagine
+> > that MM doesn't try to manage the total amount of slab space
+> > because slab is "a cost of doing business".  However, for
+> > in-kernel compression to be widely useful, IMHO it will be
+> > critical for MM to somehow load balance between total pageframes
+> > used for compressed pages vs total pageframes used for
+> > normal pages, just as today it needs to balance between
+> > active and inactive pages.
+>=20
+> The issue isn't about balancing.  It's about reclaim where the VM only
+> cares about whole pages.  If our subsystem (zwhatever or slab) is only
+> designed to reclaim _parts_ of pages, can we be successful in returning
+> whole pages to the VM?
+
+IMHO, it's about *both* balancing _and_ reclaim.  One remaining
+major point of debate between zcache and zswap is that zcache
+accepts lower density to ensure that whole pages can be easily
+returned to the VM (and thus allow balancing) while zswap targets
+best density (by using zsmalloc) and doesn't address returning
+whole pages to the VM.
+
+> The slab shrinkers only work on parts of pages (singular slab objects).
+>  Yet, it does appear that they function well enough when we try to
+> reclaim from them.  I've never seen a slab's sizes spiral out of control
+> due to fragmentation.
+
+Perhaps this is because the reclaimable slab objects are mostly
+metadata which is highly connected to reclaimable data objects?
+E.g. reclaiming most reclaimable data pages also coincidentally
+reclaims most slab objects?
+
+(Also, it is not the slab size that would be the issue here but
+its density... i.e. if, after shrinking, 1000 pageframes contain
+only 2000 various 4-byt objects, that would be "out of control".
+Is there any easy visibility into slab density?)
+
+In any case, I would posit that both the nature of zpages and their
+average size relative to a whole page is quite unusual compared to slab.
+So while there may be some useful comparisons between zswap
+and slab, the differences may warrant dramatically different policy.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
