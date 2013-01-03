@@ -1,68 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9253A6B0068
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 12:49:58 -0500 (EST)
-Received: by mail-vc0-f175.google.com with SMTP id fy7so15506730vcb.20
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 09:49:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20121231161135.GH7564@quack.suse.cz>
-References: <cover.1356124965.git.luto@amacapital.net> <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
- <20121222082933.GA26477@infradead.org> <CALCETrX423Au=Q0SgdpFp7hcVBAw0t4FprO18Wk9j0K=j8fg_w@mail.gmail.com>
- <20121231161135.GH7564@quack.suse.cz>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 3 Jan 2013 09:49:37 -0800
-Message-ID: <CALCETrUXVQooGt+10zDzK1HLoEOPc+1KH41mFewjxMjjUPNvMA@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] mm: Update file times when inodes are written
- after mmaped writes
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 5B75F6B0069
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 12:54:39 -0500 (EST)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH v3 0/7] rework mem_cgroup iterator
+Date: Thu,  3 Jan 2013 18:54:14 +0100
+Message-Id: <1357235661-29564-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-On Mon, Dec 31, 2012 at 8:11 AM, Jan Kara <jack@suse.cz> wrote:
-> On Sat 22-12-12 00:43:30, Andy Lutomirski wrote:
->> On Sat, Dec 22, 2012 at 12:29 AM, Christoph Hellwig <hch@infradead.org> wrote:
->> > NAK, we went through great trouble to get rid of the nasty layering
->> > violation where the VM called file_update_time directly just a short
->> > while ago, reintroducing that is a massive step back.
->> >
+Hi all,
+this is a third version of the patchset previously posted here:
+https://lkml.org/lkml/2012/11/26/616
 
-[...]
+The patch set tries to make mem_cgroup_iter saner in the way how it
+walks hierarchies. css->id based traversal is far from being ideal as it
+is not deterministic because it depends on the creation ordering.
 
->
->> The original version of this patch did the update in ->writepage and
->> ->writepages, but that may have had lock ordering issues.  (I wasn't
->> able to confirm that there was any actual problem.)
->   Well, your call of mapping_flush_cmtime() from do_writepages() is easy to
-> move to generic_writepages(). Thus filesystem can easily implement it's own
-> ->writepages() callback if time update doesn't suit it.
+Diffstat doesn't look that promising as in previous versions anymore but
+I think it is worth the resulting outcome (and the sanity ;)).
 
-That sounds fine to me.  Updating the handful of filesystems in there
-isn't a big deal.
+The first patch fixes a potential misbehaving which I haven't seen but
+the fix is needed for the later patches anyway. We could take it alone
+as well but I do not have any bug report to base the fix on. The second
+one is also preparatory and it is new to the series.
 
->With the call from
-> remove_vma() it is more problematic (and the calling context there is
-> harder as well because we hold mmap_sem). We could maybe leave the call
-> upto filesystem's ->release callback (and provide generic ->release handler
-> which just calls mapping_flush_cmtime()). It won't be perfect because that
-> gets called only after the last file descriptor for that struct file is
-> closed (i.e., if a process forks and child inherits mappings, ->release gets
-> called only after both parent and the child unmap the file) but it should
-> catch 99% of the real world cases. Christoph, would the be OK with
-> you?
+The third patch is the core of the patchset and it replaces css_get_next
+based on css_id by the generic cgroup pre-order iterator which
+means that css_id is no longer used by memcg. This brings some
+chalanges for the last visited group caching during the reclaim
+(mem_cgroup_per_zone::reclaim_iter). We have to use memcg pointers
+directly now which means that we have to keep a reference to those
+groups' css to keep them alive.
 
-I'm not sure that 99% is good enough -- I'd be nervous about breaking
-some build or versioning system.
+The next patch fixups an unbounded cgroup removal holdoff caused by
+the elevated css refcount and does the clean up on the group removal.
+Thanks to Ying who spotted this during testing of the previous version
+of the patchset.
+I could have folded it into the previous patch but I felt it would be
+too big to review but if people feel it would be better that way, I have
+no problems to squash them together.
 
-vm_ops->close is almost a good place for this, except that it's called
-on some failure paths and it will mess up is_mergeable_vma if lots of
-filesystems suddenly have a ->close operation.  What about adding
-vm_ops->flush, which would be called in remove_vma and possibly
-msync(MS_ASYNC)?  I think that all real filesystems (i.e. things that
-care about cmtime updates) have vm_operations.
+The fourth and fifth patches are an attempt for simplification of the
+mem_cgroup_iter. css juggling is removed and the iteration logic is
+moved to a helper so that the reference counting and iteration are
+separated.
 
---Andy
+The last patch just removes css_get_next as there is no user for it any
+longer.
+
+I am also thinking that leaf-to-root iteration makes more sense but this
+patch is not included in the series yet because I have to think some
+more about the justification.
+
+Same as with the previous version I have tested with a quite simple
+hierarchy:
+        A (limit = 280M, use_hierarchy=true)
+      / | \
+     B  C  D (all have 100M limit)
+
+And a separate kernel build in the each leaf group. This triggers
+both children only and hierarchical reclaim which is parallel so the
+iter_reclaim caching is active a lot. I will hammer it some more but the
+series should be in quite a good shape already. 
+
+Michal Hocko (7):
+      memcg: synchronize per-zone iterator access by a spinlock
+      memcg: keep prev's css alive for the whole mem_cgroup_iter
+      memcg: rework mem_cgroup_iter to use cgroup iterators
+      memcg: remove memcg from the reclaim iterators
+      memcg: simplify mem_cgroup_iter
+      memcg: further simplify mem_cgroup_iter
+      cgroup: remove css_get_next
+
+And the diffstat says:
+ include/linux/cgroup.h |    7 --
+ kernel/cgroup.c        |   49 ------------
+ mm/memcontrol.c        |  199 ++++++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 175 insertions(+), 80 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
