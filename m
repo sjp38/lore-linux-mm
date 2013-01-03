@@ -1,47 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 421B66B0068
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 12:19:29 -0500 (EST)
-Received: by mail-ob0-f180.google.com with SMTP id wd20so13637412obb.25
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 09:19:28 -0800 (PST)
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 9253A6B0068
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 12:49:58 -0500 (EST)
+Received: by mail-vc0-f175.google.com with SMTP id fy7so15506730vcb.20
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 09:49:57 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1357187286-18759-1-git-send-email-minchan@kernel.org>
-References: <1357187286-18759-1-git-send-email-minchan@kernel.org>
-From: Sanjay Ghemawat <sanjay@google.com>
-Date: Thu, 3 Jan 2013 09:19:08 -0800
-Message-ID: <CAOMbAgLaFR+Et=F5+A7HPY16X-Y8VPm6mY_vE9XOJm8C-8OfPg@mail.gmail.com>
-Subject: Re: [RFC v5 0/8] Support volatile for anonymous range
+In-Reply-To: <20121231161135.GH7564@quack.suse.cz>
+References: <cover.1356124965.git.luto@amacapital.net> <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
+ <20121222082933.GA26477@infradead.org> <CALCETrX423Au=Q0SgdpFp7hcVBAw0t4FprO18Wk9j0K=j8fg_w@mail.gmail.com>
+ <20121231161135.GH7564@quack.suse.cz>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 3 Jan 2013 09:49:37 -0800
+Message-ID: <CALCETrUXVQooGt+10zDzK1HLoEOPc+1KH41mFewjxMjjUPNvMA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] mm: Update file times when inodes are written
+ after mmaped writes
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Wed, Jan 2, 2013 at 8:27 PM, Minchan Kim <minchan@kernel.org> wrote:
-> This is still RFC because we need more input from user-space
-> people, more stress test, design discussion about interface/reclaim
+On Mon, Dec 31, 2012 at 8:11 AM, Jan Kara <jack@suse.cz> wrote:
+> On Sat 22-12-12 00:43:30, Andy Lutomirski wrote:
+>> On Sat, Dec 22, 2012 at 12:29 AM, Christoph Hellwig <hch@infradead.org> wrote:
+>> > NAK, we went through great trouble to get rid of the nasty layering
+>> > violation where the VM called file_update_time directly just a short
+>> > while ago, reintroducing that is a massive step back.
+>> >
 
-Speaking as one of the authors of tcmalloc, I don't see any particular
-need for this new system call for tcmalloc.  We are fine using
-madvise(MADV_DONTNEED) and don't notice any significant
-performance issues caused by it.  Background: we throttle how
-quickly we release memory back to the system (1-10MB/s), so
-we do not call madvise() very much, and we don't end up reusing
-madvise-ed away pages at a fast rate. My guess is that we won't
-see large enough application-level performance improvements to
-cause us to change tcmalloc to use this system call.
+[...]
 
-> - What's different with madvise(DONTNEED)?
 >
->   System call semantic
->
->   DONTNEED makes sure user always can see zero-fill pages after
->   he calls madvise while mvolatile can see old data or encounter
->   SIGBUS.
+>> The original version of this patch did the update in ->writepage and
+>> ->writepages, but that may have had lock ordering issues.  (I wasn't
+>> able to confirm that there was any actual problem.)
+>   Well, your call of mapping_flush_cmtime() from do_writepages() is easy to
+> move to generic_writepages(). Thus filesystem can easily implement it's own
+> ->writepages() callback if time update doesn't suit it.
 
-Do you need a new system call for this?  Why not just a new flag to madvise
-with weaker guarantees than zero-filling?  All of the implementation changes
-you point out below could be triggered from that flag.
+That sounds fine to me.  Updating the handful of filesystems in there
+isn't a big deal.
+
+>With the call from
+> remove_vma() it is more problematic (and the calling context there is
+> harder as well because we hold mmap_sem). We could maybe leave the call
+> upto filesystem's ->release callback (and provide generic ->release handler
+> which just calls mapping_flush_cmtime()). It won't be perfect because that
+> gets called only after the last file descriptor for that struct file is
+> closed (i.e., if a process forks and child inherits mappings, ->release gets
+> called only after both parent and the child unmap the file) but it should
+> catch 99% of the real world cases. Christoph, would the be OK with
+> you?
+
+I'm not sure that 99% is good enough -- I'd be nervous about breaking
+some build or versioning system.
+
+vm_ops->close is almost a good place for this, except that it's called
+on some failure paths and it will mess up is_mergeable_vma if lots of
+filesystems suddenly have a ->close operation.  What about adding
+vm_ops->flush, which would be called in remove_vma and possibly
+msync(MS_ASYNC)?  I think that all real filesystems (i.e. things that
+care about cmtime updates) have vm_operations.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
