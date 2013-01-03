@@ -1,83 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id DC68A6B0068
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 08:41:12 -0500 (EST)
-Received: by mail-pa0-f43.google.com with SMTP id fb10so8668614pad.16
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 05:41:12 -0800 (PST)
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20130102204712.GA17806@dcvr.yhbt.net>
-References: <20121228014503.GA5017@dcvr.yhbt.net>
-	 <20130102200848.GA4500@dcvr.yhbt.net>
-	 <20130102204712.GA17806@dcvr.yhbt.net>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 03 Jan 2013 05:41:09 -0800
-Message-ID: <1357220469.21409.24574.camel@edumazet-glaptop>
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 994FD6B0068
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 11:02:34 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Thu, 3 Jan 2013 11:02:32 -0500
+Received: from d01relay01.pok.ibm.com (d01relay01.pok.ibm.com [9.56.227.233])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 5A7DC6E806F
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 11:02:22 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay01.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r03G2NSK308038
+	for <linux-mm@kvack.org>; Thu, 3 Jan 2013 11:02:23 -0500
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r03G2MoA015667
+	for <linux-mm@kvack.org>; Thu, 3 Jan 2013 11:02:22 -0500
+Message-ID: <50E5AB51.8020201@linux.vnet.ibm.com>
+Date: Thu, 03 Jan 2013 10:01:21 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/8] zswap: compressed swap caching
+References: <1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com>
+In-Reply-To: <1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Wed, 2013-01-02 at 20:47 +0000, Eric Wong wrote:
-> Eric Wong <normalperson@yhbt.net> wrote:
-> > [1] my full setup is very strange.
-> > 
-> >     Other than the FUSE component I forgot to mention, little depends on
-> >     the kernel.  With all this, the standalone toosleepy can get stuck.
-> >     I'll try to reproduce it with less...
-> 
-> I just confirmed my toosleepy processes will get stuck while just
-> doing "rsync -a" between local disks.  So this does not depend on
-> sendfile or FUSE to reproduce.
-> --
+Now that we are clear of the merge window, I was hoping others could
+take a look at this patchset.  If you have a chance, I'd greatly
+appreciate the feedback!
 
-How do you tell your 'toosleepy' is stuck ?
-
-If reading its output, you should change its logic, there is no
-guarantee the recv() will deliver exactly 16384 bytes each round.
-
-With the following patch, I cant reproduce the 'apparent stuck'
-
-diff --git a/toosleepy.c b/toosleepy.c
-index e64b7cd..df3610f 100644
---- a/toosleepy.c
-+++ b/toosleepy.c
-@@ -15,6 +15,7 @@
- #include <fcntl.h>
- #include <assert.h>
- #include <limits.h>
-+#include <time.h>
- 
- struct receiver {
- 	int rfd;
-@@ -53,6 +54,7 @@ static void * recv_loop(void *p)
- 	ssize_t r, s;
- 	size_t received = 0;
- 	size_t sent = 0;
-+	time_t t0 = time(NULL), t1;
- 
- 	for (;;) {
- 		r = recv(rcvr->rfd, buf, sizeof(buf), 0);
-@@ -80,9 +82,12 @@ static void * recv_loop(void *p)
- 				write(-1, buf, sizeof(buf));
- 			}
- 		}
--		if ((received % (sizeof(buf) * sizeof(buf) * 16) == 0))
-+		t1 = time(NULL);
-+		if (t1 != t0) {
- 			dprintf(2, " %d progress: %zu\n",
- 			        rcvr->rfd, received);
-+			t0 = t1;
-+		}
- 	}
- 	dprintf(2, "%d got: %zu\n", rcvr->rfd, received);
- 	if (rcvr->sfd >= 0) {
-
-
-
-
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
