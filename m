@@ -1,95 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 5734A6B0069
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 13:56:33 -0500 (EST)
-Received: by mail-vb0-f53.google.com with SMTP id b23so15770823vbz.12
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 10:56:32 -0800 (PST)
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id BB8AB6B006C
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 13:56:47 -0500 (EST)
+Date: Thu, 3 Jan 2013 19:56:42 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 2/3] mm: Update file times when inodes are written
+ after mmaped writes
+Message-ID: <20130103185642.GA5699@quack.suse.cz>
+References: <cover.1356124965.git.luto@amacapital.net>
+ <6b22b806806b21af02b70a2fa860a9d10304fc16.1356124965.git.luto@amacapital.net>
+ <20121222082933.GA26477@infradead.org>
+ <CALCETrX423Au=Q0SgdpFp7hcVBAw0t4FprO18Wk9j0K=j8fg_w@mail.gmail.com>
+ <20121231161135.GH7564@quack.suse.cz>
+ <CALCETrUXVQooGt+10zDzK1HLoEOPc+1KH41mFewjxMjjUPNvMA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CANN689G-+Dns7BEJVG1SNO_CYA1vCEhiyf7F90sKYPvrNsXN9w@mail.gmail.com>
-References: <1356050997-2688-1-git-send-email-walken@google.com>
- <CALCETrUi4JJSahrDKBARrwGsGE=1RbH8WL4tk1YgDmEowzXtSQ@mail.gmail.com>
- <CANN689H+yOeA3pvBMGu52q7brfoDwtkh0pA==c8VVoCkapkx6g@mail.gmail.com>
- <CALCETrU7u7P67QCwmj4qTMHti1=MXyjy3V9FejWbbrMVi01mDw@mail.gmail.com>
- <CANN689GBCsZWKkAQuNGfF4OJwVOyZ5neUcJo=ajzMKNmFug+XQ@mail.gmail.com>
- <CALCETrUOXjm6uoZ=TwyPr0_EQT-10ko5k448FwGP_dMwb=v=AA@mail.gmail.com> <CANN689G-+Dns7BEJVG1SNO_CYA1vCEhiyf7F90sKYPvrNsXN9w@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 3 Jan 2013 10:56:11 -0800
-Message-ID: <CALCETrWBGVP9o0BO1vBSQU9Eh+OQ35SH-xNU4RUdUCYSo+XSLQ@mail.gmail.com>
-Subject: Re: [PATCH 0/9] Avoid populating unbounded num of ptes with mmap_sem held
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrUXVQooGt+10zDzK1HLoEOPc+1KH41mFewjxMjjUPNvMA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Sat, Dec 22, 2012 at 1:37 AM, Michel Lespinasse <walken@google.com> wrote:
-> On Fri, Dec 21, 2012 at 6:16 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> On Fri, Dec 21, 2012 at 5:59 PM, Michel Lespinasse <walken@google.com> wrote:
->>> Could you share your test case so I can try reproducing the issue
->>> you're seeing ?
->>
->> Not so easy.  My test case is a large chunk of a high-frequency
->> trading system :)
->
-> Huh, its probably better if I don't see it then :)
->
->> I just tried it again.  Not I have a task stuck in
->> mlockall(MCL_CURRENT|MCL_FUTURE).  The stack is:
->>
->> [<0000000000000000>] flush_work+0x1c2/0x280
->> [<0000000000000000>] schedule_on_each_cpu+0xe3/0x130
->> [<0000000000000000>] lru_add_drain_all+0x15/0x20
->> [<0000000000000000>] sys_mlockall+0x125/0x1a0
->> [<0000000000000000>] tracesys+0xd0/0xd5
->> [<0000000000000000>] 0xffffffffffffffff
->>
->> The sequence of mmap and munmap calls, according to strace, is:
->>
-> [...]
->> 6084  mmap(0x7f54fd02a000, 6776, PROT_READ|PROT_WRITE,
->> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f54fd02a000
->
-> So I noticed you use mmap with a size that is not a multiple of
-> PAGE_SIZE. This is perfectly legal, but I hadn't tested that case, and
-> lo and behold, it's something I got wrong. Patch to be sent as a reply
-> to this. Without this patch, vm_populate() will show a debug message
-> if you have CONFIG_DEBUG_VM set, and likely spin in an infinite loop
-> if you don't.
->
->> 6084  mmap(NULL, 26258, PROT_READ, MAP_SHARED, 4, 0) = 0x7f5509f9d000
->> 6084  mmap(NULL, 4096, PROT_READ|PROT_WRITE,
->> MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f5509f9c000
->> 6084  munmap(0x7f5509f9c000, 4096)      = 0
->> 6084  mlockall(MCL_CURRENT|MCL_FUTURE
->>
->> This task is unkillable.  Two other tasks are stuck spinning.
->
-> Now I'm confused, because:
->
-> 1- your trace shows the hang occurs during mlockall(), and this code
-> really wasn't touched much in my series (besides renaming
-> do_mlock_pages into __mm_populate())
->
-> 2- the backtrace above showed sys_mlockall() -> lru_add_drain_all(),
-> which is the very beginning of mlockall(), before anything of
-> importance happens (and in particular, before the MCL_FUTURE flag
-> takes action). So, I'm going to assume that it's one of the other
-> spinning threads that is breaking things. If one of the spinning
-> threads got stuck within vm_populate(), this could even be explained
-> by the bug I mentioned above.
->
-> Could you check if the fix I'm going to send as a reply to this works
-> for you, and if not, where the two spinning threads are being stuck ?
->
+On Thu 03-01-13 09:49:37, Andy Lutomirski wrote:
+> On Mon, Dec 31, 2012 at 8:11 AM, Jan Kara <jack@suse.cz> wrote:
+> > On Sat 22-12-12 00:43:30, Andy Lutomirski wrote:
+> >> On Sat, Dec 22, 2012 at 12:29 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> >> > NAK, we went through great trouble to get rid of the nasty layering
+> >> > violation where the VM called file_update_time directly just a short
+> >> > while ago, reintroducing that is a massive step back.
+> >> >
+[...]
+> >With the call from
+> > remove_vma() it is more problematic (and the calling context there is
+> > harder as well because we hold mmap_sem). We could maybe leave the call
+> > upto filesystem's ->release callback (and provide generic ->release handler
+> > which just calls mapping_flush_cmtime()). It won't be perfect because that
+> > gets called only after the last file descriptor for that struct file is
+> > closed (i.e., if a process forks and child inherits mappings, ->release gets
+> > called only after both parent and the child unmap the file) but it should
+> > catch 99% of the real world cases. Christoph, would the be OK with
+> > you?
+> 
+> I'm not sure that 99% is good enough -- I'd be nervous about breaking
+> some build or versioning system.
+> 
+> vm_ops->close is almost a good place for this, except that it's called
+> on some failure paths and it will mess up is_mergeable_vma if lots of
+> filesystems suddenly have a ->close operation.  What about adding
+> vm_ops->flush, which would be called in remove_vma and possibly
+> msync(MS_ASYNC)?  I think that all real filesystems (i.e. things that
+> care about cmtime updates) have vm_operations.
+  Yeah, that could work. I'm still somewhat nervous about updating the time
+stamp under mmap_sem but in ->page_mkwrite we were in the same situation so
+I guess it's fine.
 
-It works.  In case anyone cares, the whole series is
-
-Tested-by: Andy Lutomirski <luto@amacapital.net>
-
-I'll let you know if anything else breaks.  I'll be pounding on a
-kernel with this patched in for the next couple of days, I expect.
-
---Andy
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
