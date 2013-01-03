@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id 8DE3C6B006C
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 20:16:58 -0500 (EST)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH 06/13] cpuset: cleanup cpuset[_can]_attach()
-In-Reply-To: <20130102153439.GA11220@mtj.dyndns.org>
-References: <1354138460-19286-1-git-send-email-tj@kernel.org> <1354138460-19286-7-git-send-email-tj@kernel.org> <50DACF5B.6050705@huawei.com> <20121226120415.GA18193@mtj.dyndns.org> <87zk0s5h7c.fsf@rustcorp.com.au> <20130102153439.GA11220@mtj.dyndns.org>
-Date: Thu, 03 Jan 2013 11:17:11 +1030
-Message-ID: <871ue35bzk.fsf@rustcorp.com.au>
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 525A06B006C
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 21:14:44 -0500 (EST)
+Message-ID: <50E4E989.5090202@redhat.com>
+Date: Wed, 02 Jan 2013 21:14:33 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH 3/9] mm: introduce mm_populate() for populating new vmas
+References: <1356050997-2688-1-git-send-email-walken@google.com> <1356050997-2688-4-git-send-email-walken@google.com>
+In-Reply-To: <1356050997-2688-4-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Li Zefan <lizefan@huawei.com>, paul@paulmenage.org, glommer@parallels.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Jorn_Engel <joern@logfs.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Tejun Heo <tj@kernel.org> writes:
-> Hello, Rusty.
+On 12/20/2012 07:49 PM, Michel Lespinasse wrote:
+> When creating new mappings using the MAP_POPULATE / MAP_LOCKED flags
+> (or with MCL_FUTURE in effect), we want to populate the pages within the
+> newly created vmas. This may take a while as we may have to read pages
+> from disk, so ideally we want to do this outside of the write-locked
+> mmap_sem region.
 >
-> On Wed, Jan 02, 2013 at 03:12:15PM +1030, Rusty Russell wrote:
->> > Hmmm?  cpumask_t can't be used for stack but other than that I don't
->> > see how it would be deprecated completely.  Rusty, can you please
->> > chime in?
->> 
->> The long-never-quite-complete-plan was for struct cpumask to be
->> undefined when CONFIG_CPUMASK_OFFSTACK=y.  That means noone can declare
->> them, or pass them on the stack, since they'll get a compiler error.
->> 
->> Now, there are some cases where it really is a reason to use a static
->> bitmap, and 1/2 a K of wasted space be damned.  There's a
->> deliberately-ugly way of doing that: declare a bitmap and use
->> to_cpumask().  Of course, if we ever really want to remove NR_CPUS and
->> make it completely generic, we have to kill all these too, but noone is
->> serious about that.
+> This change introduces mm_populate(), which is used to defer populating
+> such mappings until after the mmap_sem write lock has been released.
+> This is implemented as a generalization of the former do_mlock_pages(),
+> which accomplished the same task but was using during mlock() / mlockall().
 >
-> So, I guess this currently is caught in a place which isn't here or
-> there.  I'm pretty skeptical whether it makes sense to bother about
-> static usages tho.  Can I keep them for static ones?
+> Reported-by: Andy Lutomirski <luto@amacapital.net>
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-I didn't realize that cpuset_attach was a fastpath.  If it is, put a
-static there and I'll fix turn it into a bitmap when I need to.
-Otherwise, please don't change the code in the first place.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-Cheers,
-Rusty.
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
