@@ -1,85 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 12BF16B006C
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 23:28:11 -0500 (EST)
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 977A36B0073
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 23:28:13 -0500 (EST)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 2/8] Don't allow volatile attribute on THP and KSM
-Date: Thu,  3 Jan 2013 13:28:00 +0900
-Message-Id: <1357187286-18759-3-git-send-email-minchan@kernel.org>
+Subject: [RFC 4/8] add page_locked parameter in free_swap_and_cache
+Date: Thu,  3 Jan 2013 13:28:02 +0900
+Message-Id: <1357187286-18759-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1357187286-18759-1-git-send-email-minchan@kernel.org>
 References: <1357187286-18759-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-VOLATILE imply the the pages in the range isn't working set any more
-so it's pointless that make them to THP/KSM.
+Add page_locked parameter for avoiding trylock_page.
+Next patch will use it.
 
-Cc: Rik van Riel <riel@redhat.com>
 Cc: Hugh Dickins <hughd@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/huge_memory.c |    9 +++++++--
- mm/ksm.c         |    3 ++-
- 2 files changed, 9 insertions(+), 3 deletions(-)
+ include/linux/swap.h |    6 +++---
+ mm/fremap.c          |    2 +-
+ mm/memory.c          |    2 +-
+ mm/shmem.c           |    2 +-
+ mm/swapfile.c        |    7 ++++---
+ 5 files changed, 10 insertions(+), 9 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 40f17c3..5ddd00e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1477,7 +1477,8 @@ out:
- 	return ret;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 68df9c1..5cf2191 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -357,7 +357,7 @@ extern int swap_duplicate(swp_entry_t);
+ extern int swapcache_prepare(swp_entry_t);
+ extern void swap_free(swp_entry_t);
+ extern void swapcache_free(swp_entry_t, struct page *page);
+-extern int free_swap_and_cache(swp_entry_t);
++extern int free_swap_and_cache(swp_entry_t, bool);
+ extern int swap_type_of(dev_t, sector_t, struct block_device **);
+ extern unsigned int count_swap_pages(int, int);
+ extern sector_t map_swap_page(struct page *, struct block_device **);
+@@ -397,8 +397,8 @@ static inline void show_swap_cache_info(void)
+ {
  }
  
--#define VM_NO_THP (VM_SPECIAL|VM_MIXEDMAP|VM_HUGETLB|VM_SHARED|VM_MAYSHARE)
-+#define VM_NO_THP (VM_SPECIAL|VM_MIXEDMAP|VM_HUGETLB|\
-+			VM_SHARED|VM_MAYSHARE|VM_VOLATILE)
+-#define free_swap_and_cache(swp)	is_migration_entry(swp)
+-#define swapcache_prepare(swp)		is_migration_entry(swp)
++#define free_swap_and_cache(swp, page_locked)	is_migration_entry(swp)
++#define swapcache_prepare(swp)			is_migration_entry(swp)
  
- int hugepage_madvise(struct vm_area_struct *vma,
- 		     unsigned long *vm_flags, int advice)
-@@ -1641,6 +1642,8 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
- 		 * page fault if needed.
- 		 */
- 		return 0;
-+	if (vma->vm_flags & VM_VOLATILE)
-+		return 0;
- 	if (vma->vm_ops)
- 		/* khugepaged not yet working on file or special mappings */
- 		return 0;
-@@ -1969,6 +1972,8 @@ static void collapse_huge_page(struct mm_struct *mm,
- 		goto out;
- 	if (is_vma_temporary_stack(vma))
- 		goto out;
-+	if (vma->vm_flags & VM_VOLATILE)
-+		goto out;
- 	VM_BUG_ON(vma->vm_flags & VM_NO_THP);
+ static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
+ {
+diff --git a/mm/fremap.c b/mm/fremap.c
+index a0aaf0e..a300508 100644
+--- a/mm/fremap.c
++++ b/mm/fremap.c
+@@ -44,7 +44,7 @@ static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		}
+ 	} else {
+ 		if (!pte_file(pte))
+-			free_swap_and_cache(pte_to_swp_entry(pte));
++			free_swap_and_cache(pte_to_swp_entry(pte), false);
+ 		pte_clear_not_present_full(mm, addr, ptep, 0);
+ 	}
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 221fc9f..c475cc1 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1198,7 +1198,7 @@ again:
+ 				else
+ 					rss[MM_FILEPAGES]--;
+ 			}
+-			if (unlikely(!free_swap_and_cache(entry)))
++			if (unlikely(!free_swap_and_cache(entry, false)))
+ 				print_bad_pte(vma, addr, ptent, NULL);
+ 		}
+ 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 50c5b8f..33ec719 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -391,7 +391,7 @@ static int shmem_free_swap(struct address_space *mapping,
+ 	error = shmem_radix_tree_replace(mapping, index, radswap, NULL);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	if (!error)
+-		free_swap_and_cache(radix_to_swp_entry(radswap));
++		free_swap_and_cache(radix_to_swp_entry(radswap), false);
+ 	return error;
+ }
  
- 	pgd = pgd_offset(mm, address);
-@@ -2196,7 +2201,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
- 
- 		if ((!(vma->vm_flags & VM_HUGEPAGE) &&
- 		     !khugepaged_always()) ||
--		    (vma->vm_flags & VM_NOHUGEPAGE)) {
-+		     (vma->vm_flags & (VM_NOHUGEPAGE|VM_VOLATILE))) {
- 		skip:
- 			progress++;
- 			continue;
-diff --git a/mm/ksm.c b/mm/ksm.c
-index ae539f0..2775f59 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1486,7 +1486,8 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 		 */
- 		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
- 				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
--				 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP))
-+				 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP   |
-+				 VM_VOLATILE))
- 			return 0;		/* just ignore the advice */
- 
- #ifdef VM_SAO
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index f91a255..43437ff 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -688,7 +688,7 @@ int try_to_free_swap(struct page *page)
+  * Free the swap entry like above, but also try to
+  * free the page cache entry if it is the last user.
+  */
+-int free_swap_and_cache(swp_entry_t entry)
++int free_swap_and_cache(swp_entry_t entry, bool page_locked)
+ {
+ 	struct swap_info_struct *p;
+ 	struct page *page = NULL;
+@@ -700,7 +700,7 @@ int free_swap_and_cache(swp_entry_t entry)
+ 	if (p) {
+ 		if (swap_entry_free(p, entry, 1) == SWAP_HAS_CACHE) {
+ 			page = find_get_page(&swapper_space, entry.val);
+-			if (page && !trylock_page(page)) {
++			if (page && !page_locked && !trylock_page(page)) {
+ 				page_cache_release(page);
+ 				page = NULL;
+ 			}
+@@ -717,7 +717,8 @@ int free_swap_and_cache(swp_entry_t entry)
+ 			delete_from_swap_cache(page);
+ 			SetPageDirty(page);
+ 		}
+-		unlock_page(page);
++		if (!page_locked)
++			unlock_page(page);
+ 		page_cache_release(page);
+ 	}
+ 	return p != NULL;
 -- 
 1.7.9.5
 
