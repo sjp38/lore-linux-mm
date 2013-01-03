@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 53E816B0068
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 11:27:56 -0500 (EST)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Thu, 3 Jan 2013 09:27:55 -0700
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id B98B219D8045
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 09:27:41 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r03GRfoG179828
-	for <linux-mm@kvack.org>; Thu, 3 Jan 2013 09:27:41 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r03GReq5022676
-	for <linux-mm@kvack.org>; Thu, 3 Jan 2013 09:27:40 -0700
-Message-ID: <50E5B173.7070807@linux.vnet.ibm.com>
-Date: Thu, 03 Jan 2013 08:27:31 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 421B66B0068
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 12:19:29 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id wd20so13637412obb.25
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 09:19:28 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [RFC 2/8] Don't allow volatile attribute on THP and KSM
-References: <1357187286-18759-1-git-send-email-minchan@kernel.org> <1357187286-18759-3-git-send-email-minchan@kernel.org>
-In-Reply-To: <1357187286-18759-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1357187286-18759-1-git-send-email-minchan@kernel.org>
+References: <1357187286-18759-1-git-send-email-minchan@kernel.org>
+From: Sanjay Ghemawat <sanjay@google.com>
+Date: Thu, 3 Jan 2013 09:19:08 -0800
+Message-ID: <CAOMbAgLaFR+Et=F5+A7HPY16X-Y8VPm6mY_vE9XOJm8C-8OfPg@mail.gmail.com>
+Subject: Re: [RFC v5 0/8] Support volatile for anonymous range
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 01/02/2013 08:28 PM, Minchan Kim wrote:
-> VOLATILE imply the the pages in the range isn't working set any more
-> so it's pointless that make them to THP/KSM.
+On Wed, Jan 2, 2013 at 8:27 PM, Minchan Kim <minchan@kernel.org> wrote:
+> This is still RFC because we need more input from user-space
+> people, more stress test, design discussion about interface/reclaim
 
-One of the points of this implementation is that it be able to preserve
-memory contents when there is no pressure.  If those contents happen to
-contain a THP/KSM page, and there's no pressure, it seems like the right
-thing to do is to leave that memory in place.
+Speaking as one of the authors of tcmalloc, I don't see any particular
+need for this new system call for tcmalloc.  We are fine using
+madvise(MADV_DONTNEED) and don't notice any significant
+performance issues caused by it.  Background: we throttle how
+quickly we release memory back to the system (1-10MB/s), so
+we do not call madvise() very much, and we don't end up reusing
+madvise-ed away pages at a fast rate. My guess is that we won't
+see large enough application-level performance improvements to
+cause us to change tcmalloc to use this system call.
 
-It might be a fair thing to do this in order to keep the implementation
-more sane at the moment.  But, we should make sure there's some good
-text on that in the changelog.
+> - What's different with madvise(DONTNEED)?
+>
+>   System call semantic
+>
+>   DONTNEED makes sure user always can see zero-fill pages after
+>   he calls madvise while mvolatile can see old data or encounter
+>   SIGBUS.
+
+Do you need a new system call for this?  Why not just a new flag to madvise
+with weaker guarantees than zero-filling?  All of the implementation changes
+you point out below could be triggered from that flag.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
