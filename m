@@ -1,73 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id A5E5C6B0072
-	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 23:28:16 -0500 (EST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 8/8] extend PGVOLATILE vmstat to kswapd
-Date: Thu,  3 Jan 2013 13:28:06 +0900
-Message-Id: <1357187286-18759-9-git-send-email-minchan@kernel.org>
-In-Reply-To: <1357187286-18759-1-git-send-email-minchan@kernel.org>
-References: <1357187286-18759-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 70FC86B0068
+	for <linux-mm@kvack.org>; Wed,  2 Jan 2013 23:35:40 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id d1so7645518qca.2
+        for <linux-mm@kvack.org>; Wed, 02 Jan 2013 20:35:39 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20130102134334.GB30633@quack.suse.cz>
+References: <1356847190-7986-1-git-send-email-linkinjeon@gmail.com>
+	<20121231113054.GC7564@quack.suse.cz>
+	<20130102134334.GB30633@quack.suse.cz>
+Date: Thu, 3 Jan 2013 13:35:39 +0900
+Message-ID: <CAKYAXd8-sZo0XcdHuyOQ1qT_s3kJXyphXsjSS7e1-sJ1QaAOgg@mail.gmail.com>
+Subject: Re: [PATCH] writeback: fix writeback cache thrashing
+From: Namjae Jeon <linkinjeon@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, fengguang.wu@intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Dave Chinner <dchinner@redhat.com>
 
-Now kswapd can discard volatile pages so let's cover it for vmstat.
+2013/1/2, Jan Kara <jack@suse.cz>:
+> On Tue 01-01-13 08:51:04, Wanpeng Li wrote:
+>> On Mon, Dec 31, 2012 at 12:30:54PM +0100, Jan Kara wrote:
+>> >On Sun 30-12-12 14:59:50, Namjae Jeon wrote:
+>> >> From: Namjae Jeon <namjae.jeon@samsung.com>
+>> >>
+>> >> Consider Process A: huge I/O on sda
+>> >>         doing heavy write operation - dirty memory becomes more
+>> >>         than dirty_background_ratio
+>> >>         on HDD - flusher thread flush-8:0
+>> >>
+>> >> Consider Process B: small I/O on sdb
+>> >>         doing while [1]; read 1024K + rewrite 1024K + sleep 2sec
+>> >>         on Flash device - flusher thread flush-8:16
+>> >>
+>> >> As Process A is a heavy dirtier, dirty memory becomes more
+>> >> than dirty_background_thresh. Due to this, below check becomes
+>> >> true(checking global_page_state in over_bground_thresh)
+>> >> for all bdi devices(even for very small dirtied bdi - sdb):
+>> >>
+>> >> In this case, even small cached data on 'sdb' is forced to flush
+>> >> and writeback cache thrashing happens.
+>> >>
+>> >> When we added debug prints inside above 'if' condition and ran
+>> >> above Process A(heavy dirtier on bdi with flush-8:0) and
+>> >> Process B(1024K frequent read/rewrite on bdi with flush-8:16)
+>> >> we got below prints:
+>> >>
+>> >> [Test setup: ARM dual core CPU, 512 MB RAM]
+>> >>
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56064 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56704 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 84720 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 94720 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   384 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   960 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92160 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   256 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   768 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   256 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   320 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92032 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 91968 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =  1024 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   576 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 84352 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   512 KB
+>> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92608 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92544 KB
+>> >>
+>> >> As mentioned in above log, when global dirty memory > global
+>> >> background_thresh
+>> >> small cached data is also forced to flush by flush-8:16.
+>> >>
+>> >> If removing global background_thresh checking code, we can reduce
+>> >> cache
+>> >> thrashing of frequently used small data.
+>> >  It's not completely clear to me:
+>> >  Why is this a problem? Wearing of the flash? Power consumption? I'd
+>> > like
+>> >to understand this before changing the code...
+Hi Jan.
+Yes, it can reduce wearing and fragmentation of flash. And also from
+one scenario - we
+think it might reduce power consumption also.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/vm_event_item.h |    3 ++-
- mm/mvolatile.c                |    5 ++++-
- mm/vmstat.c                   |    3 ++-
- 3 files changed, 8 insertions(+), 3 deletions(-)
+>> >
+>> >> And It will be great if we can reserve a portion of writeback cache
+>> >> using
+>> >> min_ratio.
+>> >>
+>> >> After applying patch:
+>> >> $ echo 5 > /sys/block/sdb/bdi/min_ratio
+>> >> $ cat /sys/block/sdb/bdi/min_ratio
+>> >> 5
+>> >>
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56064 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56704 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  84160 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  96960 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  94080 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93120 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93120 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  91520 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  89600 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93696 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93696 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  72960 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90624 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90624 KB
+>> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90688 KB
+>> >>
+>> >> As mentioned in the above logs, once cache is reserved for Process B,
+>> >> and patch is applied there is less writeback cache thrashing on sdb
+>> >> by frequent forced writeback by flush-8:16 in over_bground_thresh.
+>> >>
+>> >> After all, small cached data will be flushed by periodic writeback
+>> >> once every dirty_writeback_interval.
+>> >  OK, in principle something like this makes sence to me. But if there
+>> > are
+>> >more BDIs which are roughly equally used, it could happen none of them
+>> > are
+>> >over threshold due to percpu counter & rounding errors. So I'd rather
+>> >change the conditions to something like:
+>> >	reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+>> >	bdi_bground_thresh = bdi_dirty_limit(bdi, background_thresh);
+>> >
+>> >  	if (reclaimable > bdi_bground_thresh)
+>> >		return true;
+>> >	/*
+>> >	 * If global background limit is exceeded, kick the writeback on
+>> >	 * BDI if there's a reasonable amount of data to write (at least
+>> >	 * 1/2 of BDI's background dirty limit).
+>> >	 */
+>> >	if (global_page_state(NR_FILE_DIRTY) +
+>> >	    global_page_state(NR_UNSTABLE_NFS) > background_thresh &&
+>> >	    reclaimable * 2 > bdi_bground_thresh)
+>> >		return true;
+>> >
+>>
+>> Hi Jan,
+>>
+>> If there are enough BDIs and percpu counter of each bdi roughly equally
+>> used less than 1/2 of BDI's background dirty limit, still nothing will
+>> be flushed even if over global background_thresh.
+>   Yes, although then the percpu counter error would have to be quite big.
+> Anyway, we can change the last condition to:
+>      if (global_page_state(NR_FILE_DIRTY) +
+>          global_page_state(NR_UNSTABLE_NFS) > background_thresh &&
+>          reclaimable * 2 + bdi_stat_error(bdi) * 2 > bdi_bground_thresh)
+>
+>   That should be safe and for machines with resonable number of CPUs it
+> should save the wakeup as well.
+I agree and will send v2 patch as your suggestion.
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 721d096..4efa3bf 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -26,7 +26,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- #ifdef CONFIG_VOLATILE_PAGE
--		PGVOLATILE,
-+		PGVOLATILE_DIRECT,
-+		PGVOLATILE_KSWAPD,
- #endif
- 		FOR_ALL_ZONES(PGREFILL),
- 		FOR_ALL_ZONES(PGSTEAL_KSWAPD),
-diff --git a/mm/mvolatile.c b/mm/mvolatile.c
-index 1c7bf5a..08a7eb3 100644
---- a/mm/mvolatile.c
-+++ b/mm/mvolatile.c
-@@ -246,7 +246,10 @@ int discard_volatile_page(struct page *page, enum ttu_flags ttu_flags)
- 	if (try_to_volatile_page(page, ttu_flags)) {
- 		if (page_freeze_refs(page, 1)) {
- 			unlock_page(page);
--			count_vm_event(PGVOLATILE);
-+			if (current_is_kswapd())
-+				count_vm_event(PGVOLATILE_KSWAPD);
-+			else
-+				count_vm_event(PGVOLATILE_DIRECT);
- 			return 1;
- 		}
- 	}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 3d08e1a..416f550 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -754,7 +754,8 @@ const char * const vmstat_text[] = {
- 	"pgmajfault",
- 
- #ifdef CONFIG_VOLATILE_PAGE
--	"pgvolatile",
-+	"pgvolatile_direct",
-+	"pgvolatile_kswapd",
- #endif
- 	TEXTS_FOR_ZONES("pgrefill")
- 	TEXTS_FOR_ZONES("pgsteal_kswapd")
--- 
-1.7.9.5
+Thanks Jan.
+>
+> 								Honza
+>
+>> >> Suggested-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+>> >> Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
+>> >> Signed-off-by: Vivek Trivedi <t.vivek@samsung.com>
+>> >> Cc: Fengguang Wu <fengguang.wu@intel.com>
+>> >> Cc: Jan Kara <jack@suse.cz>
+>> >> Cc: Dave Chinner <dchinner@redhat.com>
+>> >> ---
+>> >>  fs/fs-writeback.c |    4 ----
+>> >>  1 file changed, 4 deletions(-)
+>> >>
+>> >> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+>> >> index 310972b..070b773 100644
+>> >> --- a/fs/fs-writeback.c
+>> >> +++ b/fs/fs-writeback.c
+>> >> @@ -756,10 +756,6 @@ static bool over_bground_thresh(struct
+>> >> backing_dev_info *bdi)
+>> >>
+>> >>  	global_dirty_limits(&background_thresh, &dirty_thresh);
+>> >>
+>> >> -	if (global_page_state(NR_FILE_DIRTY) +
+>> >> -	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
+>> >> -		return true;
+>> >> -
+>> >>  	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
+>> >>  				bdi_dirty_limit(bdi, background_thresh))
+>> >>  		return true;
+>> >> --
+>> >> 1.7.9.5
+>> >>
+>> >--
+>> >Jan Kara <jack@suse.cz>
+>> >SUSE Labs, CR
+>> >
+>> >--
+>> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> >the body to majordomo@kvack.org.  For more info on Linux MM,
+>> >see: http://www.linux-mm.org/ .
+>> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>
+> --
+> Jan Kara <jack@suse.cz>
+> SUSE Labs, CR
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
