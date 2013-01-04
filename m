@@ -1,51 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 2914D6B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:04:35 -0500 (EST)
-Date: Fri, 4 Jan 2013 17:05:40 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/2] Add mempressure cgroup
-Message-ID: <20130104150540.GA14153@shutemov.name>
-References: <20130104082751.GA22227@lizard.gateway.2wire.net>
- <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 08FCB6B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:24:21 -0500 (EST)
+Received: by mail-vb0-f52.google.com with SMTP id ez10so16670242vbb.11
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 07:24:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+Date: Fri, 4 Jan 2013 10:24:20 -0500
+Message-ID: <CAJoZ4U1CqGxU7hmEXkbb7y7VAJaTYJmU3JQFWUU3RegQViN5iA@mail.gmail.com>
+Subject: set_page_dirty_lock + migrate_pages
+From: Kyle Hubert <khubert@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: linux-mm@kvack.org
 
-On Fri, Jan 04, 2013 at 12:29:11AM -0800, Anton Vorontsov wrote:
-> This commit implements David Rientjes' idea of mempressure cgroup.
-> 
-> The main characteristics are the same to what I've tried to add to vmevent
-> API; internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
-> pressure index calculation. But we don't expose the index to the userland.
-> Instead, there are three levels of the pressure:
-> 
->  o low (just reclaiming, e.g. caches are draining);
->  o medium (allocation cost becomes high, e.g. swapping);
->  o oom (about to oom very soon).
-> 
-> The rationale behind exposing levels and not the raw pressure index
-> described here: http://lkml.org/lkml/2012/11/16/675
-> 
-> For a task it is possible to be in both cpusets, memcg and mempressure
-> cgroups, so by rearranging the tasks it is possible to watch a specific
-> pressure (i.e. caused by cpuset and/or memcg).
-> 
-> Note that while this adds the cgroups support, the code is well separated
-> and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
-> But this is another story.
-> 
-> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
+(I am resending to linux-mm, as it belongs here instead of LKML)
 
-Acked-by: Kirill A. Shutemov <kirill@shutemov.name>
+I have an interesting hang on a kernel I am working on. I am working
+with an out of tree driver that does get_user_pages and programs an
+IOMMU with the physical pages. It also listens for MMU notifier
+callbacks so that it may invalidate the IOMMU PTEs. After the
+invalidate, it then calls set_page_dirty_lock and page_cache_release.
 
--- 
- Kirill A. Shutemov
+However, if memory compaction is initiated during a running job,
+migrate_pages will try_to_unmap the page. When it gets down to
+try_to_unmap_one, the MMU notifier callback will be issued while the
+page is locked. Of course, once the MMU notifier callback is executing
+the kernel deadlocks as set_page_dirty_lock will never complete. This
+appears to be the only location the page is locked when calling
+mmu_notifier_invalidate_page.
+
+So, I would love to switch to calling set_page_dirty unconditionally.
+I am worried about the mapping changes to the page though. I thought
+set_page_dirty_lock is supposed to protect against remappings and
+HWPoisoning. I can't distinguish when the page would be locked or not
+inside the MMU notifier callback, so I would have to adopt a solution
+that can work in both environments. I suppose I could call
+TestSetPageLock, and if it fails then schedule a work queue to release
+the page, but this would certainly have an impact on migrate pages
+(and maybe fork). Also, wouldn't get_user_pages protect against
+remappings as we hold a reference count on the page?
+
+As an aside, if the page is anonymous, I don't even need
+set_page_dirty_lock at all, right? I could just use set_page_dirty,
+no? Could I get page->mapping and test for the PAGE_MAPPING_ANON bit
+set? This wouldn't solve my problem, as we support file backed pages,
+I am just querying to understand.
+
+Thanks for the help,
+-Kyle
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
