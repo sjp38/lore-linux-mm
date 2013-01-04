@@ -1,46 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx198.postini.com [74.125.245.198])
-	by kanga.kvack.org (Postfix) with SMTP id 5CDD86B005D
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 18:45:59 -0500 (EST)
-Date: Thu, 3 Jan 2013 23:45:58 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-Message-ID: <20130103234558.GA1689@dcvr.yhbt.net>
-References: <20121228014503.GA5017@dcvr.yhbt.net>
- <20130102200848.GA4500@dcvr.yhbt.net>
- <20130102204712.GA17806@dcvr.yhbt.net>
- <1357220469.21409.24574.camel@edumazet-glaptop>
- <20130103183251.GA10113@dcvr.yhbt.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130103183251.GA10113@dcvr.yhbt.net>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 419806B005D
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 19:24:08 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id un1so8795024pbc.20
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 16:24:07 -0800 (PST)
+Message-ID: <1357259044.4930.4.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH v7 1/2] KSM: numa awareness sysfs knob
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Thu, 03 Jan 2013 18:24:04 -0600
+In-Reply-To: <alpine.LNX.2.00.1301022050450.979@eggly.anvils>
+References: <20121224050817.GA25749@kroah.com>
+	 <1356658337-12540-1-git-send-email-pholasek@redhat.com>
+	 <1357030004.1379.4.camel@kernel.cn.ibm.com>
+	 <alpine.LNX.2.00.1301022050450.979@eggly.anvils>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
 
-Eric Wong <normalperson@yhbt.net> wrote:
-> Eric Dumazet <eric.dumazet@gmail.com> wrote:
-> > With the following patch, I cant reproduce the 'apparent stuck'
+On Wed, 2013-01-02 at 21:10 -0800, Hugh Dickins wrote:
+> On Tue, 1 Jan 2013, Simon Jeons wrote:
+> > 
+> > Hi Petr and Hugh,
+> > 
+> > One offline question, thanks for your clarify.
 > 
-> Right, the output is just an approximation and the logic there
-> was bogus.
+> Perhaps not as offline as you intended :)
+
+Hi Hugh,
+
+Thanks for your detail explanation. :)
+
 > 
-> Thanks for looking at this.
+> > 
+> > How to understand age = (unsigned char)(ksm_scan.seqnr -
+> > rmap_item->address);? It used for what?
+> 
+> As you can see, remove_rmap_item_from_tree uses it to decide whether
+> or not it should rb_erase the rmap_item from the unstable_tree.
+> 
+> Every full scan of all the rmap_items, we increment ksm_scan.seqnr,
+> forget the old unstable_tree (it would just be a waste of processing
+> to remove every node one by one), and build up the unstable_tree afresh.
+> 
 
-I'm still able to reproduce the issue under v3.8-rc2 with your patch
-for toosleepy.
+When the rmap_items left over from the previous scan will be removed?
 
-(As expected when blocked,) TCP send() will eventually return
-ETIMEOUT when I forget to check (and toosleepy will abort from it)
+> That works fine until we need to remove an rmap_item: then we have to be
+> very sure to remove it from the unstable_tree if it's already been linked
+> there during this scan, but ignore its rblinkage if that's just left over
+> from the previous scan.
+> 
+> A single bit would be enough to decide this; but we got it troublesomely
+> wrong in the early days of KSM (didn't always visit every rmap_item each
+> scan), so it's convenient to use 8 bits (the low unsigned char, stored
 
-I think this requires frequent dirtying/cycling of pages to reproduce.
-(from copying large files around) to interact with compaction.
-I'll see if I can reproduce the issue with read-only FS activity.
+When the scenario didn't always visit every rmap_item each scan can
+occur? 
 
-With 3.7.1 and compaction/THP disabled, I was able to run ~21 hours
-and copy a few TB around without anything getting stuck.
+> below the FLAGs and below the page-aligned address in the rmap_item -
+> there's lots of them, best keep them as small as we can) and do a
+> BUG_ON(age > 1) if we made a mistake.
+> 
+> We haven't hit that BUG_ON in over three years: if we need some more
+> bits for something, we can cut the age down to one or two bits.
+> 
+> Hugh
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
