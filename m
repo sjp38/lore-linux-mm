@@ -1,97 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id BBEF76B005A
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 07:49:43 -0500 (EST)
-Date: Fri, 4 Jan 2013 13:49:37 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: 3.8-rc2: lockdep is complaining about mm_take_all_locks()
-Message-ID: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id 9A7896B005A
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 08:23:09 -0500 (EST)
+Date: Fri, 4 Jan 2013 08:23:05 -0500
+From: Chris Mason <chris.mason@fusionio.com>
+Subject: compaction vs data=ordered on ext34
+Message-ID: <20130104132305.GG14537@shiny>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Steven Rostedt <srostedt@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, Jan Kara <jack@suse.cz>
 
-This is almost certainly because
+Hi everyone,
 
-commit 5a505085f043e8380f83610f79642853c051e2f1
-Author: Ingo Molnar <mingo@kernel.org>
-Date:   Sun Dec 2 19:56:46 2012 +0000
+Steve recently hit very long stalls in firefox, and was able to snag
+this sysrq-w
 
-    mm/rmap: Convert the struct anon_vma::mutex to an rwsem
+[223349.032831] firefox-bin     D 0000000000000000     0  5798   5797 0x00000004
+[223349.033208]  ffff8801abb69798 0000000000000086 ffff8801abb696d8 ffff8801abb69fd8
+[223349.033622]  0000000000004000 ffff8801abb69fd8 ffffffff81813420 ffff880209d7e180
+[223349.034053]  000000000000003c ffff88023f02cb00 ffff88023f01d080 ffff88023f02cac0
+[223349.034472] Call Trace:
+[223349.034609]  [<ffffffff8145abbc>] ? cache_flusharray+0x8f/0xb9
+[223349.034909]  [<ffffffff81110b56>] ? free_pcppages_bulk+0x406/0x450
+[223349.035228]  [<ffffffff81191aa0>] ? __wait_on_buffer+0x30/0x30
+[223349.035530]  [<ffffffff8145f41f>] ? io_schedule+0x8f/0xd0
+[223349.035812]  [<ffffffff81191aae>] ? sleep_on_buffer+0xe/0x20
+[223349.036103]  [<ffffffff8145d72a>] ? __wait_on_bit_lock+0x5a/0xc0
+[223349.036432]  [<ffffffff8111201e>] ?  free_hot_cold_page_list+0x5e/0x100
+[223349.036769]  [<ffffffff81191aa0>] ? __wait_on_buffer+0x30/0x30
+[223349.037073]  [<ffffffff8145d80c>] ?  out_of_line_wait_on_bit_lock+0x7c/0x90
+[223349.037427]  [<ffffffff81067300>] ?  autoremove_wake_function+0x40/0x40
+[223349.037767]  [<ffffffff81155c5e>] ?  buffer_migrate_lock_buffers+0x7e/0xb0
+[223349.038116]  [<ffffffff81156761>] ? buffer_migrate_page+0x61/0x160
+[223349.038437]  [<ffffffff81156536>] ? move_to_new_page+0x96/0x260
+[223349.038749]  [<ffffffff81156c11>] ? migrate_pages+0x3b1/0x4b0
+[223349.039047]  [<ffffffff8112b7b0>] ?  compact_checklock_irqsave.isra.14+0x100/0x100
+[223349.039433]  [<ffffffff8112c48f>] ? compact_zone+0x17f/0x430
+[223349.039729]  [<ffffffff8135c3eb>] ? __kmalloc_reserve+0x3b/0xa0
+[223349.040036]  [<ffffffff8112c9f7>] ? compact_zone_order+0x87/0xd0
+[223349.040349]  [<ffffffff8112cb11>] ? try_to_compact_pages+0xd1/0x100
+[223349.040674]  [<ffffffff8145a6e3>] ?  __alloc_pages_direct_compact+0xc3/0x1fa
+[223349.041034]  [<ffffffff81111468>] ?  __alloc_pages_nodemask+0x7b8/0xa00
+[223349.041368]  [<ffffffff8114d003>] ? alloc_pages_vma+0xb3/0x1d0
+[223349.041673]  [<ffffffff8115ab28>] ?  do_huge_pmd_anonymous_page+0x138/0x300
+[223349.042030]  [<ffffffff814634e8>] ? do_page_fault+0x198/0x510
+[223349.042331]  [<ffffffff81125b36>] ? vm_mmap_pgoff+0x96/0xb0
+[223349.042640]  [<ffffffff8146095f>] ? page_fault+0x1f/0x30
 
-did this to mm_take_all_locks():
+This shows THP -> compaction -> buffer_migrate_page then waiting for a
+buffer to unlock.  He was doing backups on a USB drive at the time,
+formatted w/ext3.
 
-	-               mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
-	+               down_write(&anon_vma->root->rwsem);
+Reading the compaction code, it'll jump over pages marked as writeback,
+but happily sit on locked buffer heads.  If I'm reading the ext3 code
+correctly, it still uses submit_bh directly on data=ordered writes,
+without the working on the page bits.
 
-killing the lockdep annotation that has been there since 
+The end result is that compaction stalls on all the data=ordered
+writeback.  We shouldn't see this with ext4 because it is using page
+based writeback for the data=ordered.  But, should we have a
+buffer_migrate_page variant that returns busy for locked buffer heads?
 
-commit 454ed842d55740160334efc9ad56cfef54ed37bc
-Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Date:   Mon Aug 11 09:30:25 2008 +0200
-
-    lockdep: annotate mm_take_all_locks()
-
-The locking is obviously correct due to mmap_sem being held throughout the 
-whole operation, but I am not completely sure how to annotate this 
-properly for lockdep in down_write() case though. Ingo, please?
-
-
-
- =============================================
- [ INFO: possible recursive locking detected ]
- 3.8.0-rc2-00036-g5f73896 #171 Not tainted
- ---------------------------------------------
- qemu-kvm/2315 is trying to acquire lock:
-  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
- 
- but task is already holding lock:
-  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
- 
- other info that might help us debug this:
-  Possible unsafe locking scenario:
- 
-        CPU0
-        ----
-   lock(&anon_vma->rwsem);
-   lock(&anon_vma->rwsem);
- 
-  *** DEADLOCK ***
- 
-  May be due to missing lock nesting notation
- 
- 4 locks held by qemu-kvm/2315:
-  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81177f1c>] do_mmu_notifier_register+0xfc/0x170
-  #1:  (mm_all_locks_mutex){+.+...}, at: [<ffffffff8115d436>] mm_take_all_locks+0x36/0x1b0
-  #2:  (&mapping->i_mmap_mutex){+.+...}, at: [<ffffffff8115d4c9>] mm_take_all_locks+0xc9/0x1b0
-  #3:  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
- 
- stack backtrace:
- Pid: 2315, comm: qemu-kvm Not tainted 3.8.0-rc2-00036-g5f73896 #171
- Call Trace:
-  [<ffffffff810afea2>] print_deadlock_bug+0xf2/0x100
-  [<ffffffff810b1a76>] validate_chain+0x4f6/0x720
-  [<ffffffff810b1ff9>] __lock_acquire+0x359/0x580
-  [<ffffffff810b0e7d>] ? trace_hardirqs_on_caller+0x12d/0x1b0
-  [<ffffffff810b2341>] lock_acquire+0x121/0x190
-  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
-  [<ffffffff815a12bf>] down_write+0x3f/0x70
-  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
-  [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
-  [<ffffffff81177e88>] do_mmu_notifier_register+0x68/0x170
-  [<ffffffff81177fae>] mmu_notifier_register+0xe/0x10
-  [<ffffffffa04bd6ab>] kvm_create_vm+0x22b/0x330 [kvm]
-  [<ffffffffa04bd8a8>] kvm_dev_ioctl+0xf8/0x1a0 [kvm]
-  [<ffffffff811a45bd>] do_vfs_ioctl+0x9d/0x350
-  [<ffffffff815ad215>] ? sysret_check+0x22/0x5d
-  [<ffffffff811a4901>] sys_ioctl+0x91/0xb0
-  [<ffffffff815ad1e9>] system_call_fastpath+0x16/0x1b
-
--- 
-Jiri Kosina
-SUSE Labs
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
