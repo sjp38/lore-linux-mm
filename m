@@ -1,65 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id 0AC546B005D
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 19:50:21 -0500 (EST)
-Received: by mail-vc0-f174.google.com with SMTP id d16so15763258vcd.19
-        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 16:50:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1357260005.4930.6.camel@kernel.cn.ibm.com>
-References: <1354344987-28203-1-git-send-email-walken@google.com>
-	<20121203150110.39c204ff.akpm@linux-foundation.org>
-	<CANN689FfWVV4MyTUPKZQgQAWW9Dfdw9f0fqx98kc+USKj9g7TA@mail.gmail.com>
-	<20121203164322.b967d461.akpm@linux-foundation.org>
-	<20121204144820.GA13916@google.com>
-	<1355968594.1415.4.camel@kernel-VirtualBox>
-	<CANN689FoSGMUi0mC6dzXe5tXo-BL_4eFZ1NF-De38x8mNhPXcg@mail.gmail.com>
-	<1357260005.4930.6.camel@kernel.cn.ibm.com>
-Date: Thu, 3 Jan 2013 16:50:20 -0800
-Message-ID: <CANN689HQjbXEpWhv5KuaOt2NBEokiOguCXnsum2Bd994zkw6tA@mail.gmail.com>
-Subject: Re: [PATCH] mm: protect against concurrent vma expansion
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 5864B6B005D
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 19:59:15 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id rp2so8839998pbb.15
+        for <linux-mm@kvack.org>; Thu, 03 Jan 2013 16:59:14 -0800 (PST)
+Message-ID: <1357261151.5105.2.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH] writeback: fix writeback cache thrashing
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Thu, 03 Jan 2013 18:59:11 -0600
+In-Reply-To: <CAKYAXd8-sZo0XcdHuyOQ1qT_s3kJXyphXsjSS7e1-sJ1QaAOgg@mail.gmail.com>
+References: <1356847190-7986-1-git-send-email-linkinjeon@gmail.com>
+	 <20121231113054.GC7564@quack.suse.cz>
+	 <20130102134334.GB30633@quack.suse.cz>
+	 <CAKYAXd8-sZo0XcdHuyOQ1qT_s3kJXyphXsjSS7e1-sJ1QaAOgg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Namjae Jeon <linkinjeon@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, fengguang.wu@intel.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Dave Chinner <dchinner@redhat.com>
 
-On Thu, Jan 3, 2013 at 4:40 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
-> On Wed, 2012-12-19 at 19:01 -0800, Michel Lespinasse wrote:
->> Hi Simon,
->>
->> On Wed, Dec 19, 2012 at 5:56 PM, Simon Jeons <simon.jeons@gmail.com> wrote:
->> > One question.
->> >
->> > I found that mainly callsite of expand_stack() is #PF, but it holds
->> > mmap_sem each time before call expand_stack(), how can hold a *shared*
->> > mmap_sem happen?
->>
->> the #PF handler calls down_read(&mm->mmap_sem) before calling expand_stack.
->>
->> I think I'm just confusing you with my terminology; shared lock ==
->> read lock == several readers might hold it at once (I'd say they share
->> it)
->
-> Sorry for my late response.
->
-> Since expand_stack() will modify vma, then why hold a read lock here?
+On Thu, 2013-01-03 at 13:35 +0900, Namjae Jeon wrote:
+> 2013/1/2, Jan Kara <jack@suse.cz>:
+> > On Tue 01-01-13 08:51:04, Wanpeng Li wrote:
+> >> On Mon, Dec 31, 2012 at 12:30:54PM +0100, Jan Kara wrote:
+> >> >On Sun 30-12-12 14:59:50, Namjae Jeon wrote:
+> >> >> From: Namjae Jeon <namjae.jeon@samsung.com>
+> >> >>
+> >> >> Consider Process A: huge I/O on sda
+> >> >>         doing heavy write operation - dirty memory becomes more
+> >> >>         than dirty_background_ratio
+> >> >>         on HDD - flusher thread flush-8:0
+> >> >>
+> >> >> Consider Process B: small I/O on sdb
+> >> >>         doing while [1]; read 1024K + rewrite 1024K + sleep 2sec
+> >> >>         on Flash device - flusher thread flush-8:16
+> >> >>
+> >> >> As Process A is a heavy dirtier, dirty memory becomes more
+> >> >> than dirty_background_thresh. Due to this, below check becomes
+> >> >> true(checking global_page_state in over_bground_thresh)
+> >> >> for all bdi devices(even for very small dirtied bdi - sdb):
+> >> >>
+> >> >> In this case, even small cached data on 'sdb' is forced to flush
+> >> >> and writeback cache thrashing happens.
+> >> >>
+> >> >> When we added debug prints inside above 'if' condition and ran
+> >> >> above Process A(heavy dirtier on bdi with flush-8:0) and
+> >> >> Process B(1024K frequent read/rewrite on bdi with flush-8:16)
+> >> >> we got below prints:
+> >> >>
+> >> >> [Test setup: ARM dual core CPU, 512 MB RAM]
+> >> >>
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56064 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56704 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 84720 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 94720 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   384 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   960 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92160 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   256 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   768 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   256 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   320 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92032 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 91968 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =  1024 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =    64 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   576 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 84352 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   192 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =   512 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:16 : BDI_RECLAIMABLE =     0 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92608 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE = 92544 KB
+> >> >>
+> >> >> As mentioned in above log, when global dirty memory > global
+> >> >> background_thresh
+> >> >> small cached data is also forced to flush by flush-8:16.
+> >> >>
+> >> >> If removing global background_thresh checking code, we can reduce
+> >> >> cache
+> >> >> thrashing of frequently used small data.
+> >> >  It's not completely clear to me:
+> >> >  Why is this a problem? Wearing of the flash? Power consumption? I'd
+> >> > like
+> >> >to understand this before changing the code...
+> Hi Jan.
+> Yes, it can reduce wearing and fragmentation of flash. And also from
+> one scenario - we
+> think it might reduce power consumption also.
+> 
+> >> >
+> >> >> And It will be great if we can reserve a portion of writeback cache
+> >> >> using
+> >> >> min_ratio.
+> >> >>
+> >> >> After applying patch:
+> >> >> $ echo 5 > /sys/block/sdb/bdi/min_ratio
+> >> >> $ cat /sys/block/sdb/bdi/min_ratio
+> >> >> 5
+> >> >>
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56064 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  56704 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  84160 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  96960 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  94080 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93120 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93120 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  91520 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  89600 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93696 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  93696 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  72960 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90624 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90624 KB
+> >> >> [over_bground_thresh]: wakeup flush-8:0 : BDI_RECLAIMABLE =  90688 KB
+> >> >>
+> >> >> As mentioned in the above logs, once cache is reserved for Process B,
+> >> >> and patch is applied there is less writeback cache thrashing on sdb
+> >> >> by frequent forced writeback by flush-8:16 in over_bground_thresh.
+> >> >>
+> >> >> After all, small cached data will be flushed by periodic writeback
+> >> >> once every dirty_writeback_interval.
+> >> >  OK, in principle something like this makes sence to me. But if there
+> >> > are
+> >> >more BDIs which are roughly equally used, it could happen none of them
+> >> > are
+> >> >over threshold due to percpu counter & rounding errors. So I'd rather
+> >> >change the conditions to something like:
+> >> >	reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+> >> >	bdi_bground_thresh = bdi_dirty_limit(bdi, background_thresh);
+> >> >
+> >> >  	if (reclaimable > bdi_bground_thresh)
+> >> >		return true;
+> >> >	/*
+> >> >	 * If global background limit is exceeded, kick the writeback on
+> >> >	 * BDI if there's a reasonable amount of data to write (at least
+> >> >	 * 1/2 of BDI's background dirty limit).
+> >> >	 */
+> >> >	if (global_page_state(NR_FILE_DIRTY) +
+> >> >	    global_page_state(NR_UNSTABLE_NFS) > background_thresh &&
+> >> >	    reclaimable * 2 > bdi_bground_thresh)
+> >> >		return true;
+> >> >
+> >>
+> >> Hi Jan,
+> >>
+> >> If there are enough BDIs and percpu counter of each bdi roughly equally
+> >> used less than 1/2 of BDI's background dirty limit, still nothing will
+> >> be flushed even if over global background_thresh.
+> >   Yes, although then the percpu counter error would have to be quite big.
+> > Anyway, we can change the last condition to:
+> >      if (global_page_state(NR_FILE_DIRTY) +
+> >          global_page_state(NR_UNSTABLE_NFS) > background_thresh &&
+> >          reclaimable * 2 + bdi_stat_error(bdi) * 2 > bdi_bground_thresh)
+> >
+> >   That should be safe and for machines with resonable number of CPUs it
+> > should save the wakeup as well.
+> I agree and will send v2 patch as your suggestion.
 
-Well, it'd be much nicer if we had a write lock, I think. But, we
-didn't know when taking the lock that we'd end up having to expand
-stacks.
+Hi Namjae,
 
-What happens is that page faults don't generally modify vmas, so they
-get a read lock (just to know what vma the fault is happening in) and
-then fault in the page.
+Why use bdi_stat_error here? What's the meaning of its comment "maximal
+error of a stat counter"?
 
-expand_stack() is the one exception to that - after getting the read
-lock as usual, we notice that the fault is not in any vma right now,
-but it's close enough to an expandable vma.
+> 
+> Thanks Jan.
+> >
+> > 								Honza
+> >
+> >> >> Suggested-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> >> >> Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
+> >> >> Signed-off-by: Vivek Trivedi <t.vivek@samsung.com>
+> >> >> Cc: Fengguang Wu <fengguang.wu@intel.com>
+> >> >> Cc: Jan Kara <jack@suse.cz>
+> >> >> Cc: Dave Chinner <dchinner@redhat.com>
+> >> >> ---
+> >> >>  fs/fs-writeback.c |    4 ----
+> >> >>  1 file changed, 4 deletions(-)
+> >> >>
+> >> >> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> >> >> index 310972b..070b773 100644
+> >> >> --- a/fs/fs-writeback.c
+> >> >> +++ b/fs/fs-writeback.c
+> >> >> @@ -756,10 +756,6 @@ static bool over_bground_thresh(struct
+> >> >> backing_dev_info *bdi)
+> >> >>
+> >> >>  	global_dirty_limits(&background_thresh, &dirty_thresh);
+> >> >>
+> >> >> -	if (global_page_state(NR_FILE_DIRTY) +
+> >> >> -	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
+> >> >> -		return true;
+> >> >> -
+> >> >>  	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
+> >> >>  				bdi_dirty_limit(bdi, background_thresh))
+> >> >>  		return true;
+> >> >> --
+> >> >> 1.7.9.5
+> >> >>
+> >> >--
+> >> >Jan Kara <jack@suse.cz>
+> >> >SUSE Labs, CR
+> >> >
+> >> >--
+> >> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> >the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> >see: http://www.linux-mm.org/ .
+> >> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >>
+> > --
+> > Jan Kara <jack@suse.cz>
+> > SUSE Labs, CR
+> >
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
