@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 08FCB6B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:24:21 -0500 (EST)
-Received: by mail-vb0-f52.google.com with SMTP id ez10so16670242vbb.11
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 07:24:21 -0800 (PST)
-MIME-Version: 1.0
-Date: Fri, 4 Jan 2013 10:24:20 -0500
-Message-ID: <CAJoZ4U1CqGxU7hmEXkbb7y7VAJaTYJmU3JQFWUU3RegQViN5iA@mail.gmail.com>
-Subject: set_page_dirty_lock + migrate_pages
-From: Kyle Hubert <khubert@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 756376B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:39:28 -0500 (EST)
+Subject: [PATCH] mm: export mmu notifier invalidates
+Message-Id: <E1Tr9P7-0001AN-S4@eag09.americas.sgi.com>
+From: Cliff Wickman <cpw@sgi.com>
+Date: Fri, 04 Jan 2013 09:41:53 -0600
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: aarcange@redhat.com, akpm@linux-foundation.org, avi@redhat.com, hughd@google.com, mgorman@suse.de
+Cc: linux-mm@kvack.org
 
-(I am resending to linux-mm, as it belongs here instead of LKML)
+From: Cliff Wickman <cpw@sgi.com>
 
-I have an interesting hang on a kernel I am working on. I am working
-with an out of tree driver that does get_user_pages and programs an
-IOMMU with the physical pages. It also listens for MMU notifier
-callbacks so that it may invalidate the IOMMU PTEs. After the
-invalidate, it then calls set_page_dirty_lock and page_cache_release.
+Avi, Andrea, Andrew, Hugh, Mel,
 
-However, if memory compaction is initiated during a running job,
-migrate_pages will try_to_unmap the page. When it gets down to
-try_to_unmap_one, the MMU notifier callback will be issued while the
-page is locked. Of course, once the MMU notifier callback is executing
-the kernel deadlocks as set_page_dirty_lock will never complete. This
-appears to be the only location the page is locked when calling
-mmu_notifier_invalidate_page.
+We at SGI have a need to address some very high physical address ranges with
+our GRU (global reference unit), sometimes across partitioned machine boundaries
+and sometimes with larger addresses than the cpu supports.
+We do this with the aid of our own 'extended vma' module which mimics the vma.
+When something (either unmap or exit) frees an 'extended vma' we use the mmu
+notifiers to clean them up.
 
-So, I would love to switch to calling set_page_dirty unconditionally.
-I am worried about the mapping changes to the page though. I thought
-set_page_dirty_lock is supposed to protect against remappings and
-HWPoisoning. I can't distinguish when the page would be locked or not
-inside the MMU notifier callback, so I would have to adopt a solution
-that can work in both environments. I suppose I could call
-TestSetPageLock, and if it fails then schedule a work queue to release
-the page, but this would certainly have an impact on migrate pages
-(and maybe fork). Also, wouldn't get_user_pages protect against
-remappings as we hold a reference count on the page?
+We had been able to mimic the functions __mmu_notifier_invalidate_range_start()
+and __mmu_notifier_invalidate_range_end() by locking the per-mm lock and 
+walking the per-mm notifier list.  But with the change to a global srcu
+lock (static in mmu_notifier.c) we can no longer do that.  Our module has
+no access to that lock.
 
-As an aside, if the page is anonymous, I don't even need
-set_page_dirty_lock at all, right? I could just use set_page_dirty,
-no? Could I get page->mapping and test for the PAGE_MAPPING_ANON bit
-set? This wouldn't solve my problem, as we support file backed pages,
-I am just querying to understand.
+So we request that these two functions be exported.
 
-Thanks for the help,
--Kyle
+Signed-off-by: Cliff Wickman <cpw@sgi.com>
+Acked-by: Robin Holt <holt@sgi.com>
+
+---
+ mm/mmu_notifier.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+Index: linux/mm/mmu_notifier.c
+===================================================================
+--- linux.orig/mm/mmu_notifier.c
++++ linux/mm/mmu_notifier.c
+@@ -170,6 +170,7 @@ void __mmu_notifier_invalidate_range_sta
+ 	}
+ 	srcu_read_unlock(&srcu, id);
+ }
++EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end)
+@@ -185,6 +186,7 @@ void __mmu_notifier_invalidate_range_end
+ 	}
+ 	srcu_read_unlock(&srcu, id);
+ }
++EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
+ 
+ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 				    struct mm_struct *mm,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
