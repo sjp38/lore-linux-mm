@@ -1,62 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
-	by kanga.kvack.org (Postfix) with SMTP id 756376B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:39:28 -0500 (EST)
-Subject: [PATCH] mm: export mmu notifier invalidates
-Message-Id: <E1Tr9P7-0001AN-S4@eag09.americas.sgi.com>
-From: Cliff Wickman <cpw@sgi.com>
-Date: Fri, 04 Jan 2013 09:41:53 -0600
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id D2ACF6B006E
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 10:39:57 -0500 (EST)
+Date: Fri, 4 Jan 2013 16:39:51 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: 3.8-rc2: lockdep is complaining about mm_take_all_locks()
+In-Reply-To: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+Message-ID: <alpine.LNX.2.00.1301041639130.9143@pobox.suse.cz>
+References: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aarcange@redhat.com, akpm@linux-foundation.org, avi@redhat.com, hughd@google.com, mgorman@suse.de
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Cliff Wickman <cpw@sgi.com>
+On Fri, 4 Jan 2013, Jiri Kosina wrote:
 
-Avi, Andrea, Andrew, Hugh, Mel,
+> This is almost certainly because
+> 
+> commit 5a505085f043e8380f83610f79642853c051e2f1
+> Author: Ingo Molnar <mingo@kernel.org>
+> Date:   Sun Dec 2 19:56:46 2012 +0000
+> 
+>     mm/rmap: Convert the struct anon_vma::mutex to an rwsem
+> 
+> did this to mm_take_all_locks():
+> 
+> 	-               mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
+> 	+               down_write(&anon_vma->root->rwsem);
+> 
+> killing the lockdep annotation that has been there since 
+> 
+> commit 454ed842d55740160334efc9ad56cfef54ed37bc
+> Author: Peter Zijlstra <a.p.zijlstra@chello.nl>
+> Date:   Mon Aug 11 09:30:25 2008 +0200
+> 
+>     lockdep: annotate mm_take_all_locks()
+> 
+> The locking is obviously correct due to mmap_sem being held throughout the 
+> whole operation, but I am not completely sure how to annotate this 
+> properly for lockdep in down_write() case though. Ingo, please?
 
-We at SGI have a need to address some very high physical address ranges with
-our GRU (global reference unit), sometimes across partitioned machine boundaries
-and sometimes with larger addresses than the cpu supports.
-We do this with the aid of our own 'extended vma' module which mimics the vma.
-When something (either unmap or exit) frees an 'extended vma' we use the mmu
-notifiers to clean them up.
+OK, I think the only solution is to introduce down_read_nest_lock(). I 
+will prepare a patch.
 
-We had been able to mimic the functions __mmu_notifier_invalidate_range_start()
-and __mmu_notifier_invalidate_range_end() by locking the per-mm lock and 
-walking the per-mm notifier list.  But with the change to a global srcu
-lock (static in mmu_notifier.c) we can no longer do that.  Our module has
-no access to that lock.
-
-So we request that these two functions be exported.
-
-Signed-off-by: Cliff Wickman <cpw@sgi.com>
-Acked-by: Robin Holt <holt@sgi.com>
-
----
- mm/mmu_notifier.c |    2 ++
- 1 file changed, 2 insertions(+)
-
-Index: linux/mm/mmu_notifier.c
-===================================================================
---- linux.orig/mm/mmu_notifier.c
-+++ linux/mm/mmu_notifier.c
-@@ -170,6 +170,7 @@ void __mmu_notifier_invalidate_range_sta
- 	}
- 	srcu_read_unlock(&srcu, id);
- }
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
- 
- void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
-@@ -185,6 +186,7 @@ void __mmu_notifier_invalidate_range_end
- 	}
- 	srcu_read_unlock(&srcu, id);
- }
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
- 
- static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 				    struct mm_struct *mm,
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
