@@ -1,54 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 0DB5C6B005A
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 04:35:37 -0500 (EST)
-From: Lin Feng <linfeng@cn.fujitsu.com>
-Subject: [RFC PATCH] mm: memblock: optimize memblock_find_in_range_node() to minimize the search work
-Date: Fri, 4 Jan 2013 17:24:53 +0800
-Message-Id: <1357291493-25773-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id DC3A66B005A
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 06:00:35 -0500 (EST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MG300ATRL89TOI0@mailout4.samsung.com> for
+ linux-mm@kvack.org; Fri, 04 Jan 2013 20:00:34 +0900 (KST)
+Received: from chrome-ubuntu.sisodomain.com ([107.108.73.106])
+ by mmp2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTPA id <0MG300AN1L8SN090@mmp2.samsung.com> for
+ linux-mm@kvack.org; Fri, 04 Jan 2013 20:00:33 +0900 (KST)
+From: Prathyush K <prathyush.k@samsung.com>
+Subject: [PATCH v2] arm: dma mapping: export arm iommu functions
+Date: Fri, 04 Jan 2013 06:22:42 -0500
+Message-id: <1357298562-28110-1-git-send-email-prathyush.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, tj@kernel.org
-Cc: mingo@kernel.org, yinghai@kernel.org, liwanp@linux.vnet.ibm.com, benh@kernel.crashing.org, tangchen@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lin Feng <linfeng@cn.fujitsu.com>
+To: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org
+Cc: m.szyprowski@samsung.com, prathyush@chromium.org
 
-The memblock array is in ascending order and we traverse the memblock array in
-reverse order so we can add some simple check to reduce the search work.
+This patch adds EXPORT_SYMBOL_GPL calls to the three arm iommu
+functions - arm_iommu_create_mapping, arm_iommu_free_mapping
+and arm_iommu_attach_device. These three functions are arm specific
+wrapper functions for creating/freeing/using an iommu mapping and
+they are called by various drivers. If any of these drivers need
+to be built as dynamic modules, these functions need to be exported.
 
-Tejun fix a underflow bug in 5d53cb27d8, but I think we could break there for
-the same reason.
+Changelog v2: using EXPORT_SYMBOL_GPL as suggested by Marek.
 
-Cc: Tejun Heo <tj@kernel.org>
-Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+Signed-off-by: Prathyush K <prathyush.k@samsung.com>
 ---
- mm/memblock.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ arch/arm/mm/dma-mapping.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 6259055..a710557 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -111,11 +111,18 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
- 	end = max(start, end);
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 6b2fb87..226ebcf 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1797,6 +1797,7 @@ err2:
+ err:
+ 	return ERR_PTR(err);
+ }
++EXPORT_SYMBOL_GPL(arm_iommu_create_mapping);
  
- 	for_each_free_mem_range_reverse(i, nid, &this_start, &this_end, NULL) {
-+		/*
-+		 * exclude the regions out of the candidate range, since it's
-+		 * likely to find a suitable range, we ignore the worst case.
-+		 */
-+		if (this_start >= end)
-+			continue;
-+
- 		this_start = clamp(this_start, start, end);
- 		this_end = clamp(this_end, start, end);
+ static void release_iommu_mapping(struct kref *kref)
+ {
+@@ -1813,6 +1814,7 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping)
+ 	if (mapping)
+ 		kref_put(&mapping->kref, release_iommu_mapping);
+ }
++EXPORT_SYMBOL_GPL(arm_iommu_release_mapping);
  
- 		if (this_end < size)
--			continue;
-+			break;
+ /**
+  * arm_iommu_attach_device
+@@ -1841,5 +1843,6 @@ int arm_iommu_attach_device(struct device *dev,
+ 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
+ 	return 0;
+ }
++EXPORT_SYMBOL_GPL(arm_iommu_attach_device);
  
- 		cand = round_down(this_end - size, align);
- 		if (cand >= this_start)
+ #endif
 -- 
-1.7.11.7
+1.8.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
