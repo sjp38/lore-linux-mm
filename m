@@ -1,86 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
-	by kanga.kvack.org (Postfix) with SMTP id 280586B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 17:06:49 -0500 (EST)
-Date: Fri, 4 Jan 2013 16:09:15 -0600
-From: Cliff Wickman <cpw@sgi.com>
-Subject: Re: [PATCH] mm: export mmu notifier invalidates
-Message-ID: <20130104220915.GA11735@sgi.com>
-References: <E1Tr9P7-0001AN-S4@eag09.americas.sgi.com> <20130104213516.GA7650@infradead.org>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id B16F96B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 17:45:42 -0500 (EST)
 MIME-Version: 1.0
+Message-ID: <f66f40b3-6568-4183-b592-2990d4cd2083@default>
+Date: Fri, 4 Jan 2013 14:45:28 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCH 7/8] zswap: add to mm/
+References: <<1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <<1355262966-15281-8-git-send-email-sjenning@linux.vnet.ibm.com>>
+ <0e91c1e5-7a62-4b89-9473-09fff384a334@default>
+ <50E32255.60901@linux.vnet.ibm.com>
+ <26bb76b3-308e-404f-b2bf-3d19b28b393a@default>
+ <50E4C1FA.4070701@linux.vnet.ibm.com>
+ <640d712e-0217-456a-a2d1-d03dd7914a55@default>
+ <50E6F862.2030703@linux.vnet.ibm.com>
+In-Reply-To: <50E6F862.2030703@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130104213516.GA7650@infradead.org>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, avi@redhat.com, hughd@google.com, mgorman@suse.de, linux-mm@kvack.org
+To: Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-On Fri, Jan 04, 2013 at 04:35:17PM -0500, Christoph Hellwig wrote:
-> On Fri, Jan 04, 2013 at 09:41:53AM -0600, Cliff Wickman wrote:
-> > So we request that these two functions be exported.
-> 
-> Can you please post the patch that actually uses it in the same series?
+> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> Subject: Re: [PATCH 7/8] zswap: add to mm/
+>=20
+> On 01/03/2013 04:33 PM, Dan Magenheimer wrote:
+> >> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+> >>
+> >> However, once the flushing code was introduced and could free an entry
+> >> from the zswap_fs_store() path, it became necessary to add a per-entry
+> >> refcount to make sure that the entry isn't freed while another code
+> >> path was operating on it.
+> >
+> > Hmmm... doesn't the refcount at least need to be an atomic_t?
+>=20
+> An entry's refcount is only ever changed under the tree lock, so
+> making them atomic_t would be redundantly atomic.
 
-The code that needs to use these two functions is an SGI module.  We'd
-be happy to open source it, but I think no one else is interested in it.
+Maybe I'm missing something still but then I think you also
+need to evaluate and act on the refcount (not just read it) while
+your treelock is held.  I.e., in:
 
-This is what that patch looks like:
+> +=09=09/* page is already in the swap cache, ignore for now */
+> +=09=09spin_lock(&tree->lock);
+> +=09=09refcount =3D zswap_entry_put(entry);
+> +=09=09spin_unlock(&tree->lock);
+> +
+> +=09=09if (likely(refcount))
+> +=09=09=09return 0;
+> +
+> +=09=09/* if the refcount is zero, invalidate must have come in */
+> +=09=09/* free */
+> +=09=09zs_free(tree->pool, entry->handle);
+> +=09=09zswap_entry_cache_free(entry);
+> +=09=09atomic_dec(&zswap_stored_pages);
 
----
- opensource/xvma/xvma/kernel/xvma.c |   12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+the entry's refcount may be changed by another processor
+immediately after the unlock, and then the "if (refcount)"
+is testing a stale value and you will get (I think) a memory leak.
 
-Index: 121214.rhel7/opensource/xvma/xvma/kernel/xvma.c
-===================================================================
---- 121214.rhel7.orig/opensource/xvma/xvma/kernel/xvma.c
-+++ 121214.rhel7/opensource/xvma/xvma/kernel/xvma.c
-@@ -32,6 +32,7 @@
- #include <linux/mmu_notifier.h>
- #include <linux/rculist.h>
- #include <linux/spinlock.h>
-+#include <linux/version.h>
- #include <asm/current.h>
- #include "xvma.h"
- static struct rb_root xmm_rb_root = RB_ROOT;
-@@ -1248,16 +1249,19 @@ void
- zap_xvma_ptes(struct xvma_struct * xvma, unsigned long start, unsigned long size)
- {
- 	struct mm_struct * mm = xvma->xvma_mm;
-+	unsigned long end = start + size;
-+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,5,0)
- 	struct mmu_notifier * mn;
- 	struct hlist_node * n;
--	unsigned long end = start + size;
-+	int srcu;
-+#endif
- 
- 	DPRINTK_XMM_XVMA(xvma->xvma_xmm, xvma);
- 	if (mm) {
--		int srcu;
- 		/* don't remove this - superpages may have no mmu notifier */
-         	if (!mm->mmu_notifier_mm)
-                 	return;
-+#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,5,0)
- 		srcu = srcu_read_lock(&mm->mmu_notifier_mm->srcu);
- 		hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
- 			if (mn->ops->invalidate_range_start)
-@@ -1268,6 +1272,10 @@ zap_xvma_ptes(struct xvma_struct * xvma,
- 				mn->ops->invalidate_range_end(mn, mm, start, end);
- 		}
- 		srcu_read_unlock(&mm->mmu_notifier_mm->srcu, srcu);
-+#else
-+                __mmu_notifier_invalidate_range_start(mm, start, end);
-+                __mmu_notifier_invalidate_range_end(mm, start, end);
-+#endif
- 	} else if (xvma->xvma_xmm->xmm_invalidate_high_range) {
- 		xvma->xvma_xmm->xmm_invalidate_high_range(xvma->xvma_xmm, start, end);
- 	}
--- 
-Cliff Wickman
-SGI
-cpw@sgi.com
-(651) 683-3824
+There is similar racy code in zswap_fs_invalidate_page which
+I think could lead to a double free.  There's another
+I think in zswap_fs_load...  And the refcount is dec'd
+in one path inside of zswap_fs_store as well which may
+race with the above.
+
+When flushing multiple zpages to free a pageframe, you may
+need to test refcounts for all the entries while within the lock.
+If so, this is one place where the high-density storage will make
+things messy, especially if page boundaries are crossed.
+
+A nit: Even I, steeped in tmem terminology, was confused by
+your use of "fs"... to nearly all readers it will
+be translated as "filesystem" which is mystifying.
+Just spell it out "frontswap", even if it causes a few
+lines to be wrapped.
+
+Have a good weekend!
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
