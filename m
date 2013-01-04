@@ -1,152 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id ACEE46B005A
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 09:08:20 -0500 (EST)
-Date: Fri, 4 Jan 2013 14:08:15 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: thp: Acquire the anon_vma rwsem for lock during split
-Message-ID: <20130104140815.GA26005@suse.de>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
- <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
- <20130103175737.GA3885@suse.de>
+Received: from psmtp.com (na3sys010amx197.postini.com [74.125.245.197])
+	by kanga.kvack.org (Postfix) with SMTP id D8F956B005A
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 09:52:23 -0500 (EST)
+Date: Fri, 4 Jan 2013 15:52:16 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -repost] memcg,vmscan: do not break out targeted reclaim
+ without reclaimed pages
+Message-ID: <20130104145216.GC22073@dhcp22.suse.cz>
+References: <20130103180901.GA22067@dhcp22.suse.cz>
+ <20130103122404.033eeb20.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130103175737.GA3885@suse.de>
+In-Reply-To: <20130103122404.033eeb20.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouping Liu <zliu@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, hughd@google.com, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>, Li Zefan <lizefan@huawei.com>
 
-Zhouping, please test this patch.
+On Thu 03-01-13 12:24:04, Andrew Morton wrote:
+> On Thu, 3 Jan 2013 19:09:01 +0100
+> Michal Hocko <mhocko@suse.cz> wrote:
+> 
+> > Hi,
+> > I have posted this quite some time ago
+> > (https://lkml.org/lkml/2012/12/14/102) but it probably slipped through
+> > ---
+> > >From 28b4e10bc3c18b82bee695b76f4bf25c03baa5f8 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Fri, 14 Dec 2012 11:12:43 +0100
+> > Subject: [PATCH] memcg,vmscan: do not break out targeted reclaim without
+> >  reclaimed pages
+> > 
+> > Targeted (hard resp. soft) reclaim has traditionally tried to scan one
+> > group with decreasing priority until nr_to_reclaim (SWAP_CLUSTER_MAX
+> > pages) is reclaimed or all priorities are exhausted. The reclaim is
+> > then retried until the limit is met.
+> > 
+> > This approach, however, doesn't work well with deeper hierarchies where
+> > groups higher in the hierarchy do not have any or only very few pages
+> > (this usually happens if those groups do not have any tasks and they
+> > have only re-parented pages after some of their children is removed).
+> > Those groups are reclaimed with decreasing priority pointlessly as there
+> > is nothing to reclaim from them.
+> > 
+> > An easiest fix is to break out of the memcg iteration loop in shrink_zone
+> > only if the whole hierarchy has been visited or sufficient pages have
+> > been reclaimed. This is also more natural because the reclaimer expects
+> > that the hierarchy under the given root is reclaimed. As a result we can
+> > simplify the soft limit reclaim which does its own iteration.
+> > 
+> > Reported-by: Ying Han <yinghan@google.com>
+> 
+> But what was in that report?
 
-Andrea and Hugh, any comments on whether this could be improved?
+Well, Ying was complaining that targeted reclaim differs a lot from
+the global one regarding iteration because we reclaim each group in at
+the same priority because falling to lower one which targeted reclaim
+hammers one group for each zone and priority first before it visits a
+next group.
+More on that here: https://lkml.org/lkml/2012/12/13/712
 
----8<---
-mm: thp: Acquire the anon_vma rwsem for lock during split
+> My guess would be "excessive CPU consumption", and perhaps "excessive
+> reclaim in the higher-level memcgs".
+> IOW, what are the user-visible effects of this change?
 
-Zhouping Liu reported the following against 3.8-rc1 when running a mmap
-testcase from LTP.
+I would expect a smaller CPU consumption because save a lot of
+per-zone-in-zonelist * per-prio loops without any useful work to do with
+deeper hierarchies. I haven't measured that though. I do not expect the
+win would be huge because shrink_lruvec should be mostly noop for groups
+without any pages (after Johannes recent changes in that area). The
+patch is more trying to make it more consistent with the global reclaim.
 
-[  588.143072] mapcount 0 page_mapcount 3
-[  588.147471] ------------[ cut here ]------------
-[  588.152856] kernel BUG at mm/huge_memory.c:1798!
-[  588.158125] invalid opcode: 0000 [#1] SMP
-[  588.162882] Modules linked in: ip6table_filter ip6_tables ebtable_nat ebtables bnep bluetooth rfkill iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack iptable_filter
-+ip_tables be2iscsi iscsi_boot_sysfs bnx2i cnic uio cxgb4i cxgb4 cxgb3i cxgb3 mdio libcxgbi ib_iser rdma_cm ib_addr iw_cm ib_cm ib_sa ib_mad ib_core iscsi_tcp libiscsi_tcp libiscsi scsi_transport_iscsi vfat fat
-+dm_mirror dm_region_hash dm_log dm_mod cdc_ether iTCO_wdt i7core_edac coretemp usbnet iTCO_vendor_support mii crc32c_intel edac_core lpc_ich shpchp ioatdma mfd_core i2c_i801 pcspkr serio_raw bnx2 microcode dca
-+vhost_net tun macvtap macvlan kvm_intel kvm uinput mgag200 sr_mod cdrom i2c_algo_bit sd_mod drm_kms_helper crc_t10dif ata_generic pata_acpi ttm ata_piix drm libata i2c_core megaraid_sas
+> (And congrats - you're the first person I've sent that sentence to this
+> year!  But not, I fear, the last)
+>
+> I don't really understand what prevents limit reclaim from stealing
+> lots of pages from the top-level groups.  How do we ensure
+> balancing/fairness in this case?
 
-[  588.246517] CPU 1
-[  588.248636] Pid: 23217, comm: mmap10 Not tainted 3.8.0-rc1mainline+ #17 IBM IBM System x3400 M3 Server -[7379I08]-/69Y4356
-[  588.262171] RIP: 0010:[<ffffffff8118fac7>]  [<ffffffff8118fac7>] __split_huge_page+0x677/0x6d0
-[  588.272067] RSP: 0000:ffff88017a03fc08  EFLAGS: 00010293
-[  588.278235] RAX: 0000000000000003 RBX: ffff88027a6c22e0 RCX: 00000000000034d2
-[  588.286394] RDX: 000000000000748b RSI: 0000000000000046 RDI: 0000000000000246
-[  588.294216] RBP: ffff88017a03fcb8 R08: ffffffff819d2440 R09: 000000000000054a
-[  588.302441] R10: 0000000000aaaaaa R11: 00000000ffffffff R12: 0000000000000000
-[  588.310495] R13: 00007f4f11a00000 R14: ffff880179e96e00 R15: ffffea0005c08000
-[  588.318640] FS:  00007f4f11f4a740(0000) GS:ffff88017bc20000(0000) knlGS:0000000000000000
-[  588.327894] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  588.334569] CR2: 00000037e9ebb404 CR3: 000000017a436000 CR4: 00000000000007e0
-[  588.342718] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  588.350861] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  588.359134] Process mmap10 (pid: 23217, threadinfo ffff88017a03e000, task ffff880172dd32e0)
-[  588.368667] Stack:
-[  588.370960]  ffff88017a540ec8 ffff88017a03fc20 ffffffff816017b5 ffff88017a03fc88
-[  588.379566]  ffffffff812fa014 0000000000000000 ffff880279ebd5c0 00000000f4f11a4c
-[  588.388150]  00000007f4f11f49 00000007f4f11a00 ffff88017a540ef0 ffff88017a540ee8
-[  588.396711] Call Trace:
-[  588.455106]  [<ffffffff816017b5>] ? rwsem_down_read_failed+0x15/0x17
-[  588.518106]  [<ffffffff812fa014>] ? call_rwsem_down_read_failed+0x14/0x30
-[  588.580897]  [<ffffffff815ffc04>] ? down_read+0x24/0x2b
-[  588.642630]  [<ffffffff8118fb88>] split_huge_page+0x68/0xb0
-[  588.703814]  [<ffffffff81190ed4>] __split_huge_page_pmd+0x134/0x330
-[  588.766064]  [<ffffffff8104b997>] ? pte_alloc_one+0x37/0x50
-[  588.826460]  [<ffffffff81191121>] split_huge_page_pmd_mm+0x51/0x60
-[  588.887746]  [<ffffffff8119116b>] split_huge_page_address+0x3b/0x50
-[  588.948673]  [<ffffffff8119121c>] __vma_adjust_trans_huge+0x9c/0xf0
-[  589.008660]  [<ffffffff811650f4>] vma_adjust+0x684/0x750
-[  589.066328]  [<ffffffff811653ba>] __split_vma.isra.28+0x1fa/0x220
-[  589.123497]  [<ffffffff810135d1>] ? __switch_to+0x181/0x4a0
-[  589.180704]  [<ffffffff811661a9>] do_munmap+0xf9/0x420
-[  589.237461]  [<ffffffff8160026c>] ? __schedule+0x3cc/0x7b0
-[  589.294520]  [<ffffffff8116651e>] vm_munmap+0x4e/0x70
-[  589.350784]  [<ffffffff8116741b>] sys_munmap+0x2b/0x40
-[  589.406971]  [<ffffffff8160a159>] system_call_fastpath+0x16/0x1b
+All groups in a hierarchy (with root_mem_cgroup for the global
+reclaim) are visited in the round robin fashion (per-node
+per-zone per-priority).  Last visited group is cached in iterator
+(mem_cgroup_per_zone::mem_cgroup_reclaim_iter) and the following reclaim
+will start with the next one.
+Over reclaim is not an issue because of nr_to_reclaim checks both up the
+way in do_try_to_free_pages and shrink_lruvec which make sure we back
+off after SWAP_CLUSTER_MAX have been reclaimed.
 
-Alexander Beregalov reported a very similar bug and Hillf Danton identified
-that commit 5a505085 (mm/rmap: Convert the struct anon_vma::mutex to an
-rwsem) and commit 4fc3f1d6 (mm/rmap, migration: Make rmap_walk_anon()
-and try_to_unmap_anon() more scalable) were likely the problem. Reverting
-these commits was reported to solve the problem.
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1973,18 +1973,17 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> 
+> shrink_zone() might be getting a bit bloaty for CONFIG_MEMCG=n kernels.
 
-Despite the reason for these commits, NUMA balancing is not the direct
-source of the problem. split_huge_page() expected the anon_vma lock to be
-exclusive to serialise the whole split operation. Ordinarily it is expected
-that the anon_vma lock would only be required when updating the avcs but
-THP also uses it. The locking requirements for THP are complex and there
-is some overlap but broadly speaking they include the following
+Most of the code should be compiled out because global_reclaim is
+compile time true and mem_cgroup_iter returns NULL right away. So all we
+do is we waste mem_cgroup_reclaim_cookie on the stack but I guess gcc
+should be able to optimize that one out as well (mine does that).
 
-1. mmap_sem for read or write prevents THPs being created underneath
-2. anon_vma is taken for write if collapsing a huge page
-3. mm->page_table_lock should be taken when checking if pmd_trans_huge as
-   split_huge_page can run in parallel
-4. wait_split_huge_page uses anon_vma taken for write mode to serialise
-   against other THP operations
-5. compound_lock is used to serialise between
-   __split_huge_page_refcount() and gup
+If you are talking about uncompiled code then yes it is getting messy.
+Maybe we want to have something like mem_cgroup_shrink_zone and keep
+only:
+	do {
+		mem_cgroup_shrink_zone();
+	} while (should_continue_reclaim(...));
 
-split_huge_page takes anon_vma for read but that does not serialise against
-parallel split_huge_page operations on the same page (rule 2). One process
-could be modifying the ref counts while the other modifies the page tables
-leading to counters not being reliable. This patch takes the anon_vma
-lock for write to serialise against parallel split_huge_page and parallel
-collapse operations as it is the most fine-grained lock available that
-protects against both.
-
-Reported-by: Zhouping Liu <zliu@redhat.com>
-Reported-by: Alexander Beregalov <a.beregalov@gmail.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/huge_memory.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9e894ed..6001ee6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1819,9 +1819,19 @@ int split_huge_page(struct page *page)
- 
- 	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
- 	BUG_ON(!PageAnon(page));
--	anon_vma = page_lock_anon_vma_read(page);
-+
-+	/*
-+	 * The caller does not necessarily hold an mmap_sem that would prevent
-+	 * the anon_vma disappearing so we first we take a reference to it
-+	 * and then lock the anon_vma for write. This is similar to
-+	 * page_lock_anon_vma_read except the write lock is taken to serialise
-+	 * against parallel split or collapse operations.
-+	 */
-+	anon_vma = page_get_anon_vma(page);
- 	if (!anon_vma)
- 		goto out;
-+	anon_vma_lock_write(anon_vma);
-+
- 	ret = 0;
- 	if (!PageCompound(page))
- 		goto out_unlock;
-@@ -1832,7 +1842,8 @@ int split_huge_page(struct page *page)
- 
- 	BUG_ON(PageCompound(page));
- out_unlock:
--	page_unlock_anon_vma_read(anon_vma);
-+	anon_vma_unlock(anon_vma);
-+	put_anon_vma(anon_vma);
- out:
- 	return ret;
- }
+here. Dunno if that is a huge win though.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
