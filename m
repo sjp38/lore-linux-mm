@@ -1,35 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 0A3CF6B005D
-	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 22:43:26 -0500 (EST)
-Message-ID: <50E64FB0.9050803@huawei.com>
-Date: Fri, 4 Jan 2013 11:42:40 +0800
-From: Li Zefan <lizefan@huawei.com>
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id B7E5F6B005D
+	for <linux-mm@kvack.org>; Thu,  3 Jan 2013 22:52:55 -0500 (EST)
+Date: Fri, 4 Jan 2013 03:52:54 +0000
+From: Eric Wong <normalperson@yhbt.net>
+Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
+Message-ID: <20130104035254.GA17408@dcvr.yhbt.net>
+References: <20121228014503.GA5017@dcvr.yhbt.net>
+ <20130102200848.GA4500@dcvr.yhbt.net>
+ <20130102204712.GA17806@dcvr.yhbt.net>
+ <1357220469.21409.24574.camel@edumazet-glaptop>
+ <20130103183251.GA10113@dcvr.yhbt.net>
+ <20130103234558.GA1689@dcvr.yhbt.net>
+ <20130104002635.GA6693@dcvr.yhbt.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 7/7] cgroup: remove css_get_next
-References: <1357235661-29564-1-git-send-email-mhocko@suse.cz> <1357235661-29564-8-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1357235661-29564-8-git-send-email-mhocko@suse.cz>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130104002635.GA6693@dcvr.yhbt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Ying Han <yinghan@google.com>, Tejun Heo <htejun@gmail.com>, Glauber Costa <glommer@parallels.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 2013/1/4 1:54, Michal Hocko wrote:
-> Now that we have generic and well ordered cgroup tree walkers there is
-> no need to keep css_get_next in the place.
+Eric Wong <normalperson@yhbt.net> wrote:
+> Eric Wong <normalperson@yhbt.net> wrote:
+> > I think this requires frequent dirtying/cycling of pages to reproduce.
+> > (from copying large files around) to interact with compaction.
+> > I'll see if I can reproduce the issue with read-only FS activity.
 > 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Still successfully running the read-only test on my main machine, will
+> provide another update in a few hours or so if it's still successful
+> (it usually takes <1 hour to hit).
 
-Acked-by: Li Zefan <lizefan@huawei.com>
-
-> ---
->  include/linux/cgroup.h |    7 -------
->  kernel/cgroup.c        |   49 ------------------------------------------------
->  2 files changed, 56 deletions(-)
-
+The read-only test is still going on my main machine.
+I think writes/dirty data is required to reproduce the issue...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
