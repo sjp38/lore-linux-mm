@@ -1,111 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 4D4416B0071
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:35:50 -0500 (EST)
-Date: Sat, 5 Jan 2013 01:35:45 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH 2/2] mm: mmap: annotate vm_lock_anon_vma locking properly
- for lockdep
-In-Reply-To: <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
-Message-ID: <alpine.LNX.2.00.1301050135050.2946@pobox.suse.cz>
-References: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz> <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id A16406B0070
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:42:32 -0500 (EST)
+Received: by mail-la0-f53.google.com with SMTP id fn20so10435284lab.26
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 16:42:30 -0800 (PST)
+From: Max Filippov <jcmvbkbc@gmail.com>
+Subject: [PATCH v2] mm: bootmem: fix free_all_bootmem_core with odd bitmap alignment
+Date: Sat,  5 Jan 2013 04:42:16 +0400
+Message-Id: <1357346536-26642-1-git-send-email-jcmvbkbc@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "David S. Miller" <davem@davemloft.net>, Tejun Heo <tj@kernel.org>, Joonsoo Kim <js1304@gmail.com>, Max Filippov <jcmvbkbc@gmail.com>
 
-Commit 5a505085f04 ("mm/rmap: Convert the struct anon_vma::mutex to an 
-rwsem") turned anon_vma mutex to rwsem.
+Currently free_all_bootmem_core ignores that node_min_pfn may be not
+multiple of BITS_PER_LONG. E.g. commit 6dccdcbe "mm: bootmem: fix
+checking the bitmap when finally freeing bootmem" shifts vec by lower
+bits of start instead of lower bits of idx. Also
 
-However, the properly annotated nested locking in mm_take_all_locks() has 
-been converted from
+  if (IS_ALIGNED(start, BITS_PER_LONG) && vec == ~0UL)
 
-	mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
+assumes that vec bit 0 corresponds to start pfn, which is only true when
+node_min_pfn is a multiple of BITS_PER_LONG. Also loop in the else
+clause can double-free pages (e.g. with node_min_pfn == start == 1,
+map[0] == ~0 on 32-bit machine page 32 will be double-freed).
 
-to
+This bug causes the following message during xtensa kernel boot:
 
-	down_write(&anon_vma->root->rwsem);
+[    0.000000] bootmem::free_all_bootmem_core nid=0 start=1 end=8000
+[    0.000000] BUG: Bad page state in process swapper  pfn:00001
+[    0.000000] page:d04bd020 count:0 mapcount:-127 mapping:  (null) index:0x2
+[    0.000000] page flags: 0x0()
+[    0.000000]
+[    0.000000] Stack: 00000000 00000002 00000004 ffffffff d0193e44 ffffff81 00000000 00000002
+[    0.000000]        90038c66 d0193e90 d04bd020 000001a8 00000000 ffffffff 00000000 00000020
+[    0.000000]        90039a4c d0193eb0 d04bd020 00000001 d04b7b20 ffff8ad0 00000000 00000000
+[    0.000000] Call Trace:
+[    0.000000]  [<d0038bf8>] bad_page+0x8c/0x9c
+[    0.000000]  [<d0038c66>] free_pages_prepare+0x5e/0x88
+[    0.000000]  [<d0039a4c>] free_hot_cold_page+0xc/0xa0
+[    0.000000]  [<d0039b28>] __free_pages+0x24/0x38
+[    0.000000]  [<d01b8230>] __free_pages_bootmem+0x54/0x56
+[    0.000000]  [<d01b1667>] free_all_bootmem_core$part$11+0xeb/0x138
+[    0.000000]  [<d01b179e>] free_all_bootmem+0x46/0x58
+[    0.000000]  [<d01ae7a9>] mem_init+0x25/0xa4
+[    0.000000]  [<d01ad13e>] start_kernel+0x11e/0x25c
+[    0.000000]  [<d01a9121>] should_never_return+0x0/0x3be7
 
-which is incomplete, and causes the false positive report from lockdep below.
+The fix is the following:
+- always align vec so that its bit 0 corresponds to start
+- provide BITS_PER_LONG bits in vec, if those bits are available in the map
+- don't free pages past next start position in the else clause.
 
-Annotate the fact that mmap_sem is used as an outter lock to serialize taking
-of all the anon_vma rwsems at once no matter the order, using the
-down_write_nest_lock() primitive.
-
-This patch fixes this lockdep report:
-
- =============================================
- [ INFO: possible recursive locking detected ]
- 3.8.0-rc2-00036-g5f73896 #171 Not tainted
- ---------------------------------------------
- qemu-kvm/2315 is trying to acquire lock:
-  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
-
- but task is already holding lock:
-  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
-
- other info that might help us debug this:
-  Possible unsafe locking scenario:
-
-        CPU0
-        ----
-   lock(&anon_vma->rwsem);
-   lock(&anon_vma->rwsem);
-
-  *** DEADLOCK ***
-
-  May be due to missing lock nesting notation
-
- 4 locks held by qemu-kvm/2315:
-  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81177f1c>] do_mmu_notifier_register+0xfc/0x170
-  #1:  (mm_all_locks_mutex){+.+...}, at: [<ffffffff8115d436>] mm_take_all_locks+0x36/0x1b0
-  #2:  (&mapping->i_mmap_mutex){+.+...}, at: [<ffffffff8115d4c9>] mm_take_all_locks+0xc9/0x1b0
-  #3:  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
-
- stack backtrace:
- Pid: 2315, comm: qemu-kvm Not tainted 3.8.0-rc2-00036-g5f73896 #171
- Call Trace:
-  [<ffffffff810afea2>] print_deadlock_bug+0xf2/0x100
-  [<ffffffff810b1a76>] validate_chain+0x4f6/0x720
-  [<ffffffff810b1ff9>] __lock_acquire+0x359/0x580
-  [<ffffffff810b0e7d>] ? trace_hardirqs_on_caller+0x12d/0x1b0
-  [<ffffffff810b2341>] lock_acquire+0x121/0x190
-  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
-  [<ffffffff815a12bf>] down_write+0x3f/0x70
-  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
-  [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
-  [<ffffffff81177e88>] do_mmu_notifier_register+0x68/0x170
-  [<ffffffff81177fae>] mmu_notifier_register+0xe/0x10
-  [<ffffffffa04bd6ab>] kvm_create_vm+0x22b/0x330 [kvm]
-  [<ffffffffa04bd8a8>] kvm_dev_ioctl+0xf8/0x1a0 [kvm]
-  [<ffffffff811a45bd>] do_vfs_ioctl+0x9d/0x350
-  [<ffffffff815ad215>] ? sysret_check+0x22/0x5d
-  [<ffffffff811a4901>] sys_ioctl+0x91/0xb0
-  [<ffffffff815ad1e9>] system_call_fastpath+0x16/0x1b
-
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
 ---
- mm/mmap.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+Sent wrong version for v1, 'while' should have been 'for'.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f54b235..35730ee 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2886,7 +2886,7 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
- 		 * The LSB of head.next can't change from under us
- 		 * because we hold the mm_all_locks_mutex.
- 		 */
--		down_write(&anon_vma->root->rwsem);
-+		down_write_nest_lock(&anon_vma->root->rwsem, &mm->mmap_sem);
+ mm/bootmem.c |   23 +++++++++++++++++------
+ 1 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/mm/bootmem.c b/mm/bootmem.c
+index 1324cd7..1157be7 100644
+--- a/mm/bootmem.c
++++ b/mm/bootmem.c
+@@ -185,10 +185,23 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 
+ 	while (start < end) {
+ 		unsigned long *map, idx, vec;
++		unsigned shift;
+ 
+ 		map = bdata->node_bootmem_map;
+ 		idx = start - bdata->node_min_pfn;
++		shift = idx & (BITS_PER_LONG - 1);
++		/*
++		 * vec holds at most BITS_PER_LONG map bits,
++		 * bit 0 corresponds to start.
++		 */
+ 		vec = ~map[idx / BITS_PER_LONG];
++
++		if (shift) {
++			vec >>= shift;
++			if (end - start >= BITS_PER_LONG)
++				vec |= ~map[idx / BITS_PER_LONG + 1] <<
++					(BITS_PER_LONG - shift);
++		}
  		/*
- 		 * We can safely modify head.next after taking the
- 		 * anon_vma->root->rwsem. If some other vma in this mm shares
+ 		 * If we have a properly aligned and fully unreserved
+ 		 * BITS_PER_LONG block of pages in front of us, free
+@@ -201,19 +214,17 @@ static unsigned long __init free_all_bootmem_core(bootmem_data_t *bdata)
+ 			count += BITS_PER_LONG;
+ 			start += BITS_PER_LONG;
+ 		} else {
+-			unsigned long off = 0;
++			unsigned long cur;
+ 
+-			vec >>= start & (BITS_PER_LONG - 1);
+-			while (vec) {
++			start = ALIGN(start + 1, BITS_PER_LONG);
++			for (cur = start; vec && cur != start; ++cur) {
+ 				if (vec & 1) {
+-					page = pfn_to_page(start + off);
++					page = pfn_to_page(cur);
+ 					__free_pages_bootmem(page, 0);
+ 					count++;
+ 				}
+ 				vec >>= 1;
+-				off++;
+ 			}
+-			start = ALIGN(start + 1, BITS_PER_LONG);
+ 		}
+ 	}
+ 
 -- 
-Jiri Kosina
-SUSE Labs
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
