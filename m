@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
-	by kanga.kvack.org (Postfix) with SMTP id 205E66B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:34:51 -0500 (EST)
-Received: by mail-oa0-f48.google.com with SMTP id h2so15296763oag.7
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 18:34:50 -0800 (PST)
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id D17E96B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:49:01 -0500 (EST)
+Received: by mail-ob0-f180.google.com with SMTP id wd20so15028668obb.39
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 18:49:01 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <50DCEA3D.1030501@jp.fujitsu.com>
+In-Reply-To: <20130102090803.GB22160@dhcp22.suse.cz>
 References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
 	<1356456156-14535-1-git-send-email-handai.szj@taobao.com>
-	<50DCEA3D.1030501@jp.fujitsu.com>
-Date: Sat, 5 Jan 2013 10:34:50 +0800
-Message-ID: <CAFj3OHWJhaghOQ_xT7+rWOGiY0b2KLm68QHz4+yiOqtNf=Sz7A@mail.gmail.com>
+	<20130102090803.GB22160@dhcp22.suse.cz>
+Date: Sat, 5 Jan 2013 10:49:00 +0800
+Message-ID: <CAFj3OHUCQkqB2+ky9wxFpkNYcn2=6t9Qd7XFf3RBY0F4Wxyqcg@mail.gmail.com>
 Subject: Re: [PATCH V3 2/8] Make TestSetPageDirty and dirty page accounting in
  one func
 From: Sha Zhengju <handai.szj@gmail.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
 
-Hi Kame,
+Hi Michal,
 
-Sorry for the late response, I'm just back from vocation. : )
+Sorry for my late response, I'm just back from vocation. : )
 
-On Fri, Dec 28, 2012 at 8:39 AM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2012/12/26 2:22), Sha Zhengju wrote:
+On Wed, Jan 2, 2013 at 5:08 PM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Wed 26-12-12 01:22:36, Sha Zhengju wrote:
 >> From: Sha Zhengju <handai.szj@taobao.com>
 >>
 >> Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
@@ -35,6 +34,13 @@ On Fri, Dec 28, 2012 at 8:39 AM, Kamezawa Hiroyuki
 >> function to keep modular. So in order to avoid the potential race mentioned in
 >> commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
 >> There's no deadlock between ->private_lock and ->tree_lock after confirmation.
+>
+> Could you be more specific here? E.g. quote mm/filemap.c comment I have
+> mentioned during the first round of review?
+>
+
+Okay, sorry for forgetting the comment. I'll add it next round.
+
 >> It's a prepare patch for following memcg dirty page accounting patches.
 >>
 >>
@@ -42,7 +48,20 @@ On Fri, Dec 28, 2012 at 8:39 AM, Kamezawa Hiroyuki
 >> Test steps(Mem-4g, ext4):
 >> drop_cache; sync
 >> fio (ioengine=sync/write/buffered/bs=4k/size=1g/numjobs=2/group_reporting/thread)
->>
+>
+> Could also add some rationale why you think this test is relevant?
+>
+
+The test is aiming at finding the impact of performance due to lock
+contention by writing parallel
+to the same file. I'll add the reason next version too.
+
+Thanks for reviewing!
+
+
+Regards,
+Sha
+
 >> We test it for 10 times and get the average numbers:
 >> Before:
 >> write: io=2048.0MB, bw=254117KB/s, iops=63528.9 , runt=  8279msec
@@ -56,29 +75,77 @@ On Fri, Dec 28, 2012 at 8:39 AM, Kamezawa Hiroyuki
 >>
 >> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
 >> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>> ---
+>>  fs/buffer.c |   24 ++++++++++++------------
+>>  1 file changed, 12 insertions(+), 12 deletions(-)
+>>
+>> diff --git a/fs/buffer.c b/fs/buffer.c
+>> index c017a2d..3b032b9 100644
+>> --- a/fs/buffer.c
+>> +++ b/fs/buffer.c
+>> @@ -609,9 +609,15 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+>>   * If warn is true, then emit a warning if the page is not uptodate and has
+>>   * not been truncated.
+>>   */
+>> -static void __set_page_dirty(struct page *page,
+>> +static int __set_page_dirty(struct page *page,
+>>               struct address_space *mapping, int warn)
+>>  {
+>> +     if (unlikely(!mapping))
+>> +             return !TestSetPageDirty(page);
+>> +
+>> +     if (TestSetPageDirty(page))
+>> +             return 0;
+>> +
+>>       spin_lock_irq(&mapping->tree_lock);
+>>       if (page->mapping) {    /* Race with truncate? */
+>>               WARN_ON_ONCE(warn && !PageUptodate(page));
+>> @@ -621,6 +627,8 @@ static void __set_page_dirty(struct page *page,
+>>       }
+>>       spin_unlock_irq(&mapping->tree_lock);
+>>       __mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+>> +
+>> +     return 1;
+>>  }
+>>
+>>  /*
+>> @@ -666,11 +674,9 @@ int __set_page_dirty_buffers(struct page *page)
+>>                       bh = bh->b_this_page;
+>>               } while (bh != head);
+>>       }
+>> -     newly_dirty = !TestSetPageDirty(page);
+>> +     newly_dirty = __set_page_dirty(page, mapping, 1);
+>>       spin_unlock(&mapping->private_lock);
+>>
+>> -     if (newly_dirty)
+>> -             __set_page_dirty(page, mapping, 1);
+>>       return newly_dirty;
+>>  }
+>>  EXPORT_SYMBOL(__set_page_dirty_buffers);
+>> @@ -1125,14 +1131,8 @@ void mark_buffer_dirty(struct buffer_head *bh)
+>>                       return;
+>>       }
+>>
+>> -     if (!test_set_buffer_dirty(bh)) {
+>> -             struct page *page = bh->b_page;
+>> -             if (!TestSetPageDirty(page)) {
+>> -                     struct address_space *mapping = page_mapping(page);
+>> -                     if (mapping)
+>> -                             __set_page_dirty(page, mapping, 0);
+>> -             }
+>> -     }
+>> +     if (!test_set_buffer_dirty(bh))
+>> +             __set_page_dirty(bh->b_page, page_mapping(bh->b_page), 0);
+>>  }
+>>  EXPORT_SYMBOL(mark_buffer_dirty);
+>>
+>> --
+>> 1.7.9.5
+>>
 >
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->
-> Hmm,..this change should be double-checked by vfs, I/O guys...
->
-
-Now it seems they haven't paid attention here... I'll push it soon for
-more review.
-
-> increasing hold time of mapping->private_lock doesn't affect performance ?
->
->
-
-Yes, pointed by Fengguang in the previous round, mapping->private_lock and
-mapping->tree_lock are often contented locks that in a dd testcase
-they have the top
- #1 and #2 contention.
-So the numbers above are trying to find the impaction of lock
-contention by multiple
-threads(numjobs=2) writing to the same file in parallel and it seems
-the impact is
-little (<1%).
-I'm not sure if the test case is enough, any advice is welcomed! : )
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
