@@ -1,60 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id 916546B006E
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 02:38:33 -0500 (EST)
-Received: by mail-ie0-f171.google.com with SMTP id 17so20851220iea.30
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 23:38:32 -0800 (PST)
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 4FB5E6B005D
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 02:38:49 -0500 (EST)
+Date: Sat, 5 Jan 2013 15:38:46 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH] writeback: fix writeback cache thrashing
+Message-ID: <20130105073846.GA11811@localhost>
+References: <1356847190-7986-1-git-send-email-linkinjeon@gmail.com>
+ <20121231113054.GC7564@quack.suse.cz>
+ <20130102134334.GB30633@quack.suse.cz>
+ <CAKYAXd8-sZo0XcdHuyOQ1qT_s3kJXyphXsjSS7e1-sJ1QaAOgg@mail.gmail.com>
+ <1357261151.5105.2.camel@kernel.cn.ibm.com>
+ <CAKYAXd-kcnxm6Do9VcbdyrCBvArrjz1iHOpxXHnyUyNcqP7Ofg@mail.gmail.com>
+ <1357346803.5273.10.camel@kernel.cn.ibm.com>
+ <20130105032642.GA8188@localhost>
+ <1357363603.5273.16.camel@kernel.cn.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <50DCF00B.5040100@jp.fujitsu.com>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
-	<1356456447-14740-1-git-send-email-handai.szj@taobao.com>
-	<50DCF00B.5040100@jp.fujitsu.com>
-Date: Sat, 5 Jan 2013 15:38:32 +0800
-Message-ID: <CAFj3OHW2E_U9B0x0iNMQHkDXLLyLkF3Bz-KUDto3BcKHi6374g@mail.gmail.com>
-Subject: Re: [PATCH V3 6/8] memcg: Don't account root_mem_cgroup page statistics
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1357363603.5273.16.camel@kernel.cn.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
+To: Simon Jeons <simon.jeons@gmail.com>
+Cc: Namjae Jeon <linkinjeon@gmail.com>, Jan Kara <jack@suse.cz>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Dave Chinner <dchinner@redhat.com>
 
-On Fri, Dec 28, 2012 at 9:04 AM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2012/12/26 2:27), Sha Zhengju wrote:
->> From: Sha Zhengju <handai.szj@taobao.com>
->>
->> If memcg is enabled and no non-root memcg exists, all allocated pages
->> belongs to root_mem_cgroup and go through root memcg statistics routines
->> which brings some overheads. So for the sake of performance, we can give
->> up accounting stats of root memcg for MEM_CGROUP_STAT_FILE_MAPPED/FILE_DIRTY
->> /WRITEBACK and instead we pay special attention while showing root
->> memcg numbers in memcg_stat_show(): as we don't account root memcg stats
->> anymore, the root_mem_cgroup->stat numbers are actually 0. But because of
->> hierachy, figures of root_mem_cgroup may just represent numbers of pages
->> used by its own tasks(not belonging to any other child cgroup). So here we
->> fake these root numbers by using stats of global state and all other memcg.
->> That is for root memcg:
->>       nr(MEM_CGROUP_STAT_FILE_MAPPED) = global_page_state(NR_FILE_MAPPED) -
->>                                sum_of_all_memcg(MEM_CGROUP_STAT_FILE_MAPPED);
->> Dirty/Writeback pages accounting are in the similar way.
->>
->> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
->
-> isn't it better to use mem_cgroup_is_root() call rather than
-> direct comparison (memcg == root_mem_cgroup) ?
->
+On Fri, Jan 04, 2013 at 11:26:43PM -0600, Simon Jeons wrote:
+> On Sat, 2013-01-05 at 11:26 +0800, Fengguang Wu wrote:
+> > > > > Hi Namjae,
+> > > > >
+> > > > > Why use bdi_stat_error here? What's the meaning of its comment "maximal
+> > > > > error of a stat counter"?
+> > > > Hi Simon,
+> > > > 
+> > > > As you know bdi stats (BDI_RECLAIMABLE, BDI_WRITEBACK a?|) are kept in
+> > > > percpu counters.
+> > > > When these percpu counters are incremented/decremented simultaneously
+> > > > on multiple CPUs by small amount (individual cpu counter less than
+> > > > threshold BDI_STAT_BATCH),
+> > > > it is possible that we get approximate value (not exact value) of
+> > > > these percpu counters.
+> > > > In order, to handle these percpu counter error we have used
+> > > > bdi_stat_error. bdi_stat_error is the maximum error which can happen
+> > > > in percpu bdi stats accounting.
+> > > > 
+> > > > bdi_stat(bdi, BDI_RECLAIMABLE);
+> > > >  -> This will give approximate value of BDI_RECLAIMABLE by reading
+> > > > previous value of percpu count.
+> > > > 
+> > > > bdi_stat_sum(bdi, BDI_RECLAIMABLE);
+> > > >  ->This will give exact value of BDI_RECLAIMABLE. It will take lock
+> > > > and add current percpu count of individual CPUs.
+> > > >    It is not recommended to use it frequently as it is expensive. We
+> > > > can better use a??bdi_stata?? and work with approx value of bdi stats.
+> > > > 
+> > > 
+> > > Hi Namjae, thanks for your clarify.
+> > > 
+> > > But why compare error stat count to bdi_bground_thresh? What's the
+> > 
+> > It's not comparing bdi_stat_error to bdi_bground_thresh, but rather,
+> > in concept, comparing bdi_stat (with error bound adjustments) to
+> > bdi_bground_thresh.
+> > 
+> > > relationship between them? I also see bdi_stat_error compare to
+> > > bdi_thresh/bdi_dirty in function balance_dirty_pages. 
+> > 
+> 
+> Hi Fengguang,
+> 
+> > Here, it's trying to use bdi_stat_sum(), the accurate (however more
+> > costly) version of bdi_stat(), if the error would possibly be large:
+> 
+> Why error is large use bdi_stat_sum and error is few use bdi_stat?
 
-Okay, it's better to use the wrapper.
+It's the opposite. Please check this per-cpu counter routine to get an idea:
 
-> Anyway, Ack to this approach.
->
+/*
+ * Add up all the per-cpu counts, return the result.  This is a more accurate
+ * but much slower version of percpu_counter_read_positive()
+ */                                                 
+s64 __percpu_counter_sum(struct percpu_counter *fbc)
 
-Thanks for reviewing!
+> > 
+> >                 if (bdi_thresh < 2 * bdi_stat_error(bdi)) {
+> >                         bdi_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
+> >                         //...
+> >                 } else {
+> >                         bdi_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
+> >                         //...
+> >                 }
+> > 
+> > Here the comment should have explained it well:
+> > 
+> >                  * In theory 1 page is enough to keep the comsumer-producer
+> >                  * pipe going: the flusher cleans 1 page => the task dirties 1
+> >                  * more page. However bdi_dirty has accounting errors.  So use
+> 
+> Why bdi_dirty has accounting errors?
 
+Because it typically uses bdi_stat() to get the rough sum of the per-cpu
+counters.
+ 
+Thanks,
+Fengguang
 
-Regards,
-Sha
+> >                  * the larger and more IO friendly bdi_stat_error.
+> >                  */
+> >                 if (bdi_dirty <= bdi_stat_error(bdi))
+> >                         break;
+> > 
+> > 
+> > Thanks,
+> > Fengguang
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
