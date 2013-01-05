@@ -1,97 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
-	by kanga.kvack.org (Postfix) with SMTP id 618EE6B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:26:10 -0500 (EST)
-Received: by mail-da0-f47.google.com with SMTP id s35so7741744dak.34
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 18:26:09 -0800 (PST)
-From: Ming Lei <ming.lei@canonical.com>
-Subject: [PATCH v7 0/6] solve deadlock caused by memory allocation with I/O
-Date: Sat,  5 Jan 2013 10:25:38 +0800
-Message-Id: <1357352744-8138-1-git-send-email-ming.lei@canonical.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id 51DA16B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:27:04 -0500 (EST)
+From: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+Subject: [PATCH] mm: remove redundant var retval in sys_brk
+Date: Sat,  5 Jan 2013 10:27:44 +0800
+Message-Id: <1357352864-29258-1-git-send-email-yuanhan.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>
+To: linux-mm@kvack.org
+Cc: Yuanhan Liu <yuanhan.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+There is only one possible return value of sys_brk, which is mm->brk no
+matter succeed or not.
 
-This patchset try to solve one deadlock problem which might be caused
-by memory allocation with block I/O during runtime PM and block device
-error handling path. Traditionly, the problem is addressed by passing
-GFP_NOIO statically to mm, but that is not a effective solution, see
-detailed description in patch 1's commit log.
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+---
+ mm/mmap.c |    5 ++---
+ 1 files changed, 2 insertions(+), 3 deletions(-)
 
-This patch set introduces one process flag and trys to fix the deadlock
-problem on block device/network device during runtime PM or usb bus reset.
-
-The 1st one is the change on include/sched.h and mm.
-
-The 2nd patch introduces the flag of memalloc_noio on 'dev_pm_info',
-and pm_runtime_set_memalloc_noio(), so that PM Core can teach mm to not
-allocate mm with GFP_IO during the runtime_resume callback only on
-device with the flag set.
-
-The following 2 patches apply the introduced pm_runtime_set_memalloc_noio()
-to mark all devices as memalloc_noio_resume in the path from the block or
-network device to the root device in device tree.
-
-The last 2 patches are applied again PM and USB subsystem to demonstrate
-how to use the introduced mechanism to fix the deadlock problem.
-
-Andrew, could you queue these patches into your tree since V6 fixes all
-your concerns and looks no one objects these patches?
-
-Change logs:
-V7:
-	- rebase on v3.8-rc2-next-20130104
-	- move memalloc_noio_save/memalloc_noio_restore into
-        rpm_callback to avoid code duplication, as suggested
-        by Rafael
-	- optimize on pm_runtime_set_memalloc_noio(true)
-	- fix type of 'flags' in memalloc_noio_save()/memalloc_noio_restore()
-V6:
-        - fix one compile failure(1/6), and only one line change
-V5:
-        - don't clear GFP_FS
-        - coding style fix
-        - add comments
-        - see details in individual change logs
-V4:
-        - patches from the 2nd to the 6th changed
-        - call pm_runtime_set_memalloc_noio() after device_add() as pointed
-        by Alan
-        - set PF_MEMALLOC_NOIO during runtime_suspend()
-V3:
-        - patch 2/6 and 5/6 changed, see their commit log
-        - remove RFC from title since several guys have expressed that
-        it is a reasonable solution
-V2:
-        - remove changes on 'may_writepage' and 'may_swap'(1/6)
-        - unset GFP_IOFS in try_to_free_pages() path(1/6)
-        - introduce pm_runtime_set_memalloc_noio()
-        - only apply the meachnism on block/network device and its ancestors
-        for runtime resume context
-V1:
-        - take Minchan's change to avoid the check in alloc_page hot path
-        - change the helpers' style into save/restore as suggested by Alan
-        - memory allocation with no io in usb bus reset path for all devices
-        as suggested by Greg and Oliver
-
- block/genhd.c                |   10 +++++
- drivers/base/power/runtime.c |   89 +++++++++++++++++++++++++++++++++++++++++-
- drivers/usb/core/hub.c       |   13 ++++++
- include/linux/pm.h           |    1 +
- include/linux/pm_runtime.h   |    3 ++
- include/linux/sched.h        |   22 +++++++++++
- mm/page_alloc.c              |    9 ++++-
- mm/vmscan.c                  |    4 +-
- net/core/net-sysfs.c         |    5 +++
- 9 files changed, 152 insertions(+), 4 deletions(-)
-
-
-Thanks,
---
-Ming Lei
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f54b235..ae4093c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -251,7 +251,7 @@ static unsigned long do_brk(unsigned long addr, unsigned long len);
+ 
+ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ {
+-	unsigned long rlim, retval;
++	unsigned long rlim;
+ 	unsigned long newbrk, oldbrk;
+ 	struct mm_struct *mm = current->mm;
+ 	unsigned long min_brk;
+@@ -307,9 +307,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ set_brk:
+ 	mm->brk = brk;
+ out:
+-	retval = mm->brk;
+ 	up_write(&mm->mmap_sem);
+-	return retval;
++	return mm->brk;
+ }
+ 
+ static long vma_compute_subtree_gap(struct vm_area_struct *vma)
+-- 
+1.7.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
