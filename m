@@ -1,76 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id B45756B005D
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:30:07 -0500 (EST)
-Received: by mail-ia0-f176.google.com with SMTP id y26so14100541iab.7
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 16:30:07 -0800 (PST)
-Message-ID: <1357345807.5273.6.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH v7 1/2] KSM: numa awareness sysfs knob
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Fri, 04 Jan 2013 18:30:07 -0600
-In-Reply-To: <alpine.LNX.2.00.1301041446340.4863@eggly.anvils>
-References: <20121224050817.GA25749@kroah.com>
-	 <1356658337-12540-1-git-send-email-pholasek@redhat.com>
-	 <1357030004.1379.4.camel@kernel.cn.ibm.com>
-	 <alpine.LNX.2.00.1301022050450.979@eggly.anvils>
-	 <1357259044.4930.4.camel@kernel.cn.ibm.com>
-	 <alpine.LNX.2.00.1301041446340.4863@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
+	by kanga.kvack.org (Postfix) with SMTP id E00466B0070
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:35:04 -0500 (EST)
+Date: Sat, 5 Jan 2013 01:34:55 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH 1/2] lockdep, rwsem: provide down_write_nest_lock()
+In-Reply-To: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+Message-ID: <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
+References: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Petr Holasek <pholasek@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 2013-01-04 at 15:03 -0800, Hugh Dickins wrote:
-> On Thu, 3 Jan 2013, Simon Jeons wrote:
-> > On Wed, 2013-01-02 at 21:10 -0800, Hugh Dickins wrote:
-> > > 
-> > > As you can see, remove_rmap_item_from_tree uses it to decide whether
-> > > or not it should rb_erase the rmap_item from the unstable_tree.
-> > > 
-> > > Every full scan of all the rmap_items, we increment ksm_scan.seqnr,
-> > > forget the old unstable_tree (it would just be a waste of processing
-> > > to remove every node one by one), and build up the unstable_tree afresh.
-> > > 
-> > 
-> > When the rmap_items left over from the previous scan will be removed?
-> 
-> Removed from the unstable rbtree?  Not at all, it's simply restarted
-> afresh, and the old rblinkages ignored.  Freed back to slab?  When the
-> scan passes that mm+address and realizes that rmap_item is not wanted
-> any more.  (Or when ksm is shut down with KSM_RUN_UNMERGE.)
-> 
+down_write_nest_lock() provides means to annotate locking scenario where 
+an outter lock is guaranteed to serialize the order nested locks are being 
+acquired.
 
-Make sense. Thanks Hugh. :)
+This is an analogy to already existing mutex_lock_nest_lock() and
+spin_lock_nest_lock().
 
-> > 
-> > > That works fine until we need to remove an rmap_item: then we have to be
-> > > very sure to remove it from the unstable_tree if it's already been linked
-> > > there during this scan, but ignore its rblinkage if that's just left over
-> > > from the previous scan.
-> > > 
-> > > A single bit would be enough to decide this; but we got it troublesomely
-> > > wrong in the early days of KSM (didn't always visit every rmap_item each
-> > > scan), so it's convenient to use 8 bits (the low unsigned char, stored
-> > 
-> > When the scenario didn't always visit every rmap_item each scan can
-> > occur? 
-> 
-> You're asking me about a stage of KSM development 3.5 years ago:
-> I don't remember the details.
-> 
-> > 
-> > > below the FLAGs and below the page-aligned address in the rmap_item -
-> > > there's lots of them, best keep them as small as we can) and do a
-> > > BUG_ON(age > 1) if we made a mistake.
-> > > 
-> > > We haven't hit that BUG_ON in over three years: if we need some more
-> > > bits for something, we can cut the age down to one or two bits.
-> > > 
-> > > Hugh
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
+ include/linux/lockdep.h |    3 +++
+ include/linux/rwsem.h   |    9 +++++++++
+ kernel/rwsem.c          |   10 ++++++++++
+ 3 files changed, 22 insertions(+), 0 deletions(-)
 
+diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
+index 00e4637..2bca44b 100644
+--- a/include/linux/lockdep.h
++++ b/include/linux/lockdep.h
+@@ -524,14 +524,17 @@ static inline void print_irqtrace_events(struct task_struct *curr)
+ #ifdef CONFIG_DEBUG_LOCK_ALLOC
+ # ifdef CONFIG_PROVE_LOCKING
+ #  define rwsem_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 2, NULL, i)
++#  define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 2, n, i)
+ #  define rwsem_acquire_read(l, s, t, i)	lock_acquire(l, s, t, 1, 2, NULL, i)
+ # else
+ #  define rwsem_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 1, NULL, i)
++#  define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 1, n, i)
+ #  define rwsem_acquire_read(l, s, t, i)	lock_acquire(l, s, t, 1, 1, NULL, i)
+ # endif
+ # define rwsem_release(l, n, i)			lock_release(l, n, i)
+ #else
+ # define rwsem_acquire(l, s, t, i)		do { } while (0)
++# define rwsem_acquire_nest(l, s, t, n, i)	do { } while (0)
+ # define rwsem_acquire_read(l, s, t, i)		do { } while (0)
+ # define rwsem_release(l, n, i)			do { } while (0)
+ #endif
+diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
+index 54bd7cd..413cc11 100644
+--- a/include/linux/rwsem.h
++++ b/include/linux/rwsem.h
+@@ -125,8 +125,17 @@ extern void downgrade_write(struct rw_semaphore *sem);
+  */
+ extern void down_read_nested(struct rw_semaphore *sem, int subclass);
+ extern void down_write_nested(struct rw_semaphore *sem, int subclass);
++extern void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest_lock);
++
++# define down_write_nest_lock(sem, nest_lock)			\
++do {								\
++	typecheck(struct lockdep_map *, &(nest_lock)->dep_map);	\
++	_down_write_nest_lock(sem, &(nest_lock)->dep_map);	\
++} while (0);
++
+ #else
+ # define down_read_nested(sem, subclass)		down_read(sem)
++# define down_write_nest_lock(sem, nest_lock)	down_read(sem)
+ # define down_write_nested(sem, subclass)	down_write(sem)
+ #endif
+ 
+diff --git a/kernel/rwsem.c b/kernel/rwsem.c
+index 6850f53..b3c6c3f 100644
+--- a/kernel/rwsem.c
++++ b/kernel/rwsem.c
+@@ -116,6 +116,16 @@ void down_read_nested(struct rw_semaphore *sem, int subclass)
+ 
+ EXPORT_SYMBOL(down_read_nested);
+ 
++void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest)
++{
++	might_sleep();
++	rwsem_acquire_nest(&sem->dep_map, 0, 0, nest, _RET_IP_);
++
++	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
++}
++
++EXPORT_SYMBOL(_down_write_nest_lock);
++
+ void down_write_nested(struct rw_semaphore *sem, int subclass)
+ {
+ 	might_sleep();
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
