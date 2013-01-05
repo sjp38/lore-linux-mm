@@ -1,81 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
-	by kanga.kvack.org (Postfix) with SMTP id 707546B0072
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:28:23 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id un1so9471805pbc.20
-        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 18:28:22 -0800 (PST)
-From: Ming Lei <ming.lei@canonical.com>
-Subject: [PATCH v7 6/6] USB: forbid memory allocation with I/O during bus reset
-Date: Sat,  5 Jan 2013 10:25:44 +0800
-Message-Id: <1357352744-8138-7-git-send-email-ming.lei@canonical.com>
-In-Reply-To: <1357352744-8138-1-git-send-email-ming.lei@canonical.com>
-References: <1357352744-8138-1-git-send-email-ming.lei@canonical.com>
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 205E66B005D
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 21:34:51 -0500 (EST)
+Received: by mail-oa0-f48.google.com with SMTP id h2so15296763oag.7
+        for <linux-mm@kvack.org>; Fri, 04 Jan 2013 18:34:50 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <50DCEA3D.1030501@jp.fujitsu.com>
+References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
+	<1356456156-14535-1-git-send-email-handai.szj@taobao.com>
+	<50DCEA3D.1030501@jp.fujitsu.com>
+Date: Sat, 5 Jan 2013 10:34:50 +0800
+Message-ID: <CAFj3OHWJhaghOQ_xT7+rWOGiY0b2KLm68QHz4+yiOqtNf=Sz7A@mail.gmail.com>
+Subject: Re: [PATCH V3 2/8] Make TestSetPageDirty and dirty page accounting in
+ one func
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>, Ming Lei <ming.lei@canonical.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, dchinner@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
 
-If one storage interface or usb network interface(iSCSI case)
-exists in current configuration, memory allocation with
-GFP_KERNEL during usb_device_reset() might trigger I/O transfer
-on the storage interface itself and cause deadlock because
-the 'us->dev_mutex' is held in .pre_reset() and the storage
-interface can't do I/O transfer when the reset is triggered
-by other interface, or the error handling can't be completed
-if the reset is triggered by the storage itself(error handling path).
+Hi Kame,
 
-Cc: Alan Stern <stern@rowland.harvard.edu>
-Cc: Oliver Neukum <oneukum@suse.de>
-Signed-off-by: Ming Lei <ming.lei@canonical.com>
---
-v5:
-	- use inline memalloc_noio_save()
-v4:
-	- mark current memalloc_noio for every usb device reset
----
- drivers/usb/core/hub.c |   13 +++++++++++++
- 1 file changed, 13 insertions(+)
+Sorry for the late response, I'm just back from vocation. : )
 
-diff --git a/drivers/usb/core/hub.c b/drivers/usb/core/hub.c
-index a815fd2..698922e 100644
---- a/drivers/usb/core/hub.c
-+++ b/drivers/usb/core/hub.c
-@@ -5040,6 +5040,7 @@ int usb_reset_device(struct usb_device *udev)
- {
- 	int ret;
- 	int i;
-+	unsigned int noio_flag;
- 	struct usb_host_config *config = udev->actconfig;
- 
- 	if (udev->state == USB_STATE_NOTATTACHED ||
-@@ -5049,6 +5050,17 @@ int usb_reset_device(struct usb_device *udev)
- 		return -EINVAL;
- 	}
- 
-+	/*
-+	 * Don't allocate memory with GFP_KERNEL in current
-+	 * context to avoid possible deadlock if usb mass
-+	 * storage interface or usbnet interface(iSCSI case)
-+	 * is included in current configuration. The easist
-+	 * approach is to do it for every device reset,
-+	 * because the device 'memalloc_noio' flag may have
-+	 * not been set before reseting the usb device.
-+	 */
-+	noio_flag = memalloc_noio_save();
-+
- 	/* Prevent autosuspend during the reset */
- 	usb_autoresume_device(udev);
- 
-@@ -5093,6 +5105,7 @@ int usb_reset_device(struct usb_device *udev)
- 	}
- 
- 	usb_autosuspend_device(udev);
-+	memalloc_noio_restore(noio_flag);
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(usb_reset_device);
--- 
-1.7.9.5
+On Fri, Dec 28, 2012 at 8:39 AM, Kamezawa Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> (2012/12/26 2:22), Sha Zhengju wrote:
+>> From: Sha Zhengju <handai.szj@taobao.com>
+>>
+>> Commit a8e7d49a(Fix race in create_empty_buffers() vs __set_page_dirty_buffers())
+>> extracts TestSetPageDirty from __set_page_dirty and is far away from
+>> account_page_dirtied. But it's better to make the two operations in one single
+>> function to keep modular. So in order to avoid the potential race mentioned in
+>> commit a8e7d49a, we can hold private_lock until __set_page_dirty completes.
+>> There's no deadlock between ->private_lock and ->tree_lock after confirmation.
+>> It's a prepare patch for following memcg dirty page accounting patches.
+>>
+>>
+>> Here is some test numbers that before/after this patch:
+>> Test steps(Mem-4g, ext4):
+>> drop_cache; sync
+>> fio (ioengine=sync/write/buffered/bs=4k/size=1g/numjobs=2/group_reporting/thread)
+>>
+>> We test it for 10 times and get the average numbers:
+>> Before:
+>> write: io=2048.0MB, bw=254117KB/s, iops=63528.9 , runt=  8279msec
+>> lat (usec): min=1 , max=742361 , avg=30.918, stdev=1601.02
+>> After:
+>> write: io=2048.0MB, bw=254044KB/s, iops=63510.3 , runt=  8274.4msec
+>> lat (usec): min=1 , max=856333 , avg=31.043, stdev=1769.32
+>>
+>> Note that the impact is little(<1%).
+>>
+>>
+>> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+>> Reviewed-by: Michal Hocko <mhocko@suse.cz>
+>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>
+> Hmm,..this change should be double-checked by vfs, I/O guys...
+>
+
+Now it seems they haven't paid attention here... I'll push it soon for
+more review.
+
+> increasing hold time of mapping->private_lock doesn't affect performance ?
+>
+>
+
+Yes, pointed by Fengguang in the previous round, mapping->private_lock and
+mapping->tree_lock are often contented locks that in a dd testcase
+they have the top
+ #1 and #2 contention.
+So the numbers above are trying to find the impaction of lock
+contention by multiple
+threads(numjobs=2) writing to the same file in parallel and it seems
+the impact is
+little (<1%).
+I'm not sure if the test case is enough, any advice is welcomed! : )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
