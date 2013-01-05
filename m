@@ -1,68 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 5711E6B0070
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 07:24:46 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so9771796pad.25
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2013 04:24:45 -0800 (PST)
-Message-ID: <1357388687.9001.3.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH] mm: thp: Acquire the anon_vma rwsem for lock during
- split
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sat, 05 Jan 2013 06:24:47 -0600
-In-Reply-To: <CANN689E8S5mmszQoeaYgL_SYe1piBDTWCk-Gy1kxcg6hPfUPwA@mail.gmail.com>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
-	 <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
-	 <20130103175737.GA3885@suse.de> <20130104140815.GA26005@suse.de>
-	 <CANN689E8S5mmszQoeaYgL_SYe1piBDTWCk-Gy1kxcg6hPfUPwA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 7B8C86B006E
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 14:28:43 -0500 (EST)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [RESEND][PATCH v3] mm: Use aligned zone start for pfn_to_bitidx calculation
+Date: Sat,  5 Jan 2013 11:28:31 -0800
+Message-Id: <1357414111-20736-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michel Lespinasse <walken@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, hughd@google.com, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Laura Abbott <lauraa@codeaurora.org>
 
-On Fri, 2013-01-04 at 17:32 -0800, Michel Lespinasse wrote:
-> On Fri, Jan 4, 2013 at 6:08 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > Despite the reason for these commits, NUMA balancing is not the direct
-> > source of the problem. split_huge_page() expected the anon_vma lock to be
-> > exclusive to serialise the whole split operation. Ordinarily it is expected
-> > that the anon_vma lock would only be required when updating the avcs but
-> > THP also uses it. The locking requirements for THP are complex and there
-> > is some overlap but broadly speaking they include the following
-> >
-> > 1. mmap_sem for read or write prevents THPs being created underneath
-> > 2. anon_vma is taken for write if collapsing a huge page
-> > 3. mm->page_table_lock should be taken when checking if pmd_trans_huge as
-> >    split_huge_page can run in parallel
-> > 4. wait_split_huge_page uses anon_vma taken for write mode to serialise
-> >    against other THP operations
-> > 5. compound_lock is used to serialise between
-> >    __split_huge_page_refcount() and gup
-> >
-> > split_huge_page takes anon_vma for read but that does not serialise against
-> > parallel split_huge_page operations on the same page (rule 2). One process
-> > could be modifying the ref counts while the other modifies the page tables
-> > leading to counters not being reliable. This patch takes the anon_vma
-> > lock for write to serialise against parallel split_huge_page and parallel
-> > collapse operations as it is the most fine-grained lock available that
-> > protects against both.
-> 
-> Your comment about this being the most fine-grained lock made me
-> think, couldn't we use lock_page() on the THP page here ?
-> 
-> Now I don't necessarily want to push you that direction, because I
-> haven't fully thought it trough and because what you propose brings us
-> closer to what happened before anon_vma became an rwlock, which is
-> more obviously safe. But I felt I should still mention it, since we're
-> really only trying to protect from concurrent operations on the same
-> THP page, so locking at just that granularity would seem desirable.
+The current calculation in pfn_to_bitidx assumes that
+(pfn - zone->zone_start_pfn) >> pageblock_order will return the
+same bit for all pfn in a pageblock. If zone_start_pfn is not
+aligned to pageblock_nr_pages, this may not always be correct.
 
-Why you said that anon_vma lock who will protect page associated to a
-list of vmas is fine-grained then page lock who just protect one page?
+Consider the following with pageblock order = 10, zone start 2MB:
 
-> 
+pfn     | pfn - zone start | (pfn - zone start) >> page block order
+----------------------------------------------------------------
+0x26000 | 0x25e00	   |  0x97
+0x26100 | 0x25f00	   |  0x97
+0x26200 | 0x26000	   |  0x98
+0x26300 | 0x26100	   |  0x98
 
+This means that calling {get,set}_pageblock_migratetype on a single
+page will not set the migratetype for the full block. Fix this by
+rounding down zone_start_pfn when doing the bitidx calculation.
+
+Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+Acked-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 92dd060..b6a2510 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5422,7 +5422,7 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+ 	pfn &= (PAGES_PER_SECTION-1);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #else
+-	pfn = pfn - zone->zone_start_pfn;
++	pfn = pfn - round_down(zone->zone_start_pfn, pageblock_nr_pages);
+ 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
+ #endif /* CONFIG_SPARSEMEM */
+ }
+-- 
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
