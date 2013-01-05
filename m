@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id E00466B0070
-	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:35:04 -0500 (EST)
-Date: Sat, 5 Jan 2013 01:34:55 +0100 (CET)
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 4D4416B0071
+	for <linux-mm@kvack.org>; Fri,  4 Jan 2013 19:35:50 -0500 (EST)
+Date: Sat, 5 Jan 2013 01:35:45 +0100 (CET)
 From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH 1/2] lockdep, rwsem: provide down_write_nest_lock()
-In-Reply-To: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
-Message-ID: <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
-References: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz>
+Subject: [PATCH 2/2] mm: mmap: annotate vm_lock_anon_vma locking properly
+ for lockdep
+In-Reply-To: <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
+Message-ID: <alpine.LNX.2.00.1301050135050.2946@pobox.suse.cz>
+References: <alpine.LNX.2.00.1301041317150.9143@pobox.suse.cz> <alpine.LNX.2.00.1301050134420.2946@pobox.suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -15,85 +16,93 @@ List-ID: <linux-mm.kvack.org>
 To: Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-down_write_nest_lock() provides means to annotate locking scenario where 
-an outter lock is guaranteed to serialize the order nested locks are being 
-acquired.
+Commit 5a505085f04 ("mm/rmap: Convert the struct anon_vma::mutex to an 
+rwsem") turned anon_vma mutex to rwsem.
 
-This is an analogy to already existing mutex_lock_nest_lock() and
-spin_lock_nest_lock().
+However, the properly annotated nested locking in mm_take_all_locks() has 
+been converted from
+
+	mutex_lock_nest_lock(&anon_vma->root->mutex, &mm->mmap_sem);
+
+to
+
+	down_write(&anon_vma->root->rwsem);
+
+which is incomplete, and causes the false positive report from lockdep below.
+
+Annotate the fact that mmap_sem is used as an outter lock to serialize taking
+of all the anon_vma rwsems at once no matter the order, using the
+down_write_nest_lock() primitive.
+
+This patch fixes this lockdep report:
+
+ =============================================
+ [ INFO: possible recursive locking detected ]
+ 3.8.0-rc2-00036-g5f73896 #171 Not tainted
+ ---------------------------------------------
+ qemu-kvm/2315 is trying to acquire lock:
+  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
+
+ but task is already holding lock:
+  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
+
+ other info that might help us debug this:
+  Possible unsafe locking scenario:
+
+        CPU0
+        ----
+   lock(&anon_vma->rwsem);
+   lock(&anon_vma->rwsem);
+
+  *** DEADLOCK ***
+
+  May be due to missing lock nesting notation
+
+ 4 locks held by qemu-kvm/2315:
+  #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81177f1c>] do_mmu_notifier_register+0xfc/0x170
+  #1:  (mm_all_locks_mutex){+.+...}, at: [<ffffffff8115d436>] mm_take_all_locks+0x36/0x1b0
+  #2:  (&mapping->i_mmap_mutex){+.+...}, at: [<ffffffff8115d4c9>] mm_take_all_locks+0xc9/0x1b0
+  #3:  (&anon_vma->rwsem){+.+...}, at: [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
+
+ stack backtrace:
+ Pid: 2315, comm: qemu-kvm Not tainted 3.8.0-rc2-00036-g5f73896 #171
+ Call Trace:
+  [<ffffffff810afea2>] print_deadlock_bug+0xf2/0x100
+  [<ffffffff810b1a76>] validate_chain+0x4f6/0x720
+  [<ffffffff810b1ff9>] __lock_acquire+0x359/0x580
+  [<ffffffff810b0e7d>] ? trace_hardirqs_on_caller+0x12d/0x1b0
+  [<ffffffff810b2341>] lock_acquire+0x121/0x190
+  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
+  [<ffffffff815a12bf>] down_write+0x3f/0x70
+  [<ffffffff8115d549>] ? mm_take_all_locks+0x149/0x1b0
+  [<ffffffff8115d549>] mm_take_all_locks+0x149/0x1b0
+  [<ffffffff81177e88>] do_mmu_notifier_register+0x68/0x170
+  [<ffffffff81177fae>] mmu_notifier_register+0xe/0x10
+  [<ffffffffa04bd6ab>] kvm_create_vm+0x22b/0x330 [kvm]
+  [<ffffffffa04bd8a8>] kvm_dev_ioctl+0xf8/0x1a0 [kvm]
+  [<ffffffff811a45bd>] do_vfs_ioctl+0x9d/0x350
+  [<ffffffff815ad215>] ? sysret_check+0x22/0x5d
+  [<ffffffff811a4901>] sys_ioctl+0x91/0xb0
+  [<ffffffff815ad1e9>] system_call_fastpath+0x16/0x1b
 
 Signed-off-by: Jiri Kosina <jkosina@suse.cz>
 ---
- include/linux/lockdep.h |    3 +++
- include/linux/rwsem.h   |    9 +++++++++
- kernel/rwsem.c          |   10 ++++++++++
- 3 files changed, 22 insertions(+), 0 deletions(-)
+ mm/mmap.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
 
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index 00e4637..2bca44b 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -524,14 +524,17 @@ static inline void print_irqtrace_events(struct task_struct *curr)
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- # ifdef CONFIG_PROVE_LOCKING
- #  define rwsem_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 2, NULL, i)
-+#  define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 2, n, i)
- #  define rwsem_acquire_read(l, s, t, i)	lock_acquire(l, s, t, 1, 2, NULL, i)
- # else
- #  define rwsem_acquire(l, s, t, i)		lock_acquire(l, s, t, 0, 1, NULL, i)
-+#  define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire(l, s, t, 0, 1, n, i)
- #  define rwsem_acquire_read(l, s, t, i)	lock_acquire(l, s, t, 1, 1, NULL, i)
- # endif
- # define rwsem_release(l, n, i)			lock_release(l, n, i)
- #else
- # define rwsem_acquire(l, s, t, i)		do { } while (0)
-+# define rwsem_acquire_nest(l, s, t, n, i)	do { } while (0)
- # define rwsem_acquire_read(l, s, t, i)		do { } while (0)
- # define rwsem_release(l, n, i)			do { } while (0)
- #endif
-diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
-index 54bd7cd..413cc11 100644
---- a/include/linux/rwsem.h
-+++ b/include/linux/rwsem.h
-@@ -125,8 +125,17 @@ extern void downgrade_write(struct rw_semaphore *sem);
-  */
- extern void down_read_nested(struct rw_semaphore *sem, int subclass);
- extern void down_write_nested(struct rw_semaphore *sem, int subclass);
-+extern void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest_lock);
-+
-+# define down_write_nest_lock(sem, nest_lock)			\
-+do {								\
-+	typecheck(struct lockdep_map *, &(nest_lock)->dep_map);	\
-+	_down_write_nest_lock(sem, &(nest_lock)->dep_map);	\
-+} while (0);
-+
- #else
- # define down_read_nested(sem, subclass)		down_read(sem)
-+# define down_write_nest_lock(sem, nest_lock)	down_read(sem)
- # define down_write_nested(sem, subclass)	down_write(sem)
- #endif
- 
-diff --git a/kernel/rwsem.c b/kernel/rwsem.c
-index 6850f53..b3c6c3f 100644
---- a/kernel/rwsem.c
-+++ b/kernel/rwsem.c
-@@ -116,6 +116,16 @@ void down_read_nested(struct rw_semaphore *sem, int subclass)
- 
- EXPORT_SYMBOL(down_read_nested);
- 
-+void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *nest)
-+{
-+	might_sleep();
-+	rwsem_acquire_nest(&sem->dep_map, 0, 0, nest, _RET_IP_);
-+
-+	LOCK_CONTENDED(sem, __down_write_trylock, __down_write);
-+}
-+
-+EXPORT_SYMBOL(_down_write_nest_lock);
-+
- void down_write_nested(struct rw_semaphore *sem, int subclass)
- {
- 	might_sleep();
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f54b235..35730ee 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2886,7 +2886,7 @@ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+ 		 * The LSB of head.next can't change from under us
+ 		 * because we hold the mm_all_locks_mutex.
+ 		 */
+-		down_write(&anon_vma->root->rwsem);
++		down_write_nest_lock(&anon_vma->root->rwsem, &mm->mmap_sem);
+ 		/*
+ 		 * We can safely modify head.next after taking the
+ 		 * anon_vma->root->rwsem. If some other vma in this mm shares
 -- 
 Jiri Kosina
 SUSE Labs
