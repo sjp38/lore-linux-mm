@@ -1,181 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
-	by kanga.kvack.org (Postfix) with SMTP id C2DD96B005D
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 04:19:47 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id ro12so9982365pbb.24
-        for <linux-mm@kvack.org>; Sun, 06 Jan 2013 01:19:47 -0800 (PST)
-Message-ID: <1357463980.1454.0.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH] mm: compaction: fix echo 1 > compact_memory return
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 704D66B005D
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 04:22:46 -0500 (EST)
+From: Liu Hui-R64343 <r64343@freescale.com>
+Subject: RE: [PATCH] mm: compaction: fix echo 1 > compact_memory return
  error issue
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sun, 06 Jan 2013 03:19:40 -0600
-In-Reply-To: <AD13664F485EE54694E29A7F9D5BE1AF4E5E1F@039-SN2MPN1-021.039d.mgd.msft.net>
+Date: Sun, 6 Jan 2013 09:22:41 +0000
+Message-ID: <AD13664F485EE54694E29A7F9D5BE1AF4E5EEA@039-SN2MPN1-021.039d.mgd.msft.net>
 References: <1357458273-28558-1-git-send-email-r64343@freescale.com>
 	 <20130106075940.GA22985@hacker.(null)>
 	 <AD13664F485EE54694E29A7F9D5BE1AF4E5BCD@039-SN2MPN1-021.039d.mgd.msft.net>
 	 <20130106084610.GA26483@hacker.(null)>
 	 <AD13664F485EE54694E29A7F9D5BE1AF4E5E1F@039-SN2MPN1-021.039d.mgd.msft.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1357463980.1454.0.camel@kernel.cn.ibm.com>
+In-Reply-To: <1357463980.1454.0.camel@kernel.cn.ibm.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Hui-R64343 <r64343@freescale.com>
+To: Simon Jeons <simon.jeons@gmail.com>
 Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, 2013-01-06 at 08:48 +0000, Liu Hui-R64343 wrote:
-> >-----Original Message-----
-> >From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
-> >Sent: Sunday, January 06, 2013 4:46 PM
-> >To: Liu Hui-R64343
-> >Cc: linux-kernel@vger.kernel.org; mgorman@suse.de; akpm@linux-
-> >foundation.org; riel@redhat.com; minchan@kernel.org;
-> >kamezawa.hiroyu@jp.fujitsu.com; linux-mm@kvack.org
-> >Subject: Re: [PATCH] mm: compaction: fix echo 1 > compact_memory return
-> >error issue
-> >
-> >On Sun, Jan 06, 2013 at 08:11:58AM +0000, Liu Hui-R64343 wrote:
-> >>>-----Original Message-----
-> >>>From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
-> >>>Sent: Sunday, January 06, 2013 4:00 PM
-> >>>To: Liu Hui-R64343
-> >>>Cc: linux-kernel@vger.kernel.org; mgorman@suse.de; akpm@linux-
-> >>>foundation.org; riel@redhat.com; minchan@kernel.org;
-> >>>kamezawa.hiroyu@jp.fujitsu.com; linux-mm@kvack.org
-> >>>Subject: Re: [PATCH] mm: compaction: fix echo 1 > compact_memory
-> >>>return error issue
-> >>>
-> >>>On Sun, Jan 06, 2013 at 03:44:33PM +0800, Jason Liu wrote:
-> >>>
-> >>>Hi Jason,
-> >>>
-> >>>>when run the folloing command under shell, it will return error sh/$
-> >>>>echo 1 > /proc/sys/vm/compact_memory sh/$ sh: write error: Bad
-> >>>>address
-> >>>>
-> >>>
-> >>>How can you modify the value through none privileged user since the
-> >>>mode == 0200?
-> >>
-> >>I write it through privileged user(root). I'm using the GNOME_Mobile rootfs.
-> >>
-> >>>
-> >>>>After strace, I found the following log:
-> >>>>...
-> >>>>write(1, "1\n", 2)               = 3
-> >>>>write(1, "", 4294967295)         = -1 EFAULT (Bad address)
-> >>>>write(2, "echo: write error: Bad address\n", 31echo: write error: Bad
-> >>>>address
-> >>>>) = 31
-> >>>>
-> >>>>This tells system return 3(COMPACT_COMPLETE) after write data to
-> >>>compact_memory.
-> >>>>
-> >>>>The fix is to make the system just return 0 instead
-> >>>>3(COMPACT_COMPLETE) from sysctl_compaction_handler after
-> >compaction_nodes finished.
-> >>>
-> >>>What's the special scenario you are in? I couldn't figure out the
-> >>>similar error against latest 3.8-rc2, how could you reproduce it?
-> >>
-> >>I'm using the BusyBox v1.20.2 () built-in shell (ash), it reproduces the issue:
-> >100%.
-> >>
-> >>root@freescale /$ sh
-> >>
-> >>
-> >>BusyBox v1.20.2 () built-in shell (ash) Enter 'help' for a list of
-> >>built-in commands.
-> >>
-> >>Could you run strace and see the log:  strace echo 1 >
-> >>/proc/sys/vm/compact_memory
-> >>
-> >
-> >I test it on my desktop against latest 3.8-rc2, can't repoduce it. :)
-> >
-> >write(1, "1\n", 2)                      = 3
-> 
-> Here it tells it.  
-
-Why this value trouble you?
-
-> 
-> >close(1)                                = 0
-> >munmap(0xb779c000, 4096)                = 0
-> >close(2)                                = 0
-> >exit_group(0)                           = ?
-> >+++ exited with 0 +++
-> >
-> >Regards,
-> >Wanpeng Li
-> >
-> >>>
-> >>>Regards,
-> >>>Wanpeng Li
-> >>>
-> >>>>
-> >>>>Suggested-by:David Rientjes <rientjes@google.com> Cc:Mel Gorman
-> >>>><mgorman@suse.de> Cc:Andrew Morton <akpm@linux-foundation.org>
-> >>>Cc:Rik
-> >>>>van Riel <riel@redhat.com> Cc:Minchan Kim <minchan@kernel.org>
-> >>>>Cc:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> >>>>Signed-off-by: Jason Liu <r64343@freescale.com>
-> >>>>---
-> >>>> mm/compaction.c |    6 ++----
-> >>>> 1 files changed, 2 insertions(+), 4 deletions(-)
-> >>>>
-> >>>>diff --git a/mm/compaction.c b/mm/compaction.c index 6b807e4..f8f5c11
-> >>>>100644
-> >>>>--- a/mm/compaction.c
-> >>>>+++ b/mm/compaction.c
-> >>>>@@ -1210,7 +1210,7 @@ static int compact_node(int nid)  }
-> >>>>
-> >>>> /* Compact all nodes in the system */ -static int
-> >>>>compact_nodes(void)
-> >>>>+static void compact_nodes(void)
-> >>>> {
-> >>>> 	int nid;
-> >>>>
-> >>>>@@ -1219,8 +1219,6 @@ static int compact_nodes(void)
-> >>>>
-> >>>> 	for_each_online_node(nid)
-> >>>> 		compact_node(nid);
-> >>>>-
-> >>>>-	return COMPACT_COMPLETE;
-> >>>> }
-> >>>>
-> >>>> /* The written value is actually unused, all memory is compacted */
-> >>>>@@
-> >>>>-1231,7 +1229,7 @@ int sysctl_compaction_handler(struct ctl_table
-> >>>>*table,
-> >>>int write,
-> >>>> 			void __user *buffer, size_t *length, loff_t *ppos)  {
-> >>>> 	if (write)
-> >>>>-		return compact_nodes();
-> >>>>+		compact_nodes();
-> >>>>
-> >>>> 	return 0;
-> >>>> }
-> >>>>--
-> >>>>1.7.5.4
-> >>>>
-> >>>>
-> >>>>--
-> >>>>To unsubscribe, send a message with 'unsubscribe linux-mm' in the
-> >>>>body to majordomo@kvack.org.  For more info on Linux MM,
-> >>>>see: http://www.linux-mm.org/ .
-> >>>>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >>>
-> >>
-> >
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogU2ltb24gSmVvbnMgW21haWx0bzpz
+aW1vbi5qZW9uc0BnbWFpbC5jb21dDQo+U2VudDogU3VuZGF5LCBKYW51YXJ5IDA2LCAyMDEzIDU6
+MjAgUE0NCj5UbzogTGl1IEh1aS1SNjQzNDMNCj5DYzogV2FucGVuZyBMaTsgbGludXgta2VybmVs
+QHZnZXIua2VybmVsLm9yZzsgbWdvcm1hbkBzdXNlLmRlOw0KPmFrcG1AbGludXgtZm91bmRhdGlv
+bi5vcmc7IHJpZWxAcmVkaGF0LmNvbTsgbWluY2hhbkBrZXJuZWwub3JnOw0KPmthbWV6YXdhLmhp
+cm95dUBqcC5mdWppdHN1LmNvbTsgbGludXgtbW1Aa3ZhY2sub3JnDQo+U3ViamVjdDogUmU6IFtQ
+QVRDSF0gbW06IGNvbXBhY3Rpb246IGZpeCBlY2hvIDEgPiBjb21wYWN0X21lbW9yeSByZXR1cm4N
+Cj5lcnJvciBpc3N1ZQ0KPg0KPk9uIFN1biwgMjAxMy0wMS0wNiBhdCAwODo0OCArMDAwMCwgTGl1
+IEh1aS1SNjQzNDMgd3JvdGU6DQo+PiA+LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4+ID5G
+cm9tOiBXYW5wZW5nIExpIFttYWlsdG86bGl3YW5wQGxpbnV4LnZuZXQuaWJtLmNvbV0NCj4+ID5T
+ZW50OiBTdW5kYXksIEphbnVhcnkgMDYsIDIwMTMgNDo0NiBQTQ0KPj4gPlRvOiBMaXUgSHVpLVI2
+NDM0Mw0KPj4gPkNjOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBtZ29ybWFuQHN1c2Uu
+ZGU7IGFrcG1AbGludXgtDQo+PiA+Zm91bmRhdGlvbi5vcmc7IHJpZWxAcmVkaGF0LmNvbTsgbWlu
+Y2hhbkBrZXJuZWwub3JnOw0KPj4gPmthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbTsgbGlu
+dXgtbW1Aa3ZhY2sub3JnDQo+PiA+U3ViamVjdDogUmU6IFtQQVRDSF0gbW06IGNvbXBhY3Rpb246
+IGZpeCBlY2hvIDEgPiBjb21wYWN0X21lbW9yeQ0KPj4gPnJldHVybiBlcnJvciBpc3N1ZQ0KPj4g
+Pg0KPj4gPk9uIFN1biwgSmFuIDA2LCAyMDEzIGF0IDA4OjExOjU4QU0gKzAwMDAsIExpdSBIdWkt
+UjY0MzQzIHdyb3RlOg0KPj4gPj4+LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4+ID4+PkZy
+b206IFdhbnBlbmcgTGkgW21haWx0bzpsaXdhbnBAbGludXgudm5ldC5pYm0uY29tXQ0KPj4gPj4+
+U2VudDogU3VuZGF5LCBKYW51YXJ5IDA2LCAyMDEzIDQ6MDAgUE0NCj4+ID4+PlRvOiBMaXUgSHVp
+LVI2NDM0Mw0KPj4gPj4+Q2M6IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IG1nb3JtYW5A
+c3VzZS5kZTsgYWtwbUBsaW51eC0NCj4+ID4+PmZvdW5kYXRpb24ub3JnOyByaWVsQHJlZGhhdC5j
+b207IG1pbmNoYW5Aa2VybmVsLm9yZzsNCj4+ID4+PmthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1
+LmNvbTsgbGludXgtbW1Aa3ZhY2sub3JnDQo+PiA+Pj5TdWJqZWN0OiBSZTogW1BBVENIXSBtbTog
+Y29tcGFjdGlvbjogZml4IGVjaG8gMSA+IGNvbXBhY3RfbWVtb3J5DQo+PiA+Pj5yZXR1cm4gZXJy
+b3IgaXNzdWUNCj4+ID4+Pg0KPj4gPj4+T24gU3VuLCBKYW4gMDYsIDIwMTMgYXQgMDM6NDQ6MzNQ
+TSArMDgwMCwgSmFzb24gTGl1IHdyb3RlOg0KPj4gPj4+DQo+PiA+Pj5IaSBKYXNvbiwNCj4+ID4+
+Pg0KPj4gPj4+PndoZW4gcnVuIHRoZSBmb2xsb2luZyBjb21tYW5kIHVuZGVyIHNoZWxsLCBpdCB3
+aWxsIHJldHVybiBlcnJvcg0KPj4gPj4+PnNoLyQgZWNobyAxID4gL3Byb2Mvc3lzL3ZtL2NvbXBh
+Y3RfbWVtb3J5IHNoLyQgc2g6IHdyaXRlIGVycm9yOg0KPj4gPj4+PkJhZCBhZGRyZXNzDQo+PiA+
+Pj4+DQo+PiA+Pj4NCj4+ID4+PkhvdyBjYW4geW91IG1vZGlmeSB0aGUgdmFsdWUgdGhyb3VnaCBu
+b25lIHByaXZpbGVnZWQgdXNlciBzaW5jZSB0aGUNCj4+ID4+Pm1vZGUgPT0gMDIwMD8NCj4+ID4+
+DQo+PiA+Pkkgd3JpdGUgaXQgdGhyb3VnaCBwcml2aWxlZ2VkIHVzZXIocm9vdCkuIEknbSB1c2lu
+ZyB0aGUgR05PTUVfTW9iaWxlDQo+cm9vdGZzLg0KPj4gPj4NCj4+ID4+Pg0KPj4gPj4+PkFmdGVy
+IHN0cmFjZSwgSSBmb3VuZCB0aGUgZm9sbG93aW5nIGxvZzoNCj4+ID4+Pj4uLi4NCj4+ID4+Pj53
+cml0ZSgxLCAiMVxuIiwgMikgICAgICAgICAgICAgICA9IDMNCj4+ID4+Pj53cml0ZSgxLCAiIiwg
+NDI5NDk2NzI5NSkgICAgICAgICA9IC0xIEVGQVVMVCAoQmFkIGFkZHJlc3MpDQo+PiA+Pj4+d3Jp
+dGUoMiwgImVjaG86IHdyaXRlIGVycm9yOiBCYWQgYWRkcmVzc1xuIiwgMzFlY2hvOiB3cml0ZSBl
+cnJvcjoNCj4+ID4+Pj5CYWQgYWRkcmVzcw0KPj4gPj4+PikgPSAzMQ0KPj4gPj4+Pg0KPj4gPj4+
+PlRoaXMgdGVsbHMgc3lzdGVtIHJldHVybiAzKENPTVBBQ1RfQ09NUExFVEUpIGFmdGVyIHdyaXRl
+IGRhdGEgdG8NCj4+ID4+PmNvbXBhY3RfbWVtb3J5Lg0KPj4gPj4+Pg0KPj4gPj4+PlRoZSBmaXgg
+aXMgdG8gbWFrZSB0aGUgc3lzdGVtIGp1c3QgcmV0dXJuIDAgaW5zdGVhZA0KPj4gPj4+PjMoQ09N
+UEFDVF9DT01QTEVURSkgZnJvbSBzeXNjdGxfY29tcGFjdGlvbl9oYW5kbGVyIGFmdGVyDQo+PiA+
+Y29tcGFjdGlvbl9ub2RlcyBmaW5pc2hlZC4NCj4+ID4+Pg0KPj4gPj4+V2hhdCdzIHRoZSBzcGVj
+aWFsIHNjZW5hcmlvIHlvdSBhcmUgaW4/IEkgY291bGRuJ3QgZmlndXJlIG91dCB0aGUNCj4+ID4+
+PnNpbWlsYXIgZXJyb3IgYWdhaW5zdCBsYXRlc3QgMy44LXJjMiwgaG93IGNvdWxkIHlvdSByZXBy
+b2R1Y2UgaXQ/DQo+PiA+Pg0KPj4gPj5JJ20gdXNpbmcgdGhlIEJ1c3lCb3ggdjEuMjAuMiAoKSBi
+dWlsdC1pbiBzaGVsbCAoYXNoKSwgaXQgcmVwcm9kdWNlcyB0aGUNCj5pc3N1ZToNCj4+ID4xMDAl
+Lg0KPj4gPj4NCj4+ID4+cm9vdEBmcmVlc2NhbGUgLyQgc2gNCj4+ID4+DQo+PiA+Pg0KPj4gPj5C
+dXN5Qm94IHYxLjIwLjIgKCkgYnVpbHQtaW4gc2hlbGwgKGFzaCkgRW50ZXIgJ2hlbHAnIGZvciBh
+IGxpc3Qgb2YNCj4+ID4+YnVpbHQtaW4gY29tbWFuZHMuDQo+PiA+Pg0KPj4gPj5Db3VsZCB5b3Ug
+cnVuIHN0cmFjZSBhbmQgc2VlIHRoZSBsb2c6ICBzdHJhY2UgZWNobyAxID4NCj4+ID4+L3Byb2Mv
+c3lzL3ZtL2NvbXBhY3RfbWVtb3J5DQo+PiA+Pg0KPj4gPg0KPj4gPkkgdGVzdCBpdCBvbiBteSBk
+ZXNrdG9wIGFnYWluc3QgbGF0ZXN0IDMuOC1yYzIsIGNhbid0IHJlcG9kdWNlIGl0LiA6KQ0KPj4g
+Pg0KPj4gPndyaXRlKDEsICIxXG4iLCAyKSAgICAgICAgICAgICAgICAgICAgICA9IDMNCj4+DQo+
+PiBIZXJlIGl0IHRlbGxzIGl0Lg0KPg0KPldoeSB0aGlzIHZhbHVlIHRyb3VibGUgeW91Pw0KDQpy
+b290QGZyZWVzY2FsZSAvJHN0cmFjZSBlY2hvIDEgPiAvcHJvYy9zeXMvdm0vY29tcGFjdF9tZW1v
+cnkNCg0Kd3JpdGUoMSwgIjFcbiIsIDIpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPSAz
+DQp3cml0ZSgxLCAiIiwgNDI5NDk2NzI5NSkgICAgICAgICAgICAgICAgPSAtMSBFRkFVTFQgKEJh
+ZCBhZGRyZXNzKQ0Kd3JpdGUoMiwgImVjaG86IHdyaXRlIGVycm9yOiBCYWQgYWRkcmVzc1xuIiwg
+MzFlY2hvOiB3cml0ZSBlcnJvcjogQmFkIGFkZHJlc3MNCikgPSAzMQ0KDQpyb290QGZyZWVzY2Fs
+ZSAvJCBzaA0KDQoNCkJ1c3lCb3ggdjEuMjAuMiAoKSBidWlsdC1pbiBzaGVsbCAoYXNoKQ0KRW50
+ZXIgJ2hlbHAnIGZvciBhIGxpc3Qgb2YgYnVpbHQtaW4gY29tbWFuZHMuDQoNCnJvb3RAZnJlZXNj
+YWxlIC8kICBlY2hvIDEgPiAvcHJvYy9zeXMvdm0vY29tcGFjdF9tZW1vcnkNCnNoOiB3cml0ZSBl
+cnJvcjogQmFkIGFkZHJlc3MNCg0KPg0KPj4NCj4+ID5jbG9zZSgxKSAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgPSAwDQo+PiA+bXVubWFwKDB4Yjc3OWMwMDAsIDQwOTYpICAgICAgICAg
+ICAgICAgID0gMA0KPj4gPmNsb3NlKDIpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA9
+IDANCj4+ID5leGl0X2dyb3VwKDApICAgICAgICAgICAgICAgICAgICAgICAgICAgPSA/DQo+PiA+
+KysrIGV4aXRlZCB3aXRoIDAgKysrDQo+PiA+DQo+PiA+UmVnYXJkcywNCj4+ID5XYW5wZW5nIExp
+DQo+PiA+DQo+PiA+Pj4NCj4+ID4+PlJlZ2FyZHMsDQo+PiA+Pj5XYW5wZW5nIExpDQo+PiA+Pj4N
+Cj4+ID4+Pj4NCj4+ID4+Pj5TdWdnZXN0ZWQtYnk6RGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdv
+b2dsZS5jb20+IENjOk1lbCBHb3JtYW4NCj4+ID4+Pj48bWdvcm1hbkBzdXNlLmRlPiBDYzpBbmRy
+ZXcgTW9ydG9uIDxha3BtQGxpbnV4LQ0KPmZvdW5kYXRpb24ub3JnPg0KPj4gPj4+Q2M6UmlrDQo+
+PiA+Pj4+dmFuIFJpZWwgPHJpZWxAcmVkaGF0LmNvbT4gQ2M6TWluY2hhbiBLaW0gPG1pbmNoYW5A
+a2VybmVsLm9yZz4NCj4+ID4+Pj5DYzpLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGlyb3l1
+QGpwLmZ1aml0c3UuY29tPg0KPj4gPj4+PlNpZ25lZC1vZmYtYnk6IEphc29uIExpdSA8cjY0MzQz
+QGZyZWVzY2FsZS5jb20+DQo+PiA+Pj4+LS0tDQo+PiA+Pj4+IG1tL2NvbXBhY3Rpb24uYyB8ICAg
+IDYgKystLS0tDQo+PiA+Pj4+IDEgZmlsZXMgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCA0IGRl
+bGV0aW9ucygtKQ0KPj4gPj4+Pg0KPj4gPj4+PmRpZmYgLS1naXQgYS9tbS9jb21wYWN0aW9uLmMg
+Yi9tbS9jb21wYWN0aW9uLmMgaW5kZXgNCj4+ID4+Pj42YjgwN2U0Li5mOGY1YzExDQo+PiA+Pj4+
+MTAwNjQ0DQo+PiA+Pj4+LS0tIGEvbW0vY29tcGFjdGlvbi5jDQo+PiA+Pj4+KysrIGIvbW0vY29t
+cGFjdGlvbi5jDQo+PiA+Pj4+QEAgLTEyMTAsNyArMTIxMCw3IEBAIHN0YXRpYyBpbnQgY29tcGFj
+dF9ub2RlKGludCBuaWQpICB9DQo+PiA+Pj4+DQo+PiA+Pj4+IC8qIENvbXBhY3QgYWxsIG5vZGVz
+IGluIHRoZSBzeXN0ZW0gKi8gLXN0YXRpYyBpbnQNCj4+ID4+Pj5jb21wYWN0X25vZGVzKHZvaWQp
+DQo+PiA+Pj4+K3N0YXRpYyB2b2lkIGNvbXBhY3Rfbm9kZXModm9pZCkNCj4+ID4+Pj4gew0KPj4g
+Pj4+PiAJaW50IG5pZDsNCj4+ID4+Pj4NCj4+ID4+Pj5AQCAtMTIxOSw4ICsxMjE5LDYgQEAgc3Rh
+dGljIGludCBjb21wYWN0X25vZGVzKHZvaWQpDQo+PiA+Pj4+DQo+PiA+Pj4+IAlmb3JfZWFjaF9v
+bmxpbmVfbm9kZShuaWQpDQo+PiA+Pj4+IAkJY29tcGFjdF9ub2RlKG5pZCk7DQo+PiA+Pj4+LQ0K
+Pj4gPj4+Pi0JcmV0dXJuIENPTVBBQ1RfQ09NUExFVEU7DQo+PiA+Pj4+IH0NCj4+ID4+Pj4NCj4+
+ID4+Pj4gLyogVGhlIHdyaXR0ZW4gdmFsdWUgaXMgYWN0dWFsbHkgdW51c2VkLCBhbGwgbWVtb3J5
+IGlzIGNvbXBhY3RlZA0KPj4gPj4+PiovIEBADQo+PiA+Pj4+LTEyMzEsNyArMTIyOSw3IEBAIGlu
+dCBzeXNjdGxfY29tcGFjdGlvbl9oYW5kbGVyKHN0cnVjdCBjdGxfdGFibGUNCj4+ID4+Pj4qdGFi
+bGUsDQo+PiA+Pj5pbnQgd3JpdGUsDQo+PiA+Pj4+IAkJCXZvaWQgX191c2VyICpidWZmZXIsIHNp
+emVfdCAqbGVuZ3RoLCBsb2ZmX3QgKnBwb3MpDQo+ew0KPj4gPj4+PiAJaWYgKHdyaXRlKQ0KPj4g
+Pj4+Pi0JCXJldHVybiBjb21wYWN0X25vZGVzKCk7DQo+PiA+Pj4+KwkJY29tcGFjdF9ub2Rlcygp
+Ow0KPj4gPj4+Pg0KPj4gPj4+PiAJcmV0dXJuIDA7DQo+PiA+Pj4+IH0NCj4+ID4+Pj4tLQ0KPj4g
+Pj4+PjEuNy41LjQNCj4+ID4+Pj4NCj4+ID4+Pj4NCj4+ID4+Pj4tLQ0KPj4gPj4+PlRvIHVuc3Vi
+c2NyaWJlLCBzZW5kIGEgbWVzc2FnZSB3aXRoICd1bnN1YnNjcmliZSBsaW51eC1tbScgaW4gdGhl
+DQo+PiA+Pj4+Ym9keSB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBM
+aW51eCBNTSwNCj4+ID4+Pj5zZWU6IGh0dHA6Ly93d3cubGludXgtbW0ub3JnLyAuDQo+PiA+Pj4+
+RG9uJ3QgZW1haWw6IDxhIGhyZWY9bWFpbHRvOiJkb250QGt2YWNrLm9yZyI+IGVtYWlsQGt2YWNr
+Lm9yZyA8L2E+DQo+PiA+Pj4NCj4+ID4+DQo+PiA+DQo+Pg0KPj4NCj4+IC0tDQo+PiBUbyB1bnN1
+YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGluIHRo
+ZSBib2R5DQo+PiB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBMaW51
+eCBNTSwNCj4+IHNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcvIC4NCj4+IERvbid0IGVtYWls
+OiA8YSBocmVmPW1haWx0bzoiZG9udEBrdmFjay5vcmciPiBlbWFpbEBrdmFjay5vcmcgPC9hPg0K
+Pg0KPg0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
