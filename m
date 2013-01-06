@@ -1,97 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 7349E6B005D
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 21:53:36 -0500 (EST)
-Received: by mail-da0-f47.google.com with SMTP id s35so8095824dak.6
-        for <linux-mm@kvack.org>; Sat, 05 Jan 2013 18:53:35 -0800 (PST)
-Message-ID: <1357440817.9001.5.camel@kernel.cn.ibm.com>
-Subject: Re: PageHead macro broken?
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Sat, 05 Jan 2013 20:53:37 -0600
-In-Reply-To: <20121225012837.GD10261@redhat.com>
-References: 
-	<CAEDV+gLg838ua2Bgu0sTRjSAWYGPwELtH=ncoKPP-5t7_gxUYw@mail.gmail.com>
-	 <CA+55aFxb63WMysJ-HQbam_JH05Bqp=XhrzokrSM-yvoaAzPASg@mail.gmail.com>
-	 <20121225012837.GD10261@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 1E3F96B005D
+	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 21:55:44 -0500 (EST)
+Received: by mail-oa0-f49.google.com with SMTP id l10so16097498oag.8
+        for <linux-mm@kvack.org>; Sat, 05 Jan 2013 18:55:43 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <50DCF185.7050408@jp.fujitsu.com>
+References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
+	<1356456501-14818-1-git-send-email-handai.szj@taobao.com>
+	<50DCF185.7050408@jp.fujitsu.com>
+Date: Sun, 6 Jan 2013 10:55:43 +0800
+Message-ID: <CAFj3OHWyMoF=ykaneD-tBMoDrBfWT6VrUWQ871CHPTxU=Ce5jg@mail.gmail.com>
+Subject: Re: [PATCH V3 8/8] memcg: Document cgroup dirty/writeback memory statistics
+From: Sha Zhengju <handai.szj@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Christoffer Dall <cdall@cs.columbia.edu>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Will Deacon <Will.Deacon@arm.com>, Steve Capper <Steve.Capper@arm.com>, "kvmarm@lists.cs.columbia.edu" <kvmarm@lists.cs.columbia.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.cz, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
 
-On Tue, 2012-12-25 at 02:28 +0100, Andrea Arcangeli wrote:
-> Hi everyone,
-> 
-> On Mon, Dec 24, 2012 at 11:21:02AM -0800, Linus Torvalds wrote:
-> > On Mon, Dec 24, 2012 at 10:53 AM, Christoffer Dall
-> > <cdall@cs.columbia.edu> wrote:
-> > >
-> > > I think I may have found an issue with the PageHead macro, which
-> > > returns true for tail compound pages when CONFIG_PAGEFLAGS_EXTENDED is
-> > > not defined.
-> > 
-> > Hmm. Your patch *looks* obviously correct, in that it actually makes
-> > the code match the comment just above it. And making PageHead() test
-> > just the "compound" flag (and thus a tail-page would trigger it too)
-> > sounds wrong. But I join you in the "let's check the expected
-> > semantics with the people who use it" chorus.
-> 
-> Yes, it's wrong if PageHead returns true on a tail page. PageHead and
-> PageTail are mutually exclusive flags. Only PageCompound returns true
-> for both PageHead and PageTail.
-> 
-> > The fact that it fixes a problem on KVM/ARM is obviously another good sign.
-> > 
-> > At the same time, I wonder why it hasn't shown up as a problem on
-> > x86-32. On x86-64 PAGEFLAGS_EXTENDED is always true, but afaik, it
-> > should be possible to trigger this on 32-bit architectures if you just
-> > have SPARSEMEM && !SPARSEMEM_VMEMMAP.
-> 
-> Most of the PageHead checks are consistently run on real head pages,
-> so they're unlikely to run on tail pages. When !PageHead is used in
-> the bugchecks, the bug would lead to a false negative in the worst
-> case. This may be why this didn't show up on x86 32bit?
-> 
-> But AFIK no binary x86 kernel was shipped with THP compiled in, so
-> it's also hard to quantify the different configs for the x86 32bit
-> self-built kernel images out there.
-> 
-> > And SPARSEMEM on x86-32 is enabled with NUMA or EXPERIMENTAL set. And
-> > afaik, x86-32 never has SPARSEMEM_VMEMMAP. So this should not be a
-> > very uncommon setup.
-> > 
-> > Added Andrea and Kirill to the Cc, since most of the *uses* of
-> > PageHead() in the generic VM code are attributed to either of them
-> > according to "git blame". Left the rest of the email quoted for the
-> > new participants.. Also, you seem to have used Christoph's old SGI
-> > email address that I don't think is in use any more.
-> > 
-> > Andrea? Kirill? Christoph?
-> 
-> The fix looks good to me, thanks!
-> Andrea
+On Fri, Dec 28, 2012 at 9:10 AM, Kamezawa Hiroyuki
+<kamezawa.hiroyu@jp.fujitsu.com> wrote:
+> (2012/12/26 2:28), Sha Zhengju wrote:
+>> From: Sha Zhengju <handai.szj@taobao.com>
+>>
+>> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+>
+> I don't think your words are bad but it may be better to sync with meminfo's text.
+>
+>> ---
+>>   Documentation/cgroups/memory.txt |    2 ++
+>>   1 file changed, 2 insertions(+)
+>>
+>> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+>> index addb1f1..2828164 100644
+>> --- a/Documentation/cgroups/memory.txt
+>> +++ b/Documentation/cgroups/memory.txt
+>> @@ -487,6 +487,8 @@ pgpgin            - # of charging events to the memory cgroup. The charging
+>>   pgpgout             - # of uncharging events to the memory cgroup. The uncharging
+>>               event happens each time a page is unaccounted from the cgroup.
+>>   swap                - # of bytes of swap usage
+>> +dirty          - # of bytes of file cache that are not in sync with the disk copy.
+>> +writeback      - # of bytes of file/anon cache that are queued for syncing to disk.
+>>   inactive_anon       - # of bytes of anonymous memory and swap cache memory on
+>>               LRU list.
+>>   active_anon - # of bytes of anonymous and swap cache memory on active
+>>
+>
+> Documentation/filesystems/proc.txt
+>
+>        Dirty: Memory which is waiting to get written back to the disk
+>    Writeback: Memory which is actively being written back to the disk
+>
+> even if others are not ;(
+>
 
-Hi Andrea,
 
-I have a question. The comment above PG_head_mask:
+The words are actually revised by Fengguang before:
+https://lkml.org/lkml/2012/7/7/49
+It might be more accurate than previous one and I just follow his advise...
 
- * PG_reclaim is used in combination with PG_compound to mark the
- * head and tail of a compound page. This saves one page flag
- * but makes it impossible to use compound pages for the page cache.
- * The PG_reclaim bit would have to be used for reclaim or readahead
- * if compound pages enter the page cache.
 
-If hugetlbfs pages on x86_32 is not in page cache?
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Thanks,
+Sha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
