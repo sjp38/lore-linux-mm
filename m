@@ -1,135 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 704D66B005D
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 04:22:46 -0500 (EST)
-From: Liu Hui-R64343 <r64343@freescale.com>
-Subject: RE: [PATCH] mm: compaction: fix echo 1 > compact_memory return
- error issue
-Date: Sun, 6 Jan 2013 09:22:41 +0000
-Message-ID: <AD13664F485EE54694E29A7F9D5BE1AF4E5EEA@039-SN2MPN1-021.039d.mgd.msft.net>
-References: <1357458273-28558-1-git-send-email-r64343@freescale.com>
-	 <20130106075940.GA22985@hacker.(null)>
-	 <AD13664F485EE54694E29A7F9D5BE1AF4E5BCD@039-SN2MPN1-021.039d.mgd.msft.net>
-	 <20130106084610.GA26483@hacker.(null)>
-	 <AD13664F485EE54694E29A7F9D5BE1AF4E5E1F@039-SN2MPN1-021.039d.mgd.msft.net>
- <1357463980.1454.0.camel@kernel.cn.ibm.com>
-In-Reply-To: <1357463980.1454.0.camel@kernel.cn.ibm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id D1C846B005D
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 07:07:01 -0500 (EST)
+Date: Sun, 6 Jan 2013 12:07:00 +0000
+From: Eric Wong <normalperson@yhbt.net>
+Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
+Message-ID: <20130106120700.GA24671@dcvr.yhbt.net>
+References: <20121228014503.GA5017@dcvr.yhbt.net>
+ <20130102200848.GA4500@dcvr.yhbt.net>
+ <20130104160148.GB3885@suse.de>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130104160148.GB3885@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "minchan@kernel.org" <minchan@kernel.org>, "kamezawa.hiroyu@jp.fujitsu.com" <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogU2ltb24gSmVvbnMgW21haWx0bzpz
-aW1vbi5qZW9uc0BnbWFpbC5jb21dDQo+U2VudDogU3VuZGF5LCBKYW51YXJ5IDA2LCAyMDEzIDU6
-MjAgUE0NCj5UbzogTGl1IEh1aS1SNjQzNDMNCj5DYzogV2FucGVuZyBMaTsgbGludXgta2VybmVs
-QHZnZXIua2VybmVsLm9yZzsgbWdvcm1hbkBzdXNlLmRlOw0KPmFrcG1AbGludXgtZm91bmRhdGlv
-bi5vcmc7IHJpZWxAcmVkaGF0LmNvbTsgbWluY2hhbkBrZXJuZWwub3JnOw0KPmthbWV6YXdhLmhp
-cm95dUBqcC5mdWppdHN1LmNvbTsgbGludXgtbW1Aa3ZhY2sub3JnDQo+U3ViamVjdDogUmU6IFtQ
-QVRDSF0gbW06IGNvbXBhY3Rpb246IGZpeCBlY2hvIDEgPiBjb21wYWN0X21lbW9yeSByZXR1cm4N
-Cj5lcnJvciBpc3N1ZQ0KPg0KPk9uIFN1biwgMjAxMy0wMS0wNiBhdCAwODo0OCArMDAwMCwgTGl1
-IEh1aS1SNjQzNDMgd3JvdGU6DQo+PiA+LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4+ID5G
-cm9tOiBXYW5wZW5nIExpIFttYWlsdG86bGl3YW5wQGxpbnV4LnZuZXQuaWJtLmNvbV0NCj4+ID5T
-ZW50OiBTdW5kYXksIEphbnVhcnkgMDYsIDIwMTMgNDo0NiBQTQ0KPj4gPlRvOiBMaXUgSHVpLVI2
-NDM0Mw0KPj4gPkNjOiBsaW51eC1rZXJuZWxAdmdlci5rZXJuZWwub3JnOyBtZ29ybWFuQHN1c2Uu
-ZGU7IGFrcG1AbGludXgtDQo+PiA+Zm91bmRhdGlvbi5vcmc7IHJpZWxAcmVkaGF0LmNvbTsgbWlu
-Y2hhbkBrZXJuZWwub3JnOw0KPj4gPmthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1LmNvbTsgbGlu
-dXgtbW1Aa3ZhY2sub3JnDQo+PiA+U3ViamVjdDogUmU6IFtQQVRDSF0gbW06IGNvbXBhY3Rpb246
-IGZpeCBlY2hvIDEgPiBjb21wYWN0X21lbW9yeQ0KPj4gPnJldHVybiBlcnJvciBpc3N1ZQ0KPj4g
-Pg0KPj4gPk9uIFN1biwgSmFuIDA2LCAyMDEzIGF0IDA4OjExOjU4QU0gKzAwMDAsIExpdSBIdWkt
-UjY0MzQzIHdyb3RlOg0KPj4gPj4+LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4+ID4+PkZy
-b206IFdhbnBlbmcgTGkgW21haWx0bzpsaXdhbnBAbGludXgudm5ldC5pYm0uY29tXQ0KPj4gPj4+
-U2VudDogU3VuZGF5LCBKYW51YXJ5IDA2LCAyMDEzIDQ6MDAgUE0NCj4+ID4+PlRvOiBMaXUgSHVp
-LVI2NDM0Mw0KPj4gPj4+Q2M6IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IG1nb3JtYW5A
-c3VzZS5kZTsgYWtwbUBsaW51eC0NCj4+ID4+PmZvdW5kYXRpb24ub3JnOyByaWVsQHJlZGhhdC5j
-b207IG1pbmNoYW5Aa2VybmVsLm9yZzsNCj4+ID4+PmthbWV6YXdhLmhpcm95dUBqcC5mdWppdHN1
-LmNvbTsgbGludXgtbW1Aa3ZhY2sub3JnDQo+PiA+Pj5TdWJqZWN0OiBSZTogW1BBVENIXSBtbTog
-Y29tcGFjdGlvbjogZml4IGVjaG8gMSA+IGNvbXBhY3RfbWVtb3J5DQo+PiA+Pj5yZXR1cm4gZXJy
-b3IgaXNzdWUNCj4+ID4+Pg0KPj4gPj4+T24gU3VuLCBKYW4gMDYsIDIwMTMgYXQgMDM6NDQ6MzNQ
-TSArMDgwMCwgSmFzb24gTGl1IHdyb3RlOg0KPj4gPj4+DQo+PiA+Pj5IaSBKYXNvbiwNCj4+ID4+
-Pg0KPj4gPj4+PndoZW4gcnVuIHRoZSBmb2xsb2luZyBjb21tYW5kIHVuZGVyIHNoZWxsLCBpdCB3
-aWxsIHJldHVybiBlcnJvcg0KPj4gPj4+PnNoLyQgZWNobyAxID4gL3Byb2Mvc3lzL3ZtL2NvbXBh
-Y3RfbWVtb3J5IHNoLyQgc2g6IHdyaXRlIGVycm9yOg0KPj4gPj4+PkJhZCBhZGRyZXNzDQo+PiA+
-Pj4+DQo+PiA+Pj4NCj4+ID4+PkhvdyBjYW4geW91IG1vZGlmeSB0aGUgdmFsdWUgdGhyb3VnaCBu
-b25lIHByaXZpbGVnZWQgdXNlciBzaW5jZSB0aGUNCj4+ID4+Pm1vZGUgPT0gMDIwMD8NCj4+ID4+
-DQo+PiA+Pkkgd3JpdGUgaXQgdGhyb3VnaCBwcml2aWxlZ2VkIHVzZXIocm9vdCkuIEknbSB1c2lu
-ZyB0aGUgR05PTUVfTW9iaWxlDQo+cm9vdGZzLg0KPj4gPj4NCj4+ID4+Pg0KPj4gPj4+PkFmdGVy
-IHN0cmFjZSwgSSBmb3VuZCB0aGUgZm9sbG93aW5nIGxvZzoNCj4+ID4+Pj4uLi4NCj4+ID4+Pj53
-cml0ZSgxLCAiMVxuIiwgMikgICAgICAgICAgICAgICA9IDMNCj4+ID4+Pj53cml0ZSgxLCAiIiwg
-NDI5NDk2NzI5NSkgICAgICAgICA9IC0xIEVGQVVMVCAoQmFkIGFkZHJlc3MpDQo+PiA+Pj4+d3Jp
-dGUoMiwgImVjaG86IHdyaXRlIGVycm9yOiBCYWQgYWRkcmVzc1xuIiwgMzFlY2hvOiB3cml0ZSBl
-cnJvcjoNCj4+ID4+Pj5CYWQgYWRkcmVzcw0KPj4gPj4+PikgPSAzMQ0KPj4gPj4+Pg0KPj4gPj4+
-PlRoaXMgdGVsbHMgc3lzdGVtIHJldHVybiAzKENPTVBBQ1RfQ09NUExFVEUpIGFmdGVyIHdyaXRl
-IGRhdGEgdG8NCj4+ID4+PmNvbXBhY3RfbWVtb3J5Lg0KPj4gPj4+Pg0KPj4gPj4+PlRoZSBmaXgg
-aXMgdG8gbWFrZSB0aGUgc3lzdGVtIGp1c3QgcmV0dXJuIDAgaW5zdGVhZA0KPj4gPj4+PjMoQ09N
-UEFDVF9DT01QTEVURSkgZnJvbSBzeXNjdGxfY29tcGFjdGlvbl9oYW5kbGVyIGFmdGVyDQo+PiA+
-Y29tcGFjdGlvbl9ub2RlcyBmaW5pc2hlZC4NCj4+ID4+Pg0KPj4gPj4+V2hhdCdzIHRoZSBzcGVj
-aWFsIHNjZW5hcmlvIHlvdSBhcmUgaW4/IEkgY291bGRuJ3QgZmlndXJlIG91dCB0aGUNCj4+ID4+
-PnNpbWlsYXIgZXJyb3IgYWdhaW5zdCBsYXRlc3QgMy44LXJjMiwgaG93IGNvdWxkIHlvdSByZXBy
-b2R1Y2UgaXQ/DQo+PiA+Pg0KPj4gPj5JJ20gdXNpbmcgdGhlIEJ1c3lCb3ggdjEuMjAuMiAoKSBi
-dWlsdC1pbiBzaGVsbCAoYXNoKSwgaXQgcmVwcm9kdWNlcyB0aGUNCj5pc3N1ZToNCj4+ID4xMDAl
-Lg0KPj4gPj4NCj4+ID4+cm9vdEBmcmVlc2NhbGUgLyQgc2gNCj4+ID4+DQo+PiA+Pg0KPj4gPj5C
-dXN5Qm94IHYxLjIwLjIgKCkgYnVpbHQtaW4gc2hlbGwgKGFzaCkgRW50ZXIgJ2hlbHAnIGZvciBh
-IGxpc3Qgb2YNCj4+ID4+YnVpbHQtaW4gY29tbWFuZHMuDQo+PiA+Pg0KPj4gPj5Db3VsZCB5b3Ug
-cnVuIHN0cmFjZSBhbmQgc2VlIHRoZSBsb2c6ICBzdHJhY2UgZWNobyAxID4NCj4+ID4+L3Byb2Mv
-c3lzL3ZtL2NvbXBhY3RfbWVtb3J5DQo+PiA+Pg0KPj4gPg0KPj4gPkkgdGVzdCBpdCBvbiBteSBk
-ZXNrdG9wIGFnYWluc3QgbGF0ZXN0IDMuOC1yYzIsIGNhbid0IHJlcG9kdWNlIGl0LiA6KQ0KPj4g
-Pg0KPj4gPndyaXRlKDEsICIxXG4iLCAyKSAgICAgICAgICAgICAgICAgICAgICA9IDMNCj4+DQo+
-PiBIZXJlIGl0IHRlbGxzIGl0Lg0KPg0KPldoeSB0aGlzIHZhbHVlIHRyb3VibGUgeW91Pw0KDQpy
-b290QGZyZWVzY2FsZSAvJHN0cmFjZSBlY2hvIDEgPiAvcHJvYy9zeXMvdm0vY29tcGFjdF9tZW1v
-cnkNCg0Kd3JpdGUoMSwgIjFcbiIsIDIpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPSAz
-DQp3cml0ZSgxLCAiIiwgNDI5NDk2NzI5NSkgICAgICAgICAgICAgICAgPSAtMSBFRkFVTFQgKEJh
-ZCBhZGRyZXNzKQ0Kd3JpdGUoMiwgImVjaG86IHdyaXRlIGVycm9yOiBCYWQgYWRkcmVzc1xuIiwg
-MzFlY2hvOiB3cml0ZSBlcnJvcjogQmFkIGFkZHJlc3MNCikgPSAzMQ0KDQpyb290QGZyZWVzY2Fs
-ZSAvJCBzaA0KDQoNCkJ1c3lCb3ggdjEuMjAuMiAoKSBidWlsdC1pbiBzaGVsbCAoYXNoKQ0KRW50
-ZXIgJ2hlbHAnIGZvciBhIGxpc3Qgb2YgYnVpbHQtaW4gY29tbWFuZHMuDQoNCnJvb3RAZnJlZXNj
-YWxlIC8kICBlY2hvIDEgPiAvcHJvYy9zeXMvdm0vY29tcGFjdF9tZW1vcnkNCnNoOiB3cml0ZSBl
-cnJvcjogQmFkIGFkZHJlc3MNCg0KPg0KPj4NCj4+ID5jbG9zZSgxKSAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgPSAwDQo+PiA+bXVubWFwKDB4Yjc3OWMwMDAsIDQwOTYpICAgICAgICAg
-ICAgICAgID0gMA0KPj4gPmNsb3NlKDIpICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA9
-IDANCj4+ID5leGl0X2dyb3VwKDApICAgICAgICAgICAgICAgICAgICAgICAgICAgPSA/DQo+PiA+
-KysrIGV4aXRlZCB3aXRoIDAgKysrDQo+PiA+DQo+PiA+UmVnYXJkcywNCj4+ID5XYW5wZW5nIExp
-DQo+PiA+DQo+PiA+Pj4NCj4+ID4+PlJlZ2FyZHMsDQo+PiA+Pj5XYW5wZW5nIExpDQo+PiA+Pj4N
-Cj4+ID4+Pj4NCj4+ID4+Pj5TdWdnZXN0ZWQtYnk6RGF2aWQgUmllbnRqZXMgPHJpZW50amVzQGdv
-b2dsZS5jb20+IENjOk1lbCBHb3JtYW4NCj4+ID4+Pj48bWdvcm1hbkBzdXNlLmRlPiBDYzpBbmRy
-ZXcgTW9ydG9uIDxha3BtQGxpbnV4LQ0KPmZvdW5kYXRpb24ub3JnPg0KPj4gPj4+Q2M6UmlrDQo+
-PiA+Pj4+dmFuIFJpZWwgPHJpZWxAcmVkaGF0LmNvbT4gQ2M6TWluY2hhbiBLaW0gPG1pbmNoYW5A
-a2VybmVsLm9yZz4NCj4+ID4+Pj5DYzpLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGlyb3l1
-QGpwLmZ1aml0c3UuY29tPg0KPj4gPj4+PlNpZ25lZC1vZmYtYnk6IEphc29uIExpdSA8cjY0MzQz
-QGZyZWVzY2FsZS5jb20+DQo+PiA+Pj4+LS0tDQo+PiA+Pj4+IG1tL2NvbXBhY3Rpb24uYyB8ICAg
-IDYgKystLS0tDQo+PiA+Pj4+IDEgZmlsZXMgY2hhbmdlZCwgMiBpbnNlcnRpb25zKCspLCA0IGRl
-bGV0aW9ucygtKQ0KPj4gPj4+Pg0KPj4gPj4+PmRpZmYgLS1naXQgYS9tbS9jb21wYWN0aW9uLmMg
-Yi9tbS9jb21wYWN0aW9uLmMgaW5kZXgNCj4+ID4+Pj42YjgwN2U0Li5mOGY1YzExDQo+PiA+Pj4+
-MTAwNjQ0DQo+PiA+Pj4+LS0tIGEvbW0vY29tcGFjdGlvbi5jDQo+PiA+Pj4+KysrIGIvbW0vY29t
-cGFjdGlvbi5jDQo+PiA+Pj4+QEAgLTEyMTAsNyArMTIxMCw3IEBAIHN0YXRpYyBpbnQgY29tcGFj
-dF9ub2RlKGludCBuaWQpICB9DQo+PiA+Pj4+DQo+PiA+Pj4+IC8qIENvbXBhY3QgYWxsIG5vZGVz
-IGluIHRoZSBzeXN0ZW0gKi8gLXN0YXRpYyBpbnQNCj4+ID4+Pj5jb21wYWN0X25vZGVzKHZvaWQp
-DQo+PiA+Pj4+K3N0YXRpYyB2b2lkIGNvbXBhY3Rfbm9kZXModm9pZCkNCj4+ID4+Pj4gew0KPj4g
-Pj4+PiAJaW50IG5pZDsNCj4+ID4+Pj4NCj4+ID4+Pj5AQCAtMTIxOSw4ICsxMjE5LDYgQEAgc3Rh
-dGljIGludCBjb21wYWN0X25vZGVzKHZvaWQpDQo+PiA+Pj4+DQo+PiA+Pj4+IAlmb3JfZWFjaF9v
-bmxpbmVfbm9kZShuaWQpDQo+PiA+Pj4+IAkJY29tcGFjdF9ub2RlKG5pZCk7DQo+PiA+Pj4+LQ0K
-Pj4gPj4+Pi0JcmV0dXJuIENPTVBBQ1RfQ09NUExFVEU7DQo+PiA+Pj4+IH0NCj4+ID4+Pj4NCj4+
-ID4+Pj4gLyogVGhlIHdyaXR0ZW4gdmFsdWUgaXMgYWN0dWFsbHkgdW51c2VkLCBhbGwgbWVtb3J5
-IGlzIGNvbXBhY3RlZA0KPj4gPj4+PiovIEBADQo+PiA+Pj4+LTEyMzEsNyArMTIyOSw3IEBAIGlu
-dCBzeXNjdGxfY29tcGFjdGlvbl9oYW5kbGVyKHN0cnVjdCBjdGxfdGFibGUNCj4+ID4+Pj4qdGFi
-bGUsDQo+PiA+Pj5pbnQgd3JpdGUsDQo+PiA+Pj4+IAkJCXZvaWQgX191c2VyICpidWZmZXIsIHNp
-emVfdCAqbGVuZ3RoLCBsb2ZmX3QgKnBwb3MpDQo+ew0KPj4gPj4+PiAJaWYgKHdyaXRlKQ0KPj4g
-Pj4+Pi0JCXJldHVybiBjb21wYWN0X25vZGVzKCk7DQo+PiA+Pj4+KwkJY29tcGFjdF9ub2Rlcygp
-Ow0KPj4gPj4+Pg0KPj4gPj4+PiAJcmV0dXJuIDA7DQo+PiA+Pj4+IH0NCj4+ID4+Pj4tLQ0KPj4g
-Pj4+PjEuNy41LjQNCj4+ID4+Pj4NCj4+ID4+Pj4NCj4+ID4+Pj4tLQ0KPj4gPj4+PlRvIHVuc3Vi
-c2NyaWJlLCBzZW5kIGEgbWVzc2FnZSB3aXRoICd1bnN1YnNjcmliZSBsaW51eC1tbScgaW4gdGhl
-DQo+PiA+Pj4+Ym9keSB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBM
-aW51eCBNTSwNCj4+ID4+Pj5zZWU6IGh0dHA6Ly93d3cubGludXgtbW0ub3JnLyAuDQo+PiA+Pj4+
-RG9uJ3QgZW1haWw6IDxhIGhyZWY9bWFpbHRvOiJkb250QGt2YWNrLm9yZyI+IGVtYWlsQGt2YWNr
-Lm9yZyA8L2E+DQo+PiA+Pj4NCj4+ID4+DQo+PiA+DQo+Pg0KPj4NCj4+IC0tDQo+PiBUbyB1bnN1
-YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGluIHRo
-ZSBib2R5DQo+PiB0byBtYWpvcmRvbW9Aa3ZhY2sub3JnLiAgRm9yIG1vcmUgaW5mbyBvbiBMaW51
-eCBNTSwNCj4+IHNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcvIC4NCj4+IERvbid0IGVtYWls
-OiA8YSBocmVmPW1haWx0bzoiZG9udEBrdmFjay5vcmciPiBlbWFpbEBrdmFjay5vcmcgPC9hPg0K
-Pg0KPg0KDQo=
+Mel Gorman <mgorman@suse.de> wrote:
+> Using a 3.7.1 or 3.8-rc2 kernel, can you reproduce the problem and then
+> answer the following questions please?
+
+This is on my main machine running 3.8-rc2
+
+> 1. What are the contents of /proc/vmstat at the time it is stuck?
+
+===> /proc/vmstat <===
+nr_free_pages 40305
+nr_inactive_anon 25023
+nr_active_anon 85684
+nr_inactive_file 2614786
+nr_active_file 209440
+nr_unevictable 0
+nr_mlock 0
+nr_anon_pages 73510
+nr_mapped 6017
+nr_file_pages 2843997
+nr_dirty 695934
+nr_writeback 629239
+nr_slab_reclaimable 68414
+nr_slab_unreclaimable 14178
+nr_page_table_pages 3136
+nr_kernel_stack 314
+nr_unstable 0
+nr_bounce 0
+nr_vmscan_write 12220042
+nr_vmscan_immediate_reclaim 31213310
+nr_writeback_temp 0
+nr_isolated_anon 0
+nr_isolated_file 0
+nr_shmem 24101
+nr_dirtied 534655274
+nr_written 281872191
+nr_anon_transparent_hugepages 24
+nr_free_cma 0
+nr_dirty_threshold 2790220
+nr_dirty_background_threshold 29370
+pgpgin 6961109514
+pgpgout 1124854772
+pswpin 3940
+pswpout 127109
+pgalloc_dma 6
+pgalloc_dma32 7750674038
+pgalloc_normal 78295989795
+pgalloc_movable 0
+pgfree 86049272519
+pgactivate 21397174
+pgdeactivate 423853
+pgfault 473074235
+pgmajfault 20093
+pgrefill_dma 0
+pgrefill_dma32 158720
+pgrefill_normal 233024
+pgrefill_movable 0
+pgsteal_kswapd_dma 0
+pgsteal_kswapd_dma32 450844931
+pgsteal_kswapd_normal 1288388818
+pgsteal_kswapd_movable 0
+pgsteal_direct_dma 0
+pgsteal_direct_dma32 71774371
+pgsteal_direct_normal 197326432
+pgsteal_direct_movable 0
+pgscan_kswapd_dma 0
+pgscan_kswapd_dma32 459780161
+pgscan_kswapd_normal 1334016908
+pgscan_kswapd_movable 0
+pgscan_direct_dma 0
+pgscan_direct_dma32 75632525
+pgscan_direct_normal 222990090
+pgscan_direct_movable 0
+pgscan_direct_throttle 0
+pginodesteal 228906
+slabs_scanned 4077568
+kswapd_inodesteal 2591027
+kswapd_low_wmark_hit_quickly 674289
+kswapd_high_wmark_hit_quickly 39642
+kswapd_skip_congestion_wait 506
+pageoutrun 2908071
+allocstall 431220
+pgrotated 15736438
+pgmigrate_success 865182
+pgmigrate_fail 78157
+compact_migrate_scanned 17276417
+compact_free_scanned 204979571
+compact_isolated 3463801
+compact_stall 349792
+compact_fail 160801
+compact_success 188991
+htlb_buddy_alloc_success 0
+htlb_buddy_alloc_fail 0
+unevictable_pgs_culled 0
+unevictable_pgs_scanned 0
+unevictable_pgs_rescued 0
+unevictable_pgs_mlocked 0
+unevictable_pgs_munlocked 0
+unevictable_pgs_cleared 0
+unevictable_pgs_stranded 0
+thp_fault_alloc 720
+thp_fault_fallback 1719
+thp_collapse_alloc 8631
+thp_collapse_alloc_failed 4110
+thp_split 700
+thp_zero_page_alloc 0
+thp_zero_page_alloc_failed 0
+
+> 2. What are the contents of /proc/PID/stack for every toosleepy
+>    process when they are stuck?
+
+pid and tid stack info, 28018 is the thread I used to automate
+reporting (pushed to git://bogomips.org/toosleepy.git)
+
+===> 28014[28014]/stack <===
+[<ffffffff8105a97b>] futex_wait_queue_me+0xb7/0xd2
+[<ffffffff8105b7fc>] futex_wait+0xf6/0x1f6
+[<ffffffff811bb3af>] cpumask_next_and+0x2b/0x37
+[<ffffffff8104ebfa>] select_task_rq_fair+0x518/0x59a
+[<ffffffff8105c8f1>] do_futex+0xa9/0x88f
+[<ffffffff810509a4>] check_preempt_wakeup+0x10d/0x1a7
+[<ffffffff8104757d>] check_preempt_curr+0x25/0x62
+[<ffffffff8104d4cc>] wake_up_new_task+0x96/0xc2
+[<ffffffff8105d1e9>] sys_futex+0x112/0x14d
+[<ffffffff81322a49>] stub_clone+0x69/0x90
+[<ffffffff81322769>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+===> 28014[28015]/stack <===
+[<ffffffff812ae316>] dev_hard_start_xmit+0x281/0x3f1
+[<ffffffff81041010>] add_wait_queue+0x14/0x40
+[<ffffffff810de0bc>] poll_schedule_timeout+0x43/0x5d
+[<ffffffff810deb46>] do_sys_poll+0x314/0x39b
+[<ffffffff810de220>] pollwake+0x0/0x4e
+[<ffffffff8129fc1d>] release_sock+0xe5/0x11b
+[<ffffffff812d7f61>] tcp_recvmsg+0x713/0x846
+[<ffffffff812f432c>] inet_recvmsg+0x64/0x75
+[<ffffffff8129a26b>] sock_recvmsg+0x86/0x9e
+[<ffffffff8100541c>] emulate_vsyscall+0x1e6/0x28e
+[<ffffffff8129a3bc>] sockfd_lookup_light+0x1a/0x50
+[<ffffffff8129c18b>] sys_recvfrom+0x110/0x128
+[<ffffffff81000e34>] __switch_to+0x235/0x3c5
+[<ffffffff810ca402>] kmem_cache_free+0x32/0xb9
+[<ffffffff810b809d>] remove_vma+0x44/0x4c
+[<ffffffff810df0a5>] sys_ppoll+0xaf/0x123
+[<ffffffff81322769>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+===> 28014[28016]/stack <===
+[<ffffffff812ae7ad>] dev_queue_xmit+0x327/0x336
+[<ffffffff8102cb9f>] _local_bh_enable_ip+0x7a/0x8b
+[<ffffffff81041010>] add_wait_queue+0x14/0x40
+[<ffffffff810de0bc>] poll_schedule_timeout+0x43/0x5d
+[<ffffffff810deb46>] do_sys_poll+0x314/0x39b
+[<ffffffff810de220>] pollwake+0x0/0x4e
+[<ffffffff8129fc1d>] release_sock+0xe5/0x11b
+[<ffffffff812d7f61>] tcp_recvmsg+0x713/0x846
+[<ffffffff812f432c>] inet_recvmsg+0x64/0x75
+[<ffffffff8129a26b>] sock_recvmsg+0x86/0x9e
+[<ffffffff8100541c>] emulate_vsyscall+0x1e6/0x28e
+[<ffffffff8129a3bc>] sockfd_lookup_light+0x1a/0x50
+[<ffffffff8129c18b>] sys_recvfrom+0x110/0x128
+[<ffffffff81000e34>] __switch_to+0x235/0x3c5
+[<ffffffff810df0a5>] sys_ppoll+0xaf/0x123
+[<ffffffff81322769>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+===> 28014[28017]/stack <===
+[<ffffffff8129fc1d>] release_sock+0xe5/0x11b
+[<ffffffff812a642c>] sk_stream_wait_memory+0x1f7/0x1fc
+[<ffffffff81040d5e>] autoremove_wake_function+0x0/0x2a
+[<ffffffff812d8fc3>] tcp_sendmsg+0x710/0x86d
+[<ffffffff8129a33e>] sock_sendmsg+0x7b/0x93
+[<ffffffff8129a642>] sys_sendto+0xee/0x145
+[<ffffffff8129a3bc>] sockfd_lookup_light+0x1a/0x50
+[<ffffffff8129a668>] sys_sendto+0x114/0x145
+[<ffffffff81000e34>] __switch_to+0x235/0x3c5
+[<ffffffff81322769>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+===> 28014[28018]/stack <===
+[<ffffffff8102b23e>] do_wait+0x1a6/0x21a
+[<ffffffff8104757d>] check_preempt_curr+0x25/0x62
+[<ffffffff8102b34a>] sys_wait4+0x98/0xb5
+[<ffffffff81026321>] do_fork+0x12c/0x1a7
+[<ffffffff810297b0>] child_wait_callback+0x0/0x48
+[<ffffffff8131c688>] page_fault+0x28/0x30
+[<ffffffff81322769>] system_call_fastpath+0x16/0x1b
+[<ffffffffffffffff>] 0xffffffffffffffff
+
+> 3. Can you do a sysrq+m and post the resulting dmesg?
+
+SysRq : Show Memory
+Mem-Info:
+DMA per-cpu:
+CPU    0: hi:    0, btch:   1 usd:   0
+CPU    1: hi:    0, btch:   1 usd:   0
+CPU    2: hi:    0, btch:   1 usd:   0
+CPU    3: hi:    0, btch:   1 usd:   0
+DMA32 per-cpu:
+CPU    0: hi:  186, btch:  31 usd:   4
+CPU    1: hi:  186, btch:  31 usd: 181
+CPU    2: hi:  186, btch:  31 usd:  46
+CPU    3: hi:  186, btch:  31 usd:  13
+Normal per-cpu:
+CPU    0: hi:  186, btch:  31 usd: 106
+CPU    1: hi:  186, btch:  31 usd: 183
+CPU    2: hi:  186, btch:  31 usd:  20
+CPU    3: hi:  186, btch:  31 usd:  76
+active_anon:85782 inactive_anon:25023 isolated_anon:0
+ active_file:209440 inactive_file:2610279 isolated_file:0
+ unevictable:0 dirty:696664 writeback:629020 unstable:0
+ free:44152 slab_reclaimable:68414 slab_unreclaimable:14178
+ mapped:6017 shmem:24101 pagetables:3136 bounce:0
+ free_cma:0
+DMA free:15872kB min:84kB low:104kB high:124kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15640kB managed:15896kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:24kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+lowmem_reserve[]: 0 3132 12078 12078
+DMA32 free:85264kB min:17504kB low:21880kB high:26256kB active_anon:46808kB inactive_anon:21212kB active_file:122040kB inactive_file:2833064kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:3208020kB managed:3185856kB mlocked:0kB dirty:92120kB writeback:225356kB mapped:356kB shmem:6776kB slab_reclaimable:67156kB slab_unreclaimable:7412kB kernel_stack:80kB pagetables:816kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+lowmem_reserve[]: 0 0 8946 8946
+Normal free:75472kB min:49988kB low:62484kB high:74980kB active_anon:296320kB inactive_anon:78880kB active_file:715720kB inactive_file:7608052kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:9160704kB managed:9084264kB mlocked:0kB dirty:2694536kB writeback:2290724kB mapped:23712kB shmem:89628kB slab_reclaimable:206500kB slab_unreclaimable:49276kB kernel_stack:2432kB pagetables:11728kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+lowmem_reserve[]: 0 0 0 0
+DMA: 0*4kB 0*8kB 0*16kB 0*32kB 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (R) 3*4096kB (M) = 15872kB
+DMA32: 1681*4kB (UEM) 3196*8kB (UEM) 3063*16kB (UEM) 63*32kB (UEM) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 1*2048kB (R) 0*4096kB = 85364kB
+Normal: 8874*4kB (UEM) 1885*8kB (UEM) 581*16kB (UEM) 412*32kB (UM) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 1*2048kB (R) 0*4096kB = 75104kB
+2839464 total pagecache pages
+891 pages in swap cache
+Swap cache stats: add 131049, delete 130158, find 1103447/1103954
+Free swap  = 4152384kB
+Total swap = 4194300kB
+3145712 pages RAM
+73642 pages reserved
+3313060 pages shared
+1432170 pages non-shared
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
