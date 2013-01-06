@@ -1,59 +1,20 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 7B8C86B006E
-	for <linux-mm@kvack.org>; Sat,  5 Jan 2013 14:28:43 -0500 (EST)
-From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [RESEND][PATCH v3] mm: Use aligned zone start for pfn_to_bitidx calculation
-Date: Sat,  5 Jan 2013 11:28:31 -0800
-Message-Id: <1357414111-20736-1-git-send-email-lauraa@codeaurora.org>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <sharondaelza@aclama.com>
+Date: Sun, 06 Jan 2013 04:20:58 +0100
+From: "Christin Adriane" <sharondaelza@aclama.com>
+Message-ID: <201301060520.333B9DF314C47438B9EEE@651c3snk>
+Subject: BUY Genuine CIALIS VISA/MC OVERNIGHT USA 5hn7x
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Laura Abbott <lauraa@codeaurora.org>
 
-The current calculation in pfn_to_bitidx assumes that
-(pfn - zone->zone_start_pfn) >> pageblock_order will return the
-same bit for all pfn in a pageblock. If zone_start_pfn is not
-aligned to pageblock_nr_pages, this may not always be correct.
+                
+BUY Genuine CIALIS VISA/MC OVERNIGHT USA
 
-Consider the following with pageblock order = 10, zone start 2MB:
+CIALIS for ED in men. Official Cialis product! US based and FAST shipping via USPS / FEDEX! Don't settle for off brand.
 
-pfn     | pfn - zone start | (pfn - zone start) >> page block order
-----------------------------------------------------------------
-0x26000 | 0x25e00	   |  0x97
-0x26100 | 0x25f00	   |  0x97
-0x26200 | 0x26000	   |  0x98
-0x26300 | 0x26100	   |  0x98
+Buy genuine CIALIS here now! 
 
-This means that calling {get,set}_pageblock_migratetype on a single
-page will not set the migratetype for the full block. Fix this by
-rounding down zone_start_pfn when doing the bitidx calculation.
-
-Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
-Acked-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 92dd060..b6a2510 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5422,7 +5422,7 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
- 	pfn &= (PAGES_PER_SECTION-1);
- 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
- #else
--	pfn = pfn - zone->zone_start_pfn;
-+	pfn = pfn - round_down(zone->zone_start_pfn, pageblock_nr_pages);
- 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
- #endif /* CONFIG_SPARSEMEM */
- }
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+http://pillsdrugstorepills.ru
+             
