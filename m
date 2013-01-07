@@ -1,29 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id A70226B005D
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 20:30:49 -0500 (EST)
-Message-ID: <50EA2511.3070009@cn.fujitsu.com>
-Date: Mon, 07 Jan 2013 09:29:53 +0800
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 893486B0070
+	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 20:32:23 -0500 (EST)
+Message-ID: <50EA2571.1020509@cn.fujitsu.com>
+Date: Mon, 07 Jan 2013 09:31:29 +0800
 From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [RFC PATCH] mm: memblock: fix wrong memmove size in memblock_merge_regions()
-References: <1357290650-25544-1-git-send-email-linfeng@cn.fujitsu.com> <20130104145635.GA15633@mtj.dyndns.org>
-In-Reply-To: <20130104145635.GA15633@mtj.dyndns.org>
+References: <1357290650-25544-1-git-send-email-linfeng@cn.fujitsu.com> <20130105010420.GA26319@hacker.(null)>
+In-Reply-To: <20130105010420.GA26319@hacker.(null)>
 Content-Transfer-Encoding: 7bit
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: akpm@linux-foundation.org, mingo@kernel.org, yinghai@kernel.org, liwanp@linux.vnet.ibm.com, benh@kernel.crashing.org, tangchen@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, tj@kernel.org, mingo@kernel.org, yinghai@kernel.org, benh@kernel.crashing.org, tangchen@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 
 
-On 01/04/2013 10:56 PM, Tejun Heo wrote:
+On 01/05/2013 09:04 AM, Wanpeng Li wrote:
 > On Fri, Jan 04, 2013 at 05:10:50PM +0800, Lin Feng wrote:
 >> The memmove span covers from (next+1) to the end of the array, and the index
 >> of next is (i+1), so the index of (next+1) is (i+2). So the size of remaining
 >> array elements is (type->cnt - (i + 2)).
 >>
+> 
+> Make sense.
+Hi Wanpeng,
+
+Thanks for your review. I will add it in next version.
+
+thanks,
+linfeng
+> 
+> Reviewed-by: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> 
 >> PS. It seems that memblock_merge_regions() could be made some improvement:
 >> we need't memmove the remaining array elements until we find a none-mergable
 >> element, but now we memmove everytime we find a neighboring compatible region.
@@ -32,30 +43,25 @@ On 01/04/2013 10:56 PM, Tejun Heo wrote:
 >> Cc: Tejun Heo <tj@kernel.org>
 >> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
 >> ---
->>  mm/memblock.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
+>> mm/memblock.c | 2 +-
+>> 1 file changed, 1 insertion(+), 1 deletion(-)
 >>
 >> diff --git a/mm/memblock.c b/mm/memblock.c
 >> index 6259055..85ce056 100644
 >> --- a/mm/memblock.c
 >> +++ b/mm/memblock.c
 >> @@ -314,7 +314,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
->>  		}
->>  
->>  		this->size += next->size;
+>> 		}
+>>
+>> 		this->size += next->size;
 >> -		memmove(next, next + 1, (type->cnt - (i + 1)) * sizeof(*next));
 >> +		memmove(next, next + 1, (type->cnt - (i + 2)) * sizeof(*next));
+>> 		type->cnt--;
+>> 	}
+>> }
+>> -- 
+>> 1.7.11.7
 > 
-> Heh, that's confusing.  Nice catch.  Can you please also add a comment
-> explaning the index so that it's less confusing for the future readers?
-Hi Tejun,
-
-Glad to. I will resend it soon.
-
-thanks,
-linfeng
-> 
-> Thanks.
 > 
 
 --
