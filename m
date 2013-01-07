@@ -1,62 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 758256B004D
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 10:35:21 -0500 (EST)
-Date: Mon, 7 Jan 2013 16:35:10 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH] mm: export mmu notifier invalidates
-Message-ID: <20130107153510.GC9163@redhat.com>
-References: <E1Tr9P7-0001AN-S4@eag09.americas.sgi.com>
- <20130107141446.GF3885@suse.de>
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 4D71A6B004D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 10:37:28 -0500 (EST)
+Date: Mon, 7 Jan 2013 15:37:23 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 44/49] mm: numa: Add THP migration for the NUMA working
+ set scanning fault case.
+Message-ID: <20130107153723.GN3885@suse.de>
+References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+ <1354875832-9700-45-git-send-email-mgorman@suse.de>
+ <20130105084229.GA3208@hacker.(null)>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20130107141446.GF3885@suse.de>
+In-Reply-To: <20130105084229.GA3208@hacker.(null)>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Cliff Wickman <cpw@sgi.com>, akpm@linux-foundation.org, avi@redhat.com, hughd@google.com, linux-mm@kvack.org
+To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Mel,
-
-On Mon, Jan 07, 2013 at 02:14:46PM +0000, Mel Gorman wrote:
-> On Fri, Jan 04, 2013 at 09:41:53AM -0600, Cliff Wickman wrote:
-> > From: Cliff Wickman <cpw@sgi.com>
-> > 
-> > Avi, Andrea, Andrew, Hugh, Mel,
-> > 
-> > We at SGI have a need to address some very high physical address ranges with
-> > our GRU (global reference unit), sometimes across partitioned machine boundaries
-> > and sometimes with larger addresses than the cpu supports.
-> > We do this with the aid of our own 'extended vma' module which mimics the vma.
-> > When something (either unmap or exit) frees an 'extended vma' we use the mmu
-> > notifiers to clean them up.
-> > 
-> > We had been able to mimic the functions __mmu_notifier_invalidate_range_start()
-> > and __mmu_notifier_invalidate_range_end() by locking the per-mm lock and 
-> > walking the per-mm notifier list.  But with the change to a global srcu
-> > lock (static in mmu_notifier.c) we can no longer do that.  Our module has
-> > no access to that lock.
-> > 
-> > So we request that these two functions be exported.
-> > 
+On Sat, Jan 05, 2013 at 04:42:29PM +0800, Wanpeng Li wrote:
+> >+int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+> >+{
+> >+	int ret = 0;
+> >
+> > 	/* Avoid migrating to a node that is nearly full */
+> > 	if (migrate_balanced_pgdat(pgdat, 1)) {
 > 
-> I do not believe I wrote any of the MMU notifier code so it's not up to
-> me how it should be exported (or if it should even be allowed). I find it
-> curious that it appears that no other driver needs this and wonder if you
-> could also abuse the vma_ops->close interface to do some of the cleanup
-> but I've no idea what your module is doing. I've no objection to the
-> export as such but it's really not my call.
+> Hi Mel Gorman,
+> 
+> This parameter nr_migrate_pags = 1 is not correct, since balancenuma also 
+> support THP in this patchset, the parameter should be 1 <= compound_order(page) 
+> instead of 1. I'd rather change to something like:
+> 
 
-The patch itself is zero risk and in fact it will make life easier to
-their out-of-tree kernel module (that will be able to use the common
-code in mmu_notifier.c and remove some duplicate).
+True. The impact is marginal because it only applies when a node is almost
+full but it does mean that we do some unnecessary work before migration
+fails anyway. I've added a TODO item to fix it when I next revisit NUMA
+balancing. Thanks.
 
-The real question is if we're going to support extended vma
-abstractions in kernel modules out of tree and that's not only my call
-so I suggest others to comment too. If yes then applying this patch to
-mmu notifier (so the device driver can call those methods) sounds fine
-with me. I'm neutral on the broader question.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
