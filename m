@@ -1,70 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id 438CD6B0070
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 10:09:40 -0500 (EST)
-Date: Mon, 7 Jan 2013 15:09:35 +0000
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 0978C6B005D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 10:14:36 -0500 (EST)
+Date: Mon, 7 Jan 2013 15:14:30 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: thp: Acquire the anon_vma rwsem for lock during split
-Message-ID: <20130107150935.GK3885@suse.de>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
- <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
- <20130103175737.GA3885@suse.de>
- <20130104140815.GA26005@suse.de>
- <CANN689E8S5mmszQoeaYgL_SYe1piBDTWCk-Gy1kxcg6hPfUPwA@mail.gmail.com>
- <1357388687.9001.3.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH 22/49] mm: mempolicy: Add MPOL_MF_LAZY
+Message-ID: <20130107151430.GL3885@suse.de>
+References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+ <1354875832-9700-23-git-send-email-mgorman@suse.de>
+ <1357363097.5273.12.camel@kernel.cn.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1357388687.9001.3.camel@kernel.cn.ibm.com>
+In-Reply-To: <1357363097.5273.12.camel@kernel.cn.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Simon Jeons <simon.jeons@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>, Zhouping Liu <zliu@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, hughd@google.com, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat, Jan 05, 2013 at 06:24:47AM -0600, Simon Jeons wrote:
-> On Fri, 2013-01-04 at 17:32 -0800, Michel Lespinasse wrote:
-> > On Fri, Jan 4, 2013 at 6:08 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > > Despite the reason for these commits, NUMA balancing is not the direct
-> > > source of the problem. split_huge_page() expected the anon_vma lock to be
-> > > exclusive to serialise the whole split operation. Ordinarily it is expected
-> > > that the anon_vma lock would only be required when updating the avcs but
-> > > THP also uses it. The locking requirements for THP are complex and there
-> > > is some overlap but broadly speaking they include the following
-> > >
-> > > 1. mmap_sem for read or write prevents THPs being created underneath
-> > > 2. anon_vma is taken for write if collapsing a huge page
-> > > 3. mm->page_table_lock should be taken when checking if pmd_trans_huge as
-> > >    split_huge_page can run in parallel
-> > > 4. wait_split_huge_page uses anon_vma taken for write mode to serialise
-> > >    against other THP operations
-> > > 5. compound_lock is used to serialise between
-> > >    __split_huge_page_refcount() and gup
-> > >
-> > > split_huge_page takes anon_vma for read but that does not serialise against
-> > > parallel split_huge_page operations on the same page (rule 2). One process
-> > > could be modifying the ref counts while the other modifies the page tables
-> > > leading to counters not being reliable. This patch takes the anon_vma
-> > > lock for write to serialise against parallel split_huge_page and parallel
-> > > collapse operations as it is the most fine-grained lock available that
-> > > protects against both.
-> > 
-> > Your comment about this being the most fine-grained lock made me
-> > think, couldn't we use lock_page() on the THP page here ?
-> > 
-> > Now I don't necessarily want to push you that direction, because I
-> > haven't fully thought it trough and because what you propose brings us
-> > closer to what happened before anon_vma became an rwlock, which is
-> > more obviously safe. But I felt I should still mention it, since we're
-> > really only trying to protect from concurrent operations on the same
-> > THP page, so locking at just that granularity would seem desirable.
+On Fri, Jan 04, 2013 at 11:18:17PM -0600, Simon Jeons wrote:
+> > +static int
+> > +change_prot_numa_range(struct mm_struct *mm, struct vm_area_struct *vma,
+> > +			unsigned long address)
+> > +{
+> > +	pgd_t *pgd;
+> > +	pud_t *pud;
+> > +	pmd_t *pmd;
+> > +	pte_t *pte, *_pte;
+> > +	struct page *page;
+> > +	unsigned long _address, end;
+> > +	spinlock_t *ptl;
+> > +	int ret = 0;
+> > +
+> > +	VM_BUG_ON(address & ~PAGE_MASK);
+> > +
+> > +	pgd = pgd_offset(mm, address);
+> > +	if (!pgd_present(*pgd))
+> > +		goto out;
+> > +
+> > +	pud = pud_offset(pgd, address);
+> > +	if (!pud_present(*pud))
+> > +		goto out;
+> > +
+> > +	pmd = pmd_offset(pud, address);
+> > +	if (pmd_none(*pmd))
+> > +		goto out;
+> > +
+> > +	if (pmd_trans_huge_lock(pmd, vma) == 1) {
+> > +		int page_nid;
+> > +		ret = HPAGE_PMD_NR;
+> > +
+> > +		VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+> > +
+> > +		if (pmd_numa(*pmd)) {
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			goto out;
+> > +		}
+> > +
+> > +		page = pmd_page(*pmd);
+> > +
+> > +		/* only check non-shared pages */
+> > +		if (page_mapcount(page) != 1) {
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			goto out;
+> > +		}
+> > +
+> > +		page_nid = page_to_nid(page);
+> > +
+> > +		if (pmd_numa(*pmd)) {
+> > +			spin_unlock(&mm->page_table_lock);
+> > +			goto out;
+> > +		}
+> > +
 > 
-> Why you said that anon_vma lock who will protect page associated to a
-> list of vmas is fine-grained then page lock who just protect one page?
+> Hi Gorman,
+> 
+> Since pmd_trans_huge_lock has already held &mm->page_table_lock, then
+> why check pmd_numa(*pmd) again?
 > 
 
-We did not say it was fine-grained, we said it was the most fine-grained
-lock available. It's a coarse lock but using the page lock would be
-problematic.
+It looks like oversight. I've added a TODO item to clean it up when I
+revisit NUMA balancing some time soon.
+
+Thanks.
 
 -- 
 Mel Gorman
