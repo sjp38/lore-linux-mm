@@ -1,101 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 0F3136B0072
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 03:12:39 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9936C3EE0C7
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:12:38 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7557C45DD74
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:12:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3A32F45DE50
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:12:38 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1E7871DB803C
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:12:38 +0900 (JST)
-Received: from ml14.s.css.fujitsu.com (ml14.s.css.fujitsu.com [10.240.81.134])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id C3F1B1DB8042
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:12:37 +0900 (JST)
-Message-ID: <50EA8355.5080007@jp.fujitsu.com>
-Date: Mon, 07 Jan 2013 17:12:05 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
+	by kanga.kvack.org (Postfix) with SMTP id 41C026B0072
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 03:12:47 -0500 (EST)
+Received: by mail-da0-f43.google.com with SMTP id u36so8581915dak.16
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2013 00:12:46 -0800 (PST)
+Date: Mon, 7 Jan 2013 16:12:37 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
+Message-ID: <20130107081237.GB21779@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHSET] cpuset: decouple cpuset locking from cgroup core,
- take#2
-References: <1357248967-24959-1-git-send-email-tj@kernel.org>
-In-Reply-To: <1357248967-24959-1-git-send-email-tj@kernel.org>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: lizefan@huawei.com, paul@paulmenage.org, glommer@parallels.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-(2013/01/04 6:35), Tejun Heo wrote:
-> Hello, guys.
-> 
-> This is the second attempt at decoupling cpuset locking from cgroup
-> core.  Changes from the last take[L] are
-> 
-> * cpuset-drop-async_rebuild_sched_domains.patch moved from 0007 to
->    0009.  This reordering makes cpu hotplug handling async first and
->    removes the temporary cyclic locking dependency.
-> 
-> * 0006-cpuset-cleanup-cpuset-_can-_attach.patch no longer converts
->    cpumask_var_t to cpumask_t as per Rusty Russell.
-> 
-> * 0008-cpuset-don-t-nest-cgroup_mutex-inside-get_online_cpu.patch now
->    synchronously rebuilds sched domains from cpu hotplug callback.
->    This fixes various issues caused by confused scheduler puttings
->    tasks into a dead cpu including the RCU stall problem reported by Li
->    Zefan.
-> 
-> Original patchset description follows.
-> 
-> Depending on cgroup core locking - cgroup_mutex - is messy and makes
-> cgroup prone to locking dependency problems.  The current code already
-> has lock dependency loop - memcg nests get_online_cpus() inside
-> cgroup_mutex.  cpuset the other way around.
-> 
-> Regardless of the locking details, whatever is protecting cgroup has
-> inherently to be something outer to most other locking constructs.
-> cgroup calls into a lot of major subsystems which in turn have to
-> perform subsystem-specific locking.  Trying to nest cgroup
-> synchronization inside other locks isn't something which can work
-> well.
-> 
-> cgroup now has enough API to allow subsystems to implement their own
-> locking and cgroup_mutex is scheduled to be made private to cgroup
-> core.  This patchset makes cpuset implement its own locking instead of
-> relying on cgroup_mutex.
-> 
-> cpuset is rather nasty in this respect.  Some of it seems to have come
-> from the implementation history - cgroup core grew out of cpuset - but
-> big part stems from cpuset's need to migrate tasks to an ancestor
-> cgroup when an hotunplug event makes a cpuset empty (w/o any cpu or
-> memory).
-> 
-> This patchset decouples cpuset locking from cgroup_mutex.  After the
-> patchset, cpuset uses cpuset-specific cpuset_mutex instead of
-> cgroup_mutex.  This also removes the lockdep warning triggered during
-> cpu offlining (see 0009).
-> 
-> Note that this leaves memcg as the only external user of cgroup_mutex.
-> Michal, Kame, can you guys please convert memcg to use its own locking
-> too?
-> 
-
-Okay...but If Costa has a new version of his patch, I'd like to see it.
-I'm sorry if I missed his new patches for removing cgroup_lock.
-
-Thanks,
--Kame
-
-Thanks,
--Kame
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com
 
 
+Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
+this syscall can do swapin prefetch. It has no impact if the memory isn't
+swapout.
+
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+---
+ mm/madvise.c |   94 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 94 insertions(+)
+
+Index: linux/mm/madvise.c
+===================================================================
+--- linux.orig/mm/madvise.c	2013-01-07 15:27:45.064893547 +0800
++++ linux/mm/madvise.c	2013-01-07 15:27:53.636787409 +0800
+@@ -16,6 +16,9 @@
+ #include <linux/ksm.h>
+ #include <linux/fs.h>
+ #include <linux/file.h>
++#include <linux/blkdev.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
+ 
+ /*
+  * Any behaviour which results in changes to the vma->vm_flags needs to
+@@ -131,6 +134,82 @@ out:
+ 	return error;
+ }
+ 
++static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
++	unsigned long end, struct mm_walk *walk)
++{
++	pte_t *orig_pte;
++	struct vm_area_struct *vma = walk->private;
++	unsigned long index;
++
++	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
++		return 0;
++
++	for (index = start; index != end; index += PAGE_SIZE) {
++		pte_t pte;
++		swp_entry_t entry;
++		struct page *page;
++		spinlock_t *ptl;
++
++		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
++		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
++		pte_unmap_unlock(orig_pte, ptl);
++
++		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
++			continue;
++		entry = pte_to_swp_entry(pte);
++		if (unlikely(non_swap_entry(entry)))
++			continue;
++
++		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
++								vma, index);
++		if (page)
++			page_cache_release(page);
++	}
++
++	return 0;
++}
++
++static void force_swapin_readahead(struct vm_area_struct *vma,
++		unsigned long start, unsigned long end)
++{
++	struct mm_walk walk = {
++		.mm = vma->vm_mm,
++		.pmd_entry = swapin_walk_pmd_entry,
++		.private = vma,
++	};
++
++	walk_page_range(start, end, &walk);
++
++	lru_add_drain();	/* Push any new pages onto the LRU now */
++}
++
++static void force_shm_swapin_readahead(struct vm_area_struct *vma,
++		unsigned long start, unsigned long end,
++		struct address_space *mapping)
++{
++	pgoff_t index;
++	struct page *page;
++	swp_entry_t swap;
++
++	for (; start < end; start += PAGE_SIZE) {
++		index = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
++
++		page = find_get_page(mapping, index);
++		if (!radix_tree_exceptional_entry(page)) {
++			if (page)
++				page_cache_release(page);
++			continue;
++		}
++		swap = radix_to_swp_entry(page);
++		page = read_swap_cache_async(swap, GFP_HIGHUSER_MOVABLE,
++								NULL, 0);
++		if (page)
++			page_cache_release(page);
++	}
++
++	lru_add_drain();	/* Push any new pages onto the LRU now */
++}
++
+ /*
+  * Schedule all required I/O operations.  Do not wait for completion.
+  */
+@@ -140,6 +219,18 @@ static long madvise_willneed(struct vm_a
+ {
+ 	struct file *file = vma->vm_file;
+ 
++#ifdef CONFIG_SWAP
++	if (!file || mapping_cap_swap_backed(file->f_mapping)) {
++		*prev = vma;
++		if (!file)
++			force_swapin_readahead(vma, start, end);
++		else
++			force_shm_swapin_readahead(vma, start, end,
++						file->f_mapping);
++		return 0;
++	}
++#endif
++
+ 	if (!file)
+ 		return -EBADF;
+ 
+@@ -371,6 +462,7 @@ SYSCALL_DEFINE3(madvise, unsigned long,
+ 	int error = -EINVAL;
+ 	int write;
+ 	size_t len;
++	struct blk_plug plug;
+ 
+ #ifdef CONFIG_MEMORY_FAILURE
+ 	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+@@ -410,6 +502,7 @@ SYSCALL_DEFINE3(madvise, unsigned long,
+ 	if (vma && start > vma->vm_start)
+ 		prev = vma;
+ 
++	blk_start_plug(&plug);
+ 	for (;;) {
+ 		/* Still start < end. */
+ 		error = -ENOMEM;
+@@ -445,6 +538,7 @@ SYSCALL_DEFINE3(madvise, unsigned long,
+ 			vma = find_vma(current->mm, start);
+ 	}
+ out:
++	blk_finish_plug(&plug);
+ 	if (write)
+ 		up_write(&current->mm->mmap_sem);
+ 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
