@@ -1,40 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id C00926B005A
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 16:55:34 -0500 (EST)
-Message-ID: <50EB4455.60808@linux.intel.com>
-Date: Mon, 07 Jan 2013 13:55:33 -0800
-From: "H. Peter Anvin" <hpa@linux.intel.com>
+Received: from psmtp.com (na3sys010amx126.postini.com [74.125.245.126])
+	by kanga.kvack.org (Postfix) with SMTP id EF67D6B0062
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 17:31:33 -0500 (EST)
+Message-ID: <50EB4CB9.9010104@zytor.com>
+Date: Mon, 07 Jan 2013 14:31:21 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] pageattr fixes for pmd/pte_present
-References: <1355767224-13298-1-git-send-email-aarcange@redhat.com> <1357441197.9001.6.camel@kernel.cn.ibm.com> <20130107135344.5ca426ca.akpm@linux-foundation.org>
-In-Reply-To: <20130107135344.5ca426ca.akpm@linux-foundation.org>
+Subject: Re: [RFC]x86: clearing access bit don't flush tlb
+References: <20130107081213.GA21779@kernel.org> <50EAE66B.1020804@redhat.com>
+In-Reply-To: <50EAE66B.1020804@redhat.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Simon Jeons <simon.jeons@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Shaohua Li <shaohua.li@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mingo@redhat.com
 
-On 01/07/2013 01:53 PM, Andrew Morton wrote:
+On 01/07/2013 07:14 AM, Rik van Riel wrote:
+> On 01/07/2013 03:12 AM, Shaohua Li wrote:
 >>
->> What's the status of these two patches?
+>> We use access bit to age a page at page reclaim. When clearing pte
+>> access bit,
+>> we could skip tlb flush for the virtual address. The side effect is if
+>> the pte
+>> is in tlb and pte access bit is unset, when cpu access the page again,
+>> cpu will
+>> not set pte's access bit. So next time page reclaim can reclaim hot pages
+>> wrongly, but this doesn't corrupt anything. And according to intel
+>> manual, tlb
+>> has less than 1k entries, which coverers < 4M memory. In today's system,
+>> several giga byte memory is normal. After page reclaim clears pte
+>> access bit
+>> and before cpu access the page again, it's quite unlikely this page's
+>> pte is
+>> still in TLB. Skiping the tlb flush for this case sounds ok to me.
 > 
-> I expect they fell through the christmas cracks.  I added them to my
-> (getting large) queue of x86 patches for consideration by the x86
-> maintainers.
+> Agreed. In current systems, it can take a minute to write
+> all of memory to disk, while context switch (natural TLB
+> flush) times are in the dozens-of-millisecond timeframes.
+> 
 
-Yes, I'm just coming back online today, and needless to say, I have a
-*huge* backlog.
-
-> Why do you ask?  It seems the bug is a pretty minor one and that we
-> need only fix it in 3.8 or even 3.9.  Is that supposition incorrect?
-
-I would like to know this as well.
+I'm confused.  We used to do this since time immemorial, so if we aren't
+doing that now, that meant something changed somewhere along the line.
+It would be good to figure out if that was an intentional change or
+accidental.
 
 	-hpa
-
-
 
 
 --
