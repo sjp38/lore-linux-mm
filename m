@@ -1,71 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id A3A6A6B005D
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 12:08:20 -0500 (EST)
-Date: Mon, 7 Jan 2013 17:08:15 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: migrate: Check page_count of THP before migrating
-Message-ID: <20130107170815.GO3885@suse.de>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 8609C6B005D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 14:14:34 -0500 (EST)
+Date: Mon, 7 Jan 2013 20:14:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: compaction vs data=ordered on ext34
+Message-ID: <20130107191430.GC13659@quack.suse.cz>
+References: <20130104132305.GG14537@shiny>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20130104132305.GG14537@shiny>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chris Mason <chris.mason@fusionio.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Steven Rostedt <srostedt@redhat.com>, "tytso@mit.edu" <tytso@mit.edu>, Jan Kara <jack@suse.cz>
 
-Hugh Dickins pointed out that migrate_misplaced_transhuge_page() does not
-check page_count before migrating like base page migration and khugepage. He
-could not see why this was safe and he is right.
+  Hi,
 
-The potential impact of the bug is avoided due to the limitations of NUMA
-balancing.  The page_mapcount() check ensures that only a single address
-space is using this page and as THPs are typically private it should not be
-possible for another address space to fault it in parallel. If the address
-space has one associated task then it's difficult to have both a GUP pin
-and be referencing the page at the same time. If there are multiple tasks
-then a buggy scenario requires that another thread be accessing the page
-while the direct IO is in flight. This is dodgy behaviour as there is
-a possibility of corruption with or without THP migration. It would be
-difficult to identify the corruption as being a migration bug.
+On Fri 04-01-13 08:23:05, Chris Mason wrote:
+> Steve recently hit very long stalls in firefox, and was able to snag
+> this sysrq-w
+> 
+> [223349.032831] firefox-bin     D 0000000000000000     0  5798   5797 0x00000004
+> [223349.033208]  ffff8801abb69798 0000000000000086 ffff8801abb696d8 ffff8801abb69fd8
+> [223349.033622]  0000000000004000 ffff8801abb69fd8 ffffffff81813420 ffff880209d7e180
+> [223349.034053]  000000000000003c ffff88023f02cb00 ffff88023f01d080 ffff88023f02cac0
+> [223349.034472] Call Trace:
+> [223349.034609]  [<ffffffff8145abbc>] ? cache_flusharray+0x8f/0xb9
+> [223349.034909]  [<ffffffff81110b56>] ? free_pcppages_bulk+0x406/0x450
+> [223349.035228]  [<ffffffff81191aa0>] ? __wait_on_buffer+0x30/0x30
+> [223349.035530]  [<ffffffff8145f41f>] ? io_schedule+0x8f/0xd0
+> [223349.035812]  [<ffffffff81191aae>] ? sleep_on_buffer+0xe/0x20
+> [223349.036103]  [<ffffffff8145d72a>] ? __wait_on_bit_lock+0x5a/0xc0
+> [223349.036432]  [<ffffffff8111201e>] ?  free_hot_cold_page_list+0x5e/0x100
+> [223349.036769]  [<ffffffff81191aa0>] ? __wait_on_buffer+0x30/0x30
+> [223349.037073]  [<ffffffff8145d80c>] ?  out_of_line_wait_on_bit_lock+0x7c/0x90
+> [223349.037427]  [<ffffffff81067300>] ?  autoremove_wake_function+0x40/0x40
+> [223349.037767]  [<ffffffff81155c5e>] ?  buffer_migrate_lock_buffers+0x7e/0xb0
+> [223349.038116]  [<ffffffff81156761>] ? buffer_migrate_page+0x61/0x160
+> [223349.038437]  [<ffffffff81156536>] ? move_to_new_page+0x96/0x260
+> [223349.038749]  [<ffffffff81156c11>] ? migrate_pages+0x3b1/0x4b0
+> [223349.039047]  [<ffffffff8112b7b0>] ?  compact_checklock_irqsave.isra.14+0x100/0x100
+> [223349.039433]  [<ffffffff8112c48f>] ? compact_zone+0x17f/0x430
+> [223349.039729]  [<ffffffff8135c3eb>] ? __kmalloc_reserve+0x3b/0xa0
+> [223349.040036]  [<ffffffff8112c9f7>] ? compact_zone_order+0x87/0xd0
+> [223349.040349]  [<ffffffff8112cb11>] ? try_to_compact_pages+0xd1/0x100
+> [223349.040674]  [<ffffffff8145a6e3>] ?  __alloc_pages_direct_compact+0xc3/0x1fa
+> [223349.041034]  [<ffffffff81111468>] ?  __alloc_pages_nodemask+0x7b8/0xa00
+> [223349.041368]  [<ffffffff8114d003>] ? alloc_pages_vma+0xb3/0x1d0
+> [223349.041673]  [<ffffffff8115ab28>] ?  do_huge_pmd_anonymous_page+0x138/0x300
+> [223349.042030]  [<ffffffff814634e8>] ? do_page_fault+0x198/0x510
+> [223349.042331]  [<ffffffff81125b36>] ? vm_mmap_pgoff+0x96/0xb0
+> [223349.042640]  [<ffffffff8146095f>] ? page_fault+0x1f/0x30
+> 
+> This shows THP -> compaction -> buffer_migrate_page then waiting for a
+> buffer to unlock.  He was doing backups on a USB drive at the time,
+> formatted w/ext3.
+> 
+> Reading the compaction code, it'll jump over pages marked as writeback,
+> but happily sit on locked buffer heads.  If I'm reading the ext3 code
+> correctly, it still uses submit_bh directly on data=ordered writes,
+> without the working on the page bits.
+  Yes, ext3 will do IO on buffers without setting PageWriteback. But
+buffer_migrate_lock_buffers() seems to wait for buffers only in sync mode?
+And in that mode we wait for PageWriteback as well. So I don't see a
+difference?
 
-While we happen to be safe for the most part it is shoddy to depend on
-such "safety" so this patch checks the page count similar to anonymous
-pages. Note that this does not mean that the page_mapcount() check can go
-away. If we were to remove the page_mapcount() check the the THP would
-have to be unmapped from all referencing PTEs, replaced with migration
-PTEs and restored properly afterwards.
+Maybe there could be some difference that in async mode we isolate pages we
+*think* could be migrated but later the migration fails due to buffer locks
+(as pages are selected only based on PageWriteback). So the whole process
+can be considerably less efficient for ext3 and we get into troubles of
+sync mode earlier?
 
-Reported-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/migrate.c |   11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3b676b0..f466827 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1679,9 +1679,18 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 	page_xchg_last_nid(new_page, page_last_nid(page));
- 
- 	isolated = numamigrate_isolate_page(pgdat, page);
--	if (!isolated) {
-+
-+	/*
-+	 * Failing to isolate or a GUP pin prevents migration. The expected
-+	 * page count is 2. 1 for anonymous pages without a mapping and 1
-+	 * for the callers pin. If the page was isolated, the page will
-+	 * need to be put back on the LRU.
-+	 */
-+	if (!isolated || page_count(page) != 2) {
- 		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
- 		put_page(new_page);
-+		if (isolated)
-+			putback_lru_page(page);
- 		goto out_keep_locked;
- 	}
- 
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
