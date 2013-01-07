@@ -1,136 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
-	by kanga.kvack.org (Postfix) with SMTP id 569E86B005D
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 09:39:43 -0500 (EST)
-Date: Mon, 7 Jan 2013 14:39:38 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: thp: Acquire the anon_vma rwsem for write during split
-Message-ID: <20130107143938.GI3885@suse.de>
-References: <1621091901.34838094.1356409676820.JavaMail.root@redhat.com>
- <535932623.34838584.1356410331076.JavaMail.root@redhat.com>
- <20130103175737.GA3885@suse.de>
- <20130104140815.GA26005@suse.de>
- <alpine.LNX.2.00.1301041253280.4520@eggly.anvils>
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 3AD0F6B005D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 09:47:56 -0500 (EST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sjenning@linux.vnet.ibm.com>;
+	Mon, 7 Jan 2013 09:47:54 -0500
+Received: from d01relay07.pok.ibm.com (d01relay07.pok.ibm.com [9.56.227.147])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id C5B286E8040
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 09:47:50 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay07.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r07ElplY64880832
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2013 09:47:51 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r07EloQQ014298
+	for <linux-mm@kvack.org>; Mon, 7 Jan 2013 09:47:51 -0500
+Message-ID: <50EAE015.1000702@linux.vnet.ibm.com>
+Date: Mon, 07 Jan 2013 08:47:49 -0600
+From: Seth Jennings <sjenning@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LNX.2.00.1301041253280.4520@eggly.anvils>
+Subject: Re: [PATCH 7/8] zswap: add to mm/
+References: <<1355262966-15281-1-git-send-email-sjenning@linux.vnet.ibm.com>> <<1355262966-15281-8-git-send-email-sjenning@linux.vnet.ibm.com>> <0e91c1e5-7a62-4b89-9473-09fff384a334@default> <50E32255.60901@linux.vnet.ibm.com> <26bb76b3-308e-404f-b2bf-3d19b28b393a@default> <50E4C1FA.4070701@linux.vnet.ibm.com> <640d712e-0217-456a-a2d1-d03dd7914a55@default> <50E6F862.2030703@linux.vnet.ibm.com> <f66f40b3-6568-4183-b592-2990d4cd2083@default>
+In-Reply-To: <f66f40b3-6568-4183-b592-2990d4cd2083@default>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Zhouping Liu <zliu@redhat.com>, Hugh Dickins <hughd@google.com>, Alexander Beregalov <a.beregalov@gmail.com>, Hillf Danton <dhillf@gmail.com>, Alex Xu <alex_y_xu@yahoo.ca>, Ingo Molnar <mingo@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Magenheimer <dan.magenheimer@oracle.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Dave Hansen <dave@linux.vnet.ibm.com>
 
-Zhouping Liu reported the following against 3.8-rc1 when running a mmap
-testcase from LTP.
+On 01/04/2013 04:45 PM, Dan Magenheimer wrote:
+>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>> Subject: Re: [PATCH 7/8] zswap: add to mm/
+>>
+>> On 01/03/2013 04:33 PM, Dan Magenheimer wrote:
+>>>> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
+>>>>
+>>>> However, once the flushing code was introduced and could free an entry
+>>>> from the zswap_fs_store() path, it became necessary to add a per-entry
+>>>> refcount to make sure that the entry isn't freed while another code
+>>>> path was operating on it.
+>>>
+>>> Hmmm... doesn't the refcount at least need to be an atomic_t?
+>>
+>> An entry's refcount is only ever changed under the tree lock, so
+>> making them atomic_t would be redundantly atomic.
+> 
+> Maybe I'm missing something still but then I think you also
+> need to evaluate and act on the refcount (not just read it) while
+> your treelock is held.  I.e., in:
+> 
+>> +		/* page is already in the swap cache, ignore for now */
+>> +		spin_lock(&tree->lock);
+>> +		refcount = zswap_entry_put(entry);
+>> +		spin_unlock(&tree->lock);
+>> +
+>> +		if (likely(refcount))
+>> +			return 0;
+>> +
+>> +		/* if the refcount is zero, invalidate must have come in */
+>> +		/* free */
+>> +		zs_free(tree->pool, entry->handle);
+>> +		zswap_entry_cache_free(entry);
+>> +		atomic_dec(&zswap_stored_pages);
+> 
+> the entry's refcount may be changed by another processor
+> immediately after the unlock, and then the "if (refcount)"
+> is testing a stale value and you will get (I think) a memory leak.
 
-[  588.143072] mapcount 0 page_mapcount 3
-[  588.147471] ------------[ cut here ]------------
-[  588.152856] kernel BUG at mm/huge_memory.c:1798!
-[  588.158125] invalid opcode: 0000 [#1] SMP
-[  588.162882] Modules linked in: ip6table_filter ip6_tables ebtable_nat ebtables bnep bluetooth rfkill iptable_mangle ipt_REJECT nf_conntrack_ipv4 nf_defrag_ipv4 xt_conntrack nf_conntrack iptable_filter
-+ip_tables be2iscsi iscsi_boot_sysfs bnx2i cnic uio cxgb4i cxgb4 cxgb3i cxgb3 mdio libcxgbi ib_iser rdma_cm ib_addr iw_cm ib_cm ib_sa ib_mad ib_core iscsi_tcp libiscsi_tcp libiscsi scsi_transport_iscsi vfat fat
-+dm_mirror dm_region_hash dm_log dm_mod cdc_ether iTCO_wdt i7core_edac coretemp usbnet iTCO_vendor_support mii crc32c_intel edac_core lpc_ich shpchp ioatdma mfd_core i2c_i801 pcspkr serio_raw bnx2 microcode dca
-+vhost_net tun macvtap macvlan kvm_intel kvm uinput mgag200 sr_mod cdrom i2c_algo_bit sd_mod drm_kms_helper crc_t10dif ata_generic pata_acpi ttm ata_piix drm libata i2c_core megaraid_sas
+It is true that the refcount could be stale by the time we do the
+check. However, all functions that do a zswap_entry_put(), which
+potentially drops the refcount to 0, check the refcount and free the
+entry if they need to.  All the functions that do a zswap_entry_put()
+that result in the refcount being 0 also ensure that there is no way
+for another thread to gain a reference to entry by either the tree or
+lru list before releasing the lock.  That way the cleanup can happen
+outside the lock with the risk of someone gaining access to the entry
+being freed in the meantime.
 
-[  588.246517] CPU 1
-[  588.248636] Pid: 23217, comm: mmap10 Not tainted 3.8.0-rc1mainline+ #17 IBM IBM System x3400 M3 Server -[7379I08]-/69Y4356
-[  588.262171] RIP: 0010:[<ffffffff8118fac7>]  [<ffffffff8118fac7>] __split_huge_page+0x677/0x6d0
-[  588.272067] RSP: 0000:ffff88017a03fc08  EFLAGS: 00010293
-[  588.278235] RAX: 0000000000000003 RBX: ffff88027a6c22e0 RCX: 00000000000034d2
-[  588.286394] RDX: 000000000000748b RSI: 0000000000000046 RDI: 0000000000000246
-[  588.294216] RBP: ffff88017a03fcb8 R08: ffffffff819d2440 R09: 000000000000054a
-[  588.302441] R10: 0000000000aaaaaa R11: 00000000ffffffff R12: 0000000000000000
-[  588.310495] R13: 00007f4f11a00000 R14: ffff880179e96e00 R15: ffffea0005c08000
-[  588.318640] FS:  00007f4f11f4a740(0000) GS:ffff88017bc20000(0000) knlGS:0000000000000000
-[  588.327894] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  588.334569] CR2: 00000037e9ebb404 CR3: 000000017a436000 CR4: 00000000000007e0
-[  588.342718] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[  588.350861] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-[  588.359134] Process mmap10 (pid: 23217, threadinfo ffff88017a03e000, task ffff880172dd32e0)
-[  588.368667] Stack:
-[  588.370960]  ffff88017a540ec8 ffff88017a03fc20 ffffffff816017b5 ffff88017a03fc88
-[  588.379566]  ffffffff812fa014 0000000000000000 ffff880279ebd5c0 00000000f4f11a4c
-[  588.388150]  00000007f4f11f49 00000007f4f11a00 ffff88017a540ef0 ffff88017a540ee8
-[  588.396711] Call Trace:
-[  588.455106]  [<ffffffff816017b5>] ? rwsem_down_read_failed+0x15/0x17
-[  588.518106]  [<ffffffff812fa014>] ? call_rwsem_down_read_failed+0x14/0x30
-[  588.580897]  [<ffffffff815ffc04>] ? down_read+0x24/0x2b
-[  588.642630]  [<ffffffff8118fb88>] split_huge_page+0x68/0xb0
-[  588.703814]  [<ffffffff81190ed4>] __split_huge_page_pmd+0x134/0x330
-[  588.766064]  [<ffffffff8104b997>] ? pte_alloc_one+0x37/0x50
-[  588.826460]  [<ffffffff81191121>] split_huge_page_pmd_mm+0x51/0x60
-[  588.887746]  [<ffffffff8119116b>] split_huge_page_address+0x3b/0x50
-[  588.948673]  [<ffffffff8119121c>] __vma_adjust_trans_huge+0x9c/0xf0
-[  589.008660]  [<ffffffff811650f4>] vma_adjust+0x684/0x750
-[  589.066328]  [<ffffffff811653ba>] __split_vma.isra.28+0x1fa/0x220
-[  589.123497]  [<ffffffff810135d1>] ? __switch_to+0x181/0x4a0
-[  589.180704]  [<ffffffff811661a9>] do_munmap+0xf9/0x420
-[  589.237461]  [<ffffffff8160026c>] ? __schedule+0x3cc/0x7b0
-[  589.294520]  [<ffffffff8116651e>] vm_munmap+0x4e/0x70
-[  589.350784]  [<ffffffff8116741b>] sys_munmap+0x2b/0x40
-[  589.406971]  [<ffffffff8160a159>] system_call_fastpath+0x16/0x1b
+<snip>
+> A nit: Even I, steeped in tmem terminology, was confused by
+> your use of "fs"... to nearly all readers it will
+> be translated as "filesystem" which is mystifying.
+> Just spell it out "frontswap", even if it causes a few
+> lines to be wrapped.
 
-Alexander Beregalov and Alex Xu reported similar bugs and Hillf Danton
-identified that commit 5a505085 (mm/rmap: Convert the struct anon_vma::mutex
-to an rwsem) and commit 4fc3f1d6 (mm/rmap, migration: Make rmap_walk_anon()
-and try_to_unmap_anon() more scalable) were likely the problem. Reverting
-these commits was reported to solve the problem for Alexander.
+Sound good. I'll queue it up.
 
-Despite the reason for these commits, NUMA balancing is not the direct
-source of the problem. split_huge_page() expects the anon_vma lock to be
-exclusive to serialise the whole split operation. Ordinarily it is expected
-that the anon_vma lock would only be required when updating the avcs but
-THP also uses the anon_vma rwsem for collapse and split operations where
-the page lock or compound lock cannot be used (as the page is changing
-from base to THP or vice versa) and the page table locks are
-insufficient.
-
-This patch takes the anon_vma lock for write to serialise against parallel
-split_huge_page as THP expected before the conversion to rwsem.
-
-Reported-and-tested-by: Zhouping Liu <zliu@redhat.com>
-Reported-by: Alexander Beregalov <a.beregalov@gmail.com>
-Reported-by: Alex Xu <alex_y_xu@yahoo.ca>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/huge_memory.c |   15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9e894ed..6001ee6 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1819,9 +1819,19 @@ int split_huge_page(struct page *page)
- 
- 	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
- 	BUG_ON(!PageAnon(page));
--	anon_vma = page_lock_anon_vma_read(page);
-+
-+	/*
-+	 * The caller does not necessarily hold an mmap_sem that would prevent
-+	 * the anon_vma disappearing so we first we take a reference to it
-+	 * and then lock the anon_vma for write. This is similar to
-+	 * page_lock_anon_vma_read except the write lock is taken to serialise
-+	 * against parallel split or collapse operations.
-+	 */
-+	anon_vma = page_get_anon_vma(page);
- 	if (!anon_vma)
- 		goto out;
-+	anon_vma_lock_write(anon_vma);
-+
- 	ret = 0;
- 	if (!PageCompound(page))
- 		goto out_unlock;
-@@ -1832,7 +1842,8 @@ int split_huge_page(struct page *page)
- 
- 	BUG_ON(PageCompound(page));
- out_unlock:
--	page_unlock_anon_vma_read(anon_vma);
-+	anon_vma_unlock(anon_vma);
-+	put_anon_vma(anon_vma);
- out:
- 	return ret;
- }
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
