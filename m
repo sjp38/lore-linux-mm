@@ -1,165 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id AA0446B005D
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 16:44:26 -0500 (EST)
-Date: Tue, 8 Jan 2013 13:44:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] Add mempressure cgroup
-Message-Id: <20130108134424.0423dc1f.akpm@linux-foundation.org>
-In-Reply-To: <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
-References: <20130104082751.GA22227@lizard.gateway.2wire.net>
-	<1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id CBD666B0062
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 17:43:19 -0500 (EST)
+Date: Tue, 8 Jan 2013 22:43:13 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
+Message-ID: <20130108224313.GA13304@suse.de>
+References: <20121228014503.GA5017@dcvr.yhbt.net>
+ <20130102200848.GA4500@dcvr.yhbt.net>
+ <20130104160148.GB3885@suse.de>
+ <20130106120700.GA24671@dcvr.yhbt.net>
+ <20130107122516.GC3885@suse.de>
+ <20130107223850.GA21311@dcvr.yhbt.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130107223850.GA21311@dcvr.yhbt.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Eric Wong <normalperson@yhbt.net>
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri,  4 Jan 2013 00:29:11 -0800
-Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
-
-> This commit implements David Rientjes' idea of mempressure cgroup.
+On Mon, Jan 07, 2013 at 10:38:50PM +0000, Eric Wong wrote:
+> Mel Gorman <mgorman@suse.de> wrote:
+> > Right now it's difficult to see how the capture could be the source of
+> > this bug but I'm not ruling it out either so try the following (untested
+> > but should be ok) patch.  It's not a proper revert, it just disables the
+> > capture page logic to see if it's at fault.
 > 
-> The main characteristics are the same to what I've tried to add to vmevent
-> API; internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
-> pressure index calculation. But we don't expose the index to the userland.
-> Instead, there are three levels of the pressure:
-> 
->  o low (just reclaiming, e.g. caches are draining);
->  o medium (allocation cost becomes high, e.g. swapping);
->  o oom (about to oom very soon).
-> 
-> The rationale behind exposing levels and not the raw pressure index
-> described here: http://lkml.org/lkml/2012/11/16/675
-> 
-> For a task it is possible to be in both cpusets, memcg and mempressure
-> cgroups, so by rearranging the tasks it is possible to watch a specific
-> pressure (i.e. caused by cpuset and/or memcg).
-> 
-> Note that while this adds the cgroups support, the code is well separated
-> and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
-> But this is another story.
-> 
+> Things look good so far with your change.
 
-I'd have thought that it's pretty important offer this feature to
-non-cgroups setups.  Restricting it to cgroups-only seems a large
-limitation.
+Ok, so minimally reverting is an option once 2e30abd1 is preserved. The
+original motivation for the patch was to improve allocation success rates
+under load but due to a bug in the patch the likely source of the improvement
+was due to compacting more for THP allocations.
 
-> diff --git a/mm/mempressure.c b/mm/mempressure.c
-> new file mode 100644
-> index 0000000..ea312bb
-> --- /dev/null
-> +++ b/mm/mempressure.c
-> @@ -0,0 +1,330 @@
-> +/*
-> + * Linux VM pressure
-> + *
-> + * Copyright 2012 Linaro Ltd.
-> + *		  Anton Vorontsov <anton.vorontsov@linaro.org>
-> + *
-> + * Based on ideas from Andrew Morton, David Rientjes, KOSAKI Motohiro,
-> + * Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka Enberg.
-> + *
-> + * This program is free software; you can redistribute it and/or modify it
-> + * under the terms of the GNU General Public License version 2 as published
-> + * by the Free Software Foundation.
-> + */
-> +
-> +#include <linux/cgroup.h>
-> +#include <linux/fs.h>
-> +#include <linux/sched.h>
-> +#include <linux/mm.h>
-> +#include <linux/vmstat.h>
-> +#include <linux/eventfd.h>
-> +#include <linux/swap.h>
-> +#include <linux/printk.h>
-> +
-> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r);
+> It's been running 2 hours on a VM and 1 hour on my regular machine.
+> Will update again in a few hours (or sooner if it's stuck again).
 
-mm/ doesn't use uint or ulong.  In fact I can find zero uses of either
-in all of mm/.
+When I looked at it for long enough I found a number of problems. Most
+affect timing but two serious issues are in there. One affects how long
+kswapd spends compacting versus reclaiming and the other increases lock
+contention meaning that async compaction can abort early. Both are serious
+and could explain why a driver would fail high-order allocations.
 
-I don't have a problem with them personally - they're short and clear. 
-But we just ...  don't do that.  Perhaps we shold start using them.
+Please try the following patch. However, even if it works the benefit of
+capture may be so marginal that partially reverting it and simplifying
+compaction.c is the better decision.
 
-> +
-> +/*
-> + * Generic VM Pressure routines (no cgroups or any other API details)
-> + */
-> +
-> +/*
-> + * The window size is the number of scanned pages before we try to analyze
-> + * the scanned/reclaimed ratio (or difference).
-> + *
-> + * It is used as a rate-limit tunable for the "low" level notification,
-> + * and for averaging medium/oom levels. Using small window sizes can cause
-> + * lot of false positives, but too big window size will delay the
-> + * notifications.
-> + */
-> +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
-> +static const uint vmpressure_level_med = 60;
-> +static const uint vmpressure_level_oom = 99;
-> +static const uint vmpressure_level_oom_prio = 4;
-> +
-> +enum vmpressure_levels {
-> +	VMPRESSURE_LOW = 0,
-> +	VMPRESSURE_MEDIUM,
-> +	VMPRESSURE_OOM,
-
-VMPRESSURE_OOM seems an odd-man-out.  VMPRESSURE_HIGH would be pleasing.
-
-> +	VMPRESSURE_NUM_LEVELS,
-> +};
-> +
->
-> ...
->
-> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r)
-> +{
-> +	/*
-> +	 * There are two options for implementing cgroup pressure
-> +	 * notifications:
-> +	 *
-> +	 * - Store pressure counter atomically in the task struct. Upon
-> +	 *   hitting 'window' wake up a workqueue that will walk every
-> +	 *   task and sum per-thread pressure into cgroup pressure (to
-> +	 *   which the task belongs). The cons are obvious: bloats task
-> +	 *   struct, have to walk all processes and makes pressue less
-> +	 *   accurate (the window becomes per-thread);
-> +	 *
-> +	 * - Store pressure counters in per-cgroup state. This is easy and
-> +	 *   straightforward, and that's how we do things here. But this
-> +	 *   requires us to not put the vmpressure hooks into hotpath,
-> +	 *   since we have to grab some locks.
-> +	 */
-> +
-> +#ifdef CONFIG_MEMCG
-> +	if (memcg) {
-> +		struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
-> +		struct cgroup *cg = css->cgroup;
-> +		struct mpc_state *mpc = cg2mpc(cg);
-> +
-> +		if (mpc)
-> +			__mpc_vmpressure(mpc, s, r);
-> +		return;
-> +	}
-> +#endif
-> +	task_lock(current);
-> +	__mpc_vmpressure(tsk2mpc(current), s, r);
-> +	task_unlock(current);
-> +}
-
-The task_lock() is mysterious.  What's it protecting?  That's unobvious
-and afacit undocumented.
-
-Also it is buggy: __mpc_vmpressure() does mutex_lock(). 
-Documentation/SubmitChecklist section 12 has handy hints!
-
->
-> ...
->
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 6b807e4..03c82c0 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -857,7 +857,8 @@ static int compact_finished(struct zone *zone,
+ 	} else {
+ 		unsigned int order;
+ 		for (order = cc->order; order < MAX_ORDER; order++) {
+-			struct free_area *area = &zone->free_area[cc->order];
++			struct free_area *area = &zone->free_area[order];
++
+ 			/* Job done if page is free of the right migratetype */
+ 			if (!list_empty(&area->free_list[cc->migratetype]))
+ 				return COMPACT_PARTIAL;
+@@ -929,6 +930,11 @@ static void compact_capture_page(struct compact_control *cc)
+ 	if (!cc->page || *cc->page)
+ 		return;
+ 
++	/* Check that watermarks are satisifed before acquiring locks */
++	if (!zone_watermark_ok(cc->zone, cc->order, low_wmark_pages(cc->zone),
++									0, 0))
++		return;
++
+ 	/*
+ 	 * For MIGRATE_MOVABLE allocations we capture a suitable page ASAP
+ 	 * regardless of the migratetype of the freelist is is captured from.
+@@ -941,7 +947,7 @@ static void compact_capture_page(struct compact_control *cc)
+ 	 */
+ 	if (cc->migratetype == MIGRATE_MOVABLE) {
+ 		mtype_low = 0;
+-		mtype_high = MIGRATE_PCPTYPES;
++		mtype_high = MIGRATE_PCPTYPES + 1;
+ 	} else {
+ 		mtype_low = cc->migratetype;
+ 		mtype_high = cc->migratetype + 1;
+@@ -1118,7 +1124,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	int rc = COMPACT_SKIPPED;
+-	int alloc_flags = 0;
+ 
+ 	/* Check if the GFP flags allow compaction */
+ 	if (!order || !may_enter_fs || !may_perform_io)
+@@ -1126,10 +1131,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 
+ 	count_compact_event(COMPACTSTALL);
+ 
+-#ifdef CONFIG_CMA
+-	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+-		alloc_flags |= ALLOC_CMA;
+-#endif
+ 	/* Compact each zone in the list */
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+ 								nodemask) {
+@@ -1139,9 +1140,8 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 						contended, page);
+ 		rc = max(status, rc);
+ 
+-		/* If a normal allocation would succeed, stop compacting */
+-		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
+-				      alloc_flags))
++		/* If a page was captured, stop compacting */
++		if (*page)
+ 			break;
+ 	}
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4ba5e37..9d20c13 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2180,10 +2180,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+ 	/* If compaction captured a page, prep and use it */
+-	if (page) {
+-		prep_new_page(page, order, gfp_mask);
++	if (page && !prep_new_page(page, order, gfp_mask))
+ 		goto got_page;
+-	}
+ 
+ 	if (*did_some_progress != COMPACT_SKIPPED) {
+ 		/* Page migration frees to the PCP lists but we want merging */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
