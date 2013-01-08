@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id D6D4A6B005A
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 20:40:32 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id bi1so11149480pad.36
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2013 17:40:32 -0800 (PST)
-Message-ID: <1357609227.4105.3.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH v7 1/2] KSM: numa awareness sysfs knob
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Mon, 07 Jan 2013 19:40:27 -0600
-In-Reply-To: <20130103122416.GB2277@thinkpad-work.redhat.com>
-References: <20121224050817.GA25749@kroah.com>
-	 <1356658337-12540-1-git-send-email-pholasek@redhat.com>
-	 <1357015310.1379.2.camel@kernel.cn.ibm.com>
-	 <20130103122416.GB2277@thinkpad-work.redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
+	by kanga.kvack.org (Postfix) with SMTP id 8D54F6B005A
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 20:45:47 -0500 (EST)
+Message-ID: <50EB7A13.7080104@cn.fujitsu.com>
+Date: Tue, 08 Jan 2013 09:44:51 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: memblock: fix wrong memmove size in memblock_merge_regions()
+References: <1357530096-28548-1-git-send-email-linfeng@cn.fujitsu.com> <20130107132341.c8ca0060.akpm@linux-foundation.org>
+In-Reply-To: <20130107132341.c8ca0060.akpm@linux-foundation.org>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Holasek <pholasek@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Izik Eidus <izik.eidus@ravellosystems.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Anton Arapov <anton@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: tj@kernel.org, mingo@kernel.org, yinghai@kernel.org, liwanp@linux.vnet.ibm.com, benh@kernel.crashing.org, tangchen@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2013-01-03 at 13:24 +0100, Petr Holasek wrote:
-> Hi Simon,
-> 
-> On Mon, 31 Dec 2012, Simon Jeons wrote:
-> > On Fri, 2012-12-28 at 02:32 +0100, Petr Holasek wrote:
-> > > 
-> > > v7:	- added sysfs ABI documentation for KSM
-> > 
-> > Hi Petr,
-> > 
-> > How you handle "memory corruption because the ksm page still points to
-> > the stable_node that has been freed" mentioned by Andrea this time?
-> > 
-> 
 
-Hi Petr,
 
-You still didn't answer my question mentioned above. :)
+On 01/08/2013 05:23 AM, Andrew Morton wrote:
+> On Mon, 7 Jan 2013 11:41:36 +0800
+> Lin Feng <linfeng@cn.fujitsu.com> wrote:
+> 
+>> The memmove span covers from (next+1) to the end of the array, and the index
+>> of next is (i+1), so the index of (next+1) is (i+2). So the size of remaining
+>> array elements is (type->cnt - (i + 2)).
+> 
+> What are the user-visible effects of this bug?
+Hi Andrew,
 
-> <snip>
-> 
-> > >  
-> > > +		/*
-> > > +		 * If tree_page has been migrated to another NUMA node, it
-> > > +		 * will be flushed out and put into the right unstable tree
-> > > +		 * next time: only merge with it if merge_across_nodes.
-> > 
-> > Why? Do you mean swap based migration? Or where I miss ....?
-> > 
-> 
-> It can be physical page migration triggered by page compaction, memory hotplug
-> or some NUMA sched/memory balancing algorithm developed recently.
-> 
-> > > +		 * Just notice, we don't have similar problem for PageKsm
-> > > +		 * because their migration is disabled now. (62b61f611e)
-> > > +		 */
-> 
-> Migration of KSM pages is disabled now, you can look into ^^^ commit and
-> changes introduced to migrate.c.
-> 
-> > > +		if (!ksm_merge_across_nodes && page_to_nid(tree_page) != nid) {
-> > > +			put_page(tree_page);
-> > > +			return NULL;
-> > > +		}
-> > > +
-> > >  		ret = memcmp_pages(page, tree_page);
-> 
-> </snip>
+Since the remaining elements of the memblock array are move forward by one
+element and there is only one additional element caused by this bug. 
+So there won't be any write overflow here but read overflow. 
+It may read one more element out of the array address if the array happens
+to be full. Commonly it doesn't matter at all but if the array happens to
+be located at the end a memblock, it may cause a invalid read operation
+for the physical address doesn't exist. 
 
+There are 2 *happens to be* here, so I think the probability is quite low,
+I don't know if any guy is haunted by this bug before. 
+
+Mostly I think it's user-invisible.
+
+thanks,
+linfeng
+> 
+>> --- a/mm/memblock.c
+>> +++ b/mm/memblock.c
+>> @@ -314,7 +314,8 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
+>>  		}
+>>  
+>>  		this->size += next->size;
+>> -		memmove(next, next + 1, (type->cnt - (i + 1)) * sizeof(*next));
+>> +		/* move forward from next + 1, index of which is i + 2 */
+>> +		memmove(next, next + 1, (type->cnt - (i + 2)) * sizeof(*next));
+>>  		type->cnt--;
+>>  	}
+>>  }
+>> -- 
+>> 1.7.11.7
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
