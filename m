@@ -1,69 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 399506B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 03:45:48 -0500 (EST)
-Received: by mail-ia0-f169.google.com with SMTP id u20so121767iag.28
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 00:45:47 -0800 (PST)
-Message-ID: <1357634746.6568.1.camel@kernel.cn.ibm.com>
-Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file
- prefetch
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Tue, 08 Jan 2013 02:45:46 -0600
-In-Reply-To: <20130108042609.GA2459@kernel.org>
-References: <20130107081237.GB21779@kernel.org>
-	 <20130107120630.82ba51ad.akpm@linux-foundation.org>
-	 <50eb8180.6887320a.3f90.58b0SMTPIN_ADDED_BROKEN@mx.google.com>
-	 <20130108042609.GA2459@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id 69F986B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 03:49:52 -0500 (EST)
+Date: Tue, 8 Jan 2013 17:49:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+Message-ID: <20130108084949.GD4714@blaptop>
+References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+ <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Tue, 2013-01-08 at 12:26 +0800, Shaohua Li wrote:
-> On Tue, Jan 08, 2013 at 10:16:07AM +0800, Wanpeng Li wrote:
-> > On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
-> > >On Mon, 7 Jan 2013 16:12:37 +0800
-> > >Shaohua Li <shli@kernel.org> wrote:
-> > >
-> > >> 
-> > >> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
-> > >> this syscall can do swapin prefetch. It has no impact if the memory isn't
-> > >> swapout.
-> > >
-> > >Seems sensible.
-> > 
-> > Hi Andrew and Shaohua,
-> > 
-> > What's the performance in the scenario of serious memory pressure? Since
-> > in this case pages in swap are highly fragmented and cache hit is most
-> > impossible. If WILLNEED path should add a check to skip readahead in
-> > this case since swapin only leads to unnecessary memory allocation. 
-> 
-> pages in swap are not highly fragmented if you access memory sequentially. In
+Hi Anton,
 
-In the scenario of serious memory pressure, pages swapin and swapout
-frequently, how to guarantee swap area is not fragmented?
+On Fri, Jan 04, 2013 at 12:29:11AM -0800, Anton Vorontsov wrote:
+> This commit implements David Rientjes' idea of mempressure cgroup.
+> 
+> The main characteristics are the same to what I've tried to add to vmevent
+> API; internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
+> pressure index calculation. But we don't expose the index to the userland.
+> Instead, there are three levels of the pressure:
+> 
+>  o low (just reclaiming, e.g. caches are draining);
+>  o medium (allocation cost becomes high, e.g. swapping);
+>  o oom (about to oom very soon).
+> 
+> The rationale behind exposing levels and not the raw pressure index
+> described here: http://lkml.org/lkml/2012/11/16/675
+> 
+> For a task it is possible to be in both cpusets, memcg and mempressure
+> cgroups, so by rearranging the tasks it is possible to watch a specific
+> pressure (i.e. caused by cpuset and/or memcg).
+> 
+> Note that while this adds the cgroups support, the code is well separated
+> and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
+> But this is another story.
+> 
+> Signed-off-by: Anton Vorontsov <anton.vorontsov@linaro.org>
 
-> that case, the pages you accessed will be added to lru list side by side. So if
-> app does swap prefetch, we can do sequential disk access and merge small
-> request to big one.
-> 
-> Another advantage is prefetch can drive high disk iodepth.  For sequential
-> access, this can cause big request. Even for random access, high iodepth has
-> much better performance especially for SSD.
-> 
-> Thanks,
-> Shaohua
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Sorry still I didn't look at your implementation about cgroup part.
+but I had a question since long time ago.
 
+How can we can make sure false positive about zone and NUMA?
+I mean DMA zone is short in system so VM notify to user and user
+free all memory of NORMAL zone because he can't know what pages live
+in any zones. NUMA is ditto.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
