@@ -1,75 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
-	by kanga.kvack.org (Postfix) with SMTP id 108796B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:52:08 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id l22so668323vbn.14
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 09:52:07 -0800 (PST)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id BF29B6B0062
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:55:05 -0500 (EST)
 MIME-Version: 1.0
-In-Reply-To: <20130108173747.GF9163@redhat.com>
-References: <20130105152208.GA3386@redhat.com> <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
- <alpine.LNX.2.00.1301061037140.28950@eggly.anvils> <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
- <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
- <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
- <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
- <20130108163141.GA27555@shutemov.name> <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
- <20130108173747.GF9163@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 8 Jan 2013 09:51:47 -0800
-Message-ID: <CA+55aFyG26N3_KiA8_cxLW59xFMJBK8SKfG4qL80NMQ3tdh3Nw@mail.gmail.com>
-Subject: Re: oops in copy_page_rep()
-Content-Type: multipart/mixed; boundary=047d7b6daa70b8ee0404d2ca9a58
+Message-ID: <9b035d90-b6de-43cf-a188-7b3d32ed09f2@default>
+Date: Tue, 8 Jan 2013 09:54:49 -0800 (PST)
+From: Dan Magenheimer <dan.magenheimer@oracle.com>
+Subject: RE: [PATCHv2 8/9] zswap: add to mm/
+References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
+ <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com>
+ <50EC541B.5000905@linux.vnet.ibm.com>
+In-Reply-To: <50EC541B.5000905@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
 
---047d7b6daa70b8ee0404d2ca9a58
-Content-Type: text/plain; charset=ISO-8859-1
+> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
+> Sent: Tuesday, January 08, 2013 10:15 AM
+> To: Seth Jennings
+> Cc: Greg Kroah-Hartman; Andrew Morton; Nitin Gupta; Minchan Kim; Konrad R=
+zeszutek Wilk; Dan
+> Magenheimer; Robert Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner=
+; Rik van Riel; Larry
+> Woodman; linux-mm@kvack.org; linux-kernel@vger.kernel.org; devel@driverde=
+v.osuosl.org
+> Subject: Re: [PATCHv2 8/9] zswap: add to mm/
+>=20
+> On 01/07/2013 12:24 PM, Seth Jennings wrote:
+> > +struct zswap_tree {
+> > +=09struct rb_root rbroot;
+> > +=09struct list_head lru;
+> > +=09spinlock_t lock;
+> > +=09struct zs_pool *pool;
+> > +};
+>=20
+> BTW, I spent some time trying to get this lock contended.  You thought
+> the anon_vma locks would dominate and this spinlock would not end up
+> very contended.
+>=20
+> I figured that if I hit zswap from a bunch of CPUs that _didn't_ use
+> anonymous memory (and thus the anon_vma locks) that some more contention
+> would pop up.  I did that with a bunch of CPUs writing to tmpfs, and
+> this lock was still well down below anon_vma.  The anon_vma contention
+> was obviously coming from _other_ anonymous memory around.
+>=20
+> IOW, I feel a bit better about this lock.  I only tested on 16 cores on
+> a system with relatively light NUMA characteristics, and it might be the
+> bottleneck if all the anonymous memory on the system is mlock()'d and
+> you're pounding on tmpfs, but that's pretty contrived.
 
-On Tue, Jan 8, 2013 at 9:37 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
->
-> The reason it returned to userland and retried the fault is that this
-> should be infrequent enough not to worry about it and this was
-> marginally simpler but it could be changed.
+IIUC, Seth's current "flush" code only gets called when in the context
+of a frontswap_store and is very limited in what it does, whereas the
+goal will be for flushing to run both as an independent thread and do
+more complex things (e.g. so that wholepages can be reclaimed rather
+than random zpages).
 
-Yeah, that was my suspicion. And as mentioned, returning to user land
-might actually help with scheduling and/or signal handling latencies
-etc, so it might be the right thing to do.  Especially if the
-alternative is to just busy-loop.
+So it will be interesting to re-test contention when zswap is complete.
 
-> If we don't want to return to userland we should wait on the splitting
-> bit and then take the pte walking routines like if the pmd wasn't
-> huge. This is not related to the below though.
-
-How does this patch sound to people? It does the splitting check
-before the access bit set (even though I don't think it matters), and
-at least talks about the alternatives and the issues a bit.
-
-Hmm?
-
-                 Linus
-
---047d7b6daa70b8ee0404d2ca9a58
-Content-Type: application/octet-stream; name="mm.patch"
-Content-Disposition: attachment; filename="mm.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hbpc6e9i0
-
-IG1tL21lbW9yeS5jIHwgMTIgKysrKysrKysrKysrCiAxIGZpbGUgY2hhbmdlZCwgMTIgaW5zZXJ0
-aW9ucygrKQoKZGlmZiAtLWdpdCBhL21tL21lbW9yeS5jIGIvbW0vbWVtb3J5LmMKaW5kZXggNDlm
-YjFjZjA4NjExLi5mNWVjM2FlMDNmNDQgMTAwNjQ0Ci0tLSBhL21tL21lbW9yeS5jCisrKyBiL21t
-L21lbW9yeS5jCkBAIC0zNzE1LDYgKzM3MTUsMTggQEAgcmV0cnk6CiAJCQkJcmV0dXJuIGRvX2h1
-Z2VfcG1kX251bWFfcGFnZShtbSwgdm1hLCBhZGRyZXNzLAogCQkJCQkJCSAgICAgb3JpZ19wbWQs
-IHBtZCk7CiAKKwkJCS8qCisJCQkgKiBJZiB0aGUgcG1kIGlzIHNwbGl0dGluZywgcmV0dXJuIGFu
-ZCByZXRyeSB0aGUKKwkJCSAqIHRoZSBmYXVsdC4gV2UgKmNvdWxkKiBzZXQganVzdCB0aGUgYWNj
-ZXNzZWQgZmxhZywKKwkJCSAqIGJ1dCBpdCdzIGJldHRlciB0byBqdXN0IGF2b2lkIHRoZSByYWNl
-cyB3aXRoCisJCQkgKiBzcGxpdHRpbmcgZW50aXJlbHkuCisJCQkgKgorCQkJICogQWx0ZXJuYXRp
-dmU6IHdhaXQgdW50aWwgdGhlIHNwbGl0IGlzIGRvbmUsIGFuZAorCQkJICogZ290byByZXRyeS4K
-KwkJCSAqLworCQkJaWYgKHBtZF90cmFuc19zcGxpdHRpbmcob3JpZ19wbWQpKQorCQkJCXJldHVy
-biAwOworCiAJCQlpZiAoZGlydHkgJiYgIXBtZF93cml0ZShvcmlnX3BtZCkpIHsKIAkJCQlyZXQg
-PSBkb19odWdlX3BtZF93cF9wYWdlKG1tLCB2bWEsIGFkZHJlc3MsIHBtZCwKIAkJCQkJCQkgIG9y
-aWdfcG1kKTsK
---047d7b6daa70b8ee0404d2ca9a58--
+Dan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
