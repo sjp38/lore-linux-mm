@@ -1,11 +1,12 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: compaction: fix echo 1 > compact_memory return error
- issue
-Date: Sun, 6 Jan 2013 16:46:10 +0800
-Message-ID: <30735.8155878775$1357462002@news.gmane.org>
-References: <1357458273-28558-1-git-send-email-r64343@freescale.com>
- <20130106075940.GA22985@hacker.(null)>
- <AD13664F485EE54694E29A7F9D5BE1AF4E5BCD@039-SN2MPN1-021.039d.mgd.msft.net>
+Subject: Re: [PATCH 29/49] mm: numa: Add pte updates, hinting and migration
+ stats
+Date: Tue, 8 Jan 2013 09:21:15 +0800
+Message-ID: <5486.79934950105$1357608130@news.gmane.org>
+References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
+ <1354875832-9700-30-git-send-email-mgorman@suse.de>
+ <1357299744.5273.4.camel@kernel.cn.ibm.com>
+ <20130107152931.GM3885@suse.de>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,152 +14,134 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1TrlsM-0007cy-CA
-	for glkm-linux-mm-2@m.gmane.org; Sun, 06 Jan 2013 09:46:38 +0100
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id B4DB16B005D
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 03:46:20 -0500 (EST)
+	id 1TsNt8-00038n-1J
+	for glkm-linux-mm-2@m.gmane.org; Tue, 08 Jan 2013 02:21:58 +0100
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id B42536B004D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 20:21:39 -0500 (EST)
 Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Sun, 6 Jan 2013 18:39:01 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id DA508357804E
-	for <linux-mm@kvack.org>; Sun,  6 Jan 2013 19:46:13 +1100 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r068Ykw565929218
-	for <linux-mm@kvack.org>; Sun, 6 Jan 2013 19:34:47 +1100
-Received: from d23av04.au.ibm.com (loopback [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r068kCvJ022946
-	for <linux-mm@kvack.org>; Sun, 6 Jan 2013 19:46:12 +1100
+	Tue, 8 Jan 2013 06:49:56 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 48423E004F
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 06:51:40 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r081LPSb48955466
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 06:51:26 +0530
+Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r081LQ7v008139
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 12:21:27 +1100
 Content-Disposition: inline
-In-Reply-To: <AD13664F485EE54694E29A7F9D5BE1AF4E5BCD@039-SN2MPN1-021.039d.mgd.msft.net>
+In-Reply-To: <20130107152931.GM3885@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Hui-R64343 <r64343@freescale.com>
-Cc: linux-kernel@vger.kernel.org, mgorman@suse.de, akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Simon Jeons <simon.jeons@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Jan 06, 2013 at 08:11:58AM +0000, Liu Hui-R64343 wrote:
->>-----Original Message-----
->>From: Wanpeng Li [mailto:liwanp@linux.vnet.ibm.com]
->>Sent: Sunday, January 06, 2013 4:00 PM
->>To: Liu Hui-R64343
->>Cc: linux-kernel@vger.kernel.org; mgorman@suse.de; akpm@linux-
->>foundation.org; riel@redhat.com; minchan@kernel.org;
->>kamezawa.hiroyu@jp.fujitsu.com; linux-mm@kvack.org
->>Subject: Re: [PATCH] mm: compaction: fix echo 1 > compact_memory return
->>error issue
->>
->>On Sun, Jan 06, 2013 at 03:44:33PM +0800, Jason Liu wrote:
->>
->>Hi Jason,
->>
->>>when run the folloing command under shell, it will return error sh/$
->>>echo 1 > /proc/sys/vm/compact_memory sh/$ sh: write error: Bad address
->>>
->>
->>How can you modify the value through none privileged user since the mode
->>== 0200?
+On Mon, Jan 07, 2013 at 03:29:31PM +0000, Mel Gorman wrote:
+>On Fri, Jan 04, 2013 at 05:42:24AM -0600, Simon Jeons wrote:
+>> On Fri, 2012-12-07 at 10:23 +0000, Mel Gorman wrote:
+>> > It is tricky to quantify the basic cost of automatic NUMA placement in a
+>> > meaningful manner. This patch adds some vmstats that can be used as part
+>> > of a basic costing model.
+>> 
+>> Hi Gorman, 
+>> 
+>> > 
+>> > u    = basic unit = sizeof(void *)
+>> > Ca   = cost of struct page access = sizeof(struct page) / u
+>> > Cpte = Cost PTE access = Ca
+>> > Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
+>> > 	where Cpte is incurred twice for a read and a write and Wlock
+>> > 	is a constant representing the cost of taking or releasing a
+>> > 	lock
+>> > Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
+>> > Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
+>> 
+>> Why cpagerw = Ca + PAGE_SIZE/u instead of Cpte + PAGE_SIZE/u ?
+>> 
 >
->I write it through privileged user(root). I'm using the GNOME_Mobile rootfs.
+>Because I was thinking of the cost of just access the struct page.  Arguably
+>it would be both Ca and Cpte and if I wanted to be very comprehensive I
+>would also take into account the potential cost of kmapping the page in
+>the 32-bit case but it'd be overkill. The cost of the PTE and struct page
+>is negligible in comparison to the actual copy.
 >
->>
->>>After strace, I found the following log:
->>>...
->>>write(1, "1\n", 2)               = 3
->>>write(1, "", 4294967295)         = -1 EFAULT (Bad address)
->>>write(2, "echo: write error: Bad address\n", 31echo: write error: Bad
->>>address
->>>) = 31
->>>
->>>This tells system return 3(COMPACT_COMPLETE) after write data to
->>compact_memory.
->>>
->>>The fix is to make the system just return 0 instead 3(COMPACT_COMPLETE)
->>>from sysctl_compaction_handler after compaction_nodes finished.
->>
->>What's the special scenario you are in? I couldn't figure out the similar error
->>against latest 3.8-rc2, how could you reproduce it?
+>> > Ci = Cost of page isolation = Ca + Wi
+>> > 	where Wi is a constant that should reflect the approximate cost
+>> > 	of the locking operation
+>> > Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
+>> > 	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
+>> > 	would imply that remote accesses are 20% more expensive
+>> > 
+>> > Balancing cost = Cpte * numa_pte_updates +
+>> > 		Cnumahint * numa_hint_faults +
+>> > 		Ci * numa_pages_migrated +
+>> > 		Cpagecopy * numa_pages_migrated
+>> > 
+>> 
+>> Since Cpagecopy has already accumulated ci why count ci twice ?
+>> 
 >
->I'm using the BusyBox v1.20.2 () built-in shell (ash), it reproduces the issue: 100%.
+>Good point. Interestingly when I went to fix this in mmtests I found
+>that I accounted for Ci properly there but got it wrong in the
+>changelog.
 >
->root@freescale /$ sh
+>> > Note that numa_pages_migrated is used as a measure of how many pages
+>> > were isolated even though it would miss pages that failed to migrate. A
+>> > vmstat counter could have been added for it but the isolation cost is
+>> > pretty marginal in comparison to the overall cost so it seemed overkill.
+>> > 
+>> > The ideal way to measure automatic placement benefit would be to count
+>> > the number of remote accesses versus local accesses and do something like
+>> > 
+>> > 	benefit = (remote_accesses_before - remove_access_after) * Wnuma
+>> > 
+>> > but the information is not readily available. As a workload converges, the
+>> > expection would be that the number of remote numa hints would reduce to 0.
+>> > 
+>> > 	convergence = numa_hint_faults_local / numa_hint_faults
+>> > 		where this is measured for the last N number of
+>> > 		numa hints recorded. When the workload is fully
+>> > 		converged the value is 1.
+>> > 
+>> 
+>> convergence tend to 0 is better or 1 is better
 >
+>1 is better.
 >
->BusyBox v1.20.2 () built-in shell (ash)
->Enter 'help' for a list of built-in commands.
+>> If tend to 1, Cpte *
+>> numa_pte_updates + Cnumahint * numa_hint_faults are just waste, where I
+>> miss?
+>> 
 >
->Could you run strace and see the log:  strace echo 1 > /proc/sys/vm/compact_memory
+>I don't get the question, waste of what? None of these calculations are
+>used by the kernel. The kernel only maintains counters and the point of
+>the changelog was to illustrate how the counters can be used to do some
+>meaningful evaluation.
 >
 
-I test it on my desktop against latest 3.8-rc2, can't repoduce it. :)
+Hi Mel,
 
-write(1, "1\n", 2)                      = 3
-close(1)                                = 0
-munmap(0xb779c000, 4096)                = 0
-close(2)                                = 0
-exit_group(0)                           = ?
-+++ exited with 0 +++
+I think he means that if most page faults are from local node, Cpte * 
+numa_pte_updates + Cnumahint * numa_hint_faults_local which are overhead 
+from numa balancing are waste since actually we don't need NUMA hinting 
+page fault here. Your adapt scan rate patch in this patchset can be 
+band-aid to a certain extent. :)
 
 Regards,
 Wanpeng Li 
 
->>
->>Regards,
->>Wanpeng Li
->>
->>>
->>>Suggested-by:David Rientjes <rientjes@google.com> Cc:Mel Gorman
->>><mgorman@suse.de> Cc:Andrew Morton <akpm@linux-foundation.org>
->>Cc:Rik
->>>van Riel <riel@redhat.com> Cc:Minchan Kim <minchan@kernel.org>
->>>Cc:KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>>Signed-off-by: Jason Liu <r64343@freescale.com>
->>>---
->>> mm/compaction.c |    6 ++----
->>> 1 files changed, 2 insertions(+), 4 deletions(-)
->>>
->>>diff --git a/mm/compaction.c b/mm/compaction.c index 6b807e4..f8f5c11
->>>100644
->>>--- a/mm/compaction.c
->>>+++ b/mm/compaction.c
->>>@@ -1210,7 +1210,7 @@ static int compact_node(int nid)  }
->>>
->>> /* Compact all nodes in the system */
->>>-static int compact_nodes(void)
->>>+static void compact_nodes(void)
->>> {
->>> 	int nid;
->>>
->>>@@ -1219,8 +1219,6 @@ static int compact_nodes(void)
->>>
->>> 	for_each_online_node(nid)
->>> 		compact_node(nid);
->>>-
->>>-	return COMPACT_COMPLETE;
->>> }
->>>
->>> /* The written value is actually unused, all memory is compacted */ @@
->>>-1231,7 +1229,7 @@ int sysctl_compaction_handler(struct ctl_table *table,
->>int write,
->>> 			void __user *buffer, size_t *length, loff_t *ppos)  {
->>> 	if (write)
->>>-		return compact_nodes();
->>>+		compact_nodes();
->>>
->>> 	return 0;
->>> }
->>>--
->>>1.7.5.4
->>>
->>>
->>>--
->>>To unsubscribe, send a message with 'unsubscribe linux-mm' in the body
->>>to majordomo@kvack.org.  For more info on Linux MM,
->>>see: http://www.linux-mm.org/ .
->>>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+>-- 
+>Mel Gorman
+>SUSE Labs
 >
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
