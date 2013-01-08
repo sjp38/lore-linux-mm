@@ -1,55 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 82DB76B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:39:11 -0500 (EST)
-Received: by mail-vb0-f50.google.com with SMTP id ft2so655115vbb.37
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 09:39:10 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20130108173058.GA27727@shutemov.name>
-References: <20130105152208.GA3386@redhat.com> <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
- <alpine.LNX.2.00.1301061037140.28950@eggly.anvils> <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 4853B6B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:49:55 -0500 (EST)
+Date: Tue, 8 Jan 2013 18:49:51 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: oops in copy_page_rep()
+Message-ID: <20130108174951.GG9163@redhat.com>
+References: <20130105152208.GA3386@redhat.com>
+ <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
+ <alpine.LNX.2.00.1301061037140.28950@eggly.anvils>
+ <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
  <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
  <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
  <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
- <20130108163141.GA27555@shutemov.name> <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
+ <20130108163141.GA27555@shutemov.name>
+ <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
  <20130108173058.GA27727@shutemov.name>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 8 Jan 2013 09:38:50 -0800
-Message-ID: <CA+55aFyu6kjrZY6XyTGPcTpg2oTKN1BwCucLW6PWKzowpV=UOw@mail.gmail.com>
-Subject: Re: oops in copy_page_rep()
-Content-Type: text/plain; charset=ISO-8859-1
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130108173058.GA27727@shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-On Tue, Jan 8, 2013 at 9:30 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
->
-> Check difference between patch above and merged one -- a1dd450.
+Hi Kirill,
+
+On Tue, Jan 08, 2013 at 07:30:58PM +0200, Kirill A. Shutemov wrote:
 > Merged patch is obviously broken: huge_pmd_set_accessed() can be called
 > only if the pmd is under splitting.
 
-Ok, that's a totally different issue, and seems to be due to different
-versions (Andrew - any idea why
+Of course I assume you meant "only if the pmd is not under splitting".
 
-  http://lkml.org/lkml/2012/10/25/402
+But no, setting a bitflag like the young bit or clearing or setting
+the numa bit won't screw with split_huge_page and it's safe even if
+the pmd is under splitting.
 
-and commit a1dd450bcb1a ("mm: thp: set the accessed flag for old pages
-on access fault") are different?
+Those bits are only checked here at the last stage of
+split_huge_page_map after taking the PT lock:
 
-That said, I actually think that commit a1dd450bcb1a is correct:
-huge_pmd_set_accessed() can not *possibly* need to check the splitting
-issue, since it takes the page table lock and re-verifies that the pmd
-entry is identical, before just setting the access flags.
+	spin_lock(&mm->page_table_lock);
+	pmd = page_check_address_pmd(page, mm, address,
+				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
+	if (pmd) {
+		pgtable = pgtable_trans_huge_withdraw(mm);
+		pmd_populate(mm, &_pmd, pgtable);
 
-So that whole thing is irrelevant. huge_pmd_set_accessed() almost
-certainly simply doesn't care about splitting.
+		haddr = address;
+		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
+			pte_t *pte, entry;
+			BUG_ON(PageCompound(page+i));
+			entry = mk_pte(page + i, vma->vm_page_prot);
+			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+			if (!pmd_write(*pmd))
+				entry = pte_wrprotect(entry);
+			else
+				BUG_ON(page_mapcount(page) != 1);
+			if (!pmd_young(*pmd))
+				entry = pte_mkold(entry);
+			if (pmd_numa(*pmd))
+				entry = pte_mknuma(entry);
+			pte = pte_offset_map(&_pmd, haddr);
+			BUG_ON(!pte_none(*pte));
+			set_pte_at(mm, haddr, pte, entry);
+			pte_unmap(pte);
+		}
 
-But look at commit d10e63f29488. That's the one that removes
-pmd_trans_splitting() entirely, and does it for the case that *does*
-seem to care, namely do_huge_pmd_wp_page().
+If "young" or "numa" bitflags changed on the original *pmd for the
+previous part of split_huge_page, nothing will go wrong by the time we
+get to split_huge_page_map (the same is not true if the pfn changes!).
 
-                 Linus
+If you think this is too tricky, we could also decide to forbid
+huge_pmd_set_accessed if the pmd is in splitting state, but I don't
+think that flipping young/numa bits while in splitting state, can
+cause any problem (if done correctly with PT lock + pmd_same).
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
