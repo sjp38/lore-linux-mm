@@ -1,83 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 834616B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 02:03:31 -0500 (EST)
-Message-ID: <50EBC4BD.7010700@redhat.com>
-Date: Tue, 08 Jan 2013 02:03:25 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
+	by kanga.kvack.org (Postfix) with SMTP id 4FE2F6B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 02:32:41 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id fa1so165774pad.21
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2013 23:32:40 -0800 (PST)
+Date: Tue, 8 Jan 2013 15:32:29 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
+Message-ID: <20130108073229.GA9018@kernel.org>
+References: <20130107081237.GB21779@kernel.org>
+ <20130107120630.82ba51ad.akpm@linux-foundation.org>
+ <50eb8180.6887320a.3f90.58b0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130108042609.GA2459@kernel.org>
+ <20130108053856.GA4714@blaptop>
 MIME-Version: 1.0
-Subject: Re: [RFC]x86: clearing access bit don't flush tlb
-References: <20130107081213.GA21779@kernel.org> <50EAE66B.1020804@redhat.com> <50EB4CB9.9010104@zytor.com> <20130108045519.GB2459@kernel.org> <50EBA8AB.2060003@zytor.com> <50EBA9DC.9070400@redhat.com> <50EBAA27.7030506@zytor.com>
-In-Reply-To: <50EBAA27.7030506@zytor.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130108053856.GA4714@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Shaohua Li <shli@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mingo@redhat.com, hughd@google.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
 
-On 01/08/2013 12:09 AM, H. Peter Anvin wrote:
-> On 01/07/2013 09:08 PM, Rik van Riel wrote:
->> On 01/08/2013 12:03 AM, H. Peter Anvin wrote:
->>> On 01/07/2013 08:55 PM, Shaohua Li wrote:
->>>>
->>>> I searched a little bit, the change (doing TLB flush to clear access
->>>> bit) is
->>>> made between 2.6.7 - 2.6.8, I can't find the changelog, but I found a
->>>> patch:
->>>> http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.7-rc2/2.6.7-rc2-mm2/broken-out/mm-flush-tlb-when-clearing-young.patch
->>>>
->>>>
->>>> The changelog declaims this is for arm/ppc/ppc64.
->>>>
->>>
->>> Not really.  It says that those have stumbled over it already.  It is
->>> true in general that this change will make very frequently used pages
->>> (which stick in the TLB) candidates for eviction.
->>
->> That is only true if the pages were to stay in the TLB for a
->> very very long time.  Probably multiple seconds.
->>
->>> x86 would seem to be just as affected, although possibly with a
->>> different frequency.
->>>
->>> Do we have any actual metrics on anything here?
->>
->> I suspect that if we do need to force a TLB flush for page
->> reclaim purposes, it may make sense to do that TLB flush
->> asynchronously. For example, kswapd could kick off a TLB
->> flush of every CPU in the system once a second, when the
->> system is under pageout pressure.
->>
->> We would have to do this in a smart way, so the kswapds
->> from multiple nodes do not duplicate the work.
->>
->> If people want that kind of functionality, I would be
->> happy to cook up an RFC patch.
->>
->
-> So it sounds like you're saying that this patch should never have been
-> applied in the first place?
+On Tue, Jan 08, 2013 at 02:38:56PM +0900, Minchan Kim wrote:
+> Hi Shaohua,
+> 
+> On Tue, Jan 08, 2013 at 12:26:09PM +0800, Shaohua Li wrote:
+> > On Tue, Jan 08, 2013 at 10:16:07AM +0800, Wanpeng Li wrote:
+> > > On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
+> > > >On Mon, 7 Jan 2013 16:12:37 +0800
+> > > >Shaohua Li <shli@kernel.org> wrote:
+> > > >
+> > > >> 
+> > > >> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
+> > > >> this syscall can do swapin prefetch. It has no impact if the memory isn't
+> > > >> swapout.
+> > > >
+> > > >Seems sensible.
+> > > 
+> > > Hi Andrew and Shaohua,
+> > > 
+> > > What's the performance in the scenario of serious memory pressure? Since
+> > > in this case pages in swap are highly fragmented and cache hit is most
+> > > impossible. If WILLNEED path should add a check to skip readahead in
+> > > this case since swapin only leads to unnecessary memory allocation. 
+> > 
+> > pages in swap are not highly fragmented if you access memory sequentially. In
+> > that case, the pages you accessed will be added to lru list side by side. So if
+> > app does swap prefetch, we can do sequential disk access and merge small
+> > request to big one.
+> 
+> How can you make sure that the range of WILLNEED was always sequentially accesssed?
 
-It made sense at the time.
+you can't guarantee this even for file access.
 
-However, with larger SMP systems, we may need a different
-mechanism to get the TLB flushes done after we clear a bunch
-of accessed bits.
+> > Another advantage is prefetch can drive high disk iodepth.  For sequential
+> 
+> What does it mean 'iodepth'? I failed to grep it in google. :(
 
-One thing we could do is mark bits in a bitmap, keeping track
-of which CPUs should have their TLB flushed due to accessed bit
-scanning.
+io depth. How many requests are inflight at a givin time.
 
-Then we could set a timer for eg. a 1 second timeout, after
-which the TLB flush IPIs get sent. If the timer is already
-pending, we do not start it, but piggyback on the invocation
-that is already scheduled to happen.
+> > access, this can cause big request. Even for random access, high iodepth has
+> > much better performance especially for SSD.
+> 
+> So you mean WILLNEED is always good in where both random and sequential in "SSD"?
+> Then, how about the "Disk"?
 
-Does something like that make sense?
+Hmm, even for hard disk, high iodepth random access is faster than single
+iodepth access. Today's disk is NCQ disk. But the speedup isn't that
+significant like a SSD. For sequential access, both harddisk and SSD have
+better performance with higher iodepth.
 
--- 
-All rights reversed
+> Wanpeng's comment makes sense to me so I guess others can have a same question
+> about this patch. So it would be better to write your rationale in changelog.
+
+I would, but the question is just like why app wants to prefetch file pages. I
+thought it's commonsense. The problem like memory allocation exists in file
+prefetch too. The advantages (better IO access, CPU and disk can operate in
+parallel and so on) apply for both file and swap prefetch.
+
+prefetch should never be slower non-prefetch. That's another story if app is
+very wrong. we definitely don't need consider a wrong app. If the app doesn't
+know how to use the API, the app can just don't use it.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
