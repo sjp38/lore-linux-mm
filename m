@@ -1,90 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx143.postini.com [74.125.245.143])
-	by kanga.kvack.org (Postfix) with SMTP id 4FE2F6B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 02:32:41 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id fa1so165774pad.21
-        for <linux-mm@kvack.org>; Mon, 07 Jan 2013 23:32:40 -0800 (PST)
-Date: Tue, 8 Jan 2013 15:32:29 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
-Message-ID: <20130108073229.GA9018@kernel.org>
-References: <20130107081237.GB21779@kernel.org>
- <20130107120630.82ba51ad.akpm@linux-foundation.org>
- <50eb8180.6887320a.3f90.58b0SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130108042609.GA2459@kernel.org>
- <20130108053856.GA4714@blaptop>
+Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
+	by kanga.kvack.org (Postfix) with SMTP id 0036B6B005D
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 02:33:09 -0500 (EST)
+Received: by mail-gg0-f178.google.com with SMTP id u1so10707ggl.37
+        for <linux-mm@kvack.org>; Mon, 07 Jan 2013 23:33:09 -0800 (PST)
+Date: Mon, 7 Jan 2013 23:29:35 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+Message-ID: <20130108072935.GA15431@lizard.gateway.2wire.net>
+References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+ <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+ <50EA8CA2.7020608@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20130108053856.GA4714@blaptop>
+In-Reply-To: <50EA8CA2.7020608@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On Tue, Jan 08, 2013 at 02:38:56PM +0900, Minchan Kim wrote:
-> Hi Shaohua,
+On Mon, Jan 07, 2013 at 05:51:46PM +0900, Kamezawa Hiroyuki wrote:
+[...]
+> I'm just curious..
+
+Thanks for taking a look! :)
+
+[...]
+> > +/*
+> > + * The window size is the number of scanned pages before we try to analyze
+> > + * the scanned/reclaimed ratio (or difference).
+> > + *
+> > + * It is used as a rate-limit tunable for the "low" level notification,
+> > + * and for averaging medium/oom levels. Using small window sizes can cause
+> > + * lot of false positives, but too big window size will delay the
+> > + * notifications.
+> > + */
+> > +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
+> > +static const uint vmpressure_level_med = 60;
+> > +static const uint vmpressure_level_oom = 99;
+> > +static const uint vmpressure_level_oom_prio = 4;
+> > +
 > 
-> On Tue, Jan 08, 2013 at 12:26:09PM +0800, Shaohua Li wrote:
-> > On Tue, Jan 08, 2013 at 10:16:07AM +0800, Wanpeng Li wrote:
-> > > On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
-> > > >On Mon, 7 Jan 2013 16:12:37 +0800
-> > > >Shaohua Li <shli@kernel.org> wrote:
-> > > >
-> > > >> 
-> > > >> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
-> > > >> this syscall can do swapin prefetch. It has no impact if the memory isn't
-> > > >> swapout.
-> > > >
-> > > >Seems sensible.
-> > > 
-> > > Hi Andrew and Shaohua,
-> > > 
-> > > What's the performance in the scenario of serious memory pressure? Since
-> > > in this case pages in swap are highly fragmented and cache hit is most
-> > > impossible. If WILLNEED path should add a check to skip readahead in
-> > > this case since swapin only leads to unnecessary memory allocation. 
-> > 
-> > pages in swap are not highly fragmented if you access memory sequentially. In
-> > that case, the pages you accessed will be added to lru list side by side. So if
-> > app does swap prefetch, we can do sequential disk access and merge small
-> > request to big one.
-> 
-> How can you make sure that the range of WILLNEED was always sequentially accesssed?
+> Hmm... isn't this window size too small ?
+> If vmscan cannot find a reclaimable page while scanning 2M of pages in a zone,
+> oom notify will be returned. Right ?
 
-you can't guarantee this even for file access.
+Yup, you are right, if we were not able to find anything within the window
+size (which is 2M, but see below), then it is effectively the "OOM level".
+The thing is, the vmpressure reports... the pressure. :) Or, the
+allocation cost, and if the cost becomes high, it is no good.
 
-> > Another advantage is prefetch can drive high disk iodepth.  For sequential
-> 
-> What does it mean 'iodepth'? I failed to grep it in google. :(
+The 2M is, of course, not ideal. And the "ideal" depends on many factors,
+alike to vmstat. And, actually I dream about deriving the window size from
+zone->stat_threshold, which would make the window automatically adjustable
+for different "machine sizes" (as we do in calculate_normal_threshold(),
+in vmstat.c).
 
-io depth. How many requests are inflight at a givin time.
-
-> > access, this can cause big request. Even for random access, high iodepth has
-> > much better performance especially for SSD.
-> 
-> So you mean WILLNEED is always good in where both random and sequential in "SSD"?
-> Then, how about the "Disk"?
-
-Hmm, even for hard disk, high iodepth random access is faster than single
-iodepth access. Today's disk is NCQ disk. But the speedup isn't that
-significant like a SSD. For sequential access, both harddisk and SSD have
-better performance with higher iodepth.
-
-> Wanpeng's comment makes sense to me so I guess others can have a same question
-> about this patch. So it would be better to write your rationale in changelog.
-
-I would, but the question is just like why app wants to prefetch file pages. I
-thought it's commonsense. The problem like memory allocation exists in file
-prefetch too. The advantages (better IO access, CPU and disk can operate in
-parallel and so on) apply for both file and swap prefetch.
-
-prefetch should never be slower non-prefetch. That's another story if app is
-very wrong. we definitely don't need consider a wrong app. If the app doesn't
-know how to use the API, the app can just don't use it.
+But again, this is all "implementation details"; tunable stuff that we can
+either adjust ourselves as needed, or try to be smart, i.e. apply some
+heuristics, again, as in vmstat.
 
 Thanks,
-Shaohua
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
