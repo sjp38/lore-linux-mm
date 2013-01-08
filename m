@@ -1,12 +1,9 @@
 From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Subject: Re: [PATCH 29/49] mm: numa: Add pte updates, hinting and migration
- stats
-Date: Tue, 8 Jan 2013 09:21:15 +0800
-Message-ID: <5486.79934950105$1357608130@news.gmane.org>
-References: <1354875832-9700-1-git-send-email-mgorman@suse.de>
- <1354875832-9700-30-git-send-email-mgorman@suse.de>
- <1357299744.5273.4.camel@kernel.cn.ibm.com>
- <20130107152931.GM3885@suse.de>
+Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
+Date: Tue, 8 Jan 2013 10:16:07 +0800
+Message-ID: <42018.4174938642$1357611409@news.gmane.org>
+References: <20130107081237.GB21779@kernel.org>
+ <20130107120630.82ba51ad.akpm@linux-foundation.org>
 Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -14,128 +11,96 @@ Return-path: <owner-linux-mm@kvack.org>
 Received: from kanga.kvack.org ([205.233.56.17])
 	by plane.gmane.org with esmtp (Exim 4.69)
 	(envelope-from <owner-linux-mm@kvack.org>)
-	id 1TsNt8-00038n-1J
-	for glkm-linux-mm-2@m.gmane.org; Tue, 08 Jan 2013 02:21:58 +0100
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id B42536B004D
-	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 20:21:39 -0500 (EST)
+	id 1TsOkA-0005i6-0f
+	for glkm-linux-mm-2@m.gmane.org; Tue, 08 Jan 2013 03:16:46 +0100
+Received: from psmtp.com (na3sys010amx172.postini.com [74.125.245.172])
+	by kanga.kvack.org (Postfix) with SMTP id DDBB56B005D
+	for <linux-mm@kvack.org>; Mon,  7 Jan 2013 21:16:26 -0500 (EST)
 Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
-	Tue, 8 Jan 2013 06:49:56 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 48423E004F
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 06:51:40 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r081LPSb48955466
-	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 06:51:26 +0530
-Received: from d28av05.in.ibm.com (loopback [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r081LQ7v008139
-	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 12:21:27 +1100
+	Tue, 8 Jan 2013 07:45:27 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 85026394004E
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 07:46:21 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r082GHF843647162
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 07:46:19 +0530
+Received: from d28av02.in.ibm.com (loopback [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r082GIx2018119
+	for <linux-mm@kvack.org>; Tue, 8 Jan 2013 13:16:19 +1100
 Content-Disposition: inline
-In-Reply-To: <20130107152931.GM3885@suse.de>
+In-Reply-To: <20130107120630.82ba51ad.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Simon Jeons <simon.jeons@gmail.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Andrea Arcangeli <aarcange@redhat.com>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Thomas Gleixner <tglx@linutronix.de>, Paul Turner <pjt@google.com>, Hillf Danton <dhillf@gmail.com>, David Rientjes <rientjes@google.com>, Lee Schermerhorn <Lee.Schermerhorn@hp.com>, Alex Shi <lkml.alex@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com
 
-On Mon, Jan 07, 2013 at 03:29:31PM +0000, Mel Gorman wrote:
->On Fri, Jan 04, 2013 at 05:42:24AM -0600, Simon Jeons wrote:
->> On Fri, 2012-12-07 at 10:23 +0000, Mel Gorman wrote:
->> > It is tricky to quantify the basic cost of automatic NUMA placement in a
->> > meaningful manner. This patch adds some vmstats that can be used as part
->> > of a basic costing model.
->> 
->> Hi Gorman, 
->> 
->> > 
->> > u    = basic unit = sizeof(void *)
->> > Ca   = cost of struct page access = sizeof(struct page) / u
->> > Cpte = Cost PTE access = Ca
->> > Cupdate = Cost PTE update = (2 * Cpte) + (2 * Wlock)
->> > 	where Cpte is incurred twice for a read and a write and Wlock
->> > 	is a constant representing the cost of taking or releasing a
->> > 	lock
->> > Cnumahint = Cost of a minor page fault = some high constant e.g. 1000
->> > Cpagerw = Cost to read or write a full page = Ca + PAGE_SIZE/u
->> 
->> Why cpagerw = Ca + PAGE_SIZE/u instead of Cpte + PAGE_SIZE/u ?
->> 
+On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
+>On Mon, 7 Jan 2013 16:12:37 +0800
+>Shaohua Li <shli@kernel.org> wrote:
 >
->Because I was thinking of the cost of just access the struct page.  Arguably
->it would be both Ca and Cpte and if I wanted to be very comprehensive I
->would also take into account the potential cost of kmapping the page in
->the 32-bit case but it'd be overkill. The cost of the PTE and struct page
->is negligible in comparison to the actual copy.
->
->> > Ci = Cost of page isolation = Ca + Wi
->> > 	where Wi is a constant that should reflect the approximate cost
->> > 	of the locking operation
->> > Cpagecopy = Cpagerw + (Cpagerw * Wnuma) + Ci + (Ci * Wnuma)
->> > 	where Wnuma is the approximate NUMA factor. 1 is local. 1.2
->> > 	would imply that remote accesses are 20% more expensive
->> > 
->> > Balancing cost = Cpte * numa_pte_updates +
->> > 		Cnumahint * numa_hint_faults +
->> > 		Ci * numa_pages_migrated +
->> > 		Cpagecopy * numa_pages_migrated
->> > 
 >> 
->> Since Cpagecopy has already accumulated ci why count ci twice ?
->> 
+>> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
+>> this syscall can do swapin prefetch. It has no impact if the memory isn't
+>> swapout.
 >
->Good point. Interestingly when I went to fix this in mmtests I found
->that I accounted for Ci properly there but got it wrong in the
->changelog.
->
->> > Note that numa_pages_migrated is used as a measure of how many pages
->> > were isolated even though it would miss pages that failed to migrate. A
->> > vmstat counter could have been added for it but the isolation cost is
->> > pretty marginal in comparison to the overall cost so it seemed overkill.
->> > 
->> > The ideal way to measure automatic placement benefit would be to count
->> > the number of remote accesses versus local accesses and do something like
->> > 
->> > 	benefit = (remote_accesses_before - remove_access_after) * Wnuma
->> > 
->> > but the information is not readily available. As a workload converges, the
->> > expection would be that the number of remote numa hints would reduce to 0.
->> > 
->> > 	convergence = numa_hint_faults_local / numa_hint_faults
->> > 		where this is measured for the last N number of
->> > 		numa hints recorded. When the workload is fully
->> > 		converged the value is 1.
->> > 
->> 
->> convergence tend to 0 is better or 1 is better
->
->1 is better.
->
->> If tend to 1, Cpte *
->> numa_pte_updates + Cnumahint * numa_hint_faults are just waste, where I
->> miss?
->> 
->
->I don't get the question, waste of what? None of these calculations are
->used by the kernel. The kernel only maintains counters and the point of
->the changelog was to illustrate how the counters can be used to do some
->meaningful evaluation.
->
+>Seems sensible.
 
-Hi Mel,
+Hi Andrew and Shaohua,
 
-I think he means that if most page faults are from local node, Cpte * 
-numa_pte_updates + Cnumahint * numa_hint_faults_local which are overhead 
-from numa balancing are waste since actually we don't need NUMA hinting 
-page fault here. Your adapt scan rate patch in this patchset can be 
-band-aid to a certain extent. :)
+What's the performance in the scenario of serious memory pressure? Since
+in this case pages in swap are highly fragmented and cache hit is most
+impossible. If WILLNEED path should add a check to skip readahead in
+this case since swapin only leads to unnecessary memory allocation. 
 
 Regards,
 Wanpeng Li 
 
->-- 
->Mel Gorman
->SUSE Labs
+>
+>> @@ -140,6 +219,18 @@ static long madvise_willneed(struct vm_a
+>>  {
+>>  	struct file *file = vma->vm_file;
+>>  
+>> +#ifdef CONFIG_SWAP
+>
+>It's odd that you put the ifdef in there, but then didn't test it!
+>
+>
+>From: Andrew Morton <akpm@linux-foundation.org>
+>Subject: mm-make-madvisemadv_willneed-support-swap-file-prefetch-fix
+>
+>fix CONFIG_SWAP=n build
+>
+>Cc: Shaohua Li <shli@fusionio.com>
+>Cc: Hugh Dickins <hughd@google.com>
+>Cc: Rik van Riel <riel@redhat.com>
+>Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>---
+>
+> mm/madvise.c |    2 ++
+> 1 file changed, 2 insertions(+)
+>
+>diff -puN mm/madvise.c~mm-make-madvisemadv_willneed-support-swap-file-prefetch-fix mm/madvise.c
+>--- a/mm/madvise.c~mm-make-madvisemadv_willneed-support-swap-file-prefetch-fix
+>+++ a/mm/madvise.c
+>@@ -134,6 +134,7 @@ out:
+> 	return error;
+> }
+>
+>+#ifdef CONFIG_SWAP
+> static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
+> 	unsigned long end, struct mm_walk *walk)
+> {
+>@@ -209,6 +210,7 @@ static void force_shm_swapin_readahead(s
+>
+> 	lru_add_drain();	/* Push any new pages onto the LRU now */
+> }
+>+#endif		/* CONFIG_SWAP */
+>
+> /*
+>  * Schedule all required I/O operations.  Do not wait for completion.
+>_
 >
 >--
 >To unsubscribe, send a message with 'unsubscribe linux-mm' in
