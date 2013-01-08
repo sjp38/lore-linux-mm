@@ -1,63 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 04E886B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 13:16:50 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id fb11so481830pad.38
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 10:16:50 -0800 (PST)
-Date: Tue, 8 Jan 2013 10:16:46 -0800
-From: Dmitry Torokhov <dmitry.torokhov@gmail.com>
-Subject: Re: [PATCH 5/5] kfifo: log based kfifo API
-Message-ID: <20130108181645.GA7972@core.coreip.homeip.net>
-References: <1357657073-27352-1-git-send-email-yuanhan.liu@linux.intel.com>
- <1357657073-27352-6-git-send-email-yuanhan.liu@linux.intel.com>
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 3BFD86B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 13:21:22 -0500 (EST)
+Received: by mail-vc0-f176.google.com with SMTP id fo13so703521vcb.21
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 10:21:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1357657073-27352-6-git-send-email-yuanhan.liu@linux.intel.com>
+In-Reply-To: <20130108180346.GH9163@redhat.com>
+References: <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
+ <alpine.LNX.2.00.1301061037140.28950@eggly.anvils> <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
+ <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
+ <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
+ <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
+ <20130108163141.GA27555@shutemov.name> <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
+ <20130108173747.GF9163@redhat.com> <CA+55aFyG26N3_KiA8_cxLW59xFMJBK8SKfG4qL80NMQ3tdh3Nw@mail.gmail.com>
+ <20130108180346.GH9163@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 8 Jan 2013 10:21:00 -0800
+Message-ID: <CA+55aFwcDs_R0Cv=RS2LD8ggP3EdvODjENAsXNe126xNwYatOQ@mail.gmail.com>
+Subject: Re: oops in copy_page_rep()
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yuanhan Liu <yuanhan.liu@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Stefani Seibold <stefani@seibold.net>, Andrew Morton <akpm@linux-foundation.org>, linux-omap@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, platform-driver-x86@vger.kernel.org, linux-input@vger.kernel.org, linux-iio@vger.kernel.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, linux-mmc@vger.kernel.org, linux-mtd@lists.infradead.org, libertas-dev@lists.infradead.org, linux-wireless@vger.kernel.org, netdev@vger.kernel.org, linux-pci@vger.kernel.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, devel@driverdev.osuosl.org, linux-serial@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org, dccp@vger.kernel.org, linux-sctp@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-Hi Yuanhan,
+On Tue, Jan 8, 2013 at 10:03 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+>
+> It looks very fine to me, but I suggest to move it above the
+> pmd_numa() check because of the newly introduced
+> migrate_misplaced_transhuge_page method relying on pmd_same too.
 
-On Tue, Jan 08, 2013 at 10:57:53PM +0800, Yuanhan Liu wrote:
-> The current kfifo API take the kfifo size as input, while it rounds
->  _down_ the size to power of 2 at __kfifo_alloc. This may introduce
-> potential issue.
-> 
-> Take the code at drivers/hid/hid-logitech-dj.c as example:
-> 
-> 	if (kfifo_alloc(&djrcv_dev->notif_fifo,
->                        DJ_MAX_NUMBER_NOTIFICATIONS * sizeof(struct dj_report),
->                        GFP_KERNEL)) {
-> 
-> Where, DJ_MAX_NUMBER_NOTIFICATIONS is 8, and sizeo of(struct dj_report)
-> is 15.
-> 
-> Which means it wants to allocate a kfifo buffer which can store 8
-> dj_report entries at once. The expected kfifo buffer size would be
-> 8 * 15 = 120 then. While, in the end, __kfifo_alloc will turn the
-> size to rounddown_power_of_2(120) =  64, and then allocate a buf
-> with 64 bytes, which I don't think this is the original author want.
-> 
-> With the new log API, we can do like following:
-> 
-> 	int kfifo_size_order = order_base_2(DJ_MAX_NUMBER_NOTIFICATIONS *
-> 					    sizeof(struct dj_report));
-> 
-> 	if (kfifo_alloc(&djrcv_dev->notif_fifo, kfifo_size_order, GFP_KERNEL)) {
-> 
-> This make sure we will allocate enough kfifo buffer for holding
-> DJ_MAX_NUMBER_NOTIFICATIONS dj_report entries.
+Hmm. If we need it there, then we need to fix the *later* case of
+pmd_numa() too:
 
-Why don't you simply change __kfifo_alloc to round the allocation up
-instead of down?
+        if (pmd_numa(*pmd))
+                return do_pmd_numa_page(mm, vma, address, pmd);
 
-Thanks.
+Also, and more fundamentally, since do_pmd_numa_page() doesn't take
+the orig_pmd thing as an argument (and re-check it under the
+page-table lock), testing pmd_trans_splitting() on it is pointless,
+since it can change later.
 
--- 
-Dmitry
+So no, moving the check up does *not* make sense, at least not without
+other changes. Because if I read things right, pmd_trans_splitting()
+really has to be done with the page-table lock protection (where "with
+page-table lock protection" does *not* mean that it has to be done
+under the page table lock, but if it is done outside, then the pmd
+entry has to be re-verified after getting the lock - which both
+do_huge_pmd_wp_page() and huge_pmd_set_accessed() correctly do).
+
+Comments?
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
