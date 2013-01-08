@@ -1,82 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 4853B6B005A
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:49:55 -0500 (EST)
-Date: Tue, 8 Jan 2013 18:49:51 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: oops in copy_page_rep()
-Message-ID: <20130108174951.GG9163@redhat.com>
-References: <20130105152208.GA3386@redhat.com>
- <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
- <alpine.LNX.2.00.1301061037140.28950@eggly.anvils>
- <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx184.postini.com [74.125.245.184])
+	by kanga.kvack.org (Postfix) with SMTP id 108796B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:52:08 -0500 (EST)
+Received: by mail-vb0-f41.google.com with SMTP id l22so668323vbn.14
+        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 09:52:07 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20130108173747.GF9163@redhat.com>
+References: <20130105152208.GA3386@redhat.com> <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
+ <alpine.LNX.2.00.1301061037140.28950@eggly.anvils> <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
  <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
  <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
  <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
- <20130108163141.GA27555@shutemov.name>
- <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
- <20130108173058.GA27727@shutemov.name>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130108173058.GA27727@shutemov.name>
+ <20130108163141.GA27555@shutemov.name> <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
+ <20130108173747.GF9163@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 8 Jan 2013 09:51:47 -0800
+Message-ID: <CA+55aFyG26N3_KiA8_cxLW59xFMJBK8SKfG4qL80NMQ3tdh3Nw@mail.gmail.com>
+Subject: Re: oops in copy_page_rep()
+Content-Type: multipart/mixed; boundary=047d7b6daa70b8ee0404d2ca9a58
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-Hi Kirill,
+--047d7b6daa70b8ee0404d2ca9a58
+Content-Type: text/plain; charset=ISO-8859-1
 
-On Tue, Jan 08, 2013 at 07:30:58PM +0200, Kirill A. Shutemov wrote:
-> Merged patch is obviously broken: huge_pmd_set_accessed() can be called
-> only if the pmd is under splitting.
+On Tue, Jan 8, 2013 at 9:37 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+>
+> The reason it returned to userland and retried the fault is that this
+> should be infrequent enough not to worry about it and this was
+> marginally simpler but it could be changed.
 
-Of course I assume you meant "only if the pmd is not under splitting".
+Yeah, that was my suspicion. And as mentioned, returning to user land
+might actually help with scheduling and/or signal handling latencies
+etc, so it might be the right thing to do.  Especially if the
+alternative is to just busy-loop.
 
-But no, setting a bitflag like the young bit or clearing or setting
-the numa bit won't screw with split_huge_page and it's safe even if
-the pmd is under splitting.
+> If we don't want to return to userland we should wait on the splitting
+> bit and then take the pte walking routines like if the pmd wasn't
+> huge. This is not related to the below though.
 
-Those bits are only checked here at the last stage of
-split_huge_page_map after taking the PT lock:
+How does this patch sound to people? It does the splitting check
+before the access bit set (even though I don't think it matters), and
+at least talks about the alternatives and the issues a bit.
 
-	spin_lock(&mm->page_table_lock);
-	pmd = page_check_address_pmd(page, mm, address,
-				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
-	if (pmd) {
-		pgtable = pgtable_trans_huge_withdraw(mm);
-		pmd_populate(mm, &_pmd, pgtable);
+Hmm?
 
-		haddr = address;
-		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-			pte_t *pte, entry;
-			BUG_ON(PageCompound(page+i));
-			entry = mk_pte(page + i, vma->vm_page_prot);
-			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-			if (!pmd_write(*pmd))
-				entry = pte_wrprotect(entry);
-			else
-				BUG_ON(page_mapcount(page) != 1);
-			if (!pmd_young(*pmd))
-				entry = pte_mkold(entry);
-			if (pmd_numa(*pmd))
-				entry = pte_mknuma(entry);
-			pte = pte_offset_map(&_pmd, haddr);
-			BUG_ON(!pte_none(*pte));
-			set_pte_at(mm, haddr, pte, entry);
-			pte_unmap(pte);
-		}
+                 Linus
 
-If "young" or "numa" bitflags changed on the original *pmd for the
-previous part of split_huge_page, nothing will go wrong by the time we
-get to split_huge_page_map (the same is not true if the pfn changes!).
+--047d7b6daa70b8ee0404d2ca9a58
+Content-Type: application/octet-stream; name="mm.patch"
+Content-Disposition: attachment; filename="mm.patch"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hbpc6e9i0
 
-If you think this is too tricky, we could also decide to forbid
-huge_pmd_set_accessed if the pmd is in splitting state, but I don't
-think that flipping young/numa bits while in splitting state, can
-cause any problem (if done correctly with PT lock + pmd_same).
-
-Thanks!
+IG1tL21lbW9yeS5jIHwgMTIgKysrKysrKysrKysrCiAxIGZpbGUgY2hhbmdlZCwgMTIgaW5zZXJ0
+aW9ucygrKQoKZGlmZiAtLWdpdCBhL21tL21lbW9yeS5jIGIvbW0vbWVtb3J5LmMKaW5kZXggNDlm
+YjFjZjA4NjExLi5mNWVjM2FlMDNmNDQgMTAwNjQ0Ci0tLSBhL21tL21lbW9yeS5jCisrKyBiL21t
+L21lbW9yeS5jCkBAIC0zNzE1LDYgKzM3MTUsMTggQEAgcmV0cnk6CiAJCQkJcmV0dXJuIGRvX2h1
+Z2VfcG1kX251bWFfcGFnZShtbSwgdm1hLCBhZGRyZXNzLAogCQkJCQkJCSAgICAgb3JpZ19wbWQs
+IHBtZCk7CiAKKwkJCS8qCisJCQkgKiBJZiB0aGUgcG1kIGlzIHNwbGl0dGluZywgcmV0dXJuIGFu
+ZCByZXRyeSB0aGUKKwkJCSAqIHRoZSBmYXVsdC4gV2UgKmNvdWxkKiBzZXQganVzdCB0aGUgYWNj
+ZXNzZWQgZmxhZywKKwkJCSAqIGJ1dCBpdCdzIGJldHRlciB0byBqdXN0IGF2b2lkIHRoZSByYWNl
+cyB3aXRoCisJCQkgKiBzcGxpdHRpbmcgZW50aXJlbHkuCisJCQkgKgorCQkJICogQWx0ZXJuYXRp
+dmU6IHdhaXQgdW50aWwgdGhlIHNwbGl0IGlzIGRvbmUsIGFuZAorCQkJICogZ290byByZXRyeS4K
+KwkJCSAqLworCQkJaWYgKHBtZF90cmFuc19zcGxpdHRpbmcob3JpZ19wbWQpKQorCQkJCXJldHVy
+biAwOworCiAJCQlpZiAoZGlydHkgJiYgIXBtZF93cml0ZShvcmlnX3BtZCkpIHsKIAkJCQlyZXQg
+PSBkb19odWdlX3BtZF93cF9wYWdlKG1tLCB2bWEsIGFkZHJlc3MsIHBtZCwKIAkJCQkJCQkgIG9y
+aWdfcG1kKTsK
+--047d7b6daa70b8ee0404d2ca9a58--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
