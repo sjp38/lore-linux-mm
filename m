@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id BF29B6B0062
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 12:55:05 -0500 (EST)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id BC65B6B005A
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 13:01:51 -0500 (EST)
+Date: Tue, 8 Jan 2013 20:03:02 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: oops in copy_page_rep()
+Message-ID: <20130108180302.GA27871@shutemov.name>
+References: <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
+ <alpine.LNX.2.00.1301061037140.28950@eggly.anvils>
+ <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
+ <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
+ <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
+ <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
+ <20130108163141.GA27555@shutemov.name>
+ <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
+ <20130108173058.GA27727@shutemov.name>
+ <20130108174951.GG9163@redhat.com>
 MIME-Version: 1.0
-Message-ID: <9b035d90-b6de-43cf-a188-7b3d32ed09f2@default>
-Date: Tue, 8 Jan 2013 09:54:49 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv2 8/9] zswap: add to mm/
-References: <1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>
- <1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com>
- <50EC541B.5000905@linux.vnet.ibm.com>
-In-Reply-To: <50EC541B.5000905@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+In-Reply-To: <20130108174951.GG9163@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Wilk <konrad.wilk@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-> From: Dave Hansen [mailto:dave@linux.vnet.ibm.com]
-> Sent: Tuesday, January 08, 2013 10:15 AM
-> To: Seth Jennings
-> Cc: Greg Kroah-Hartman; Andrew Morton; Nitin Gupta; Minchan Kim; Konrad R=
-zeszutek Wilk; Dan
-> Magenheimer; Robert Jennings; Jenifer Hopper; Mel Gorman; Johannes Weiner=
-; Rik van Riel; Larry
-> Woodman; linux-mm@kvack.org; linux-kernel@vger.kernel.org; devel@driverde=
-v.osuosl.org
-> Subject: Re: [PATCHv2 8/9] zswap: add to mm/
->=20
-> On 01/07/2013 12:24 PM, Seth Jennings wrote:
-> > +struct zswap_tree {
-> > +=09struct rb_root rbroot;
-> > +=09struct list_head lru;
-> > +=09spinlock_t lock;
-> > +=09struct zs_pool *pool;
-> > +};
->=20
-> BTW, I spent some time trying to get this lock contended.  You thought
-> the anon_vma locks would dominate and this spinlock would not end up
-> very contended.
->=20
-> I figured that if I hit zswap from a bunch of CPUs that _didn't_ use
-> anonymous memory (and thus the anon_vma locks) that some more contention
-> would pop up.  I did that with a bunch of CPUs writing to tmpfs, and
-> this lock was still well down below anon_vma.  The anon_vma contention
-> was obviously coming from _other_ anonymous memory around.
->=20
-> IOW, I feel a bit better about this lock.  I only tested on 16 cores on
-> a system with relatively light NUMA characteristics, and it might be the
-> bottleneck if all the anonymous memory on the system is mlock()'d and
-> you're pounding on tmpfs, but that's pretty contrived.
+On Tue, Jan 08, 2013 at 06:49:51PM +0100, Andrea Arcangeli wrote:
+> Hi Kirill,
+> 
+> On Tue, Jan 08, 2013 at 07:30:58PM +0200, Kirill A. Shutemov wrote:
+> > Merged patch is obviously broken: huge_pmd_set_accessed() can be called
+> > only if the pmd is under splitting.
+> 
+> Of course I assume you meant "only if the pmd is not under splitting".
 
-IIUC, Seth's current "flush" code only gets called when in the context
-of a frontswap_store and is very limited in what it does, whereas the
-goal will be for flushing to run both as an independent thread and do
-more complex things (e.g. so that wholepages can be reclaimed rather
-than random zpages).
+The broken merged patch has this:
 
-So it will be interesting to re-test contention when zswap is complete.
++                       if (dirty && !pmd_write(orig_pmd) &&
+                            !pmd_trans_splitting(orig_pmd)) {
+			[...]
++                       } else {
++                               huge_pmd_set_accessed(mm, vma, address, pmd,
++                                                     orig_pmd, dirty);
+                        }
 
-Dan
+> But no, setting a bitflag like the young bit or clearing or setting
+> the numa bit won't screw with split_huge_page and it's safe even if
+> the pmd is under splitting.
+
+Okay. Thanks for clarification for me.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
