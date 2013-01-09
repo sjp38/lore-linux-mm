@@ -1,95 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx165.postini.com [74.125.245.165])
-	by kanga.kvack.org (Postfix) with SMTP id BBB1B6B0070
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 05:00:09 -0500 (EST)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 15/15] memory-hotplug: Do not allocate pdgat if it was not freed when offline.
-Date: Wed, 9 Jan 2013 17:32:39 +0800
-Message-Id: <1357723959-5416-16-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id BB6946B0062
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 05:22:13 -0500 (EST)
+Message-ID: <50ED44D1.3080803@parallels.com>
+Date: Wed, 9 Jan 2013 14:22:09 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/3] retry slab allocation after first failure
+References: <1355925702-7537-1-git-send-email-glommer@parallels.com> <0000013bfc1b8640-1708725f-b988-408a-bbb5-d3f95cb42535-000000@email.amazonses.com>
+In-Reply-To: <0000013bfc1b8640-1708725f-b988-408a-bbb5-d3f95cb42535-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave Shrinnker <david@fromorbit.com>, Michal
+ Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-Since there is no way to guarentee the address of pgdat/zone is not
-on stack of any kernel threads or used by other kernel objects
-without reference counting or other symchronizing method, we cannot
-reset node_data and free pgdat when offlining a node. Just reset pgdat
-to 0 and reuse the memory when the node is online again.
+Hi,
 
-The problem is suggested by Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-The idea is from Wen Congyang <wency@cn.fujitsu.com>
+On 01/02/2013 08:32 PM, Christoph Lameter wrote:
+> On Wed, 19 Dec 2012, Glauber Costa wrote:
+> 
+>> The reclaim round, despite not being able to free a whole page, may very well
+>> have been able to free objects spread around multiple pages. Which means that
+>> at this point, a new object allocation would likely succeed.
+> 
+> I think this is reasonable but the approach is too intrusive on the hot
+> paths. Page allocation from the slab allocators happens outside of the hot
+> allocation and free paths.
+> 
+> slub has call to slab_out_of_memory in __slab_alloc which may be a
+> reasonable point to insert the logic.
+> 
+> slab has this whole fallback_alloc function to deal with short on memory
+> situations. Insert the additional logic there.
+> 
+I disagree and agree with you at the same time.
 
-NOTE: If we don't reset pgdat to 0, the WARN_ON in free_area_init_node()
-      will be triggered.
+I disagree with you, because I don't see the trade-off as being so
+simple, for two main reasons.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
----
- mm/memory_hotplug.c |   20 ++++++++++++--------
- 1 files changed, 12 insertions(+), 8 deletions(-)
+First, the logic of retrying is largely independent of the allocator,
+and doing it in this level of abstraction allow us to move it to common
+code as soon as we can. All the allocation decisions can be kept
+internal to the underlying allocator, and we act only on the very high
+level.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 8b67752..8aa2b56 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1015,11 +1015,14 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 	unsigned long zholes_size[MAX_NR_ZONES] = {0};
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 
--	pgdat = arch_alloc_nodedata(nid);
--	if (!pgdat)
--		return NULL;
-+	pgdat = NODE_DATA(nid);
-+	if (!pgdat) {
-+		pgdat = arch_alloc_nodedata(nid);
-+		if (!pgdat)
-+			return NULL;
- 
--	arch_refresh_nodedata(nid, pgdat);
-+		arch_refresh_nodedata(nid, pgdat);
-+	}
- 
- 	/* we can use NODE_DATA(nid) from here */
- 
-@@ -1072,7 +1075,7 @@ out:
- int __ref add_memory(int nid, u64 start, u64 size)
- {
- 	pg_data_t *pgdat = NULL;
--	int new_pgdat = 0;
-+	int new_pgdat = 0, new_node = 0;
- 	struct resource *res;
- 	int ret;
- 
-@@ -1083,12 +1086,13 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	if (!res)
- 		goto out;
- 
--	if (!node_online(nid)) {
-+	new_pgdat = NODE_DATA(nid) ? 0 : 1;
-+	new_node = node_online(nid) ? 0 : 1;
-+	if (new_node) {
- 		pgdat = hotadd_new_pgdat(nid, start);
- 		ret = -ENOMEM;
- 		if (!pgdat)
- 			goto error;
--		new_pgdat = 1;
- 	}
- 
- 	/* call arch's memory hotadd */
-@@ -1100,7 +1104,7 @@ int __ref add_memory(int nid, u64 start, u64 size)
- 	/* we online node here. we can't roll back from here. */
- 	node_set_online(nid);
- 
--	if (new_pgdat) {
-+	if (new_node) {
- 		ret = register_one_node(nid);
- 		/*
- 		 * If sysfs file of new node can't create, cpu on the node
--- 
-1.7.1
+Also, at first sight it looks a bit ugly in the sense that being inwards
+the allocator we will necessarily recurse (since the goal is to retry
+the whole allocation). We want to keep the retries limited, so we'll
+need to do flag passing - if we fail again, we will reach the same retry
+code and we have to know that we need to stop. Can it be done? Sure. But
+it looks like unnecessarily complicated at best, specially given that I
+don't expect the cost of it to be big:
+
+I can measure it as much as you want, but I can pretty much guarantee
+you that the cost is near zero. The hot path, which is, when the
+allocation succeeds, will load the address, which is guaranteed to be in
+the cache, being the value we are returning (or very soon to be, since
+someone almost always read the return value anyway). It will then issue
+a strongly hinted branch, which unlike normal branches, should not have
+any pipeline ill effect at all if we get it right (which we will).
+
+So we are talking about one hot instruction here if the allocation
+succeeds. And if it fails, it is no longer a hot path.
+
+Now, I agree with you, because I now see I missed one detail: those
+functions are all marked as __always_inline. Which means that we will
+double the code size in every allocation, for every single case. So this
+is bad. But it is also very easy to fix: We can have a noinline function
+that calls the allocator function, and we call that function instead -
+with proper comments.
+
+So we are talking here:
+
+hot path with one extra hot instruction executed, which is a hinted
+branch with data in cache. Size increased by size of that instruction +
+a call instruction that will only be executed in slow paths.
+
+slow path:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
