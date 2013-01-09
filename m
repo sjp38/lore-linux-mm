@@ -1,43 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 96CD66B005D
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:48:18 -0500 (EST)
-Date: Wed, 9 Jan 2013 13:48:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: wait for congestion to clear on all zones
-Message-Id: <20130109134816.db51a820.akpm@linux-foundation.org>
-In-Reply-To: <50EDE41C.7090107@iskon.hr>
-References: <50EDE41C.7090107@iskon.hr>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 625B46B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:55:20 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id hz11so1295561pad.3
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 13:55:19 -0800 (PST)
+Date: Wed, 9 Jan 2013 13:55:14 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+Message-ID: <20130109215514.GD20454@htj.dyndns.org>
+References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+ <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+ <20130109203731.GA20454@htj.dyndns.org>
+ <50EDDF1E.6010705@parallels.com>
+ <20130109213604.GA9475@lizard.fhda.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130109213604.GA9475@lizard.fhda.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed, 09 Jan 2013 22:41:48 +0100
-Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
+Hello, Anton.
 
-> Currently we take a short nap (HZ/10) and wait for congestion to clear
-> before taking another pass with lower priority in balance_pgdat(). But
-> we do that only for the highest zone that we encounter is unbalanced
-> and congested.
+On Wed, Jan 09, 2013 at 01:36:04PM -0800, Anton Vorontsov wrote:
+> On Thu, Jan 10, 2013 at 01:20:30AM +0400, Glauber Costa wrote:
+> [...]
+> > Given the above, I believe that ideally we should use this pressure
+> > mechanism in memcg replacing the current memcg notification mechanism.
 > 
-> This patch changes that to wait on all congested zones in a single
-> pass in the hope that it will save us some scanning that way. Also we
-> take a nap as soon as congested zone is encountered and sc.priority <
-> DEF_PRIORITY - 2 (aka kswapd in trouble).
-> 
-> ...
->
-> The patch is against the mm tree. Make sure that
-> mm-avoid-calling-pgdat_balanced-needlessly.patch is applied first (not
-> yet in the mmotm tree). Tested on half a dozen systems with different
-> workloads for the last few days, working really well!
+> Just a quick wonder: why would we need to place it into memcg, when we
+> don't need any of the memcg stuff for it? I see no benefits, not
+> design-wise, not implementation-wise or anything-wise. :)
 
-But what are the user-observable effcets of this change?  Less kernel
-CPU consumption, presumably?  Did you quantify it?
+Maybe I'm misunderstanding the whole thing but how can memory pressure
+exist apart from memcg when memcg is in use?  Memory limits, reclaim
+and OOM are all per-memcg, how do you even define memory pressure?  If
+ten tasks belong to a memcg w/ a lot of spare memory and one belongs
+to another which is about to hit OOM, is that mempressure cgroup under
+pressure?
+
+> We can use mempressure w/o memcg, and even then it can (or should :) be
+> useful (for cpuset, for example).
+
+The problem is that you end with, at the very least, duplicate
+hierarchical accounting mechanisms which overlap with each other
+while, most likely, being slightly different.  About the same thing
+happened with cpu and cpuacct controllers and we're now trying to
+deprecate the latter.
+
+Please talk with memcg people and fold it into memcg.  It can (and
+should) be done in a way to not incur overhead when only root memcg is
+in use and how this is done defines userland-visible interface, so
+let's please not repeat past mistakes.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
