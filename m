@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id C130E6B0070
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:40 -0500 (EST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 42FBD6B0087
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:42 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 10/15] memory-hotplug: remove memmap of sparse-vmemmap
-Date: Wed, 9 Jan 2013 17:32:34 +0800
-Message-Id: <1357723959-5416-11-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v6 14/15] memory-hotplug: free node_data when a node is offlined
+Date: Wed, 9 Jan 2013 17:32:38 +0800
+Message-Id: <1357723959-5416-15-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,148 +13,73 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-This patch introduces a new API vmemmap_free() to free and remove
-vmemmap pagetables. Since pagetable implements are different, each
-architecture has to provide its own version of vmemmap_free(), just
-like vmemmap_populate().
+From: Wen Congyang <wency@cn.fujitsu.com>
 
-Note:  vmemmap_free() are not implemented for ia64, ppc, s390, and sparc.
+We call hotadd_new_pgdat() to allocate memory to store node_data. So we
+should free it when removing a node.
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- arch/arm64/mm/mmu.c       |    3 +++
- arch/ia64/mm/discontig.c  |    4 ++++
- arch/powerpc/mm/init_64.c |    4 ++++
- arch/s390/mm/vmem.c       |    4 ++++
- arch/sparc/mm/init_64.c   |    4 ++++
- arch/x86/mm/init_64.c     |    8 ++++++++
- include/linux/mm.h        |    1 +
- mm/sparse.c               |    3 ++-
- 8 files changed, 30 insertions(+), 1 deletions(-)
+ mm/memory_hotplug.c |   30 +++++++++++++++++++++++++++---
+ 1 files changed, 27 insertions(+), 3 deletions(-)
 
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index a6885d8..9834886 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -392,4 +392,7 @@ int __meminit vmemmap_populate(struct page *start_page,
- 	return 0;
- }
- #endif	/* CONFIG_ARM64_64K_PAGES */
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+}
- #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index 33943db..882a0fd 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -823,6 +823,10 @@ int __meminit vmemmap_populate(struct page *start_page,
- 	return vmemmap_populate_basepages(start_page, size, node);
- }
- 
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+}
-+
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a8703f7..8b67752 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1699,9 +1699,12 @@ static int check_cpu_on_node(void *data)
+ /* offline the node if all memory sections of this node are removed */
+ static void try_offline_node(int nid)
  {
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 6466440..2969591 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -298,6 +298,10 @@ int __meminit vmemmap_populate(struct page *start_page,
- 	return 0;
- }
+-	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+-	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
++	pg_data_t *pgdat = NODE_DATA(nid);
++	unsigned long start_pfn = pgdat->node_start_pfn;
++	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+ 	unsigned long pfn;
++	struct page *pgdat_page = virt_to_page(pgdat);
++	int i;
  
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+}
-+
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
- {
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 2c14bc2..81e6ba3 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -272,6 +272,10 @@ out:
- 	return ret;
- }
- 
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+}
-+
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
- {
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 1f30db3..5afe21a 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2232,6 +2232,10 @@ void __meminit vmemmap_populate_print_last(void)
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+ 		unsigned long section_nr = pfn_to_section_nr(pfn);
+@@ -1719,7 +1722,7 @@ static void try_offline_node(int nid)
+ 		return;
  	}
+ 
+-	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
++	if (stop_machine(check_cpu_on_node, pgdat, NULL))
+ 		return;
+ 
+ 	/*
+@@ -1728,6 +1731,27 @@ static void try_offline_node(int nid)
+ 	 */
+ 	node_set_offline(nid);
+ 	unregister_one_node(nid);
++
++	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
++		/* node data is allocated from boot memory */
++		return;
++
++	/* free waittable in each zone */
++	for (i = 0; i < MAX_NR_ZONES; i++) {
++		struct zone *zone = pgdat->node_zones + i;
++
++		if (zone->wait_table)
++			vfree(zone->wait_table);
++	}
++
++	/*
++	 * Since there is no way to guarentee the address of pgdat/zone is not
++	 * on stack of any kernel threads or used by other kernel objects
++	 * without reference counting or other symchronizing method, do not
++	 * reset node_data and free pgdat here. Just reset it to 0 and reuse
++	 * the memory when the node is online again.
++	 */
++	memset(pgdat, 0, sizeof(*pgdat));
  }
  
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+}
-+
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
- {
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index d950f9b..e829113 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1309,6 +1309,14 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
- 	return 0;
- }
- 
-+void __ref vmemmap_free(struct page *memmap, unsigned long nr_pages)
-+{
-+	unsigned long start = (unsigned long)memmap;
-+	unsigned long end = (unsigned long)(memmap + nr_pages);
-+
-+	remove_pagetable(start, end, false);
-+}
-+
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 1eca498..31d5e5d 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1709,6 +1709,7 @@ int vmemmap_populate_basepages(struct page *start_page,
- 						unsigned long pages, int node);
- int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
- void vmemmap_populate_print_last(void);
-+void vmemmap_free(struct page *memmap, unsigned long nr_pages);
- void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
- 				  unsigned long size);
- 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 05ca73a..cff9796 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -615,10 +615,11 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
- }
- static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
- {
--	return; /* XXX: Not implemented yet */
-+	vmemmap_free(memmap, nr_pages);
- }
- static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
- {
-+	vmemmap_free(memmap, nr_pages);
- }
- #else
- static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+ int __ref remove_memory(int nid, u64 start, u64 size)
 -- 
 1.7.1
 
