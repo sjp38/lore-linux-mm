@@ -1,55 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx169.postini.com [74.125.245.169])
-	by kanga.kvack.org (Postfix) with SMTP id A16516B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 14:27:02 -0500 (EST)
-Received: by mail-da0-f48.google.com with SMTP id k18so903045dae.7
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 11:27:01 -0800 (PST)
-Date: Wed, 9 Jan 2013 11:26:59 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: migrate: Check page_count of THP before migrating
- accounting fix
-In-Reply-To: <20130109120447.GB13304@suse.de>
-Message-ID: <alpine.LNX.2.00.1301091120580.4818@eggly.anvils>
-References: <20130107170815.GO3885@suse.de> <alpine.LNX.2.00.1301081931530.20504@eggly.anvils> <20130109120447.GB13304@suse.de>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 6F8556B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 14:32:39 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id un3so2579902obb.21
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 11:32:38 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <50EB76DF.5070508@huawei.com>
+References: <1357248967-24959-1-git-send-email-tj@kernel.org>
+ <50E93554.3070102@huawei.com> <20130107164453.GH3926@htj.dyndns.org> <50EB76DF.5070508@huawei.com>
+From: Paul Menage <paul@paulmenage.org>
+Date: Wed, 9 Jan 2013 11:32:18 -0800
+Message-ID: <CALdu-PCmeXNF7FCVstVBNRzQDgkhBAPnWs0Czt9HOHZ4mT68-A@mail.gmail.com>
+Subject: Re: [PATCHSET] cpuset: decouple cpuset locking from cgroup core, take#2
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Tejun Heo <tj@kernel.org>, glommer@parallels.com, containers@lists.linux-foundation.org, cgroups@vger.kernel.org, peterz@infradead.org, mhocko@suse.cz, bsingharora@gmail.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 9 Jan 2013, Mel Gorman wrote:
+On Mon, Jan 7, 2013 at 5:31 PM, Li Zefan <lizefan@huawei.com> wrote:
+>
+> I don't think Paul's still maintaining cpusets. Normally it's Andrew
+> that picks up cpuset patches. It's fine you route it through cgroup
+> tree.
 
-> As pointed out by Hugh Dickins, "mm: migrate: Check page_count of THP
-> before migrating" can leave nr_isolated_anon elevated, correct it. This
-> is a fix to mm-migrate-check-page_count-of-thp-before-migrating.patch
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+Yes, I'm sorry - I should have handed on cpusets at the time I had to
+hand on cgroups. I was only really ever the maintainer for cpusets
+because Paul Jackson asked me to take it over when he retired, as I
+understood the cgroups-related parts of it. I never really had a good
+grasp of how the some of the lower-level parts of it interacted with
+the rest of the system (e.g. offlining, CPUs, scheduler domains, etc)
+anyway ...
 
-Thanks: to this and the one it's fixing (I expect akpm will merge)
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-> ---
->  mm/migrate.c |    5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f466827..c387786 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1689,8 +1689,11 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  	if (!isolated || page_count(page) != 2) {
->  		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
->  		put_page(new_page);
-> -		if (isolated)
-> +		if (isolated) {
->  			putback_lru_page(page);
-> +			isolated = 0;
-> +			goto out;
-> +		}
->  		goto out_keep_locked;
->  	}
+Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
