@@ -1,411 +1,310 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 7C1016B0062
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 03:51:27 -0500 (EST)
-Date: Wed, 9 Jan 2013 08:51:26 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-Message-ID: <20130109085126.GA6931@dcvr.yhbt.net>
-References: <20130106120700.GA24671@dcvr.yhbt.net>
- <20130107122516.GC3885@suse.de>
- <20130107223850.GA21311@dcvr.yhbt.net>
- <20130108224313.GA13304@suse.de>
- <20130108232325.GA5948@dcvr.yhbt.net>
- <1357697647.18156.1217.camel@edumazet-glaptop>
- <1357698749.27446.6.camel@edumazet-glaptop>
- <1357700082.27446.11.camel@edumazet-glaptop>
- <20130109035511.GA6857@dcvr.yhbt.net>
- <20130109084247.GA6545@dcvr.yhbt.net>
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 64E556B0062
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 03:56:45 -0500 (EST)
+Message-ID: <50ED30CE.8070208@parallels.com>
+Date: Wed, 9 Jan 2013 12:56:46 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130109084247.GA6545@dcvr.yhbt.net>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+References: <20130104082751.GA22227@lizard.gateway.2wire.net> <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+In-Reply-To: <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <erdnetdev@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A.
+ Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-Eric Wong <normalperson@yhbt.net> wrote:
-> Oops, I had to restart my test :x.  However, I was able to reproduce the
-> issue very quickly again with your patch.  I've double-checked I'm
-> booting into the correct kernel, but I do have more load on this
-> laptop host now, so maybe that made it happen more quickly...
+Hi.
 
-Oops, I forgot to include the debugging output.
-(Is this information still useful to you guys?)
+I have a couple of small questions.
 
-2724 process stuck!
-===> /proc/vmstat <===
-nr_free_pages 2401
-nr_inactive_anon 3242
-nr_active_anon 3044
-nr_inactive_file 103091
-nr_active_file 4305
-nr_unevictable 0
-nr_mlock 0
-nr_anon_pages 6204
-nr_mapped 2332
-nr_file_pages 107533
-nr_dirty 144
-nr_writeback 0
-nr_slab_reclaimable 1440
-nr_slab_unreclaimable 5202
-nr_page_table_pages 773
-nr_kernel_stack 167
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 0
-nr_vmscan_immediate_reclaim 0
-nr_writeback_temp 0
-nr_isolated_anon 0
-nr_isolated_file 0
-nr_shmem 115
-nr_dirtied 340718
-nr_written 4979
-nr_anon_transparent_hugepages 0
-nr_free_cma 0
-nr_dirty_threshold 22904
-nr_dirty_background_threshold 11452
-pgpgin 43068
-pgpgout 20484
-pswpin 0
-pswpout 0
-pgalloc_dma 57018
-pgalloc_dma32 9428296
-pgalloc_normal 0
-pgalloc_movable 0
-pgfree 9488417
-pgactivate 5151
-pgdeactivate 3251
-pgfault 751069
-pgmajfault 272
-pgrefill_dma 115
-pgrefill_dma32 3136
-pgrefill_normal 0
-pgrefill_movable 0
-pgsteal_kswapd_dma 2865
-pgsteal_kswapd_dma32 209744
-pgsteal_kswapd_normal 0
-pgsteal_kswapd_movable 0
-pgsteal_direct_dma 568
-pgsteal_direct_dma32 31692
-pgsteal_direct_normal 0
-pgsteal_direct_movable 0
-pgscan_kswapd_dma 2865
-pgscan_kswapd_dma32 210678
-pgscan_kswapd_normal 0
-pgscan_kswapd_movable 0
-pgscan_direct_dma 568
-pgscan_direct_dma32 31760
-pgscan_direct_normal 0
-pgscan_direct_movable 0
-pgscan_direct_throttle 0
-pginodesteal 0
-slabs_scanned 0
-kswapd_inodesteal 0
-kswapd_low_wmark_hit_quickly 666
-kswapd_high_wmark_hit_quickly 2
-kswapd_skip_congestion_wait 0
-pageoutrun 3135
-allocstall 566
-pgrotated 2
-pgmigrate_success 348
-pgmigrate_fail 0
-compact_migrate_scanned 335538
-compact_free_scanned 144705
-compact_isolated 11328
-compact_stall 451
-compact_fail 279
-compact_success 172
-unevictable_pgs_culled 1064
-unevictable_pgs_scanned 0
-unevictable_pgs_rescued 1632
-unevictable_pgs_mlocked 1632
-unevictable_pgs_munlocked 1632
-unevictable_pgs_cleared 0
-unevictable_pgs_stranded 0
-thp_fault_alloc 0
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 0
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-===> 2724[2724]/stack <===
-[<ffffffff81077300>] futex_wait_queue_me+0xc0/0xf0
-[<ffffffff81077a9d>] futex_wait+0x17d/0x280
-[<ffffffff8107988c>] do_futex+0x11c/0xae0
-[<ffffffff8107a2d8>] sys_futex+0x88/0x180
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2725]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2726]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2727]/stack <===
-[<ffffffff81310078>] sk_stream_wait_memory+0x1b8/0x250
-[<ffffffff8134be87>] tcp_sendmsg+0x697/0xd80
-[<ffffffff81370cee>] inet_sendmsg+0x5e/0xa0
-[<ffffffff81300a77>] sock_sendmsg+0x87/0xa0
-[<ffffffff81303a59>] sys_sendto+0x119/0x160
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2728]/stack <===
-[<ffffffff810400b8>] do_wait+0x1f8/0x220
-[<ffffffff81040ea0>] sys_wait4+0x70/0xf0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2773]/stack <===
-[<ffffffff81077300>] futex_wait_queue_me+0xc0/0xf0
-[<ffffffff81077a9d>] futex_wait+0x17d/0x280
-[<ffffffff8107988c>] do_futex+0x11c/0xae0
-[<ffffffff8107a2d8>] sys_futex+0x88/0x180
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2774]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2775]/stack <===
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2776]/stack <===
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2777]/stack <===
-[<ffffffff8105d02c>] hrtimer_nanosleep+0x9c/0x150
-[<ffffffff8105d13e>] sys_nanosleep+0x5e/0x80
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-SysRq : Show Memory
-Mem-Info:
-DMA per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-CPU    1: hi:    0, btch:   1 usd:   0
-DMA32 per-cpu:
-CPU    0: hi:  186, btch:  31 usd:  72
-CPU    1: hi:  186, btch:  31 usd: 100
-active_anon:3130 inactive_anon:3283 isolated_anon:0
- active_file:4305 inactive_file:101390 isolated_file:0
- unevictable:0 dirty:103 writeback:0 unstable:0
- free:3675 slab_reclaimable:1453 slab_unreclaimable:5186
- mapped:2332 shmem:115 pagetables:754 bounce:0
- free_cma:0
-DMA free:2116kB min:84kB low:104kB high:124kB active_anon:0kB inactive_anon:16kB active_file:0kB inactive_file:13692kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15644kB managed:15900kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:4kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 488 488 488
-DMA32 free:12584kB min:2784kB low:3480kB high:4176kB active_anon:12520kB inactive_anon:13116kB active_file:17220kB inactive_file:391868kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:499960kB managed:491256kB mlocked:0kB dirty:420kB writeback:0kB mapped:9328kB shmem:460kB slab_reclaimable:5812kB slab_unreclaimable:20740kB kernel_stack:1336kB pagetables:3016kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0 0
-DMA: 4*4kB (UMR) 1*8kB (M) 1*16kB (M) 3*32kB (MR) 1*64kB (R) 1*128kB (R) 1*256kB (R) 1*512kB (R) 1*1024kB (R) 0*2048kB 0*4096kB = 2120kB
-DMA32: 411*4kB (UEM) 359*8kB (UEM) 207*16kB (UM) 84*32kB (UM) 25*64kB (UM) 4*128kB (M) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 12628kB
-105835 total pagecache pages
-0 pages in swap cache
-Swap cache stats: add 0, delete 0, find 0/0
-Free swap  = 392188kB
-Total swap = 392188kB
-131054 pages RAM
-3820 pages reserved
-276721 pages shared
-117464 pages non-shared
+On 01/04/2013 12:29 PM, Anton Vorontsov wrote:
+> This commit implements David Rientjes' idea of mempressure cgroup.
+> 
+> The main characteristics are the same to what I've tried to add to vmevent
+> API; internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
+> pressure index calculation. But we don't expose the index to the userland.
+> Instead, there are three levels of the pressure:
+> 
+>  o low (just reclaiming, e.g. caches are draining);
+>  o medium (allocation cost becomes high, e.g. swapping);
+>  o oom (about to oom very soon).
+> 
+> The rationale behind exposing levels and not the raw pressure index
+> described here: http://lkml.org/lkml/2012/11/16/675
+> 
+> For a task it is possible to be in both cpusets, memcg and mempressure
+> cgroups, so by rearranging the tasks it is possible to watch a specific
+> pressure (i.e. caused by cpuset and/or memcg).
+> 
+> Note that while this adds the cgroups support, the code is well separated
+> and eventually we might add a lightweight, non-cgroups API, i.e. vmevent.
+> But this is another story.
+Andrew already said he would like to see this exposed to non cgroup
+users, I'll just add to that: I'd like the interfaces to be consistent.
 
-2773 process stuck!
-===> /proc/vmstat <===
-nr_free_pages 1579
-nr_inactive_anon 3302
-nr_active_anon 3078
-nr_inactive_file 103991
-nr_active_file 4357
-nr_unevictable 0
-nr_mlock 0
-nr_anon_pages 6260
-nr_mapped 2319
-nr_file_pages 108478
-nr_dirty 648
-nr_writeback 0
-nr_slab_reclaimable 1603
-nr_slab_unreclaimable 5380
-nr_page_table_pages 748
-nr_kernel_stack 171
-nr_unstable 0
-nr_bounce 0
-nr_vmscan_write 0
-nr_vmscan_immediate_reclaim 0
-nr_writeback_temp 0
-nr_isolated_anon 0
-nr_isolated_file 0
-nr_shmem 115
-nr_dirtied 841467
-nr_written 15931
-nr_anon_transparent_hugepages 0
-nr_free_cma 0
-nr_dirty_threshold 22949
-nr_dirty_background_threshold 11474
-pgpgin 43832
-pgpgout 64464
-pswpin 0
-pswpout 0
-pgalloc_dma 105241
-pgalloc_dma32 12655633
-pgalloc_normal 0
-pgalloc_movable 0
-pgfree 12763390
-pgactivate 5358
-pgdeactivate 3607
-pgfault 1011343
-pgmajfault 302
-pgrefill_dma 407
-pgrefill_dma32 3200
-pgrefill_normal 0
-pgrefill_movable 0
-pgsteal_kswapd_dma 10785
-pgsteal_kswapd_dma32 612431
-pgsteal_kswapd_normal 0
-pgsteal_kswapd_movable 0
-pgsteal_direct_dma 2159
-pgsteal_direct_dma32 120797
-pgsteal_direct_normal 0
-pgsteal_direct_movable 0
-pgscan_kswapd_dma 10785
-pgscan_kswapd_dma32 613376
-pgscan_kswapd_normal 0
-pgscan_kswapd_movable 0
-pgscan_direct_dma 2159
-pgscan_direct_dma32 120866
-pgscan_direct_normal 0
-pgscan_direct_movable 0
-pgscan_direct_throttle 0
-pginodesteal 0
-slabs_scanned 3072
-kswapd_inodesteal 0
-kswapd_low_wmark_hit_quickly 1810
-kswapd_high_wmark_hit_quickly 13
-kswapd_skip_congestion_wait 0
-pageoutrun 9178
-allocstall 2157
-pgrotated 2
-pgmigrate_success 509
-pgmigrate_fail 0
-compact_migrate_scanned 818935
-compact_free_scanned 214217
-compact_isolated 27006
-compact_stall 1014
-compact_fail 674
-compact_success 340
-unevictable_pgs_culled 1064
-unevictable_pgs_scanned 0
-unevictable_pgs_rescued 1632
-unevictable_pgs_mlocked 1632
-unevictable_pgs_munlocked 1632
-unevictable_pgs_cleared 0
-unevictable_pgs_stranded 0
-thp_fault_alloc 0
-thp_fault_fallback 0
-thp_collapse_alloc 0
-thp_collapse_alloc_failed 0
-thp_split 0
-thp_zero_page_alloc 0
-thp_zero_page_alloc_failed 0
-===> 2724[2724]/stack <===
-[<ffffffff81077300>] futex_wait_queue_me+0xc0/0xf0
-[<ffffffff81077a9d>] futex_wait+0x17d/0x280
-[<ffffffff8107988c>] do_futex+0x11c/0xae0
-[<ffffffff8107a2d8>] sys_futex+0x88/0x180
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2725]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2726]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2727]/stack <===
-[<ffffffff81310078>] sk_stream_wait_memory+0x1b8/0x250
-[<ffffffff8134be87>] tcp_sendmsg+0x697/0xd80
-[<ffffffff81370cee>] inet_sendmsg+0x5e/0xa0
-[<ffffffff81300a77>] sock_sendmsg+0x87/0xa0
-[<ffffffff81303a59>] sys_sendto+0x119/0x160
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2724[2728]/stack <===
-[<ffffffff8105d02c>] hrtimer_nanosleep+0x9c/0x150
-[<ffffffff8105d13e>] sys_nanosleep+0x5e/0x80
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2773]/stack <===
-[<ffffffff81077300>] futex_wait_queue_me+0xc0/0xf0
-[<ffffffff81077a9d>] futex_wait+0x17d/0x280
-[<ffffffff8107988c>] do_futex+0x11c/0xae0
-[<ffffffff8107a2d8>] sys_futex+0x88/0x180
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2774]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2775]/stack <===
-[<ffffffff810f5904>] poll_schedule_timeout+0x44/0x60
-[<ffffffff810f6d54>] do_sys_poll+0x374/0x4b0
-[<ffffffff810f718e>] sys_ppoll+0x19e/0x1b0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2776]/stack <===
-[<ffffffff81310078>] sk_stream_wait_memory+0x1b8/0x250
-[<ffffffff8134be87>] tcp_sendmsg+0x697/0xd80
-[<ffffffff81370cee>] inet_sendmsg+0x5e/0xa0
-[<ffffffff81300a77>] sock_sendmsg+0x87/0xa0
-[<ffffffff81303a59>] sys_sendto+0x119/0x160
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-===> 2773[2777]/stack <===
-[<ffffffff810400b8>] do_wait+0x1f8/0x220
-[<ffffffff81040ea0>] sys_wait4+0x70/0xf0
-[<ffffffff813b06e9>] system_call_fastpath+0x16/0x1b
-[<ffffffffffffffff>] 0xffffffffffffffff
-<redundant "SysRq : Show Memory" from previous process omitted>
-SysRq : Show Memory
-Mem-Info:
-DMA per-cpu:
-CPU    0: hi:    0, btch:   1 usd:   0
-CPU    1: hi:    0, btch:   1 usd:   0
-DMA32 per-cpu:
-CPU    0: hi:  186, btch:  31 usd: 164
-CPU    1: hi:  186, btch:  31 usd: 117
-active_anon:3016 inactive_anon:3281 isolated_anon:0
- active_file:4357 inactive_file:104163 isolated_file:0
- unevictable:0 dirty:142 writeback:0 unstable:0
- free:1582 slab_reclaimable:1598 slab_unreclaimable:5380
- mapped:2316 shmem:115 pagetables:773 bounce:0
- free_cma:0
-DMA free:2332kB min:84kB low:104kB high:124kB active_anon:8kB inactive_anon:8kB active_file:0kB inactive_file:13476kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15644kB managed:15900kB mlocked:0kB dirty:12kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:12kB kernel_stack:0kB pagetables:8kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 488 488 488
-DMA32 free:3996kB min:2784kB low:3480kB high:4176kB active_anon:12056kB inactive_anon:13116kB active_file:17428kB inactive_file:403176kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:499960kB managed:491256kB mlocked:0kB dirty:556kB writeback:0kB mapped:9264kB shmem:460kB slab_reclaimable:6392kB slab_unreclaimable:21508kB kernel_stack:1360kB pagetables:3084kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
-lowmem_reserve[]: 0 0 0 0
-DMA: 19*4kB (UER) 20*8kB (U) 7*16kB (U) 2*32kB (R) 0*64kB 3*128kB (R) 0*256kB 1*512kB (R) 1*1024kB (R) 0*2048kB 0*4096kB = 2332kB
-DMA32: 151*4kB (UEM) 210*8kB (UE) 108*16kB (U) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4012kB
-108629 total pagecache pages
-0 pages in swap cache
-Swap cache stats: add 0, delete 0, find 0/0
-Free swap  = 392188kB
-Total swap = 392188kB
-131054 pages RAM
-3820 pages reserved
-275952 pages shared
-119896 pages non-shared
+We need to make sure that cgroups and non-cgroup users will act on this
+in the same way. So it is important that this is included in the
+proposition, so we can judge and avoid a future kludge.
+
+> diff --git a/Documentation/cgroups/mempressure.txt b/Documentation/cgroups/mempressure.txt
+> new file mode 100644
+> index 0000000..dbc0aca
+> --- /dev/null
+> +++ b/Documentation/cgroups/mempressure.txt
+> @@ -0,0 +1,50 @@
+> +  Memory pressure cgroup
+> +~~~~~~~~~~~~~~~~~~~~~~~~~~
+> +  Before using the mempressure cgroup, make sure you have it mounted:
+> +
+> +   # cd /sys/fs/cgroup/
+> +   # mkdir mempressure
+> +   # mount -t cgroup cgroup ./mempressure -o mempressure
+> +
+> +  It is possible to combine cgroups, for example you can mount memory
+> +  (memcg) and mempressure cgroups together:
+> +
+> +   # mount -t cgroup cgroup ./mempressure -o memory,mempressure
+> +
+
+Most of the time these days, the groups are mounted separately. The
+tasks, however, still belong to one or more controllers regardless of
+where they are mounted.
+
+Can you describe a bit better (not only in reply, but also update the
+docs) what happens when:
+
+1) both cpusets and memcg are present. Which one takes precedence? Will
+there be a way to differentiate which kind of pressure is being seen so
+I as a task can adjust my actions accordingly?
+
+2) the task belongs to memcg (or cpuset), but the controllers itself are
+mounted separately. Is it equivalent to mounted them jointly? Will this
+fact just be ignored by the pressure levels?
+
+I can guess the answer to some of them by the code, but I think it is
+quite important to have all this crystal clear.
+
+> +    ("low", "medium", "oom" are permitted.)
+> diff --git a/include/linux/cgroup_subsys.h b/include/linux/cgroup_subsys.h
+> index f204a7a..b9802e2 100644
+> --- a/include/linux/cgroup_subsys.h
+> +++ b/include/linux/cgroup_subsys.h
+> @@ -37,6 +37,12 @@ SUBSYS(mem_cgroup)
+>  
+>  /* */
+>  
+> +#if IS_SUBSYS_ENABLED(CONFIG_CGROUP_MEMPRESSURE)
+> +SUBSYS(mpc_cgroup)
+> +#endif
+
+It might be just me, but if one does not know what this is about, "mpc"
+immediately fetches something communication-related to mind. I would
+suggest changing this to just plain "mempressure_cgroup", or something
+more descriptive.
+
+> diff --git a/mm/mempressure.c b/mm/mempressure.c
+> new file mode 100644
+> index 0000000..ea312bb
+> --- /dev/null
+> +++ b/mm/mempressure.c
+> @@ -0,0 +1,330 @@
+> +/*
+> + * Linux VM pressure
+> + *
+> + * Copyright 2012 Linaro Ltd.
+> + *		  Anton Vorontsov <anton.vorontsov@linaro.org>
+> + *
+> + * Based on ideas from Andrew Morton, David Rientjes, KOSAKI Motohiro,
+> + * Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka Enberg.
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of the GNU General Public License version 2 as published
+> + * by the Free Software Foundation.
+> + */
+> +
+> +#include <linux/cgroup.h>
+> +#include <linux/fs.h>
+> +#include <linux/sched.h>
+> +#include <linux/mm.h>
+> +#include <linux/vmstat.h>
+> +#include <linux/eventfd.h>
+> +#include <linux/swap.h>
+> +#include <linux/printk.h>
+> +
+> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r);
+> +
+> +/*
+> + * Generic VM Pressure routines (no cgroups or any other API details)
+> + */
+> +
+> +/*
+> + * The window size is the number of scanned pages before we try to analyze
+> + * the scanned/reclaimed ratio (or difference).
+> + *
+> + * It is used as a rate-limit tunable for the "low" level notification,
+> + * and for averaging medium/oom levels. Using small window sizes can cause
+> + * lot of false positives, but too big window size will delay the
+> + * notifications.
+> + */
+> +static const uint vmpressure_win = SWAP_CLUSTER_MAX * 16;
+> +static const uint vmpressure_level_med = 60;
+> +static const uint vmpressure_level_oom = 99;
+> +static const uint vmpressure_level_oom_prio = 4;
+> +
+> +enum vmpressure_levels {
+> +	VMPRESSURE_LOW = 0,
+> +	VMPRESSURE_MEDIUM,
+> +	VMPRESSURE_OOM,
+> +	VMPRESSURE_NUM_LEVELS,
+> +};
+> +
+> +static const char *vmpressure_str_levels[] = {
+> +	[VMPRESSURE_LOW] = "low",
+> +	[VMPRESSURE_MEDIUM] = "medium",
+> +	[VMPRESSURE_OOM] = "oom",
+> +};
+> +
+> +static enum vmpressure_levels vmpressure_level(uint pressure)
+> +{
+> +	if (pressure >= vmpressure_level_oom)
+> +		return VMPRESSURE_OOM;
+> +	else if (pressure >= vmpressure_level_med)
+> +		return VMPRESSURE_MEDIUM;
+> +	return VMPRESSURE_LOW;
+> +}
+> +
+> +static ulong vmpressure_calc_level(uint win, uint s, uint r)
+> +{
+> +	ulong p;
+> +
+> +	if (!s)
+> +		return 0;
+> +
+> +	/*
+> +	 * We calculate the ratio (in percents) of how many pages were
+> +	 * scanned vs. reclaimed in a given time frame (window). Note that
+> +	 * time is in VM reclaimer's "ticks", i.e. number of pages
+> +	 * scanned. This makes it possible to set desired reaction time
+> +	 * and serves as a ratelimit.
+> +	 */
+> +	p = win - (r * win / s);
+> +	p = p * 100 / win;
+> +
+> +	pr_debug("%s: %3lu  (s: %6u  r: %6u)\n", __func__, p, s, r);
+> +
+> +	return vmpressure_level(p);
+> +}
+> +
+> +void vmpressure(struct mem_cgroup *memcg, ulong scanned, ulong reclaimed)
+> +{
+> +	if (!scanned)
+> +		return;
+> +	mpc_vmpressure(memcg, scanned, reclaimed);
+> +}
+> +
+> +void vmpressure_prio(struct mem_cgroup *memcg, int prio)
+> +{
+> +	if (prio > vmpressure_level_oom_prio)
+> +		return;
+> +
+> +	/* OK, the prio is below the threshold, send the pre-OOM event. */
+> +	vmpressure(memcg, vmpressure_win, 0);
+> +}
+> +
+> +/*
+> + * Memory pressure cgroup code
+> + */
+> +
+> +struct mpc_event {
+> +	struct eventfd_ctx *efd;
+> +	enum vmpressure_levels level;
+> +	struct list_head node;
+> +};
+> +
+> +struct mpc_state {
+> +	struct cgroup_subsys_state css;
+> +
+> +	uint scanned;
+> +	uint reclaimed;
+> +	struct mutex sr_lock;
+> +
+> +	struct list_head events;
+> +	struct mutex events_lock;
+> +
+> +	struct work_struct work;
+> +};
+> +
+> +static struct mpc_state *wk2mpc(struct work_struct *wk)
+> +{
+> +	return container_of(wk, struct mpc_state, work);
+> +}
+> +
+> +static struct mpc_state *css2mpc(struct cgroup_subsys_state *css)
+> +{
+> +	return container_of(css, struct mpc_state, css);
+> +}
+> +
+> +static struct mpc_state *tsk2mpc(struct task_struct *tsk)
+> +{
+> +	return css2mpc(task_subsys_state(tsk, mpc_cgroup_subsys_id));
+> +}
+> +
+> +static struct mpc_state *cg2mpc(struct cgroup *cg)
+> +{
+> +	return css2mpc(cgroup_subsys_state(cg, mpc_cgroup_subsys_id));
+> +}
+
+I think we would be better of with more descriptive names here as well.
+Other cgroups would use the convention of using _to_ and _from_ in names
+instead of 2.
+
+For instance, task_to_mempressure is a lot more descriptive than
+"tsk2mpc". There are no bonus points for manually compressing code.
+
+> +
+> +static void mpc_vmpressure(struct mem_cgroup *memcg, ulong s, ulong r)
+> +{
+> +	/*
+> +	 * There are two options for implementing cgroup pressure
+> +	 * notifications:
+> +	 *
+> +	 * - Store pressure counter atomically in the task struct. Upon
+> +	 *   hitting 'window' wake up a workqueue that will walk every
+> +	 *   task and sum per-thread pressure into cgroup pressure (to
+> +	 *   which the task belongs). The cons are obvious: bloats task
+> +	 *   struct, have to walk all processes and makes pressue less
+> +	 *   accurate (the window becomes per-thread);
+> +	 *
+> +	 * - Store pressure counters in per-cgroup state. This is easy and
+> +	 *   straightforward, and that's how we do things here. But this
+> +	 *   requires us to not put the vmpressure hooks into hotpath,
+> +	 *   since we have to grab some locks.
+> +	 */
+> +
+> +#ifdef CONFIG_MEMCG
+> +	if (memcg) {
+> +		struct cgroup_subsys_state *css = mem_cgroup_css(memcg);
+> +		struct cgroup *cg = css->cgroup;
+> +		struct mpc_state *mpc = cg2mpc(cg);
+> +
+> +		if (mpc)
+> +			__mpc_vmpressure(mpc, s, r);
+> +		return;
+> +	}
+> +#endif
+> +	task_lock(current);
+> +	__mpc_vmpressure(tsk2mpc(current), s, r);
+> +	task_unlock(current);
+> +}
+
+How about cpusets?
+
+I still see no significant mention of it, and I would like to understand
+how does it get into play in practice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
