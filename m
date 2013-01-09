@@ -1,93 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id BE0346B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 02:25:09 -0500 (EST)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E7DA53EE0B5
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:25:07 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id D06BB45DE54
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:25:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id AF09845DE50
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:25:07 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id A35191DB803B
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:25:07 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 4C83E1DB802F
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:25:07 +0900 (JST)
-Message-ID: <50ED1B32.2030007@jp.fujitsu.com>
-Date: Wed, 09 Jan 2013 16:24:34 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
+	by kanga.kvack.org (Postfix) with SMTP id E60B76B0070
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 02:28:42 -0500 (EST)
+Date: Wed, 9 Jan 2013 16:28:40 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
+Message-ID: <20130109072840.GB27890@blaptop>
+References: <20130107081237.GB21779@kernel.org>
+ <20130107120630.82ba51ad.akpm@linux-foundation.org>
+ <50eb8180.6887320a.3f90.58b0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20130108042609.GA2459@kernel.org>
+ <20130108053856.GA4714@blaptop>
+ <20130108073229.GA9018@kernel.org>
+ <20130108083853.GC4714@blaptop>
+ <20130108091324.GA7966@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com> <1356456367-14660-1-git-send-email-handai.szj@taobao.com> <20130102104421.GC22160@dhcp22.suse.cz> <CAFj3OHXKyMO3gwghiBAmbowvqko-JqLtKroX2kzin1rk=q9tZg@mail.gmail.com> <alpine.LNX.2.00.1301061135400.29149@eggly.anvils> <50EA7E07.4070902@jp.fujitsu.com> <alpine.LNX.2.00.1301082030100.5319@eggly.anvils>
-In-Reply-To: <alpine.LNX.2.00.1301082030100.5319@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130108091324.GA7966@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sha Zhengju <handai.szj@gmail.com>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com, Johannes Weiner <hannes@cmpxchg.org>, mtk.manpages@gmail.com
 
-(2013/01/09 14:15), Hugh Dickins wrote:
-> On Mon, 7 Jan 2013, Kamezawa Hiroyuki wrote:
->> (2013/01/07 5:02), Hugh Dickins wrote:
->>>
->>> Forgive me, I must confess I'm no more than skimming this thread,
->>> and don't like dumping unsigned-off patches on people; but thought
->>> that on balance it might be more helpful than not if I offer you a
->>> patch I worked on around 3.6-rc2 (but have updated to 3.8-rc2 below).
->>>
->>> I too was getting depressed by the constraints imposed by
->>> mem_cgroup_{begin,end}_update_page_stat (good job though Kamezawa-san
->>> did to minimize them), and wanted to replace by something freer, more
->>> RCU-like.  In the end it seemed more effort than it was worth to go
->>> as far as I wanted, but I do think that this is some improvement over
->>> what we currently have, and should deal with your recursion issue.
->>>
->> In what case does this improve performance ?
->
-> Perhaps none.  I was aiming to not degrade performance at the stats
-> update end, and make it more flexible, so new stats can be updated which
-> would be problematic today (for lock ordering and recursion reasons).
->
-> I've not done any performance measurement on it, and don't have enough
-> cpus for an interesting report; but if someone thinks it might solve a
-> problem for them, and has plenty of cpus to test with, please go ahead,
-> we'd be glad to hear the results.
->
->> Hi, this patch seems interesting but...doesn't this make move_account() very
->> slow if the number of cpus increases because of scanning all cpus per a page
->> ?
->> And this looks like reader-can-block-writer percpu rwlock..it's too heavy to
->> writers if there are many readers.
->
-> I was happy to make the relatively rare move_account end considerably
-> heavier.  I'll be disappointed if it turns out to be prohibitively
-> heavy at that end - if we're going to make move_account impossible,
-> there are much easier ways to achieve that! - but it is a possibility.
->
+On Tue, Jan 08, 2013 at 05:13:24PM +0800, Shaohua Li wrote:
+> On Tue, Jan 08, 2013 at 05:38:53PM +0900, Minchan Kim wrote:
+> > On Tue, Jan 08, 2013 at 03:32:29PM +0800, Shaohua Li wrote:
+> > > On Tue, Jan 08, 2013 at 02:38:56PM +0900, Minchan Kim wrote:
+> > > > Hi Shaohua,
+> > > > 
+> > > > On Tue, Jan 08, 2013 at 12:26:09PM +0800, Shaohua Li wrote:
+> > > > > On Tue, Jan 08, 2013 at 10:16:07AM +0800, Wanpeng Li wrote:
+> > > > > > On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
+> > > > > > >On Mon, 7 Jan 2013 16:12:37 +0800
+> > > > > > >Shaohua Li <shli@kernel.org> wrote:
+> > > > > > >
+> > > > > > >> 
+> > > > > > >> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
+> > > > > > >> this syscall can do swapin prefetch. It has no impact if the memory isn't
+> > > > > > >> swapout.
+> > > > > > >
+> > > > > > >Seems sensible.
+> > > > > > 
+> > > > > > Hi Andrew and Shaohua,
+> > > > > > 
+> > > > > > What's the performance in the scenario of serious memory pressure? Since
+> > > > > > in this case pages in swap are highly fragmented and cache hit is most
+> > > > > > impossible. If WILLNEED path should add a check to skip readahead in
+> > > > > > this case since swapin only leads to unnecessary memory allocation. 
+> > > > > 
+> > > > > pages in swap are not highly fragmented if you access memory sequentially. In
+> > > > > that case, the pages you accessed will be added to lru list side by side. So if
+> > > > > app does swap prefetch, we can do sequential disk access and merge small
+> > > > > request to big one.
+> > > > 
+> > > > How can you make sure that the range of WILLNEED was always sequentially accesssed?
+> > > 
+> > > you can't guarantee this even for file access.
+> > 
+> > Indeed.
+> > 
+> > > 
+> > > > > Another advantage is prefetch can drive high disk iodepth.  For sequential
+> > > > 
+> > > > What does it mean 'iodepth'? I failed to grep it in google. :(
+> > > 
+> > > io depth. How many requests are inflight at a givin time.
+> > 
+> > Thanks for the info!
+> > 
+> > > 
+> > > > > access, this can cause big request. Even for random access, high iodepth has
+> > > > > much better performance especially for SSD.
+> > > > 
+> > > > So you mean WILLNEED is always good in where both random and sequential in "SSD"?
+> > > > Then, how about the "Disk"?
+> > > 
+> > > Hmm, even for hard disk, high iodepth random access is faster than single
+> > > iodepth access. Today's disk is NCQ disk. But the speedup isn't that
+> > > significant like a SSD. For sequential access, both harddisk and SSD have
+> > > better performance with higher iodepth.
+> > > 
+> > > > Wanpeng's comment makes sense to me so I guess others can have a same question
+> > > > about this patch. So it would be better to write your rationale in changelog.
+> > > 
+> > > I would, but the question is just like why app wants to prefetch file pages. I
+> > > thought it's commonsense. The problem like memory allocation exists in file
+> > > prefetch too. The advantages (better IO access, CPU and disk can operate in
+> > > parallel and so on) apply for both file and swap prefetch.
+> > 
+> > Agreed. But I have a question about semantic of madvise(DONTNEED) of anon vma.
+> > If Linux start to support it for anon, user can misunderstand it following as.
+> > 
+> > User might think we start to use anonymous pages in that range soon so he
+> > gives the hint to kernel to map all pages of the range to page table in advance.
+> > (ie, pre page fault like MAP_POPULATE) and if one of the page might be
+> > swapped out, readahead it. What do you think about it?
+> > For clarification, it would be better to add man page description with Ccing
+> > man page maintainer.
+> 
+> there is no confusion if the page exists or swapped. I thought what you are are
+> thinking about is the page isn't populated yet. The manpage declaims WILLNEED
+> "it might be a good idea to read some pages ahead." This sounds clear this
+> isn't to populate memory and matches what we did. But I'm not sure what's the
+> precise description.
 
-move_account at task-move has been required feature for NEC and Nishimura-san
-did good job. I'd like to keep that available as much as possible.
+Anyway, you are adding new feature.
+For merging, we need a real practice scenario, gain and exact semantics for man
+pages. I don't know why current Linux man pages is very poor about WILLNEED.
+If it doesn't give enough information for user to expect system's behavior,
+anyone doesn't want to use it.
+POV perforance, Ccing Johannes because he tried similar long time ago so 
+he might have a comment.
 
-> Something you might have missed when considering many readers (stats
-> updaters): the move_account end does not wait for a moment when there
-> are no readers, that would indeed be a losing strategy; it just waits
-> for each cpu that's updating page stats to leave that section, so every
-> cpu is sure to notice and hold off if it then tries to update the page
-> which is to be moved.  (I may not be explaining that very well!)
->
+> 
+> Thanks,
+> Shaohua
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Hmm, yeah, maybe I miss somehing.
-
-BTW, if nesting, mem_cgroup_end_update_page_stat() seems to make counter minus.
-
-Thanks,
--Kame
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
