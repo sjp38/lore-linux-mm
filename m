@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 4D7C36B0062
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 03:09:31 -0500 (EST)
-Date: Wed, 9 Jan 2013 16:09:17 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: fadvise doesn't work well.
-Message-ID: <20130109080917.GA21056@localhost>
-References: <1357718721.6568.3.camel@kernel.cn.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1357718721.6568.3.camel@kernel.cn.ibm.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id 8D5376B0070
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 03:14:58 -0500 (EST)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] Fix build error due to bio_endio_batch
+Date: Wed,  9 Jan 2013 17:14:55 +0900
+Message-Id: <1357719296-10562-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, hughd@google.com, riel@redhat.com, Johannes Weiner <hannes@cmpxchg.org>, mtk.manpages@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Kent Overstreet <koverstreet@google.com>
 
-Hi Simon,
+This patch fixes build error of recent mmotm.
 
-Try run "sync" before doing fadvise, because fadvise won't drop
-dirty/writeback/mapped pages.
+Cc: Kent Overstreet <koverstreet@google.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+I don't know who already fix it.
 
-Thanks,
-Fengguang
+ include/linux/bio.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-On Wed, Jan 09, 2013 at 02:05:21AM -0600, Simon Jeons wrote:
-> In attanchment.
-
-> root@kernel:~/Documents/mm/tools/linux-ftools# dd if=../../../images/ubuntu-11.04-desktop-i386.iso of=/tmpfs
-> 1403484+0 records in
-> 1403484+0 records out
-> 718583808 bytes (719 MB) copied, 19.5054 s, 36.8 MB/s
-> root@kernel:~/Documents/mm/tools/linux-ftools# ./linux-fincore -s ../../../images/ubuntu-11.04-desktop-i386.iso 
-> filename                                                                                       size        total_pages    min_cached page       cached_pages        cached_size        cached_perc
-> --------                                                                                       ----        -----------    ---------------       ------------        -----------        -----------
-> ../../../images/ubuntu-11.04-desktop-i386.iso                                             718583808             175436                  0             175436          718585856             100.00
-> ---
-> total cached size: 718585856
-> root@kernel:~/Documents/mm/tools/linux-ftools# ./linux-fadvise ../../../images/ubuntu-11.04-desktop-i386.iso DONTNEED 0,718585856
-> Going to fadvise ../../../images/ubuntu-11.04-desktop-i386.iso as mode DONTNEED
-> offset: 0
-> length: 718583808
-> Invalid mode DONTNEED
-> root@kernel:~/Documents/mm/tools/linux-ftools# ./linux-fincore -s ../../../images/ubuntu-11.04-desktop-i386.iso 
-> filename                                                                                       size        total_pages    min_cached page       cached_pages        cached_size        cached_perc
-> --------                                                                                       ----        -----------    ---------------       ------------        -----------        -----------
-> ../../../images/ubuntu-11.04-desktop-i386.iso                                             718583808             175436                  0             175436          718585856             100.00
-> ---
-> total cached size: 718585856
-> 
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index ad62bdb..5f5491767 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -69,6 +69,8 @@
+ #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
+ #define bio_sectors(bio)	((bio)->bi_size >> 9)
+ 
++void bio_endio_batch(struct bio *bio, int error, struct batch_complete *batch);
++
+ static inline unsigned int bio_cur_bytes(struct bio *bio)
+ {
+ 	if (bio->bi_vcnt)
+@@ -542,8 +544,6 @@ static inline struct bio *bio_list_get(struct bio_list *bl)
+ 	return bio;
+ }
+ 
+-void bio_endio_batch(struct bio *bio, int error, struct batch_complete *batch);
+-
+ static inline void batch_complete_init(struct batch_complete *batch)
+ {
+ 	bio_list_init(&batch->bio);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
