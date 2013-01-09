@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id 4B8B16B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 13:25:45 -0500 (EST)
-Message-ID: <50EDB628.4030508@redhat.com>
-Date: Wed, 09 Jan 2013 13:25:44 -0500
+Received: from psmtp.com (na3sys010amx193.postini.com [74.125.245.193])
+	by kanga.kvack.org (Postfix) with SMTP id 078B46B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 13:29:46 -0500 (EST)
+Message-ID: <50EDB71B.4090201@redhat.com>
+Date: Wed, 09 Jan 2013 13:29:47 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] mm: use vm_unmapped_area() on frv architecture
-References: <1357694895-520-1-git-send-email-walken@google.com> <1357694895-520-4-git-send-email-walken@google.com>
-In-Reply-To: <1357694895-520-4-git-send-email-walken@google.com>
+Subject: Re: [PATCH 4/8] mm: use vm_unmapped_area() on ia64 architecture
+References: <1357694895-520-1-git-send-email-walken@google.com> <1357694895-520-5-git-send-email-walken@google.com>
+In-Reply-To: <1357694895-520-5-git-send-email-walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -17,7 +17,7 @@ To: Michel Lespinasse <walken@google.com>
 Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
 
 On 01/08/2013 08:28 PM, Michel Lespinasse wrote:
-> Update the frv arch_get_unmapped_area function to make use of
+> Update the ia64 arch_get_unmapped_area function to make use of
 > vm_unmapped_area() instead of implementing a brute force search.
 >
 > Signed-off-by: Michel Lespinasse <walken@google.com>
