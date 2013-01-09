@@ -1,50 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id D73A76B005D
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 21:14:10 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id rl6so707249pac.1
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 18:14:10 -0800 (PST)
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20130108232325.GA5948@dcvr.yhbt.net>
-References: <20121228014503.GA5017@dcvr.yhbt.net>
-	 <20130102200848.GA4500@dcvr.yhbt.net> <20130104160148.GB3885@suse.de>
-	 <20130106120700.GA24671@dcvr.yhbt.net> <20130107122516.GC3885@suse.de>
-	 <20130107223850.GA21311@dcvr.yhbt.net> <20130108224313.GA13304@suse.de>
-	 <20130108232325.GA5948@dcvr.yhbt.net>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id F24FF6B005D
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 21:15:54 -0500 (EST)
+Message-ID: <1357697739.4838.30.camel@pasglop>
+Subject: Re: [PATCH 7/8] mm: use vm_unmapped_area() on powerpc architecture
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Wed, 09 Jan 2013 13:15:39 +1100
+In-Reply-To: <1357694895-520-8-git-send-email-walken@google.com>
+References: <1357694895-520-1-git-send-email-walken@google.com>
+	 <1357694895-520-8-git-send-email-walken@google.com>
 Content-Type: text/plain; charset="UTF-8"
-Date: Tue, 08 Jan 2013 18:14:07 -0800
-Message-ID: <1357697647.18156.1217.camel@edumazet-glaptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michel Lespinasse <walken@google.com>
+Cc: Rik van Riel <riel@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
 
-On Tue, 2013-01-08 at 23:23 +0000, Eric Wong wrote:
-> Mel Gorman <mgorman@suse.de> wrote:
-> > Please try the following patch. However, even if it works the benefit of
-> > capture may be so marginal that partially reverting it and simplifying
-> > compaction.c is the better decision.
+On Tue, 2013-01-08 at 17:28 -0800, Michel Lespinasse wrote:
+> Update the powerpc slice_get_unmapped_area function to make use of
+> vm_unmapped_area() instead of implementing a brute force search.
 > 
-> I already got my VM stuck on this one.  I had two twosleepy instances,
-> 2774 was the one that got stuck (also confirmed by watching top).
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 > 
-> Btw, have you been able to reproduce this on your end?
-> 
-> I think the easiest reproduction on my 2-core VM is by running 2
-> twosleepy processes and doing the following to dirty a lot of pages:
+> ---
+>  arch/powerpc/mm/slice.c |  128 +++++++++++++++++++++++++++++-----------------
+>  1 files changed, 81 insertions(+), 47 deletions(-)
 
-Given the persistent sk_stream_wait_memory() traces I suspect a plain
-TCP bug, triggered by some extra wait somewhere.
+That doesn't look good ... the resulting code is longer than the
+original, which makes me wonder how it is an improvement...
 
-Please mm guys don't spend too much time right now, I'll try to
-reproduce the problem.
+Now it could just be a matter of how the code is factored, I see
+quite a bit of duplication of the whole slice mask test...
 
-Don't be confused by sk_stream_wait_memory() name.
-A thread is stuck here because TCP stack is failing to wake it.
+Cheers,
+Ben.
 
+> diff --git a/arch/powerpc/mm/slice.c b/arch/powerpc/mm/slice.c
+> index 999a74f25ebe..048346b7eed5 100644
+> --- a/arch/powerpc/mm/slice.c
+> +++ b/arch/powerpc/mm/slice.c
+> @@ -242,31 +242,51 @@ static unsigned long slice_find_area_bottomup(struct mm_struct *mm,
+>  					      struct slice_mask available,
+>  					      int psize)
+>  {
+> -	struct vm_area_struct *vma;
+> -	unsigned long addr;
+> -	struct slice_mask mask;
+>  	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
+> +	unsigned long addr, found, slice;
+> +	struct vm_unmapped_area_info info;
+>  
+> -	addr = TASK_UNMAPPED_BASE;
+> +	info.flags = 0;
+> +	info.length = len;
+> +	info.align_mask = PAGE_MASK & ((1ul << pshift) - 1);
+> +	info.align_offset = 0;
+>  
+> -	for (;;) {
+> -		addr = _ALIGN_UP(addr, 1ul << pshift);
+> -		if ((TASK_SIZE - len) < addr)
+> -			break;
+> -		vma = find_vma(mm, addr);
+> -		BUG_ON(vma && (addr >= vma->vm_end));
+> +	addr = TASK_UNMAPPED_BASE;
+> +	while (addr < TASK_SIZE) {
+> +		info.low_limit = addr;
+> +		if (addr < SLICE_LOW_TOP) {
+> +			slice = GET_LOW_SLICE_INDEX(addr);
+> +			addr = (slice + 1) << SLICE_LOW_SHIFT;
+> +			if (!(available.low_slices & (1u << slice)))
+> +				continue;
+> +		} else {
+> +			slice = GET_HIGH_SLICE_INDEX(addr);
+> +			addr = (slice + 1) << SLICE_HIGH_SHIFT;
+> +			if (!(available.high_slices & (1u << slice)))
+> +				continue;
+> +		}
+>  
+> -		mask = slice_range_to_mask(addr, len);
+> -		if (!slice_check_fit(mask, available)) {
+> -			if (addr < SLICE_LOW_TOP)
+> -				addr = _ALIGN_UP(addr + 1,  1ul << SLICE_LOW_SHIFT);
+> -			else
+> -				addr = _ALIGN_UP(addr + 1,  1ul << SLICE_HIGH_SHIFT);
+> -			continue;
+> + next_slice:
+> +		if (addr >= TASK_SIZE)
+> +			addr = TASK_SIZE;
+> +		else if (addr < SLICE_LOW_TOP) {
+> +			slice = GET_LOW_SLICE_INDEX(addr);
+> +			if (available.low_slices & (1u << slice)) {
+> +				addr = (slice + 1) << SLICE_LOW_SHIFT;
+> +				goto next_slice;
+> +			}
+> +		} else {
+> +			slice = GET_HIGH_SLICE_INDEX(addr);
+> +			if (available.high_slices & (1u << slice)) {
+> +				addr = (slice + 1) << SLICE_HIGH_SHIFT;
+> +				goto next_slice;
+> +			}
+>  		}
+> -		if (!vma || addr + len <= vma->vm_start)
+> -			return addr;
+> -		addr = vma->vm_end;
+> +		info.high_limit = addr;
+> +
+> +		found = vm_unmapped_area(&info);
+> +		if (!(found & ~PAGE_MASK))
+> +			return found;
+>  	}
+>  
+>  	return -ENOMEM;
+> @@ -277,39 +297,53 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
+>  					     struct slice_mask available,
+>  					     int psize)
+>  {
+> -	struct vm_area_struct *vma;
+> -	unsigned long addr;
+> -	struct slice_mask mask;
+>  	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
+> +	unsigned long addr, found, slice;
+> +	struct vm_unmapped_area_info info;
+>  
+> -	addr = mm->mmap_base;
+> -	while (addr > len) {
+> -		/* Go down by chunk size */
+> -		addr = _ALIGN_DOWN(addr - len, 1ul << pshift);
+> +	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+> +	info.length = len;
+> +	info.align_mask = PAGE_MASK & ((1ul << pshift) - 1);
+> +	info.align_offset = 0;
+>  
+> -		/* Check for hit with different page size */
+> -		mask = slice_range_to_mask(addr, len);
+> -		if (!slice_check_fit(mask, available)) {
+> -			if (addr < SLICE_LOW_TOP)
+> -				addr = _ALIGN_DOWN(addr, 1ul << SLICE_LOW_SHIFT);
+> -			else if (addr < (1ul << SLICE_HIGH_SHIFT))
+> -				addr = SLICE_LOW_TOP;
+> -			else
+> -				addr = _ALIGN_DOWN(addr, 1ul << SLICE_HIGH_SHIFT);
+> -			continue;
+> +	addr = mm->mmap_base;
+> +	while (addr > PAGE_SIZE) {
+> +		info.high_limit = addr;
+> +                if (addr < SLICE_LOW_TOP) {
+> +			slice = GET_LOW_SLICE_INDEX(addr - 1);
+> +			addr = slice << SLICE_LOW_SHIFT;
+> +			if (!(available.low_slices & (1u << slice)))
+> +				continue;
+> +		} else {
+> +			slice = GET_HIGH_SLICE_INDEX(addr - 1);
+> +			addr = slice ? (slice << SLICE_HIGH_SHIFT) :
+> +								SLICE_LOW_TOP;
+> +			if (!(available.high_slices & (1u << slice)))
+> +				continue;
+>  		}
+>  
+> -		/*
+> -		 * Lookup failure means no vma is above this address,
+> -		 * else if new region fits below vma->vm_start,
+> -		 * return with success:
+> -		 */
+> -		vma = find_vma(mm, addr);
+> -		if (!vma || (addr + len) <= vma->vm_start)
+> -			return addr;
+> + next_slice:
+> +		if (addr < PAGE_SIZE)
+> +			addr = PAGE_SIZE;
+> +		else if (addr < SLICE_LOW_TOP) {
+> +			slice = GET_LOW_SLICE_INDEX(addr - 1);
+> +			if (available.low_slices & (1u << slice)) {
+> +				addr = slice << SLICE_LOW_SHIFT;
+> +				goto next_slice;
+> +			}
+> +		} else {
+> +			slice = GET_HIGH_SLICE_INDEX(addr - 1);
+> +			if (available.high_slices & (1u << slice)) {
+> +				addr = slice ? (slice << SLICE_HIGH_SHIFT) :
+> +								SLICE_LOW_TOP;
+> +				goto next_slice;
+> +			}
+> +		}
+> +		info.low_limit = addr;
+>  
+> -		/* try just below the current vma->vm_start */
+> -		addr = vma->vm_start;
+> +		found = vm_unmapped_area(&info);
+> +		if (!(found & ~PAGE_MASK))
+> +			return found;
+>  	}
+>  
+>  	/*
 
 
 --
