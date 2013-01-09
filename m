@@ -1,62 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 3AD9D6B005D
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 15:39:53 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so1263583pad.39
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 12:39:52 -0800 (PST)
-Date: Wed, 9 Jan 2013 12:39:45 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/2] Add mempressure cgroup
-Message-ID: <20130109203945.GB20454@htj.dyndns.org>
-References: <20130104082751.GA22227@lizard.gateway.2wire.net>
- <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
- <20130109203731.GA20454@htj.dyndns.org>
+	by kanga.kvack.org (Postfix) with SMTP id A6F0D6B006C
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 15:57:10 -0500 (EST)
+Message-ID: <50EDD9A5.8060404@redhat.com>
+Date: Wed, 09 Jan 2013 15:57:09 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130109203731.GA20454@htj.dyndns.org>
+Subject: Re: [PATCH 6/8] mm: remove free_area_cache use in powerpc architecture
+References: <1357694895-520-1-git-send-email-walken@google.com> <1357694895-520-7-git-send-email-walken@google.com>
+In-Reply-To: <1357694895-520-7-git-send-email-walken@google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Michel Lespinasse <walken@google.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
 
-On Wed, Jan 09, 2013 at 12:37:31PM -0800, Tejun Heo wrote:
-> Hello,
-> 
-> Can you please cc me too when posting further patches?  I kinda missed
-> the whole discussion upto this point.
-> 
-> On Fri, Jan 04, 2013 at 12:29:11AM -0800, Anton Vorontsov wrote:
-> > This commit implements David Rientjes' idea of mempressure cgroup.
-> > 
-> > The main characteristics are the same to what I've tried to add to vmevent
-> > API; internally, it uses Mel Gorman's idea of scanned/reclaimed ratio for
-> > pressure index calculation. But we don't expose the index to the userland.
-> > Instead, there are three levels of the pressure:
-> > 
-> >  o low (just reclaiming, e.g. caches are draining);
-> >  o medium (allocation cost becomes high, e.g. swapping);
-> >  o oom (about to oom very soon).
-> > 
-> > The rationale behind exposing levels and not the raw pressure index
-> > described here: http://lkml.org/lkml/2012/11/16/675
-> > 
-> > For a task it is possible to be in both cpusets, memcg and mempressure
-> > cgroups, so by rearranging the tasks it is possible to watch a specific
-> > pressure (i.e. caused by cpuset and/or memcg).
-> 
-> So, cgroup is headed towards single hierarchy.  Dunno how much it
-> would affect mempressure but it probably isn't wise to design with
-> focus on multiple hierarchies.
+On 01/08/2013 08:28 PM, Michel Lespinasse wrote:
+> As all other architectures have been converted to use vm_unmapped_area(),
+> we are about to retire the free_area_cache.
+>
+> This change simply removes the use of that cache in
+> slice_get_unmapped_area(), which will most certainly have a
+> performance cost. Next one will convert that function to use the
+> vm_unmapped_area() infrastructure and regain the performance.
+>
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-Also, how are you implementing hierarchical behavior?  All controllers
-should support hierarchy.  Can you please explain how the interface
-would work in detail?
-
-Thanks.
-
--- 
-tejun
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
