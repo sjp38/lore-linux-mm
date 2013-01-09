@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 10CE46B0062
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:32 -0500 (EST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id B15226B0070
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:33 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 07/15] memory-hotplug: move pgdat_resize_lock into sparse_remove_one_section()
-Date: Wed, 9 Jan 2013 17:32:31 +0800
-Message-Id: <1357723959-5416-8-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v6 04/15] memory-hotplug: remove /sys/firmware/memmap/X sysfs
+Date: Wed, 9 Jan 2013 17:32:28 +0800
+Message-Id: <1357723959-5416-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,111 +13,228 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-In __remove_section(), we locked pgdat_resize_lock when calling
-sparse_remove_one_section(). This lock will disable irq. But we don't need
-to lock the whole function. If we do some work to free pagetables in
-free_section_usemap(), we need to call flush_tlb_all(), which need
-irq enabled. Otherwise the WARN_ON_ONCE() in smp_call_function_many()
-will be triggered.
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-If we lock the whole sparse_remove_one_section(), then we come to this call trace:
+When (hot)adding memory into system, /sys/firmware/memmap/X/{end, start, type}
+sysfs files are created. But there is no code to remove these files. The patch
+implements the function to remove them.
 
-[  454.796248] ------------[ cut here ]------------
-[  454.851408] WARNING: at kernel/smp.c:461 smp_call_function_many+0xbd/0x260()
-[  454.935620] Hardware name: PRIMEQUEST 1800E
-......
-[  455.652201] Call Trace:
-[  455.681391]  [<ffffffff8106e73f>] warn_slowpath_common+0x7f/0xc0
-[  455.753151]  [<ffffffff810560a0>] ? leave_mm+0x50/0x50
-[  455.814527]  [<ffffffff8106e79a>] warn_slowpath_null+0x1a/0x20
-[  455.884208]  [<ffffffff810e7a9d>] smp_call_function_many+0xbd/0x260
-[  455.959082]  [<ffffffff810e7ecb>] smp_call_function+0x3b/0x50
-[  456.027722]  [<ffffffff810560a0>] ? leave_mm+0x50/0x50
-[  456.089098]  [<ffffffff810e7f4b>] on_each_cpu+0x3b/0xc0
-[  456.151512]  [<ffffffff81055f0c>] flush_tlb_all+0x1c/0x20
-[  456.216004]  [<ffffffff8104f8de>] remove_pagetable+0x14e/0x1d0
-[  456.285683]  [<ffffffff8104f978>] vmemmap_free+0x18/0x20
-[  456.349139]  [<ffffffff811b8797>] sparse_remove_one_section+0xf7/0x100
-[  456.427126]  [<ffffffff811c5fc2>] __remove_section+0xa2/0xb0
-[  456.494726]  [<ffffffff811c6070>] __remove_pages+0xa0/0xd0
-[  456.560258]  [<ffffffff81669c7b>] arch_remove_memory+0x6b/0xc0
-[  456.629937]  [<ffffffff8166ad28>] remove_memory+0xb8/0xf0
-[  456.694431]  [<ffffffff813e686f>] acpi_memory_device_remove+0x53/0x96
-[  456.771379]  [<ffffffff813b33c4>] acpi_device_remove+0x90/0xb2
-[  456.841059]  [<ffffffff8144b02c>] __device_release_driver+0x7c/0xf0
-[  456.915928]  [<ffffffff8144b1af>] device_release_driver+0x2f/0x50
-[  456.988719]  [<ffffffff813b4476>] acpi_bus_remove+0x32/0x6d
-[  457.055285]  [<ffffffff813b4542>] acpi_bus_trim+0x91/0x102
-[  457.120814]  [<ffffffff813b463b>] acpi_bus_hot_remove_device+0x88/0x16b
-[  457.199840]  [<ffffffff813afda7>] acpi_os_execute_deferred+0x27/0x34
-[  457.275756]  [<ffffffff81091ece>] process_one_work+0x20e/0x5c0
-[  457.345434]  [<ffffffff81091e5f>] ? process_one_work+0x19f/0x5c0
-[  457.417190]  [<ffffffff813afd80>] ? acpi_os_wait_events_complete+0x23/0x23
-[  457.499332]  [<ffffffff81093f6e>] worker_thread+0x12e/0x370
-[  457.565896]  [<ffffffff81093e40>] ? manage_workers+0x180/0x180
-[  457.635574]  [<ffffffff8109a09e>] kthread+0xee/0x100
-[  457.694871]  [<ffffffff810dfaf9>] ? __lock_release+0x129/0x190
-[  457.764552]  [<ffffffff81099fb0>] ? __init_kthread_worker+0x70/0x70
-[  457.839427]  [<ffffffff81690aac>] ret_from_fork+0x7c/0xb0
-[  457.903914]  [<ffffffff81099fb0>] ? __init_kthread_worker+0x70/0x70
-[  457.978784] ---[ end trace 25e85300f542aa01 ]---
+Note: The code does not free firmware_map_entry which is allocated by bootmem.
+      So the patch makes memory leak. But I think the memory leak size is
+      very samll. And it does not affect the system.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c |    4 ----
- mm/sparse.c         |    5 ++++-
- 2 files changed, 4 insertions(+), 5 deletions(-)
+ drivers/firmware/memmap.c    |   96 +++++++++++++++++++++++++++++++++++++++++-
+ include/linux/firmware-map.h |    6 +++
+ mm/memory_hotplug.c          |    5 ++-
+ 3 files changed, 104 insertions(+), 3 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 0682d2a..674e791 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -442,8 +442,6 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
- #else
- static int __remove_section(struct zone *zone, struct mem_section *ms)
- {
--	unsigned long flags;
--	struct pglist_data *pgdat = zone->zone_pgdat;
- 	int ret = -EINVAL;
+diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
+index 90723e6..4211da5 100644
+--- a/drivers/firmware/memmap.c
++++ b/drivers/firmware/memmap.c
+@@ -21,6 +21,7 @@
+ #include <linux/types.h>
+ #include <linux/bootmem.h>
+ #include <linux/slab.h>
++#include <linux/mm.h>
  
- 	if (!valid_section(ms))
-@@ -453,9 +451,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
- 	if (ret)
- 		return ret;
+ /*
+  * Data types ------------------------------------------------------------------
+@@ -79,7 +80,26 @@ static const struct sysfs_ops memmap_attr_ops = {
+ 	.show = memmap_attr_show,
+ };
  
--	pgdat_resize_lock(pgdat, &flags);
- 	sparse_remove_one_section(zone, ms);
--	pgdat_resize_unlock(pgdat, &flags);
++
++static inline struct firmware_map_entry *
++to_memmap_entry(struct kobject *kobj)
++{
++	return container_of(kobj, struct firmware_map_entry, kobj);
++}
++
++static void release_firmware_map_entry(struct kobject *kobj)
++{
++	struct firmware_map_entry *entry = to_memmap_entry(kobj);
++
++	if (PageReserved(virt_to_page(entry)))
++		/* There is no way to free memory allocated from bootmem */
++		return;
++
++	kfree(entry);
++}
++
+ static struct kobj_type memmap_ktype = {
++	.release	= release_firmware_map_entry,
+ 	.sysfs_ops	= &memmap_attr_ops,
+ 	.default_attrs	= def_attrs,
+ };
+@@ -94,6 +114,7 @@ static struct kobj_type memmap_ktype = {
+  * in firmware initialisation code in one single thread of execution.
+  */
+ static LIST_HEAD(map_entries);
++static DEFINE_SPINLOCK(map_entries_lock);
+ 
+ /**
+  * firmware_map_add_entry() - Does the real work to add a firmware memmap entry.
+@@ -118,11 +139,25 @@ static int firmware_map_add_entry(u64 start, u64 end,
+ 	INIT_LIST_HEAD(&entry->list);
+ 	kobject_init(&entry->kobj, &memmap_ktype);
+ 
++	spin_lock(&map_entries_lock);
+ 	list_add_tail(&entry->list, &map_entries);
++	spin_unlock(&map_entries_lock);
+ 
  	return 0;
  }
- #endif
-diff --git a/mm/sparse.c b/mm/sparse.c
-index aadbb2a..05ca73a 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -796,8 +796,10 @@ static inline void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
- void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+ 
++/**
++ * firmware_map_remove_entry() - Does the real work to remove a firmware
++ * memmap entry.
++ * @entry: removed entry.
++ **/
++static inline void firmware_map_remove_entry(struct firmware_map_entry *entry)
++{
++	spin_lock(&map_entries_lock);
++	list_del(&entry->list);
++	spin_unlock(&map_entries_lock);
++}
++
+ /*
+  * Add memmap entry on sysfs
+  */
+@@ -144,6 +179,35 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
+ 	return 0;
+ }
+ 
++/*
++ * Remove memmap entry on sysfs
++ */
++static inline void remove_sysfs_fw_map_entry(struct firmware_map_entry *entry)
++{
++	kobject_put(&entry->kobj);
++}
++
++/*
++ * Search memmap entry
++ */
++
++static struct firmware_map_entry * __meminit
++firmware_map_find_entry(u64 start, u64 end, const char *type)
++{
++	struct firmware_map_entry *entry;
++
++	spin_lock(&map_entries_lock);
++	list_for_each_entry(entry, &map_entries, list)
++		if ((entry->start == start) && (entry->end == end) &&
++		    (!strcmp(entry->type, type))) {
++			spin_unlock(&map_entries_lock);
++			return entry;
++		}
++
++	spin_unlock(&map_entries_lock);
++	return NULL;
++}
++
+ /**
+  * firmware_map_add_hotplug() - Adds a firmware mapping entry when we do
+  * memory hotplug.
+@@ -196,6 +260,32 @@ int __init firmware_map_add_early(u64 start, u64 end, const char *type)
+ 	return firmware_map_add_entry(start, end, type, entry);
+ }
+ 
++/**
++ * firmware_map_remove() - remove a firmware mapping entry
++ * @start: Start of the memory range.
++ * @end:   End of the memory range.
++ * @type:  Type of the memory range.
++ *
++ * removes a firmware mapping entry.
++ *
++ * Returns 0 on success, or -EINVAL if no entry.
++ **/
++int __meminit firmware_map_remove(u64 start, u64 end, const char *type)
++{
++	struct firmware_map_entry *entry;
++
++	entry = firmware_map_find_entry(start, end - 1, type);
++	if (!entry)
++		return -EINVAL;
++
++	firmware_map_remove_entry(entry);
++
++	/* remove the memmap entry */
++	remove_sysfs_fw_map_entry(entry);
++
++	return 0;
++}
++
+ /*
+  * Sysfs functions -------------------------------------------------------------
+  */
+@@ -217,8 +307,10 @@ static ssize_t type_show(struct firmware_map_entry *entry, char *buf)
+ 	return snprintf(buf, PAGE_SIZE, "%s\n", entry->type);
+ }
+ 
+-#define to_memmap_attr(_attr) container_of(_attr, struct memmap_attribute, attr)
+-#define to_memmap_entry(obj) container_of(obj, struct firmware_map_entry, kobj)
++static inline struct memmap_attribute *to_memmap_attr(struct attribute *attr)
++{
++	return container_of(attr, struct memmap_attribute, attr);
++}
+ 
+ static ssize_t memmap_attr_show(struct kobject *kobj,
+ 				struct attribute *attr, char *buf)
+diff --git a/include/linux/firmware-map.h b/include/linux/firmware-map.h
+index 43fe52f..71d4fa7 100644
+--- a/include/linux/firmware-map.h
++++ b/include/linux/firmware-map.h
+@@ -25,6 +25,7 @@
+ 
+ int firmware_map_add_early(u64 start, u64 end, const char *type);
+ int firmware_map_add_hotplug(u64 start, u64 end, const char *type);
++int firmware_map_remove(u64 start, u64 end, const char *type);
+ 
+ #else /* CONFIG_FIRMWARE_MEMMAP */
+ 
+@@ -38,6 +39,11 @@ static inline int firmware_map_add_hotplug(u64 start, u64 end, const char *type)
+ 	return 0;
+ }
+ 
++static inline int firmware_map_remove(u64 start, u64 end, const char *type)
++{
++	return 0;
++}
++
+ #endif /* CONFIG_FIRMWARE_MEMMAP */
+ 
+ #endif /* _LINUX_FIRMWARE_MAP_H */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 69d62eb..9fd5904 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1461,7 +1461,7 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+ 	return ret;
+ }
+ 
+-int remove_memory(u64 start, u64 size)
++int __ref remove_memory(u64 start, u64 size)
  {
- 	struct page *memmap = NULL;
--	unsigned long *usemap = NULL;
-+	unsigned long *usemap = NULL, flags;
-+	struct pglist_data *pgdat = zone->zone_pgdat;
- 
-+	pgdat_resize_lock(pgdat, &flags);
- 	if (ms->section_mem_map) {
- 		usemap = ms->pageblock_flags;
- 		memmap = sparse_decode_mem_map(ms->section_mem_map,
-@@ -805,6 +807,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
- 		ms->section_mem_map = 0;
- 		ms->pageblock_flags = NULL;
+ 	unsigned long start_pfn, end_pfn;
+ 	int ret = 0;
+@@ -1511,6 +1511,9 @@ repeat:
+ 		return ret;
  	}
-+	pgdat_resize_unlock(pgdat, &flags);
  
- 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
- 	free_section_usemap(memmap, usemap);
++	/* remove memmap entry */
++	firmware_map_remove(start, start + size, "System RAM");
++
+ 	unlock_memory_hotplug();
+ 
+ 	return 0;
 -- 
 1.7.1
 
