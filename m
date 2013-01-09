@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 0B27B6B0082
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:39 -0500 (EST)
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 53D936B0085
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:40 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 09/15] memory-hotplug: remove page table of x86_64 architecture
-Date: Wed, 9 Jan 2013 17:32:33 +0800
-Message-Id: <1357723959-5416-10-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v6 13/15] memory-hotplug: remove sysfs file of node
+Date: Wed, 9 Jan 2013 17:32:37 +0800
+Message-Id: <1357723959-5416-14-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,45 +13,150 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-This patch searches a page table about the removed memory, and clear
-page table for x86_64 architecture.
+This patch introduces a new function try_offline_node() to
+remove sysfs file of node when all memory sections of this
+node are removed. If some memory sections of this node are
+not removed, this function does nothing.
 
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- arch/x86/mm/init_64.c |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
+ drivers/acpi/acpi_memhotplug.c |    8 ++++-
+ include/linux/memory_hotplug.h |    2 +-
+ mm/memory_hotplug.c            |   58 ++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 63 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index fe01116..d950f9b 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -981,6 +981,15 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
- 	flush_tlb_all();
+diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+index eb30e5a..9c53cc6 100644
+--- a/drivers/acpi/acpi_memhotplug.c
++++ b/drivers/acpi/acpi_memhotplug.c
+@@ -295,9 +295,11 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+ 
+ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+ {
+-	int result = 0;
++	int result = 0, nid;
+ 	struct acpi_memory_info *info, *n;
+ 
++	nid = acpi_get_node(mem_device->device->handle);
++
+ 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
+ 		if (info->failed)
+ 			/* The kernel does not use this memory block */
+@@ -310,7 +312,9 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+ 			 */
+ 			return -EBUSY;
+ 
+-		result = remove_memory(info->start_addr, info->length);
++		if (nid < 0)
++			nid = memory_add_physaddr_to_nid(info->start_addr);
++		result = remove_memory(nid, info->start_addr, info->length);
+ 		if (result)
+ 			return result;
+ 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 2441f36..f60e728 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -242,7 +242,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern int offline_memory_block(struct memory_block *mem);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+-extern int remove_memory(u64 start, u64 size);
++extern int remove_memory(int nid, u64 start, u64 size);
+ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+ 								int nr_pages);
+ extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index da20c14..a8703f7 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -29,6 +29,7 @@
+ #include <linux/suspend.h>
+ #include <linux/mm_inline.h>
+ #include <linux/firmware-map.h>
++#include <linux/stop_machine.h>
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -1678,7 +1679,58 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
+ 	return ret;
  }
  
-+void __meminit
-+kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+-int __ref remove_memory(u64 start, u64 size)
++static int check_cpu_on_node(void *data)
 +{
-+	start = (unsigned long)__va(start);
-+	end = (unsigned long)__va(end);
++	struct pglist_data *pgdat = data;
++	int cpu;
 +
-+	remove_pagetable(start, end, true);
++	for_each_present_cpu(cpu) {
++		if (cpu_to_node(cpu) == pgdat->node_id)
++			/*
++			 * the cpu on this node isn't removed, and we can't
++			 * offline this node.
++			 */
++			return -EBUSY;
++	}
++
++	return 0;
 +}
 +
- #ifdef CONFIG_MEMORY_HOTREMOVE
- int __ref arch_remove_memory(u64 start, u64 size)
++/* offline the node if all memory sections of this node are removed */
++static void try_offline_node(int nid)
++{
++	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
++	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
++	unsigned long pfn;
++
++	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
++		unsigned long section_nr = pfn_to_section_nr(pfn);
++
++		if (!present_section_nr(section_nr))
++			continue;
++
++		if (pfn_to_nid(pfn) != nid)
++			continue;
++
++		/*
++		 * some memory sections of this node are not removed, and we
++		 * can't offline node now.
++		 */
++		return;
++	}
++
++	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
++		return;
++
++	/*
++	 * all memory/cpu of this node are removed, we can offline this
++	 * node now.
++	 */
++	node_set_offline(nid);
++	unregister_one_node(nid);
++}
++
++int __ref remove_memory(int nid, u64 start, u64 size)
  {
-@@ -990,6 +999,7 @@ int __ref arch_remove_memory(u64 start, u64 size)
- 	int ret;
+ 	unsigned long start_pfn, end_pfn;
+ 	int ret = 0;
+@@ -1733,6 +1785,8 @@ repeat:
  
- 	zone = page_zone(pfn_to_page(start_pfn));
-+	kernel_physical_mapping_remove(start, start + size);
- 	ret = __remove_pages(zone, start_pfn, nr_pages);
- 	WARN_ON_ONCE(ret);
+ 	arch_remove_memory(start, size);
  
++	try_offline_node(nid);
++
+ 	unlock_memory_hotplug();
+ 
+ 	return 0;
+@@ -1742,7 +1796,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+ {
+ 	return -EINVAL;
+ }
+-int remove_memory(u64 start, u64 size)
++int remove_memory(int nid, u64 start, u64 size)
+ {
+ 	return -EINVAL;
+ }
 -- 
 1.7.1
 
