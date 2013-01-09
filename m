@@ -1,58 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 91C036B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 12:48:03 -0500 (EST)
-Message-ID: <50EDAD51.4010803@codeaurora.org>
-Date: Wed, 09 Jan 2013 09:48:01 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 4B8B16B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 13:25:45 -0500 (EST)
+Message-ID: <50EDB628.4030508@redhat.com>
+Date: Wed, 09 Jan 2013 13:25:44 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RESEND][PATCH v3] mm: Use aligned zone start for pfn_to_bitidx
- calculation
-References: <1357414111-20736-1-git-send-email-lauraa@codeaurora.org> <20130107143128.face9220.akpm@linux-foundation.org>
-In-Reply-To: <20130107143128.face9220.akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/8] mm: use vm_unmapped_area() on frv architecture
+References: <1357694895-520-1-git-send-email-walken@google.com> <1357694895-520-4-git-send-email-walken@google.com>
+In-Reply-To: <1357694895-520-4-git-send-email-walken@google.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org
+To: Michel Lespinasse <walken@google.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
 
-On 1/7/2013 2:31 PM, Andrew Morton wrote:
-> On Sat,  5 Jan 2013 11:28:31 -0800
-> Laura Abbott <lauraa@codeaurora.org> wrote:
+On 01/08/2013 08:28 PM, Michel Lespinasse wrote:
+> Update the frv arch_get_unmapped_area function to make use of
+> vm_unmapped_area() instead of implementing a brute force search.
 >
->> The current calculation in pfn_to_bitidx assumes that
->> (pfn - zone->zone_start_pfn) >> pageblock_order will return the
->> same bit for all pfn in a pageblock. If zone_start_pfn is not
->> aligned to pageblock_nr_pages, this may not always be correct.
->>
->> Consider the following with pageblock order = 10, zone start 2MB:
->>
->> pfn     | pfn - zone start | (pfn - zone start) >> page block order
->> ----------------------------------------------------------------
->> 0x26000 | 0x25e00	   |  0x97
->> 0x26100 | 0x25f00	   |  0x97
->> 0x26200 | 0x26000	   |  0x98
->> 0x26300 | 0x26100	   |  0x98
->>
->> This means that calling {get,set}_pageblock_migratetype on a single
->> page will not set the migratetype for the full block. Fix this by
->> rounding down zone_start_pfn when doing the bitidx calculation.
->
-> What are the user-visible effects of this bug?
->
+> Signed-off-by: Michel Lespinasse <walken@google.com>
 
-For our use case, the effects were mostly tied to the fact that CMA 
-allocations would either take a long time or fail to happen on on. 
-Depending on the driver using CMA, this could result in anything from 
-visual glitches to application failures.
-
-I'm not sure about effect outside of CMA.
-
-Laura
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
