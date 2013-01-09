@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 59D4F6B0074
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:35 -0500 (EST)
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 656466B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:36 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 03/15] memory-hotplug: remove redundant codes
-Date: Wed, 9 Jan 2013 17:32:27 +0800
-Message-Id: <1357723959-5416-4-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v6 05/15] memory-hotplug: introduce new function arch_remove_memory() for removing page table depends on architecture
+Date: Wed, 9 Jan 2013 17:32:29 +0800
+Message-Id: <1357723959-5416-6-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -15,183 +15,216 @@ Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-d
 
 From: Wen Congyang <wency@cn.fujitsu.com>
 
-offlining memory blocks and checking whether memory blocks are offlined
-are very similar. This patch introduces a new function to remove
-redundant codes.
+For removing memory, we need to remove page table. But it depends
+on architecture. So the patch introduce arch_remove_memory() for
+removing page table. Now it only calls __remove_pages().
+
+Note: __remove_pages() for some archtecuture is not implemented
+      (I don't know how to implement it for s390).
 
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Reviewed-by: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 ---
- mm/memory_hotplug.c |  129 ++++++++++++++++++++++++++++++++------------------
- 1 files changed, 82 insertions(+), 47 deletions(-)
+ arch/ia64/mm/init.c            |   18 ++++++++++++++++++
+ arch/powerpc/mm/mem.c          |   12 ++++++++++++
+ arch/s390/mm/init.c            |   12 ++++++++++++
+ arch/sh/mm/init.c              |   17 +++++++++++++++++
+ arch/tile/mm/init.c            |    8 ++++++++
+ arch/x86/mm/init_32.c          |   12 ++++++++++++
+ arch/x86/mm/init_64.c          |   15 +++++++++++++++
+ include/linux/memory_hotplug.h |    1 +
+ mm/memory_hotplug.c            |    2 ++
+ 9 files changed, 97 insertions(+), 0 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 5808045..69d62eb 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1381,20 +1381,26 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- 	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index b755ea9..20bc967 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -688,6 +688,24 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return ret;
  }
- 
--int remove_memory(u64 start, u64 size)
-+/**
-+ * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
-+ * @start_pfn: start pfn of the memory range
-+ * @end_pfn: end pft of the memory range
-+ * @arg: argument passed to func
-+ * @func: callback for each memory section walked
-+ *
-+ * This function walks through all present mem sections in range
-+ * [start_pfn, end_pfn) and call func on each mem section.
-+ *
-+ * Returns the return value of func.
-+ */
-+static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
-+		void *arg, int (*func)(struct memory_block *, void *))
- {
- 	struct memory_block *mem = NULL;
- 	struct mem_section *section;
--	unsigned long start_pfn, end_pfn;
- 	unsigned long pfn, section_nr;
- 	int ret;
--	int return_on_error = 0;
--	int retry = 0;
--
--	start_pfn = PFN_DOWN(start);
--	end_pfn = start_pfn + PFN_DOWN(size);
- 
--repeat:
- 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
- 		section_nr = pfn_to_section_nr(pfn);
- 		if (!present_section_nr(section_nr))
-@@ -1411,22 +1417,76 @@ repeat:
- 		if (!mem)
- 			continue;
- 
--		ret = offline_memory_block(mem);
-+		ret = func(mem, arg);
- 		if (ret) {
--			if (return_on_error) {
--				kobject_put(&mem->dev.kobj);
--				return ret;
--			} else {
--				retry = 1;
--			}
-+			kobject_put(&mem->dev.kobj);
-+			return ret;
- 		}
- 	}
- 
- 	if (mem)
- 		kobject_put(&mem->dev.kobj);
- 
--	if (retry) {
--		return_on_error = 1;
-+	return 0;
-+}
 +
-+/**
-+ * offline_memory_block_cb - callback function for offlining memory block
-+ * @mem: the memory block to be offlined
-+ * @arg: buffer to hold error msg
-+ *
-+ * Always return 0, and put the error msg in arg if any.
-+ */
-+static int offline_memory_block_cb(struct memory_block *mem, void *arg)
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
 +{
-+	int *ret = arg;
-+	int error = offline_memory_block(mem);
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
 +
-+	if (error != 0 && *ret == 0)
-+		*ret = error;
-+
-+	return 0;
-+}
-+
-+static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
-+{
-+	int ret = !is_memblock_offlined(mem);
-+
-+	if (unlikely(ret))
-+		pr_warn("removing memory fails, because memory "
-+			"[%#010llx-%#010llx] is onlined\n",
-+			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-+			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	if (ret)
++		pr_warn("%s: Problem encountered in __remove_pages() as"
++			" ret=%d\n", __func__,  ret);
 +
 +	return ret;
 +}
++#endif
+ #endif
+ 
+ /*
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index 0dba506..09c6451 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -133,6 +133,18 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
 +
-+int remove_memory(u64 start, u64 size)
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
 +{
-+	unsigned long start_pfn, end_pfn;
-+	int ret = 0;
-+	int retry = 1;
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
 +
-+	start_pfn = PFN_DOWN(start);
-+	end_pfn = start_pfn + PFN_DOWN(size);
++	zone = page_zone(pfn_to_page(start_pfn));
++	return __remove_pages(zone, start_pfn, nr_pages);
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ /*
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index ae672f4..49ce6bb 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -228,4 +228,16 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 		vmem_remove_mapping(start, size);
+ 	return rc;
+ }
 +
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
 +	/*
-+	 * When CONFIG_MEMCG is on, one memory block may be used by other
-+	 * blocks to store page cgroup when onlining pages. But we don't know
-+	 * in what order pages are onlined. So we iterate twice to offline
-+	 * memory:
-+	 * 1st iterate: offline every non primary memory block.
-+	 * 2nd iterate: offline primary (i.e. first added) memory block.
++	 * There is no hardware or firmware interface which could trigger a
++	 * hot memory remove on s390. So there is nothing that needs to be
++	 * implemented.
 +	 */
-+repeat:
-+	walk_memory_range(start_pfn, end_pfn, &ret,
-+			  offline_memory_block_cb);
-+	if (ret) {
-+		if (!retry)
-+			return ret;
++	return -EBUSY;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 82cc576..1057940 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -558,4 +558,21 @@ int memory_add_physaddr_to_nid(u64 addr)
+ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
 +
-+		retry = 0;
-+		ret = 0;
- 		goto repeat;
- 	}
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	if (unlikely(ret))
++		pr_warn("%s: Failed, __remove_pages() == %d\n", __func__,
++			ret);
++
++	return ret;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+index ef29d6c..2749515 100644
+--- a/arch/tile/mm/init.c
++++ b/arch/tile/mm/init.c
+@@ -935,6 +935,14 @@ int remove_memory(u64 start, u64 size)
+ {
+ 	return -EINVAL;
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	/* TODO */
++	return -EBUSY;
++}
++#endif
+ #endif
  
-@@ -1444,38 +1504,13 @@ repeat:
- 	 * memory blocks are offlined.
- 	 */
+ struct kmem_cache *pgd_cache;
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index 745d66b..3166e78 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -836,6 +836,18 @@ int arch_add_memory(int nid, u64 start, u64 size)
  
--	mem = NULL;
--	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
--		section_nr = pfn_to_section_nr(pfn);
--		if (!present_section_nr(section_nr))
--			continue;
--
--		section = __nr_to_section(section_nr);
--		/* same memblock? */
--		if (mem)
--			if ((section_nr >= mem->start_section_nr) &&
--			    (section_nr <= mem->end_section_nr))
--				continue;
--
--		mem = find_memory_block_hinted(section, mem);
--		if (!mem)
--			continue;
--
--		ret = is_memblock_offlined(mem);
--		if (!ret) {
--			pr_warn("removing memory fails, because memory "
--				"[%#010llx-%#010llx] is onlined\n",
--				PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
--				PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1)) - 1);
--
--			kobject_put(&mem->dev.kobj);
--			unlock_memory_hotplug();
--			return ret;
--		}
-+	ret = walk_memory_range(start_pfn, end_pfn, NULL,
-+				is_memblock_offlined_cb);
-+	if (ret) {
-+		unlock_memory_hotplug();
-+		return ret;
- 	}
+ 	return __add_pages(nid, zone, start_pfn, nr_pages);
+ }
++
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	return __remove_pages(zone, start_pfn, nr_pages);
++}
++#endif
+ #endif
  
--	if (mem)
--		kobject_put(&mem->dev.kobj);
+ /*
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index e779e0b..f78509c 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -682,6 +682,21 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ }
+ EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
++int __ref arch_remove_memory(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	WARN_ON_ONCE(ret);
++
++	return ret;
++}
++#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ static struct kcore_list kcore_vsyscall;
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 8dd0950..31a563b 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -96,6 +96,7 @@ extern void __online_page_free(struct page *page);
+ 
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ extern bool is_pageblock_removable_nolock(struct page *page);
++extern int arch_remove_memory(u64 start, u64 size);
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /* reasonably generic interface to expand the physical pages in a zone  */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 9fd5904..f6724c2 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1514,6 +1514,8 @@ repeat:
+ 	/* remove memmap entry */
+ 	firmware_map_remove(start, start + size, "System RAM");
+ 
++	arch_remove_memory(start, size);
++
  	unlock_memory_hotplug();
  
  	return 0;
