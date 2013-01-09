@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
-	by kanga.kvack.org (Postfix) with SMTP id 53D936B0085
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id C130E6B0070
 	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 04:33:40 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v6 13/15] memory-hotplug: remove sysfs file of node
-Date: Wed, 9 Jan 2013 17:32:37 +0800
-Message-Id: <1357723959-5416-14-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v6 10/15] memory-hotplug: remove memmap of sparse-vmemmap
+Date: Wed, 9 Jan 2013 17:32:34 +0800
+Message-Id: <1357723959-5416-11-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,150 +13,148 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-This patch introduces a new function try_offline_node() to
-remove sysfs file of node when all memory sections of this
-node are removed. If some memory sections of this node are
-not removed, this function does nothing.
+This patch introduces a new API vmemmap_free() to free and remove
+vmemmap pagetables. Since pagetable implements are different, each
+architecture has to provide its own version of vmemmap_free(), just
+like vmemmap_populate().
 
+Note:  vmemmap_free() are not implemented for ia64, ppc, s390, and sparc.
+
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
 Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_memhotplug.c |    8 ++++-
- include/linux/memory_hotplug.h |    2 +-
- mm/memory_hotplug.c            |   58 ++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 63 insertions(+), 5 deletions(-)
+ arch/arm64/mm/mmu.c       |    3 +++
+ arch/ia64/mm/discontig.c  |    4 ++++
+ arch/powerpc/mm/init_64.c |    4 ++++
+ arch/s390/mm/vmem.c       |    4 ++++
+ arch/sparc/mm/init_64.c   |    4 ++++
+ arch/x86/mm/init_64.c     |    8 ++++++++
+ include/linux/mm.h        |    1 +
+ mm/sparse.c               |    3 ++-
+ 8 files changed, 30 insertions(+), 1 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index eb30e5a..9c53cc6 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -295,9 +295,11 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index a6885d8..9834886 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -392,4 +392,7 @@ int __meminit vmemmap_populate(struct page *start_page,
+ 	return 0;
+ }
+ #endif	/* CONFIG_ARM64_64K_PAGES */
++void vmemmap_free(struct page *memmap, unsigned long nr_pages)
++{
++}
+ #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+index 33943db..882a0fd 100644
+--- a/arch/ia64/mm/discontig.c
++++ b/arch/ia64/mm/discontig.c
+@@ -823,6 +823,10 @@ int __meminit vmemmap_populate(struct page *start_page,
+ 	return vmemmap_populate_basepages(start_page, size, node);
+ }
  
- static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
- {
--	int result = 0;
-+	int result = 0, nid;
- 	struct acpi_memory_info *info, *n;
- 
-+	nid = acpi_get_node(mem_device->device->handle);
++void vmemmap_free(struct page *memmap, unsigned long nr_pages)
++{
++}
 +
- 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
- 		if (info->failed)
- 			/* The kernel does not use this memory block */
-@@ -310,7 +312,9 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
- 			 */
- 			return -EBUSY;
+ void register_page_bootmem_memmap(unsigned long section_nr,
+ 				  struct page *start_page, unsigned long size)
+ {
+diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+index 6466440..2969591 100644
+--- a/arch/powerpc/mm/init_64.c
++++ b/arch/powerpc/mm/init_64.c
+@@ -298,6 +298,10 @@ int __meminit vmemmap_populate(struct page *start_page,
+ 	return 0;
+ }
  
--		result = remove_memory(info->start_addr, info->length);
-+		if (nid < 0)
-+			nid = memory_add_physaddr_to_nid(info->start_addr);
-+		result = remove_memory(nid, info->start_addr, info->length);
- 		if (result)
- 			return result;
- 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 2441f36..f60e728 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -242,7 +242,7 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
- extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
- extern int offline_memory_block(struct memory_block *mem);
- extern bool is_memblock_offlined(struct memory_block *mem);
--extern int remove_memory(u64 start, u64 size);
-+extern int remove_memory(int nid, u64 start, u64 size);
- extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
- 								int nr_pages);
- extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index da20c14..a8703f7 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -29,6 +29,7 @@
- #include <linux/suspend.h>
- #include <linux/mm_inline.h>
- #include <linux/firmware-map.h>
-+#include <linux/stop_machine.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -1678,7 +1679,58 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
++void vmemmap_free(struct page *memmap, unsigned long nr_pages)
++{
++}
++
+ void register_page_bootmem_memmap(unsigned long section_nr,
+ 				  struct page *start_page, unsigned long size)
+ {
+diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+index 2c14bc2..81e6ba3 100644
+--- a/arch/s390/mm/vmem.c
++++ b/arch/s390/mm/vmem.c
+@@ -272,6 +272,10 @@ out:
  	return ret;
  }
  
--int __ref remove_memory(u64 start, u64 size)
-+static int check_cpu_on_node(void *data)
++void vmemmap_free(struct page *memmap, unsigned long nr_pages)
 +{
-+	struct pglist_data *pgdat = data;
-+	int cpu;
-+
-+	for_each_present_cpu(cpu) {
-+		if (cpu_to_node(cpu) == pgdat->node_id)
-+			/*
-+			 * the cpu on this node isn't removed, and we can't
-+			 * offline this node.
-+			 */
-+			return -EBUSY;
-+	}
-+
-+	return 0;
 +}
 +
-+/* offline the node if all memory sections of this node are removed */
-+static void try_offline_node(int nid)
-+{
-+	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
-+	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
-+	unsigned long pfn;
-+
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
-+		unsigned long section_nr = pfn_to_section_nr(pfn);
-+
-+		if (!present_section_nr(section_nr))
-+			continue;
-+
-+		if (pfn_to_nid(pfn) != nid)
-+			continue;
-+
-+		/*
-+		 * some memory sections of this node are not removed, and we
-+		 * can't offline node now.
-+		 */
-+		return;
-+	}
-+
-+	if (stop_machine(check_cpu_on_node, NODE_DATA(nid), NULL))
-+		return;
-+
-+	/*
-+	 * all memory/cpu of this node are removed, we can offline this
-+	 * node now.
-+	 */
-+	node_set_offline(nid);
-+	unregister_one_node(nid);
-+}
-+
-+int __ref remove_memory(int nid, u64 start, u64 size)
+ void register_page_bootmem_memmap(unsigned long section_nr,
+ 				  struct page *start_page, unsigned long size)
  {
- 	unsigned long start_pfn, end_pfn;
- 	int ret = 0;
-@@ -1733,6 +1785,8 @@ repeat:
+diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+index 1f30db3..5afe21a 100644
+--- a/arch/sparc/mm/init_64.c
++++ b/arch/sparc/mm/init_64.c
+@@ -2232,6 +2232,10 @@ void __meminit vmemmap_populate_print_last(void)
+ 	}
+ }
  
- 	arch_remove_memory(start, size);
- 
-+	try_offline_node(nid);
++void vmemmap_free(struct page *memmap, unsigned long nr_pages)
++{
++}
 +
- 	unlock_memory_hotplug();
- 
+ void register_page_bootmem_memmap(unsigned long section_nr,
+ 				  struct page *start_page, unsigned long size)
+ {
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index d950f9b..e829113 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1309,6 +1309,14 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
  	return 0;
-@@ -1742,7 +1796,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
- {
- 	return -EINVAL;
  }
--int remove_memory(u64 start, u64 size)
-+int remove_memory(int nid, u64 start, u64 size)
+ 
++void __ref vmemmap_free(struct page *memmap, unsigned long nr_pages)
++{
++	unsigned long start = (unsigned long)memmap;
++	unsigned long end = (unsigned long)(memmap + nr_pages);
++
++	remove_pagetable(start, end, false);
++}
++
+ void register_page_bootmem_memmap(unsigned long section_nr,
+ 				  struct page *start_page, unsigned long size)
  {
- 	return -EINVAL;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 1eca498..31d5e5d 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1709,6 +1709,7 @@ int vmemmap_populate_basepages(struct page *start_page,
+ 						unsigned long pages, int node);
+ int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
+ void vmemmap_populate_print_last(void);
++void vmemmap_free(struct page *memmap, unsigned long nr_pages);
+ void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
+ 				  unsigned long size);
+ 
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 05ca73a..cff9796 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -615,10 +615,11 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
  }
+ static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+ {
+-	return; /* XXX: Not implemented yet */
++	vmemmap_free(memmap, nr_pages);
+ }
+ static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
+ {
++	vmemmap_free(memmap, nr_pages);
+ }
+ #else
+ static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
 -- 
 1.7.1
 
