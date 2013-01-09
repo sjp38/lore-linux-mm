@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 19B9C6B005D
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:29:08 -0500 (EST)
-Date: Wed, 9 Jan 2013 21:29:07 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-Message-ID: <20130109212907.GA27361@dcvr.yhbt.net>
-References: <20121228014503.GA5017@dcvr.yhbt.net>
- <20130102200848.GA4500@dcvr.yhbt.net>
- <20130104160148.GB3885@suse.de>
- <20130106120700.GA24671@dcvr.yhbt.net>
- <20130107122516.GC3885@suse.de>
- <20130107223850.GA21311@dcvr.yhbt.net>
- <20130108224313.GA13304@suse.de>
+Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
+	by kanga.kvack.org (Postfix) with SMTP id B083C6B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:39:38 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id wz7so1204549pbc.23
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 13:39:37 -0800 (PST)
+Date: Wed, 9 Jan 2013 13:36:04 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+Message-ID: <20130109213604.GA9475@lizard.fhda.edu>
+References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+ <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+ <20130109203731.GA20454@htj.dyndns.org>
+ <50EDDF1E.6010705@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20130108224313.GA13304@suse.de>
+In-Reply-To: <50EDDF1E.6010705@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-Mel Gorman <mgorman@suse.de> wrote:
-> When I looked at it for long enough I found a number of problems. Most
-> affect timing but two serious issues are in there. One affects how long
-> kswapd spends compacting versus reclaiming and the other increases lock
-> contention meaning that async compaction can abort early. Both are serious
-> and could explain why a driver would fail high-order allocations.
+On Thu, Jan 10, 2013 at 01:20:30AM +0400, Glauber Costa wrote:
+[...]
+> Given the above, I believe that ideally we should use this pressure
+> mechanism in memcg replacing the current memcg notification mechanism.
+
+Just a quick wonder: why would we need to place it into memcg, when we
+don't need any of the memcg stuff for it? I see no benefits, not
+design-wise, not implementation-wise or anything-wise. :)
+
+We can use mempressure w/o memcg, and even then it can (or should :) be
+useful (for cpuset, for example).
+
+> More or less like timer expiration happens: you could still write
+> numbers for compatibility, but those numbers would be internally mapped
+> into the levels Anton is proposing, that makes *way* more sense.
 > 
-> Please try the following patch. However, even if it works the benefit of
-> capture may be so marginal that partially reverting it and simplifying
-> compaction.c is the better decision.
+> If that is not possible, they should coexist as "notification" and a
+> "pressure" mechanism inside memcg.
+> 
+> The main argument against it centered around cpusets also being able to
+> participate in the play. I haven't yet understood how would it take
+> place. In particular, I saw no mention to cpusets in the patches.
 
-Btw, I'm still testing this patch with the "page->pfemalloc = false"
-change on top of it.
+I didn't test it, but as I see it, once a process in a specific cpuset,
+the task can only use a specific allowed zones for reclaim/alloc, i.e.
+various checks like this in vmscan:
 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 6b807e4..03c82c0 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -857,7 +857,8 @@ static int compact_finished(struct zone *zone,
->  	} else {
->  		unsigned int order;
->  		for (order = cc->order; order < MAX_ORDER; order++) {
-> -			struct free_area *area = &zone->free_area[cc->order];
-> +			struct free_area *area = &zone->free_area[order];
+         if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+                     continue;
 
-I noticed something like this hunk wasn't in your latest partial revert
-(<20130109135010.GB13475@suse.de>)
-I admit I don't understand this code, but this jumped out at me.
+So, vmscan simply won't call vmpressure() if the zone is not allowed (so
+we won't account that pressure, from that zone).
+
+Thanks,
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
