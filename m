@@ -1,56 +1,361 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 0190D6B0062
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 07:58:06 -0500 (EST)
-Date: Wed, 9 Jan 2013 13:57:58 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V3 6/8] memcg: Don't account root_mem_cgroup page
- statistics
-Message-ID: <20130109125758.GA5095@dhcp22.suse.cz>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
- <1356456447-14740-1-git-send-email-handai.szj@taobao.com>
- <20130102122712.GE22160@dhcp22.suse.cz>
- <CAFj3OHWBtu9-7SdVJnMnUytjL9i3i2xEfoB=y_zA_5HXir9o0g@mail.gmail.com>
+Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
+	by kanga.kvack.org (Postfix) with SMTP id BAF206B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 08:15:20 -0500 (EST)
+Date: Wed, 9 Jan 2013 13:15:15 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: migrate: Check page_count of THP before migrating
+Message-ID: <20130109131515.GC13304@suse.de>
+References: <20130107170815.GO3885@suse.de>
+ <alpine.LNX.2.00.1301081931530.20504@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAFj3OHWBtu9-7SdVJnMnUytjL9i3i2xEfoB=y_zA_5HXir9o0g@mail.gmail.com>
+In-Reply-To: <alpine.LNX.2.00.1301081931530.20504@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, Sha Zhengju <handai.szj@taobao.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat 05-01-13 18:52:12, Sha Zhengju wrote:
-> On Wed, Jan 2, 2013 at 8:27 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Wed 26-12-12 01:27:27, Sha Zhengju wrote:
-[...]
-> >> @@ -5396,18 +5406,70 @@ static inline void mem_cgroup_lru_names_not_uptodate(void)
-> >>       BUILD_BUG_ON(ARRAY_SIZE(mem_cgroup_lru_names) != NR_LRU_LISTS);
-> >>  }
-> >>
-> >> +long long root_memcg_local_stat(unsigned int i, long long val,
-> >> +                                     long long nstat[])
-> >
-> > Function should be static
-> > also
-> > nstat parameter is ugly because this can be done by the caller
-> > and also expecting that the caller already calculated val is not
-> > nice (and undocumented). This approach is really hackish and error
-> > prone. Why should we define a specific function rather than hooking into
-> > mem_cgroup_read_stat and doing all the stuff there? I think that would
-> > be much more maintainable.
-> >
+On Tue, Jan 08, 2013 at 08:17:59PM -0800, Hugh Dickins wrote:
+> On Mon, 7 Jan 2013, Mel Gorman wrote:
 > 
-> IMHO, hooking into mem_cgroup_read_stat may be also improper because
-> of the for_each_mem_cgroup traversal. I prefer to make mem_cgroup_read_stat
-> as the base func unit. But I'll repeal the function base on your opinion in next
-> version.  Thanks for the advice!
+> > Hugh Dickins pointed out that migrate_misplaced_transhuge_page() does not
+> > check page_count before migrating like base page migration and khugepage. He
+> > could not see why this was safe and he is right.
+> > 
+> > The potential impact of the bug is avoided due to the limitations of NUMA
+> > balancing.  The page_mapcount() check ensures that only a single address
+> > space is using this page and as THPs are typically private it should not be
+> > possible for another address space to fault it in parallel. If the address
+> > space has one associated task then it's difficult to have both a GUP pin
+> > and be referencing the page at the same time. If there are multiple tasks
+> > then a buggy scenario requires that another thread be accessing the page
+> > while the direct IO is in flight. This is dodgy behaviour as there is
+> > a possibility of corruption with or without THP migration. It would be
+> > difficult to identify the corruption as being a migration bug.
+> > 
+> > While we happen to be safe for the most part it is shoddy to depend on
+> > such "safety" so this patch checks the page count similar to anonymous
+> > pages. Note that this does not mean that the page_mapcount() check can go
+> > away. If we were to remove the page_mapcount() check the the THP would
+> > have to be unmapped from all referencing PTEs, replaced with migration
+> > PTEs and restored properly afterwards.
+> > 
+> > Reported-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> 
+> Sorry, Mel, it's a NAK:
 
-Maybe my "do all the stuff there" was confusing. I didn't mean to
-iterate through the hierarchy there. I just wanted to have
-mem_cgroup_root is a special case and it uses global counters there.
+Don't be sorry. It's not your fault I am a muppet.
+
+> you will have expected an ack from me two weeks
+> or more ago; but somehow I had an intuition that if I sat on it for
+> long enough, a worm would crawl out.  Got down to looking again today,
+> and I notice that although the putback_lru_page() is right,
+> NR_ISOLATED_ANON is not restored on this path, so that would leak.
+> 
+> I expect you'll want to do something like:
+> 	if (isolated) {
+> 		putback_lru_page(page);
+> 		isolated = 0;
+> 		goto out;
+> 	}
+> and that may be the appropriate fix right now.
+> 
+
+Yes, I sent what should be a correction so we can treat this cleanup as
+a potential replacemet for it.
+
+> But I do still dislike the way you always put_page in
+> numamigrate_isolate_page():
+
+At one point there was a conditional put_page depending on different
+failures and it was a very difficult to follow. This was easier to
+follow but could still be improved.
+
+> it makes sense in the case when
+> isolate_lru_page() succeeds (I've long thought that weird both to
+> insist on an existing page reference and add one of its own), but
+> I find it very confusing on the failure paths, to have the put_page
+> far away from the unlock_page - and I get worried when I see put_page
+> followed by unlock_page rather than vice versa (it happens on !pmd_same
+> paths: if the pmd is not the same, then can we be sure that the put_page
+> does not free the page?)
+> 
+
+I'm depending on the page table reference to prevent the put_page()
+freeing the page. As mmap_sem is held, there cannot be an munmap()
+freeing it. As we hold the page lock there cannot be a parallel reclaim
+as trylock_page() in shrink_page_list() will fail.
+
+> At the bottom I've put my own cleanup for this, which simplifies by
+> doing the putback_lru_page() inside numamigrate_isolate_page(), and
+> doesn't put_page when it doesn't isolate.
+> 
+> I think the only functional difference from yours (aside from fixing
+> up NR_ISOLATED) is that migrate_misplaced_transhuge_page() doesn't
+> have to pretend to its caller that it succeeded when actually it
+> failed at the last hurdle (because it already did the unlock_page,
+> which in yours the caller expects to do on failure).  Oh, and I'm
+> not holding page lock (sometimes) at clear_pmdnuma: I didn't see
+> the reason for that, perhaps I'm missing something important there.
+> 
+> Maybe our tastes differ, and you won't see mine as an improvement.
+> And I've hardly tested, so haven't signed off, and won't be
+> surprised if its own worms crawl out.
+> 
+> <SNIP>
+>
+> Not-signed-off-by: Hugh Dickins <hughd@google.com>
+> ---
+> 
+>  mm/huge_memory.c |   28 +++++----------
+>  mm/migrate.c     |   79 ++++++++++++++++++++++-----------------------
+>  2 files changed, 48 insertions(+), 59 deletions(-)
+> 
+> --- 3.8-rc2/mm/huge_memory.c	2012-12-22 09:43:27.616015582 -0800
+> +++ linux/mm/huge_memory.c	2013-01-08 17:39:06.340407864 -0800
+> @@ -1298,7 +1298,6 @@ int do_huge_pmd_numa_page(struct mm_stru
+>  	int target_nid;
+>  	int current_nid = -1;
+>  	bool migrated;
+> -	bool page_locked = false;
+>  
+>  	spin_lock(&mm->page_table_lock);
+>  	if (unlikely(!pmd_same(pmd, *pmdp)))
+> @@ -1320,7 +1319,6 @@ int do_huge_pmd_numa_page(struct mm_stru
+>  	/* Acquire the page lock to serialise THP migrations */
+>  	spin_unlock(&mm->page_table_lock);
+>  	lock_page(page);
+> -	page_locked = true;
+>  
+>  	/* Confirm the PTE did not while locked */
+>  	spin_lock(&mm->page_table_lock);
+> @@ -1333,34 +1331,26 @@ int do_huge_pmd_numa_page(struct mm_stru
+>  
+>  	/* Migrate the THP to the requested node */
+>  	migrated = migrate_misplaced_transhuge_page(mm, vma,
+> -				pmdp, pmd, addr,
+> -				page, target_nid);
+> -	if (migrated)
+> -		current_nid = target_nid;
+> -	else {
+> -		spin_lock(&mm->page_table_lock);
+> -		if (unlikely(!pmd_same(pmd, *pmdp))) {
+> -			unlock_page(page);
+> -			goto out_unlock;
+> -		}
+> -		goto clear_pmdnuma;
+> -	}
+> +				pmdp, pmd, addr, page, target_nid);
+> +	if (!migrated)
+> +		goto check_same;
+>  
+> -	task_numa_fault(current_nid, HPAGE_PMD_NR, migrated);
+> +	task_numa_fault(target_nid, HPAGE_PMD_NR, true);
+>  	return 0;
+>  
+
+Ok.
+
+> +check_same:
+> +	spin_lock(&mm->page_table_lock);
+> +	if (unlikely(!pmd_same(pmd, *pmdp)))
+> +		goto out_unlock;
+
+Ok.
+
+>  clear_pmdnuma:
+>  	pmd = pmd_mknonnuma(pmd);
+>  	set_pmd_at(mm, haddr, pmdp, pmd);
+>  	VM_BUG_ON(pmd_numa(*pmdp));
+>  	update_mmu_cache_pmd(vma, addr, pmdp);
+> -	if (page_locked)
+> -		unlock_page(page);
+> -
+
+This is ok too. The lock page is to prevent the page being reclaimed in
+parallel during migration. In the two cases you end up in clear_pmdnuma
+the page table lock is taken and you've done a pmd_same check and the page
+lock is not necessary.
+
+>  out_unlock:
+>  	spin_unlock(&mm->page_table_lock);
+>  	if (current_nid != -1)
+> -		task_numa_fault(current_nid, HPAGE_PMD_NR, migrated);
+> +		task_numa_fault(current_nid, HPAGE_PMD_NR, false);
+>  	return 0;
+>  }
+>  
+> --- 3.8-rc2/mm/migrate.c	2012-12-22 09:43:27.636015582 -0800
+> +++ linux/mm/migrate.c	2013-01-08 18:17:02.664144777 -0800
+> @@ -1555,39 +1555,38 @@ bool numamigrate_update_ratelimit(pg_dat
+>  
+>  int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+>  {
+> -	int ret = 0;
+> +	int page_lru;
+>  
+>  	/* Avoid migrating to a node that is nearly full */
+> -	if (migrate_balanced_pgdat(pgdat, 1)) {
+> -		int page_lru;
+> +	if (!migrate_balanced_pgdat(pgdat, 1))
+> +		return 0;
+>  
+> -		if (isolate_lru_page(page)) {
+> -			put_page(page);
+> -			return 0;
+> -		}
+> -
+> -		/* Page is isolated */
+> -		ret = 1;
+> -		page_lru = page_is_file_cache(page);
+> -		if (!PageTransHuge(page))
+> -			inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
+> -		else
+> -			mod_zone_page_state(page_zone(page),
+> -					NR_ISOLATED_ANON + page_lru,
+> -					HPAGE_PMD_NR);
+> +	if (isolate_lru_page(page))
+> +		return 0;
+> +
+> +	/*
+> +	 * migrate_misplaced_transhuge_page() skips page migration's usual
+> +	 * check on page_count(), so we must do it here, now that the page
+> +	 * has been isolated: a GUP pin, or any other pin, prevents migration.
+> +	 * The expected page count is 3: 1 for page's mapcount and 1 for the
+> +	 * caller's pin and 1 for the reference taken by isolate_lru_page().
+> +	 */
+> +	if (PageTransHuge(page) && page_count(page) != 3) {
+> +		putback_lru_page(page);
+> +		return 0;
+>  	}
+>  
+
+Ok so you putback the page before the isolated count is updated. Makes
+sense.
+
+> +	page_lru = page_is_file_cache(page);
+> +	mod_zone_page_state(page_zone(page), NR_ISOLATED_ANON + page_lru,
+> +				hpage_nr_pages(page));
+> +
+>  	/*
+> -	 * Page is either isolated or there is not enough space on the target
+> -	 * node. If isolated, then it has taken a reference count and the
+> -	 * callers reference can be safely dropped without the page
+> -	 * disappearing underneath us during migration. Otherwise the page is
+> -	 * not to be migrated but the callers reference should still be
+> -	 * dropped so it does not leak.
+> +	 * Isolating the page has taken another reference, so the
+> +	 * caller's reference can be safely dropped without the page
+> +	 * disappearing underneath us during migration.
+>  	 */
+>  	put_page(page);
+> -
+> -	return ret;
+> +	return 1;
+>  }
+>  
+>  /*
+> @@ -1598,7 +1597,7 @@ int numamigrate_isolate_page(pg_data_t *
+>  int migrate_misplaced_page(struct page *page, int node)
+>  {
+>  	pg_data_t *pgdat = NODE_DATA(node);
+> -	int isolated = 0;
+> +	int isolated;
+>  	int nr_remaining;
+>  	LIST_HEAD(migratepages);
+>  
+> @@ -1606,20 +1605,16 @@ int migrate_misplaced_page(struct page *
+>  	 * Don't migrate pages that are mapped in multiple processes.
+>  	 * TODO: Handle false sharing detection instead of this hammer
+>  	 */
+> -	if (page_mapcount(page) != 1) {
+> -		put_page(page);
+> +	if (page_mapcount(page) != 1)
+>  		goto out;
+> -	}
+>  
+>  	/*
+>  	 * Rate-limit the amount of data that is being migrated to a node.
+>  	 * Optimal placement is no good if the memory bus is saturated and
+>  	 * all the time is being spent migrating!
+>  	 */
+> -	if (numamigrate_update_ratelimit(pgdat, 1)) {
+> -		put_page(page);
+> +	if (numamigrate_update_ratelimit(pgdat, 1))
+>  		goto out;
+> -	}
+>  
+>  	isolated = numamigrate_isolate_page(pgdat, page);
+>  	if (!isolated)
+> @@ -1636,8 +1631,11 @@ int migrate_misplaced_page(struct page *
+>  	} else
+>  		count_vm_numa_event(NUMA_PAGE_MIGRATE);
+>  	BUG_ON(!list_empty(&migratepages));
+> -out:
+>  	return isolated;
+> +
+> +out:
+> +	put_page(page);
+> +	return 0;
+>  }
+
+Ok.
+
+>  #endif /* CONFIG_NUMA_BALANCING */
+>  
+> @@ -1672,17 +1670,15 @@ int migrate_misplaced_transhuge_page(str
+>  
+>  	new_page = alloc_pages_node(node,
+>  		(GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT, HPAGE_PMD_ORDER);
+> -	if (!new_page) {
+> -		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+> -		goto out_dropref;
+> -	}
+> +	if (!new_page)
+> +		goto out_fail;
+> +
+>  	page_xchg_last_nid(new_page, page_last_nid(page));
+>  
+>  	isolated = numamigrate_isolate_page(pgdat, page);
+>  	if (!isolated) {
+> -		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+>  		put_page(new_page);
+> -		goto out_keep_locked;
+> +		goto out_fail;
+>  	}
+>  
+>  	/* Prepare a page as a migration target */
+> @@ -1714,6 +1710,7 @@ int migrate_misplaced_transhuge_page(str
+>  		putback_lru_page(page);
+>  
+>  		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+> +		isolated = 0;
+>  		goto out;
+>  	}
+>  
+> @@ -1758,9 +1755,11 @@ out:
+>  			-HPAGE_PMD_NR);
+>  	return isolated;
+>  
+> +out_fail:
+> +	count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+>  out_dropref:
+> +	unlock_page(page);
+>  	put_page(page);
+> -out_keep_locked:
+>  	return 0;
+>  }
+>  #endif /* CONFIG_NUMA_BALANCING */
+
+I haven't tested this but I cannot see a problem with it either and the
+flow does look nicer. I'll test it this evening and look at it some
+more.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
