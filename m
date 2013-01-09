@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 365686B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 17:18:22 -0500 (EST)
-Received: by mail-da0-f54.google.com with SMTP id n2so961425dad.41
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 14:18:21 -0800 (PST)
-Date: Wed, 9 Jan 2013 14:14:49 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 8931F6B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 17:21:51 -0500 (EST)
+Received: by mail-da0-f42.google.com with SMTP id z17so963861dal.1
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 14:21:50 -0800 (PST)
+Date: Wed, 9 Jan 2013 14:21:44 -0800
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH 1/2] Add mempressure cgroup
-Message-ID: <20130109221449.GA14880@lizard.fhda.edu>
+Message-ID: <20130109222144.GF20454@htj.dyndns.org>
 References: <20130104082751.GA22227@lizard.gateway.2wire.net>
  <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
- <20130108084949.GD4714@blaptop>
+ <20130109203731.GA20454@htj.dyndns.org>
+ <50EDDF1E.6010705@parallels.com>
+ <20130109213604.GA9475@lizard.fhda.edu>
+ <20130109215514.GD20454@htj.dyndns.org>
+ <20130109220641.GA12865@lizard.fhda.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130108084949.GD4714@blaptop>
+In-Reply-To: <20130109220641.GA12865@lizard.fhda.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Glauber Costa <glommer@parallels.com>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Tue, Jan 08, 2013 at 05:49:49PM +0900, Minchan Kim wrote:
-[...]
-> Sorry still I didn't look at your implementation about cgroup part.
-> but I had a question since long time ago.
-> 
-> How can we can make sure false positive about zone and NUMA?
-> I mean DMA zone is short in system so VM notify to user and user
-> free all memory of NORMAL zone because he can't know what pages live
-> in any zones. NUMA is ditto.
+Hello, Anton.
 
-Um, we count scans irrespective of zones or nodes, i.e. we sum all 'number
-of scanned' and 'number of reclaimed' stats. So, it should not be a
-problem, as I see it.
+On Wed, Jan 09, 2013 at 02:06:41PM -0800, Anton Vorontsov wrote:
+> Yeah. I started answering your comments about hierarchical accounting,
+> looked into the memcg code, and realized that *this* is where I need the
+> memcg stuff. :)
 
-Thanks,
-Anton
+Yay, I wasn't completely clueless.
+
+> Thus yes, I guess I'll have to integrate it with memcg, or sort of.
+
+I really don't know much about memcg internals but I guess
+implementation can be split into two pieces.  memcg already has its
+own accounting and pressure mechanism so it should be possible to bolt
+on the mempressure interface on top of already existing data.  You can
+improve / bring some sanity :) to memcg if the proposed mempressure
+implementation is better.
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
