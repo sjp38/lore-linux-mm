@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
-	by kanga.kvack.org (Postfix) with SMTP id 859CA6B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 17:52:50 -0500 (EST)
-Date: Wed, 09 Jan 2013 23:52:47 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-MIME-Version: 1.0
-References: <50EDE41C.7090107@iskon.hr> <20130109134816.db51a820.akpm@linux-foundation.org>
-In-Reply-To: <20130109134816.db51a820.akpm@linux-foundation.org>
-Message-ID: <50EDF4BF.7000108@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
+	by kanga.kvack.org (Postfix) with SMTP id 335866B0071
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 18:11:43 -0500 (EST)
+Date: Wed, 9 Jan 2013 15:11:40 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v6 02/15] memory-hotplug: check whether all memory
+ blocks are offlined or not when removing memory
+Message-Id: <20130109151140.76982b9e.akpm@linux-foundation.org>
+In-Reply-To: <1357723959-5416-3-git-send-email-tangchen@cn.fujitsu.com>
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
+	<1357723959-5416-3-git-send-email-tangchen@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] mm: wait for congestion to clear on all zones
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-On 09.01.2013 22:48, Andrew Morton wrote:
-> On Wed, 09 Jan 2013 22:41:48 +0100
-> Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
->
->> Currently we take a short nap (HZ/10) and wait for congestion to clear
->> before taking another pass with lower priority in balance_pgdat(). But
->> we do that only for the highest zone that we encounter is unbalanced
->> and congested.
->>
->> This patch changes that to wait on all congested zones in a single
->> pass in the hope that it will save us some scanning that way. Also we
->> take a nap as soon as congested zone is encountered and sc.priority <
->> DEF_PRIORITY - 2 (aka kswapd in trouble).
->>
->> ...
->>
->> The patch is against the mm tree. Make sure that
->> mm-avoid-calling-pgdat_balanced-needlessly.patch is applied first (not
->> yet in the mmotm tree). Tested on half a dozen systems with different
->> workloads for the last few days, working really well!
->
-> But what are the user-observable effcets of this change?  Less kernel
-> CPU consumption, presumably?  Did you quantify it?
->
+On Wed, 9 Jan 2013 17:32:26 +0800
+Tang Chen <tangchen@cn.fujitsu.com> wrote:
 
-And I forgot to answer all the questions... :(
+> We remove the memory like this:
+> 1. lock memory hotplug
+> 2. offline a memory block
+> 3. unlock memory hotplug
+> 4. repeat 1-3 to offline all memory blocks
+> 5. lock memory hotplug
+> 6. remove memory(TODO)
+> 7. unlock memory hotplug
+> 
+> All memory blocks must be offlined before removing memory. But we don't hold
+> the lock in the whole operation. So we should check whether all memory blocks
+> are offlined before step6. Otherwise, kernel maybe panicked.
 
-Actually, I did record kswapd CPU usage after 5 days of uptime and I 
-intend to compare it with the new data (after few more days pass). I 
-expect maybe slightly better results.
+Well, the obvious question is: why don't we hold lock_memory_hotplug()
+for all of steps 1-4?  Please send the reasons for this in a form which
+I can paste into the changelog.
 
-But, I think it's obvious from my first reply that my primary goal with 
-this patch is correctness, not optimization. So, I won't be dissapointed 
-a little bit if kswapd CPU usage stays the same, so long as the memory 
-utilization remains this smooth. ;)
 
--- 
-Zlatko
+Actually, I wonder if doing this would fix a race in the current
+remove_memory() repeat: loop.  That code does a
+find_memory_block_hinted() followed by offline_memory_block(), but
+afaict find_memory_block_hinted() only does a get_device().  Is the
+get_device() sufficiently strong to prevent problems if another thread
+concurrently offlines or otherwise alters this memory_block's state?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
