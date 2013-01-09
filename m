@@ -1,254 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id A333C6B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 10:02:57 -0500 (EST)
-Received: by mail-ob0-f177.google.com with SMTP id uo13so2236391obb.8
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 07:02:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
+	by kanga.kvack.org (Postfix) with SMTP id 957DE6B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 10:09:45 -0500 (EST)
+Message-ID: <50ED8834.1090804@parallels.com>
+Date: Wed, 9 Jan 2013 19:09:40 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <50EA7860.6030300@jp.fujitsu.com>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
-	<1356456367-14660-1-git-send-email-handai.szj@taobao.com>
-	<20130102104421.GC22160@dhcp22.suse.cz>
-	<CAFj3OHXKyMO3gwghiBAmbowvqko-JqLtKroX2kzin1rk=q9tZg@mail.gmail.com>
-	<50EA7860.6030300@jp.fujitsu.com>
-Date: Wed, 9 Jan 2013 23:02:56 +0800
-Message-ID: <CAFj3OHXMgRG6u2YoM7y5WuPo2ZNA1yPmKRV29FYj9B6Wj_c6Lw@mail.gmail.com>
-Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v5 01/14] memory-hotplug: try to offline the memory twice
+ to avoid dependence
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-2-git-send-email-tangchen@cn.fujitsu.com> <50D96543.6010903@parallels.com> <50DFD7F7.5090408@cn.fujitsu.com>
+In-Reply-To: <50DFD7F7.5090408@cn.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
+To: Wen Congyang <wency@cn.fujitsu.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Mon, Jan 7, 2013 at 3:25 PM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2013/01/05 13:48), Sha Zhengju wrote:
->>
->> On Wed, Jan 2, 2013 at 6:44 PM, Michal Hocko <mhocko@suse.cz> wrote:
+On 12/30/2012 09:58 AM, Wen Congyang wrote:
+> At 12/25/2012 04:35 PM, Glauber Costa Wrote:
+>> On 12/24/2012 04:09 PM, Tang Chen wrote:
+>>> From: Wen Congyang <wency@cn.fujitsu.com>
 >>>
->>> On Wed 26-12-12 01:26:07, Sha Zhengju wrote:
->>>>
->>>> From: Sha Zhengju <handai.szj@taobao.com>
->>>>
->>>> This patch adds memcg routines to count dirty pages, which allows memory
->>>> controller
->>>> to maintain an accurate view of the amount of its dirty memory and can
->>>> provide some
->>>> info for users while cgroup's direct reclaim is working.
+>>> memory can't be offlined when CONFIG_MEMCG is selected.
+>>> For example: there is a memory device on node 1. The address range
+>>> is [1G, 1.5G). You will find 4 new directories memory8, memory9, memory10,
+>>> and memory11 under the directory /sys/devices/system/memory/.
 >>>
+>>> If CONFIG_MEMCG is selected, we will allocate memory to store page cgroup
+>>> when we online pages. When we online memory8, the memory stored page cgroup
+>>> is not provided by this memory device. But when we online memory9, the memory
+>>> stored page cgroup may be provided by memory8. So we can't offline memory8
+>>> now. We should offline the memory in the reversed order.
 >>>
->>> I guess you meant targeted resp. (hard/soft) limit reclaim here,
->>> right? It is true that this is direct reclaim but it is not clear to me
->>
->>
->> Yes, I meant memcg hard/soft reclaim here which is triggered directly
->> by allocation and is distinct from background kswapd reclaim (global).
->>
->>> why the usefulnes should be limitted to the reclaim for users. I would
->>> understand this if the users was in fact in-kernel users.
+>>> When the memory device is hotremoved, we will auto offline memory provided
+>>> by this memory device. But we don't know which memory is onlined first, so
+>>> offlining memory may fail. In such case, iterate twice to offline the memory.
+>>> 1st iterate: offline every non primary memory block.
+>>> 2nd iterate: offline primary (i.e. first added) memory block.
 >>>
->>
->> One of the reasons I'm trying to accounting the dirty pages is to get a
->> more board overall view of memory usages because memcg hard/soft
->> reclaim may have effect on response time of user application.
->> Yeah, the beneficiary can be application administrator or kernel users.
->> :P
->>
->>> [...]
->>>>
->>>> To prevent AB/BA deadlock mentioned by Greg Thelen in previous version
->>>> (https://lkml.org/lkml/2012/7/30/227), we adjust the lock order:
->>>> ->private_lock --> mapping->tree_lock --> memcg->move_lock.
->>>> So we need to make mapping->tree_lock ahead of TestSetPageDirty in
->>>> __set_page_dirty()
->>>> and __set_page_dirty_nobuffers(). But in order to avoiding useless
->>>> spinlock contention,
->>>> a prepare PageDirty() checking is added.
+>>> This idea is suggested by KOSAKI Motohiro.
 >>>
->>>
->>> But there is another AA deadlock here I believe.
->>> page_remove_rmap
->>>    mem_cgroup_begin_update_page_stat             <<< 1
->>>    set_page_dirty
->>>      __set_page_dirty_buffers
->>>        __set_page_dirty
->>>          mem_cgroup_begin_update_page_stat       <<< 2
->>>            move_lock_mem_cgroup
->>>              spin_lock_irqsave(&memcg->move_lock, *flags);
->>>
->>> mem_cgroup_begin_update_page_stat is not recursive wrt. locking AFAICS
->>> because we might race with the moving charges:
->>>          CPU0                                            CPU1
->>> page_remove_rmap
->>>                                                  mem_cgroup_can_attach
->>>    mem_cgroup_begin_update_page_stat (1)
->>>      rcu_read_lock
->>>                                                    mem_cgroup_start_move
->>>
->>> atomic_inc(&memcg_moving)
->>>
->>> atomic_inc(&memcg->moving_account)
->>>                                                      synchronize_rcu
->>>      __mem_cgroup_begin_update_page_stat
->>>        mem_cgroup_stolen <<< TRUE
->>>        move_lock_mem_cgroup
->>>    [...]
->>>          mem_cgroup_begin_update_page_stat (2)
->>>            __mem_cgroup_begin_update_page_stat
->>>              mem_cgroup_stolen     <<< still TRUE
->>>              move_lock_mem_cgroup  <<< DEADLOCK
->>>    [...]
->>>    mem_cgroup_end_update_page_stat
->>>      rcu_unlock
->>>                                                    # wake up from
->>> synchronize_rcu
->>>                                                  [...]
->>>                                                  mem_cgroup_move_task
->>>                                                    mem_cgroup_move_charge
->>>                                                      walk_page_range
->>>
->>> mem_cgroup_move_account
->>>
->>> move_lock_mem_cgroup
->>>
->>>
->>> Maybe I have missed some other locking which would prevent this from
->>> happening but the locking relations are really complicated in this area
->>> so if mem_cgroup_{begin,end}_update_page_stat might be called
->>> recursively then we need a fat comment which justifies that.
->>>
+>>> Signed-off-by: Wen Congyang <wency@cn.fujitsu.com>
 >>
->> Ohhh...good catching!  I didn't notice there is a recursive call of
->> mem_cgroup_{begin,end}_update_page_stat in page_remove_rmap().
->> The mem_cgroup_{begin,end}_update_page_stat() design has depressed
->> me a lot recently as the lock granularity is a little bigger than I
->> thought.
->> Not only the resource but also some code logic is in the range of locking
->> which may be deadlock prone. The problem still exists if we are trying to
->> add stat account of other memcg page later, may I make bold to suggest
->> that we dig into the lock again...
+>> Maybe there is something here that I am missing - I admit that I came
+>> late to this one, but this really sounds like a very ugly hack, that
+>> really has no place in here.
 >>
->> But with regard to the current lock implementation, I doubt if we can we
->> can
->> account MEM_CGROUP_STAT_FILE_{MAPPED, DIRTY} in one breath and just
->> try to get move_lock once in the beginning. IMHO we can make
->> mem_cgroup_{begin,end}_update_page_stat() to recursive aware and what I'm
->> thinking now is changing memcg->move_lock to rw-spinlock from the
->> original spinlock:
->> mem_cgroup_{begin,end}_update_page_stat() try to get the read lock which
->> make it
->> reenterable and memcg moving task side try to get the write spinlock.
->> Then the race may be following:
+>> Retrying, of course, may make sense, if we have reasonable belief that
+>> we may now succeed. If this is the case, you need to document - in the
+>> code - while is that.
 >>
->>          CPU0                                            CPU1
->> page_remove_rmap
->>                                                  mem_cgroup_can_attach
->>    mem_cgroup_begin_update_page_stat (1)
->>      rcu_read_lock
->>                                                    mem_cgroup_start_move
->>
->> atomic_inc(&memcg_moving)
->>
->> atomic_inc(&memcg->moving_account)
->>                                                      synchronize_rcu
->>      __mem_cgroup_begin_update_page_stat
->>        mem_cgroup_stolen   <<< TRUE
->>        move_lock_mem_cgroup   <<<< read-spinlock success
->>    [...]
->>       mem_cgroup_begin_update_page_stat (2)
->>            __mem_cgroup_begin_update_page_stat
->>              mem_cgroup_stolen     <<< still TRUE
->>              move_lock_mem_cgroup  <<<< read-spinlock success
->>
->>    [...]
->>    mem_cgroup_end_update_page_stat     <<< locked = true, unlock
->>      rcu_unlock
->>                                                    # wake up from
->> synchronize_rcu
->>                                                  [...]
->>                                                  mem_cgroup_move_task
->>                                                    mem_cgroup_move_charge
->>                                                      walk_page_range
->>
->> mem_cgroup_move_account
->>
->> move_lock_mem_cgroup    <<< write-spinlock
->>
->>
->> AFAICS, the deadlock seems to be avoided by both the rcu and rwlock.
->> Is there anything I lost?
->>
->
-> rwlock will work with the nest but it seems ugly do updates under read-lock.
->
-> How about this straightforward ?
-> ==
-> /*
->  * Once a thread takes memcg_move_lock() on a memcg, it can take the lock on
->  * the memcg again for nesting calls
->  */
-> static void move_lock_mem_cgroup(memcg, flags);
-> {
->         current->memcg_move_lock_nested += 1;
->         if (current->memcg_move_lock_nested > 1) {
->                 VM_BUG_ON(current->move_locked_memcg != memcg);
->                 return;
->         }
->         spin_lock_irqsave(&memcg_move_lock, &flags);
->         current->move_lockdev_memcg = memcg;
-> }
->
-> static void move_unlock_mem_cgroup(memcg, flags)
-> {
->         current->memcg_move_lock_nested -= 1;
->         if (!current->memcg_move_lock_nested) {
->                 current->move_locked_memcg = NULL;
->                 spin_unlock_irqrestore(&memcg_move_lock,flags);
->         }
-> }
->
-Does we need to add two
-fields(current->memcg_move_lock_nested/move_locked_memcg) to 'struct
-task'? Is it feasible?
+>> The memcg argument, however, doesn't really cut it. Why can't we make
+>> all page_cgroup allocations local to the node they are describing? If
+>> memcg is the culprit here, we should fix it, and not retry. If there is
+>> still any benefit in retrying, then we retry being very specific about why.
+> 
+> We try to make all page_cgroup allocations local to the node they are describing
+> now. If the memory is the first memory onlined in this node, we will allocate
+> it from the other node.
+> 
+> For example, node1 has 4 memory blocks: 8-11, and we online it from 8 to 11
+> 1. memory block 8, page_cgroup allocations are in the other nodes
+> 2. memory block 9, page_cgroup allocations are in memory block 8
+> 
+> So we should offline memory block 9 first. But we don't know in which order
+> the user online the memory block.
+> 
+> I think we can modify memcg like this:
+> allocate the memory from the memory block they are describing
+> 
+> I am not sure it is OK to do so.
 
-Now I'm thinking about another synchronization proposal for memcg page
-stat updater and move_account, which seems to deal with recursion
-issue and deadlock:
+I don't see a reason why not.
 
-             CPU A                                               CPU B
+You would have to tweak a bit the lookup function for page_cgroup, but
+assuming you will always have the pfns and limits, it should be easy to do.
 
-  move_lock_mem_cgroup
-  old_memcg = pc->mem_cgroup
-  TestSetPageDirty(page)
-  move_unlock_mem_cgroup
-                                                         move_lock_mem_cgroup
-                                                         if (PageDirty)
+I think the only tricky part is that today we have a single
+node_page_cgroup, and we would of course have to have one per memory
+block. My assumption is that the number of memory blocks is limited and
+likely not very big. So even a static array would do.
 
-old_memcg->nr_dirty --
-
-new_memcg->nr_dirty ++
-
-pc->mem_cgroup = new_memcgy
-                                                         move_unlock_mem_cgroup
-
-  old_memcg->nr_dirty ++
-
-
-So nr_dirty of old_memcg may be minus in a very short
-period('old_memcg->nr_dirty --' by CPU B), but it will be revised soon
-by CPU A. And the final figures of memcg->nr_dirty is correct.
-Meanwhile the move_lock only protect saving old_memcg and
-TestSetPageDirty in its critical section and without any irrelevant
-logic, so the lock order or deadlock can be handled easily.
-
-But I'm not sure whether I've lost some race conditions, any comments
-are welcomed. : )
-
-
---
-Thanks,
-Sha
+Kamezawa, do you have any input in here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
