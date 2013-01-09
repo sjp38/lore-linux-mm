@@ -1,55 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id A47296B0062
-	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 21:38:57 -0500 (EST)
-Received: by mail-vc0-f170.google.com with SMTP id fl11so1142991vcb.29
-        for <linux-mm@kvack.org>; Tue, 08 Jan 2013 18:38:56 -0800 (PST)
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 822266B0062
+	for <linux-mm@kvack.org>; Tue,  8 Jan 2013 21:41:47 -0500 (EST)
+Date: Wed, 9 Jan 2013 10:42:26 +0800
+From: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+Subject: Re: [PATCH 5/5] kfifo: log based kfifo API
+Message-ID: <20130109024226.GD304@yliu-dev.sh.intel.com>
+References: <1357657073-27352-1-git-send-email-yuanhan.liu@linux.intel.com>
+ <1357657073-27352-6-git-send-email-yuanhan.liu@linux.intel.com>
+ <20130108181645.GA7972@core.coreip.homeip.net>
 MIME-Version: 1.0
-In-Reply-To: <1357697739.4838.30.camel@pasglop>
-References: <1357694895-520-1-git-send-email-walken@google.com>
-	<1357694895-520-8-git-send-email-walken@google.com>
-	<1357697739.4838.30.camel@pasglop>
-Date: Tue, 8 Jan 2013 18:38:56 -0800
-Message-ID: <CANN689EJV_7Q7J4j1ttDxZuqbwD53PAuCHb5DhiE-AVbmNSR7Q@mail.gmail.com>
-Subject: Re: [PATCH 7/8] mm: use vm_unmapped_area() on powerpc architecture
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130108181645.GA7972@core.coreip.homeip.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Rik van Riel <riel@redhat.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Matt Turner <mattst88@gmail.com>, David Howells <dhowells@redhat.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-parisc@vger.kernel.org, linux-alpha@vger.kernel.org, linux-ia64@vger.kernel.org
+To: Dmitry Torokhov <dmitry.torokhov@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Stefani Seibold <stefani@seibold.net>, Andrew Morton <akpm@linux-foundation.org>, linux-omap@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, platform-driver-x86@vger.kernel.org, linux-input@vger.kernel.org, linux-iio@vger.kernel.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, linux-mmc@vger.kernel.org, linux-mtd@lists.infradead.org, libertas-dev@lists.infradead.org, linux-wireless@vger.kernel.org, netdev@vger.kernel.org, linux-pci@vger.kernel.org, open-iscsi@googlegroups.com, linux-scsi@vger.kernel.org, devel@driverdev.osuosl.org, linux-serial@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org, dccp@vger.kernel.org, linux-sctp@vger.kernel.org
 
-On Tue, Jan 8, 2013 at 6:15 PM, Benjamin Herrenschmidt
-<benh@kernel.crashing.org> wrote:
-> On Tue, 2013-01-08 at 17:28 -0800, Michel Lespinasse wrote:
->> Update the powerpc slice_get_unmapped_area function to make use of
->> vm_unmapped_area() instead of implementing a brute force search.
->>
->> Signed-off-by: Michel Lespinasse <walken@google.com>
->>
->> ---
->>  arch/powerpc/mm/slice.c |  128 +++++++++++++++++++++++++++++-----------------
->>  1 files changed, 81 insertions(+), 47 deletions(-)
->
-> That doesn't look good ... the resulting code is longer than the
-> original, which makes me wonder how it is an improvement...
+On Tue, Jan 08, 2013 at 10:16:46AM -0800, Dmitry Torokhov wrote:
+> Hi Yuanhan,
+> 
+> On Tue, Jan 08, 2013 at 10:57:53PM +0800, Yuanhan Liu wrote:
+> > The current kfifo API take the kfifo size as input, while it rounds
+> >  _down_ the size to power of 2 at __kfifo_alloc. This may introduce
+> > potential issue.
+> > 
+> > Take the code at drivers/hid/hid-logitech-dj.c as example:
+> > 
+> > 	if (kfifo_alloc(&djrcv_dev->notif_fifo,
+> >                        DJ_MAX_NUMBER_NOTIFICATIONS * sizeof(struct dj_report),
+> >                        GFP_KERNEL)) {
+> > 
+> > Where, DJ_MAX_NUMBER_NOTIFICATIONS is 8, and sizeo of(struct dj_report)
+> > is 15.
+> > 
+> > Which means it wants to allocate a kfifo buffer which can store 8
+> > dj_report entries at once. The expected kfifo buffer size would be
+> > 8 * 15 = 120 then. While, in the end, __kfifo_alloc will turn the
+> > size to rounddown_power_of_2(120) =  64, and then allocate a buf
+> > with 64 bytes, which I don't think this is the original author want.
+> > 
+> > With the new log API, we can do like following:
+> > 
+> > 	int kfifo_size_order = order_base_2(DJ_MAX_NUMBER_NOTIFICATIONS *
+> > 					    sizeof(struct dj_report));
+> > 
+> > 	if (kfifo_alloc(&djrcv_dev->notif_fifo, kfifo_size_order, GFP_KERNEL)) {
+> > 
+> > This make sure we will allocate enough kfifo buffer for holding
+> > DJ_MAX_NUMBER_NOTIFICATIONS dj_report entries.
+> 
+> Why don't you simply change __kfifo_alloc to round the allocation up
+> instead of down?
 
-Well no fair, the previous patch (for powerpc as well) has 22
-insertions and 93 deletions :)
+Hi Dmitry,
 
-The benefit is that the new code has lower algorithmic complexity, it
-replaces a per-vma loop with O(N) complexity with an outer loop that
-finds contiguous slice blocks and passes them to vm_unmapped_area()
-which is only O(log N) complexity. So the new code will be faster for
-workloads which use lots of vmas.
+Yes, it would be neat and that was my first reaction as well. I then
+sent out a patch, but it was NACKed by Stefani(the original kfifo
+author). Here is the link:
 
-That said, I do agree that the code that looks for contiguous
-available slices looks kinda ugly - just not sure how to make it look
-nicer though.
+    https://lkml.org/lkml/2012/10/26/144
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+Then Stefani proposed to change the API to take log of size as input to
+root fix this kind of issues. And here it is.
+
+Thanks.
+
+	--yliu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
