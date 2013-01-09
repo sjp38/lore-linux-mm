@@ -1,66 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id 1E2AB6B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 17:15:35 -0500 (EST)
-Date: Wed, 09 Jan 2013 23:15:29 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
+	by kanga.kvack.org (Postfix) with SMTP id 365686B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 17:18:22 -0500 (EST)
+Received: by mail-da0-f54.google.com with SMTP id n2so961425dad.41
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 14:18:21 -0800 (PST)
+Date: Wed, 9 Jan 2013 14:14:49 -0800
+From: Anton Vorontsov <anton.vorontsov@linaro.org>
+Subject: Re: [PATCH 1/2] Add mempressure cgroup
+Message-ID: <20130109221449.GA14880@lizard.fhda.edu>
+References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+ <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
+ <20130108084949.GD4714@blaptop>
 MIME-Version: 1.0
-References: <50EDE41C.7090107@iskon.hr> <20130109134816.db51a820.akpm@linux-foundation.org>
-In-Reply-To: <20130109134816.db51a820.akpm@linux-foundation.org>
-Message-ID: <50EDEC01.7090807@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] mm: wait for congestion to clear on all zones
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20130108084949.GD4714@blaptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
 
-On 09.01.2013 22:48, Andrew Morton wrote:
-> On Wed, 09 Jan 2013 22:41:48 +0100
-> Zlatko Calusic <zlatko.calusic@iskon.hr> wrote:
->
->> Currently we take a short nap (HZ/10) and wait for congestion to clear
->> before taking another pass with lower priority in balance_pgdat(). But
->> we do that only for the highest zone that we encounter is unbalanced
->> and congested.
->>
->> This patch changes that to wait on all congested zones in a single
->> pass in the hope that it will save us some scanning that way. Also we
->> take a nap as soon as congested zone is encountered and sc.priority <
->> DEF_PRIORITY - 2 (aka kswapd in trouble).
->>
->> ...
->>
->> The patch is against the mm tree. Make sure that
->> mm-avoid-calling-pgdat_balanced-needlessly.patch is applied first (not
->> yet in the mmotm tree). Tested on half a dozen systems with different
->> workloads for the last few days, working really well!
->
-> But what are the user-observable effcets of this change?  Less kernel
-> CPU consumption, presumably?  Did you quantify it?
->
+On Tue, Jan 08, 2013 at 05:49:49PM +0900, Minchan Kim wrote:
+[...]
+> Sorry still I didn't look at your implementation about cgroup part.
+> but I had a question since long time ago.
+> 
+> How can we can make sure false positive about zone and NUMA?
+> I mean DMA zone is short in system so VM notify to user and user
+> free all memory of NORMAL zone because he can't know what pages live
+> in any zones. NUMA is ditto.
 
-I have an observation that without it, under some circumstances that are 
-VERY HARD to repeat (many days need to pass and some stars to align to 
-see the effect), the page cache gets hit hard, 2/3 of it evicted in a 
-split second. And it's not even under high load! So, I'm still 
-monitoring it, but so far the memory utilization really seems better 
-with the patch applied (no more mysterious page cache shootdowns).
+Um, we count scans irrespective of zones or nodes, i.e. we sum all 'number
+of scanned' and 'number of reclaimed' stats. So, it should not be a
+problem, as I see it.
 
-Other than that, it just seems more correct to wait on all congested 
-zones, not just the highest one. When I sent my first patch that 
-replaced congestion_wait() I didn't have much time to do elaborate 
-analysis (3.7.0 was released in a matter of hours). So, I just plugged 
-the hole and continued working on the proper solution.
-
-I do think that this is my last patch in this particular area 
-(balance_pgdat() & friends). But, I'll continue investigating for the 
-root cause of this interesting debalance that happens only on this 
-particular system. Because I think balance_pgdat() behaviour was just 
-revealing it, but the real problem is somewhere else.
--- 
-Zlatko
+Thanks,
+Anton
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
