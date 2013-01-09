@@ -1,61 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx149.postini.com [74.125.245.149])
-	by kanga.kvack.org (Postfix) with SMTP id B083C6B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:39:38 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id wz7so1204549pbc.23
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 13:39:37 -0800 (PST)
-Date: Wed, 9 Jan 2013 13:36:04 -0800
-From: Anton Vorontsov <anton.vorontsov@linaro.org>
-Subject: Re: [PATCH 1/2] Add mempressure cgroup
-Message-ID: <20130109213604.GA9475@lizard.fhda.edu>
-References: <20130104082751.GA22227@lizard.gateway.2wire.net>
- <1357288152-23625-1-git-send-email-anton.vorontsov@linaro.org>
- <20130109203731.GA20454@htj.dyndns.org>
- <50EDDF1E.6010705@parallels.com>
+Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
+	by kanga.kvack.org (Postfix) with SMTP id 2FC4E6B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 16:41:52 -0500 (EST)
+Date: Wed, 09 Jan 2013 22:41:48 +0100
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <50EDDF1E.6010705@parallels.com>
+Message-ID: <50EDE41C.7090107@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Subject: [PATCH] mm: wait for congestion to clear on all zones
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Jan 10, 2013 at 01:20:30AM +0400, Glauber Costa wrote:
-[...]
-> Given the above, I believe that ideally we should use this pressure
-> mechanism in memcg replacing the current memcg notification mechanism.
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 
-Just a quick wonder: why would we need to place it into memcg, when we
-don't need any of the memcg stuff for it? I see no benefits, not
-design-wise, not implementation-wise or anything-wise. :)
+Currently we take a short nap (HZ/10) and wait for congestion to clear
+before taking another pass with lower priority in balance_pgdat(). But
+we do that only for the highest zone that we encounter is unbalanced
+and congested.
 
-We can use mempressure w/o memcg, and even then it can (or should :) be
-useful (for cpuset, for example).
+This patch changes that to wait on all congested zones in a single
+pass in the hope that it will save us some scanning that way. Also we
+take a nap as soon as congested zone is encountered and sc.priority <
+DEF_PRIORITY - 2 (aka kswapd in trouble).
 
-> More or less like timer expiration happens: you could still write
-> numbers for compatibility, but those numbers would be internally mapped
-> into the levels Anton is proposing, that makes *way* more sense.
-> 
-> If that is not possible, they should coexist as "notification" and a
-> "pressure" mechanism inside memcg.
-> 
-> The main argument against it centered around cpusets also being able to
-> participate in the play. I haven't yet understood how would it take
-> place. In particular, I saw no mention to cpusets in the patches.
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Minchan Kim <minchan.kim@gmail.com>
+Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
+---
+The patch is against the mm tree. Make sure that
+mm-avoid-calling-pgdat_balanced-needlessly.patch is applied first (not
+yet in the mmotm tree). Tested on half a dozen systems with different
+workloads for the last few days, working really well!
 
-I didn't test it, but as I see it, once a process in a specific cpuset,
-the task can only use a specific allowed zones for reclaim/alloc, i.e.
-various checks like this in vmscan:
+ mm/vmscan.c | 35 ++++++++++++-----------------------
+ 1 file changed, 12 insertions(+), 23 deletions(-)
 
-         if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-                     continue;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 002ade6..1c5d38a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2565,7 +2565,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 							int *classzone_idx)
+ {
+ 	bool pgdat_is_balanced = false;
+-	struct zone *unbalanced_zone;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 	unsigned long total_scanned;
+@@ -2596,9 +2595,6 @@ loop_again:
+ 
+ 	do {
+ 		unsigned long lru_pages = 0;
+-		int has_under_min_watermark_zone = 0;
+-
+-		unbalanced_zone = NULL;
+ 
+ 		/*
+ 		 * Scan in the highmem->dma direction for the highest
+@@ -2739,15 +2735,20 @@ loop_again:
+ 			}
+ 
+ 			if (!zone_balanced(zone, testorder, 0, end_zone)) {
+-				unbalanced_zone = zone;
+-				/*
+-				 * We are still under min water mark.  This
+-				 * means that we have a GFP_ATOMIC allocation
+-				 * failure risk. Hurry up!
+-				 */
++			    if (total_scanned && sc.priority < DEF_PRIORITY - 2) {
++				/* OK, kswapd is getting into trouble. */
+ 				if (!zone_watermark_ok_safe(zone, order,
+ 					    min_wmark_pages(zone), end_zone, 0))
+-					has_under_min_watermark_zone = 1;
++				    /*
++				     * We are still under min water mark.
++				     * This means that we have a GFP_ATOMIC
++				     * allocation failure risk. Hurry up!
++				     */
++				    count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
++				else
++				    /* Take a nap if a zone is congested. */
++				    wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
++			    }
+ 			} else {
+ 				/*
+ 				 * If a zone reaches its high watermark,
+@@ -2758,7 +2759,6 @@ loop_again:
+ 				 */
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+ 			}
+-
+ 		}
+ 
+ 		/*
+@@ -2776,17 +2776,6 @@ loop_again:
+ 		}
+ 
+ 		/*
+-		 * OK, kswapd is getting into trouble.  Take a nap, then take
+-		 * another pass across the zones.
+-		 */
+-		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
+-			if (has_under_min_watermark_zone)
+-				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+-			else if (unbalanced_zone)
+-				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+-		}
+-
+-		/*
+ 		 * We do this so kswapd doesn't build up large priorities for
+ 		 * example when it is freeing in parallel with allocators. It
+ 		 * matches the direct reclaim path behaviour in terms of impact
+-- 
+1.8.1
 
-So, vmscan simply won't call vmpressure() if the zone is not allowed (so
-we won't account that pressure, from that zone).
-
-Thanks,
-Anton
+-- 
+Zlatko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
