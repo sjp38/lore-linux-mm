@@ -1,131 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id E60B76B0070
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 02:28:42 -0500 (EST)
-Date: Wed, 9 Jan 2013 16:28:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [patch]mm: make madvise(MADV_WILLNEED) support swap file prefetch
-Message-ID: <20130109072840.GB27890@blaptop>
-References: <20130107081237.GB21779@kernel.org>
- <20130107120630.82ba51ad.akpm@linux-foundation.org>
- <50eb8180.6887320a.3f90.58b0SMTPIN_ADDED_BROKEN@mx.google.com>
- <20130108042609.GA2459@kernel.org>
- <20130108053856.GA4714@blaptop>
- <20130108073229.GA9018@kernel.org>
- <20130108083853.GC4714@blaptop>
- <20130108091324.GA7966@kernel.org>
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id 58F5E6B0062
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 03:00:21 -0500 (EST)
+Date: Wed, 9 Jan 2013 03:00:20 -0500 (EST)
+From: CAI Qian <caiqian@redhat.com>
+Message-ID: <1130319870.1895368.1357718420464.JavaMail.root@redhat.com>
+In-Reply-To: <239895331.1183913.1357638392087.JavaMail.root@redhat.com>
+Subject: Re: mmap regression on power7?
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130108091324.GA7966@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, hughd@google.com, riel@redhat.com, Johannes Weiner <hannes@cmpxchg.org>, mtk.manpages@gmail.com
+To: linux-mm <linux-mm@kvack.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, Jan 08, 2013 at 05:13:24PM +0800, Shaohua Li wrote:
-> On Tue, Jan 08, 2013 at 05:38:53PM +0900, Minchan Kim wrote:
-> > On Tue, Jan 08, 2013 at 03:32:29PM +0800, Shaohua Li wrote:
-> > > On Tue, Jan 08, 2013 at 02:38:56PM +0900, Minchan Kim wrote:
-> > > > Hi Shaohua,
-> > > > 
-> > > > On Tue, Jan 08, 2013 at 12:26:09PM +0800, Shaohua Li wrote:
-> > > > > On Tue, Jan 08, 2013 at 10:16:07AM +0800, Wanpeng Li wrote:
-> > > > > > On Mon, Jan 07, 2013 at 12:06:30PM -0800, Andrew Morton wrote:
-> > > > > > >On Mon, 7 Jan 2013 16:12:37 +0800
-> > > > > > >Shaohua Li <shli@kernel.org> wrote:
-> > > > > > >
-> > > > > > >> 
-> > > > > > >> Make madvise(MADV_WILLNEED) support swap file prefetch. If memory is swapout,
-> > > > > > >> this syscall can do swapin prefetch. It has no impact if the memory isn't
-> > > > > > >> swapout.
-> > > > > > >
-> > > > > > >Seems sensible.
-> > > > > > 
-> > > > > > Hi Andrew and Shaohua,
-> > > > > > 
-> > > > > > What's the performance in the scenario of serious memory pressure? Since
-> > > > > > in this case pages in swap are highly fragmented and cache hit is most
-> > > > > > impossible. If WILLNEED path should add a check to skip readahead in
-> > > > > > this case since swapin only leads to unnecessary memory allocation. 
-> > > > > 
-> > > > > pages in swap are not highly fragmented if you access memory sequentially. In
-> > > > > that case, the pages you accessed will be added to lru list side by side. So if
-> > > > > app does swap prefetch, we can do sequential disk access and merge small
-> > > > > request to big one.
-> > > > 
-> > > > How can you make sure that the range of WILLNEED was always sequentially accesssed?
-> > > 
-> > > you can't guarantee this even for file access.
-> > 
-> > Indeed.
-> > 
-> > > 
-> > > > > Another advantage is prefetch can drive high disk iodepth.  For sequential
-> > > > 
-> > > > What does it mean 'iodepth'? I failed to grep it in google. :(
-> > > 
-> > > io depth. How many requests are inflight at a givin time.
-> > 
-> > Thanks for the info!
-> > 
-> > > 
-> > > > > access, this can cause big request. Even for random access, high iodepth has
-> > > > > much better performance especially for SSD.
-> > > > 
-> > > > So you mean WILLNEED is always good in where both random and sequential in "SSD"?
-> > > > Then, how about the "Disk"?
-> > > 
-> > > Hmm, even for hard disk, high iodepth random access is faster than single
-> > > iodepth access. Today's disk is NCQ disk. But the speedup isn't that
-> > > significant like a SSD. For sequential access, both harddisk and SSD have
-> > > better performance with higher iodepth.
-> > > 
-> > > > Wanpeng's comment makes sense to me so I guess others can have a same question
-> > > > about this patch. So it would be better to write your rationale in changelog.
-> > > 
-> > > I would, but the question is just like why app wants to prefetch file pages. I
-> > > thought it's commonsense. The problem like memory allocation exists in file
-> > > prefetch too. The advantages (better IO access, CPU and disk can operate in
-> > > parallel and so on) apply for both file and swap prefetch.
-> > 
-> > Agreed. But I have a question about semantic of madvise(DONTNEED) of anon vma.
-> > If Linux start to support it for anon, user can misunderstand it following as.
-> > 
-> > User might think we start to use anonymous pages in that range soon so he
-> > gives the hint to kernel to map all pages of the range to page table in advance.
-> > (ie, pre page fault like MAP_POPULATE) and if one of the page might be
-> > swapped out, readahead it. What do you think about it?
-> > For clarification, it would be better to add man page description with Ccing
-> > man page maintainer.
+
+
+----- Original Message -----
+> From: "CAI Qian" <caiqian@redhat.com>
+> To: "linux-mm" <linux-mm@kvack.org>
+> Cc: "linux-kernel" <linux-kernel@vger.kernel.org>
+> Sent: Tuesday, January 8, 2013 5:46:32 PM
+> Subject: mmap regression on power7?
 > 
-> there is no confusion if the page exists or swapped. I thought what you are are
-> thinking about is the page isn't populated yet. The manpage declaims WILLNEED
-> "it might be a good idea to read some pages ahead." This sounds clear this
-> isn't to populate memory and matches what we did. But I'm not sure what's the
-> precise description.
-
-Anyway, you are adding new feature.
-For merging, we need a real practice scenario, gain and exact semantics for man
-pages. I don't know why current Linux man pages is very poor about WILLNEED.
-If it doesn't give enough information for user to expect system's behavior,
-anyone doesn't want to use it.
-POV perforance, Ccing Johannes because he tried similar long time ago so 
-he might have a comment.
-
+> Noticed that this test is failing at the moment up to v3.8.0-rc1,
+This turned out to be a possible gcc regression introduced in 4.7, so
+will be tracked there.
+> http://ltp.git.sourceforge.net/git/gitweb.cgi?p=ltp/ltp.git;a=blob;f=testcases/kernel/mem/mtest06/mmap1.c
 > 
-> Thanks,
-> Shaohua
+> mmap1       0  TINFO  :  created writing thread[70366791266816]
+> mmap1       0  TINFO  :  [70366791266816] - map, change contents,
+> unmap files 1000 times
+> mmap1       0  TINFO  :  [70366799655424] - read contents of memory
+> 0x3fff8b180000 1000 times
+> mmap1       0  TINFO  :  created reading thread[70366799655424]
+> mmap1       0  TINFO  :  [70366799655424] Unexpected page fault at
+> 0x3fff8b1803a8
+> 
+> Bisecting going back to v2.6.38 has no such problem and keep running
+> despite sometimes it triggered memory allocation failures.
+> 
+> swapper: page allocation failure. order:0, mode:0x0
+> Call Trace:
+> [c00000013feab370] [c0000000000143f4] .show_stack+0x74/0x1c0
+> (unreliable)
+> [c00000013feab420] [c0000000001474d0]
+> .__alloc_pages_nodemask+0x4f0/0x8e0
+> [c00000013feab5c0] [c000000000031870]
+> .iommu_alloc_coherent+0x100/0x280
+> [c00000013feab680] [c000000000031020]
+> .dma_iommu_alloc_coherent+0x30/0x50
+> [c00000013feab6f0] [d000000001712220]
+> .ibmvscsi_queuecommand+0x5b0/0x600 [ibmvscsic]
+> [c00000013feab7d0] [c0000000003aa0d0] .scsi_dispatch_cmd+0x120/0x380
+> [c00000013feab870] [c0000000003b2a8c] .scsi_request_fn+0x4fc/0x620
+> [c00000013feab950] [c0000000002a13ac] .__blk_run_queue+0x15c/0x1c0
+> [c00000013feab9e0] [c0000000002a1514] .blk_run_queue+0x34/0x60
+> [c00000013feaba70] [c0000000003b1894] .scsi_run_queue+0x114/0x450
+> [c00000013feabb50] [c0000000003b2de8] .scsi_next_command+0x48/0x70
+> [c00000013feabbe0] [c0000000003b3e60] .scsi_io_completion+0x3e0/0x580
+> [c00000013feabcc0] [c0000000003a9d98]
+> .scsi_finish_command+0x128/0x180
+> [c00000013feabd60] [c0000000003b4118] .scsi_softirq_done+0x108/0x1d0
+> [c00000013feabe00] [c0000000002a795c] .blk_done_softirq+0xbc/0xf0
+> [c00000013feabea0] [c000000000092e90] .__do_softirq+0x110/0x290
+> [c00000013feabf90] [c000000000020eb8] .call_do_softirq+0x14/0x24
+> [c00000013e963960] [c00000000000f2b4] .do_softirq+0xf4/0x120
+> [c00000013e963a00] [c000000000092ca4] .irq_exit+0xb4/0xc0
+> [c00000013e963a80] [c00000000000f540] .do_IRQ+0x160/0x2c0
+> [c00000013e963b40] [c000000000004898]
+> hardware_interrupt_entry+0x18/0x80
+> --- Exception: 501 at .arch_local_irq_restore+0x34/0x60
+>     LR = .cpu_idle+0x170/0x210
+> [c00000013e963e30] [c000000000016c14] .cpu_idle+0x164/0x210
+> (unreliable)
+> [c00000013e963ee0] [c00000000059e454] .start_secondary+0x324/0x35c
+> [c00000013e963f90] [c000000000008268]
+> .start_secondary_prolog+0x10/0x14
+> Mem-Info:
+> Node 0 DMA per-cpu:
+> CPU    0: hi:    6, btch:   1 usd:   5
+> CPU    1: hi:    6, btch:   1 usd:   1
+> CPU    2: hi:    6, btch:   1 usd:   5
+> CPU    3: hi:    6, btch:   1 usd:   5
+> CPU    4: hi:    6, btch:   1 usd:   3
+> CPU    5: hi:    6, btch:   1 usd:   1
+> CPU    6: hi:    6, btch:   1 usd:   5
+> CPU    7: hi:    6, btch:   1 usd:   4
+> CPU    8: hi:    6, btch:   1 usd:   1
+> CPU    9: hi:    6, btch:   1 usd:   5
+> CPU   10: hi:    6, btch:   1 usd:   5
+> CPU   11: hi:    6, btch:   1 usd:   5
+> CPU   12: hi:    6, btch:   1 usd:   4
+> CPU   13: hi:    6, btch:   1 usd:   1
+> CPU   14: hi:    6, btch:   1 usd:   5
+> CPU   15: hi:    6, btch:   1 usd:   3
+> CPU   16: hi:    6, btch:   1 usd:   5
+> CPU   17: hi:    6, btch:   1 usd:   1
+> CPU   18: hi:    6, btch:   1 usd:   5
+> CPU   19: hi:    6, btch:   1 usd:   2
+> CPU   20: hi:    6, btch:   1 usd:   4
+> CPU   21: hi:    6, btch:   1 usd:   1
+> CPU   22: hi:    6, btch:   1 usd:   5
+> CPU   23: hi:    6, btch:   1 usd:   1
+> CPU   24: hi:    6, btch:   1 usd:   5
+> CPU   25: hi:    6, btch:   1 usd:   1
+> CPU   26: hi:    6, btch:   1 usd:   5
+> CPU   27: hi:    6, btch:   1 usd:   5
+> CPU   28: hi:    6, btch:   1 usd:   5
+> CPU   29: hi:    6, btch:   1 usd:   1
+> CPU   30: hi:    6, btch:   1 usd:   1
+> CPU   31: hi:    6, btch:   1 usd:   1
+> CPU   32: hi:    6, btch:   1 usd:   5
+> CPU   33: hi:    6, btch:   1 usd:   5
+> CPU   34: hi:    6, btch:   1 usd:   1
+> CPU   35: hi:    6, btch:   1 usd:   1
+> CPU   36: hi:    6, btch:   1 usd:   5
+> CPU   37: hi:    6, btch:   1 usd:   5
+> CPU   38: hi:    6, btch:   1 usd:   4
+> CPU   39: hi:    6, btch:   1 usd:   2
+> CPU   40: hi:    6, btch:   1 usd:   4
+> CPU   41: hi:    6, btch:   1 usd:   5
+> CPU   42: hi:    6, btch:   1 usd:   5
+> CPU   43: hi:    6, btch:   1 usd:   2
+> CPU   44: hi:    6, btch:   1 usd:   5
+> CPU   45: hi:    6, btch:   1 usd:   5
+> CPU   46: hi:    6, btch:   1 usd:   5
+> CPU   47: hi:    6, btch:   1 usd:   5
+> CPU   48: hi:    6, btch:   1 usd:   1
+> CPU   49: hi:    6, btch:   1 usd:   1
+> CPU   50: hi:    6, btch:   1 usd:   3
+> CPU   51: hi:    6, btch:   1 usd:   5
+> CPU   52: hi:    6, btch:   1 usd:   5
+> CPU   53: hi:    6, btch:   1 usd:   2
+> CPU   54: hi:    6, btch:   1 usd:   5
+> CPU   55: hi:    6, btch:   1 usd:   5
+> CPU   56: hi:    6, btch:   1 usd:   1
+> CPU   57: hi:    6, btch:   1 usd:   1
+> CPU   58: hi:    6, btch:   1 usd:   5
+> CPU   59: hi:    6, btch:   1 usd:   4
+> Node 1 DMA per-cpu:
+> CPU    0: hi:    6, btch:   1 usd:   5
+> CPU    1: hi:    6, btch:   1 usd:   5
+> CPU    2: hi:    6, btch:   1 usd:   5
+> CPU    3: hi:    6, btch:   1 usd:   4
+> CPU    4: hi:    6, btch:   1 usd:   5
+> CPU    5: hi:    6, btch:   1 usd:   3
+> CPU    6: hi:    6, btch:   1 usd:   5
+> CPU    7: hi:    6, btch:   1 usd:   5
+> CPU    8: hi:    6, btch:   1 usd:   5
+> CPU    9: hi:    6, btch:   1 usd:   2
+> CPU   10: hi:    6, btch:   1 usd:   5
+> CPU   11: hi:    6, btch:   1 usd:   3
+> CPU   12: hi:    6, btch:   1 usd:   5
+> CPU   13: hi:    6, btch:   1 usd:   2
+> CPU   14: hi:    6, btch:   1 usd:   5
+> CPU   15: hi:    6, btch:   1 usd:   4
+> CPU   16: hi:    6, btch:   1 usd:   5
+> CPU   17: hi:    6, btch:   1 usd:   5
+> CPU   18: hi:    6, btch:   1 usd:   5
+> CPU   19: hi:    6, btch:   1 usd:   5
+> CPU   20: hi:    6, btch:   1 usd:   5
+> CPU   21: hi:    6, btch:   1 usd:   5
+> CPU   22: hi:    6, btch:   1 usd:   5
+> CPU   23: hi:    6, btch:   1 usd:   4
+> CPU   24: hi:    6, btch:   1 usd:   5
+> CPU   25: hi:    6, btch:   1 usd:   4
+> CPU   26: hi:    6, btch:   1 usd:   5
+> CPU   27: hi:    6, btch:   1 usd:   5
+> CPU   28: hi:    6, btch:   1 usd:   5
+> CPU   29: hi:    6, btch:   1 usd:   1
+> CPU   30: hi:    6, btch:   1 usd:   5
+> CPU   31: hi:    6, btch:   1 usd:   5
+> CPU   32: hi:    6, btch:   1 usd:   5
+> CPU   33: hi:    6, btch:   1 usd:   5
+> CPU   34: hi:    6, btch:   1 usd:   2
+> CPU   35: hi:    6, btch:   1 usd:   5
+> CPU   36: hi:    6, btch:   1 usd:   5
+> CPU   37: hi:    6, btch:   1 usd:   5
+> CPU   38: hi:    6, btch:   1 usd:   1
+> CPU   39: hi:    6, btch:   1 usd:   4
+> CPU   40: hi:    6, btch:   1 usd:   0
+> CPU   41: hi:    6, btch:   1 usd:   4
+> CPU   42: hi:    6, btch:   1 usd:   5
+> CPU   43: hi:    6, btch:   1 usd:   5
+> CPU   44: hi:    6, btch:   1 usd:   5
+> CPU   45: hi:    6, btch:   1 usd:   5
+> CPU   46: hi:    6, btch:   1 usd:   5
+> CPU   47: hi:    6, btch:   1 usd:   4
+> CPU   48: hi:    6, btch:   1 usd:   5
+> CPU   49: hi:    6, btch:   1 usd:   3
+> CPU   50: hi:    6, btch:   1 usd:   5
+> CPU   51: hi:    6, btch:   1 usd:   5
+> CPU   52: hi:    6, btch:   1 usd:   5
+> CPU   53: hi:    6, btch:   1 usd:   2
+> CPU   54: hi:    6, btch:   1 usd:   2
+> CPU   55: hi:    6, btch:   1 usd:   2
+> CPU   56: hi:    6, btch:   1 usd:   5
+> CPU   57: hi:    6, btch:   1 usd:   1
+> CPU   58: hi:    6, btch:   1 usd:   5
+> CPU   59: hi:    6, btch:   1 usd:   5
+> active_anon:2553 inactive_anon:3246 isolated_anon:0
+>  active_file:34958 inactive_file:31322 isolated_file:0
+>  unevictable:0 dirty:13086 writeback:1581 unstable:0
+>  free:291 slab_reclaimable:2076 slab_unreclaimable:3873
+>  mapped:186 shmem:3 pagetables:796 bounce:0
+> Node 0 DMA free:10176kB min:7296kB low:9088kB high:10944kB
+> active_anon:96128kB inactive_anon:138368kB active_file:1837440kB
+> inactive_file:1605056kB unevictable:0kB isolated(anon):0kB
+> isolated(file):0kB present:4190720kB mlocked:0kB dirty:459840kB
+> writeback:62848kB mapped:11840kB shmem:192kB
+> slab_reclaimable:127360kB slab_unreclaimable:226688kB
+> kernel_stack:9088kB pagetables:35520kB unstable:0kB bounce:0kB
+> writeback_tmp:0kB pages_scanned:32 all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0
+> Node 1 DMA free:8448kB min:1792kB low:2240kB high:2688kB
+> active_anon:67264kB inactive_anon:69376kB active_file:399872kB
+> inactive_file:399552kB unevictable:0kB isolated(anon):0kB
+> isolated(file):0kB present:1047680kB mlocked:0kB dirty:377664kB
+> writeback:38336kB mapped:64kB shmem:0kB slab_reclaimable:5504kB
+> slab_unreclaimable:21184kB kernel_stack:480kB pagetables:15424kB
+> unstable:0kB bounce:0kB writeback_tmp:0kB pages_scanned:0
+> all_unreclaimable? no
+> lowmem_reserve[]: 0 0 0
+> Node 0 DMA: 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB
+> 0*8192kB 0*16384kB = 0kB
+> Node 1 DMA: 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB
+> 0*8192kB 0*16384kB = 0kB
+> 66497 total pagecache pages
+> 56 pages in swap cache
+> Swap cache stats: add 538, delete 482, find 127/141
+> Free swap  = 5161024kB
+> Total swap = 5177280kB
+> 81920 pages RAM
+> 900 pages reserved
+> 47062 pages shared
+> 39873 pages non-shared
+> sd 0:0:1:0: Can't allocate memory for indirect table
+> sd 0:0:1:0: couldn't convert cmd to srp_cmd
+> 
+> CAI Qian
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
