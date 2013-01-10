@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 3282E6B005A
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 18:33:26 -0500 (EST)
-Date: Wed, 9 Jan 2013 15:33:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-Message-Id: <20130109153324.bbd019b3.akpm@linux-foundation.org>
-In-Reply-To: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 0B9156B005A
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 19:14:06 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Wed, 9 Jan 2013 19:14:05 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id F26636E803F
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 19:14:01 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0A0E2Af298252
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2013 19:14:02 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0A0E2Bo002365
+	for <linux-mm@kvack.org>; Wed, 9 Jan 2013 22:14:02 -0200
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH] MAINTAINERS: mm: add additional include files to listing
+Date: Wed,  9 Jan 2013 16:13:38 -0800
+Message-Id: <1357776818-13421-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Linux MM <linux-mm@kvack.org>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Wed, 9 Jan 2013 17:32:24 +0800
-Tang Chen <tangchen@cn.fujitsu.com> wrote:
+Add gfp.h, mmzone.h, memory_hotplug.h & vmalloc.h to the "MEMORY
+MANAGMENT" section so scripts/get_maintainer.pl can do a better job of
+making recommendations.
 
-> This patch-set aims to implement physical memory hot-removing.
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
 
-As you were on th patch delivery path, all of these patches should have
-your Signed-off-by:.  But some were missing it.  I fixed this in my
-copy of the patches.
+Missed sending this to linux-mm due to a screwed up alias, sorry.
 
+ MAINTAINERS | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-I suspect this patchset adds a significant amount of code which will
-not be used if CONFIG_MEMORY_HOTPLUG=n.  "[PATCH v6 06/15]
-memory-hotplug: implement register_page_bootmem_info_section of
-sparse-vmemmap", for example.  This is not a good thing, so please go
-through the patchset (in fact, go through all the memhotplug code) and
-let's see if we can reduce the bloat for CONFIG_MEMORY_HOTPLUG=n
-kernels.
-
-This needn't be done immediately - it would be OK by me if you were to
-defer this exercise until all the new memhotplug code is largely in
-place.  But please, let's do it.
-
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 915564e..e77ef28 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -5003,6 +5003,10 @@ L:	linux-mm@kvack.org
+ W:	http://www.linux-mm.org
+ S:	Maintained
+ F:	include/linux/mm.h
++F:	include/linux/gfp.h
++F:	include/linux/mmzone.h
++F:	include/linux/memory_hotplug.h
++F:	include/linux/vmalloc.h
+ F:	mm/
+ 
+ MEMORY RESOURCE CONTROLLER
+-- 
+1.8.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
