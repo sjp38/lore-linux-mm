@@ -1,183 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id 3A66E6B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 02:59:50 -0500 (EST)
-Received: by mail-ia0-f170.google.com with SMTP id k20so142318iak.1
-        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 23:59:49 -0800 (PST)
-Message-ID: <1357804792.6568.17.camel@kernel.cn.ibm.com>
-Subject: Re: [PATCH 2/2] pageattr: prevent PSE and GLOABL leftovers to
- confuse pmd/pte_present and pmd_huge
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Thu, 10 Jan 2013 01:59:52 -0600
-In-Reply-To: <1355767224-13298-3-git-send-email-aarcange@redhat.com>
-References: <1355767224-13298-1-git-send-email-aarcange@redhat.com>
-	 <1355767224-13298-3-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 822646B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 03:24:15 -0500 (EST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 5503B3EE0BB
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:24:13 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 2C17245DE5C
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:24:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1345245DE54
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:24:13 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 034F0E08001
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:24:13 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 91DB8E08004
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:24:12 +0900 (JST)
+Message-ID: <50EE7A6B.7020005@jp.fujitsu.com>
+Date: Thu, 10 Jan 2013 17:23:07 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com> <20130109142314.1ce04a96.akpm@linux-foundation.org> <50EE24A4.8020601@cn.fujitsu.com> <50EE6A48.7060307@parallels.com> <50EE6E50.3040609@jp.fujitsu.com> <50EE73DE.30208@parallels.com>
+In-Reply-To: <50EE73DE.30208@parallels.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "H. Peter
- Anvin" <hpa@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
-On Mon, 2012-12-17 at 19:00 +0100, Andrea Arcangeli wrote:
-> Without this patch any kernel code that reads kernel memory in non
-> present kernel pte/pmds (as set by pageattr.c) will crash.
-> 
-> With this kernel code:
-> 
-> static struct page *crash_page;
-> static unsigned long *crash_address;
-> [..]
-> 	crash_page = alloc_pages(GFP_KERNEL, 9);
-> 	crash_address = page_address(crash_page);
-> 	if (set_memory_np((unsigned long)crash_address, 1))
-> 		printk("set_memory_np failure\n");
-> [..]
-> 
-> The kernel will crash if inside the "crash tool" one would try to read
-> the memory at the not present address.
-> 
-> crash> p crash_address
-> crash_address = $8 = (long unsigned int *) 0xffff88023c000000
-> crash> rd 0xffff88023c000000
-> [ *lockup* ]
-> 
-> The lockup happens because _PAGE_GLOBAL and _PAGE_PROTNONE shares the
-> same bit, and pageattr leaves _PAGE_GLOBAL set on a kernel pte which
-> is then mistaken as _PAGE_PROTNONE (so pte_present returns true by
-> mistake and the kernel fault then gets confused and loops).
-> 
-> With THP the same can happen after we taught pmd_present to check
-> _PAGE_PROTNONE and _PAGE_PSE in commit
-> 027ef6c87853b0a9df53175063028edb4950d476. THP has the same problem
-> with _PAGE_GLOBAL as the 4k pages, but it also has a problem with
-> _PAGE_PSE, which must be cleared too.
-> 
-> After the patch is applied copy_user correctly returns -EFAULT and
-> doesn't lockup anymore.
-> 
-> crash> p crash_address
-> crash_address = $9 = (long unsigned int *) 0xffff88023c000000
-> crash> rd 0xffff88023c000000
-> rd: read error: kernel virtual address: ffff88023c000000  type: "64-bit KVADDR"
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-> ---
->  arch/x86/mm/pageattr.c |   50 +++++++++++++++++++++++++++++++++++++++++++++--
->  1 files changed, 47 insertions(+), 3 deletions(-)
-> 
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index a718e0d..2713be4 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -445,6 +445,19 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
+(2013/01/10 16:55), Glauber Costa wrote:
+> On 01/10/2013 11:31 AM, Kamezawa Hiroyuki wrote:
+>> (2013/01/10 16:14), Glauber Costa wrote:
+>>> On 01/10/2013 06:17 AM, Tang Chen wrote:
+>>>>>> Note: if the memory provided by the memory device is used by the
+>>>>>> kernel, it
+>>>>>> can't be offlined. It is not a bug.
+>>>>>
+>>>>> Right.  But how often does this happen in testing?  In other words,
+>>>>> please provide an overall description of how well memory hot-remove is
+>>>>> presently operating.  Is it reliable?  What is the success rate in
+>>>>> real-world situations?
+>>>>
+>>>> We test the hot-remove functionality mostly with movable_online used.
+>>>> And the memory used by kernel is not allowed to be removed.
+>>>
+>>> Can you try doing this using cpusets configured to hardwall ?
+>>> It is my understanding that the object allocators will try hard not to
+>>> allocate anything outside the walls defined by cpuset. Which means that
+>>> if you have one process per node, and they are hardwalled, your kernel
+>>> memory will be spread evenly among the machine. With a big enough load,
+>>> they should eventually be present in all blocks.
+>>>
+>>
+>> I'm sorry I couldn't catch your point.
+>> Do you want to confirm whether cpuset can work enough instead of
+>> ZONE_MOVABLE ?
+>> Or Do you want to confirm whether ZONE_MOVABLE will not work if it's
+>> used with cpuset ?
+>>
+>>
+> No, I am not proposing to use cpuset do tackle the problem. I am just
+> wondering if you would still have high success rates with cpusets in use
+> with hardwalls. This is just one example of a workload that would spread
+> kernel memory around quite heavily.
+>
+> So this is just me trying to understand the limitations of the mechanism.
+>
 
-Hi Andrea,
+Hm, okay. In my undestanding, if the whole memory of a node is configured as
+MOVABLE, no kernel memory will not be allocated in the node because zonelist
+will not match. So, if cpuset is used with hardwalls, user will see -ENOMEM or OOM,
+I guess. even fork() will fail if fallback-to-other-node is not allowed.
 
-Since function kernel_physical_mapping_init has already setup identity
-mapping of pgd/pmd/pte, why need preserve large page here? 
+If it's configure as ZONE_NORMAL, you need to pray for offlining memory.
 
-cat /proc/meminfo
+AFAIK, IBM's ppc? has 16MB section size. So, some of sections can be offlined
+even if they are configured as ZONE_NORMAL. For them, placement of offlined
+memory is not important because it's virtualized by LPAR, they don't try
+to remove DIMM, they just want to increase/decrease amount of memory.
+It's an another approach.
 
-> DirectMap4k:       12280 kB
-> DirectMap2M:      894976 kB
+But here, we(fujitsu) tries to remove a system board/DIMM.
+So, configuring the whole memory of a node as ZONE_MOVABLE and tries to guarantee
+DIMM as removable.
 
-Why DirectMap2M is not equal to DirectMap4k?
-It seems that DirectMap2M should consist of DirectMap4K.
+>> IMHO, I don't think shrink_slab() can kill all objects in a node even
+>> if they are some caches. We need more study for doing that.
+>>
+>
+> Indeed, shrink_slab can only kill cached objects. They, however, are
+> usually a very big part of kernel memory. I wonder though if in case of
+> failure, it is worth it to try at least one shrink pass before you give up.
+>
 
->  	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
->  
->  	/*
-> +	 * Set the PSE and GLOBAL flags only if the PRESENT flag is
-> +	 * set otherwise pmd_present/pmd_huge will return true even on
-> +	 * a non present pmd. The canon_pgprot will clear _PAGE_GLOBAL
-> +	 * for the ancient hardware that doesn't support it.
-> +	 */
-> +	if (pgprot_val(new_prot) & _PAGE_PRESENT)
-> +		pgprot_val(new_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
-> +	else
-> +		pgprot_val(new_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
-> +
-> +	new_prot = canon_pgprot(new_prot);
-> +
-> +	/*
->  	 * old_pte points to the large page base address. So we need
->  	 * to add the offset of the virtual address:
->  	 */
-> @@ -489,7 +502,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
->  		 * The address is aligned and the number of pages
->  		 * covers the full page.
->  		 */
-> -		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
-> +		new_pte = pfn_pte(pte_pfn(old_pte), new_prot);
->  		__set_pmd_pte(kpte, address, new_pte);
->  		cpa->flags |= CPA_FLUSHTLB;
->  		do_split = 0;
-> @@ -540,16 +553,35 @@ static int split_large_page(pte_t *kpte, unsigned long address)
->  #ifdef CONFIG_X86_64
->  	if (level == PG_LEVEL_1G) {
->  		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
-> -		pgprot_val(ref_prot) |= _PAGE_PSE;
-> +		/*
-> +		 * Set the PSE flags only if the PRESENT flag is set
-> +		 * otherwise pmd_present/pmd_huge will return true
-> +		 * even on a non present pmd.
-> +		 */
-> +		if (pgprot_val(ref_prot) & _PAGE_PRESENT)
-> +			pgprot_val(ref_prot) |= _PAGE_PSE;
-> +		else
-> +			pgprot_val(ref_prot) &= ~_PAGE_PSE;
->  	}
->  #endif
->  
->  	/*
-> +	 * Set the GLOBAL flags only if the PRESENT flag is set
-> +	 * otherwise pmd/pte_present will return true even on a non
-> +	 * present pmd/pte. The canon_pgprot will clear _PAGE_GLOBAL
-> +	 * for the ancient hardware that doesn't support it.
-> +	 */
-> +	if (pgprot_val(ref_prot) & _PAGE_PRESENT)
-> +		pgprot_val(ref_prot) |= _PAGE_GLOBAL;
-> +	else
-> +		pgprot_val(ref_prot) &= ~_PAGE_GLOBAL;
-> +
-> +	/*
->  	 * Get the target pfn from the original entry:
->  	 */
->  	pfn = pte_pfn(*kpte);
->  	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
-> -		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
-> +		set_pte(&pbase[i], pfn_pte(pfn, canon_pgprot(ref_prot)));
->  
->  	if (address >= (unsigned long)__va(0) &&
->  		address < (unsigned long)__va(max_low_pfn_mapped << PAGE_SHIFT))
-> @@ -660,6 +692,18 @@ repeat:
->  		new_prot = static_protections(new_prot, address, pfn);
->  
->  		/*
-> +		 * Set the GLOBAL flags only if the PRESENT flag is
-> +		 * set otherwise pte_present will return true even on
-> +		 * a non present pte. The canon_pgprot will clear
-> +		 * _PAGE_GLOBAL for the ancient hardware that doesn't
-> +		 * support it.
-> +		 */
-> +		if (pgprot_val(new_prot) & _PAGE_PRESENT)
-> +			pgprot_val(new_prot) |= _PAGE_GLOBAL;
-> +		else
-> +			pgprot_val(new_prot) &= ~_PAGE_GLOBAL;
-> +
-> +		/*
->  		 * We need to keep the pfn from the existing PTE,
->  		 * after all we're only going to change it's attributes
->  		 * not the memory it points to
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yeah, now, his (our) approach is never allowing kernel memory on a node to be
+hot-removed by ZONE_MOVABLE. So, shrink_slab()'s effect will not be seen.
+
+If other brave guys tries to use ZONE_NORMAL for hot-pluggable DIMM, I see,
+it's worth triying.
+
+How about checking the target memsection is in NORMAL or in MOVABLE at
+hot-removing ? If NORMAL, shrink_slab() will be worth to be called.
+
+BTW, shrink_slab() is now node/zone aware ? If not, fixing that first will
+be better direction I guess.
+
+Thanks,
+-Kame
 
 
 --
