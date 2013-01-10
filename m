@@ -1,80 +1,183 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 4C2A26B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 02:55:04 -0500 (EST)
-Message-ID: <50EE73DE.30208@parallels.com>
-Date: Thu, 10 Jan 2013 11:55:10 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com> <20130109142314.1ce04a96.akpm@linux-foundation.org> <50EE24A4.8020601@cn.fujitsu.com> <50EE6A48.7060307@parallels.com> <50EE6E50.3040609@jp.fujitsu.com>
-In-Reply-To: <50EE6E50.3040609@jp.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 3A66E6B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 02:59:50 -0500 (EST)
+Received: by mail-ia0-f170.google.com with SMTP id k20so142318iak.1
+        for <linux-mm@kvack.org>; Wed, 09 Jan 2013 23:59:49 -0800 (PST)
+Message-ID: <1357804792.6568.17.camel@kernel.cn.ibm.com>
+Subject: Re: [PATCH 2/2] pageattr: prevent PSE and GLOABL leftovers to
+ confuse pmd/pte_present and pmd_huge
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Thu, 10 Jan 2013 01:59:52 -0600
+In-Reply-To: <1355767224-13298-3-git-send-email-aarcange@redhat.com>
+References: <1355767224-13298-1-git-send-email-aarcange@redhat.com>
+	 <1355767224-13298-3-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shaohua.li@intel.com>, "H. Peter
+ Anvin" <hpa@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On 01/10/2013 11:31 AM, Kamezawa Hiroyuki wrote:
-> (2013/01/10 16:14), Glauber Costa wrote:
->> On 01/10/2013 06:17 AM, Tang Chen wrote:
->>>>> Note: if the memory provided by the memory device is used by the
->>>>> kernel, it
->>>>> can't be offlined. It is not a bug.
->>>>
->>>> Right.  But how often does this happen in testing?  In other words,
->>>> please provide an overall description of how well memory hot-remove is
->>>> presently operating.  Is it reliable?  What is the success rate in
->>>> real-world situations?
->>>
->>> We test the hot-remove functionality mostly with movable_online used.
->>> And the memory used by kernel is not allowed to be removed.
->>
->> Can you try doing this using cpusets configured to hardwall ?
->> It is my understanding that the object allocators will try hard not to
->> allocate anything outside the walls defined by cpuset. Which means that
->> if you have one process per node, and they are hardwalled, your kernel
->> memory will be spread evenly among the machine. With a big enough load,
->> they should eventually be present in all blocks.
->>
+On Mon, 2012-12-17 at 19:00 +0100, Andrea Arcangeli wrote:
+> Without this patch any kernel code that reads kernel memory in non
+> present kernel pte/pmds (as set by pageattr.c) will crash.
 > 
-> I'm sorry I couldn't catch your point.
-> Do you want to confirm whether cpuset can work enough instead of
-> ZONE_MOVABLE ?
-> Or Do you want to confirm whether ZONE_MOVABLE will not work if it's
-> used with cpuset ?
+> With this kernel code:
 > 
+> static struct page *crash_page;
+> static unsigned long *crash_address;
+> [..]
+> 	crash_page = alloc_pages(GFP_KERNEL, 9);
+> 	crash_address = page_address(crash_page);
+> 	if (set_memory_np((unsigned long)crash_address, 1))
+> 		printk("set_memory_np failure\n");
+> [..]
 > 
-No, I am not proposing to use cpuset do tackle the problem. I am just
-wondering if you would still have high success rates with cpusets in use
-with hardwalls. This is just one example of a workload that would spread
-kernel memory around quite heavily.
+> The kernel will crash if inside the "crash tool" one would try to read
+> the memory at the not present address.
+> 
+> crash> p crash_address
+> crash_address = $8 = (long unsigned int *) 0xffff88023c000000
+> crash> rd 0xffff88023c000000
+> [ *lockup* ]
+> 
+> The lockup happens because _PAGE_GLOBAL and _PAGE_PROTNONE shares the
+> same bit, and pageattr leaves _PAGE_GLOBAL set on a kernel pte which
+> is then mistaken as _PAGE_PROTNONE (so pte_present returns true by
+> mistake and the kernel fault then gets confused and loops).
+> 
+> With THP the same can happen after we taught pmd_present to check
+> _PAGE_PROTNONE and _PAGE_PSE in commit
+> 027ef6c87853b0a9df53175063028edb4950d476. THP has the same problem
+> with _PAGE_GLOBAL as the 4k pages, but it also has a problem with
+> _PAGE_PSE, which must be cleared too.
+> 
+> After the patch is applied copy_user correctly returns -EFAULT and
+> doesn't lockup anymore.
+> 
+> crash> p crash_address
+> crash_address = $9 = (long unsigned int *) 0xffff88023c000000
+> crash> rd 0xffff88023c000000
+> rd: read error: kernel virtual address: ffff88023c000000  type: "64-bit KVADDR"
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  arch/x86/mm/pageattr.c |   50 +++++++++++++++++++++++++++++++++++++++++++++--
+>  1 files changed, 47 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+> index a718e0d..2713be4 100644
+> --- a/arch/x86/mm/pageattr.c
+> +++ b/arch/x86/mm/pageattr.c
+> @@ -445,6 +445,19 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 
-So this is just me trying to understand the limitations of the mechanism.
+Hi Andrea,
 
->> Another question I have for you: Have you considering calling
->> shrink_slab to try to deplete the caches and therefore free at least
->> slab memory in the nodes that can't be offlined? Is it relevant?
->>
+Since function kernel_physical_mapping_init has already setup identity
+mapping of pgd/pmd/pte, why need preserve large page here? 
+
+cat /proc/meminfo
+
+> DirectMap4k:       12280 kB
+> DirectMap2M:      894976 kB
+
+Why DirectMap2M is not equal to DirectMap4k?
+It seems that DirectMap2M should consist of DirectMap4K.
+
+>  	pgprot_val(req_prot) |= pgprot_val(cpa->mask_set);
+>  
+>  	/*
+> +	 * Set the PSE and GLOBAL flags only if the PRESENT flag is
+> +	 * set otherwise pmd_present/pmd_huge will return true even on
+> +	 * a non present pmd. The canon_pgprot will clear _PAGE_GLOBAL
+> +	 * for the ancient hardware that doesn't support it.
+> +	 */
+> +	if (pgprot_val(new_prot) & _PAGE_PRESENT)
+> +		pgprot_val(new_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
+> +	else
+> +		pgprot_val(new_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
+> +
+> +	new_prot = canon_pgprot(new_prot);
+> +
+> +	/*
+>  	 * old_pte points to the large page base address. So we need
+>  	 * to add the offset of the virtual address:
+>  	 */
+> @@ -489,7 +502,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
+>  		 * The address is aligned and the number of pages
+>  		 * covers the full page.
+>  		 */
+> -		new_pte = pfn_pte(pte_pfn(old_pte), canon_pgprot(new_prot));
+> +		new_pte = pfn_pte(pte_pfn(old_pte), new_prot);
+>  		__set_pmd_pte(kpte, address, new_pte);
+>  		cpa->flags |= CPA_FLUSHTLB;
+>  		do_split = 0;
+> @@ -540,16 +553,35 @@ static int split_large_page(pte_t *kpte, unsigned long address)
+>  #ifdef CONFIG_X86_64
+>  	if (level == PG_LEVEL_1G) {
+>  		pfninc = PMD_PAGE_SIZE >> PAGE_SHIFT;
+> -		pgprot_val(ref_prot) |= _PAGE_PSE;
+> +		/*
+> +		 * Set the PSE flags only if the PRESENT flag is set
+> +		 * otherwise pmd_present/pmd_huge will return true
+> +		 * even on a non present pmd.
+> +		 */
+> +		if (pgprot_val(ref_prot) & _PAGE_PRESENT)
+> +			pgprot_val(ref_prot) |= _PAGE_PSE;
+> +		else
+> +			pgprot_val(ref_prot) &= ~_PAGE_PSE;
+>  	}
+>  #endif
+>  
+>  	/*
+> +	 * Set the GLOBAL flags only if the PRESENT flag is set
+> +	 * otherwise pmd/pte_present will return true even on a non
+> +	 * present pmd/pte. The canon_pgprot will clear _PAGE_GLOBAL
+> +	 * for the ancient hardware that doesn't support it.
+> +	 */
+> +	if (pgprot_val(ref_prot) & _PAGE_PRESENT)
+> +		pgprot_val(ref_prot) |= _PAGE_GLOBAL;
+> +	else
+> +		pgprot_val(ref_prot) &= ~_PAGE_GLOBAL;
+> +
+> +	/*
+>  	 * Get the target pfn from the original entry:
+>  	 */
+>  	pfn = pte_pfn(*kpte);
+>  	for (i = 0; i < PTRS_PER_PTE; i++, pfn += pfninc)
+> -		set_pte(&pbase[i], pfn_pte(pfn, ref_prot));
+> +		set_pte(&pbase[i], pfn_pte(pfn, canon_pgprot(ref_prot)));
+>  
+>  	if (address >= (unsigned long)__va(0) &&
+>  		address < (unsigned long)__va(max_low_pfn_mapped << PAGE_SHIFT))
+> @@ -660,6 +692,18 @@ repeat:
+>  		new_prot = static_protections(new_prot, address, pfn);
+>  
+>  		/*
+> +		 * Set the GLOBAL flags only if the PRESENT flag is
+> +		 * set otherwise pte_present will return true even on
+> +		 * a non present pte. The canon_pgprot will clear
+> +		 * _PAGE_GLOBAL for the ancient hardware that doesn't
+> +		 * support it.
+> +		 */
+> +		if (pgprot_val(new_prot) & _PAGE_PRESENT)
+> +			pgprot_val(new_prot) |= _PAGE_GLOBAL;
+> +		else
+> +			pgprot_val(new_prot) &= ~_PAGE_GLOBAL;
+> +
+> +		/*
+>  		 * We need to keep the pfn from the existing PTE,
+>  		 * after all we're only going to change it's attributes
+>  		 * not the memory it points to
 > 
-> At this stage, we don't consider to call shrink_slab(). We require
-> nearly 100% success at offlining memory for removing DIMM.
-> It's my understanding.
-> 
-Of course, this is indisputable.
-
-> IMHO, I don't think shrink_slab() can kill all objects in a node even
-> if they are some caches. We need more study for doing that.
-> 
-
-Indeed, shrink_slab can only kill cached objects. They, however, are
-usually a very big part of kernel memory. I wonder though if in case of
-failure, it is worth it to try at least one shrink pass before you give up.
-
-It is not very different from what is in memory-failure.c, except that
-we could do better and do a more targetted shrinking (support for that
-is being worked on)
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 
 --
