@@ -1,72 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
-	by kanga.kvack.org (Postfix) with SMTP id 7EC066B006C
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 19:26:04 -0500 (EST)
-Date: Wed, 9 Jan 2013 16:26:02 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
-Message-Id: <20130109162602.53a60e77.akpm@linux-foundation.org>
-In-Reply-To: <1357712474-27595-3-git-send-email-minchan@kernel.org>
-References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
-	<1357712474-27595-3-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id 4D28F6B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:00:12 -0500 (EST)
+Message-ID: <50EE1B82.4090601@cn.fujitsu.com>
+Date: Thu, 10 Jan 2013 09:38:10 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 01/14] memory-hotplug: try to offline the memory twice
+ to avoid dependence
+References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-2-git-send-email-tangchen@cn.fujitsu.com> <50D96543.6010903@parallels.com> <50DFD7F7.5090408@cn.fujitsu.com> <50ED8834.1090804@parallels.com>
+In-Reply-To: <50ED8834.1090804@parallels.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Glauber Costa <glommer@parallels.com>
+Cc: Wen Congyang <wency@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Wed,  9 Jan 2013 15:21:14 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+Hi Glauber,
 
-> If laptop_mode is enable, VM try to avoid I/O for saving the power.
-> But if there isn't reclaimable memory without I/O, we should do I/O
-> for preventing unnecessary OOM kill although we sacrifices power.
-> 
-> One of example is that we are out of page cache. Remained one is
-> only anonymous pages, for swapping out, we needs may_writepage = 1.
-> 
-> Reported-by: Luigi Semenzato <semenzato@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmscan.c |    6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 439cc47..624c816 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1728,6 +1728,12 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  		free = zone_page_state(zone, NR_FREE_PAGES);
->  		if (unlikely(file + free <= high_wmark_pages(zone))) {
->  			scan_balance = SCAN_ANON;
-> +			/*
-> +			 * From now on, we have to swap out
-> +			 * for peventing OOM kill although
-> +			 * we sacrifice power consumption.
-> +			 */
-> +			sc->may_writepage = 1;
->  			goto out;
->  		}
->  	}
+On 01/09/2013 11:09 PM, Glauber Costa wrote:
+>>
+>> We try to make all page_cgroup allocations local to the node they are describing
+>> now. If the memory is the first memory onlined in this node, we will allocate
+>> it from the other node.
+>>
+>> For example, node1 has 4 memory blocks: 8-11, and we online it from 8 to 11
+>> 1. memory block 8, page_cgroup allocations are in the other nodes
+>> 2. memory block 9, page_cgroup allocations are in memory block 8
+>>
+>> So we should offline memory block 9 first. But we don't know in which order
+>> the user online the memory block.
+>>
+>> I think we can modify memcg like this:
+>> allocate the memory from the memory block they are describing
+>>
+>> I am not sure it is OK to do so.
+>
+> I don't see a reason why not.
 
-This is pretty ugly.  get_scan_count() is, as its name implies, an
-idempotent function which inspects the state of things and returns a
-result.  As such, it has no business going in and altering the state of
-the scan_control.
+I'm not sure, but if we do this, we could bring in a fragment for each
+memory block (a memory section, 128MB, right?). Is this a problem when
+we use large page (such as 1GB page) ?
 
-We have code in both direct reclaim and in kswapd to set may_writepage
-if vmscan is getting into trouble.  I don't see why adding another
-instance is necessary if the existing instances are working correctly.
+Even if not, will these fragments make any bad effects ?
 
+Thank. :)
 
-
-(Is it correct that __zone_reclaim() ignores laptop_mode?)
-
-
-I have a feeling that laptop mode has bitrotted and these patches are
-kinda hacking around as-yet-not-understood failures...
+>
+> You would have to tweak a bit the lookup function for page_cgroup, but
+> assuming you will always have the pfns and limits, it should be easy to do.
+>
+> I think the only tricky part is that today we have a single
+> node_page_cgroup, and we would of course have to have one per memory
+> block. My assumption is that the number of memory blocks is limited and
+> likely not very big. So even a static array would do.
+>
+> Kamezawa, do you have any input in here?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
