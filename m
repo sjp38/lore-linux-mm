@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 37CCE6B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:17:14 -0500 (EST)
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 0FB116B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:12:22 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Thu, 10 Jan 2013 18:12:22 -0500
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 596FDC9003C
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:12:19 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0ANCJ1L308240
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:12:19 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0ANCIp6024676
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:12:18 -0200
+Message-ID: <50EF4AD1.4060807@linux.vnet.ibm.com>
+Date: Thu, 10 Jan 2013 15:12:17 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Message-ID: <880965bb-90af-4a0f-9971-6bb8eb9ba2b7@default>
-Date: Thu, 10 Jan 2013 14:16:58 -0800 (PST)
-From: Dan Magenheimer <dan.magenheimer@oracle.com>
-Subject: RE: [PATCHv2 8/9] zswap: add to mm/
-References: <<1357590280-31535-1-git-send-email-sjenning@linux.vnet.ibm.com>>
- <<1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com>>
-In-Reply-To: <<1357590280-31535-9-git-send-email-sjenning@linux.vnet.ibm.com>>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [RFC] Reproducible OOM with partial workaround
+References: <201301102158.r0ALwI4i031014@como.maths.usyd.edu.au>
+In-Reply-To: <201301102158.r0ALwI4i031014@como.maths.usyd.edu.au>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjenning@linux.vnet.ibm.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Robert Jennings <rcj@linux.vnet.ibm.com>, Jenifer Hopper <jhopper@us.ibm.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>
+To: paul.szabo@sydney.edu.au
+Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-> From: Seth Jennings [mailto:sjenning@linux.vnet.ibm.com]
-> Subject: [PATCHv2 8/9] zswap: add to mm/
->=20
-> zswap is a thin compression backend for frontswap. It receives
-> pages from frontswap and attempts to store them in a compressed
-> memory pool, resulting in an effective partial memory reclaim and
-> dramatically reduced swap device I/O.
->=20
-> Additional, in most cases, pages can be retrieved from this
-> compressed store much more quickly than reading from tradition
-> swap devices resulting in faster performance for many workloads.
->=20
-> This patch adds the zswap driver to mm/
->=20
-> Signed-off-by: Seth Jennings <sjenning@linux.vnet.ibm.com>
+On 01/10/2013 01:58 PM, paul.szabo@sydney.edu.au wrote:
+> I developed a workaround patch for this particular OOM demo, dropping
+> filesystem caches when about to exhaust lowmem. However, subsequently
+> I observed OOM when running many processes (as yet I do not have an
+> easy-to-reproduce demo of this); so as I suspected, the essence of the
+> problem is not with FS caches.
+> 
+> Could you please help in finding the cause of this OOM bug?
 
-I've implemented the equivalent of zswap_flush_*
-in zcache.  It looks much better than my earlier
-attempt at similar code to move zpages to swap.
-Nice work and thanks!
+As was mentioned in the bug, your 32GB of physical memory only ends up
+giving ~900MB of low memory to the kernel.  Of that, around 600MB is
+used for "mem_map[]", leaving only about 300MB available to the kernel
+for *ALL* of its allocations at runtime.
 
-But... (isn't there always a "but";-)...
+Your configuration has never worked.  This isn't a regression, it's
+simply something that we know never worked in Linux and it's a very hard
+problem to solve.  One Linux vendor (at least) went to a huge amount of
+trouble to develop, ship, and supported a kernel that supported large
+32-bit machines, but it was never merged upstream and work stopped on it
+when such machines became rare beasts:
 
-> +/*
-> + * This limits is arbitrary for now until a better
-> + * policy can be implemented. This is so we don't
-> + * eat all of RAM decompressing pages for writeback.
-> + */
-> +#define ZSWAP_MAX_OUTSTANDING_FLUSHES 64
-> +=09if (atomic_read(&zswap_outstanding_flushes) >
-> +=09=09ZSWAP_MAX_OUTSTANDING_FLUSHES)
-> +=09=09return;
+	http://lwn.net/Articles/39925/
 
->From what I can see, zcache is in some ways more aggressive in
-some circumstances in "flushing" (zcache calls it "unuse"),
-and in some ways less aggressive.  But with significant exercise,
-I can always cause the kernel to OOM when it is under heavy
-memory pressure and the flush/unuse code is being used.
+I believe just about any Linux vendor would call your configuration
+"unsupported".  Just because the kernel can boot does not mean that we
+expect it to work.
 
-Have you given any further thought to "a better policy"
-(see the comment in the snippet above)?  I'm going
-to try a smaller number than 64 to see if the OOMs
-go away, but choosing a random number for this throttling
-doesn't seem like a good plan for moving forward.
+It's possible that some tweaks of the vm knobs (like lowmem_reserve)
+could help you here.  But, really, you don't want to run a 32-bit kernel
+on such a large machine.  Very, very few folks are running 32-bit
+kernels on these systems and you're likely to keep running in to bugs
+because this is such a rare configuration.
 
-Thanks,
-Dan
+We've been very careful to ensure that 64-bit kernels shoul basically be
+drop-in replacements for 32-bit ones.  You can keep userspace 100%
+32-bit, and just have a 64-bit kernel.
 
-P.S. I know you, like I, often use something kernbench-ish to
-exercise your code.  I've found that compiling a kernel,
-then switching to another kernel directory, doing a git pull,
-and compiling that kernel, causes a lot of flushes/unuses
-and the OOMs.  (This with 1GB RAM booting RHEL6 with a full GUI.)
+If you're really set on staying 32-bit, I might have a NUMA-Q I can give
+you. ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
