@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx159.postini.com [74.125.245.159])
-	by kanga.kvack.org (Postfix) with SMTP id 78FD66B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 03:40:51 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id CCBBF3EE0C0
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:40:49 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B188645DEC0
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:40:49 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9645845DEB7
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:40:49 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 814B21DB804A
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:40:49 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 345261DB8042
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 17:40:49 +0900 (JST)
-Message-ID: <50EE7E5A.9090402@jp.fujitsu.com>
-Date: Thu, 10 Jan 2013 17:39:54 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id DB0C56B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 04:25:12 -0500 (EST)
+Date: Thu, 10 Jan 2013 09:25:11 +0000
+From: Eric Wong <normalperson@yhbt.net>
+Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
+Message-ID: <20130110092511.GA32333@dcvr.yhbt.net>
+References: <20121228014503.GA5017@dcvr.yhbt.net>
+ <20130102200848.GA4500@dcvr.yhbt.net>
+ <20130104160148.GB3885@suse.de>
+ <20130106120700.GA24671@dcvr.yhbt.net>
+ <20130107122516.GC3885@suse.de>
+ <20130107223850.GA21311@dcvr.yhbt.net>
+ <20130108224313.GA13304@suse.de>
+ <20130108232325.GA5948@dcvr.yhbt.net>
+ <20130109133746.GD13304@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com> <20130109142314.1ce04a96.akpm@linux-foundation.org> <50EE24A4.8020601@cn.fujitsu.com> <50EE6A48.7060307@parallels.com> <50EE6E50.3040609@jp.fujitsu.com> <50EE73DE.30208@parallels.com> <50EE7A6B.7020005@jp.fujitsu.com> <50EE7D75.8080100@parallels.com>
-In-Reply-To: <50EE7D75.8080100@parallels.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130109133746.GD13304@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-(2013/01/10 17:36), Glauber Costa wrote:
-  
->> BTW, shrink_slab() is now node/zone aware ? If not, fixing that first will
->> be better direction I guess.
->>
-> It is not upstream, but there are patches for this that I am already
-> using in my private tree.
->
+Mel Gorman <mgorman@suse.de> wrote:
+> page->pfmemalloc can be left set for captured pages so try this but as
+> capture is rarely used I'm strongly favouring a partial revert even if
+> this works for you. I haven't reproduced this using your workload yet
+> but I have found that high-order allocation stress tests for 3.8-rc2 are
+> completely screwed. 71% success rates at rest in 3.7 and 6% in 3.8-rc2 so
+> I have to chase that down too.
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 9d20c13..c242d21 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2180,8 +2180,10 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>  	current->flags &= ~PF_MEMALLOC;
+>  
+>  	/* If compaction captured a page, prep and use it */
+> -	if (page && !prep_new_page(page, order, gfp_mask))
+> +	if (page && !prep_new_page(page, order, gfp_mask)) {
+> +		page->pfmemalloc = false;
+>  		goto got_page;
+> +	}
+>  
+>  	if (*did_some_progress != COMPACT_SKIPPED) {
+>  		/* Page migration frees to the PCP lists but we want merging */
 
-Oh, I see. If it's merged, it's worth add "shrink_slab() if ZONE_NORMAL"
-code.
-
-Thanks,
--Kame
+This (on top of your previous patch) seems to work great after several
+hours of testing on both my VM and real machine.  I haven't tried your
+partial revert, yet.  Will try that in a bit on the VM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
