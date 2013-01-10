@@ -1,59 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id B18A66B006C
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 8132B6B005D
 	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 14:00:56 -0500 (EST)
-Message-Id: <0000013c25d617b5-527f8b9b-122e-4194-a83e-46f98a9a7e17-000000@email.amazonses.com>
+Message-Id: <0000013c25d6168a-9f389916-826e-42b3-9bbd-e19297ac7f9f-000000@email.amazonses.com>
 Date: Thu, 10 Jan 2013 19:00:53 +0000
 From: Christoph Lameter <cl@linux.com>
-Subject: REN2 [02/13] Move kmalloc related function defs
+Subject: REN2 [01/13] slab_common: Use proper formatting specs for unsigned size_t
 References: <20130110190027.780479755@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-Move these functions higher up in slab.h so that they are grouped with other
-generic kmalloc related definitions.
-
-Acked-by: Glauber Costa <glommer@parallels.com>
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/include/linux/slab.h
+Index: linux/mm/slab_common.c
 ===================================================================
---- linux.orig/include/linux/slab.h	2012-12-19 14:27:19.609963554 -0600
-+++ linux/include/linux/slab.h	2013-01-07 14:45:19.688524176 -0600
-@@ -148,6 +148,15 @@ void kmem_cache_free(struct kmem_cache *
- 		(__flags), NULL)
+--- linux.orig/mm/slab_common.c	2012-12-19 15:04:38.952850252 -0600
++++ linux/mm/slab_common.c	2012-12-20 10:38:35.878002392 -0600
+@@ -299,7 +299,7 @@ void __init create_boot_cache(struct kme
+ 	err = __kmem_cache_create(s, flags);
  
- /*
-+ * Common kmalloc functions provided by all allocators
-+ */
-+void * __must_check __krealloc(const void *, size_t, gfp_t);
-+void * __must_check krealloc(const void *, size_t, gfp_t);
-+void kfree(const void *);
-+void kzfree(const void *);
-+size_t ksize(const void *);
-+
-+/*
-  * The largest kmalloc size supported by the slab allocators is
-  * 32 megabyte (2^25) or the maximum allocatable page order if that is
-  * less than 32 MB.
-@@ -225,15 +234,6 @@ int cache_show(struct kmem_cache *s, str
- void print_slabinfo_header(struct seq_file *m);
+ 	if (err)
+-		panic("Creation of kmalloc slab %s size=%zd failed. Reason %d\n",
++		panic("Creation of kmalloc slab %s size=%zu failed. Reason %d\n",
+ 					name, size, err);
  
- /*
-- * Common kmalloc functions provided by all allocators
-- */
--void * __must_check __krealloc(const void *, size_t, gfp_t);
--void * __must_check krealloc(const void *, size_t, gfp_t);
--void kfree(const void *);
--void kzfree(const void *);
--size_t ksize(const void *);
--
--/*
-  * Allocator specific definitions. These are mainly used to establish optimized
-  * ways to convert kmalloc() calls to kmem_cache_alloc() invocations by
-  * selecting the appropriate general cache at compile time.
+ 	s->refcount = -1;	/* Exempt from merging for now */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
