@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id 6E27C6B007D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:51:05 -0500 (EST)
+Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
+	by kanga.kvack.org (Postfix) with SMTP id D408A6B0074
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:51:04 -0500 (EST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH v2 09/12] ACPI: Update memory driver for hotplug framework
-Date: Thu, 10 Jan 2013 16:40:27 -0700
-Message-Id: <1357861230-29549-10-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH v2 08/12] ACPI: Update processor driver for hotplug framework
+Date: Thu, 10 Jan 2013 16:40:26 -0700
+Message-Id: <1357861230-29549-9-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
 References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,236 +13,143 @@ List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org
 Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
 
-Changed acpi_memory_device_notify() to request a hotplug operation
-by calling shp_submit_req().  It no longer initiates hot-add or
-hot-delete operation by calling add_memory() or remove_memory()
-directly.  Removed the enabled and failed flags from acpi_memory_info
-since they are no longer used.
+Added acpi_processor_resource() for the .resource() interface,
+which sets CPU information to a hotplug request.
 
-Changed acpi_memory_device_add() to not call add_memory() to online
-a memory device.  Similarly, changed acpi_memory_device_remove()
-to not call remove_memory() to offline a memory device.
+Changed acpi_processor_hotplug_notify() to request a hotplug
+operation by calling shp_submit_req().  It no longer initiates
+hot-add or hot-delete operation by calling acpi_bus_add() or
+acpi_bus_hot_remove_device() directly.
 
-Added acpi_memory_resource() to set memory information to a hotplug
-request.
+acpi_processor_handle_eject() is changed not to call cpu_down()
+since .add() / .remove() may not online / offline a device.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- drivers/acpi/acpi_memhotplug.c |  271 +++++++++++++---------------------------
- 1 file changed, 89 insertions(+), 182 deletions(-)
+ drivers/acpi/processor_driver.c |  150 ++++++++++++++++++---------------------
+ 1 file changed, 70 insertions(+), 80 deletions(-)
 
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index b679bf8..67868f5 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -33,6 +33,7 @@
- #include <linux/slab.h>
- #include <linux/acpi.h>
+diff --git a/drivers/acpi/processor_driver.c b/drivers/acpi/processor_driver.c
+index e83311b..f630c2c 100644
+--- a/drivers/acpi/processor_driver.c
++++ b/drivers/acpi/processor_driver.c
+@@ -57,6 +57,7 @@
+ #include <acpi/acpi_bus.h>
  #include <acpi/acpi_drivers.h>
+ #include <acpi/processor.h>
 +#include <acpi/sys_hotplug.h>
  
- #define ACPI_MEMORY_DEVICE_CLASS		"memory"
- #define ACPI_MEMORY_DEVICE_HID			"PNP0C80"
-@@ -55,6 +56,8 @@ MODULE_LICENSE("GPL");
+ #define PREFIX "ACPI: "
  
- static int acpi_memory_device_add(struct acpi_device *device);
- static int acpi_memory_device_remove(struct acpi_device *device, int type);
-+static int acpi_memory_device_resource(struct acpi_device *device,
+@@ -83,6 +84,8 @@ MODULE_LICENSE("GPL");
+ static int acpi_processor_add(struct acpi_device *device);
+ static int acpi_processor_remove(struct acpi_device *device, int type);
+ static void acpi_processor_notify(struct acpi_device *device, u32 event);
++static int acpi_processor_resource(struct acpi_device *device,
 +		struct shp_request *shp_req);
- 
- static const struct acpi_device_id memory_device_ids[] = {
- 	{ACPI_MEMORY_DEVICE_HID, 0},
-@@ -69,6 +72,7 @@ static struct acpi_driver acpi_memory_device_driver = {
- 	.ops = {
- 		.add = acpi_memory_device_add,
- 		.remove = acpi_memory_device_remove,
-+		.resource = acpi_memory_device_resource,
+ static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr);
+ static int acpi_processor_handle_eject(struct acpi_processor *pr);
+ static int acpi_processor_start(struct acpi_processor *pr);
+@@ -105,6 +108,7 @@ static struct acpi_driver acpi_processor_driver = {
+ 		.add = acpi_processor_add,
+ 		.remove = acpi_processor_remove,
+ 		.notify = acpi_processor_notify,
++		.resource = acpi_processor_resource,
  		},
+ 	.drv.pm = &acpi_processor_pm,
  };
- 
-@@ -153,59 +157,12 @@ acpi_memory_get_device_resources(struct acpi_memory_device *mem_device)
+@@ -649,6 +653,33 @@ free:
  	return 0;
  }
  
--static int
--acpi_memory_get_device(acpi_handle handle,
--		       struct acpi_memory_device **mem_device)
++static int
++acpi_processor_resource(struct acpi_device *device, struct shp_request *shp_req)
++{
++	struct acpi_processor *pr;
++	struct shp_device *shp_dev;
++
++	pr = acpi_driver_data(device);
++	if (!pr) {
++		dev_err(&device->dev, "Driver data missing\n");
++		return -EINVAL;
++	}
++
++	shp_dev = kzalloc(sizeof(*shp_dev), GFP_KERNEL);
++	if (!shp_dev) {
++		dev_err(&device->dev, "Failed to allocate shp_dev\n");
++		return -EINVAL;
++	}
++
++	shp_dev->device = &device->dev;
++	shp_dev->class = SHP_CLS_CPU;
++	shp_dev->info.cpu.cpu_id = pr->id;
++
++	shp_add_dev_info(shp_req, shp_dev);
++
++	return 0;
++}
++
+ #ifdef CONFIG_ACPI_HOTPLUG_CPU
+ /****************************************************************************
+  * 	Acpi processor hotplug support 				       	    *
+@@ -677,97 +708,68 @@ static int is_processor_present(acpi_handle handle)
+ 	return 0;
+ }
+ 
+-static
+-int acpi_processor_device_add(acpi_handle handle, struct acpi_device **device)
 -{
--	acpi_status status;
 -	acpi_handle phandle;
--	struct acpi_device *device = NULL;
--	struct acpi_device *pdevice = NULL;
--	int result;
+-	struct acpi_device *pdev;
 -
 -
--	if (!acpi_bus_get_device(handle, &device) && device)
--		goto end;
--
--	status = acpi_get_parent(handle, &phandle);
--	if (ACPI_FAILURE(status)) {
--		ACPI_EXCEPTION((AE_INFO, status, "Cannot find acpi parent"));
--		return -EINVAL;
+-	if (acpi_get_parent(handle, &phandle)) {
+-		return -ENODEV;
 -	}
 -
--	/* Get the parent device */
--	result = acpi_bus_get_device(phandle, &pdevice);
--	if (result) {
--		acpi_handle_warn(phandle, "Cannot get acpi bus device\n");
--		return -EINVAL;
+-	if (acpi_bus_get_device(phandle, &pdev)) {
+-		return -ENODEV;
 -	}
 -
--	/*
--	 * Now add the notified device.  This creates the acpi_device
--	 * and invokes .add function
--	 */
--	result = acpi_bus_add(&device, pdevice, handle, ACPI_BUS_TYPE_DEVICE);
--	if (result) {
--		acpi_handle_warn(handle, "Cannot add acpi bus\n");
--		return -EINVAL;
--	}
--
--      end:
--	*mem_device = acpi_driver_data(device);
--	if (!(*mem_device)) {
--		dev_err(&device->dev, "driver data not found\n");
+-	if (acpi_bus_add(device, pdev, handle, ACPI_BUS_TYPE_PROCESSOR)) {
 -		return -ENODEV;
 -	}
 -
 -	return 0;
 -}
 -
--static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
-+static int acpi_memory_check_device(acpi_handle handle)
+ static void acpi_processor_hotplug_notify(acpi_handle handle,
+ 					  u32 event, void *data)
  {
- 	unsigned long long current_status;
- 
- 	/* Get device present/absent information from the _STA */
--	if (ACPI_FAILURE(acpi_evaluate_integer(mem_device->device->handle, "_STA",
-+	if (ACPI_FAILURE(acpi_evaluate_integer(handle, "_STA",
- 					       NULL, &current_status)))
- 		return -ENODEV;
- 	/*
-@@ -220,148 +177,46 @@ static int acpi_memory_check_device(struct acpi_memory_device *mem_device)
- 	return 0;
- }
- 
--static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
--{
--	int result, num_enabled = 0;
--	struct acpi_memory_info *info;
--	int node;
--
--	node = acpi_get_node(mem_device->device->handle);
--	/*
--	 * Tell the VM there is more memory here...
--	 * Note: Assume that this function returns zero on success
--	 * We don't have memory-hot-add rollback function,now.
--	 * (i.e. memory-hot-remove function)
--	 */
--	list_for_each_entry(info, &mem_device->res_list, list) {
--		if (info->enabled) { /* just sanity check...*/
--			num_enabled++;
--			continue;
--		}
--		/*
--		 * If the memory block size is zero, please ignore it.
--		 * Don't try to do the following memory hotplug flowchart.
--		 */
--		if (!info->length)
--			continue;
--		if (node < 0)
--			node = memory_add_physaddr_to_nid(info->start_addr);
--
--		result = add_memory(node, info->start_addr, info->length);
--
--		/*
--		 * If the memory block has been used by the kernel, add_memory()
--		 * returns -EEXIST. If add_memory() returns the other error, it
--		 * means that this memory block is not used by the kernel.
--		 */
--		if (result && result != -EEXIST) {
--			info->failed = 1;
--			continue;
--		}
--
--		if (!result)
--			info->enabled = 1;
--		/*
--		 * Add num_enable even if add_memory() returns -EEXIST, so the
--		 * device is bound to this driver.
--		 */
--		num_enabled++;
--	}
--	if (!num_enabled) {
--		dev_err(&mem_device->device->dev, "add_memory failed\n");
--		mem_device->state = MEMORY_INVALID_STATE;
--		return -EINVAL;
--	}
--	/*
--	 * Sometimes the memory device will contain several memory blocks.
--	 * When one memory block is hot-added to the system memory, it will
--	 * be regarded as a success.
--	 * Otherwise if the last memory block can't be hot-added to the system
--	 * memory, it will be failure and the memory device can't be bound with
--	 * driver.
--	 */
--	return 0;
--}
--
--static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
--{
--	int result = 0;
--	struct acpi_memory_info *info, *n;
--
--	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
--		if (info->failed)
--			/* The kernel does not use this memory block */
--			continue;
--
--		if (!info->enabled)
--			/*
--			 * The kernel uses this memory block, but it may be not
--			 * managed by us.
--			 */
--			return -EBUSY;
--
--		result = remove_memory(info->start_addr, info->length);
--		if (result)
--			return result;
--
--		list_del(&info->list);
--		kfree(info);
--	}
--
--	return result;
--}
--
- static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
- {
- 	struct acpi_memory_device *mem_device;
- 	struct acpi_device *device;
+ 	struct acpi_device *device = NULL;
 -	struct acpi_eject_event *ej_event = NULL;
 +	struct shp_request *shp_req;
 +	enum shp_operation shp_op;
  	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
+-	int result;
  
  	switch (event) {
  	case ACPI_NOTIFY_BUS_CHECK:
--		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
--				  "\nReceived BUS CHECK notification for device\n"));
- 		/* Fall Through */
  	case ACPI_NOTIFY_DEVICE_CHECK:
--		if (event == ACPI_NOTIFY_DEVICE_CHECK)
--			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
--					  "\nReceived DEVICE CHECK notification for device\n"));
--		if (acpi_memory_get_device(handle, &mem_device)) {
--			acpi_handle_err(handle, "Cannot find driver data\n");
+-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+-		"Processor driver received %s event\n",
+-		       (event == ACPI_NOTIFY_BUS_CHECK) ?
+-		       "ACPI_NOTIFY_BUS_CHECK" : "ACPI_NOTIFY_DEVICE_CHECK"));
+-
+-		if (!is_processor_present(handle))
 -			break;
-+		if (acpi_memory_check_device(handle)) {
+-
+-		if (!acpi_bus_get_device(handle, &device))
+-			break;
++		if (!is_processor_present(handle)) {
 +			acpi_handle_err(handle, "Device not enabled\n");
 +			goto err;
 +		}
-+
+ 
+-		result = acpi_processor_device_add(handle, &device);
+-		if (result) {
+-			acpi_handle_err(handle, "Unable to add the device\n");
+-			break;
 +		if (!acpi_bus_get_device(handle, &device)) {
 +			acpi_handle_err(handle, "Device added already\n");
 +			goto err;
@@ -254,24 +161,26 @@ index b679bf8..67868f5 100644
  
  	case ACPI_NOTIFY_EJECT_REQUEST:
 -		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
--				  "\nReceived EJECT REQUEST notification for device\n"));
+-				  "received ACPI_NOTIFY_EJECT_REQUEST\n"));
 -
  		if (acpi_bus_get_device(handle, &device)) {
- 			acpi_handle_err(handle, "Device doesn't exist\n");
+-			acpi_handle_err(handle,
+-				"Device don't exist, dropping EJECT\n");
 -			break;
++			acpi_handle_err(handle, "Device not added yet\n");
 +			goto err;
  		}
-+
- 		mem_device = acpi_driver_data(device);
- 		if (!mem_device) {
- 			acpi_handle_err(handle, "Driver Data is NULL\n");
+ 		if (!acpi_driver_data(device)) {
+-			acpi_handle_err(handle,
+-				"Driver data is NULL, dropping EJECT\n");
 -			break;
++			acpi_handle_err(handle, "Driver data missing\n");
 +			goto err;
  		}
  
 -		ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
 -		if (!ej_event) {
--			pr_err(PREFIX "No memory, dropping EJECT\n");
+-			acpi_handle_err(handle, "No memory, dropping EJECT\n");
 -			break;
 -		}
 -
@@ -279,15 +188,17 @@ index b679bf8..67868f5 100644
 -		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 -		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
 -					(void *)ej_event);
+-
+-		/* eject is performed asynchronously */
+-		return;
 +		shp_op = SHP_HOTPLUG_DEL;
 +		break;
  
--		/* eject is performed asynchronously */
--		return;
  	default:
  		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
  				  "Unsupported event [0x%x]\n", event));
-@@ -370,7 +225,25 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
+-
+-		/* non-hotplug event; possibly handled by other handler */
  		return;
  	}
  
@@ -314,93 +225,36 @@ index b679bf8..67868f5 100644
  	(void) acpi_evaluate_hotplug_ost(handle, event, ost_code, NULL);
  	return;
  }
-@@ -414,38 +287,72 @@ static int acpi_memory_device_add(struct acpi_device *device)
- 	mem_device->state = MEMORY_POWER_ON_STATE;
+@@ -865,25 +867,13 @@ static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
  
- 	pr_debug("%s\n", acpi_device_name(device));
--
--	if (!acpi_memory_check_device(mem_device)) {
--		/* call add_memory func */
--		result = acpi_memory_enable_device(mem_device);
--		if (result) {
--			dev_err(&device->dev,
--				"Error in acpi_memory_enable_device\n");
--			acpi_memory_device_free(mem_device);
--		}
--	}
- 	return result;
- }
- 
- static int acpi_memory_device_remove(struct acpi_device *device, int type)
+ static int acpi_processor_handle_eject(struct acpi_processor *pr)
  {
- 	struct acpi_memory_device *mem_device = NULL;
--	int result;
-+	struct acpi_memory_info *info, *n;
- 
- 	if (!device || !acpi_driver_data(device))
- 		return -EINVAL;
- 
- 	mem_device = acpi_driver_data(device);
- 
--	result = acpi_memory_remove_memory(mem_device);
--	if (result)
--		return result;
-+	/* remove the memory_info list of this mem_device */
-+	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
-+		list_del(&info->list);
-+		kfree(info);
-+	}
- 
- 	acpi_memory_device_free(mem_device);
- 
- 	return 0;
- }
- 
-+static int acpi_memory_device_resource(struct acpi_device *device,
-+				struct shp_request *shp_req)
-+{
-+	struct acpi_memory_device *mem_device = NULL;
-+	struct acpi_memory_info *info, *n;
-+	struct shp_device *shp_dev;
-+	int node;
-+
-+	mem_device = acpi_driver_data(device);
-+	if (!mem_device) {
-+		dev_err(&device->dev, "Invalid device\n");
+-	if (cpu_online(pr->id))
+-		cpu_down(pr->id);
+-
+-	get_online_cpus();
+-	/*
+-	 * The cpu might become online again at this point. So we check whether
+-	 * the cpu has been onlined or not. If the cpu became online, it means
+-	 * that someone wants to use the cpu. So acpi_processor_handle_eject()
+-	 * returns -EAGAIN.
+-	 */
+-	if (unlikely(cpu_online(pr->id))) {
+-		put_online_cpus();
+-		pr_warn("Failed to remove CPU %d, because other task "
+-			"brought the CPU back online\n", pr->id);
+-		return -EAGAIN;
++	if (cpu_online(pr->id)) {
++		pr_err("ACPI: cpu %d not off-lined\n", pr->id);
 +		return -EINVAL;
-+	}
+ 	}
 +
-+	node = acpi_get_node(mem_device->device->handle);
-+
-+	/*
-+	 * Set resource info of the device
-+	 */
-+	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
-+
-+		if (!info->length)
-+			continue;
-+
-+		shp_dev = kzalloc(sizeof(*shp_dev), GFP_KERNEL);
-+		if (!shp_dev) {
-+			dev_err(&device->dev, "Failed to allocate shp_dev\n");
-+			return -EINVAL;
-+		}
-+
-+		shp_dev->device = &device->dev;
-+		shp_dev->class = SHP_CLS_MEMORY;
-+		shp_dev->info.mem.node = node;
-+		shp_dev->info.mem.start_addr = info->start_addr;
-+		shp_dev->info.mem.length = info->length;
-+
-+		shp_add_dev_info(shp_req, shp_dev);
-+	}
-+
-+	return 0;
-+}
-+
- /*
-  * Helper function to check for memory device
-  */
+ 	arch_unregister_cpu(pr->id);
+ 	acpi_unmap_lsapic(pr->id);
+-	put_online_cpus();
+ 	return (0);
+ }
+ #else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
