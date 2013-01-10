@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id DB0C56B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 04:25:12 -0500 (EST)
-Date: Thu, 10 Jan 2013 09:25:11 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-Message-ID: <20130110092511.GA32333@dcvr.yhbt.net>
-References: <20121228014503.GA5017@dcvr.yhbt.net>
- <20130102200848.GA4500@dcvr.yhbt.net>
- <20130104160148.GB3885@suse.de>
- <20130106120700.GA24671@dcvr.yhbt.net>
- <20130107122516.GC3885@suse.de>
- <20130107223850.GA21311@dcvr.yhbt.net>
- <20130108224313.GA13304@suse.de>
- <20130108232325.GA5948@dcvr.yhbt.net>
- <20130109133746.GD13304@suse.de>
+Received: from psmtp.com (na3sys010amx178.postini.com [74.125.245.178])
+	by kanga.kvack.org (Postfix) with SMTP id 856836B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 04:35:40 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id z2so142463wey.18
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 01:35:38 -0800 (PST)
+Message-ID: <50EE8B6B.1050204@gmail.com>
+Date: Thu, 10 Jan 2013 10:35:39 +0100
+From: Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130109133746.GD13304@suse.de>
+Subject: Re: [v2] fadvise: perform WILLNEED readahead asynchronously
+References: <20121225022251.GA25992@dcvr.yhbt.net>
+In-Reply-To: <20121225022251.GA25992@dcvr.yhbt.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Eric Wong <normalperson@yhbt.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Chinner <david@fromorbit.com>, Zheng Liu <gnehzuil.liu@gmail.com>
 
-Mel Gorman <mgorman@suse.de> wrote:
-> page->pfmemalloc can be left set for captured pages so try this but as
-> capture is rarely used I'm strongly favouring a partial revert even if
-> this works for you. I haven't reproduced this using your workload yet
-> but I have found that high-order allocation stress tests for 3.8-rc2 are
-> completely screwed. 71% success rates at rest in 3.7 and 6% in 3.8-rc2 so
-> I have to chase that down too.
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 9d20c13..c242d21 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2180,8 +2180,10 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
->  	current->flags &= ~PF_MEMALLOC;
->  
->  	/* If compaction captured a page, prep and use it */
-> -	if (page && !prep_new_page(page, order, gfp_mask))
-> +	if (page && !prep_new_page(page, order, gfp_mask)) {
-> +		page->pfmemalloc = false;
->  		goto got_page;
-> +	}
->  
->  	if (*did_some_progress != COMPACT_SKIPPED) {
->  		/* Page migration frees to the PCP lists but we want merging */
+Hello,
 
-This (on top of your previous patch) seems to work great after several
-hours of testing on both my VM and real machine.  I haven't tried your
-partial revert, yet.  Will try that in a bit on the VM.
+Il 25/12/2012 03:22, Eric Wong ha scritto:
+ > Any other (Free Software) applications that might benefit from
+ > lower FADV_WILLNEED latency?
+
+Not with fadvise but with madvise. Libreoffice / Openoffice.org have 
+this comment:
+
+// On Linux, madvise(..., MADV_WILLNEED) appears to have the undesirable
+// effect of not returning until the data has actually been paged in, so
+// that its net effect would typically be to slow down the process
+// (which could start processing at the beginning of the data while the
+// OS simultaneously pages in the rest); on other platforms, it remains
+// to be evaluated whether madvise or equivalent is available and
+// actually useful:
+
+See:
+http://cgit.freedesktop.org/libreoffice/core/tree/sal/osl/unx/file.cxx#n1213
+
+May the same approach be extended to madvise MADV_WILLNEED?
+
+thanks,
+riccardo magliocchetti
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
