@@ -1,106 +1,173 @@
-From: CAI Qian <caiqian@redhat.com>
-Subject: oom caused disk corruption on 3.7.1
-Date: Wed, 9 Jan 2013 04:50:53 -0500 (EST)
-Message-ID: <1022938540.1925160.1357725053304.JavaMail.root@redhat.com>
-References: <767713684.1922924.1357724589680.JavaMail.root@redhat.com>
+From: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Subject: Re: [PATCH] writeback: fix writeback cache thrashing
+Date: Thu, 10 Jan 2013 10:50:51 +0800
+Message-ID: <664.37996360964$1357786298@news.gmane.org>
+References: <1356847190-7986-1-git-send-email-linkinjeon@gmail.com>
+ <20130105031817.GA8650@localhost>
+ <CAKYAXd-kTOBwZfW=17Ta0wLB4HWzkk5ta3AdT0cPRK3z2zsLUA@mail.gmail.com>
+ <20130109151354.GA17353@quack.suse.cz>
+Reply-To: Wanpeng Li <liwanp@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Return-path: <stable-owner@vger.kernel.org>
-In-Reply-To: <767713684.1922924.1357724589680.JavaMail.root@redhat.com>
-Sender: stable-owner@vger.kernel.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: stable@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Content-Transfer-Encoding: quoted-printable
+Return-path: <owner-linux-mm@kvack.org>
+Received: from kanga.kvack.org ([205.233.56.17])
+	by plane.gmane.org with esmtp (Exim 4.69)
+	(envelope-from <owner-linux-mm@kvack.org>)
+	id 1Tt8Eq-0008Ty-Bf
+	for glkm-linux-mm-2@m.gmane.org; Thu, 10 Jan 2013 03:51:28 +0100
+Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
+	by kanga.kvack.org (Postfix) with SMTP id 47E1A6B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:51:09 -0500 (EST)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <liwanp@linux.vnet.ibm.com>;
+	Thu, 10 Jan 2013 08:19:31 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B7603394004D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 08:21:03 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0A2p1qQ46530746
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 08:21:01 +0530
+Received: from d28av03.in.ibm.com (loopback [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0A2p21u032167
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 13:51:03 +1100
+Content-Disposition: inline
+In-Reply-To: <20130109151354.GA17353@quack.suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+Cc: Namjae Jeon <linkinjeon@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namjae Jeon <namjae.jeon@samsung.com>, Vivek Trivedi <t.vivek@samsung.com>, Jan Kara <jack@suse.cz>, Dave Chinner <dchinner@redhat.com>, Simon Jeons <simon.jeons@gmail.com>
 
-While doing oom testing on a power7 system with swapping,
-it was swallowed a panic on v3.7.1 below. Without a swap device,
-it is running fine. v3.0 has the same problem.
+On Wed, Jan 09, 2013 at 04:13:54PM +0100, Jan Kara wrote:
+>On Wed 09-01-13 17:26:36, Namjae Jeon wrote:
+><snip>
+>> But in one normal scenario, the changes actually results in
+>> performance degradation.
+>>=20
+>> Results for =E2=80=98dd=E2=80=99 thread on two devices:
+>> Before applying Patch:
+>> #> dd if=3D/dev/zero of=3D/mnt/sdb2/file1 bs=3D1048576 count=3D800 &
+>> #> dd if=3D/dev/zero of=3D/mnt/sda6/file2 bs=3D1048576 count=3D2000 &
+>> #>
+>> #> 2000+0 records in
+>> 2000+0 records out
+>> 2097152000 bytes (2.0GB) copied, 77.205276 seconds, 25.9MB/s  -> USB
+>> HDD WRITE Speed
+>>=20
+>> [2]+ Done dd if=3D/dev/zero of=3D/mnt/sda6/file2 bs=3D1048576 count=3D=
+2000
+>> #>
+>> #>
+>> #> 800+0 records in
+>> 800+0 records out
+>> 838860800 bytes (800.0MB) copied, 154.528362 seconds, 5.2MB/s -> USB
+>> Flash WRITE Speed
+>>=20
+>> After applying patch:
+>> #> dd if=3D/dev/zero of=3D/mnt/sdb2/file1 bs=3D1048576 count=3D800 &
+>> dd if=3D/
+>> #> dd if=3D/dev/zero of=3D/mnt/sda6/file2 bs=3D1048576 count=3D2000 &
+>> #>
+>> #> 2000+0 records in
+>> 2000+0 records out
+>> 2097152000 bytes (2.0GB) copied, 123.844770 seconds, 16.1MB/s ->USB
+>> HDD WRITE Speed
+>> 800+0 records in
+>> 800+0 records out
+>> 838860800 bytes (800.0MB) copied, 141.352945 seconds, 5.7MB/s -> USB
+>> Flash WRITE Speed
+>>=20
+>> [2]+ Done dd if=3D/dev/zero of=3D/mnt/sda6/file2 bs=3D1048576 count=3D=
+2000
+>> [1]+ Done dd if=3D/dev/zero of=3D/mnt/sdb2/file1 bs=3D1048576 count=3D=
+800
+>>=20
+>> So, after applying our changes:
+>> 1) USB HDD Write speed dropped from 25.9 -> 16.1 MB/s
+>> 2) USB Flash Write speed increased marginally from 5.2 -> 5.7 MB/s
+>>=20
+>> Normally if we have a USB Flash and HDD plugged in system. And if we
+>> initiate the =E2=80=98dd=E2=80=99 on both the devices. Once dirty memo=
+ry is more than
+>> the background threshold, flushing starts for all BDI (The write-back
+>> for the devices will be kicked by the condition):
+>> If (global_page_state(NR_FILE_DIRTY) +
+>> global_page_state(NR_UNSTABLE_NFS) > background_thresh))
+>> 	return true;
+>> As the slow device and the fast device always make sure that there is
+>> enough DIRTY data in memory to kick write-back.
+>> Since, USB Flash is slow, the DIRTY pages corresponding to this device
+>> is much higher, resulting in returning =E2=80=98true=E2=80=99 everytim=
+e from
+>> over_bground_thresh. So, even though HDD might have only few KB of
+>> dirty data, it is also flushed immediately.
+>> This frequent flushing of HDD data results in gradually increasing the
+>> bdi_dirty_limit() for HDD.
+>  Interesting. Thanks for testing! So is this just a problem with initia=
+l
+>writeout fraction estimation. I.e. if you first let dd to USB HDD run fo=
+r a
+>couple of seconds to ramp up its fraction and only then start writeout t=
+o
+>USB flash, is there still a problem with USB HDD throughput with the
+>changed over_bground_thresh() function?
+>
+>> But, when we introduce the change to control per BDI i.e.,
+>>  if (global_page_state(NR_FILE_DIRTY) +
+>>          global_page_state(NR_UNSTABLE_NFS) > background_thresh &&
+>>          reclaimable * 2 + bdi_stat_error(bdi) * 2 > bdi_bground_thres=
+h)
+>>=20
+>> Now, in this case, when we consider the same scenario, writeback for
+>> HDD will only be kicked only if =E2=80=98reclaimable * 2 + bdi_stat_er=
+ror(bdi)
+>> * 2 > bdi_bground_thresh=E2=80=99
+>> But this condition is not true a lot many number of times, so
+>> resulting in false.
+>  I'm surprised it's not true so often... dd(1) should easily fill the
 
-Test case is here,
-http://tinyurl.com/bzzmrb8
+But after merge the patch, dd can't easily fill the caches since shared=20
+writeback cache of HDD is small.=20
 
-...
-[  763.781571] Write-error on swap-device (253:0:7545984)
-[  763.781573] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781574] Write-error on swap-device (253:0:7546240)
-[  763.781576] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781577] Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b
-[  763.781578] Write-error on swap-device (253:0:7546496)
-[  763.781579] Call Trace:
-[  763.781580] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781590] [c0000002eac83870] [c000000000015884] .show_stack+0x74/0x1b0 (unreliable)
-[  763.781595] [c0000002eac83920] [c000000000721d28] .panic+0xe4/0x264
-[  763.781598] [c0000002eac839c0] [c0000000000886e4] .do_exit+0x954/0x960
-[  763.781601] [c0000002eac83ac0] [c0000000000889d4] .do_group_exit+0x54/0xf0
-[  763.781604] [c0000002eac83b50] [c00000000009be28] .get_signal_to_deliver+0x1f8/0x730
-[  763.781606] [c0000002eac83c60] [c000000000017924] .do_signal+0x54/0x320
-[  763.781608] [c0000002eac83da0] [c000000000017d74] .do_notify_resume+0xb4/0xd0
-[  763.781611] [c0000002eac83e30] [c000000000009e1c] .ret_from_except_lite+0x48/0x4c
-[  763.781612] Write-error on swap-device (253:0:7546752)
-[  763.781613] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781615] Write-error on swap-device (253:0:7547008)
-[  763.781616] Sending IPI to other CPUs
-[  763.781616] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781618] Write-error on swap-device (253:0:7547392)
-[  763.781619] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781620] Write-error on swap-device (253:0:7547648)
-[  763.781622] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781623] Write-error on swap-device (253:0:7547904)
-[  763.781625] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781627] Write-error on swap-device (253:0:7548160)
-[  763.781628] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781630] Write-error on swap-device (253:0:7548416)
-[  763.781631] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781632] Write-error on swap-device (253:0:7548672)
-[  763.781634] sd 0:0:1:0: rejecting I/O to offline device
-[  763.781635] Write-error on swap-device (253:0:7548928)
-[  773.781972] ERROR: 1 cpu(s) not responding
+>caches. But maybe we are oscilating between below-background-threshold
+>and at-dirty-limit situations rather quickly. Do you have recordings of
+>BDI_RECLAIMABLE and BDI_DIRTY from the problematic run?
+>
+>> This continuous failure to start write-back for HDD actually results
+>> in lowering the bdi_dirty_limit for HDD, in a way PAUSING the writer
+>> thread for HDD.
+>> This is actually resulting in less number of WRITE operations per
+>> second for HDD. As, the =E2=80=98dd=E2=80=99 on USB HDD will be put to=
+ long sleep(MAX
+>> PAUSE) in balance_dirty_pages.
+>>=20
+>> While for USB Flash, its bdi_dirty_limit is kept on increasing as it
+>> is getting more chance to flush dirty data in over_bground_thresh. As,
+>> bdi_reclaimable > bdi_dirty_limit is true. So, resulting more number
+>> of WRITE operation per second for USB Flash.
+>> From these observations, we feel that these changes might not be
+>> needed. Please let us know in case we are missing on any point here,
+>> we can further check more on this.
+>  Well, at least we know changing the condition has unexpected side
+>effects. I'd like to understand those before discarding the idea - becau=
+se
+>in your setup flusher thread must end up writing rather small amount of
+>pages in each run when it's running continuously and that's not too good
+>either...
+>
+>								Honza
+>--=20
+>Jan Kara <jack@suse.cz>
+>SUSE Labs, CR
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
-      KERNEL: /boot/vmlinux-3.7.1+              
-    DUMPFILE: /var/crash/127.0.0.1-2013.01.09-19:12:02/vmcore
-        CPUS: 28
-        DATE: Tue Jan  8 23:11:35 2013
-      UPTIME: 00:12:43
-LOAD AVERAGE: 5.88, 4.82, 2.51
-       TASKS: 278
-     RELEASE: 3.7.1+
-     VERSION: #0 SMP Tue Jan 8 06:59:49 EST 2013
-     MACHINE: ppc64  (3550 Mhz)
-      MEMORY: 12 GB
-       PANIC: "Kernel panic - not syncing: Attempted to kill init! exitcode=0x0000000b"
-         PID: 1
-     COMMAND: "systemd"
-        TASK: c0000002eac00000  [THREAD_INFO: c0000002eac80000]
-         CPU: 18
-       STATE: TASK_INTERRUPTIBLE|TASK_UNINTERRUPTIBLE|TASK_TRACED (PANIC)
-
-crash> bt
-PID: 1      TASK: c0000002eac00000  CPU: 18  COMMAND: "systemd"
-
- R0:  c000000000721d34    R1:  c0000002eac83920    R2:  c000000001157098   
- R3:  c0000002eac83790    R4:  c0000002eac00000    R5:  0000000000000070   
- R6:  0000000000000000    R7:  c0000002fff584a0    R8:  0000000000000000   
- R9:  c0000002e7909000    R10: 0000000000000001    R11: 6578636570745f6c   
- R12: 0000000022004884    R13: c000000007f23f00    R14: 0000000000040006   
- R15: 00000000279b056c    R16: c0000002eac83ea0    R17: c000000001398ab8   
- R18: c0000002eac00000    R19: c0000002eac00000    R20: 00000000003c0000   
- R21: c0000002eac00a14    R22: c0000000011b2080    R23: c0000002eac83a30   
- R24: c000000018d90000    R25: 0000000000000140    R26: 0000000000106001   
- R27: c0000002eac83790    R28: c0000000013ba848    R29: 0000000000000000   
- R30: c0000000010d4d18    R31: c00000000101e4b0   
- NIP: c000000000721d34    MSR: 8000000000009032    OR3: c0000002eac83920
- CTR: 0000000000000000    LR:  c000000000721d34    XER: 0000000000000001
- CCR: 0000000022004882    MQ:  3030303030303030    DAR: 0000000000000000
- DSISR: c000000018d90000     Syscall Result: 0000000000000140
- NIP [c000000000721d34] .panic
-
- #0 [c0000002eac83920] .panic at c000000000721d34
- #1 [c0000002eac839c0] .do_exit at c0000000000886e4
- #2 [c0000002eac83ac0] .do_group_exit at c0000000000889d4
- #3 [c0000002eac83b50] .get_signal_to_deliver at c00000000009be28
- #4 [c0000002eac83c60] .do_signal at c000000000017924
- #5 [c0000002eac83da0] .do_notify_resume at c000000000017d74
- #6 [c0000002eac83e30] .ret_from_except_lite at c000000000009e1c
-
-CAI Qian
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
