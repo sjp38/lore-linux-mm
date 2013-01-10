@@ -1,48 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 7C6DB6B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 06:14:04 -0500 (EST)
-Date: Thu, 10 Jan 2013 11:14:03 +0000
-From: Eric Wong <normalperson@yhbt.net>
-Subject: Re: [v2] fadvise: perform WILLNEED readahead asynchronously
-Message-ID: <20130110111403.GA730@dcvr.yhbt.net>
-References: <20121225022251.GA25992@dcvr.yhbt.net>
- <50EE8B6B.1050204@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50EE8B6B.1050204@gmail.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id BC9596B004D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 06:44:26 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id fb10so308354pad.16
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 03:44:26 -0800 (PST)
+From: Sha Zhengju <handai.szj@gmail.com>
+Subject: [PATCH] memcg: modify swap accounting function to support THP
+Date: Thu, 10 Jan 2013 19:43:58 +0800
+Message-Id: <1357818238-11455-1-git-send-email-handai.szj@taobao.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Chinner <david@fromorbit.com>, Zheng Liu <gnehzuil.liu@gmail.com>
+To: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
 
-Riccardo Magliocchetti <riccardo.magliocchetti@gmail.com> wrote:
-> Hello,
-> 
-> Il 25/12/2012 03:22, Eric Wong ha scritto:
-> > Any other (Free Software) applications that might benefit from
-> > lower FADV_WILLNEED latency?
-> 
-> Not with fadvise but with madvise. Libreoffice / Openoffice.org have
-> this comment:
-> 
-> // On Linux, madvise(..., MADV_WILLNEED) appears to have the undesirable
-> // effect of not returning until the data has actually been paged in, so
-> // that its net effect would typically be to slow down the process
-> // (which could start processing at the beginning of the data while the
-> // OS simultaneously pages in the rest); on other platforms, it remains
-> // to be evaluated whether madvise or equivalent is available and
-> // actually useful:
-> 
-> See:
-> http://cgit.freedesktop.org/libreoffice/core/tree/sal/osl/unx/file.cxx#n1213
-> 
-> May the same approach be extended to madvise MADV_WILLNEED?
+From: Sha Zhengju <handai.szj@taobao.com>
 
-Definitely yes, it should be easy.  This project low-priority for me at
-the moment, if you or anybody else wants to take a stab at it,
-please do :)
+Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+---
+ mm/memcontrol.c |   13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 3817460..674cf21 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -914,10 +914,9 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+ }
+ 
+ static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+-					 bool charge)
++					 int nr_pages)
+ {
+-	int val = (charge) ? 1 : -1;
+-	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
++	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], nr_pages);
+ }
+ 
+ static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
+@@ -4107,7 +4106,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+ 	 */
+ 	memcg_check_events(memcg, page);
+ 	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+-		mem_cgroup_swap_statistics(memcg, true);
++		mem_cgroup_swap_statistics(memcg, nr_pages);
+ 		mem_cgroup_get(memcg);
+ 	}
+ 	/*
+@@ -4238,7 +4237,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+ 		 */
+ 		if (!mem_cgroup_is_root(memcg))
+ 			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+-		mem_cgroup_swap_statistics(memcg, false);
++		mem_cgroup_swap_statistics(memcg, -1);
+ 		mem_cgroup_put(memcg);
+ 	}
+ 	rcu_read_unlock();
+@@ -4267,8 +4266,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 	new_id = css_id(&to->css);
+ 
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+-		mem_cgroup_swap_statistics(from, false);
+-		mem_cgroup_swap_statistics(to, true);
++		mem_cgroup_swap_statistics(from, -1);
++		mem_cgroup_swap_statistics(to, 1);
+ 		/*
+ 		 * This function is only called from task migration context now.
+ 		 * It postpones res_counter and refcount handling till the end
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
