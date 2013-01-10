@@ -1,96 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id 093416B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 11:11:22 -0500 (EST)
-Message-ID: <50EEE868.70705@infradead.org>
-Date: Thu, 10 Jan 2013 08:12:24 -0800
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Fix wrong EOF compare
-References: <1357797904-11194-1-git-send-email-minchan@kernel.org> <xa1ta9shm531.fsf@mina86.com>
-In-Reply-To: <xa1ta9shm531.fsf@mina86.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id E22456B005A
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 14:00:54 -0500 (EST)
+Message-Id: <0000013c25d61596-bb94c3c3-a974-4ca4-9212-ecab243176ba-000000@email.amazonses.com>
+Date: Thu, 10 Jan 2013 19:00:53 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: REN2 [00/13] Sl[auo]b: Renaming etc for -next rebased to 3.8-rc3
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <js1304@gmail.com>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
 
-On 01/10/13 07:26, Michal Nazarewicz wrote:
-> On Thu, Jan 10 2013, Minchan Kim <minchan@kernel.org> wrote:
->> getc returns "int" so EOF could be -1 but storing getc's return
->> value to char directly makes the vaule to 255 so below condition
->> is always false.
-> 
-> Technically, this is implementation defined and I believe on many
-> systems char is signed thus the loop will end on EOF or byte 255.
-> 
-> Either way, my point is the patch is correct, but the comment is not. ;)
+These are patches that mostly rename variables and rearrange code. The first part has
+been extensively reviewed. Please take as much as possible.
 
-and change spelling of 'vaule' to 'value'
-and test build it please.
-
-> 
-> Of course, even better if the function just used fgets(), ie. something
-> like:
-> 
-> int read_block(char *buf, int buf_size, FILE *fin)
-> {
-> 	char *curr = buf, *const buf_end = buf + buf_size;
-> 
-> 	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
-> 		if (*curr == '\n') /* empty line */
-> 			return curr - buf;
-> 		curr += strlen(curr);
-> 	}
-> 
-> 	return -1; /* EOF or no space left in buf. */
-> }
-> 
-> which is much shorter and does not have buffer overflow issues.
-> 
->> It happens in my ARM system so loop is not ended, then segfaulted.
->> This patch fixes it.
->>
->>                 *curr = getc(fin); // *curr = 255
->>                 if (*curr == EOF) return -1; // if ( 255 == -1)
->>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Andy Whitcroft <apw@shadowen.org>
->> Cc: Alexander Nyberg <alexn@dsv.su.se>
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>  Documentation/page_owner.c |    6 ++++--
->>  1 file changed, 4 insertions(+), 2 deletions(-)
->>
->> diff --git a/Documentation/page_owner.c b/Documentation/page_owner.c
->> index f0156e1..b777fb6 100644
->> --- a/Documentation/page_owner.c
->> +++ b/Documentation/page_owner.c
->> @@ -32,12 +32,14 @@ int read_block(char *buf, FILE *fin)
->>  {
->>  	int ret = 0;
->>  	int hit = 0;
->> +	int vaule;
->>  	char *curr = buf;
->>  
->>  	for (;;) {
->> -		*curr = getc(fin);
->> -		if (*curr == EOF) return -1;
->> +		value = getc(fin);
->> +		if (value == EOF) return -1;
->>  
->> +		*curr = value;
->>  		ret++;
->>  		if (*curr == '\n' && hit == 1)
->>  			return ret - 1;
-> 
-> 
-> 
-
-
--- 
-~Randy
+Also some bug fixes and a couple of patches that make allocators use common functions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
