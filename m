@@ -1,56 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id 05DAE6B0071
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:19:28 -0500 (EST)
-Message-ID: <50EE2500.2040903@cn.fujitsu.com>
-Date: Thu, 10 Jan 2013 10:18:40 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 218CE6B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:23:12 -0500 (EST)
+Date: Thu, 10 Jan 2013 11:23:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
+Message-ID: <20130110022306.GB14685@blaptop>
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
+ <1357712474-27595-3-git-send-email-minchan@kernel.org>
+ <20130109162602.53a60e77.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
-References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com> <20130109153324.bbd019b3.akpm@linux-foundation.org>
-In-Reply-To: <20130109153324.bbd019b3.akpm@linux-foundation.org>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130109162602.53a60e77.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, glommer@parallels.com, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Andrew,
+On Wed, Jan 09, 2013 at 04:26:02PM -0800, Andrew Morton wrote:
+> On Wed,  9 Jan 2013 15:21:14 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > If laptop_mode is enable, VM try to avoid I/O for saving the power.
+> > But if there isn't reclaimable memory without I/O, we should do I/O
+> > for preventing unnecessary OOM kill although we sacrifices power.
+> > 
+> > One of example is that we are out of page cache. Remained one is
+> > only anonymous pages, for swapping out, we needs may_writepage = 1.
+> > 
+> > Reported-by: Luigi Semenzato <semenzato@google.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/vmscan.c |    6 ++++++
+> >  1 file changed, 6 insertions(+)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 439cc47..624c816 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1728,6 +1728,12 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+> >  		free = zone_page_state(zone, NR_FREE_PAGES);
+> >  		if (unlikely(file + free <= high_wmark_pages(zone))) {
+> >  			scan_balance = SCAN_ANON;
+> > +			/*
+> > +			 * From now on, we have to swap out
+> > +			 * for peventing OOM kill although
+> > +			 * we sacrifice power consumption.
+> > +			 */
+> > +			sc->may_writepage = 1;
+> >  			goto out;
+> >  		}
+> >  	}
+> 
+> This is pretty ugly.  get_scan_count() is, as its name implies, an
+> idempotent function which inspects the state of things and returns a
+> result.  As such, it has no business going in and altering the state of
+> the scan_control.
+> 
+> We have code in both direct reclaim and in kswapd to set may_writepage
+> if vmscan is getting into trouble.  I don't see why adding another
+> instance is necessary if the existing instances are working correctly.
+> 
+> 
+> 
+> (Is it correct that __zone_reclaim() ignores laptop_mode?)
+> 
+> 
+> I have a feeling that laptop mode has bitrotted and these patches are
+> kinda hacking around as-yet-not-understood failures...
 
-On 01/10/2013 07:33 AM, Andrew Morton wrote:
-> On Wed, 9 Jan 2013 17:32:24 +0800
-> Tang Chen<tangchen@cn.fujitsu.com>  wrote:
->
->> This patch-set aims to implement physical memory hot-removing.
->
-> As you were on th patch delivery path, all of these patches should have
-> your Signed-off-by:.  But some were missing it.  I fixed this in my
-> copy of the patches.
+Absolutely, this patch is last guard for unexpectable behavior.
+As I mentioned in cover-letter, Luigi's problem could be solved either [1/2]
+or [2/2] but I wanted to add this as last resort in case of unexpected
+emergency. But you're right. It's not good to hide the problem like this path
+so let's drop [2/2].
 
-Thank you very much for the help. Next time I'll add it myself.
+Also, I absolutely agree it has bitrotted so for correcting it, we need a
+volunteer who have to inverstigate power saveing experiment with long time.
+So [1/2] would be band-aid until that.
 
->
->
-> I suspect this patchset adds a significant amount of code which will
-> not be used if CONFIG_MEMORY_HOTPLUG=n.  "[PATCH v6 06/15]
-> memory-hotplug: implement register_page_bootmem_info_section of
-> sparse-vmemmap", for example.  This is not a good thing, so please go
-> through the patchset (in fact, go through all the memhotplug code) and
-> let's see if we can reduce the bloat for CONFIG_MEMORY_HOTPLUG=n
-> kernels.
->
-> This needn't be done immediately - it would be OK by me if you were to
-> defer this exercise until all the new memhotplug code is largely in
-> place.  But please, let's do it.
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-OK, I'll do have a check on it when the page_cgroup problem is solved.
-
-Thanks. :)
-
->
->
->
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
