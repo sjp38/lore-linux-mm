@@ -1,90 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id BB4186B005A
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 08:39:26 -0500 (EST)
-Date: Thu, 10 Jan 2013 14:39:22 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: modify swap accounting function to support THP
-Message-ID: <20130110133922.GB19858@dhcp22.suse.cz>
-References: <1357818238-11455-1-git-send-email-handai.szj@taobao.com>
+Received: from psmtp.com (na3sys010amx139.postini.com [74.125.245.139])
+	by kanga.kvack.org (Postfix) with SMTP id CA9D26B005A
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 10:27:10 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id fg15so328789wgb.9
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 07:27:09 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] Fix wrong EOF compare
+In-Reply-To: <1357797904-11194-1-git-send-email-minchan@kernel.org>
+References: <1357797904-11194-1-git-send-email-minchan@kernel.org>
+Date: Thu, 10 Jan 2013 16:26:58 +0100
+Message-ID: <xa1ta9shm531.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1357818238-11455-1-git-send-email-handai.szj@taobao.com>
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sha Zhengju <handai.szj@gmail.com>
-Cc: linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com, Sha Zhengju <handai.szj@taobao.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>
 
-On Thu 10-01-13 19:43:58, Sha Zhengju wrote:
-> From: Sha Zhengju <handai.szj@taobao.com>
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-THP are not swapped out because they are split before so this change
-doesn't make much sense to me.
+On Thu, Jan 10 2013, Minchan Kim <minchan@kernel.org> wrote:
+> getc returns "int" so EOF could be -1 but storing getc's return
+> value to char directly makes the vaule to 255 so below condition
+> is always false.
 
-> Signed-off-by: Sha Zhengju <handai.szj@taobao.com>
+Technically, this is implementation defined and I believe on many
+systems char is signed thus the loop will end on EOF or byte 255.
+
+Either way, my point is the patch is correct, but the comment is not. ;)
+
+Of course, even better if the function just used fgets(), ie. something
+like:
+
+int read_block(char *buf, int buf_size, FILE *fin)
+{
+	char *curr =3D buf, *const buf_end =3D buf + buf_size;
+
+	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
+		if (*curr =3D=3D '\n') /* empty line */
+			return curr - buf;
+		curr +=3D strlen(curr);
+	}
+
+	return -1; /* EOF or no space left in buf. */
+}
+
+which is much shorter and does not have buffer overflow issues.
+
+> It happens in my ARM system so loop is not ended, then segfaulted.
+> This patch fixes it.
+>
+>                 *curr =3D getc(fin); // *curr =3D 255
+>                 if (*curr =3D=3D EOF) return -1; // if ( 255 =3D=3D -1)
+>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Andy Whitcroft <apw@shadowen.org>
+> Cc: Alexander Nyberg <alexn@dsv.su.se>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  mm/memcontrol.c |   13 ++++++-------
->  1 file changed, 6 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3817460..674cf21 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -914,10 +914,9 @@ static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
->  }
->  
->  static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
-> -					 bool charge)
-> +					 int nr_pages)
+>  Documentation/page_owner.c |    6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+>
+> diff --git a/Documentation/page_owner.c b/Documentation/page_owner.c
+> index f0156e1..b777fb6 100644
+> --- a/Documentation/page_owner.c
+> +++ b/Documentation/page_owner.c
+> @@ -32,12 +32,14 @@ int read_block(char *buf, FILE *fin)
 >  {
-> -	int val = (charge) ? 1 : -1;
-> -	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], val);
-> +	this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_SWAP], nr_pages);
->  }
->  
->  static unsigned long mem_cgroup_read_events(struct mem_cgroup *memcg,
-> @@ -4107,7 +4106,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
->  	 */
->  	memcg_check_events(memcg, page);
->  	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
-> -		mem_cgroup_swap_statistics(memcg, true);
-> +		mem_cgroup_swap_statistics(memcg, nr_pages);
->  		mem_cgroup_get(memcg);
->  	}
->  	/*
-> @@ -4238,7 +4237,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
->  		 */
->  		if (!mem_cgroup_is_root(memcg))
->  			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> -		mem_cgroup_swap_statistics(memcg, false);
-> +		mem_cgroup_swap_statistics(memcg, -1);
->  		mem_cgroup_put(memcg);
->  	}
->  	rcu_read_unlock();
-> @@ -4267,8 +4266,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
->  	new_id = css_id(&to->css);
->  
->  	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
-> -		mem_cgroup_swap_statistics(from, false);
-> -		mem_cgroup_swap_statistics(to, true);
-> +		mem_cgroup_swap_statistics(from, -1);
-> +		mem_cgroup_swap_statistics(to, 1);
->  		/*
->  		 * This function is only called from task migration context now.
->  		 * It postpones res_counter and refcount handling till the end
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>  	int ret =3D 0;
+>  	int hit =3D 0;
+> +	int vaule;
+>  	char *curr =3D buf;
+>=20=20
+>  	for (;;) {
+> -		*curr =3D getc(fin);
+> -		if (*curr =3D=3D EOF) return -1;
+> +		value =3D getc(fin);
+> +		if (value =3D=3D EOF) return -1;
+>=20=20
+> +		*curr =3D value;
+>  		ret++;
+>  		if (*curr =3D=3D '\n' && hit =3D=3D 1)
+>  			return ret - 1;
 
--- 
-Michal Hocko
-SUSE Labs
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
+
+--==-=-=
+Content-Type: text/plain
+
+
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQ7t3CAAoJECBgQBJQdR/0wt8QAILGSILht+e942SFJr/1IZZz
+sbaqiRznalDUm1Hj/00uiOP67LFs2t7XXrnlVk0G2P1oCGzxDNFdDonayYoNxwyU
+rwDBtmkEB79/794fSZATN87Ufi3Ye3Jl92QmO12EoYIrXTz+oqk1ESDfMs/xdvlk
+Jp0UspTVBbGbfGb5S8coDHxqXcT6DZQyYLxpbAvVvYQDhVtVPaKdUiDvNrdkjmnA
+++fyVL4+mUSZUzpAVEOY1aaiM5O8gqYQR0l7aZzahEPrfNptSF+BPLIzp4py3u+l
+FSdxBHMt8ICq7Ka5ibQjvV9Vx30bf89pBmC91Om3ESS0E7S83EX5F+UIs1q7BT7k
+4R0TcH3kNnaZ8mAp+1/qH0rfXzfUxpWJoINLi/xa4VcxT1eucYSmQ6534NiWx1aY
+sYTvO1xiY5HXVBHef4vdn3Ru/HFxfFTjvs+mVR382/p+PkAi/Ctvd7WDCn220ZBQ
+6rW7/TRJbKiafJgvZH/PmiDdXe/l/VIUvsStFUntVNos1+/QO/Uze0JzMQOzYsyt
+WMda1cMNSHn5zEznfsBcaIlKa8/jKyl1QRiMg4OYVnfClWMoifDuqlCMm76TY4H3
+ftGRdauqJH+joG1UDRbG4xiZ1CukqEc1sNkTKVsE3f3jM2+6grxcwfjukHBjYmvU
+5LmNmlN+NzhSYV/zS6sd
+=5XLl
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
