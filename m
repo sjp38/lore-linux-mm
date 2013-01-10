@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 435C06B0074
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:50:52 -0500 (EST)
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 780E76B0078
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:50:54 -0500 (EST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH v2 04/12] cpu: Add cpu hotplug handlers
-Date: Thu, 10 Jan 2013 16:40:22 -0700
-Message-Id: <1357861230-29549-5-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH v2 05/12] mm: Add memory hotplug handlers
+Date: Thu, 10 Jan 2013 16:40:23 -0700
+Message-Id: <1357861230-29549-6-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
 References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,147 +13,142 @@ List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org
 Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
 
-Added cpu hotplug handlers.  cpu_add_execute() onlines requested
-cpus for hot-add & online operations, and cpu_del_execute()
-offlines them for hot-delete & offline operations.  They are
-also used for rollback as well.
+Added memory hotplug handlers.  mm_add_execute() onlines requested
+memory ranges for hot-add & online operations, and mm_del_execute()
+offlines them for hot-delete & offline operations.  They are also
+used for rollback as well.
 
-cpu_del_validate() fails a request if cpu0 is requested to delete.
+mm_del_validate() fails a hot-delete request if a requested memory
+range is non-movable when del_movable_only is set.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- drivers/base/cpu.c |  107 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 107 insertions(+)
+ mm/memory_hotplug.c |  101 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)
 
-diff --git a/drivers/base/cpu.c b/drivers/base/cpu.c
-index 6345294..05534ad 100644
---- a/drivers/base/cpu.c
-+++ b/drivers/base/cpu.c
-@@ -13,6 +13,8 @@
- #include <linux/gfp.h>
- #include <linux/slab.h>
- #include <linux/percpu.h>
-+#include <linux/list.h>
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d04ed87..ed3d829 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -29,6 +29,8 @@
+ #include <linux/suspend.h>
+ #include <linux/mm_inline.h>
+ #include <linux/firmware-map.h>
++#include <linux/module.h>
 +#include <linux/sys_hotplug.h>
  
- #include "base.h"
+ #include <asm/tlbflush.h>
  
-@@ -324,10 +326,115 @@ static void __init cpu_dev_register_generic(void)
- #endif
- }
+@@ -45,6 +47,13 @@ static void generic_online_page(struct page *page);
  
-+#ifdef CONFIG_HOTPLUG_CPU
-+static int cpu_del_execute(struct shp_request *req, int rollback);
+ static online_page_callback_t online_page_callback = generic_online_page;
+ 
++static int mm_add_execute(struct shp_request *req, int rollback);
++static int mm_del_execute(struct shp_request *req, int rollback);
 +
-+static int cpu_add_execute(struct shp_request *req, int rollback)
++static int del_movable_only = 0;
++module_param(del_movable_only, int, 0644);
++MODULE_PARM_DESC(del_movable_only, "Restrict hot-remove to movable memory only");
++
+ DEFINE_MUTEX(mem_hotplug_mutex);
+ 
+ void lock_memory_hotplug(void)
+@@ -1431,3 +1440,95 @@ int remove_memory(u64 start, u64 size)
+ }
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ EXPORT_SYMBOL_GPL(remove_memory);
++
++static int mm_add_execute(struct shp_request *req, int rollback)
 +{
 +	struct shp_device *shp_dev;
-+	u32 cpu;
++	struct shp_memory *shp_mem;
 +	int ret;
 +
 +	if (rollback)
-+		return cpu_del_execute(req, 0);
++		return mm_del_execute(req, 0);
 +
 +	list_for_each_entry(shp_dev, &req->dev_list, list) {
-+		if (shp_dev->class != SHP_CLS_CPU)
++		if (shp_dev->class != SHP_CLS_MEMORY)
 +			continue;
 +
-+		cpu = shp_dev->info.cpu.cpu_id;
++		shp_mem = &shp_dev->info.mem;
 +
-+		if (cpu_online(cpu))
-+			continue;
-+
-+		ret = cpu_up(cpu);
-+		if (!ret) {
-+			/* REVISIT: need a way to set a cpu dev for hot-plug */
-+			if (shp_is_online_op(req->operation))
-+				kobject_uevent(&shp_dev->device->kobj,
-+							KOBJ_ONLINE);
-+		} else {
-+			pr_err("cpu: Failed to online cpu %d\n", cpu);
-+			/* fall-thru */
-+		}
++		ret = add_memory(shp_mem->node,
++				shp_mem->start_addr, shp_mem->length);
++		if (ret)
++			return ret;
 +	}
 +
 +	return 0;
 +}
 +
-+static int cpu_del_validate(struct shp_request *req, int rollback)
++static int mm_del_validate(struct shp_request *req, int rollback)
 +{
 +	struct shp_device *shp_dev;
++	struct shp_memory *shp_mem;
++	unsigned long start_pfn, nr_pages;
 +
-+	if (rollback)
++	if (rollback || !del_movable_only)
 +		return 0;
 +
 +	list_for_each_entry(shp_dev, &req->dev_list, list) {
-+		if (shp_dev->class != SHP_CLS_CPU)
++		if (shp_dev->class != SHP_CLS_MEMORY)
 +			continue;
++
++		shp_mem = &shp_dev->info.mem;
++		start_pfn = shp_mem->start_addr >> PAGE_SHIFT;
++		nr_pages = PAGE_ALIGN(shp_mem->length) >> PAGE_SHIFT;
 +
 +		/*
-+		 * cpu 0 cannot be offlined.  This check can be removed when
-+		 * cpu 0 offline is supported.
++		 * Check if this memory range is removable.  This check is
++		 * enabled when del_movable_only is set.
 +		 */
-+		if (shp_dev->info.cpu.cpu_id == 0)
++		if (is_mem_section_removable(start_pfn, nr_pages)) {
++			pr_info("Memory [%#010llx-%#010llx] not removable\n",
++				shp_mem->start_addr,
++				shp_mem->start_addr + shp_mem->length-1);
 +			return -EINVAL;
-+	}
-+
-+	return 0;
-+}
-+
-+static int cpu_del_execute(struct shp_request *req, int rollback)
-+{
-+	struct shp_device *shp_dev;
-+	u32 cpu;
-+	int ret;
-+
-+	if (rollback)
-+		return cpu_add_execute(req, 0);
-+
-+	list_for_each_entry(shp_dev, &req->dev_list, list) {
-+		if (shp_dev->class != SHP_CLS_CPU)
-+			continue;
-+
-+		cpu = shp_dev->info.cpu.cpu_id;
-+
-+		if (!cpu_online(cpu))
-+			continue;
-+
-+		ret = cpu_down(cpu);
-+		if (!ret) {
-+			/* REVISIT: need a way to set a cpu dev for hot-plug */
-+			if (shp_is_online_op(req->operation))
-+				kobject_uevent(&shp_dev->device->kobj,
-+							KOBJ_OFFLINE);
-+		} else {
-+			pr_err("cpu: Failed to offline cpu %d\n", cpu);
-+			return ret;
 +		}
 +	}
 +
 +	return 0;
 +}
 +
-+static void __init cpu_shp_init(void)
++static int mm_del_execute(struct shp_request *req, int rollback)
 +{
-+	shp_register_handler(SHP_ADD_EXECUTE, cpu_add_execute,
-+				SHP_CPU_ADD_EXECUTE_ORDER);
-+	shp_register_handler(SHP_DEL_VALIDATE, cpu_del_validate,
-+				SHP_CPU_DEL_VALIDATE_ORDER);
-+	shp_register_handler(SHP_DEL_EXECUTE, cpu_del_execute,
-+				SHP_CPU_DEL_EXECUTE_ORDER);
-+}
-+#endif	/* CONFIG_HOTPLUG_CPU */
++	struct shp_device *shp_dev;
++	struct shp_memory *shp_mem;
++	int ret;
 +
- void __init cpu_dev_init(void)
- {
- 	if (subsys_system_register(&cpu_subsys, cpu_root_attr_groups))
- 		panic("Failed to register CPU subsystem");
- 
- 	cpu_dev_register_generic();
-+#ifdef CONFIG_HOTPLUG_CPU
-+	cpu_shp_init();
-+#endif
- }
++	if (rollback)
++		return mm_add_execute(req, 0);
++
++	list_for_each_entry(shp_dev, &req->dev_list, list) {
++		if (shp_dev->class != SHP_CLS_MEMORY)
++			continue;
++
++		shp_mem = &shp_dev->info.mem;
++
++		ret = remove_memory(shp_mem->start_addr, shp_mem->length);
++		if (ret)
++			return ret;
++	}
++
++	return 0;
++}
++
++static int __init mm_shp_init(void)
++{
++	shp_register_handler(SHP_ADD_EXECUTE, mm_add_execute,
++				SHP_MEM_ADD_EXECUTE_ORDER);
++	shp_register_handler(SHP_DEL_VALIDATE, mm_del_validate,
++				SHP_MEM_DEL_VALIDATE_ORDER);
++	shp_register_handler(SHP_DEL_EXECUTE, mm_del_execute,
++				SHP_MEM_DEL_EXECUTE_ORDER);
++
++	return 0;
++}
++module_init(mm_shp_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
