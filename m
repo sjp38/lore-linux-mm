@@ -1,219 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id 537B66B0070
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:50:36 -0500 (EST)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id D90FC6B0071
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:50:42 -0500 (EST)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH v2 00/12] System device hot-plug framework
-Date: Thu, 10 Jan 2013 16:40:18 -0700
-Message-Id: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
+Date: Thu, 10 Jan 2013 16:40:19 -0700
+Message-Id: <1357861230-29549-2-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: rjw@sisk.pl, lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org
 Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Toshi Kani <toshi.kani@hp.com>
 
-This patchset is a prototype of proposed system device hot-plug framework
-for design review.  Unlike other hot-plug environments, such as USB and
-PCI, there is no common framework for system device hot-plug [1].
-Therefore, this patchset is designed to provide a common framework for
-hot-plugging and online/offline operations of system devices, such as CPU,
-Memory and Node.  While this patchset only supports ACPI-based hot-plug
-operations, the framework itself is designed to be platform-neural and
-can support other FW architectures as necessary.
+Added include/linux/sys_hotplug.h, which defines the system device
+hotplug framework interfaces used by the framework itself and
+handlers.
 
-This patchset is based on Linus's tree (3.8-rc3).
+The order values define the calling sequence of handlers.  For add
+execute, the ordering is ACPI->MEM->CPU.  Memory is onlined before
+CPU so that threads on new CPUs can start using their local memory.
+The ordering of the delete execute is symmetric to the add execute.
 
-I have seen a few stability issues with 3.8-rc3 in my testing and will
-look into their solutions.
+struct shp_request defines a hot-plug request information.  The
+device resource information is managed with a list so that a single
+request may target to multiple devices.
 
-[1] System device hot-plug frameworks for ppc and s390 are implemented
-    for specific platforms and products.
-
-
-Background: System Device Initialization
-========================================
-System devices, such as CPU and memory, must be initialized during early
-boot sequence as they are the essential components to provide low-level
-services, ex. scheduling, memory allocation and interrupts, which are
-the foundations of the kernel services.  start_kernel() and kernel_init()
-manage the boot-up sequence to initialize system devices and low-level
-services in pre-defined order as shown below. 
-
-  start_kernel()
-    boot_cpu_init()          // init cpu0
-    setup_arch()
-      efi_init()             // init EFI memory map
-      initmem_init()         // init NUMA
-      x86_init.paging.pagetable_init() // init page table
-      acpi_boot_init()       // parse ACPI MADT table
-        :
-  kernel_init()
-    kernel_init_freeable()
-      smp_init()             // init other CPUs
-        :
-      do_basic_setup()
-        driver_init()
-          cpu_dev_init()     // build system/cpu tree
-          memory_dev_init()  // build system/memory tree
-        do_initcalls()
-          acpi_init()        // build ACPI device tree
-
-Note that drivers are initialized at the end of the boot sequence as they
-depend on the kernel services from system devices.  Hence, while system
-devices may be exposed to sysfs with their pseudo drivers, their
-initialization may not be fully integrated into the driver structures.  
-
-Overview of the System Device Hot-plug Framework
-================================================
-Similar to the boot-up sequence, the system device hot-plug framework
-provides a sequencer that calls all registered handlers in pre-defined
-order for hot-add and hot-delete of system devices.  It allows any modules
-initializing system devices in the boot-up sequence to participate in
-the hot-plug operations as well.  In high-level, there are two types of
-handlers, 1) FW-dependent (ex. ACPI) handlers that enumerate or eject
-system devices, and 2) system device (ex. CPU, Memory) management handlers
-that online or offline the enumerated system devices.  Online/offline
-operations are sub-set of hot-add/delete operations.  The ordering of the
-handlers are symmetric between hot-add (online) and hot-delete (offline)
-operations.
-
-        hot-add    online
-           |    ^    :    ^
-  HW Enum/ |    |    :    :
-    Eject  |    |    :    :
-           |    |    :    :
-  Online/  |    |    |    |
-  Offline  |    |    |    |
-           V    |    V    |
-             hot-del   offline
-
-The handlers may not call other handlers directly to exceed their role.
-Therefore, the role of the handlers in their modules remains consistent
-with their role at the boot-up sequence.  For instance, the ACPI module
-may not perform online or offline of system devices.
-
-System Device Hot-plug Operation
-================================
-
-Serialized Startup
-------------------
-The framework provides an interface (hp_submit_req) to request a hot-plug
-operation.  All requests are queued to and run on a single work queue.
-The framework assures that there is only a single hot-plug or online/
-offline operation running at a time.  A single request may however target
-to multiple devices.  This makes the execution context of handlers to be
-consistent with the boot-up sequence and enables code sharing.
-
-Phased Execution
-----------------
-The framework proceeds hot-plug and online/offline operations in the 
-following three phases.  The modules can register their handlers to each
-phase.  The framework also initiates a roll-back operation if any hander
-failed in the validate or execute phase.
-
-1) Validate Phase - Handlers validate if they support a given request
-without making any changes to target device(s).  They check any known
-restrictions and/or prerequisite conditions to their modules, and fail
-an unsupported request before making any changes.  For instance, the
-memory module may check if a hot-remove request is targeted to movable
-ranges.
-
-2) Execute Phase - Handlers make requested change within the scope that
-its roll-back is possible in case of a failure.  Execute handlers must
-implement their roll-back procedures.
-
-3) Commit Phase - Handlers make the final change that cannot be rolled-back.
-For instance, the ACPI module invokes _EJ0 for a hot-remove operation.
-
-System Device Management Modules
-================================
-
-CPU Handlers
-------------
-CPU handlers are provided by the CPU driver in drivers/base/cpu.c, and
-perform CPU online/offline procedures when CPU device(s) is added or
-deleted during an operation.
-
-Memory Handlers
----------------
-Memory handlers are provided by the memory module in mm/memory_hotplug.c,
-and perform Memory online/offline procedure when memory device(s) is
-added or deleted during an operation.
-
-FW-dependent Modules
-====================
-
-ACPI Bus Handlers
------------------
-ACPI bus handlers are provided by the ACPI core in drivers/acpi/bus.c,
-and construct/destruct acpi_device object(s) during a hot-plug operation.
-
-ACPI Resource Handlers
-----------------------
-ACPI resource handlers are provided by the ACPI core in
-drivers/acpi/hp_resource.c, and set device resource information to
-a request during a hot-plug operation.  This device resource information
-is then consumed by the system device management modules for their
-online/offline procedure.
-
-ACPI Drivers
-------------
-ACPI drivers are called from the ACPI core during a hot-plug operation
-through the following interfaces.  ACPI drivers are not called from the
-framework directly, and remain internal to the ACPI core.  ACPI drivers
-may not initiate online/offline of a device.
-
-.add - Construct device-specific information to a given acpi_device.
-Called at boot, hot-add and sysfs bind.
-
-.remove - Destruct device-specific information to a given acpi_device.
-Called at hot-remove and sysfs unbind.
-
-.resource - Set device-specific resource information to a given hot-plug
-request.  Called at hot-add and hot-remove.
-
+Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
-v2:
- - Documented that system devices may not be initialized through the driver
-   structures.
- - Clarified that the framework is for "system device" hotplug by changing
-   file name, prefix and documentation.
- - Removed the use of CONFIG_HOTPLUG.
- - Moved ACPI specific definitions to include/acpi/sys_hotplug.h.
- - Implemented shp_unregister_handler() and added locking.
- - Added module parameters, shp_trace and del_movable_only.
+ include/linux/sys_hotplug.h |  181 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 181 insertions(+)
+ create mode 100644 include/linux/sys_hotplug.h
 
----
-Toshi Kani (12):
- Add sys_hotplug.h for system device hotplug framework
- ACPI: Add sys_hotplug.h for system device hotplug framework
- drivers/base: Add system device hotplug framework 
- cpu: Add cpu hotplug handlers
- mm: Add memory hotplug handlers
- ACPI: Add ACPI bus hotplug handlers
- ACPI: Add ACPI resource hotplug handler
- ACPI: Update processor driver for hotplug framework
- ACPI: Update memory driver for hotplug framework
- ACPI: Update container driver for hotplug framework
- cpu: Update sysfs cpu/online for hotplug framework
- ACPI: Update sysfs eject for hotplug framework
-
----
- drivers/acpi/Makefile           |   1 +
- drivers/acpi/acpi_memhotplug.c  | 271 ++++++++++++----------------------
- drivers/acpi/bus.c              | 134 +++++++++++++++++
- drivers/acpi/container.c        |  95 +++++-------
- drivers/acpi/internal.h         |   1 +
- drivers/acpi/processor_driver.c | 150 +++++++++----------
- drivers/acpi/scan.c             | 122 +++-------------
- drivers/acpi/shp_resource.c     |  86 +++++++++++
- drivers/base/Makefile           |   1 +
- drivers/base/cpu.c              | 147 +++++++++++++++++--
- drivers/base/sys_hotplug.c      | 313 ++++++++++++++++++++++++++++++++++++++++
- include/acpi/acpi_bus.h         |   8 +-
- include/acpi/sys_hotplug.h      |  48 ++++++
- include/linux/sys_hotplug.h     | 181 +++++++++++++++++++++++
- mm/memory_hotplug.c             | 101 +++++++++++++
- 15 files changed, 1224 insertions(+), 435 deletions(-)
+diff --git a/include/linux/sys_hotplug.h b/include/linux/sys_hotplug.h
+new file mode 100644
+index 0000000..86674dd
+--- /dev/null
++++ b/include/linux/sys_hotplug.h
+@@ -0,0 +1,181 @@
++/*
++ * sys_hotplug.h - System device hot-plug framework
++ *
++ * Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
++ *	Toshi Kani <toshi.kani@hp.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#ifndef _LINUX_SYS_HOTPLUG_H
++#define _LINUX_SYS_HOTPLUG_H
++
++#include <linux/list.h>
++#include <linux/device.h>
++
++/*
++ * System device hot-plug operation proceeds in the following order.
++ *   Validate phase -> Execute phase -> Commit phase
++ *
++ * The order values below define the calling sequence of platform
++ * neutral handlers for each phase in ascending order.  The order
++ * values of firmware-specific handlers are defined in sys_hotplug.h
++ * under firmware specific directories.
++ */
++
++/* All order values must be smaller than this value */
++#define SHP_ORDER_MAX				0xffffff
++
++/* Add Validate order values */
++
++/* Add Execute order values */
++#define SHP_MEM_ADD_EXECUTE_ORDER		100
++#define SHP_CPU_ADD_EXECUTE_ORDER		110
++
++/* Add Commit order values */
++
++/* Delete Validate order values */
++#define SHP_CPU_DEL_VALIDATE_ORDER		100
++#define SHP_MEM_DEL_VALIDATE_ORDER		110
++
++/* Delete Execute order values */
++#define SHP_CPU_DEL_EXECUTE_ORDER		10
++#define SHP_MEM_DEL_EXECUTE_ORDER		20
++
++/* Delete Commit order values */
++
++/*
++ * Hot-plug request types
++ */
++#define SHP_REQ_ADD		0x000000
++#define SHP_REQ_DELETE		0x000001
++#define SHP_REQ_MASK		0x0000ff
++
++/*
++ * Hot-plug phase types
++ */
++#define SHP_PH_VALIDATE		0x000000
++#define SHP_PH_EXECUTE		0x000100
++#define SHP_PH_COMMIT		0x000200
++#define SHP_PH_MASK		0x00ff00
++
++/*
++ * Hot-plug operation types
++ */
++#define SHP_OP_HOTPLUG		0x000000
++#define SHP_OP_ONLINE		0x010000
++#define SHP_OP_MASK		0xff0000
++
++/*
++ * Hot-plug phases
++ */
++enum shp_phase {
++	SHP_ADD_VALIDATE	= (SHP_REQ_ADD|SHP_PH_VALIDATE),
++	SHP_ADD_EXECUTE		= (SHP_REQ_ADD|SHP_PH_EXECUTE),
++	SHP_ADD_COMMIT		= (SHP_REQ_ADD|SHP_PH_COMMIT),
++	SHP_DEL_VALIDATE	= (SHP_REQ_DELETE|SHP_PH_VALIDATE),
++	SHP_DEL_EXECUTE		= (SHP_REQ_DELETE|SHP_PH_EXECUTE),
++	SHP_DEL_COMMIT		= (SHP_REQ_DELETE|SHP_PH_COMMIT)
++};
++
++/*
++ * Hot-plug operations
++ */
++enum shp_operation {
++	SHP_HOTPLUG_ADD		= (SHP_OP_HOTPLUG|SHP_REQ_ADD),
++	SHP_HOTPLUG_DEL		= (SHP_OP_HOTPLUG|SHP_REQ_DELETE),
++	SHP_ONLINE_ADD		= (SHP_OP_ONLINE|SHP_REQ_ADD),
++	SHP_ONLINE_DEL		= (SHP_OP_ONLINE|SHP_REQ_DELETE)
++};
++
++/*
++ * Hot-plug device classes
++ */
++enum shp_class {
++	SHP_CLS_INVALID		= 0,
++	SHP_CLS_CPU		= 1,
++	SHP_CLS_MEMORY		= 2,
++	SHP_CLS_HOSTBRIDGE	= 3,
++	SHP_CLS_CONTAINER	= 4,
++};
++
++/*
++ * Hot-plug device information
++ */
++union shp_dev_info {
++	struct shp_cpu {
++		u32		cpu_id;
++	} cpu;
++
++	struct shp_memory {
++		int		node;
++		u64		start_addr;
++		u64		length;
++	} mem;
++
++	struct shp_hostbridge {
++	} hb;
++
++	struct shp_node {
++	} node;
++};
++
++struct shp_device {
++	struct list_head	list;
++	struct device		*device;
++	enum shp_class		class;
++	union shp_dev_info	info;
++};
++
++/*
++ * Hot-plug request
++ */
++struct shp_request {
++	/* common info */
++	enum shp_operation	operation;	/* operation */
++
++	/* hot-plug event info: only valid for hot-plug operations */
++	void			*handle;	/* FW handle */
++	u32			event;		/* FW event */
++
++	/* device resource info */
++	struct list_head	dev_list;	/* shp_device list */
++};
++
++/*
++ * Inline Utility Functions
++ */
++static inline bool shp_is_hotplug_op(enum shp_operation operation)
++{
++	return (operation & SHP_OP_MASK) == SHP_OP_HOTPLUG;
++}
++
++static inline bool shp_is_online_op(enum shp_operation operation)
++{
++	return (operation & SHP_OP_MASK) == SHP_OP_ONLINE;
++}
++
++static inline bool shp_is_add_op(enum shp_operation operation)
++{
++	return (operation & SHP_REQ_MASK) == SHP_REQ_ADD;
++}
++
++static inline bool shp_is_add_phase(enum shp_phase phase)
++{
++	return (phase & SHP_REQ_MASK) == SHP_REQ_ADD;
++}
++
++/*
++ * Externs
++ */
++typedef int (*shp_func)(struct shp_request *req, int rollback);
++extern int shp_register_handler(enum shp_phase phase, shp_func func, u32 order);
++extern int shp_unregister_handler(enum shp_phase phase, shp_func func);
++extern int shp_submit_req(struct shp_request *req);
++extern struct shp_request *shp_alloc_request(enum shp_operation operation);
++extern void shp_add_dev_info(struct shp_request *shp_req,
++		struct shp_device *shp_dev);
++
++#endif	/* _LINUX_SYS_HOTPLUG_H */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
