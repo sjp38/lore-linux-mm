@@ -1,92 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
-	by kanga.kvack.org (Postfix) with SMTP id 0F8336B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 03:28:17 -0500 (EST)
-Received: by mail-oa0-f44.google.com with SMTP id n5so293666oag.3
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 00:28:17 -0800 (PST)
+Received: from psmtp.com (na3sys010amx105.postini.com [74.125.245.105])
+	by kanga.kvack.org (Postfix) with SMTP id 44EB96B006C
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 03:36:01 -0500 (EST)
+Message-ID: <50EE7D75.8080100@parallels.com>
+Date: Thu, 10 Jan 2013 12:36:05 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <50EE4B84.5080205@jp.fujitsu.com>
-References: <1356455919-14445-1-git-send-email-handai.szj@taobao.com>
-	<1356456367-14660-1-git-send-email-handai.szj@taobao.com>
-	<20130102104421.GC22160@dhcp22.suse.cz>
-	<CAFj3OHXKyMO3gwghiBAmbowvqko-JqLtKroX2kzin1rk=q9tZg@mail.gmail.com>
-	<50EA7860.6030300@jp.fujitsu.com>
-	<CAFj3OHXMgRG6u2YoM7y5WuPo2ZNA1yPmKRV29FYj9B6Wj_c6Lw@mail.gmail.com>
-	<50EE247B.6090405@jp.fujitsu.com>
-	<CAFj3OHW=n22veXzR27qfc+10t-nETU=B78NULPXrEDT1S-KsOw@mail.gmail.com>
-	<50EE4B84.5080205@jp.fujitsu.com>
-Date: Thu, 10 Jan 2013 16:28:16 +0800
-Message-ID: <CAFj3OHXbfW+ubBhGNpy9ZcyUQvpKwssRvyjK5k=CM9sqQE9r4g@mail.gmail.com>
-Subject: Re: [PATCH V3 4/8] memcg: add per cgroup dirty pages accounting
-From: Sha Zhengju <handai.szj@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH v6 00/15] memory-hotplug: hot-remove physical memory
+References: <1357723959-5416-1-git-send-email-tangchen@cn.fujitsu.com> <20130109142314.1ce04a96.akpm@linux-foundation.org> <50EE24A4.8020601@cn.fujitsu.com> <50EE6A48.7060307@parallels.com> <50EE6E50.3040609@jp.fujitsu.com> <50EE73DE.30208@parallels.com> <50EE7A6B.7020005@jp.fujitsu.com>
+In-Reply-To: <50EE7A6B.7020005@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, gthelen@google.com, fengguang.wu@intel.com, glommer@parallels.com, dchinner@redhat.com, Sha Zhengju <handai.szj@taobao.com>
-
-On Thu, Jan 10, 2013 at 1:03 PM, Kamezawa Hiroyuki
-<kamezawa.hiroyu@jp.fujitsu.com> wrote:
-> (2013/01/10 13:26), Sha Zhengju wrote:
->
->> But this method also has its pros and cons(e.g. need lock nesting). So
->> I doubt whether the following is able to deal with these issues all
->> together:
->> (CPU-A does "page stat accounting" and CPU-B does "move")
->>
->>               CPU-A                            CPU-B
->>
->> move_lock_mem_cgroup()
->> memcg = pc->mem_cgroup
->> SetPageDirty(page)
->> move_unlock_mem_cgroup()
->>                                        move_lock_mem_cgroup()
->>                                        if (PageDirty) {
->>                                                 old_memcg->nr_dirty --;
->>                                                 new_memcg->nr_dirty ++;
->>                                         }
->>                                         pc->mem_cgroup = new_memcg
->>                                         move_unlock_mem_cgroup()
->>
->> memcg->nr_dirty ++
->>
->>
->> For CPU-A, we save pc->mem_cgroup in a temporary variable just before
->> SetPageDirty inside move_lock and then update stats if the page is set
->> PG_dirty successfully. But CPU-B may do "moving" in advance that
->> "old_memcg->nr_dirty --" will make old_memcg->nr_dirty incorrect but
->> soon CPU-A will do "memcg->nr_dirty ++" at the heels that amend the
->> stats.
->> However, there is a potential problem that old_memcg->nr_dirty  may be
->> minus in a very short period but not a big issue IMHO.
->>
->
-> IMHO, this will work. Please take care of that the recorded memcg will not
-> be invalid pointer when you update the nr_dirty later.
-> (Maybe RCU will protect it.)
->
-Yes, there're 3 places to change pc->mem_cgroup: charge & uncharge &
-move_account. "charge" has no race with stat updater and "uncharge"
-doesn't reset pc->mem_cgroup directly, also "move_account" is just the
-one we are handling, so they may do no harm here. Meanwhile, invalid
-pointer made by cgroup deletion may also be avoided by RCU. Yet it's a
-rough conclusion by quick look...
-
-> _If_ this method can handle "nesting" problem clearer and make
-> implementation
-> simpler, please go ahead. To be honest, I'm not sure how the code will be
-> until
-Okay, later I'll try to propose the patch.
-
-> seeing the patch. Hmm, why you write SetPageDirty() here rather than
-> TestSetPageDirty()....
->
-No particular reason...TestSetPageDirty() may be more precise... : )
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, rientjes@google.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, wency@cn.fujitsu.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org
 
 
--- 
-Thanks,
-Sha
+> If it's configure as ZONE_NORMAL, you need to pray for offlining memory.
+> 
+> AFAIK, IBM's ppc? has 16MB section size. So, some of sections can be
+> offlined
+> even if they are configured as ZONE_NORMAL. For them, placement of offlined
+> memory is not important because it's virtualized by LPAR, they don't try
+> to remove DIMM, they just want to increase/decrease amount of memory.
+> It's an another approach.
+> 
+> But here, we(fujitsu) tries to remove a system board/DIMM.
+> So, configuring the whole memory of a node as ZONE_MOVABLE and tries to
+> guarantee
+> DIMM as removable.
+> 
+>>> IMHO, I don't think shrink_slab() can kill all objects in a node even
+>>> if they are some caches. We need more study for doing that.
+>>>
+>>
+>> Indeed, shrink_slab can only kill cached objects. They, however, are
+>> usually a very big part of kernel memory. I wonder though if in case of
+>> failure, it is worth it to try at least one shrink pass before you
+>> give up.
+>>
+> 
+> Yeah, now, his (our) approach is never allowing kernel memory on a node
+> to be
+> hot-removed by ZONE_MOVABLE. So, shrink_slab()'s effect will not be seen.
+
+Ok, that clarifies it to me.
+> 
+> If other brave guys tries to use ZONE_NORMAL for hot-pluggable DIMM, I see,
+> it's worth triying.
+> 
+I was under the impression that this was being done in here.
+
+> How about checking the target memsection is in NORMAL or in MOVABLE at
+> hot-removing ? If NORMAL, shrink_slab() will be worth to be called.
+> 
+Yes, this is what I meant. I think there is value investigating this,
+since for a lot of workloads, a lot of the kernel memory will consist of
+shrinkable cached memory. It would provide you with the same level of
+guarantees (zero), but can improve the success  rate (this is, of
+course, a guess)
+
+
+> BTW, shrink_slab() is now node/zone aware ? If not, fixing that first will
+> be better direction I guess.
+> 
+It is not upstream, but there are patches for this that I am already
+using in my private tree.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
