@@ -1,63 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx167.postini.com [74.125.245.167])
-	by kanga.kvack.org (Postfix) with SMTP id 4D28F6B005D
-	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:00:12 -0500 (EST)
-Message-ID: <50EE1B82.4090601@cn.fujitsu.com>
-Date: Thu, 10 Jan 2013 09:38:10 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 7B1906B005D
+	for <linux-mm@kvack.org>; Wed,  9 Jan 2013 21:03:50 -0500 (EST)
+Date: Thu, 10 Jan 2013 11:03:47 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm: prevent to add a page to swap if may_writepage
+ is unset
+Message-ID: <20130110020347.GA14685@blaptop>
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
+ <1357712474-27595-2-git-send-email-minchan@kernel.org>
+ <20130109161854.67412dcc.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 01/14] memory-hotplug: try to offline the memory twice
- to avoid dependence
-References: <1356350964-13437-1-git-send-email-tangchen@cn.fujitsu.com> <1356350964-13437-2-git-send-email-tangchen@cn.fujitsu.com> <50D96543.6010903@parallels.com> <50DFD7F7.5090408@cn.fujitsu.com> <50ED8834.1090804@parallels.com>
-In-Reply-To: <50ED8834.1090804@parallels.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130109161854.67412dcc.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, akpm@linux-foundation.org, rientjes@google.com, liuj97@gmail.com, len.brown@intel.com, benh@kernel.crashing.org, paulus@samba.org, cl@linux.com, minchan.kim@gmail.com, kosaki.motohiro@jp.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, wujianguo@huawei.com, hpa@zytor.com, linfeng@cn.fujitsu.com, laijs@cn.fujitsu.com, mgorman@suse.de, yinghai@kernel.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, linux-ia64@vger.kernel.org, cmetcalf@tilera.com, sparclinux@vger.kernel.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-Hi Glauber,
+Hi Andrew,
 
-On 01/09/2013 11:09 PM, Glauber Costa wrote:
->>
->> We try to make all page_cgroup allocations local to the node they are describing
->> now. If the memory is the first memory onlined in this node, we will allocate
->> it from the other node.
->>
->> For example, node1 has 4 memory blocks: 8-11, and we online it from 8 to 11
->> 1. memory block 8, page_cgroup allocations are in the other nodes
->> 2. memory block 9, page_cgroup allocations are in memory block 8
->>
->> So we should offline memory block 9 first. But we don't know in which order
->> the user online the memory block.
->>
->> I think we can modify memcg like this:
->> allocate the memory from the memory block they are describing
->>
->> I am not sure it is OK to do so.
->
-> I don't see a reason why not.
+On Wed, Jan 09, 2013 at 04:18:54PM -0800, Andrew Morton wrote:
+> On Wed,  9 Jan 2013 15:21:13 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > Recently, Luigi reported there are lots of free swap space when
+> > OOM happens. It's easily reproduced on zram-over-swap, where
+> > many instance of memory hogs are running and laptop_mode is enabled.
+> > 
+> > Luigi reported there was no problem when he disabled laptop_mode.
+> > The problem when I investigate problem is following as.
+> > 
+> > try_to_free_pages disable may_writepage if laptop_mode is enabled.
+> > shrink_page_list adds lots of anon pages in swap cache by
+> > add_to_swap, which makes pages Dirty and rotate them to head of
+> > inactive LRU without pageout. If it is repeated, inactive anon LRU
+> > is full of Dirty and SwapCache pages.
+> > 
+> > In case of that, isolate_lru_pages fails because it try to isolate
+> > clean page due to may_writepage == 0.
+> > 
+> > The may_writepage could be 1 only if total_scanned is higher than
+> > writeback_threshold in do_try_to_free_pages but unfortunately,
+> > VM can't isolate anon pages from inactive anon lru list by
+> > above reason and we already reclaimed all file-backed pages.
+> > So it ends up OOM killing.
+> > 
+> > This patch prevents to add a page to swap cache unnecessary when
+> > may_writepage is unset so anoymous lru list isn't full of
+> > Dirty/Swapcache page. So VM can isolate pages from anon lru list,
+> > which ends up setting may_writepage to 1 and could swap out
+> > anon lru pages. When OOM triggers, I confirmed swap space was full.
+> > 
+> > ...
+> >
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -780,6 +780,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		if (PageAnon(page) && !PageSwapCache(page)) {
+> >  			if (!(sc->gfp_mask & __GFP_IO))
+> >  				goto keep_locked;
+> > +			if (!sc->may_writepage)
+> > +				goto keep_locked;
+> >  			if (!add_to_swap(page))
+> >  				goto activate_locked;
+> >  			may_enter_fs = 1;
+> 
+> I'm not really getting it, and the description is rather hard to follow :(
 
-I'm not sure, but if we do this, we could bring in a fragment for each
-memory block (a memory section, 128MB, right?). Is this a problem when
-we use large page (such as 1GB page) ?
+It seems I don't have a talent about description. :(
+I hope it would be better this year. :)
 
-Even if not, will these fragments make any bad effects ?
+> 
+> We should be adding anon pages to swapcache even when laptop_mode is
+> set.  And we should be writing them to swap as well, then reclaiming
+> them.  The only thing laptop_mode shouild do is make the disk spin up
+> less frequently - that doesn't mean "not at all"!
 
-Thank. :)
+So it seems your rationale is that let's save power in only system has
+enough memory so let's remove may_writepage in reclaim path?
 
->
-> You would have to tweak a bit the lookup function for page_cgroup, but
-> assuming you will always have the pfns and limits, it should be easy to do.
->
-> I think the only tricky part is that today we have a single
-> node_page_cgroup, and we would of course have to have one per memory
-> block. My assumption is that the number of memory blocks is limited and
-> likely not very big. So even a static array would do.
->
-> Kamezawa, do you have any input in here?
->
+If it is, I love it because I didn't see any number about power saving
+through reclaiming throttling(But surely there was reason to add it)
+and not sure it works well during long time because we have tweaked
+reclaim part too many.
+
+> 
+> So something seems screwed up here and the patch looks like a
+> heavy-handed workaround.  Why aren't these anon pages getting written
+> out in laptop_mode?
+
+Don't know. It was there long time and I don't want to screw it up.
+If we decide paging out in reclaim path regardless of laptop_mode,
+it makes the problem easy without ugly workaround.
+
+Remove may_writepage? If it's too agressive, we can remove it in only
+direct reclaim path.
+
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
