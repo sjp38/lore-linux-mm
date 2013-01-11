@@ -1,52 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
-	by kanga.kvack.org (Postfix) with SMTP id 4E07A6B006C
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:30:52 -0500 (EST)
-Date: Fri, 11 Jan 2013 09:30:49 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: ppoll() stuck on POLLIN while TCP peer is sending
-Message-ID: <20130111093049.GL13304@suse.de>
-References: <20130110194212.GJ13304@suse.de>
- <20130111005105.GA15023@dcvr.yhbt.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20130111005105.GA15023@dcvr.yhbt.net>
+Received: from psmtp.com (na3sys010amx118.postini.com [74.125.245.118])
+	by kanga.kvack.org (Postfix) with SMTP id 1E2C26B006C
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:45:30 -0500 (EST)
+From: Glauber Costa <glommer@parallels.com>
+Subject: [PATCH v2 0/7] replace cgroup_lock with local memcg lock 
+Date: Fri, 11 Jan 2013 13:45:20 +0400
+Message-Id: <1357897527-15479-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
-Cc: linux-mm@kvack.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, Jan 11, 2013 at 12:51:05AM +0000, Eric Wong wrote:
-> Mel Gorman <mgorman@suse.de> wrote:
-> > mm: compaction: Partially revert capture of suitable high-order page
-> 
-> <snip>
->  
-> > Reported-by: Eric Wong <normalperson@yhbt.net>
-> > Cc: stable@vger.kernel.org
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> 
-> Thanks, my original use case and test works great after several hours!
-> 
-> Tested-by: Eric Wong <normalperson@yhbt.net>
-> 
+Hi,
 
-Thanks very much Eric. I've resent the patch to Andrew so it should make
-its way to mainline. It'll fail to apply to 3.7-stable but I should get
-a notification from Greg when that happens and fix it up.
+In memcg, we use the cgroup_lock basically to synchronize against
+attaching new children to a cgroup. We do this because we rely on cgroup core to
+provide us with this information.
 
-> Unfortunately, I also hit a new bug in 3.8 (not in 3.7.x).  based on Eric
-> Dumazet's observations, sk_stream_wait_memory may be to blame.
-> Fortunately this is easier to reproduce (I've cc-ed participants
-> on this thread already): <20130111004915.GA15415@dcvr.yhbt.net>
+We need to guarantee that upon child creation, our tunables are consistent.
+For those, the calls to cgroup_lock() all live in handlers like
+mem_cgroup_hierarchy_write(), where we change a tunable in the group that is
+hierarchy-related. For instance, the use_hierarchy flag cannot be changed if
+the cgroup already have children.
 
-It looks like the relevant fix for this has already been written by Eric
-Dumazet and picked up by David Miller.
+Furthermore, those values are propageted from the parent to the child when a
+new child is created. So if we don't lock like this, we can end up with the
+following situation:
+
+A                                   B
+ memcg_css_alloc()                       mem_cgroup_hierarchy_write()
+ copy use hierarchy from parent          change use hierarchy in parent
+ finish creation.
+
+This is mainly because during create, we are still not fully connected to the
+css tree. So all iterators and the such that we could use, will fail to show
+that the group has children.
+
+My observation is that all of creation can proceed in parallel with those
+tasks, except value assignment. So what this patchseries does is to first move
+all value assignment that is dependent on parent values from css_alloc to
+css_online, where the iterators all work, and then we lock only the value
+assignment. This will guarantee that parent and children always have consistent
+values. Together with an online test, that can be derived from the observation
+that the refcount of an online memcg can be made to be always positive, we
+should be able to synchronize our side without the cgroup lock.
+
+*v2:
+ - sanitize kmemcg assignment in the light of the current locking change.
+ - don't grab locks on immigrate charges by caching the value during can_attach
+
+Glauber Costa (7):
+  memcg: prevent changes to move_charge_at_immigrate during task attach
+  memcg: split part of memcg creation to css_online
+  memcg: provide online test for memcg
+  memcg: fast hierarchy-aware child test.
+  May god have mercy on my soul.
+  memcg: replace cgroup_lock with memcg specific memcg_lock
+  memcg: increment static branch right after limit set.
+
+ mm/memcontrol.c | 194 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 117 insertions(+), 77 deletions(-)
 
 -- 
-Mel Gorman
-SUSE Labs
+1.7.11.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
