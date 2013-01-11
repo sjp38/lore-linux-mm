@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx176.postini.com [74.125.245.176])
-	by kanga.kvack.org (Postfix) with SMTP id 94F816B0071
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:45:37 -0500 (EST)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 7A2196B0072
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:45:38 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 1/7] memcg: prevent changes to move_charge_at_immigrate during task attach
-Date: Fri, 11 Jan 2013 13:45:21 +0400
-Message-Id: <1357897527-15479-2-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 2/7] memcg: split part of memcg creation to css_online
+Date: Fri, 11 Jan 2013 13:45:22 +0400
+Message-Id: <1357897527-15479-3-git-send-email-glommer@parallels.com>
 In-Reply-To: <1357897527-15479-1-git-send-email-glommer@parallels.com>
 References: <1357897527-15479-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,95 +13,108 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>
 
-Currently, we rely on the cgroup_lock() to prevent changes to
-move_charge_at_immigrate during task migration. However, this is only
-needed because the current strategy keeps checking this value throughout
-the whole process. Since all we need is serialization, one needs only to
-guarantee that whatever decision we made in the beginning of a specific
-migration is respected throughout the process.
+Although there is arguably some value in doing this per se, the main
+goal of this patch is to make room for the locking changes to come.
 
-We can achieve this by just saving it in mc. By doing this, no kind of
-locking is needed.
+With all the value assignment from parent happening in a context where
+our iterators can already be used, we can safely lock against value
+change in some key values like use_hierarchy, without resorting to the
+cgroup core at all.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
- mm/memcontrol.c | 26 +++++++++++++++++---------
- 1 file changed, 17 insertions(+), 9 deletions(-)
+ mm/memcontrol.c | 53 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 36 insertions(+), 17 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 09255ec..18f4e76 100644
+index 18f4e76..2229945 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -412,6 +412,7 @@ static struct move_charge_struct {
- 	spinlock_t	  lock; /* for from, to */
- 	struct mem_cgroup *from;
- 	struct mem_cgroup *to;
-+	unsigned long move_charge_at_immigrate;
- 	unsigned long precharge;
- 	unsigned long moved_charge;
- 	unsigned long moved_swap;
-@@ -425,13 +426,13 @@ static struct move_charge_struct {
- static bool move_anon(void)
- {
- 	return test_bit(MOVE_CHARGE_TYPE_ANON,
--					&mc.to->move_charge_at_immigrate);
-+					&mc.move_charge_at_immigrate);
- }
- 
- static bool move_file(void)
- {
- 	return test_bit(MOVE_CHARGE_TYPE_FILE,
--					&mc.to->move_charge_at_immigrate);
-+					&mc.move_charge_at_immigrate);
- }
- 
- /*
-@@ -5146,15 +5147,14 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 
- 	if (val >= (1 << NR_MOVE_TYPE))
- 		return -EINVAL;
+@@ -6090,12 +6090,41 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 						&per_cpu(memcg_stock, cpu);
+ 			INIT_WORK(&stock->work, drain_local_stock);
+ 		}
+-	} else {
+-		parent = mem_cgroup_from_cont(cont->parent);
+-		memcg->use_hierarchy = parent->use_hierarchy;
+-		memcg->oom_kill_disable = parent->oom_kill_disable;
 +
- 	/*
--	 * We check this value several times in both in can_attach() and
--	 * attach(), so we need cgroup lock to prevent this value from being
--	 * inconsistent.
-+	 * No kind of locking is needed in here, because ->can_attach() will
-+	 * check this value once in the beginning of the process, and then carry
-+	 * on with stale data. This means that changes to this value will only
-+	 * affect task migrations starting after the change.
- 	 */
--	cgroup_lock();
- 	memcg->move_charge_at_immigrate = val;
--	cgroup_unlock();
--
- 	return 0;
++		res_counter_init(&memcg->res, NULL);
++		res_counter_init(&memcg->memsw, NULL);
++		res_counter_init(&memcg->kmem, NULL);
+ 	}
+ 
++	memcg->last_scanned_node = MAX_NUMNODES;
++	INIT_LIST_HEAD(&memcg->oom_notify);
++	atomic_set(&memcg->refcnt, 1);
++	memcg->move_charge_at_immigrate = 0;
++	mutex_init(&memcg->thresholds_lock);
++	spin_lock_init(&memcg->move_lock);
++
++	return &memcg->css;
++
++free_out:
++	__mem_cgroup_free(memcg);
++	return ERR_PTR(error);
++}
++
++static int
++mem_cgroup_css_online(struct cgroup *cont)
++{
++	struct mem_cgroup *memcg, *parent;
++	int error = 0;
++
++	if (!cont->parent)
++		return 0;
++
++	memcg = mem_cgroup_from_cont(cont);
++	parent = mem_cgroup_from_cont(cont->parent);
++
++	memcg->use_hierarchy = parent->use_hierarchy;
++	memcg->oom_kill_disable = parent->oom_kill_disable;
++
+ 	if (parent && parent->use_hierarchy) {
+ 		res_counter_init(&memcg->res, &parent->res);
+ 		res_counter_init(&memcg->memsw, &parent->memsw);
+@@ -6120,15 +6149,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 		if (parent && parent != root_mem_cgroup)
+ 			mem_cgroup_subsys.broken_hierarchy = true;
+ 	}
+-	memcg->last_scanned_node = MAX_NUMNODES;
+-	INIT_LIST_HEAD(&memcg->oom_notify);
+ 
+-	if (parent)
+-		memcg->swappiness = mem_cgroup_swappiness(parent);
+-	atomic_set(&memcg->refcnt, 1);
+-	memcg->move_charge_at_immigrate = 0;
+-	mutex_init(&memcg->thresholds_lock);
+-	spin_lock_init(&memcg->move_lock);
++	memcg->swappiness = mem_cgroup_swappiness(parent);
+ 
+ 	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+ 	if (error) {
+@@ -6138,12 +6160,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+ 		 * call __mem_cgroup_free, so return directly
+ 		 */
+ 		mem_cgroup_put(memcg);
+-		return ERR_PTR(error);
+ 	}
+-	return &memcg->css;
+-free_out:
+-	__mem_cgroup_free(memcg);
+-	return ERR_PTR(error);
++	return error;
  }
- #else
-@@ -6530,8 +6530,15 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 	struct task_struct *p = cgroup_taskset_first(tset);
- 	int ret = 0;
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-+	unsigned long move_charge_at_immigrate;
  
--	if (memcg->move_charge_at_immigrate) {
-+	/*
-+	 * We are now commited to this value whatever it is. Changes in this
-+	 * tunable will only affect upcoming migrations, not the current one.
-+	 * So we need to save it, and keep it going.
-+	 */
-+	move_charge_at_immigrate  = memcg->move_charge_at_immigrate;
-+	if (move_charge_at_immigrate) {
- 		struct mm_struct *mm;
- 		struct mem_cgroup *from = mem_cgroup_from_task(p);
- 
-@@ -6551,6 +6558,7 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 			spin_lock(&mc.lock);
- 			mc.from = from;
- 			mc.to = memcg;
-+			mc.move_charge_at_immigrate = move_charge_at_immigrate;
- 			spin_unlock(&mc.lock);
- 			/* We set mc.moving_task later */
- 
+ static void mem_cgroup_css_offline(struct cgroup *cont)
+@@ -6753,6 +6771,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
+ 	.name = "memory",
+ 	.subsys_id = mem_cgroup_subsys_id,
+ 	.css_alloc = mem_cgroup_css_alloc,
++	.css_online = mem_cgroup_css_online,
+ 	.css_offline = mem_cgroup_css_offline,
+ 	.css_free = mem_cgroup_css_free,
+ 	.can_attach = mem_cgroup_can_attach,
 -- 
 1.7.11.7
 
