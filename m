@@ -1,103 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 270D26B0070
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:30:06 -0500 (EST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 2/2] Enhance read_block of page_owner.c
-Date: Fri, 11 Jan 2013 11:30:01 +0900
-Message-Id: <1357871401-7075-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1357871401-7075-1-git-send-email-minchan@kernel.org>
-References: <1357871401-7075-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id C58606B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:40:03 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id b47so238934eek.29
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:40:02 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1357870727.27446.2988.camel@edumazet-glaptop>
+References: <20130111004915.GA15415@dcvr.yhbt.net>
+	<1357869675.27446.2962.camel@edumazet-glaptop>
+	<1357870727.27446.2988.camel@edumazet-glaptop>
+Date: Thu, 10 Jan 2013 21:40:01 -0500
+Message-ID: <CADVnQy==hkO5jFH9ah3U-1Joy2D-wkRq80n0dHf6HxfRLS9Hjg@mail.gmail.com>
+Subject: Re: 3.8-rc2/rc3 write() blocked on CLOSE_WAIT TCP socket
+From: Neal Cardwell <ncardwell@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>, Randy Dunlap <rdunlap@infradead.org>, Michal Nazarewicz <mina86@mina86.com>
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Eric Wong <normalperson@yhbt.net>, David Miller <davem@davemloft.net>, Netdev <netdev@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-The read_block reads char one by one until meeting two newline.
-It's not good for the performance and current code isn't good shape
-for readability.
+On Thu, Jan 10, 2013 at 9:18 PM, Eric Dumazet <eric.dumazet@gmail.com> wrote:
+> From: Eric Dumazet <edumazet@google.com>
+>
+> On Thu, 2013-01-10 at 18:01 -0800, Eric Dumazet wrote:
+>
+>> Hmm, it might be commit c3ae62af8e755ea68380fb5ce682e60079a4c388
+>> tcp: should drop incoming frames without ACK flag set
+>>
+>> It seems RST should be allowed to not have ACK set.
+>>
+>> I'll send a fix, thanks !
+>
+> Yes, thats definitely the problem, sorry for that.
+>
+>
+> [PATCH] tcp: accept RST without ACK flag
+>
+> commit c3ae62af8e755 (tcp: should drop incoming frames without ACK flag
+> set) added a regression on the handling of RST messages.
+>
+> RST should be allowed to come even without ACK bit set. We validate
+> the RST by checking the exact sequence, as requested by RFC 793 and
+> 5961 3.2, in tcp_validate_incoming()
+>
+> Reported-by: Eric Wong <normalperson@yhbt.net>
+> Signed-off-by: Eric Dumazet <edumazet@google.com>
 
-This patch enhances speed and clean up.
+Acked-by: Neal Cardwell <ncardwell@google.com>
 
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andy Whitcroft <apw@shadowen.org>
-Cc: Alexander Nyberg <alexn@dsv.su.se>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- Documentation/page_owner.c |   34 +++++++++++++---------------------
- 1 file changed, 13 insertions(+), 21 deletions(-)
-
-diff --git a/Documentation/page_owner.c b/Documentation/page_owner.c
-index 43dde96..96bf481 100644
---- a/Documentation/page_owner.c
-+++ b/Documentation/page_owner.c
-@@ -28,26 +28,17 @@ static int max_size;
- 
- struct block_list *block_head;
- 
--int read_block(char *buf, FILE *fin)
-+int read_block(char *buf, int buf_size, FILE *fin)
- {
--	int ret = 0;
--	int hit = 0;
--	int val;
--	char *curr = buf;
--
--	for (;;) {
--		val = getc(fin);
--		if (val == EOF) return -1;
--		*curr = val;
--		ret++;
--		if (*curr == '\n' && hit == 1)
--			return ret - 1;
--		else if (*curr == '\n')
--			hit = 1;
--		else
--			hit = 0;
--		curr++;
-+	char *curr = buf, *const buf_end = buf + buf_size;
-+
-+	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
-+		if (*curr == '\n') /* empty line */
-+			return curr - buf;
-+		curr += strlen(curr);
- 	}
-+
-+	return -1; /* EOF or no space left in buf. */
- }
- 
- static int compare_txt(struct block_list *l1, struct block_list *l2)
-@@ -84,10 +75,12 @@ static void add_list(char *buf, int len)
- 	}
- }
- 
-+#define BUF_SIZE	1024
-+
- int main(int argc, char **argv)
- {
- 	FILE *fin, *fout;
--	char buf[1024];
-+	char buf[BUF_SIZE];
- 	int ret, i, count;
- 	struct block_list *list2;
- 	struct stat st;
-@@ -106,11 +99,10 @@ int main(int argc, char **argv)
- 	list = malloc(max_size * sizeof(*list));
- 
- 	for(;;) {
--		ret = read_block(buf, fin);
-+		ret = read_block(buf, BUF_SIZE, fin);
- 		if (ret < 0)
- 			break;
- 
--		buf[ret] = '\0';
- 		add_list(buf, ret);
- 	}
- 
--- 
-1.7.9.5
+neal
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
