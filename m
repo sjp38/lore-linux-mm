@@ -1,44 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
-	by kanga.kvack.org (Postfix) with SMTP id 00F0C6B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 20:46:27 -0500 (EST)
-Date: Fri, 11 Jan 2013 12:46:15 +1100
-From: paul.szabo@sydney.edu.au
-Message-Id: <201301110146.r0B1kF4T032208@como.maths.usyd.edu.au>
-Subject: Re: [RFC] Reproducible OOM with partial workaround
-In-Reply-To: <50EF6A2C.7070606@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
+	by kanga.kvack.org (Postfix) with SMTP id 52EAC6B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:01:19 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id un1so648083pbc.20
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:01:18 -0800 (PST)
+Subject: Re: 3.8-rc2/rc3 write() blocked on CLOSE_WAIT TCP socket
+From: Eric Dumazet <eric.dumazet@gmail.com>
+In-Reply-To: <20130111004915.GA15415@dcvr.yhbt.net>
+References: <20130111004915.GA15415@dcvr.yhbt.net>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 10 Jan 2013 18:01:15 -0800
+Message-ID: <1357869675.27446.2962.camel@edumazet-glaptop>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@linux.vnet.ibm.com
-Cc: 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Wong <normalperson@yhbt.net>
+Cc: netdev@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-Dear Dave,
+On Fri, 2013-01-11 at 00:49 +0000, Eric Wong wrote:
+> The below Ruby script reproduces the issue for me with write()
+> getting stuck, usually with a few iterations (sometimes up to 100).
+> 
+> I've reproduced this with 3.8-rc2 and rc3, even with Mel's partial
+> revert patch in <20130110194212.GJ13304@suse.de> applied.
+> 
+> I can not reproduce this with 3.7.1+
+>    stable-queue 2afd72f59c518da18853192ceeebead670ced5ea
+> So this seems to be a new bug from the 3.8 cycle...
+> 
+> Fortunately, this bug far easier for me to reproduce than the ppoll+send
+> (toosleepy) failures.
+> 
+> Both socat and ruby (Ruby 1.8, 1.9, 2.0 should all work), along with
+> common shell tools (dd, sh, cat) are required for testing this:
+> 
+> 	# 100 iterations, raise/lower the number if needed
+> 	ruby the_script_below.rb 100
+> 
+> lsof -p 15236 reveals this:
+> ruby    15236   ew    5u  IPv4  23066      0t0     TCP localhost:33728->localhost:38658 (CLOSE_WAIT)
 
-> ... I don't believe 64GB of RAM has _ever_ been booted on a 32-bit
-> kernel without either violating the ABI (3GB/1GB split) or doing
-> something that never got merged upstream ...
+Hmm, it might be commit c3ae62af8e755ea68380fb5ce682e60079a4c388
+tcp: should drop incoming frames without ACK flag set
 
-Sorry to be so contradictory:
+It seems RST should be allowed to not have ACK set.
 
-psz@como:~$ uname -a
-Linux como.maths.usyd.edu.au 3.2.32-pk06.10-t01-i386 #1 SMP Sat Jan 5 18:34:25 EST 2013 i686 GNU/Linux
-psz@como:~$ free -l
-             total       used       free     shared    buffers     cached
-Mem:      64446900    4729292   59717608          0      15972     480520
-Low:        375836     304400      71436
-High:     64071064    4424892   59646172
--/+ buffers/cache:    4232800   60214100
-Swap:    134217724          0  134217724
-psz@como:~$ 
+I'll send a fix, thanks !
 
-(though I would not know about violations).
 
-But OK, I take your point that I should move with the times.
 
-Cheers, Paul
 
-Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
-School of Mathematics and Statistics   University of Sydney    Australia
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
