@@ -1,225 +1,233 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id DD5906B0074
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 05:17:47 -0500 (EST)
-Date: Fri, 11 Jan 2013 11:17:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mmots: memory-hotplug: implement
- register_page_bootmem_info_section of sparse-vmemmap fix
-Message-ID: <20130111101745.GD7286@dhcp22.suse.cz>
-References: <20130111095658.GC7286@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 51AB26B006C
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 05:27:11 -0500 (EST)
+Message-ID: <50EFE8CF.7010400@cn.fujitsu.com>
+Date: Fri, 11 Jan 2013 18:26:23 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Subject: Re: mmots: memory-hotplug: implement register_page_bootmem_info_section
+ of sparse-vmemmap fix
+References: <20130111095658.GC7286@dhcp22.suse.cz>
 In-Reply-To: <20130111095658.GC7286@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wu Jianguo <wujianguo@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Wu Jianguo <wujianguo@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 11-01-13 10:56:58, Michal Hocko wrote:
-[...]
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+Hi Michal,
+
+Thank you very much for the nice catch. :)
+
+On 01/11/2013 05:56 PM, Michal Hocko wrote:
+> Defconfig for x86=5F64 complains
+> arch/x86/mm/init=5F64.c: In function =E2=80=98register=5Fpage=5Fbootmem=
+=5Fmemmap=E2=80=99:
+> arch/x86/mm/init=5F64.c:1340: error: implicit declaration of function =E2=
+=80=98get=5Fpage=5Fbootmem=E2=80=99
+> arch/x86/mm/init=5F64.c:1340: error: =E2=80=98MIX=5FSECTION=5FINFO=E2=80=
+=99 undeclared (first
+> use in this function)
+> arch/x86/mm/init=5F64.c:1340: error: (Each undeclared identifier is
+> reported only once
+> arch/x86/mm/init=5F64.c:1340: error: for each function it appears in.)
+> arch/x86/mm/init=5F64.c:1361: error: =E2=80=98SECTION=5FINFO=E2=80=99 und=
+eclared (first use in this function)
+>
+> move register=5Fpage=5Fbootmem=5Fmemmap to memory=5Fhotplug where it is u=
+sed and
+> where it has all required symbols
+>
+> Signed-off-by: Michal Hocko<mhocko@suse.cz>
+> ---
+>   arch/x86/mm/init=5F64.c |   58 ----------------------------------------=
+-------
+>   include/linux/mm.h    |    2 --
+>   mm/memory=5Fhotplug.c   |   60 ++++++++++++++++++++++++++++++++++++++++=
+++++++++-
+>   3 files changed, 59 insertions(+), 61 deletions(-)
+>
+> diff --git a/arch/x86/mm/init=5F64.c b/arch/x86/mm/init=5F64.c
+> index ddd3b58..a6a7494 100644
+> --- a/arch/x86/mm/init=5F64.c
+> +++ b/arch/x86/mm/init=5F64.c
+> @@ -1317,64 +1317,6 @@ vmemmap=5Fpopulate(struct page *start=5Fpage, unsi=
+gned long size, int node)
+>   	return 0;
+>   }
+>
+> -void register=5Fpage=5Fbootmem=5Fmemmap(unsigned long section=5Fnr,
+> -				  struct page *start=5Fpage, unsigned long size)
+> -{
+> -	unsigned long addr =3D (unsigned long)start=5Fpage;
+> -	unsigned long end =3D (unsigned long)(start=5Fpage + size);
+> -	unsigned long next;
+> -	pgd=5Ft *pgd;
+> -	pud=5Ft *pud;
+> -	pmd=5Ft *pmd;
+> -	unsigned int nr=5Fpages;
+> -	struct page *page;
+> -
+> -	for (; addr<  end; addr =3D next) {
+> -		pte=5Ft *pte =3D NULL;
+> -
+> -		pgd =3D pgd=5Foffset=5Fk(addr);
+> -		if (pgd=5Fnone(*pgd)) {
+> -			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> -			continue;
+> -		}
+> -		get=5Fpage=5Fbootmem(section=5Fnr, pgd=5Fpage(*pgd), MIX=5FSECTION=5FI=
+NFO);
+> -
+> -		pud =3D pud=5Foffset(pgd, addr);
+> -		if (pud=5Fnone(*pud)) {
+> -			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> -			continue;
+> -		}
+> -		get=5Fpage=5Fbootmem(section=5Fnr, pud=5Fpage(*pud), MIX=5FSECTION=5FI=
+NFO);
+> -
+> -		if (!cpu=5Fhas=5Fpse) {
+> -			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> -			pmd =3D pmd=5Foffset(pud, addr);
+> -			if (pmd=5Fnone(*pmd))
+> -				continue;
+> -			get=5Fpage=5Fbootmem(section=5Fnr, pmd=5Fpage(*pmd),
+> -					 MIX=5FSECTION=5FINFO);
+> -
+> -			pte =3D pte=5Foffset=5Fkernel(pmd, addr);
+> -			if (pte=5Fnone(*pte))
+> -				continue;
+> -			get=5Fpage=5Fbootmem(section=5Fnr, pte=5Fpage(*pte),
+> -					 SECTION=5FINFO);
+> -		} else {
+> -			next =3D pmd=5Faddr=5Fend(addr, end);
+> -
+> -			pmd =3D pmd=5Foffset(pud, addr);
+> -			if (pmd=5Fnone(*pmd))
+> -				continue;
+> -
+> -			nr=5Fpages =3D 1<<  (get=5Forder(PMD=5FSIZE));
+> -			page =3D pmd=5Fpage(*pmd);
+> -			while (nr=5Fpages--)
+> -				get=5Fpage=5Fbootmem(section=5Fnr, page++,
+> -						 SECTION=5FINFO);
+> -		}
+> -	}
+> -}
+> -
+>   void =5F=5Fmeminit vmemmap=5Fpopulate=5Fprint=5Flast(void)
+>   {
+>   	if (p=5Fstart) {
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 7c57bd0..1fea1b23 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1724,8 +1724,6 @@ void vmemmap=5Fpopulate=5Fprint=5Flast(void);
+>   #ifdef CONFIG=5FMEMORY=5FHOTPLUG
+>   void vmemmap=5Ffree(struct page *memmap, unsigned long nr=5Fpages);
+>   #endif
+> -void register=5Fpage=5Fbootmem=5Fmemmap(unsigned long section=5Fnr, stru=
+ct page *map,
+> -				  unsigned long size);
+>
+>   enum mf=5Fflags {
+>   	MF=5FCOUNT=5FINCREASED =3D 1<<  0,
+> diff --git a/mm/memory=5Fhotplug.c b/mm/memory=5Fhotplug.c
 > index be2b90c..1501d25 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -91,7 +91,6 @@ static void release_memory_resource(struct resource *res)
->  	return;
->  }
->  
-> -#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  void get_page_bootmem(unsigned long info,  struct page *page,
->  		      unsigned long type)
->  {
-> @@ -101,6 +100,7 @@ void get_page_bootmem(unsigned long info,  struct page *page,
->  	atomic_inc(&page->_count);
->  }
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  /* reference to __meminit __free_pages_bootmem is valid
->   * so use __ref to tell modpost not to generate a warning */
->  void __ref put_page_bootmem(struct page *page)
+> --- a/mm/memory=5Fhotplug.c
+> +++ b/mm/memory=5Fhotplug.c
+> @@ -91,7 +91,6 @@ static void release=5Fmemory=5Fresource(struct resource=
+ *res)
+>   	return;
+>   }
+>
+> -#ifdef CONFIG=5FMEMORY=5FHOTPLUG=5FSPARSE
+>   void get=5Fpage=5Fbootmem(unsigned long info,  struct page *page,
+>   		      unsigned long type)
+>   {
+> @@ -101,6 +100,7 @@ void get=5Fpage=5Fbootmem(unsigned long info,  struct=
+ page *page,
+>   	atomic=5Finc(&page->=5Fcount);
+>   }
+>
+> +#ifdef CONFIG=5FMEMORY=5FHOTPLUG=5FSPARSE
+>   /* reference to =5F=5Fmeminit =5F=5Ffree=5Fpages=5Fbootmem is valid
+>    * so use =5F=5Fref to tell modpost not to generate a warning */
+>   void =5F=5Fref put=5Fpage=5Fbootmem(struct page *page)
+> @@ -128,6 +128,64 @@ void =5F=5Fref put=5Fpage=5Fbootmem(struct page *pag=
+e)
+>
+>   }
+>
+> +void register=5Fpage=5Fbootmem=5Fmemmap(unsigned long section=5Fnr,
+> +				  struct page *start=5Fpage, unsigned long size)
+> +{
+> +	unsigned long addr =3D (unsigned long)start=5Fpage;
+> +	unsigned long end =3D (unsigned long)(start=5Fpage + size);
+> +	unsigned long next;
+> +	pgd=5Ft *pgd;
+> +	pud=5Ft *pud;
+> +	pmd=5Ft *pmd;
+> +	unsigned int nr=5Fpages;
+> +	struct page *page;
+> +
+> +	for (; addr<  end; addr =3D next) {
+> +		pte=5Ft *pte =3D NULL;
+> +
+> +		pgd =3D pgd=5Foffset=5Fk(addr);
+> +		if (pgd=5Fnone(*pgd)) {
+> +			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> +			continue;
+> +		}
+> +		get=5Fpage=5Fbootmem(section=5Fnr, pgd=5Fpage(*pgd), MIX=5FSECTION=5FI=
+NFO);
+> +
+> +		pud =3D pud=5Foffset(pgd, addr);
+> +		if (pud=5Fnone(*pud)) {
+> +			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> +			continue;
+> +		}
+> +		get=5Fpage=5Fbootmem(section=5Fnr, pud=5Fpage(*pud), MIX=5FSECTION=5FI=
+NFO);
+> +
+> +		if (!cpu=5Fhas=5Fpse) {
+> +			next =3D (addr + PAGE=5FSIZE)&  PAGE=5FMASK;
+> +			pmd =3D pmd=5Foffset(pud, addr);
+> +			if (pmd=5Fnone(*pmd))
+> +				continue;
+> +			get=5Fpage=5Fbootmem(section=5Fnr, pmd=5Fpage(*pmd),
+> +					 MIX=5FSECTION=5FINFO);
+> +
+> +			pte =3D pte=5Foffset=5Fkernel(pmd, addr);
+> +			if (pte=5Fnone(*pte))
+> +				continue;
+> +			get=5Fpage=5Fbootmem(section=5Fnr, pte=5Fpage(*pte),
+> +					 SECTION=5FINFO);
+> +		} else {
+> +			next =3D pmd=5Faddr=5Fend(addr, end);
+> +
+> +			pmd =3D pmd=5Foffset(pud, addr);
+> +			if (pmd=5Fnone(*pmd))
+> +				continue;
+> +
+> +			nr=5Fpages =3D 1<<  (get=5Forder(PMD=5FSIZE));
+> +			page =3D pmd=5Fpage(*pmd);
+> +			while (nr=5Fpages--)
+> +				get=5Fpage=5Fbootmem(section=5Fnr, page++,
+> +						 SECTION=5FINFO);
+> +		}
+> +	}
+> +}
+> +
+>   #ifndef CONFIG=5FSPARSEMEM=5FVMEMMAP
+>   static void register=5Fpage=5Fbootmem=5Finfo=5Fsection(unsigned long st=
+art=5Fpfn)
+>   {
 
-Ups this slipped through and it is unnecessary.
----
-Defconfig for x86_64 complains
-arch/x86/mm/init_64.c: In function a??register_page_bootmem_memmapa??:
-arch/x86/mm/init_64.c:1340: error: implicit declaration of function a??get_page_bootmema??
-arch/x86/mm/init_64.c:1340: error: a??MIX_SECTION_INFOa?? undeclared (first
-use in this function)
-arch/x86/mm/init_64.c:1340: error: (Each undeclared identifier is
-reported only once
-arch/x86/mm/init_64.c:1340: error: for each function it appears in.)
-arch/x86/mm/init_64.c:1361: error: a??SECTION_INFOa?? undeclared (first use in this function)
-
-move register_page_bootmem_memmap to memory_hotplug where it is used and
-where it has all required symbols
-
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- arch/x86/mm/init_64.c |   58 -------------------------------------------------
- include/linux/mm.h    |    2 --
- mm/memory_hotplug.c   |   58 +++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 58 insertions(+), 60 deletions(-)
-
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index ddd3b58..a6a7494 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1317,64 +1317,6 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
- 	return 0;
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	unsigned long addr = (unsigned long)start_page;
--	unsigned long end = (unsigned long)(start_page + size);
--	unsigned long next;
--	pgd_t *pgd;
--	pud_t *pud;
--	pmd_t *pmd;
--	unsigned int nr_pages;
--	struct page *page;
--
--	for (; addr < end; addr = next) {
--		pte_t *pte = NULL;
--
--		pgd = pgd_offset_k(addr);
--		if (pgd_none(*pgd)) {
--			next = (addr + PAGE_SIZE) & PAGE_MASK;
--			continue;
--		}
--		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
--
--		pud = pud_offset(pgd, addr);
--		if (pud_none(*pud)) {
--			next = (addr + PAGE_SIZE) & PAGE_MASK;
--			continue;
--		}
--		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
--
--		if (!cpu_has_pse) {
--			next = (addr + PAGE_SIZE) & PAGE_MASK;
--			pmd = pmd_offset(pud, addr);
--			if (pmd_none(*pmd))
--				continue;
--			get_page_bootmem(section_nr, pmd_page(*pmd),
--					 MIX_SECTION_INFO);
--
--			pte = pte_offset_kernel(pmd, addr);
--			if (pte_none(*pte))
--				continue;
--			get_page_bootmem(section_nr, pte_page(*pte),
--					 SECTION_INFO);
--		} else {
--			next = pmd_addr_end(addr, end);
--
--			pmd = pmd_offset(pud, addr);
--			if (pmd_none(*pmd))
--				continue;
--
--			nr_pages = 1 << (get_order(PMD_SIZE));
--			page = pmd_page(*pmd);
--			while (nr_pages--)
--				get_page_bootmem(section_nr, page++,
--						 SECTION_INFO);
--		}
--	}
--}
--
- void __meminit vmemmap_populate_print_last(void)
- {
- 	if (p_start) {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 7c57bd0..1fea1b23 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1724,8 +1724,6 @@ void vmemmap_populate_print_last(void);
- #ifdef CONFIG_MEMORY_HOTPLUG
- void vmemmap_free(struct page *memmap, unsigned long nr_pages);
- #endif
--void register_page_bootmem_memmap(unsigned long section_nr, struct page *map,
--				  unsigned long size);
- 
- enum mf_flags {
- 	MF_COUNT_INCREASED = 1 << 0,
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index be2b90c..59eddff 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -128,6 +128,64 @@ void __ref put_page_bootmem(struct page *page)
- 
- }
- 
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	unsigned long addr = (unsigned long)start_page;
-+	unsigned long end = (unsigned long)(start_page + size);
-+	unsigned long next;
-+	pgd_t *pgd;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+	unsigned int nr_pages;
-+	struct page *page;
-+
-+	for (; addr < end; addr = next) {
-+		pte_t *pte = NULL;
-+
-+		pgd = pgd_offset_k(addr);
-+		if (pgd_none(*pgd)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			continue;
-+		}
-+		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
-+
-+		pud = pud_offset(pgd, addr);
-+		if (pud_none(*pud)) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			continue;
-+		}
-+		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
-+
-+		if (!cpu_has_pse) {
-+			next = (addr + PAGE_SIZE) & PAGE_MASK;
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+			get_page_bootmem(section_nr, pmd_page(*pmd),
-+					 MIX_SECTION_INFO);
-+
-+			pte = pte_offset_kernel(pmd, addr);
-+			if (pte_none(*pte))
-+				continue;
-+			get_page_bootmem(section_nr, pte_page(*pte),
-+					 SECTION_INFO);
-+		} else {
-+			next = pmd_addr_end(addr, end);
-+
-+			pmd = pmd_offset(pud, addr);
-+			if (pmd_none(*pmd))
-+				continue;
-+
-+			nr_pages = 1 << (get_order(PMD_SIZE));
-+			page = pmd_page(*pmd);
-+			while (nr_pages--)
-+				get_page_bootmem(section_nr, page++,
-+						 SECTION_INFO);
-+		}
-+	}
-+}
-+
- #ifndef CONFIG_SPARSEMEM_VMEMMAP
- static void register_page_bootmem_info_section(unsigned long start_pfn)
- {
--- 
-1.7.10.4
-
--- 
-Michal Hocko
-SUSE Labs
+=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
