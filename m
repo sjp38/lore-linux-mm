@@ -1,21 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
-	by kanga.kvack.org (Postfix) with SMTP id 2F6DA6B0072
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:57:01 -0500 (EST)
-Date: Fri, 11 Jan 2013 10:56:58 +0100
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id DD5906B0074
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 05:17:47 -0500 (EST)
+Date: Fri, 11 Jan 2013 11:17:45 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: mmots: memory-hotplug: implement register_page_bootmem_info_section
- of sparse-vmemmap fix
-Message-ID: <20130111095658.GC7286@dhcp22.suse.cz>
+Subject: Re: mmots: memory-hotplug: implement
+ register_page_bootmem_info_section of sparse-vmemmap fix
+Message-ID: <20130111101745.GD7286@dhcp22.suse.cz>
+References: <20130111095658.GC7286@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130111095658.GC7286@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wu Jianguo <wujianguo@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+On Fri 11-01-13 10:56:58, Michal Hocko wrote:
+[...]
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index be2b90c..1501d25 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -91,7 +91,6 @@ static void release_memory_resource(struct resource *res)
+>  	return;
+>  }
+>  
+> -#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  void get_page_bootmem(unsigned long info,  struct page *page,
+>  		      unsigned long type)
+>  {
+> @@ -101,6 +100,7 @@ void get_page_bootmem(unsigned long info,  struct page *page,
+>  	atomic_inc(&page->_count);
+>  }
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  /* reference to __meminit __free_pages_bootmem is valid
+>   * so use __ref to tell modpost not to generate a warning */
+>  void __ref put_page_bootmem(struct page *page)
+
+Ups this slipped through and it is unnecessary.
+---
 Defconfig for x86_64 complains
 arch/x86/mm/init_64.c: In function a??register_page_bootmem_memmapa??:
 arch/x86/mm/init_64.c:1340: error: implicit declaration of function a??get_page_bootmema??
@@ -31,10 +58,10 @@ where it has all required symbols
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- arch/x86/mm/init_64.c |   58 -----------------------------------------------
+ arch/x86/mm/init_64.c |   58 -------------------------------------------------
  include/linux/mm.h    |    2 --
- mm/memory_hotplug.c   |   60 ++++++++++++++++++++++++++++++++++++++++++++++++-
- 3 files changed, 59 insertions(+), 61 deletions(-)
+ mm/memory_hotplug.c   |   58 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 60 deletions(-)
 
 diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
 index ddd3b58..a6a7494 100644
@@ -119,25 +146,9 @@ index 7c57bd0..1fea1b23 100644
  enum mf_flags {
  	MF_COUNT_INCREASED = 1 << 0,
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index be2b90c..1501d25 100644
+index be2b90c..59eddff 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -91,7 +91,6 @@ static void release_memory_resource(struct resource *res)
- 	return;
- }
- 
--#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
- void get_page_bootmem(unsigned long info,  struct page *page,
- 		      unsigned long type)
- {
-@@ -101,6 +100,7 @@ void get_page_bootmem(unsigned long info,  struct page *page,
- 	atomic_inc(&page->_count);
- }
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
- /* reference to __meminit __free_pages_bootmem is valid
-  * so use __ref to tell modpost not to generate a warning */
- void __ref put_page_bootmem(struct page *page)
 @@ -128,6 +128,64 @@ void __ref put_page_bootmem(struct page *page)
  
  }
