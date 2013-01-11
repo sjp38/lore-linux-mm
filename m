@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 52EAC6B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:01:19 -0500 (EST)
-Received: by mail-pb0-f47.google.com with SMTP id un1so648083pbc.20
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:01:18 -0800 (PST)
+Received: from psmtp.com (na3sys010amx190.postini.com [74.125.245.190])
+	by kanga.kvack.org (Postfix) with SMTP id C09C06B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 21:18:50 -0500 (EST)
+Received: by mail-da0-f45.google.com with SMTP id w4so530126dam.4
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 18:18:50 -0800 (PST)
 Subject: Re: 3.8-rc2/rc3 write() blocked on CLOSE_WAIT TCP socket
 From: Eric Dumazet <eric.dumazet@gmail.com>
-In-Reply-To: <20130111004915.GA15415@dcvr.yhbt.net>
+In-Reply-To: <1357869675.27446.2962.camel@edumazet-glaptop>
 References: <20130111004915.GA15415@dcvr.yhbt.net>
+	 <1357869675.27446.2962.camel@edumazet-glaptop>
 Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 10 Jan 2013 18:01:15 -0800
-Message-ID: <1357869675.27446.2962.camel@edumazet-glaptop>
+Date: Thu, 10 Jan 2013 18:18:47 -0800
+Message-ID: <1357870727.27446.2988.camel@edumazet-glaptop>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Wong <normalperson@yhbt.net>
+To: Eric Wong <normalperson@yhbt.net>, David Miller <davem@davemloft.net>
 Cc: netdev@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Fri, 2013-01-11 at 00:49 +0000, Eric Wong wrote:
-> The below Ruby script reproduces the issue for me with write()
-> getting stuck, usually with a few iterations (sometimes up to 100).
-> 
-> I've reproduced this with 3.8-rc2 and rc3, even with Mel's partial
-> revert patch in <20130110194212.GJ13304@suse.de> applied.
-> 
-> I can not reproduce this with 3.7.1+
->    stable-queue 2afd72f59c518da18853192ceeebead670ced5ea
-> So this seems to be a new bug from the 3.8 cycle...
-> 
-> Fortunately, this bug far easier for me to reproduce than the ppoll+send
-> (toosleepy) failures.
-> 
-> Both socat and ruby (Ruby 1.8, 1.9, 2.0 should all work), along with
-> common shell tools (dd, sh, cat) are required for testing this:
-> 
-> 	# 100 iterations, raise/lower the number if needed
-> 	ruby the_script_below.rb 100
-> 
-> lsof -p 15236 reveals this:
-> ruby    15236   ew    5u  IPv4  23066      0t0     TCP localhost:33728->localhost:38658 (CLOSE_WAIT)
+From: Eric Dumazet <edumazet@google.com>
 
-Hmm, it might be commit c3ae62af8e755ea68380fb5ce682e60079a4c388
-tcp: should drop incoming frames without ACK flag set
+On Thu, 2013-01-10 at 18:01 -0800, Eric Dumazet wrote:
 
-It seems RST should be allowed to not have ACK set.
+> Hmm, it might be commit c3ae62af8e755ea68380fb5ce682e60079a4c388
+> tcp: should drop incoming frames without ACK flag set
+> 
+> It seems RST should be allowed to not have ACK set.
+> 
+> I'll send a fix, thanks !
 
-I'll send a fix, thanks !
+Yes, thats definitely the problem, sorry for that.
 
 
+[PATCH] tcp: accept RST without ACK flag
 
+commit c3ae62af8e755 (tcp: should drop incoming frames without ACK flag
+set) added a regression on the handling of RST messages.
+
+RST should be allowed to come even without ACK bit set. We validate
+the RST by checking the exact sequence, as requested by RFC 793 and 
+5961 3.2, in tcp_validate_incoming()
+
+Reported-by: Eric Wong <normalperson@yhbt.net>
+Signed-off-by: Eric Dumazet <edumazet@google.com>
+---
+ net/ipv4/tcp_input.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
+index 38e1184..0905997 100644
+--- a/net/ipv4/tcp_input.c
++++ b/net/ipv4/tcp_input.c
+@@ -5541,7 +5541,7 @@ slow_path:
+ 	if (len < (th->doff << 2) || tcp_checksum_complete_user(sk, skb))
+ 		goto csum_error;
+ 
+-	if (!th->ack)
++	if (!th->ack && !th->rst)
+ 		goto discard;
+ 
+ 	/*
+@@ -5986,7 +5986,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
+ 			goto discard;
+ 	}
+ 
+-	if (!th->ack)
++	if (!th->ack && !th->rst)
+ 		goto discard;
+ 
+ 	if (!tcp_validate_incoming(sk, skb, th, 0))
 
 
 --
