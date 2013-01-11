@@ -1,96 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
-	by kanga.kvack.org (Postfix) with SMTP id 9F4946B005D
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 02:50:50 -0500 (EST)
-Received: by mail-ie0-f169.google.com with SMTP id c14so1967373ieb.14
-        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 23:50:50 -0800 (PST)
-Message-ID: <1357890644.1466.1.camel@kernel.cn.ibm.com>
-Subject: Re: oops in copy_page_rep()
-From: Simon Jeons <simon.jeons@gmail.com>
-Date: Fri, 11 Jan 2013 01:50:44 -0600
-In-Reply-To: <20130108174951.GG9163@redhat.com>
-References: <20130105152208.GA3386@redhat.com>
-	 <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
-	 <alpine.LNX.2.00.1301061037140.28950@eggly.anvils>
-	 <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
-	 <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
-	 <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
-	 <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
-	 <20130108163141.GA27555@shutemov.name>
-	 <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
-	 <20130108173058.GA27727@shutemov.name> <20130108174951.GG9163@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id B910D6B005D
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 02:52:56 -0500 (EST)
+Date: Fri, 11 Jan 2013 16:52:54 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+Message-ID: <20130111075253.GB2346@lge.com>
+References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
+ <1356449082-3016-1-git-send-email-js1304@gmail.com>
+ <CAAmzW4Nz6if==JjxLQGYwwQwKPDXfUbeioyPHWZQQFNu=xXUeQ@mail.gmail.com>
+ <CAAvDA17eH0A_pr9siX7PTipe=Jd7WFZxR7mkUi6K0_djkH=FPA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAvDA17eH0A_pr9siX7PTipe=Jd7WFZxR7mkUi6K0_djkH=FPA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
+To: Paul Hargrove <phhargrove@lbl.gov>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Tue, 2013-01-08 at 18:49 +0100, Andrea Arcangeli wrote:
-> Hi Kirill,
+On Thu, Jan 10, 2013 at 08:47:39PM -0800, Paul Hargrove wrote:
+> I just had a look at patch-3.7.2-rc1, and this change doesn't appear to
+> have made it in yet.
+> Am I missing something?
 > 
-> On Tue, Jan 08, 2013 at 07:30:58PM +0200, Kirill A. Shutemov wrote:
-> > Merged patch is obviously broken: huge_pmd_set_accessed() can be called
-> > only if the pmd is under splitting.
-> 
-> Of course I assume you meant "only if the pmd is not under splitting".
-> 
-> But no, setting a bitflag like the young bit or clearing or setting
-> the numa bit won't screw with split_huge_page and it's safe even if
-> the pmd is under splitting.
-> 
-> Those bits are only checked here at the last stage of
-> split_huge_page_map after taking the PT lock:
-> 
-> 	spin_lock(&mm->page_table_lock);
-> 	pmd = page_check_address_pmd(page, mm, address,
-> 				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
-> 	if (pmd) {
-> 		pgtable = pgtable_trans_huge_withdraw(mm);
-> 		pmd_populate(mm, &_pmd, pgtable);
-> 
-> 		haddr = address;
-> 		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-> 			pte_t *pte, entry;
-> 			BUG_ON(PageCompound(page+i));
-> 			entry = mk_pte(page + i, vma->vm_page_prot);
-> 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-> 			if (!pmd_write(*pmd))
-> 				entry = pte_wrprotect(entry);
-> 			else
-> 				BUG_ON(page_mapcount(page) != 1);
-> 			if (!pmd_young(*pmd))
-> 				entry = pte_mkold(entry);
-> 			if (pmd_numa(*pmd))
-> 				entry = pte_mknuma(entry);
-> 			pte = pte_offset_map(&_pmd, haddr);
-> 			BUG_ON(!pte_none(*pte));
-> 			set_pte_at(mm, haddr, pte, entry);
-> 			pte_unmap(pte);
-> 		}
-> 
-> If "young" or "numa" bitflags changed on the original *pmd for the
-> previous part of split_huge_page, nothing will go wrong by the time we
-> get to split_huge_page_map (the same is not true if the pfn changes!).
-> 
+> -Paul
 
-But this time BUG_ON(mapcount != mapcount2) in function
-__split_huge_page will be trigged.
+I try to check it.
+Ccing to Greg.
 
-> If you think this is too tricky, we could also decide to forbid
-> huge_pmd_set_accessed if the pmd is in splitting state, but I don't
-> think that flipping young/numa bits while in splitting state, can
-> cause any problem (if done correctly with PT lock + pmd_same).
-> 
-> Thanks!
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Hello, Pekka and Greg.
 
+v3.8-rcX has already fixed by another stuff, but it is not simple change.
+So I made a new patch and sent it.
+
+How this kind of patch (only for stable v3.7) go into stable tree?
+through Pekka's slab tree? or send it to Greg, directly?
+
+I don't know how to submit this kind of patch to stable tree exactly.
+Could anyone help me?
+
+Thanks.
+
+> On Tue, Dec 25, 2012 at 7:30 AM, JoonSoo Kim <js1304@gmail.com> wrote:
+> 
+> > 2012/12/26 Joonsoo Kim <js1304@gmail.com>:
+> > > commit cce89f4f6911286500cf7be0363f46c9b0a12ce0('Move kmem_cache
+> > > refcounting to common code') moves some refcount manipulation code to
+> > > common code. Unfortunately, it also removed refcount assignment for
+> > > kmalloc_caches. So, kmalloc_caches's refcount is initially 0.
+> > > This makes errornous situation.
+> > >
+> > > Paul Hargrove report that when he create a 8-byte kmem_cache and
+> > > destory it, he encounter below message.
+> > > 'Objects remaining in kmalloc-8 on kmem_cache_close()'
+> > >
+> > > 8-byte kmem_cache merge with 8-byte kmalloc cache and refcount is
+> > > increased by one. So, resulting refcount is 1. When destory it, it hit
+> > > refcount = 0, then kmem_cache_close() is executed and error message is
+> > > printed.
+> > >
+> > > This patch assign initial refcount 1 to kmalloc_caches, so fix this
+> > > errornous situtation.
+> > >
+> > > Cc: <stable@vger.kernel.org> # v3.7
+> > > Cc: Christoph Lameter <cl@linux.com>
+> > > Reported-by: Paul Hargrove <phhargrove@lbl.gov>
+> > > Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> > >
+> > > diff --git a/mm/slub.c b/mm/slub.c
+> > > index a0d6984..321afab 100644
+> > > --- a/mm/slub.c
+> > > +++ b/mm/slub.c
+> > > @@ -3279,6 +3279,7 @@ static struct kmem_cache *__init
+> > create_kmalloc_cache(const char *name,
+> > >         if (kmem_cache_open(s, flags))
+> > >                 goto panic;
+> > >
+> > > +       s->refcount = 1;
+> > >         list_add(&s->list, &slab_caches);
+> > >         return s;
+> > >
+> > > --
+> > > 1.7.9.5
+> > >
+> >
+> > I missed some explanation.
+> > In v3.8-rc1, this problem is already solved.
+> > See create_kmalloc_cache() in mm/slab_common.c.
+> > So this patch is just for v3.7 stable.
+> >
+> 
+> 
+> 
+> -- 
+> Paul H. Hargrove                          PHHargrove@lbl.gov
+> Future Technologies Group
+> Computer and Data Sciences Department     Tel: +1-510-495-2352
+> Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
