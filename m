@@ -1,166 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
-	by kanga.kvack.org (Postfix) with SMTP id 4E6A66B005D
-	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 23:43:29 -0500 (EST)
-Date: Fri, 11 Jan 2013 13:43:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
-Message-ID: <20130111044327.GB6183@blaptop>
-References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
- <1357712474-27595-3-git-send-email-minchan@kernel.org>
- <20130109162602.53a60e77.akpm@linux-foundation.org>
- <20130110022306.GB14685@blaptop>
- <20130110135828.c88bcaf1.akpm@linux-foundation.org>
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 19A606B005D
+	for <linux-mm@kvack.org>; Thu, 10 Jan 2013 23:47:52 -0500 (EST)
+Received: by mail-qc0-f199.google.com with SMTP id b40so2403055qcq.6
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 20:47:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130110135828.c88bcaf1.akpm@linux-foundation.org>
+In-Reply-To: <CAAmzW4Nz6if==JjxLQGYwwQwKPDXfUbeioyPHWZQQFNu=xXUeQ@mail.gmail.com>
+References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
+	<1356449082-3016-1-git-send-email-js1304@gmail.com>
+	<CAAmzW4Nz6if==JjxLQGYwwQwKPDXfUbeioyPHWZQQFNu=xXUeQ@mail.gmail.com>
+Date: Thu, 10 Jan 2013 20:47:39 -0800
+Message-ID: <CAAvDA17eH0A_pr9siX7PTipe=Jd7WFZxR7mkUi6K0_djkH=FPA@mail.gmail.com>
+Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+From: Paul Hargrove <phhargrove@lbl.gov>
+Content-Type: multipart/alternative; boundary=20cf3071c8aac8813304d2fbfee9
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: JoonSoo Kim <js1304@gmail.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-Hi Andrew,
+--20cf3071c8aac8813304d2fbfee9
+Content-Type: text/plain; charset=ISO-8859-1
 
-On Thu, Jan 10, 2013 at 01:58:28PM -0800, Andrew Morton wrote:
-> On Thu, 10 Jan 2013 11:23:06 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > > I have a feeling that laptop mode has bitrotted and these patches are
-> > > kinda hacking around as-yet-not-understood failures...
-> > 
-> > Absolutely, this patch is last guard for unexpectable behavior.
-> > As I mentioned in cover-letter, Luigi's problem could be solved either [1/2]
-> > or [2/2] but I wanted to add this as last resort in case of unexpected
-> > emergency. But you're right. It's not good to hide the problem like this path
-> > so let's drop [2/2].
-> > 
-> > Also, I absolutely agree it has bitrotted so for correcting it, we need a
-> > volunteer who have to inverstigate power saveing experiment with long time.
-> > So [1/2] would be band-aid until that.
-> 
-> I'm inclined to hold off on 1/2 as well, really.
+I just had a look at patch-3.7.2-rc1, and this change doesn't appear to
+have made it in yet.
+Am I missing something?
 
-Then, what's your plan?
+-Paul
 
-It's real bug since f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware]
-was introduced. Some portable device could use laptop_mode to save batter power.
-AFAIK, the usecase was trial of ChromeOS and Luigi reported this problem although
-they decided to disable laptop_mode due to other reason which laptop_mode burns out
-power for a very long time in their some workload.
 
-Another problem of laptop_mode isn't aware of in-memory swap, like zram.
-So unconditionally, prevent to swap out. :( Yeb. it's another story to be fixed.
+On Tue, Dec 25, 2012 at 7:30 AM, JoonSoo Kim <js1304@gmail.com> wrote:
 
-If you hate this version, how about this?
-This version does following as.
+> 2012/12/26 Joonsoo Kim <js1304@gmail.com>:
+> > commit cce89f4f6911286500cf7be0363f46c9b0a12ce0('Move kmem_cache
+> > refcounting to common code') moves some refcount manipulation code to
+> > common code. Unfortunately, it also removed refcount assignment for
+> > kmalloc_caches. So, kmalloc_caches's refcount is initially 0.
+> > This makes errornous situation.
+> >
+> > Paul Hargrove report that when he create a 8-byte kmem_cache and
+> > destory it, he encounter below message.
+> > 'Objects remaining in kmalloc-8 on kmem_cache_close()'
+> >
+> > 8-byte kmem_cache merge with 8-byte kmalloc cache and refcount is
+> > increased by one. So, resulting refcount is 1. When destory it, it hit
+> > refcount = 0, then kmem_cache_close() is executed and error message is
+> > printed.
+> >
+> > This patch assign initial refcount 1 to kmalloc_caches, so fix this
+> > errornous situtation.
+> >
+> > Cc: <stable@vger.kernel.org> # v3.7
+> > Cc: Christoph Lameter <cl@linux.com>
+> > Reported-by: Paul Hargrove <phhargrove@lbl.gov>
+> > Signed-off-by: Joonsoo Kim <js1304@gmail.com>
+> >
+> > diff --git a/mm/slub.c b/mm/slub.c
+> > index a0d6984..321afab 100644
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -3279,6 +3279,7 @@ static struct kmem_cache *__init
+> create_kmalloc_cache(const char *name,
+> >         if (kmem_cache_open(s, flags))
+> >                 goto panic;
+> >
+> > +       s->refcount = 1;
+> >         list_add(&s->list, &slab_caches);
+> >         return s;
+> >
+> > --
+> > 1.7.9.5
+> >
+>
+> I missed some explanation.
+> In v3.8-rc1, this problem is already solved.
+> See create_kmalloc_cache() in mm/slab_common.c.
+> So this patch is just for v3.7 stable.
+>
 
-1. get_scan_count forces only file-backed pages reclaiming if may_writepage is false.
-   It prevents unnecessary CPU consumption and LRU churing with anon pages.
-2. If memory reclaim suffers(ie, below DEF_PRIORITY - 2), may_writepage would be true
-   in only direct reclaim path.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 73b64a3..695b907 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -550,6 +550,8 @@ static inline int zone_is_oom_locked(const struct zone *zone)
-  */
- #define DEF_PRIORITY 12
- 
-+#define HARD_TO_RECLAIM_PRIO (DEF_PRIORITY - 2)
-+
- /* Maximum number of zones on a zonelist */
- #define MAX_ZONES_PER_ZONELIST (MAX_NUMNODES * MAX_NR_ZONES)
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ff869d2..4c63bda 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -814,7 +814,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			 */
- 			if (page_is_file_cache(page) &&
- 					(!current_is_kswapd() ||
--					 sc->priority >= DEF_PRIORITY - 2)) {
-+					 sc->priority >= HARD_TO_RECLAIM_PRIO)) {
- 				/*
- 				 * Immediately reclaim when written back.
- 				 * Similar in principal to deactivate_page()
-@@ -1683,8 +1683,11 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 	if (!global_reclaim(sc))
- 		force_scan = true;
- 
--	/* If we have no swap space, do not bother scanning anon pages. */
--	if (!sc->may_swap || (nr_swap_pages <= 0)) {
-+	/*
-+	 * If we have no swap space or may_writepage is false,
-+	 * do not bother scanning anon pages.
-+	 */
-+	if (!sc->may_swap || !sc->may_writepage || (nr_swap_pages <= 0)) {
- 		scan_balance = SCAN_FILE;
- 		goto out;
- 	}
-@@ -1879,7 +1882,7 @@ static bool in_reclaim_compaction(struct scan_control *sc)
- {
- 	if (IS_ENABLED(CONFIG_COMPACTION) && sc->order &&
- 			(sc->order > PAGE_ALLOC_COSTLY_ORDER ||
--			 sc->priority < DEF_PRIORITY - 2))
-+			 sc->priority < HARD_TO_RECLAIM_PRIO))
- 		return true;
- 
- 	return false;
-@@ -2215,9 +2218,16 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 			sc->may_writepage = 1;
- 		}
- 
-+		/*
-+		 * This is a safety belt to prevent OOM kill through reclaiming
-+		 * pages with sacrificing the power.
-+		 */
-+		if (sc->priority < HARD_TO_RECLAIM_PRIO)
-+			sc->may_writepage = 1;
-+
- 		/* Take a nap, wait for some writeback to complete */
- 		if (!sc->hibernation_mode && sc->nr_scanned &&
--		    sc->priority < DEF_PRIORITY - 2) {
-+		    sc->priority < HARD_TO_RECLAIM_PRIO) {
- 			struct zone *preferred_zone;
- 
- 			first_zones_zonelist(zonelist, gfp_zone(sc->gfp_mask),
-@@ -2824,7 +2834,7 @@ loop_again:
- 		 * OK, kswapd is getting into trouble.  Take a nap, then take
- 		 * another pass across the zones.
- 		 */
--		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
-+		if (total_scanned && (sc.priority < HARD_TO_RECLAIM_PRIO)) {
- 			if (has_under_min_watermark_zone)
- 				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
- 			else if (unbalanced_zone)
-
-> 
-> The point of laptop_mode isn't to save power btw - it is to minimise
-> the frequency with which the disk drive is spun up.  By deferring and
-> then batching writeout operations, basically.
-
-I don't get it. Why should we minimise such frequency?
-It's for saving the power to increase batter life.
-As I real all document about laptop_mode, they all said about the power
-or battery life saving.
-
-1. Documentation/laptops/laptop-mode.txt
-2. http://linux.die.net/man/8/laptop_mode
-3. http://samwel.tk/laptop_mode/
-3. http://www.thinkwiki.org/wiki/Laptop-mode 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Kind regards,
-Minchan Kim
+Paul H. Hargrove                          PHHargrove@lbl.gov
+Future Technologies Group
+Computer and Data Sciences Department     Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+--20cf3071c8aac8813304d2fbfee9
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">I just had a look at=A0patch-3.7.2-rc1, and this change do=
+esn&#39;t appear to have made it in yet.<div>Am I missing something?<br><di=
+v><br></div><div style>-Paul</div></div></div><div class=3D"gmail_extra"><b=
+r><br>
+<div class=3D"gmail_quote">On Tue, Dec 25, 2012 at 7:30 AM, JoonSoo Kim <sp=
+an dir=3D"ltr">&lt;<a href=3D"mailto:js1304@gmail.com" target=3D"_blank">js=
+1304@gmail.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_quote" s=
+tyle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+2012/12/26 Joonsoo Kim &lt;<a href=3D"mailto:js1304@gmail.com">js1304@gmail=
+.com</a>&gt;:<br>
+&gt; commit cce89f4f6911286500cf7be0363f46c9b0a12ce0(&#39;Move kmem_cache<b=
+r>
+&gt; refcounting to common code&#39;) moves some refcount manipulation code=
+ to<br>
+&gt; common code. Unfortunately, it also removed refcount assignment for<br=
+>
+&gt; kmalloc_caches. So, kmalloc_caches&#39;s refcount is initially 0.<br>
+&gt; This makes errornous situation.<br>
+&gt;<br>
+&gt; Paul Hargrove report that when he create a 8-byte kmem_cache and<br>
+&gt; destory it, he encounter below message.<br>
+&gt; &#39;Objects remaining in kmalloc-8 on kmem_cache_close()&#39;<br>
+&gt;<br>
+&gt; 8-byte kmem_cache merge with 8-byte kmalloc cache and refcount is<br>
+&gt; increased by one. So, resulting refcount is 1. When destory it, it hit=
+<br>
+&gt; refcount =3D 0, then kmem_cache_close() is executed and error message =
+is<br>
+&gt; printed.<br>
+&gt;<br>
+&gt; This patch assign initial refcount 1 to kmalloc_caches, so fix this<br=
+>
+&gt; errornous situtation.<br>
+&gt;<br>
+&gt; Cc: &lt;<a href=3D"mailto:stable@vger.kernel.org">stable@vger.kernel.o=
+rg</a>&gt; # v3.7<br>
+&gt; Cc: Christoph Lameter &lt;<a href=3D"mailto:cl@linux.com">cl@linux.com=
+</a>&gt;<br>
+&gt; Reported-by: Paul Hargrove &lt;<a href=3D"mailto:phhargrove@lbl.gov">p=
+hhargrove@lbl.gov</a>&gt;<br>
+&gt; Signed-off-by: Joonsoo Kim &lt;<a href=3D"mailto:js1304@gmail.com">js1=
+304@gmail.com</a>&gt;<br>
+&gt;<br>
+&gt; diff --git a/mm/slub.c b/mm/slub.c<br>
+&gt; index a0d6984..321afab 100644<br>
+&gt; --- a/mm/slub.c<br>
+&gt; +++ b/mm/slub.c<br>
+&gt; @@ -3279,6 +3279,7 @@ static struct kmem_cache *__init create_kmalloc_=
+cache(const char *name,<br>
+&gt; =A0 =A0 =A0 =A0 if (kmem_cache_open(s, flags))<br>
+&gt; =A0 =A0 =A0 =A0 =A0 =A0 =A0 =A0 goto panic;<br>
+&gt;<br>
+&gt; + =A0 =A0 =A0 s-&gt;refcount =3D 1;<br>
+&gt; =A0 =A0 =A0 =A0 list_add(&amp;s-&gt;list, &amp;slab_caches);<br>
+&gt; =A0 =A0 =A0 =A0 return s;<br>
+&gt;<br>
+&gt; --<br>
+&gt; 1.7.9.5<br>
+&gt;<br>
+<br>
+I missed some explanation.<br>
+In v3.8-rc1, this problem is already solved.<br>
+See create_kmalloc_cache() in mm/slab_common.c.<br>
+So this patch is just for v3.7 stable.<br>
+</blockquote></div><br><br clear=3D"all"><div><br></div>-- <br><font face=
+=3D"courier new, monospace"><div>Paul H. Hargrove =A0 =A0 =A0 =A0 =A0 =A0 =
+=A0 =A0 =A0 =A0 =A0 =A0 =A0<a href=3D"mailto:PHHargrove@lbl.gov" target=3D"=
+_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Departm=
+ent =A0 =A0 Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Labor=
+atory =A0 =A0 Fax: +1-510-486-6900</div></font>
+</div>
+
+--20cf3071c8aac8813304d2fbfee9--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
