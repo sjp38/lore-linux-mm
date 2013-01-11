@@ -1,278 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx117.postini.com [74.125.245.117])
-	by kanga.kvack.org (Postfix) with SMTP id BFBE26B005D
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 02:23:58 -0500 (EST)
-Date: Fri, 11 Jan 2013 16:23:55 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: REN2 [09/13] Common function to create the kmalloc array
-Message-ID: <20130111072355.GA2346@lge.com>
-References: <20130110190027.780479755@linux.com>
- <0000013c25e08975-f7fd7592-7d64-409c-874d-d00ea2106f2e-000000@email.amazonses.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000013c25e08975-f7fd7592-7d64-409c-874d-d00ea2106f2e-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx124.postini.com [74.125.245.124])
+	by kanga.kvack.org (Postfix) with SMTP id 9F4946B005D
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 02:50:50 -0500 (EST)
+Received: by mail-ie0-f169.google.com with SMTP id c14so1967373ieb.14
+        for <linux-mm@kvack.org>; Thu, 10 Jan 2013 23:50:50 -0800 (PST)
+Message-ID: <1357890644.1466.1.camel@kernel.cn.ibm.com>
+Subject: Re: oops in copy_page_rep()
+From: Simon Jeons <simon.jeons@gmail.com>
+Date: Fri, 11 Jan 2013 01:50:44 -0600
+In-Reply-To: <20130108174951.GG9163@redhat.com>
+References: <20130105152208.GA3386@redhat.com>
+	 <CAJd=RBCb0oheRnVCM4okVKFvKGzuLp9GpZJCkVY3RR-J=XEoBA@mail.gmail.com>
+	 <alpine.LNX.2.00.1301061037140.28950@eggly.anvils>
+	 <CAJd=RBAps4Qk9WLYbQhLkJd8d12NLV0CbjPYC6uqH_-L+Vu0VQ@mail.gmail.com>
+	 <CA+55aFyYAf6ztDLsxWFD+6jb++y0YNjso-9j+83Mm+3uQ=8PdA@mail.gmail.com>
+	 <CAJd=RBDTvCcYV8qAd-++_DOyDSypQD4Dvt216pG9nTQnWA2uCA@mail.gmail.com>
+	 <CA+55aFzfUABPycR82aNQhHNasQkL1kmxLN1rD0DJcByFtead3g@mail.gmail.com>
+	 <20130108163141.GA27555@shutemov.name>
+	 <CA+55aFzaTvF7nYxWBT-G_b=xGz+_akRAeJ=U9iHy+Y=ZPo=pbA@mail.gmail.com>
+	 <20130108173058.GA27727@shutemov.name> <20130108174951.GG9163@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, Hillf Danton <dhillf@gmail.com>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>
 
-Hello, Christoph.
-
-On Thu, Jan 10, 2013 at 07:12:17PM +0000, Christoph Lameter wrote:
-> The kmalloc array is created in similar ways in both SLAB
-> and SLUB. Create a common function and have both allocators
-> call that function.
+On Tue, 2013-01-08 at 18:49 +0100, Andrea Arcangeli wrote:
+> Hi Kirill,
 > 
-> V1->V2:
-> 	Whitespace cleanup
+> On Tue, Jan 08, 2013 at 07:30:58PM +0200, Kirill A. Shutemov wrote:
+> > Merged patch is obviously broken: huge_pmd_set_accessed() can be called
+> > only if the pmd is under splitting.
 > 
-> Reviewed-by: Glauber Costa <glommer@parallels.com>
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+> Of course I assume you meant "only if the pmd is not under splitting".
 > 
-> Index: linux/mm/slab.c
-> ===================================================================
-> --- linux.orig/mm/slab.c	2013-01-10 09:55:49.493734836 -0600
-> +++ linux/mm/slab.c	2013-01-10 09:55:50.169745534 -0600
-> @@ -1625,30 +1625,6 @@ void __init kmem_cache_init(void)
->  
->  	slab_early_init = 0;
->  
-> -	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
-> -		size_t cs_size = kmalloc_size(i);
-> -
-> -		if (cs_size < KMALLOC_MIN_SIZE)
-> -			continue;
-> -
-> -		if (!kmalloc_caches[i]) {
-> -			/*
-> -			 * For performance, all the general caches are L1 aligned.
-> -			 * This should be particularly beneficial on SMP boxes, as it
-> -			 * eliminates "false sharing".
-> -			 * Note for systems short on memory removing the alignment will
-> -			 * allow tighter packing of the smaller caches.
-> -			 */
-> -			kmalloc_caches[i] = create_kmalloc_cache("kmalloc",
-> -					cs_size, ARCH_KMALLOC_FLAGS);
-> -		}
-> -
-> -#ifdef CONFIG_ZONE_DMA
-> -		kmalloc_dma_caches[i] = create_kmalloc_cache(
-> -			"kmalloc-dma", cs_size,
-> -			SLAB_CACHE_DMA|ARCH_KMALLOC_FLAGS);
-> -#endif
-> -	}
->  	/* 4) Replace the bootstrap head arrays */
->  	{
->  		struct array_cache *ptr;
-> @@ -1694,29 +1670,7 @@ void __init kmem_cache_init(void)
->  		}
->  	}
->  
-> -	slab_state = UP;
-> -
-> -	/* Create the proper names */
-> -	for (i = 1; i < PAGE_SHIFT + MAX_ORDER; i++) {
-> -		char *s;
-> -		struct kmem_cache *c = kmalloc_caches[i];
-> -
-> -		if (!c)
-> -			continue;
-> -
-> -		s = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
-> -
-> -		BUG_ON(!s);
-> -		c->name = s;
-> -
-> -#ifdef CONFIG_ZONE_DMA
-> -		c = kmalloc_dma_caches[i];
-> -		BUG_ON(!c);
-> -		s = kasprintf(GFP_NOWAIT, "dma-kmalloc-%d", kmalloc_size(i));
-> -		BUG_ON(!s);
-> -		c->name = s;
-> -#endif
-> -	}
-> +	create_kmalloc_caches(ARCH_KMALLOC_FLAGS);
->  }
->  
->  void __init kmem_cache_init_late(void)
-> Index: linux/mm/slab.h
-> ===================================================================
-> --- linux.orig/mm/slab.h	2013-01-10 09:54:18.000315420 -0600
-> +++ linux/mm/slab.h	2013-01-10 09:55:50.169745534 -0600
-> @@ -35,6 +35,12 @@ extern struct kmem_cache *kmem_cache;
->  unsigned long calculate_alignment(unsigned long flags,
->  		unsigned long align, unsigned long size);
->  
-> +#ifndef CONFIG_SLOB
-> +/* Kmalloc array related functions */
-> +void create_kmalloc_caches(unsigned long);
-> +#endif
-> +
-> +
->  /* Functions provided by the slab allocators */
->  extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
->  
-> Index: linux/mm/slab_common.c
-> ===================================================================
-> --- linux.orig/mm/slab_common.c	2013-01-10 09:55:49.489734859 -0600
-> +++ linux/mm/slab_common.c	2013-01-10 09:55:50.169745534 -0600
-> @@ -327,6 +327,60 @@ struct kmem_cache *kmalloc_dma_caches[KM
->  EXPORT_SYMBOL(kmalloc_dma_caches);
->  #endif
->  
-> +/*
-> + * Create the kmalloc array. Some of the regular kmalloc arrays
-> + * may already have been created because they were needed to
-> + * enable allocations for slab creation.
-> + */
-> +void __init create_kmalloc_caches(unsigned long flags)
-> +{
-> +	int i;
-> +
-> +	/* Caches that are not of the two-to-the-power-of size */
-> +	if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1])
-> +		kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
-> +
-> +	if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2])
-> +		kmalloc_caches[2] = create_kmalloc_cache(NULL, 192, flags);
-> +
-> +	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
-> +		if (!kmalloc_caches[i])
-> +			kmalloc_caches[i] = create_kmalloc_cache(NULL,
-> +							1 << i, flags);
-> +
+> But no, setting a bitflag like the young bit or clearing or setting
+> the numa bit won't screw with split_huge_page and it's safe even if
+> the pmd is under splitting.
+> 
+> Those bits are only checked here at the last stage of
+> split_huge_page_map after taking the PT lock:
+> 
+> 	spin_lock(&mm->page_table_lock);
+> 	pmd = page_check_address_pmd(page, mm, address,
+> 				     PAGE_CHECK_ADDRESS_PMD_SPLITTING_FLAG);
+> 	if (pmd) {
+> 		pgtable = pgtable_trans_huge_withdraw(mm);
+> 		pmd_populate(mm, &_pmd, pgtable);
+> 
+> 		haddr = address;
+> 		for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
+> 			pte_t *pte, entry;
+> 			BUG_ON(PageCompound(page+i));
+> 			entry = mk_pte(page + i, vma->vm_page_prot);
+> 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+> 			if (!pmd_write(*pmd))
+> 				entry = pte_wrprotect(entry);
+> 			else
+> 				BUG_ON(page_mapcount(page) != 1);
+> 			if (!pmd_young(*pmd))
+> 				entry = pte_mkold(entry);
+> 			if (pmd_numa(*pmd))
+> 				entry = pte_mknuma(entry);
+> 			pte = pte_offset_map(&_pmd, haddr);
+> 			BUG_ON(!pte_none(*pte));
+> 			set_pte_at(mm, haddr, pte, entry);
+> 			pte_unmap(pte);
+> 		}
+> 
+> If "young" or "numa" bitflags changed on the original *pmd for the
+> previous part of split_huge_page, nothing will go wrong by the time we
+> get to split_huge_page_map (the same is not true if the pfn changes!).
+> 
 
-In case of the SLUB, create_kmalloc_cache with @NULL break the system
-if slub_debug is used.
+But this time BUG_ON(mapcount != mapcount2) in function
+__split_huge_page will be trigged.
 
-Call flow is like as below.
-create_kmalloc_cache -> create_boot_cache -> __kmem_cache_create ->
-kmem_cache_open -> kmem_cache_flag.
-In kmem_cache_flag, strncmp is excecuted with name, that is, NULL.
-
-> +	/* Kmalloc array is now usable */
-> +	slab_state = UP;
-> +
-> +	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
-> +		struct kmem_cache *s = kmalloc_caches[i];
-> +		char *n;
-> +
-> +		if (s) {
-> +			n = kasprintf(GFP_NOWAIT, "kmalloc-%d", kmalloc_size(i));
-> +
-> +			BUG_ON(!n);
-> +			s->name = n;
-> +		}
-> +	}
-> +
-> +#ifdef CONFIG_ZONE_DMA
-> +	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
-> +		struct kmem_cache *s = kmalloc_caches[i];
-> +
-> +		if (s) {
-> +			int size = kmalloc_size(i);
-> +			char *n = kasprintf(GFP_NOWAIT,
-> +				 "dma-kmalloc-%d", size);
-> +
-> +			BUG_ON(!n);
-> +			kmalloc_dma_caches[i] = create_kmalloc_cache(n,
-> +				size, SLAB_CACHE_DMA | flags);
-> +		}
-> +	}
-> +#endif
-> +}
-> +
-> +
->  #endif /* !CONFIG_SLOB */
->  
->  
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c	2013-01-10 09:55:49.489734859 -0600
-> +++ linux/mm/slub.c	2013-01-10 09:55:50.173745560 -0600
-> @@ -3633,7 +3633,6 @@ void __init kmem_cache_init(void)
->  	static __initdata struct kmem_cache boot_kmem_cache,
->  		boot_kmem_cache_node;
->  	int i;
-> -	int caches = 2;
->  
->  	if (debug_guardpage_minorder())
->  		slub_max_order = 0;
-> @@ -3703,64 +3702,16 @@ void __init kmem_cache_init(void)
->  			size_index[size_index_elem(i)] = 8;
->  	}
->  
-> -	/* Caches that are not of the two-to-the-power-of size */
-> -	if (KMALLOC_MIN_SIZE <= 32) {
-> -		kmalloc_caches[1] = create_kmalloc_cache("kmalloc-96", 96, 0);
-> -		caches++;
-> -	}
-> -
-> -	if (KMALLOC_MIN_SIZE <= 64) {
-> -		kmalloc_caches[2] = create_kmalloc_cache("kmalloc-192", 192, 0);
-> -		caches++;
-> -	}
-> -
-> -	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-> -		kmalloc_caches[i] = create_kmalloc_cache("kmalloc", 1 << i, 0);
-> -		caches++;
-> -	}
-> -
-> -	slab_state = UP;
-> -
-> -	/* Provide the correct kmalloc names now that the caches are up */
-> -	if (KMALLOC_MIN_SIZE <= 32) {
-> -		kmalloc_caches[1]->name = kstrdup(kmalloc_caches[1]->name, GFP_NOWAIT);
-> -		BUG_ON(!kmalloc_caches[1]->name);
-> -	}
-> -
-> -	if (KMALLOC_MIN_SIZE <= 64) {
-> -		kmalloc_caches[2]->name = kstrdup(kmalloc_caches[2]->name, GFP_NOWAIT);
-> -		BUG_ON(!kmalloc_caches[2]->name);
-> -	}
-> -
-> -	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
-> -		char *s = kasprintf(GFP_NOWAIT, "kmalloc-%d", 1 << i);
-> -
-> -		BUG_ON(!s);
-> -		kmalloc_caches[i]->name = s;
-> -	}
-> +	create_kmalloc_caches(0);
->  
->  #ifdef CONFIG_SMP
->  	register_cpu_notifier(&slab_notifier);
->  #endif
->  
-> -#ifdef CONFIG_ZONE_DMA
-> -	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
-> -		struct kmem_cache *s = kmalloc_caches[i];
-> -
-> -		if (s && s->size) {
-> -			char *name = kasprintf(GFP_NOWAIT,
-> -				 "dma-kmalloc-%d", s->object_size);
-> -
-> -			BUG_ON(!name);
-> -			kmalloc_dma_caches[i] = create_kmalloc_cache(name,
-> -				s->object_size, SLAB_CACHE_DMA);
-> -		}
-> -	}
-> -#endif
->  	printk(KERN_INFO
-> -		"SLUB: Genslabs=%d, HWalign=%d, Order=%d-%d, MinObjects=%d,"
-> +		"SLUB: HWalign=%d, Order=%d-%d, MinObjects=%d,"
->  		" CPUs=%d, Nodes=%d\n",
-> -		caches, cache_line_size(),
-> +		cache_line_size(),
->  		slub_min_order, slub_max_order, slub_min_objects,
->  		nr_cpu_ids, nr_node_ids);
->  }
+> If you think this is too tricky, we could also decide to forbid
+> huge_pmd_set_accessed if the pmd is in splitting state, but I don't
+> think that flipping young/numa bits while in splitting state, can
+> cause any problem (if done correctly with PT lock + pmd_same).
+> 
+> Thanks!
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux-mm.org/ .
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
