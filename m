@@ -1,81 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx156.postini.com [74.125.245.156])
-	by kanga.kvack.org (Postfix) with SMTP id AAFD16B006C
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 05:48:02 -0500 (EST)
-Date: Fri, 11 Jan 2013 11:47:59 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mmots: memory-hotplug: implement
- register_page_bootmem_info_section of sparse-vmemmap fix
-Message-ID: <20130111104759.GF7286@dhcp22.suse.cz>
-References: <20130111095658.GC7286@dhcp22.suse.cz>
- <20130111101745.GD7286@dhcp22.suse.cz>
- <20130111102924.GE7286@dhcp22.suse.cz>
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 97CF96B006C
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 06:09:57 -0500 (EST)
+Message-ID: <50EFF2CB.8060206@cn.fujitsu.com>
+Date: Fri, 11 Jan 2013 19:08:59 +0800
+From: Lin Feng <linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20130111102924.GE7286@dhcp22.suse.cz>
+Subject: Re: mmots: memory-hotplug: implement register_page_bootmem_info_section
+ of sparse-vmemmap fix
+References: <20130111095658.GC7286@dhcp22.suse.cz> <20130111101745.GD7286@dhcp22.suse.cz> <20130111102924.GE7286@dhcp22.suse.cz> <20130111104759.GF7286@dhcp22.suse.cz>
+In-Reply-To: <20130111104759.GF7286@dhcp22.suse.cz>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wu Jianguo <wujianguo@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Wu Jianguo <wujianguo@huawei.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Jiang Liu <jiang.liu@huawei.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Ingo Molnar <mingo@elte.hu>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 11-01-13 11:29:24, Michal Hocko wrote:
-> On Fri 11-01-13 11:17:45, Michal Hocko wrote:
-> [...]
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index be2b90c..59eddff 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -128,6 +128,64 @@ void __ref put_page_bootmem(struct page *page)
-> >  
-> >  }
-> >  
-> > +void register_page_bootmem_memmap(unsigned long section_nr,
-> > +				  struct page *start_page, unsigned long size)
-> > +{
-> > +	unsigned long addr = (unsigned long)start_page;
-> > +	unsigned long end = (unsigned long)(start_page + size);
-> > +	unsigned long next;
-> > +	pgd_t *pgd;
-> > +	pud_t *pud;
-> > +	pmd_t *pmd;
-> > +	unsigned int nr_pages;
-> > +	struct page *page;
-> > +
-> > +	for (; addr < end; addr = next) {
-> > +		pte_t *pte = NULL;
-> > +
-> > +		pgd = pgd_offset_k(addr);
-> > +		if (pgd_none(*pgd)) {
-> > +			next = (addr + PAGE_SIZE) & PAGE_MASK;
-> > +			continue;
-> > +		}
-> > +		get_page_bootmem(section_nr, pgd_page(*pgd), MIX_SECTION_INFO);
-> > +
-> > +		pud = pud_offset(pgd, addr);
-> > +		if (pud_none(*pud)) {
-> > +			next = (addr + PAGE_SIZE) & PAGE_MASK;
-> > +			continue;
-> > +		}
-> > +		get_page_bootmem(section_nr, pud_page(*pud), MIX_SECTION_INFO);
-> > +
-> > +		if (!cpu_has_pse) {
+Hi Michal,
+
+On 01/11/2013 06:47 PM, Michal Hocko wrote:
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  arch/x86/mm/init_64.c |    3 +++
+>  include/linux/mm.h    |    2 ++
+>  2 files changed, 5 insertions(+)
 > 
-> Darn! And now that I am looking at the patch closer it is too x86
-> centric so this cannot be in the generic code. I will try to cook
-> something better. Sorry about the noise.
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index ddd3b58..d8edf52 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -32,6 +32,7 @@
+>  #include <linux/memory_hotplug.h>
+linux/memory_hotplug.h has already been included here.
 
-It is more complicated than I thought. One would tell it's a mess.
-The patch bellow fixes the compilation issue but I am not sure we want
-to include memory_hotplug.h into arch/x86/mm/init_64.c. Moreover
+I think it's OK to add add the missing CONFIG option or move
+the memory-hotlug related complaint code into the CONFIG span. 
 
-+void register_page_bootmem_memmap(unsigned long section_nr,
-+				  struct page *start_page, unsigned long size)
-+{
-+	/* TODO */
-+}
+thanks,
+linfeng
+>  #include <linux/nmi.h>
+>  #include <linux/gfp.h>
+> +#include <linux/memory_hotplug.h>
 
-for other archs would suggest that the code is not ready yet. Should
-this rather be dropped for now?
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
