@@ -1,37 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id A23076B0068
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 14:13:58 -0500 (EST)
-Date: Fri, 11 Jan 2013 17:13:55 -0200
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH 0/2] Mempressure cgroup
-Message-ID: <20130111171355.3f5cf87e@doriath.home>
-In-Reply-To: <20130104082751.GA22227@lizard.gateway.2wire.net>
-References: <20130104082751.GA22227@lizard.gateway.2wire.net>
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 402C16B0068
+	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 15:31:51 -0500 (EST)
+Date: Fri, 11 Jan 2013 12:31:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC] Reproducible OOM with partial workaround
+Message-Id: <20130111123149.c3232a96.akpm@linux-foundation.org>
+In-Reply-To: <201301111151.r0BBpZt1023276@como.maths.usyd.edu.au>
+References: <20130111000119.8e9bdf5d.akpm@linux-foundation.org>
+	<201301111151.r0BBpZt1023276@como.maths.usyd.edu.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anton Vorontsov <anton.vorontsov@linaro.org>
-Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Leonid Moiseichuk <leonid.moiseichuk@nokia.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, John Stultz <john.stultz@linaro.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, kernel-team@android.com
+To: paul.szabo@sydney.edu.au
+Cc: 695182@bugs.debian.org, dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 4 Jan 2013 00:27:52 -0800
-Anton Vorontsov <anton.vorontsov@linaro.org> wrote:
+On Fri, 11 Jan 2013 22:51:35 +1100
+paul.szabo@sydney.edu.au wrote:
 
-> - I've split the pach into two: 'shrinker' and 'levels' parts. While the
->   full-fledged userland shrinker is an interesting idea, we don't have any
->   users ready for it, so I won't advocate for it too much.
+> Dear Andrew,
+> 
+> > Check /proc/slabinfo, see if all your lowmem got eaten up by buffer_heads.
+> 
+> Please see below: I do not know what any of that means. This machine has
+> been running just fine, with all my users logging in here via XDMCP from
+> X-terminals, dozens logged in simultaneously. (But, I think I could make
+> it go OOM with more processes or logins.)
 
-For the next version of the automatic balloon prototype I'm planning to give
-the user-space shrinker a try. It seems to be a better fit, as the current
-prototype has to guess by how much a guest's balloon should be inflated.
+I'm counting 107MB in slab there.  Was this dump taken when the system
+was at or near oom?
 
-Also, I think it would be worth it to list possible use-cases for the two
-functionalities in the series' intro email. This might help choosing both,
-one or another.
+Please send a copy of the oom-killer kernel message dump, if you still
+have one.
 
-Looking forward to the next version :)
+> > If so, you *may* be able to work around this by setting
+> > /proc/sys/vm/dirty_ratio really low, so the system keeps a minimum
+> > amount of dirty pagecache around.  Then, with luck, if we haven't
+> > broken the buffer_heads_over_limit logic it in the past decade (we
+> > probably have), the VM should be able to reclaim those buffer_heads.
+> 
+> I tried setting dirty_ratio to "funny" values, that did not seem to
+> help.
+
+Did you try setting it as low as possible?
+
+> Did you notice my patch about bdi_position_ratio(), how it was
+> plain wrong half the time (for negative x)? 
+
+Nope, please resend.
+
+> Anyway that did not help.
+> 
+> > Alternatively, use a filesystem which doesn't attach buffer_heads to
+> > dirty pages.  xfs or btrfs, perhaps.
+> 
+> Seems there is also a problem not related to filesystem... or rather,
+> the essence does not seem to be filesystem or caches. The filesystem
+> thing now seems OK with my patch doing drop_caches.
+
+hm, if doing a regular drop_caches fixes things then that implies the
+problem is not with dirty pagecache.  Odd.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
