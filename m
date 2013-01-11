@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 3912D6B0073
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id A79296B0078
 	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 04:45:45 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v2 5/7] May god have mercy on my soul.
-Date: Fri, 11 Jan 2013 13:45:25 +0400
-Message-Id: <1357897527-15479-6-git-send-email-glommer@parallels.com>
+Subject: [PATCH v2 4/7] memcg: fast hierarchy-aware child test.
+Date: Fri, 11 Jan 2013 13:45:24 +0400
+Message-Id: <1357897527-15479-5-git-send-email-glommer@parallels.com>
 In-Reply-To: <1357897527-15479-1-git-send-email-glommer@parallels.com>
 References: <1357897527-15479-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,82 +13,89 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Glauber Costa <glommer@parallels.com>
 
+Currently, we use cgroups' provided list of children to verify if it is
+safe to proceed with any value change that is dependent on the cgroup
+being empty.
+
+This is less than ideal, because it enforces a dependency over cgroup
+core that we would be better off without. The solution proposed here is
+to iterate over the child cgroups and if any is found that is already
+online, we bounce and return: we don't really care how many children we
+have, only if we have any.
+
+This is also made to be hierarchy aware. IOW, cgroups with  hierarchy
+disabled, while they still exist, will be considered for the purpose of
+this interface as having no children.
+
 Signed-off-by: Glauber Costa <glommer@parallels.com>
 ---
- mm/memcontrol.c | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ mm/memcontrol.c | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index aa4e258..c024614 100644
+index 2ac2808..aa4e258 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2909,7 +2909,7 @@ int memcg_cache_id(struct mem_cgroup *memcg)
-  * operation, because that is its main call site.
-  *
-  * But when we create a new cache, we can call this as well if its parent
-- * is kmem-limited. That will have to hold set_limit_mutex as well.
-+ * is kmem-limited. That will have to hold cgroup_lock as well.
-  */
- int memcg_update_cache_sizes(struct mem_cgroup *memcg)
- {
-@@ -2924,7 +2924,7 @@ int memcg_update_cache_sizes(struct mem_cgroup *memcg)
- 	 * the beginning of this conditional), is no longer 0. This
- 	 * guarantees only one process will set the following boolean
- 	 * to true. We don't need test_and_set because we're protected
--	 * by the set_limit_mutex anyway.
-+	 * by the cgroup_lock anyway.
- 	 */
- 	memcg_kmem_set_activated(memcg);
- 
-@@ -3265,9 +3265,9 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
- 	 *
- 	 * Still, we don't want anyone else freeing memcg_caches under our
- 	 * noses, which can happen if a new memcg comes to life. As usual,
--	 * we'll take the set_limit_mutex to protect ourselves against this.
-+	 * we'll take the cgroup_lock to protect ourselves against this.
- 	 */
--	mutex_lock(&set_limit_mutex);
-+	cgroup_lock();
- 	for (i = 0; i < memcg_limited_groups_array_size; i++) {
- 		c = s->memcg_params->memcg_caches[i];
- 		if (!c)
-@@ -3290,7 +3290,7 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
- 		cancel_work_sync(&c->memcg_params->destroy);
- 		kmem_cache_destroy(c);
- 	}
--	mutex_unlock(&set_limit_mutex);
-+	cgroup_unlock();
+@@ -4723,6 +4723,30 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
  }
  
- struct create_work {
-@@ -4946,7 +4946,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 	 * can also get rid of the use_hierarchy check.
+ /*
++ * must be called with memcg_mutex held, unless the cgroup is guaranteed to be
++ * already dead (like in mem_cgroup_force_empty, for instance).  This is
++ * different than mem_cgroup_count_children, in the sense that we don't really
++ * care how many children we have, we only need to know if we have any. It is
++ * also count any memcg without hierarchy as infertile for that matter.
++ */
++static inline bool memcg_has_children(struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *iter;
++
++	if (!memcg->use_hierarchy)
++		return false;
++
++	/* bounce at first found */
++	for_each_mem_cgroup_tree(iter, memcg) {
++		if ((iter == memcg) || !mem_cgroup_online(iter))
++			continue;
++		return true;
++	}
++
++	return false;
++}
++
++/*
+  * Reclaims as many pages from the given memcg as possible and moves
+  * the rest to the parent.
+  *
+@@ -4807,7 +4831,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
  	 */
+ 	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
+ 				(val == 1 || val == 0)) {
+-		if (list_empty(&cont->children))
++		if (!memcg_has_children(memcg))
+ 			memcg->use_hierarchy = val;
+ 		else
+ 			retval = -EBUSY;
+@@ -4924,8 +4948,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
  	cgroup_lock();
--	mutex_lock(&set_limit_mutex);
+ 	mutex_lock(&set_limit_mutex);
  	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
- 		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
+-		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
+-						!list_empty(&cont->children))) {
++		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
  			ret = -EBUSY;
-@@ -4971,7 +4970,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 	} else
- 		ret = res_counter_set_limit(&memcg->kmem, val);
- out:
--	mutex_unlock(&set_limit_mutex);
- 	cgroup_unlock();
+ 			goto out;
+ 		}
+@@ -5341,8 +5364,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+ 	cgroup_lock();
  
- 	/*
-@@ -5029,9 +5027,9 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- 	mem_cgroup_get(memcg);
- 	static_key_slow_inc(&memcg_kmem_enabled_key);
- 
--	mutex_lock(&set_limit_mutex);
-+	cgroup_lock();
- 	ret = memcg_update_cache_sizes(memcg);
--	mutex_unlock(&set_limit_mutex);
-+	cgroup_unlock();
- #endif
- out:
- 	return ret;
+ 	/* If under hierarchy, only empty-root can set this value */
+-	if ((parent->use_hierarchy) ||
+-	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
++	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
+ 		cgroup_unlock();
+ 		return -EINVAL;
+ 	}
 -- 
 1.7.11.7
 
