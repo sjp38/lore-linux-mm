@@ -1,92 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx196.postini.com [74.125.245.196])
-	by kanga.kvack.org (Postfix) with SMTP id A94D06B0068
-	for <linux-mm@kvack.org>; Fri, 11 Jan 2013 23:27:32 -0500 (EST)
-Received: by mail-vb0-f41.google.com with SMTP id l22so2112640vbn.28
-        for <linux-mm@kvack.org>; Fri, 11 Jan 2013 20:27:31 -0800 (PST)
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id CB7216B0071
+	for <linux-mm@kvack.org>; Sat, 12 Jan 2013 05:13:15 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id b14so1622096qcs.38
+        for <linux-mm@kvack.org>; Sat, 12 Jan 2013 02:13:14 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20130112033659.GA26890@otc-wbsnb-06>
-References: <CANN689E5iw=UHfG1r82c91cZVqhX9xrxttKw3SCy=ZSgcAicNQ@mail.gmail.com>
-	<20130112033659.GA26890@otc-wbsnb-06>
-Date: Fri, 11 Jan 2013 20:27:31 -0800
-Message-ID: <CANN689HKD7t91e+-oZw6Nqq=cYQDk1eo+0JD7g=3AomfpcNSCw@mail.gmail.com>
-Subject: Re: huge zero page vs FOLL_DUMP
-From: Michel Lespinasse <walken@google.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <1357957789.2168.11.camel@joe-AO722>
+References: <20130111234813.170A620004E@hpza10.eem.corp.google.com>
+	<50F0BFAA.10902@infradead.org>
+	<20130112131713.749566c8d374cd77b1f2885e@canb.auug.org.au>
+	<1357957789.2168.11.camel@joe-AO722>
+Date: Sat, 12 Jan 2013 11:13:14 +0100
+Message-ID: <CA+icZUVMY76bRFgUumZy0G-FFM=80iwfSFSopHMwHRYfgKjLjA@mail.gmail.com>
+Subject: Re: mmotm 2013-01-11-15-47 uploaded (x86 asm-offsets broken)
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Joe Perches <joe@perches.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On Fri, Jan 11, 2013 at 7:36 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> On Fri, Jan 11, 2013 at 03:53:34PM -0800, Michel Lespinasse wrote:
->> Hi,
->>
->> follow_page() has code to return ERR_PTR(-EFAULT) when it encounters
->> the zero page and FOLL_DUMP flag is passed - this is used to avoid
->> dumping the zero page to disk when doing core dumps, and also by
->> munlock to avoid having potentially large number of threads trying to
->> munlock the zero page at once, which we can't reclaim anyway.
->>
->> We don't have the corresponding logic when follow_page() encounters a
->> huge zero page. I think we should, preferably before 3.8. However, I
->> am slightly confused as to what to do for the munlock case, as the
->> huge zero page actually does seem to be reclaimable. My guess is that
->> we could still skip the munlocks, until the zero page is actually
->> reclaimed at which point we should check if we can munlock it.
->>
->> Kirill, is this something you would have time to look into ?
+On Sat, Jan 12, 2013 at 3:29 AM, Joe Perches <joe@perches.com> wrote:
+> On Sat, 2013-01-12 at 13:17 +1100, Stephen Rothwell wrote:
+>> On Fri, 11 Jan 2013 17:43:06 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
+>> >
+>> > b0rked.
+>> >
+>> > Some (randconfig?) causes this set of errors:
 >
-> Nice catch! Thank you.
+> I guess that's when CONFIG_HZ is not an even divisor of 1000.
+> I suppose this needs to be worked on a bit more.
 >
-> I don't think we should do anything about mlock(). Huge zero page cannot
-> be mlocked -- it will not pass page->mapping check in
-> follow_trans_huge_pmd(). And it's not reclaimable if it's mapped to
-> anywhere.
+>
 
-Ah, thanks for the explanation about mlock.
+I remember this patch from Joe come up with a pending patch in
+net-next.git#master [1] (I mention this as I have not seen hit it in
+latest Linux-Next whereas this latest mmotm includes it [2]).
 
-> Could you tese the patch?
->
-> From 062a9b670ede9fe5fca1d1947b42990b6b0642a4 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Sat, 12 Jan 2013 05:18:58 +0200
-> Subject: [PATCH] thp: Avoid dumping huge zero page
->
-> No reason to preserve huge zero page in core dump.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Michel Lespinasse <walken@google.com>
-> ---
->  mm/huge_memory.c | 4 ++++
->  1 file changed, 4 insertions(+)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 6001ee6..b5783d8 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1257,6 +1257,10 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
->         if (flags & FOLL_WRITE && !pmd_write(*pmd))
->                 goto out;
->
-> +       /* Avoid dumping huge zero page */
-> +       if ((flags & FOLL_DUMP) && is_huge_zero_pmd(*pmd))
-> +               return ERR_PTR(-EFAULT);
-> +
->         page = pmd_page(*pmd);
->         VM_BUG_ON(!PageHead(page));
->         if (flags & FOLL_TOUCH) {
+$ grep "config HZ_" kernel/Kconfig.hz
+        config HZ_100
+        config HZ_250
+        config HZ_300
+        config HZ_1000
 
-Looks sane to me, and it also helps my munlock test (we were getting
-and dropping references on the zero page which made it noticeably
-slower). Thanks!
+As I see Randy has in his kernel-config:
 
-Reviewed-by: Michel Lespinasse <walken@google.com>
+# CONFIG_HZ_100 is not set
+# CONFIG_HZ_250 is not set
+CONFIG_HZ_300=y
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=300
 
--- 
-Michel "Walken" Lespinasse
-A program is never fully debugged until the last user dies.
+So there is a problem for the value "300" (only)?
+
+Regards,
+- Sedat -
+
+
+[1] http://git.kernel.org/?p=linux/kernel/git/davem/net-next.git;a=commitdiff;h=c10d73671ad30f54692f7f69f0e09e75d3a8926a
+[2] http://git.cmpxchg.org/?p=linux-mmotm.git&a=search&h=HEAD&st=commit&s=softirq
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-next" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
