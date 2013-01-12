@@ -1,55 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
-	by kanga.kvack.org (Postfix) with SMTP id B61BB6B0071
-	for <linux-mm@kvack.org>; Sat, 12 Jan 2013 10:47:35 -0500 (EST)
-Date: Sat, 12 Jan 2013 16:47:32 +0100
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-MIME-Version: 1.0
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 9A1C16B0071
+	for <linux-mm@kvack.org>; Sat, 12 Jan 2013 11:52:13 -0500 (EST)
+Message-ID: <1358009534.2168.22.camel@joe-AO722>
+Subject: Re: mmotm 2013-01-11-15-47 uploaded (x86 asm-offsets broken)
+From: Joe Perches <joe@perches.com>
+Date: Sat, 12 Jan 2013 08:52:14 -0800
+In-Reply-To: <CA+icZUVMY76bRFgUumZy0G-FFM=80iwfSFSopHMwHRYfgKjLjA@mail.gmail.com>
 References: <20130111234813.170A620004E@hpza10.eem.corp.google.com>
-In-Reply-To: <20130111234813.170A620004E@hpza10.eem.corp.google.com>
-Message-ID: <50F18594.7070004@iskon.hr>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+	 <50F0BFAA.10902@infradead.org>
+	 <20130112131713.749566c8d374cd77b1f2885e@canb.auug.org.au>
+	 <1357957789.2168.11.camel@joe-AO722>
+	 <CA+icZUVMY76bRFgUumZy0G-FFM=80iwfSFSopHMwHRYfgKjLjA@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Subject: Re: mmotm 2013-01-11-15-47 (trouble starting kvm)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: sedat.dilek@gmail.com
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Randy Dunlap <rdunlap@infradead.org>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On 12.01.2013 00:48, akpm@linux-foundation.org wrote:
-> A git tree which contains the memory management portion of this tree is
-> maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> by Michal Hocko.  It contains the patches which are between the
+On Sat, 2013-01-12 at 11:13 +0100, Sedat Dilek wrote:
+> On Sat, Jan 12, 2013 at 3:29 AM, Joe Perches <joe@perches.com> wrote:
+> > On Sat, 2013-01-12 at 13:17 +1100, Stephen Rothwell wrote:
+> >> On Fri, 11 Jan 2013 17:43:06 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
+> >> >
+> >> > b0rked.
+> >> >
+> >> > Some (randconfig?) causes this set of errors:
+> >
+> > I guess that's when CONFIG_HZ is not an even divisor of 1000.
+> > I suppose this needs to be worked on a bit more.
+[]
+> I remember this patch from Joe come up with a pending patch in
+> net-next.git#master
+[]
+> As I see Randy has in his kernel-config:
+> CONFIG_HZ=300
+> So there is a problem for the value "300" (only)?
 
-The last commit I see in this tree is:
+Basically, this problem exists whenever timeconst.h
+is necessary.
 
-commit a0d271cbfed1dd50278c6b06bead3d00ba0a88f9
-Author: Linus Torvalds <torvalds@linux-foundation.org>
-Date:   Sun Sep 30 16:47:46 2012 -0700
+kernel/Makefile has code to create it in kernel/
+and kernel/time.c is the only file that uses it.
 
-     Linux 3.6
+That code will need to be removed and newly written
+somewhere so that timeconst.h could be created as
+include/linux/timeconst.h before any other compilation
+so that jiffies.h can #include it.
 
-Is it dead? Or am I doing something wrong?
+I believe it should be akin to how version.h or
+elfconfig.h is created.
 
-> A full copy of the full kernel tree with the linux-next and mmotm patches
-> already applied is available through git within an hour of the mmotm
-> release.  Individual mmotm releases are tagged.  The master branch always
-> points to the latest release, so it's constantly rebasing.
->
-> http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
->
-> This mmotm tree contains the following patches against 3.8-rc3:
-> (patches marked "*" will be included in linux-next)
->
-> * lockdep-rwsem-provide-down_write_nest_lock.patch
-> * mm-mmap-annotate-vm_lock_anon_vma-locking-properly-for-lockdep.patch
-
-Had to revert the above two patches to start KVM (win7) successfully. 
-Otherwise it would livelock on some semaphore, it seems. Couldn't kill 
-it, ps output would stuck, even reboot didn't work (had to use SysRQ).
-
--- 
-Zlatko
+Someone with stronger Makefile foo could probably do
+it quicker than I could.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
