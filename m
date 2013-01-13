@@ -1,34 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id B4EBD6B0071
-	for <linux-mm@kvack.org>; Sun, 13 Jan 2013 11:12:46 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id cr7so919784qab.2
-        for <linux-mm@kvack.org>; Sun, 13 Jan 2013 08:12:45 -0800 (PST)
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id 8C7856B0071
+	for <linux-mm@kvack.org>; Sun, 13 Jan 2013 13:14:41 -0500 (EST)
+Message-ID: <50F2F9CD.6080904@infradead.org>
+Date: Sun, 13 Jan 2013 10:15:41 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-Date: Sun, 13 Jan 2013 17:12:45 +0100
-Message-ID: <CA+icZUW5kryOCpX96CkaS=5uX61FmiYE0mh7y6F0eT9Bh8eUGw@mail.gmail.com>
-Subject: Unique commit-id for "mm: compaction: [P,p]artially revert capture of
- suitable high-order page"
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 1/2] Fix wrong EOF compare
+References: <1357871401-7075-1-git-send-email-minchan@kernel.org> <xa1tbocvby0s.fsf@mina86.com> <1358077473.32505.10@driftwood>
+In-Reply-To: <1358077473.32505.10@driftwood>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Rob Landley <rob@landley.net>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>
 
-Hi Linus,
+On 01/13/13 03:44, Rob Landley wrote:
+> On 01/11/2013 08:21:55 AM, Michal Nazarewicz wrote:
+>> On Fri, Jan 11 2013, Minchan Kim <minchan@kernel.org> wrote:
+>> > The C standards allows the character type char to be singed or unsinged,
+>> > depending on the platform and compiler. Most of systems uses signed char,
+>> > but those based on PowerPC and ARM processors typically use unsigned char.
+>> > This can lead to unexpected results when the variable is used to compare
+>> > with EOF(-1). It happens my ARM system and this patch fixes it.
+>> >
+>> > Cc: Mel Gorman <mgorman@suse.de>
+>> > Cc: Andy Whitcroft <apw@shadowen.org>
+>> > Cc: Alexander Nyberg <alexn@dsv.su.se>
+>> > Cc: Michal Nazarewicz <mina86@mina86.com>
+>>
+>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+>>
+>> > Cc: Randy Dunlap <rdunlap@infradead.org>
+>> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> > ---
+>> >  Documentation/page_owner.c |    7 ++++---
+>> >  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> My kernel tree doesn't have Documentation/page_owner.c, where do I find this file?
 
-I see two different commit-id for an identical patch (only subject
-line differs).
-[1] seems to be applied directly and [2] came with a merge of akpm-fixes.
-What is in case of backports for -stable kernels?
+It's in -mm (mmotm), so Andrew can/should merge this ...
 
-Regards,
-- Sedat -
 
-[1] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commitdiff;h=47ecfcb7d01418fcbfbc75183ba5e28e98b667b2
-[2] http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commitdiff;h=8fb74b9fb2b182d54beee592350d9ea1f325917a
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
