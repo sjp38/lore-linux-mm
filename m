@@ -1,49 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx148.postini.com [74.125.245.148])
-	by kanga.kvack.org (Postfix) with SMTP id 0B75C6B006E
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 09:46:18 -0500 (EST)
-Date: Mon, 14 Jan 2013 14:46:17 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: REN2 [09/13] Common function to create the kmalloc array
-In-Reply-To: <20130111072355.GA2346@lge.com>
-Message-ID: <0000013c39866dac-afa62e0a-2958-49a2-b757-571d65393f24-000000@email.amazonses.com>
-References: <20130110190027.780479755@linux.com> <0000013c25e08975-f7fd7592-7d64-409c-874d-d00ea2106f2e-000000@email.amazonses.com> <20130111072355.GA2346@lge.com>
+Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
+	by kanga.kvack.org (Postfix) with SMTP id A334C6B006E
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:19 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
+	Mon, 14 Jan 2013 10:02:14 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 5A41B38C801C
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:13 -0500 (EST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0EF2Adi216772
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:11 -0500
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0EF0wxN011205
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 08:00:59 -0700
+Message-ID: <50F41D9D.1000403@linux.vnet.ibm.com>
+Date: Mon, 14 Jan 2013 07:00:45 -0800
+From: Dave Hansen <dave@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC] Reproducible OOM with just a few sleeps
+References: <201301120331.r0C3VxXc016220@como.maths.usyd.edu.au>
+In-Reply-To: <201301120331.r0C3VxXc016220@como.maths.usyd.edu.au>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, elezegarcia@gmail.com
+To: paul.szabo@sydney.edu.au
+Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-On Fri, 11 Jan 2013, Joonsoo Kim wrote:
+On 01/11/2013 07:31 PM, paul.szabo@sydney.edu.au wrote:
+> Seems that any i386 PAE machine will go OOM just by running a few
+> processes. To reproduce:
+>   sh -c 'n=0; while [ $n -lt 19999 ]; do sleep 600 & ((n=n+1)); done'
+> My machine has 64GB RAM. With previous OOM episodes, it seemed that
+> running (booting) it with mem=32G might avoid OOM; but an OOM was
+> obtained just the same, and also with lower memory:
+>   Memory    sleeps to OOM       free shows total
+>   (mem=64G)  5300               64447796
+>   mem=32G   10200               31155512
+>   mem=16G   13400               14509364
+>   mem=8G    14200               6186296
+>   mem=6G    15200               4105532
+>   mem=4G    16400               2041364
+> The machine does not run out of highmem, nor does it use any swap.
 
-> In case of the SLUB, create_kmalloc_cache with @NULL break the system
-> if slub_debug is used.
->
-> Call flow is like as below.
-> create_kmalloc_cache -> create_boot_cache -> __kmem_cache_create ->
-> kmem_cache_open -> kmem_cache_flag.
-> In kmem_cache_flag, strncmp is excecuted with name, that is, NULL.
+I think what you're seeing here is that, as the amount of total memory
+increases, the amount of lowmem available _decreases_ due to inflation
+of mem_map[] (and a few other more minor things).  The number of sleeps
+you can do is bound by the number of processes, as you noticed from
+ulimit.  Creating processes that don't use much memory eats a relatively
+large amount of low memory.
 
-Hmmm.. yes and we also need to be able to match a name there.
+This is a sad (and counterintuitive) fact: more RAM actually *CREATES*
+RAM bottlenecks on 32-bit systems.
 
-Subject: Fix: Always provide a name to create_boot_cache even during early boot.
+> On my large machine, 'free' fails to show about 2GB memory, e.g. with
+> mem=16G it shows:
+> 
+> root@zeno:~# free -l
+>              total       used       free     shared    buffers     cached
+> Mem:      14509364     435440   14073924          0       4068     111328
+> Low:        769044     120232     648812
+> High:     13740320     315208   13425112
+> -/+ buffers/cache:     320044   14189320
+> Swap:    134217724          0  134217724
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+You probably have a memory hole.  mem=16G means "give me all the memory
+below the physical address at 16GB".  It does *NOT* mean, "give me
+enough memory such that 'free' will show ~16G available."  If you have a
+1.5GB hole below 16GB, and you do mem=16G, you'll end up with ~14.5GB
+available.
 
-Index: linux/mm/slab_common.c
-===================================================================
---- linux.orig/mm/slab_common.c	2013-01-14 08:40:18.085808641 -0600
-+++ linux/mm/slab_common.c	2013-01-14 08:42:36.987689598 -0600
-@@ -313,7 +313,7 @@ struct kmem_cache *__init create_kmalloc
- 	if (!s)
- 		panic("Out of memory when creating slab %s\n", name);
-
--	create_boot_cache(s, name, size, flags);
-+	create_boot_cache(s ? s : "kmalloc", name, size, flags);
- 	list_add(&s->list, &slab_caches);
- 	s->refcount = 1;
- 	return s;
+The e820 map (during early boot in dmesg) or /proc/iomem will let you
+locate your memory holes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
