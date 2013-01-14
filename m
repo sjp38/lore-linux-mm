@@ -1,90 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
-	by kanga.kvack.org (Postfix) with SMTP id 01A836B006E
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 03:28:07 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id b47so1478663eek.29
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 00:28:06 -0800 (PST)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2 2/2] Enhance read_block of page_owner.c
-In-Reply-To: <20130114023338.GB18097@blaptop>
-References: <1357871401-7075-1-git-send-email-minchan@kernel.org> <1357871401-7075-2-git-send-email-minchan@kernel.org> <xa1t8v7zbteu.fsf@mina86.com> <20130114023338.GB18097@blaptop>
-Date: Mon, 14 Jan 2013 09:27:57 +0100
-Message-ID: <xa1t6230p3si.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
+	by kanga.kvack.org (Postfix) with SMTP id 738526B006E
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 04:16:11 -0500 (EST)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v5 0/5] Add movablecore_map boot option
+Date: Mon, 14 Jan 2013 17:15:20 +0800
+Message-Id: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andy Whitcroft <apw@shadowen.org>, Alexander Nyberg <alexn@dsv.su.se>, Randy Dunlap <rdunlap@infradead.org>
+To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Hi Andrew, all,
 
-On Mon, Jan 14 2013, Minchan Kim <minchan@kernel.org> wrote:
-> I'm not familar with Python but I can see the point of the program.
-> It's very short and good for maintainace but I have a concern about the s=
-ize.
-> For working it in embedded side, we have to port python in that
-> machine. :(  [...]
-> In case of that, just small C program when we release product would be
-> good choice.
+Here is movablecore_map patch-set based on 3.8-rc3.
 
-But is this program intended to be used as is? Or rather to serve as an
-example?  If the former, than I think it should be in tools/ rather than
-in Documentation/.  If the latter, than I think it does not really
-matter whether it's C or some scripting language, since the purpose is
-to show how /proc/page_owner can be used, and in fact showing the
-general idea may be simpler with a shorter program which does not have
-to deal with memory management.
+During the implementation of SRAT support, we met a problem.
+In setup_arch(), we have the following call series:
 
-And if Python is not your fancy, you can always use some shell: ;)
+1) memblock is ready;
+2) some functions use memblock to allocate memory;
+3) parse ACPI tables, such as SRAT.
 
-	awk -vRS=3D '{ gsub("\n", "\\n"); print $0 }' |sort |uniq -c
+Before 3), we don't know which memory is hotpluggable, and as a result, we cannot
+prevent memblock from allocating hotpluggable memory. So, in 2), there could be
+some hotpluggable memory allocated by memblock.
 
-> But I'm not strong aginst on your simple python program. If it is merged,
-> we will just continue to use C program instead of python's one.
-> If you have a strong opinion, send it to akpm as separate patch.
+Now, we are trying to parse SRAT earlier, before memblock is ready. But I think we
+need more investigation on this topic. So in this v5, I dropped all the SRAT
+support, and v5 is just the same as v3, and it is based on 3.8-rc3.
 
-Not at all.  I'm just throwing ideas.
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
-
---==-=-=
-Content-Type: text/plain
+As we planned, we will support getting info from SRAT without users' participation
+at last. And we will post another patch-set to do so.
 
 
---==-=-=
-Content-Type: application/pgp-signature
+And also, I think for now, we can add this boot option as the first step of
+supporting movable node. Since Linux cannot migrate the direct mapped pages,
+the only way for now is to limit the whole node containing only movable memory.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
+Using SRAT is one way. But even if we can use SRAT, users still need an interface
+to enable/disable this functionality if they don't want to loose their NUMA performance.
 
-iQIcBAEBAgAGBQJQ88GOAAoJECBgQBJQdR/0vBAP/3tMBO+KCy5wCcPUSzHoyzhH
-hVSM08dGFqas5Vn7UlhzcQX6PIbps7Hle508r5iIdoo9QcHkykUm4q6+2RLRe3oV
-uSb/zjPE6x7gkAl8AvkLaHlsUVMbURGVzj2F4+nbtf/CBxJjMsAJq7cXYnP8wiOH
-NKRlHwNS2JHcwyRtYS2lotsoObzgaZ7mpb5iAb9ChNhC/DI+NJmDrc9AXywxuTfb
-LldhtXv7bMs5n9nKhiu++93B+zdaqzWc99BDREtYesFXXNb21d9PJNypCKGQOaGl
-5UK16cgoBTTekxD7MpZdMhr0dV6oZ1p7XnZrZjkOZGuZbp1ZeifYnc2hqxxJ1h8S
-zZxxRh6rXYqPYBSLRVsTH+CyN3FIi/jNn0aopHi2Xx+/GL5QXk1uN0kk7vl67ra/
-oGQz5Nuo3htJNhSDXFhj8nuvFqzTPQeldDMlGkPrJQYuJ80qi6ymWbJ9f/5eSzMU
-nqr/U/NYU6YyP9DJr9pRacDV3Zjc2KJVq9w8LCQSrhDEUOFNUok1QMs5k04G4uEo
-yscnWfIr4vcD0HFVo+xf/mitMFR2t330z9AFM+0VNx7b3yyDmjOY/MNsw1ce8lQY
-KLn7mS1LrDLPQgdkMyjexGyxJFsAqkhK0sVstE0Th9H3gQkzx/gIR5aTpEA83XsQ
-BmTTsZXY+aMtX2PEdS4O
-=9ZHj
------END PGP SIGNATURE-----
---==-=-=--
+So I think, an user interface is always needed.
 
---=-=-=--
+For now, users can disable this functionality by not specifying the boot option.
+Later, we will post SRAT support, and add another option value "movablecore_map=acpi"
+to using SRAT.
+
+Thanks. :)
+
+============================
+
+
+[What we are doing]
+This patchset provide a boot option for user to specify ZONE_MOVABLE memory
+map for each node in the system.
+
+movablecore_map=nn[KMG]@ss[KMG]
+
+This option make sure memory range from ss to ss+nn is movable memory.
+
+
+[Why we do this]
+If we hot remove a memroy, the memory cannot have kernel memory,
+because Linux cannot migrate kernel memory currently. Therefore,
+we have to guarantee that the hot removed memory has only movable
+memoroy.
+
+Linux has two boot options, kernelcore= and movablecore=, for
+creating movable memory. These boot options can specify the amount
+of memory use as kernel or movable memory. Using them, we can
+create ZONE_MOVABLE which has only movable memory.
+
+But it does not fulfill a requirement of memory hot remove, because
+even if we specify the boot options, movable memory is distributed
+in each node evenly. So when we want to hot remove memory which
+memory range is 0x80000000-0c0000000, we have no way to specify
+the memory as movable memory.
+
+So we proposed a new feature which specifies memory range to use as
+movable memory.
+
+
+[Ways to do this]
+There may be 2 ways to specify movable memory.
+ 1. use firmware information
+ 2. use boot option
+
+1. use firmware information
+  According to ACPI spec 5.0, SRAT table has memory affinity structure
+  and the structure has Hot Pluggable Filed. See "5.2.16.2 Memory
+  Affinity Structure". If we use the information, we might be able to
+  specify movable memory by firmware. For example, if Hot Pluggable
+  Filed is enabled, Linux sets the memory as movable memory.
+
+2. use boot option
+  This is our proposal. New boot option can specify memory range to use
+  as movable memory.
+
+
+[How we do this]
+We chose second way, because if we use first way, users cannot change
+memory range to use as movable memory easily. We think if we create
+movable memory, performance regression may occur by NUMA. In this case,
+user can turn off the feature easily if we prepare the boot option.
+And if we prepare the boot optino, the user can select which memory
+to use as movable memory easily. 
+
+
+[How to use]
+Specify the following boot option:
+movablecore_map=nn[KMG]@ss[KMG]
+
+That means physical address range from ss to ss+nn will be allocated as
+ZONE_MOVABLE.
+
+And the following points should be considered.
+
+1) If the range is involved in a single node, then from ss to the end of
+   the node will be ZONE_MOVABLE.
+2) If the range covers two or more nodes, then from ss to the end of
+   the node will be ZONE_MOVABLE, and all the other nodes will only
+   have ZONE_MOVABLE.
+3) If no range is in the node, then the node will have no ZONE_MOVABLE
+   unless kernelcore or movablecore is specified.
+4) This option could be specified at most MAX_NUMNODES times.
+5) If kernelcore or movablecore is also specified, movablecore_map will have
+   higher priority to be satisfied.
+6) This option has no conflict with memmap option.
+
+
+
+Change log:
+
+v4 -> v5:
+1) remove all SRAT support. v5 is now the same as v3.
+
+v3 -> v4:
+1) patch2: Add new function remove_movablecore_map() to remove a range from
+           movablecore_map.map[].
+2) patch2: Add movablecore_map=acpi logic to allow user to skip the physical
+           address config. If this option is specified, movablecore_map.map[]
+           will be clear at first, and add all the hotpluggable memory ranges
+           into it when parsing SRAT.
+3) patch3: New patch, add logic to check the Hot Pluggable bit when parsing SRAT.
+           If user also specifies a memory range, the logic will check if it is
+           hotpluggable and remove it from movablecore_map.map[] if not.
+
+v2 -> v3:
+1) Use memblock_alloc_try_nid() instead of memblock_alloc_nid() to allocate
+   memory twice if a whole node is ZONE_MOVABLE.
+2) Add DMA, DMA32 addresses check, make sure ZONE_MOVABLE won't use these addresses.
+   Suggested by Wu Jianguo <wujianguo@huawei.com>
+3) Add lowmem addresses check, when the system has highmem, make sure ZONE_MOVABLE
+   won't use lowmem. Suggested by Liu Jiang <jiang.liu@huawei.com>
+4) Fix misuse of pfns in movablecore_map.map[] as physical addresses.
+
+
+Tang Chen (4):
+  page_alloc: add movable_memmap kernel parameter
+  page_alloc: Introduce zone_movable_limit[] to keep movable limit for
+    nodes
+  page_alloc: Make movablecore_map has higher priority
+  page_alloc: Bootmem limit with movablecore_map
+
+Yasuaki Ishimatsu (1):
+  x86: get pg_data_t's memory from other node
+
+ Documentation/kernel-parameters.txt |   17 +++
+ arch/x86/mm/numa.c                  |    5 +-
+ include/linux/memblock.h            |    1 +
+ include/linux/mm.h                  |   11 ++
+ mm/memblock.c                       |   18 +++-
+ mm/page_alloc.c                     |  233 ++++++++++++++++++++++++++++++++++-
+ 6 files changed, 277 insertions(+), 8 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
