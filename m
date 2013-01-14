@@ -1,50 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx132.postini.com [74.125.245.132])
-	by kanga.kvack.org (Postfix) with SMTP id 0FD6D6B0062
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:46:03 -0500 (EST)
-Date: Mon, 14 Jan 2013 14:46:01 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
-Message-Id: <20130114144601.1c40dc7e.akpm@linux-foundation.org>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>
-References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
-	<50F440F5.3030006@zytor.com>
-	<20130114143456.3962f3bd.akpm@linux-foundation.org>
-	<3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id ED93E6B0062
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 18:44:14 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id t2so2894764qcq.14
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 15:44:13 -0800 (PST)
+MIME-Version: 1.0
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <CA+icZUXyTvW0P4Adbr2x+RP3X-b3Qj8E53uxWrnDe964MgZepg@mail.gmail.com>
+References: <CA+icZUXyTvW0P4Adbr2x+RP3X-b3Qj8E53uxWrnDe964MgZepg@mail.gmail.com>
+Date: Tue, 15 Jan 2013 00:44:13 +0100
+Message-ID: <CA+icZUXHksmiZYVU+gTyi+j9q9e1b5R9ZJ2RxUTeWKiey2PRuA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix BUG on madvise early failure
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Tang Chen <tangchen@cn.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "isimatu.yasuaki@jp.fujitsu.com" <isimatu.yasuaki@jp.fujitsu.com>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Sasha Levin <sasha.levin@oracle.com>, Shaohua Li <shli@fusionio.com>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
 
-On Mon, 14 Jan 2013 22:41:03 +0000
-"Luck, Tony" <tony.luck@intel.com> wrote:
+On Mon, Jan 14, 2013 at 10:29 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
+> Hi,
+>
+> this patch is for Linux-Next - more exactly next-20130114.
+> Can you please enhance the subject-line of your patch next time.
+>
+> Your patch fixes the issue I have reported a few hours ago in [1].
+>
+> [ TESTCASE ]
+>
+> "madvise02" from Linux Test Project (LTP) see [2]
+>
+> $ cd /opt/ltp/testcases/bin/
+>
+> $ sudo ./madvise02
+> [ OUTPUT ]
+> madvise02    1  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
+> Invalid argument
+> madvise02    2  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
+> Invalid argument
+> madvise02    3  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
+> Invalid argument
+> madvise02    4  TPASS  :  failed as expected: TEST_ERRNO=ENOMEM(12):
+> Cannot allocate memory
+> madvise02    5  TFAIL  :  madvise succeeded unexpectedly
+>
+> [ /TESTCASE ]
+>
+> Please feel free and add a...
+>
+>      Tested-by: Sedat Dilek <sedat.dilek@gmail.com>
+>
+> Thanks!
+>
+> Regards,
+> - Sedat -
+>
+> [1] http://marc.info/?l=linux-mm&m=135818843710244&w=2
+> [2] http://sourceforge.net/projects/ltp/
 
-> > hm, why.  Obviously SRAT support will improve things, but is it
-> > actually unusable/unuseful with the command line configuration?
-> 
-> Users will want to set these moveable zones along node boundaries
-> (the whole purpose is to be able to remove a node by making sure
-> the kernel won't allocate anything tricky in it, right?)  So raw addresses
-> are usable ... but to get them right the user will have to go parse the
-> SRAT table manually to come up with the addresses. Any time you
-> make the user go off and do some tedious calculation that the computer
-> should have done for them is user-abuse.
-> 
+You happen to know how I get more verbose-debug outputs?
 
-Sure.  But SRAT configuration is in progress and the boot option is
-better than nothing?
+You have...
 
-Things I'm wondering:
+[   57.320031] kernel BUG at block/blk-core.c:2981!
+[   57.320031] invalid opcode: 0000 [#3] PREEMPT SMP DEBUG_PAGEALLOC
 
-- is there *really* a case for retaining the boot option if/when
-  SRAT support is available?
+Me has...
 
-- will the boot option be needed for other archictectures, presumably
-  because they don't provide sufficient layout information to the
-  kernel?
+[ 1263.965989] Kernel BUG at ffffffff81328b2b [verbose debug info unavailable]
+[ 1263.966022] invalid opcode: 0000 [#1] SMP
+
+CONFIG_DEBUG_PAGEALLOC=y ?
+
+Block-specific debug settings?
+
+$ egrep -i 'block|blk' .config | egrep -i 'debug|dbg'
+# CONFIG_DEBUG_BLK_CGROUP is not set
+# CONFIG_DEBUG_BLOCK_EXT_DEVT is not set
+
+- Sedat -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
