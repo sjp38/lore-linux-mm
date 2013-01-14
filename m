@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
-	by kanga.kvack.org (Postfix) with SMTP id 861F36B0068
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:03:42 -0500 (EST)
-Received: by mail-da0-f45.google.com with SMTP id w4so2009621dam.32
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:03:41 -0800 (PST)
-Message-ID: <50F480BB.6070105@gmail.com>
-Date: Mon, 14 Jan 2013 14:03:39 -0800
-From: David Daney <ddaney.cavm@gmail.com>
-MIME-Version: 1.0
-Subject: Re: 3.8-rc1 build failure with MIPS/SPARSEMEM
-References: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi> <20121226003434.GA27760@otc-wbsnb-06> <20121227121607.GA7097@blackmetal.musicnaut.iki.fi> <20121230103850.GA5424@otc-wbsnb-06> <20130114151641.GA17996@otc-wbsnb-06>
-In-Reply-To: <20130114151641.GA17996@otc-wbsnb-06>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 862616B0068
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:34:58 -0500 (EST)
+Date: Mon, 14 Jan 2013 14:34:56 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+Message-Id: <20130114143456.3962f3bd.akpm@linux-foundation.org>
+In-Reply-To: <50F440F5.3030006@zytor.com>
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
+	<50F440F5.3030006@zytor.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, Aaro Koskinen <aaro.koskinen@iki.fi>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/14/2013 07:16 AM, Kirill A. Shutemov wrote:
-> On Sun, Dec 30, 2012 at 12:38:50PM +0200, Kirill A. Shutemov wrote:
->> On Thu, Dec 27, 2012 at 02:16:07PM +0200, Aaro Koskinen wrote:
->>> Hi,
->>>
->>> On Wed, Dec 26, 2012 at 02:34:35AM +0200, Kirill A. Shutemov wrote:
->>>> On MIPS if SPARSEMEM is enabled we've got this:
->>>>
->>>> In file included from /home/kas/git/public/linux/arch/mips/include/asm/pgtable.h:552,
->>>>                   from include/linux/mm.h:44,
->>>>                   from arch/mips/kernel/asm-offsets.c:14:
->>>> include/asm-generic/pgtable.h: In function a??my_zero_pfna??:
->>>> include/asm-generic/pgtable.h:466: error: implicit declaration of function a??page_to_sectiona??
->>>> In file included from arch/mips/kernel/asm-offsets.c:14:
->>>> include/linux/mm.h: At top level:
->>>> include/linux/mm.h:738: error: conflicting types for a??page_to_sectiona??
->>>> include/asm-generic/pgtable.h:466: note: previous implicit declaration of a??page_to_sectiona?? was here
->>>>
->>>> Due header files inter-dependencies, the only way I see to fix it is
->>>> convert my_zero_pfn() for __HAVE_COLOR_ZERO_PAGE to macros.
->>>>
->>>> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
->>>
->>> Thanks, this works.
->>>
->>> Tested-by: Aaro Koskinen <aaro.koskinen@iki.fi>
->>
->> Andrew, could you take the patch?
+On Mon, 14 Jan 2013 09:31:33 -0800
+"H. Peter Anvin" <hpa@zytor.com> wrote:
 
-I found the same problem and arrived at an equivalent solution.
+> On 01/14/2013 01:15 AM, Tang Chen wrote:
+> >
+> > For now, users can disable this functionality by not specifying the boot option.
+> > Later, we will post SRAT support, and add another option value "movablecore_map=acpi"
+> > to using SRAT.
+> >
+> 
+> I still think the option "movablecore_map" is uglier than hell.  "core" 
+> could just as easily refer to CPU cores there, but it is a memory mem. 
+> "movablemem" seems more appropriate.
+> 
+> Again, without SRAT I consider this patchset to be largely useless for 
+> anything other than prototyping work.
+> 
 
-Acked-by: David Daney <david.daney@cavium.com>
+hm, why.  Obviously SRAT support will improve things, but is it
+actually unusable/unuseful with the command line configuration?
 
->
-> ping?
->
+Also, "But even if we can use SRAT, users still need an interface to
+enable/disable this functionality if they don't want to loose their
+NUMA performance.  So I think, an user interface is always needed."
+
+
+There's also the matter of other architectures.  Has any thought been
+given to how (eg) powerpc would hook into here?
+
+And what about VMs (xen, KVM)?  I wonder if there is a case for those
+to implement memory hotplug.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
