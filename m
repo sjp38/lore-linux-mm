@@ -1,152 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx106.postini.com [74.125.245.106])
-	by kanga.kvack.org (Postfix) with SMTP id 8B64F6B0062
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 15:36:55 -0500 (EST)
-Date: Tue, 15 Jan 2013 07:36:34 +1100
-From: paul.szabo@sydney.edu.au
-Message-Id: <201301142036.r0EKaYGN005907@como.maths.usyd.edu.au>
-Subject: Re: [RFC] Reproducible OOM with just a few sleeps
-In-Reply-To: <50F41D9D.1000403@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id F35466B0062
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 16:09:19 -0500 (EST)
+Received: by mail-qa0-f43.google.com with SMTP id cr7so1832169qab.9
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:09:19 -0800 (PST)
+MIME-Version: 1.0
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <CA+icZUX_uKSzvdhd4tMtgb+vUxqC=fS7tfSHhs29+xD_XQQjBQ@mail.gmail.com>
+References: <CA+icZUW1+BzWCfGkbBiekKO8b6KiyAiyXWAHFmVUey2dHnSTzw@mail.gmail.com>
+	<50F454C2.6000509@kernel.dk>
+	<CA+icZUX_uKSzvdhd4tMtgb+vUxqC=fS7tfSHhs29+xD_XQQjBQ@mail.gmail.com>
+Date: Mon, 14 Jan 2013 22:09:18 +0100
+Message-ID: <CA+icZUV_dz2Bvu6o=YRFu6324ccVr1MaOEpRcw0rguppR5rQQg@mail.gmail.com>
+Subject: Re: [next-20130114] Call-trace in LTP (lite) madvise02 test
+ (block|mm|vfs related?)
+From: Sedat Dilek <sedat.dilek@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@linux.vnet.ibm.com
-Cc: 695182@bugs.debian.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: linux-next <linux-next@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-Dear Dave,
+On Mon, Jan 14, 2013 at 8:28 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
+> On Mon, Jan 14, 2013 at 7:56 PM, Jens Axboe <axboe@kernel.dk> wrote:
+>> On 2013-01-14 19:33, Sedat Dilek wrote:
+>>> Hi,
+>>>
+>>> while running LTP lite on my next-20130114 kernel I hit this
+>>> call-trace (file attached).
+>>>
+>>> Looks to me like problem in the block layer, but not sure.
+>>> Might one of the experts have look at it?
+>>
+>> Really? 600kb of data to look through? Can't you just paste the actual
+>> error, I can't even find it...
+>>
+>
+> $ cat call-trace_ltplite_madvise02_next-20130114.txt
+> Jan 14 17:47:14 fambox kernel: [ 1263.965957] ------------[ cut here
+> ]------------
+> Jan 14 17:47:14 fambox kernel: [ 1263.965989] Kernel BUG at
+> ffffffff81328b2b [verbose debug info unavailable]
+> Jan 14 17:47:14 fambox kernel: [ 1263.966022] invalid opcode: 0000 [#1] SMP
+> Jan 14 17:47:14 fambox kernel: [ 1263.966046] Modules linked in:
+> snd_hda_codec_hdmi snd_hda_codec_realtek joydev coretemp kvm_intel kvm
+> snd_hda_intel snd_hda_codec arc4 iwldvm snd_hwdep snd_pcm
+> ghash_clmulni_intel mac80211 aesni_intel i915 snd_page_alloc xts
+> snd_seq_midi aes_x86_64 snd_seq_midi_event uvcvideo lrw gf128mul
+> iwlwifi snd_rawmidi ablk_helper snd_seq i2c_algo_bit cryptd
+> drm_kms_helper snd_timer videobuf2_vmalloc drm snd_seq_device
+> videobuf2_memops psmouse parport_pc snd cfg80211 btusb rfcomm
+> videobuf2_core bnep microcode ppdev soundcore videodev samsung_laptop
+> wmi lp bluetooth serio_raw mei mac_hid hid_generic video lpc_ich
+> parport usbhid hid r8169
+> Jan 14 17:47:14 fambox kernel: [ 1263.966377] CPU 3
+> Jan 14 17:47:14 fambox kernel: [ 1263.966388] Pid: 7803, comm:
+> madvise02 Not tainted 3.8.0-rc3-next20130114-5-iniza-generic #1
+> SAMSUNG ELECTRONICS CO., LTD.
+> 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH
+> Jan 14 17:47:14 fambox kernel: [ 1263.966450] RIP:
+> 0010:[<ffffffff81328b2b>]  [<ffffffff81328b2b>]
+> blk_flush_plug_list+0x1eb/0x210
+> Jan 14 17:47:14 fambox kernel: [ 1263.966508] RSP:
+> 0018:ffff88000d933e58  EFLAGS: 00010287
+> Jan 14 17:47:14 fambox kernel: [ 1263.966532] RAX: 0000000091827364
+> RBX: ffff88000d933e68 RCX: 0000000000000000
+> Jan 14 17:47:14 fambox kernel: [ 1263.966566] RDX: 0000000000000000
+> RSI: 0000000000000000 RDI: ffff88000d933f10
+> Jan 14 17:47:14 fambox kernel: [ 1263.966614] RBP: ffff88000d933eb8
+> R08: 0000000000000003 R09: 0000000000000000
+> Jan 14 17:47:14 fambox kernel: [ 1263.966656] R10: 00007fff3d62c9b0
+> R11: 0000000000000206 R12: 0000000000000000
+> Jan 14 17:47:14 fambox kernel: [ 1263.966696] R13: 0000000000001000
+> R14: ffff88000d933f10 R15: ffff88000d933f10
+> Jan 14 17:47:14 fambox kernel: [ 1263.966736] FS:
+> 00007f56bcbc2700(0000) GS:ffff88011fac0000(0000)
+> knlGS:0000000000000000
+> Jan 14 17:47:14 fambox kernel: [ 1263.966780] CS:  0010 DS: 0000 ES:
+> 0000 CR0: 0000000080050033
+> Jan 14 17:47:14 fambox kernel: [ 1263.966813] CR2: 00007f56bc6ec060
+> CR3: 000000000bf66000 CR4: 00000000000407e0
+> Jan 14 17:47:14 fambox kernel: [ 1263.966848] DR0: 0000000000000000
+> DR1: 0000000000000000 DR2: 0000000000000000
+> Jan 14 17:47:14 fambox kernel: [ 1263.966885] DR3: 0000000000000000
+> DR6: 00000000ffff0ff0 DR7: 0000000000000400
+> Jan 14 17:47:14 fambox kernel: [ 1263.966921] Process madvise02 (pid:
+> 7803, threadinfo ffff88000d932000, task ffff88000d9f2e40)
+> Jan 14 17:47:14 fambox kernel: [ 1263.966963] Stack:
+> Jan 14 17:47:14 fambox kernel: [ 1263.966978]  0000000000000001
+> 0000000000000001 ffff88000d933e68 ffff88000d933e68
+> Jan 14 17:47:14 fambox kernel: [ 1263.967024]  ffff88000d933ef8
+> ffffffff8114b77c ffff88000d933ec0 ffff88000d933f10
+> Jan 14 17:47:14 fambox kernel: [ 1263.967071]  0000000000000000
+> 0000000000001000 0000000000010000 ffff88000d933f10
+> Jan 14 17:47:14 fambox kernel: [ 1263.967118] Call Trace:
+> Jan 14 17:47:14 fambox kernel: [ 1263.967137]  [<ffffffff8114b77c>] ?
+> vm_mmap_pgoff+0xbc/0xe0
+> Jan 14 17:47:14 fambox kernel: [ 1263.967173]  [<ffffffff81328b68>]
+> blk_finish_plug+0x18/0x50
+> Jan 14 17:47:14 fambox kernel: [ 1263.967209]  [<ffffffff811544d8>]
+> sys_madvise+0xc8/0x3a0
+> Jan 14 17:47:14 fambox kernel: [ 1263.967247]  [<ffffffff816ba0e9>] ?
+> do_page_fault+0x39/0x50
+> Jan 14 17:47:14 fambox kernel: [ 1263.967288]  [<ffffffff816be79d>]
+> system_call_fastpath+0x1a/0x1f
+> Jan 14 17:47:14 fambox kernel: [ 1263.967331] Code: 4d 85 ff 74 0d 44
+> 89 e2 89 c6 4c 89 ff e8 be b5 ff ff 4c 89 ef 57 9d 66 66 90 66 90 48
+> 83 c4 38 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> 0b 31 d2 be ed ff ff ff
+> 4c 89 f7 89 45 a8 e8 91 f9 ff ff 8b
+> Jan 14 17:47:14 fambox kernel: [ 1263.967589] RIP
+> [<ffffffff81328b2b>] blk_flush_plug_list+0x1eb/0x210
+> Jan 14 17:47:14 fambox kernel: [ 1263.967630]  RSP <ffff88000d933e58>
+> Jan 14 17:47:14 fambox kernel: [ 1263.989553] ---[ end trace
+> 19e1575014ab42a7 ]---
+>
 
->> Seems that any i386 PAE machine will go OOM just by running a few
->> processes. To reproduce:
->>   sh -c 'n=0; while [ $n -lt 19999 ]; do sleep 600 & ((n=n+1)); done'
->> ...
-> I think what you're seeing here is that, as the amount of total memory
-> increases, the amount of lowmem available _decreases_ due to inflation
-> of mem_map[] (and a few other more minor things).  The number of sleeps
-> you can do is bound by the number of processes, as you noticed from
-> ulimit.  Creating processes that don't use much memory eats a relatively
-> large amount of low memory.
-> This is a sad (and counterintuitive) fact: more RAM actually *CREATES*
-> RAM bottlenecks on 32-bit systems.
+Looks like this is the fix from Sasha [1].
+Culprit commit is [2].
+Testing...
 
-I understand that more RAM leaves less lowmem. What is unacceptable is
-that PAE crashes or freezes with OOM: it should gracefully handle the
-issue. Noting that (for a machine with 4GB or under) PAE fails where the
-HIGHMEM4G kernel succeeds and survives.
+- Sedat -
 
->> On my large machine, 'free' fails to show about 2GB memory ...
-> You probably have a memory hole. ...
-> The e820 map (during early boot in dmesg) or /proc/iomem will let you
-> locate your memory holes.
+[1] https://patchwork.kernel.org/patch/1973481/
+[2] http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git;a=commitdiff;h=0d18d770b9180ffc2c3f63b9eb8406ef80105e05
 
-Thanks, that might explain it. Output of /proc/iomem below: sorry I do
-not know how to interpret it.
-
-Cheers, Paul
-
-Paul Szabo   psz@maths.usyd.edu.au   http://www.maths.usyd.edu.au/u/psz/
-School of Mathematics and Statistics   University of Sydney    Australia
-
-
----
-root@zeno:~# cat /proc/iomem
-00000000-0000ffff : reserved
-00010000-00099bff : System RAM
-00099c00-0009ffff : reserved
-000a0000-000bffff : PCI Bus 0000:00
-  000a0000-000bffff : Video RAM area
-000c0000-000dffff : PCI Bus 0000:00
-  000c0000-000c7fff : Video ROM
-  000c8000-000cf5ff : Adapter ROM
-  000cf800-000d07ff : Adapter ROM
-  000d0800-000d0bff : Adapter ROM
-000e0000-000fffff : reserved
-  000f0000-000fffff : System ROM
-00100000-7e445fff : System RAM
-  01000000-01610e15 : Kernel code
-  01610e16-01802dff : Kernel data
-  01880000-018b2fff : Kernel bss
-7e446000-7e565fff : ACPI Non-volatile Storage
-7e566000-7f1e2fff : reserved
-7f1e3000-7f25efff : ACPI Tables
-7f25f000-7f31cfff : reserved
-7f31d000-7f323fff : ACPI Non-volatile Storage
-7f324000-7f333fff : reserved
-7f334000-7f33bfff : ACPI Non-volatile Storage
-7f33c000-7f365fff : reserved
-7f366000-7f7fffff : ACPI Non-volatile Storage
-7f800000-7fffffff : RAM buffer
-80000000-dfffffff : PCI Bus 0000:00
-  80000000-8fffffff : PCI MMCONFIG 0000 [bus 00-ff]
-    80000000-8fffffff : reserved
-  90000000-9000000f : 0000:00:16.0
-  90000010-9000001f : 0000:00:16.1
-  dd000000-ddffffff : PCI Bus 0000:08
-    dd000000-ddffffff : 0000:08:03.0
-  de000000-de4fffff : PCI Bus 0000:07
-    de000000-de3fffff : 0000:07:00.0
-    de47c000-de47ffff : 0000:07:00.0
-  de600000-de6fffff : PCI Bus 0000:02
-  df000000-df8fffff : PCI Bus 0000:08
-    df000000-df7fffff : 0000:08:03.0
-    df800000-df803fff : 0000:08:03.0
-  df900000-df9fffff : PCI Bus 0000:07
-  dfa00000-dfafffff : PCI Bus 0000:02
-    dfa00000-dfa1ffff : 0000:02:00.1
-      dfa00000-dfa1ffff : igb
-    dfa20000-dfa3ffff : 0000:02:00.0
-      dfa20000-dfa3ffff : igb
-    dfa40000-dfa43fff : 0000:02:00.1
-      dfa40000-dfa43fff : igb
-    dfa44000-dfa47fff : 0000:02:00.0
-      dfa44000-dfa47fff : igb
-  dfb00000-dfb03fff : 0000:00:04.7
-  dfb04000-dfb07fff : 0000:00:04.6
-  dfb08000-dfb0bfff : 0000:00:04.5
-  dfb0c000-dfb0ffff : 0000:00:04.4
-  dfb10000-dfb13fff : 0000:00:04.3
-  dfb14000-dfb17fff : 0000:00:04.2
-  dfb18000-dfb1bfff : 0000:00:04.1
-  dfb1c000-dfb1ffff : 0000:00:04.0
-  dfb20000-dfb200ff : 0000:00:1f.3
-  dfb21000-dfb217ff : 0000:00:1f.2
-    dfb21000-dfb217ff : ahci
-  dfb22000-dfb223ff : 0000:00:1d.0
-    dfb22000-dfb223ff : ehci_hcd
-  dfb23000-dfb233ff : 0000:00:1a.0
-    dfb23000-dfb233ff : ehci_hcd
-  dfb25000-dfb25fff : 0000:00:05.4
-  dfffc000-dfffdfff : pnp 00:02
-e0000000-fbffffff : PCI Bus 0000:80
-  fbe00000-fbefffff : PCI Bus 0000:84
-    fbe00000-fbe3ffff : 0000:84:00.0
-    fbe40000-fbe5ffff : 0000:84:00.0
-    fbe60000-fbe63fff : 0000:84:00.0
-  fbf00000-fbf03fff : 0000:80:04.7
-  fbf04000-fbf07fff : 0000:80:04.6
-  fbf08000-fbf0bfff : 0000:80:04.5
-  fbf0c000-fbf0ffff : 0000:80:04.4
-  fbf10000-fbf13fff : 0000:80:04.3
-  fbf14000-fbf17fff : 0000:80:04.2
-  fbf18000-fbf1bfff : 0000:80:04.1
-  fbf1c000-fbf1ffff : 0000:80:04.0
-  fbf20000-fbf20fff : 0000:80:05.4
-  fbffe000-fbffffff : pnp 00:12
-fc000000-fcffffff : pnp 00:01
-fd000000-fdffffff : pnp 00:01
-fe000000-feafffff : pnp 00:01
-feb00000-febfffff : pnp 00:01
-fec00000-fec003ff : IOAPIC 0
-fec01000-fec013ff : IOAPIC 1
-fec40000-fec403ff : IOAPIC 2
-fed00000-fed003ff : HPET 0
-fed08000-fed08fff : pnp 00:0c
-fed1c000-fed3ffff : reserved
-  fed1c000-fed1ffff : pnp 00:0c
-fed45000-fedfffff : pnp 00:01
-fee00000-fee00fff : Local APIC
-ff000000-ffffffff : reserved
-  ff000000-ffffffff : pnp 00:0c
-100000000-107fffffff : System RAM
-root@zeno:~# 
+> - Sedat -
+>
+>> --
+>> Jens Axboe
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
