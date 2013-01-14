@@ -1,59 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx140.postini.com [74.125.245.140])
-	by kanga.kvack.org (Postfix) with SMTP id 31B466B006E
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 06:57:17 -0500 (EST)
-Message-ID: <50F3F289.3090402@web.de>
-Date: Mon, 14 Jan 2013 12:56:57 +0100
-From: Soeren Moch <smoch@web.de>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
-In-Reply-To: <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
+	by kanga.kvack.org (Postfix) with SMTP id E98826B006E
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 07:04:54 -0500 (EST)
+Date: Mon, 14 Jan 2013 10:05:01 -0200
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [RFC 2/2] virtio_balloon: add auto-ballooning support
+Message-ID: <20130114100501.603ce8a4@doriath.home>
+In-Reply-To: <20130111204317.GB11436@amit.redhat.com>
+References: <1355861850-2702-1-git-send-email-lcapitulino@redhat.com>
+	<1355861850-2702-3-git-send-email-lcapitulino@redhat.com>
+	<20130111204317.GB11436@amit.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Andrew Lunn <andrew@lunn.ch>, Andrew Morton <akpm@linux-foundation.org>, Jason Cooper <jason@lakedaemon.net>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>
+To: Amit Shah <amit.shah@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com, aquini@redhat.com, mst@redhat.com, agl@us.ibm.com
 
-On 20.11.2012 15:31, Marek Szyprowski wrote:
-> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
-> regardless the flags provided by the caller. This causes excessive
-> pruning of emergency memory pools without any good reason. Additionaly,
-> on ARM architecture any driver which is using dmapools will sooner or
-> later  trigger the following error:
-> "ERROR: 256 KiB atomic DMA coherent pool is too small!
-> Please increase it with coherent_pool= kernel parameter!".
-> Increasing the coherent pool size usually doesn't help much and only
-> delays such error, because all GFP_ATOMIC DMA allocations are always
-> served from the special, very limited memory pool.
->
-> This patch changes the dmapool code to correctly use gfp flags provided
-> by the dmapool caller.
->
-> Reported-by: Soeren Moch <smoch@web.de>
-> Reported-by: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Tested-by: Andrew Lunn <andrew@lunn.ch>
-> Tested-by: Soeren Moch <smoch@web.de>
+On Sat, 12 Jan 2013 02:13:17 +0530
+Amit Shah <amit.shah@redhat.com> wrote:
 
-Now I tested linux-3.7.1 (this patch is included there) on my Marvell
-Kirkwood system. I still see
+> On (Tue) 18 Dec 2012 [18:17:30], Luiz Capitulino wrote:
+> > The auto-ballooning feature automatically performs balloon inflate or
+> > deflate based on host and guest memory pressure. This can help to
+> > avoid swapping or worse in both, host and guest.
+> > 
+> > Auto-ballooning has a host and a guest part. The host performs
+> > automatic inflate by requesting the guest to inflate its balloon
+> > when the host is facing memory pressure. The guest performs
+> > automatic deflate when it's facing memory pressure itself. It's
+> > expected that auto-inflate and auto-deflate will balance each
+> > other over time.
+> > 
+> > This commit implements the guest side of auto-ballooning.
+> > 
+> > To perform automatic deflate, the virtio_balloon driver registers
+> > a shrinker callback, which will try to deflate the guest's balloon
+> > on guest memory pressure just like if it were a cache. The shrinker
+> > callback is only registered if the host supports the
+> > VIRTIO_BALLOON_F_AUTO_BALLOON feature bit.
+> 
+> I'm wondering if guest should auto-deflate even when the AUTO_BALLOON
+> feature isn't supported by the host: if a guest is under pressure,
+> there's no way for it to tell the host and wait for the host to
+> deflate the balloon, so it may be beneficial to just go ahead and
+> deflate the balloon for all hosts.
 
-   ERROR: 1024 KiB atomic DMA coherent pool is too small!
-   Please increase it with coherent_pool= kernel parameter!
+I see two problems with this. First, this will automagically override
+balloon changes done by the user; and second, if we don't have the
+auto-inflate part and if the host starts facing memory pressure, VMs
+may start getting OOM.
 
-after several hours of runtime under heavy load with SATA and
-DVB-Sticks (em28xx / drxk and dib0700).
+> Similarly, on the host side, management can configure a VM to either
+> enable or disable auto-balloon (the auto-inflate part).  So even the
+> host can do away with the feature advertisement and negotiation.
+> 
+> Is there some use-case I'm missing where doing these actions after
+> feature negotiation is beneficial?
+> 
+> > FIXMEs
+> > 
+> >  o the guest kernel seems to spin when the host is performing a long
+> >    auto-inflate
+> 
+> Is this introduced by the current patches?  I'd assume it happens even
+> without it -- these patches just introduce some heuristics, the
+> mechanism has stayed the same.
 
-As already reported earlier this patch improved the behavior compared to 
-linux-3.6.x and 3.7.0 (error after several ten minutes runtime), but
-I still see a regression compared to linux-3.5.x. With this kernel the
-same system with same workload runs flawlessly.
+Good point, I'll check that.
 
-Regards,
-Soeren
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > ---
+> >  drivers/virtio/virtio_balloon.c     | 54 +++++++++++++++++++++++++++++++++++++
+> >  include/uapi/linux/virtio_balloon.h |  1 +
+> >  2 files changed, 55 insertions(+)
+> 
+> Patch looks good, just one thing:
+> 
+> > +	/*
+> > +	 * If the current balloon size is greater than the number of
+> > +	 * pages being reclaimed by the kernel, deflate only the needed
+> > +	 * amount. Otherwise deflate everything we have.
+> > +	 */
+> > +	if (nr_pages > sc->nr_to_scan) {
+> > +		new_target = nr_pages - sc->nr_to_scan;
+> > +	} else {
+> > +		new_target = 0;
+> > +	}
+> 
+> This looks better:
+> 
+> 	new_target = 0;
+> 	if (nr_pages > sc->nr_to_scan) {
+> 		new_target = nr_pages - sc->nr_to_scan;
+> 	}
+
+Ok.
+
+> 
+> 
+> Thanks,
+> 		Amit
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
