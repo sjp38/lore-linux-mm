@@ -1,78 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id 5F40C6B0044
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:11:56 -0500 (EST)
-Message-ID: <1358190124.14145.79.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device
- hotplug framework
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Mon, 14 Jan 2013 12:02:04 -0700
-In-Reply-To: <2154272.qDAyBlTr8z@vostro.rjw.lan>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
-	 <5036592.TuXAnGzk4M@vostro.rjw.lan>
-	 <1358177628.14145.49.camel@misato.fc.hp.com>
-	 <2154272.qDAyBlTr8z@vostro.rjw.lan>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 4B0CA6B0044
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:20:37 -0500 (EST)
+Date: Mon, 14 Jan 2013 19:20:35 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Unique commit-id for "mm: compaction: [P,p]artially revert
+ capture of suitable high-order page"
+Message-ID: <20130114192035.GS13304@suse.de>
+References: <CA+icZUW5kryOCpX96CkaS=5uX61FmiYE0mh7y6F0eT9Bh8eUGw@mail.gmail.com>
+ <20130114103612.GO13304@suse.de>
+ <CA+icZUUReY7LPjnF1xTjD-aJSYYqgo9tF9K8T8--r_HjRwgCHA@mail.gmail.com>
+ <20130114130911.GQ13304@suse.de>
+ <20130114170134.GA26655@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20130114170134.GA26655@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Sedat Dilek <sedat.dilek@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 2013-01-14 at 19:48 +0100, Rafael J. Wysocki wrote:
-> On Monday, January 14, 2013 08:33:48 AM Toshi Kani wrote:
-> > On Fri, 2013-01-11 at 22:23 +0100, Rafael J. Wysocki wrote:
-> > > On Thursday, January 10, 2013 04:40:19 PM Toshi Kani wrote:
-> > > > Added include/linux/sys_hotplug.h, which defines the system device
-> > > > hotplug framework interfaces used by the framework itself and
-> > > > handlers.
-> > > > 
-> > > > The order values define the calling sequence of handlers.  For add
-> > > > execute, the ordering is ACPI->MEM->CPU.  Memory is onlined before
-> > > > CPU so that threads on new CPUs can start using their local memory.
-> > > > The ordering of the delete execute is symmetric to the add execute.
-> > > > 
-> > > > struct shp_request defines a hot-plug request information.  The
-> > > > device resource information is managed with a list so that a single
-> > > > request may target to multiple devices.
-> > > > 
-> >  :
-> > > > +
-> > > > +struct shp_device {
-> > > > +	struct list_head	list;
-> > > > +	struct device		*device;
-> > > > +	enum shp_class		class;
-> > > > +	union shp_dev_info	info;
-> > > > +};
-> > > > +
-> > > > +/*
-> > > > + * Hot-plug request
-> > > > + */
-> > > > +struct shp_request {
-> > > > +	/* common info */
-> > > > +	enum shp_operation	operation;	/* operation */
-> > > > +
-> > > > +	/* hot-plug event info: only valid for hot-plug operations */
-> > > > +	void			*handle;	/* FW handle */
+On Mon, Jan 14, 2013 at 09:01:34AM -0800, Greg KH wrote:
+> On Mon, Jan 14, 2013 at 01:09:11PM +0000, Mel Gorman wrote:
+> > On Mon, Jan 14, 2013 at 12:27:20PM +0100, Sedat Dilek wrote:
+> > > On Mon, Jan 14, 2013 at 11:36 AM, Mel Gorman <mgorman@suse.de> wrote:
+> > > > On Sun, Jan 13, 2013 at 05:12:45PM +0100, Sedat Dilek wrote:
+> > > >> Hi Linus,
+> > > >>
+> > > >> I see two different commit-id for an identical patch (only subject
+> > > >> line differs).
+> > > >> [1] seems to be applied directly and [2] came with a merge of akpm-fixes.
+> > > >> What is in case of backports for -stable kernels?
+> > > >
+> > > > I do not expect it to matter. I was going to use
+> > > > 8fb74b9fb2b182d54beee592350d9ea1f325917a as the commit ID whenever I got
+> > > > the complaint mail from Greg's tools about a 3.7 merge failure. The 3.7.2
+> > > > backport looks like this.
+> > > >
 > > > 
-> > > What's the role of handle here?
+> > > Oh cool and thanks!
+> > > Are you planning to resend this backport-patch to the lists w/ a "3.7"
+> > > (or for-3.7) in the commit-subject?
+> > > 
 > > 
-> > On ACPI-based platforms, the handle keeps a notified ACPI handle when a
-> > hot-plug request is made.  ACPI bus handlers, acpi_add_execute() /
-> > acpi_del_execute(), then scans / trims ACPI devices from the handle.
+> > Yes, when I get the reject mail from Greg's tools.
 > 
-> OK, so this is ACPI-specific and should be described as such.
+> You should have that rejection email now :)
+> 
 
-Other FW interface I know is parisc, which has mod_index (module index)
-to identify a unique object, just like what ACPI handle does.  The
-handle can keep the mod_index as an opaque value as well.  But as you
-said, I do not know if the handle works for all other FWs.  So, I will
-add descriptions, such that the hot-plug event info is modeled after
-ACPI and may need to be revisited when supporting other FW.
+*sniff* so mean, there should be a support group for all this rejection.
 
-Thanks,
--Toshi
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
