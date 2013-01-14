@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 6B1EE6B0072
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:41:53 -0500 (EST)
+Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
+	by kanga.kvack.org (Postfix) with SMTP id 7F6BE6B0072
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:43:08 -0500 (EST)
 From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v2 02/12] ACPI: Add sys_hotplug.h for system device hotplug framework
-Date: Mon, 14 Jan 2013 19:47:36 +0100
-Message-ID: <3236298.SULt2IKQv6@vostro.rjw.lan>
-In-Reply-To: <1358178833.14145.65.camel@misato.fc.hp.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <2024927.lMzqqbDSpI@vostro.rjw.lan> <1358178833.14145.65.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
+Date: Mon, 14 Jan 2013 19:48:58 +0100
+Message-ID: <2154272.qDAyBlTr8z@vostro.rjw.lan>
+In-Reply-To: <1358177628.14145.49.camel@misato.fc.hp.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <5036592.TuXAnGzk4M@vostro.rjw.lan> <1358177628.14145.49.camel@misato.fc.hp.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="utf-8"
@@ -16,85 +16,48 @@ List-ID: <linux-mm.kvack.org>
 To: Toshi Kani <toshi.kani@hp.com>
 Cc: lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Monday, January 14, 2013 08:53:53 AM Toshi Kani wrote:
-> On Fri, 2013-01-11 at 22:25 +0100, Rafael J. Wysocki wrote:
-> > On Thursday, January 10, 2013 04:40:20 PM Toshi Kani wrote:
-> > > Added include/acpi/sys_hotplug.h, which is ACPI-specific system
-> > > device hotplug header and defines the order values of ACPI-specific
+On Monday, January 14, 2013 08:33:48 AM Toshi Kani wrote:
+> On Fri, 2013-01-11 at 22:23 +0100, Rafael J. Wysocki wrote:
+> > On Thursday, January 10, 2013 04:40:19 PM Toshi Kani wrote:
+> > > Added include/linux/sys_hotplug.h, which defines the system device
+> > > hotplug framework interfaces used by the framework itself and
 > > > handlers.
 > > > 
-> > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > > ---
-> > >  include/acpi/sys_hotplug.h |   48 ++++++++++++++++++++++++++++++++++++++++++++
-> > >  1 file changed, 48 insertions(+)
-> > >  create mode 100644 include/acpi/sys_hotplug.h
+> > > The order values define the calling sequence of handlers.  For add
+> > > execute, the ordering is ACPI->MEM->CPU.  Memory is onlined before
+> > > CPU so that threads on new CPUs can start using their local memory.
+> > > The ordering of the delete execute is symmetric to the add execute.
 > > > 
-> > > diff --git a/include/acpi/sys_hotplug.h b/include/acpi/sys_hotplug.h
-> > > new file mode 100644
-> > > index 0000000..ad80f61
-> > > --- /dev/null
-> > > +++ b/include/acpi/sys_hotplug.h
-> > > @@ -0,0 +1,48 @@
-> > > +/*
-> > > + * sys_hotplug.h - ACPI System device hot-plug framework
-> > > + *
-> > > + * Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
-> > > + *	Toshi Kani <toshi.kani@hp.com>
-> > > + *
-> > > + * This program is free software; you can redistribute it and/or modify
-> > > + * it under the terms of the GNU General Public License version 2 as
-> > > + * published by the Free Software Foundation.
-> > > + */
+> > > struct shp_request defines a hot-plug request information.  The
+> > > device resource information is managed with a list so that a single
+> > > request may target to multiple devices.
+> > > 
+>  :
 > > > +
-> > > +#ifndef _ACPI_SYS_HOTPLUG_H
-> > > +#define _ACPI_SYS_HOTPLUG_H
-> > > +
-> > > +#include <linux/list.h>
-> > > +#include <linux/device.h>
-> > > +#include <linux/sys_hotplug.h>
+> > > +struct shp_device {
+> > > +	struct list_head	list;
+> > > +	struct device		*device;
+> > > +	enum shp_class		class;
+> > > +	union shp_dev_info	info;
+> > > +};
 > > > +
 > > > +/*
-> > > + * System device hot-plug operation proceeds in the following order.
-> > > + *   Validate phase -> Execute phase -> Commit phase
-> > > + *
-> > > + * The order values below define the calling sequence of ACPI-specific
-> > > + * handlers for each phase in ascending order.  The order value of
-> > > + * platform-neutral handlers are defined in <linux/sys_hotplug.h>.
+> > > + * Hot-plug request
 > > > + */
+> > > +struct shp_request {
+> > > +	/* common info */
+> > > +	enum shp_operation	operation;	/* operation */
 > > > +
-> > > +/* Add Validate order values */
-> > > +#define SHP_ACPI_BUS_ADD_VALIDATE_ORDER		0	/* must be first */
-> > > +
-> > > +/* Add Execute order values */
-> > > +#define SHP_ACPI_BUS_ADD_EXECUTE_ORDER		10
-> > > +#define SHP_ACPI_RES_ADD_EXECUTE_ORDER		20
-> > > +
-> > > +/* Add Commit order values */
-> > > +#define SHP_ACPI_BUS_ADD_COMMIT_ORDER		10
-> > > +
-> > > +/* Delete Validate order values */
-> > > +#define SHP_ACPI_BUS_DEL_VALIDATE_ORDER		0	/* must be first */
-> > > +#define SHP_ACPI_RES_DEL_VALIDATE_ORDER		10
-> > > +
-> > > +/* Delete Execute order values */
-> > > +#define SHP_ACPI_BUS_DEL_EXECUTE_ORDER		100
-> > > +
-> > > +/* Delete Commit order values */
-> > > +#define SHP_ACPI_BUS_DEL_COMMIT_ORDER		100
-> > > +
-> > > +#endif	/* _ACPI_SYS_HOTPLUG_H */
-> > > --
+> > > +	/* hot-plug event info: only valid for hot-plug operations */
+> > > +	void			*handle;	/* FW handle */
 > > 
-> > Why did you use the particular values above?
+> > What's the role of handle here?
 > 
-> The ordering values above are used to define the relative order among
-> handlers.  For instance, the 100 for SHP_ACPI_BUS_DEL_EXECUTE_ORDER can
-> potentially be 21 since it is still larger than 20 for
-> SHP_MEM_DEL_EXECUTE_ORDER defined in linux/sys_hotplug.h.  I picked 100
-> so that more platform-neutral handlers can be added in between 20 and
-> 100 in future.
+> On ACPI-based platforms, the handle keeps a notified ACPI handle when a
+> hot-plug request is made.  ACPI bus handlers, acpi_add_execute() /
+> acpi_del_execute(), then scans / trims ACPI devices from the handle.
 
-I thought so, but I don't think it's a good idea to add gaps like this.
+OK, so this is ACPI-specific and should be described as such.
 
 Thanks,
 Rafael
