@@ -1,122 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 3EFDC6B0069
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:28:34 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id r4so1742096qaq.12
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 11:28:33 -0800 (PST)
-MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <50F454C2.6000509@kernel.dk>
-References: <CA+icZUW1+BzWCfGkbBiekKO8b6KiyAiyXWAHFmVUey2dHnSTzw@mail.gmail.com>
-	<50F454C2.6000509@kernel.dk>
-Date: Mon, 14 Jan 2013 20:28:33 +0100
-Message-ID: <CA+icZUX_uKSzvdhd4tMtgb+vUxqC=fS7tfSHhs29+xD_XQQjBQ@mail.gmail.com>
-Subject: Re: [next-20130114] Call-trace in LTP (lite) madvise02 test
- (block|mm|vfs related?)
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id 3D6176B0044
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:31:21 -0500 (EST)
+Message-ID: <1358191290.14145.88.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH v2 02/12] ACPI: Add sys_hotplug.h for system device
+ hotplug framework
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 14 Jan 2013 12:21:30 -0700
+In-Reply-To: <4116384.4pypaK248y@vostro.rjw.lan>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+	 <3236298.SULt2IKQv6@vostro.rjw.lan>
+	 <1358188929.14145.69.camel@misato.fc.hp.com>
+	 <4116384.4pypaK248y@vostro.rjw.lan>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-next <linux-next@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Mon, Jan 14, 2013 at 7:56 PM, Jens Axboe <axboe@kernel.dk> wrote:
-> On 2013-01-14 19:33, Sedat Dilek wrote:
->> Hi,
->>
->> while running LTP lite on my next-20130114 kernel I hit this
->> call-trace (file attached).
->>
->> Looks to me like problem in the block layer, but not sure.
->> Might one of the experts have look at it?
->
-> Really? 600kb of data to look through? Can't you just paste the actual
-> error, I can't even find it...
->
+On Mon, 2013-01-14 at 20:07 +0100, Rafael J. Wysocki wrote:
+> On Monday, January 14, 2013 11:42:09 AM Toshi Kani wrote:
+> > On Mon, 2013-01-14 at 19:47 +0100, Rafael J. Wysocki wrote:
+> > > On Monday, January 14, 2013 08:53:53 AM Toshi Kani wrote:
+> > > > On Fri, 2013-01-11 at 22:25 +0100, Rafael J. Wysocki wrote:
+> > > > > On Thursday, January 10, 2013 04:40:20 PM Toshi Kani wrote:
+> > > > > > Added include/acpi/sys_hotplug.h, which is ACPI-specific system
+> > > > > > device hotplug header and defines the order values of ACPI-specific
+> > > > > > handlers.
+> > > > > > 
+> > > > > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > > > > > ---
+> > > > > >  include/acpi/sys_hotplug.h |   48 ++++++++++++++++++++++++++++++++++++++++++++
+> > > > > >  1 file changed, 48 insertions(+)
+> > > > > >  create mode 100644 include/acpi/sys_hotplug.h
+> > > > > > 
+> > > > > > diff --git a/include/acpi/sys_hotplug.h b/include/acpi/sys_hotplug.h
+> > > > > > new file mode 100644
+> > > > > > index 0000000..ad80f61
+> > > > > > --- /dev/null
+> > > > > > +++ b/include/acpi/sys_hotplug.h
+> > > > > > @@ -0,0 +1,48 @@
+> > > > > > +/*
+> > > > > > + * sys_hotplug.h - ACPI System device hot-plug framework
+> > > > > > + *
+> > > > > > + * Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+> > > > > > + *	Toshi Kani <toshi.kani@hp.com>
+> > > > > > + *
+> > > > > > + * This program is free software; you can redistribute it and/or modify
+> > > > > > + * it under the terms of the GNU General Public License version 2 as
+> > > > > > + * published by the Free Software Foundation.
+> > > > > > + */
+> > > > > > +
+> > > > > > +#ifndef _ACPI_SYS_HOTPLUG_H
+> > > > > > +#define _ACPI_SYS_HOTPLUG_H
+> > > > > > +
+> > > > > > +#include <linux/list.h>
+> > > > > > +#include <linux/device.h>
+> > > > > > +#include <linux/sys_hotplug.h>
+> > > > > > +
+> > > > > > +/*
+> > > > > > + * System device hot-plug operation proceeds in the following order.
+> > > > > > + *   Validate phase -> Execute phase -> Commit phase
+> > > > > > + *
+> > > > > > + * The order values below define the calling sequence of ACPI-specific
+> > > > > > + * handlers for each phase in ascending order.  The order value of
+> > > > > > + * platform-neutral handlers are defined in <linux/sys_hotplug.h>.
+> > > > > > + */
+> > > > > > +
+> > > > > > +/* Add Validate order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_VALIDATE_ORDER		0	/* must be first */
+> > > > > > +
+> > > > > > +/* Add Execute order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_EXECUTE_ORDER		10
+> > > > > > +#define SHP_ACPI_RES_ADD_EXECUTE_ORDER		20
+> > > > > > +
+> > > > > > +/* Add Commit order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_COMMIT_ORDER		10
+> > > > > > +
+> > > > > > +/* Delete Validate order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_VALIDATE_ORDER		0	/* must be first */
+> > > > > > +#define SHP_ACPI_RES_DEL_VALIDATE_ORDER		10
+> > > > > > +
+> > > > > > +/* Delete Execute order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_EXECUTE_ORDER		100
+> > > > > > +
+> > > > > > +/* Delete Commit order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_COMMIT_ORDER		100
+> > > > > > +
+> > > > > > +#endif	/* _ACPI_SYS_HOTPLUG_H */
+> > > > > > --
+> > > > > 
+> > > > > Why did you use the particular values above?
+> > > > 
+> > > > The ordering values above are used to define the relative order among
+> > > > handlers.  For instance, the 100 for SHP_ACPI_BUS_DEL_EXECUTE_ORDER can
+> > > > potentially be 21 since it is still larger than 20 for
+> > > > SHP_MEM_DEL_EXECUTE_ORDER defined in linux/sys_hotplug.h.  I picked 100
+> > > > so that more platform-neutral handlers can be added in between 20 and
+> > > > 100 in future.
+> > > 
+> > > I thought so, but I don't think it's a good idea to add gaps like this.
+> > 
+> > OK, I will use an equal gap of 10 for all values.  So, the 100 in the
+> > above example will be changed to 30.  
+> 
+> I wonder why you want to have those gaps at all.
 
-$ cat call-trace_ltplite_madvise02_next-20130114.txt
-Jan 14 17:47:14 fambox kernel: [ 1263.965957] ------------[ cut here
-]------------
-Jan 14 17:47:14 fambox kernel: [ 1263.965989] Kernel BUG at
-ffffffff81328b2b [verbose debug info unavailable]
-Jan 14 17:47:14 fambox kernel: [ 1263.966022] invalid opcode: 0000 [#1] SMP
-Jan 14 17:47:14 fambox kernel: [ 1263.966046] Modules linked in:
-snd_hda_codec_hdmi snd_hda_codec_realtek joydev coretemp kvm_intel kvm
-snd_hda_intel snd_hda_codec arc4 iwldvm snd_hwdep snd_pcm
-ghash_clmulni_intel mac80211 aesni_intel i915 snd_page_alloc xts
-snd_seq_midi aes_x86_64 snd_seq_midi_event uvcvideo lrw gf128mul
-iwlwifi snd_rawmidi ablk_helper snd_seq i2c_algo_bit cryptd
-drm_kms_helper snd_timer videobuf2_vmalloc drm snd_seq_device
-videobuf2_memops psmouse parport_pc snd cfg80211 btusb rfcomm
-videobuf2_core bnep microcode ppdev soundcore videodev samsung_laptop
-wmi lp bluetooth serio_raw mei mac_hid hid_generic video lpc_ich
-parport usbhid hid r8169
-Jan 14 17:47:14 fambox kernel: [ 1263.966377] CPU 3
-Jan 14 17:47:14 fambox kernel: [ 1263.966388] Pid: 7803, comm:
-madvise02 Not tainted 3.8.0-rc3-next20130114-5-iniza-generic #1
-SAMSUNG ELECTRONICS CO., LTD.
-530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH
-Jan 14 17:47:14 fambox kernel: [ 1263.966450] RIP:
-0010:[<ffffffff81328b2b>]  [<ffffffff81328b2b>]
-blk_flush_plug_list+0x1eb/0x210
-Jan 14 17:47:14 fambox kernel: [ 1263.966508] RSP:
-0018:ffff88000d933e58  EFLAGS: 00010287
-Jan 14 17:47:14 fambox kernel: [ 1263.966532] RAX: 0000000091827364
-RBX: ffff88000d933e68 RCX: 0000000000000000
-Jan 14 17:47:14 fambox kernel: [ 1263.966566] RDX: 0000000000000000
-RSI: 0000000000000000 RDI: ffff88000d933f10
-Jan 14 17:47:14 fambox kernel: [ 1263.966614] RBP: ffff88000d933eb8
-R08: 0000000000000003 R09: 0000000000000000
-Jan 14 17:47:14 fambox kernel: [ 1263.966656] R10: 00007fff3d62c9b0
-R11: 0000000000000206 R12: 0000000000000000
-Jan 14 17:47:14 fambox kernel: [ 1263.966696] R13: 0000000000001000
-R14: ffff88000d933f10 R15: ffff88000d933f10
-Jan 14 17:47:14 fambox kernel: [ 1263.966736] FS:
-00007f56bcbc2700(0000) GS:ffff88011fac0000(0000)
-knlGS:0000000000000000
-Jan 14 17:47:14 fambox kernel: [ 1263.966780] CS:  0010 DS: 0000 ES:
-0000 CR0: 0000000080050033
-Jan 14 17:47:14 fambox kernel: [ 1263.966813] CR2: 00007f56bc6ec060
-CR3: 000000000bf66000 CR4: 00000000000407e0
-Jan 14 17:47:14 fambox kernel: [ 1263.966848] DR0: 0000000000000000
-DR1: 0000000000000000 DR2: 0000000000000000
-Jan 14 17:47:14 fambox kernel: [ 1263.966885] DR3: 0000000000000000
-DR6: 00000000ffff0ff0 DR7: 0000000000000400
-Jan 14 17:47:14 fambox kernel: [ 1263.966921] Process madvise02 (pid:
-7803, threadinfo ffff88000d932000, task ffff88000d9f2e40)
-Jan 14 17:47:14 fambox kernel: [ 1263.966963] Stack:
-Jan 14 17:47:14 fambox kernel: [ 1263.966978]  0000000000000001
-0000000000000001 ffff88000d933e68 ffff88000d933e68
-Jan 14 17:47:14 fambox kernel: [ 1263.967024]  ffff88000d933ef8
-ffffffff8114b77c ffff88000d933ec0 ffff88000d933f10
-Jan 14 17:47:14 fambox kernel: [ 1263.967071]  0000000000000000
-0000000000001000 0000000000010000 ffff88000d933f10
-Jan 14 17:47:14 fambox kernel: [ 1263.967118] Call Trace:
-Jan 14 17:47:14 fambox kernel: [ 1263.967137]  [<ffffffff8114b77c>] ?
-vm_mmap_pgoff+0xbc/0xe0
-Jan 14 17:47:14 fambox kernel: [ 1263.967173]  [<ffffffff81328b68>]
-blk_finish_plug+0x18/0x50
-Jan 14 17:47:14 fambox kernel: [ 1263.967209]  [<ffffffff811544d8>]
-sys_madvise+0xc8/0x3a0
-Jan 14 17:47:14 fambox kernel: [ 1263.967247]  [<ffffffff816ba0e9>] ?
-do_page_fault+0x39/0x50
-Jan 14 17:47:14 fambox kernel: [ 1263.967288]  [<ffffffff816be79d>]
-system_call_fastpath+0x1a/0x1f
-Jan 14 17:47:14 fambox kernel: [ 1263.967331] Code: 4d 85 ff 74 0d 44
-89 e2 89 c6 4c 89 ff e8 be b5 ff ff 4c 89 ef 57 9d 66 66 90 66 90 48
-83 c4 38 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> 0b 31 d2 be ed ff ff ff
-4c 89 f7 89 45 a8 e8 91 f9 ff ff 8b
-Jan 14 17:47:14 fambox kernel: [ 1263.967589] RIP
-[<ffffffff81328b2b>] blk_flush_plug_list+0x1eb/0x210
-Jan 14 17:47:14 fambox kernel: [ 1263.967630]  RSP <ffff88000d933e58>
-Jan 14 17:47:14 fambox kernel: [ 1263.989553] ---[ end trace
-19e1575014ab42a7 ]---
+Oh, I see.  I think some gap is helpful since it allows a new handler to
+come between without recompiling other modules.  For instance, OEM
+vendors may want to add their own handlers with loadable modules after
+the kernel is distributed.
 
-- Sedat -
+> Anyway, this is just a small detail and it doesn't mean I don't have more
+> comments.  I just need some more time to get the big picture idea of how this
+> is supposed to work and perhaps Greg will have some remarks too.
 
-> --
-> Jens Axboe
->
+Yes, I am well-aware of that. :-)  Please let me know if you have any
+questions.  I'd be happy to explain any details.
+
+Thanks a lot for reviewing!
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
