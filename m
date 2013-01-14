@@ -1,59 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 4B0CA6B0044
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:20:37 -0500 (EST)
-Date: Mon, 14 Jan 2013 19:20:35 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: Unique commit-id for "mm: compaction: [P,p]artially revert
- capture of suitable high-order page"
-Message-ID: <20130114192035.GS13304@suse.de>
-References: <CA+icZUW5kryOCpX96CkaS=5uX61FmiYE0mh7y6F0eT9Bh8eUGw@mail.gmail.com>
- <20130114103612.GO13304@suse.de>
- <CA+icZUUReY7LPjnF1xTjD-aJSYYqgo9tF9K8T8--r_HjRwgCHA@mail.gmail.com>
- <20130114130911.GQ13304@suse.de>
- <20130114170134.GA26655@kroah.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 6B0AB6B0044
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:21:41 -0500 (EST)
+Date: Mon, 14 Jan 2013 11:21:34 -0800
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [RFC PATCH v2 02/12] ACPI: Add sys_hotplug.h for system device
+ hotplug framework
+Message-ID: <20130114192134.GA24215@kroah.com>
+References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
+ <3236298.SULt2IKQv6@vostro.rjw.lan>
+ <1358188929.14145.69.camel@misato.fc.hp.com>
+ <4116384.4pypaK248y@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130114170134.GA26655@kroah.com>
+In-Reply-To: <4116384.4pypaK248y@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: Sedat Dilek <sedat.dilek@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: "Rafael J. Wysocki" <rjw@sisk.pl>
+Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
 
-On Mon, Jan 14, 2013 at 09:01:34AM -0800, Greg KH wrote:
-> On Mon, Jan 14, 2013 at 01:09:11PM +0000, Mel Gorman wrote:
-> > On Mon, Jan 14, 2013 at 12:27:20PM +0100, Sedat Dilek wrote:
-> > > On Mon, Jan 14, 2013 at 11:36 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > > > On Sun, Jan 13, 2013 at 05:12:45PM +0100, Sedat Dilek wrote:
-> > > >> Hi Linus,
-> > > >>
-> > > >> I see two different commit-id for an identical patch (only subject
-> > > >> line differs).
-> > > >> [1] seems to be applied directly and [2] came with a merge of akpm-fixes.
-> > > >> What is in case of backports for -stable kernels?
-> > > >
-> > > > I do not expect it to matter. I was going to use
-> > > > 8fb74b9fb2b182d54beee592350d9ea1f325917a as the commit ID whenever I got
-> > > > the complaint mail from Greg's tools about a 3.7 merge failure. The 3.7.2
-> > > > backport looks like this.
-> > > >
+On Mon, Jan 14, 2013 at 08:07:35PM +0100, Rafael J. Wysocki wrote:
+> On Monday, January 14, 2013 11:42:09 AM Toshi Kani wrote:
+> > On Mon, 2013-01-14 at 19:47 +0100, Rafael J. Wysocki wrote:
+> > > On Monday, January 14, 2013 08:53:53 AM Toshi Kani wrote:
+> > > > On Fri, 2013-01-11 at 22:25 +0100, Rafael J. Wysocki wrote:
+> > > > > On Thursday, January 10, 2013 04:40:20 PM Toshi Kani wrote:
+> > > > > > Added include/acpi/sys_hotplug.h, which is ACPI-specific system
+> > > > > > device hotplug header and defines the order values of ACPI-specific
+> > > > > > handlers.
+> > > > > > 
+> > > > > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> > > > > > ---
+> > > > > >  include/acpi/sys_hotplug.h |   48 ++++++++++++++++++++++++++++++++++++++++++++
+> > > > > >  1 file changed, 48 insertions(+)
+> > > > > >  create mode 100644 include/acpi/sys_hotplug.h
+> > > > > > 
+> > > > > > diff --git a/include/acpi/sys_hotplug.h b/include/acpi/sys_hotplug.h
+> > > > > > new file mode 100644
+> > > > > > index 0000000..ad80f61
+> > > > > > --- /dev/null
+> > > > > > +++ b/include/acpi/sys_hotplug.h
+> > > > > > @@ -0,0 +1,48 @@
+> > > > > > +/*
+> > > > > > + * sys_hotplug.h - ACPI System device hot-plug framework
+> > > > > > + *
+> > > > > > + * Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+> > > > > > + *	Toshi Kani <toshi.kani@hp.com>
+> > > > > > + *
+> > > > > > + * This program is free software; you can redistribute it and/or modify
+> > > > > > + * it under the terms of the GNU General Public License version 2 as
+> > > > > > + * published by the Free Software Foundation.
+> > > > > > + */
+> > > > > > +
+> > > > > > +#ifndef _ACPI_SYS_HOTPLUG_H
+> > > > > > +#define _ACPI_SYS_HOTPLUG_H
+> > > > > > +
+> > > > > > +#include <linux/list.h>
+> > > > > > +#include <linux/device.h>
+> > > > > > +#include <linux/sys_hotplug.h>
+> > > > > > +
+> > > > > > +/*
+> > > > > > + * System device hot-plug operation proceeds in the following order.
+> > > > > > + *   Validate phase -> Execute phase -> Commit phase
+> > > > > > + *
+> > > > > > + * The order values below define the calling sequence of ACPI-specific
+> > > > > > + * handlers for each phase in ascending order.  The order value of
+> > > > > > + * platform-neutral handlers are defined in <linux/sys_hotplug.h>.
+> > > > > > + */
+> > > > > > +
+> > > > > > +/* Add Validate order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_VALIDATE_ORDER		0	/* must be first */
+> > > > > > +
+> > > > > > +/* Add Execute order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_EXECUTE_ORDER		10
+> > > > > > +#define SHP_ACPI_RES_ADD_EXECUTE_ORDER		20
+> > > > > > +
+> > > > > > +/* Add Commit order values */
+> > > > > > +#define SHP_ACPI_BUS_ADD_COMMIT_ORDER		10
+> > > > > > +
+> > > > > > +/* Delete Validate order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_VALIDATE_ORDER		0	/* must be first */
+> > > > > > +#define SHP_ACPI_RES_DEL_VALIDATE_ORDER		10
+> > > > > > +
+> > > > > > +/* Delete Execute order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_EXECUTE_ORDER		100
+> > > > > > +
+> > > > > > +/* Delete Commit order values */
+> > > > > > +#define SHP_ACPI_BUS_DEL_COMMIT_ORDER		100
+> > > > > > +
+> > > > > > +#endif	/* _ACPI_SYS_HOTPLUG_H */
+> > > > > > --
+> > > > > 
+> > > > > Why did you use the particular values above?
+> > > > 
+> > > > The ordering values above are used to define the relative order among
+> > > > handlers.  For instance, the 100 for SHP_ACPI_BUS_DEL_EXECUTE_ORDER can
+> > > > potentially be 21 since it is still larger than 20 for
+> > > > SHP_MEM_DEL_EXECUTE_ORDER defined in linux/sys_hotplug.h.  I picked 100
+> > > > so that more platform-neutral handlers can be added in between 20 and
+> > > > 100 in future.
 > > > 
-> > > Oh cool and thanks!
-> > > Are you planning to resend this backport-patch to the lists w/ a "3.7"
-> > > (or for-3.7) in the commit-subject?
-> > > 
+> > > I thought so, but I don't think it's a good idea to add gaps like this.
 > > 
-> > Yes, when I get the reject mail from Greg's tools.
+> > OK, I will use an equal gap of 10 for all values.  So, the 100 in the
+> > above example will be changed to 30.  
 > 
-> You should have that rejection email now :)
+> I wonder why you want to have those gaps at all.
 > 
+> Anyway, this is just a small detail and it doesn't mean I don't have more
+> comments.  I just need some more time to get the big picture idea of how this
+> is supposed to work and perhaps Greg will have some remarks too.
 
-*sniff* so mean, there should be a support group for all this rejection.
+Yes, give me a few days to catch up on other patches before I get the
+chance to review these.
 
--- 
-Mel Gorman
-SUSE Labs
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
