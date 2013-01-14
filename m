@@ -1,119 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6B0AB6B0044
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:21:41 -0500 (EST)
-Date: Mon, 14 Jan 2013 11:21:34 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC PATCH v2 02/12] ACPI: Add sys_hotplug.h for system device
- hotplug framework
-Message-ID: <20130114192134.GA24215@kroah.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com>
- <3236298.SULt2IKQv6@vostro.rjw.lan>
- <1358188929.14145.69.camel@misato.fc.hp.com>
- <4116384.4pypaK248y@vostro.rjw.lan>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id A8CD56B0044
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:23:41 -0500 (EST)
+Date: Mon, 14 Jan 2013 11:23:36 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] slub: assign refcount for kmalloc_caches
+Message-ID: <20130114192336.GA13038@kroah.com>
+References: <CAAvDA15U=KCOujRYA5k3YkvC9Z=E6fcG5hopPUJNgULYj_MAJw@mail.gmail.com>
+ <1356449082-3016-1-git-send-email-js1304@gmail.com>
+ <CAAmzW4Nz6if==JjxLQGYwwQwKPDXfUbeioyPHWZQQFNu=xXUeQ@mail.gmail.com>
+ <CAAvDA17eH0A_pr9siX7PTipe=Jd7WFZxR7mkUi6K0_djkH=FPA@mail.gmail.com>
+ <20130111075253.GB2346@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4116384.4pypaK248y@vostro.rjw.lan>
+In-Reply-To: <20130111075253.GB2346@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@sisk.pl>
-Cc: Toshi Kani <toshi.kani@hp.com>, lenb@kernel.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Paul Hargrove <phhargrove@lbl.gov>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>
 
-On Mon, Jan 14, 2013 at 08:07:35PM +0100, Rafael J. Wysocki wrote:
-> On Monday, January 14, 2013 11:42:09 AM Toshi Kani wrote:
-> > On Mon, 2013-01-14 at 19:47 +0100, Rafael J. Wysocki wrote:
-> > > On Monday, January 14, 2013 08:53:53 AM Toshi Kani wrote:
-> > > > On Fri, 2013-01-11 at 22:25 +0100, Rafael J. Wysocki wrote:
-> > > > > On Thursday, January 10, 2013 04:40:20 PM Toshi Kani wrote:
-> > > > > > Added include/acpi/sys_hotplug.h, which is ACPI-specific system
-> > > > > > device hotplug header and defines the order values of ACPI-specific
-> > > > > > handlers.
-> > > > > > 
-> > > > > > Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> > > > > > ---
-> > > > > >  include/acpi/sys_hotplug.h |   48 ++++++++++++++++++++++++++++++++++++++++++++
-> > > > > >  1 file changed, 48 insertions(+)
-> > > > > >  create mode 100644 include/acpi/sys_hotplug.h
-> > > > > > 
-> > > > > > diff --git a/include/acpi/sys_hotplug.h b/include/acpi/sys_hotplug.h
-> > > > > > new file mode 100644
-> > > > > > index 0000000..ad80f61
-> > > > > > --- /dev/null
-> > > > > > +++ b/include/acpi/sys_hotplug.h
-> > > > > > @@ -0,0 +1,48 @@
-> > > > > > +/*
-> > > > > > + * sys_hotplug.h - ACPI System device hot-plug framework
-> > > > > > + *
-> > > > > > + * Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
-> > > > > > + *	Toshi Kani <toshi.kani@hp.com>
-> > > > > > + *
-> > > > > > + * This program is free software; you can redistribute it and/or modify
-> > > > > > + * it under the terms of the GNU General Public License version 2 as
-> > > > > > + * published by the Free Software Foundation.
-> > > > > > + */
-> > > > > > +
-> > > > > > +#ifndef _ACPI_SYS_HOTPLUG_H
-> > > > > > +#define _ACPI_SYS_HOTPLUG_H
-> > > > > > +
-> > > > > > +#include <linux/list.h>
-> > > > > > +#include <linux/device.h>
-> > > > > > +#include <linux/sys_hotplug.h>
-> > > > > > +
-> > > > > > +/*
-> > > > > > + * System device hot-plug operation proceeds in the following order.
-> > > > > > + *   Validate phase -> Execute phase -> Commit phase
-> > > > > > + *
-> > > > > > + * The order values below define the calling sequence of ACPI-specific
-> > > > > > + * handlers for each phase in ascending order.  The order value of
-> > > > > > + * platform-neutral handlers are defined in <linux/sys_hotplug.h>.
-> > > > > > + */
-> > > > > > +
-> > > > > > +/* Add Validate order values */
-> > > > > > +#define SHP_ACPI_BUS_ADD_VALIDATE_ORDER		0	/* must be first */
-> > > > > > +
-> > > > > > +/* Add Execute order values */
-> > > > > > +#define SHP_ACPI_BUS_ADD_EXECUTE_ORDER		10
-> > > > > > +#define SHP_ACPI_RES_ADD_EXECUTE_ORDER		20
-> > > > > > +
-> > > > > > +/* Add Commit order values */
-> > > > > > +#define SHP_ACPI_BUS_ADD_COMMIT_ORDER		10
-> > > > > > +
-> > > > > > +/* Delete Validate order values */
-> > > > > > +#define SHP_ACPI_BUS_DEL_VALIDATE_ORDER		0	/* must be first */
-> > > > > > +#define SHP_ACPI_RES_DEL_VALIDATE_ORDER		10
-> > > > > > +
-> > > > > > +/* Delete Execute order values */
-> > > > > > +#define SHP_ACPI_BUS_DEL_EXECUTE_ORDER		100
-> > > > > > +
-> > > > > > +/* Delete Commit order values */
-> > > > > > +#define SHP_ACPI_BUS_DEL_COMMIT_ORDER		100
-> > > > > > +
-> > > > > > +#endif	/* _ACPI_SYS_HOTPLUG_H */
-> > > > > > --
-> > > > > 
-> > > > > Why did you use the particular values above?
-> > > > 
-> > > > The ordering values above are used to define the relative order among
-> > > > handlers.  For instance, the 100 for SHP_ACPI_BUS_DEL_EXECUTE_ORDER can
-> > > > potentially be 21 since it is still larger than 20 for
-> > > > SHP_MEM_DEL_EXECUTE_ORDER defined in linux/sys_hotplug.h.  I picked 100
-> > > > so that more platform-neutral handlers can be added in between 20 and
-> > > > 100 in future.
-> > > 
-> > > I thought so, but I don't think it's a good idea to add gaps like this.
+On Fri, Jan 11, 2013 at 04:52:54PM +0900, Joonsoo Kim wrote:
+> On Thu, Jan 10, 2013 at 08:47:39PM -0800, Paul Hargrove wrote:
+> > I just had a look at patch-3.7.2-rc1, and this change doesn't appear to
+> > have made it in yet.
+> > Am I missing something?
 > > 
-> > OK, I will use an equal gap of 10 for all values.  So, the 100 in the
-> > above example will be changed to 30.  
+> > -Paul
 > 
-> I wonder why you want to have those gaps at all.
+> I try to check it.
+> Ccing to Greg.
 > 
-> Anyway, this is just a small detail and it doesn't mean I don't have more
-> comments.  I just need some more time to get the big picture idea of how this
-> is supposed to work and perhaps Greg will have some remarks too.
+> Hello, Pekka and Greg.
+> 
+> v3.8-rcX has already fixed by another stuff, but it is not simple change.
+> So I made a new patch and sent it.
+> 
+> How this kind of patch (only for stable v3.7) go into stable tree?
+> through Pekka's slab tree? or send it to Greg, directly?
+> 
+> I don't know how to submit this kind of patch to stable tree exactly.
+> Could anyone help me?
 
-Yes, give me a few days to catch up on other patches before I get the
-chance to review these.
+Please redo it, and send it to stable@vger.kernel.org, and say exactly
+why it isn't in Linus's tree, and that it should only be applied to
+3.7-stable.
+
+thanks,
 
 greg k-h
 
