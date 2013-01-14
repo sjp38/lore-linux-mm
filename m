@@ -1,59 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
-	by kanga.kvack.org (Postfix) with SMTP id 7095D6B0068
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 16:29:04 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id r4so1855634qaq.1
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:29:03 -0800 (PST)
+Received: from psmtp.com (na3sys010amx188.postini.com [74.125.245.188])
+	by kanga.kvack.org (Postfix) with SMTP id 861F36B0068
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:03:42 -0500 (EST)
+Received: by mail-da0-f45.google.com with SMTP id w4so2009621dam.32
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 14:03:41 -0800 (PST)
+Message-ID: <50F480BB.6070105@gmail.com>
+Date: Mon, 14 Jan 2013 14:03:39 -0800
+From: David Daney <ddaney.cavm@gmail.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-Date: Mon, 14 Jan 2013 22:29:03 +0100
-Message-ID: <CA+icZUXyTvW0P4Adbr2x+RP3X-b3Qj8E53uxWrnDe964MgZepg@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix BUG on madvise early failure
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: 3.8-rc1 build failure with MIPS/SPARSEMEM
+References: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi> <20121226003434.GA27760@otc-wbsnb-06> <20121227121607.GA7097@blackmetal.musicnaut.iki.fi> <20121230103850.GA5424@otc-wbsnb-06> <20130114151641.GA17996@otc-wbsnb-06>
+In-Reply-To: <20130114151641.GA17996@otc-wbsnb-06>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Shaohua Li <shli@fusionio.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, Aaro Koskinen <aaro.koskinen@iki.fi>
 
-Hi,
+On 01/14/2013 07:16 AM, Kirill A. Shutemov wrote:
+> On Sun, Dec 30, 2012 at 12:38:50PM +0200, Kirill A. Shutemov wrote:
+>> On Thu, Dec 27, 2012 at 02:16:07PM +0200, Aaro Koskinen wrote:
+>>> Hi,
+>>>
+>>> On Wed, Dec 26, 2012 at 02:34:35AM +0200, Kirill A. Shutemov wrote:
+>>>> On MIPS if SPARSEMEM is enabled we've got this:
+>>>>
+>>>> In file included from /home/kas/git/public/linux/arch/mips/include/asm/pgtable.h:552,
+>>>>                   from include/linux/mm.h:44,
+>>>>                   from arch/mips/kernel/asm-offsets.c:14:
+>>>> include/asm-generic/pgtable.h: In function a??my_zero_pfna??:
+>>>> include/asm-generic/pgtable.h:466: error: implicit declaration of function a??page_to_sectiona??
+>>>> In file included from arch/mips/kernel/asm-offsets.c:14:
+>>>> include/linux/mm.h: At top level:
+>>>> include/linux/mm.h:738: error: conflicting types for a??page_to_sectiona??
+>>>> include/asm-generic/pgtable.h:466: note: previous implicit declaration of a??page_to_sectiona?? was here
+>>>>
+>>>> Due header files inter-dependencies, the only way I see to fix it is
+>>>> convert my_zero_pfn() for __HAVE_COLOR_ZERO_PAGE to macros.
+>>>>
+>>>> Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+>>>
+>>> Thanks, this works.
+>>>
+>>> Tested-by: Aaro Koskinen <aaro.koskinen@iki.fi>
+>>
+>> Andrew, could you take the patch?
 
-this patch is for Linux-Next - more exactly next-20130114.
-Can you please enhance the subject-line of your patch next time.
+I found the same problem and arrived at an equivalent solution.
 
-Your patch fixes the issue I have reported a few hours ago in [1].
+Acked-by: David Daney <david.daney@cavium.com>
 
-[ TESTCASE ]
-
-"madvise02" from Linux Test Project (LTP) see [2]
-
-$ cd /opt/ltp/testcases/bin/
-
-$ sudo ./madvise02
-[ OUTPUT ]
-madvise02    1  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
-Invalid argument
-madvise02    2  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
-Invalid argument
-madvise02    3  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
-Invalid argument
-madvise02    4  TPASS  :  failed as expected: TEST_ERRNO=ENOMEM(12):
-Cannot allocate memory
-madvise02    5  TFAIL  :  madvise succeeded unexpectedly
-
-[ /TESTCASE ]
-
-Please feel free and add a...
-
-     Tested-by: Sedat Dilek <sedat.dilek@gmail.com>
-
-Thanks!
-
-Regards,
-- Sedat -
-
-[1] http://marc.info/?l=linux-mm&m=135818843710244&w=2
-[2] http://sourceforge.net/projects/ltp/
+>
+> ping?
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
