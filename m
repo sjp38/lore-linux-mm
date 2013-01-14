@@ -1,98 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
-	by kanga.kvack.org (Postfix) with SMTP id E5F806B006E
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 09:37:38 -0500 (EST)
-Date: Mon, 14 Jan 2013 15:37:30 +0100
+Received: from psmtp.com (na3sys010amx200.postini.com [74.125.245.200])
+	by kanga.kvack.org (Postfix) with SMTP id 19D3F6B006E
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 09:43:59 -0500 (EST)
+Date: Mon, 14 Jan 2013 15:43:52 +0100
 From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 MIME-Version: 1.0
-References: <50EDE41C.7090107@iskon.hr>  <1357867501.6568.19.camel@kernel.cn.ibm.com> <50EFF6BC.4060200@iskon.hr> <1358038004.1466.4.camel@kernel.cn.ibm.com>
-In-Reply-To: <1358038004.1466.4.camel@kernel.cn.ibm.com>
-Message-ID: <50F4182A.80006@iskon.hr>
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <50F419A8.8000307@iskon.hr>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] mm: wait for congestion to clear on all zones
+Subject: [PATCH] mm: don't wait on congested zones in balance_pgdat()
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Simon Jeons <simon.jeons@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan.kim@gmail.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 13.01.2013 01:46, Simon Jeons wrote:
-> On Fri, 2013-01-11 at 12:25 +0100, Zlatko Calusic wrote:
->> On 11.01.2013 02:25, Simon Jeons wrote:
->>> On Wed, 2013-01-09 at 22:41 +0100, Zlatko Calusic wrote:
->>>> From: Zlatko Calusic <zlatko.calusic@iskon.hr>
->>>>
->>>> Currently we take a short nap (HZ/10) and wait for congestion to clear
->>>> before taking another pass with lower priority in balance_pgdat(). But
->>>> we do that only for the highest zone that we encounter is unbalanced
->>>> and congested.
->>>>
->>>> This patch changes that to wait on all congested zones in a single
->>>> pass in the hope that it will save us some scanning that way. Also we
->>>> take a nap as soon as congested zone is encountered and sc.priority <
->>>> DEF_PRIORITY - 2 (aka kswapd in trouble).
->>>
->>> But you still didn't explain what's the problem you meat and what
->>> scenario can get benefit from your change.
->>>
->>
->> I did in my reply to Andrew. Here's the relevant part:
->>
->>> I have an observation that without it, under some circumstances that
->>> are VERY HARD to repeat (many days need to pass and some stars to align
->>> to see the effect), the page cache gets hit hard, 2/3 of it evicted in
->>> a split second. And it's not even under high load! So, I'm still
->>> monitoring it, but so far the memory utilization really seems better
->>> with the patch applied (no more mysterious page cache shootdowns).
->>
->> The scenario that should get benefit is everyday. I observed problems during
->> light but constant reading from disk (< 10MB/s). And sending that data
->> over the network at the same time. Think backup that compresses data on the
->> fly before pushing it over the network (so it's not very fast).
->>
->> The trouble is that you can't just fix up a quick benchmark and measure the
->> impact, because many days need to pass for the bug to show up in all it's beauty.
->>
->> Is there anybody out there who'd like to comment on the patch logic? I.e. do
->> you think that waiting on every congested zone is the more correct solution
->> than waiting on only one (only the highest one, and ignoring the fact that
->> there may be other even more congested zones)?
-> 
-> What's the benefit of waiting on every congested zone than waiting on
-> only one against your scenario?
-> 
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
 
-The good:
+Commit 92df3a72 (mm: vmscan: throttle reclaim if encountering too many
+dirty pages under writeback) introduced waiting on congested zones
+based on a sane algorithm in shrink_inactive_list(). What this means
+is that there's no more need for throttling and additional heuristics
+in balance_pgdat(). So, let's remove it and tidy up the code.
 
-Actually, we are _already_ waiting on every congested zone. And have
-been for more than a year. So, all this discussion is... moot.
+Signed-off-by: Zlatko Calusic <zlatko.calusic@iskon.hr>
+---
+ include/linux/vm_event_item.h |  1 -
+ mm/vmscan.c                   | 29 +----------------------------
+ mm/vmstat.c                   |  1 -
+ 3 files changed, 1 insertion(+), 30 deletions(-)
 
-Andrew, ignore this patch, I'll send you a much better one in a minute.
-There shouldn't be nearly so many questions about that one. ;)
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index e84a25e..d4b7a18 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -36,7 +36,6 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ #endif
+ 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
+ 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
+-		KSWAPD_SKIP_CONGESTION_WAIT,
+ 		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
+ #ifdef CONFIG_NUMA_BALANCING
+ 		NUMA_PTE_UPDATES,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 32fbfdb..fea5a0b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2619,7 +2619,6 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 							int *classzone_idx)
+ {
+ 	bool pgdat_is_balanced = false;
+-	struct zone *unbalanced_zone;
+ 	int i;
+ 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
+ 	unsigned long total_scanned;
+@@ -2650,9 +2649,6 @@ loop_again:
+ 
+ 	do {
+ 		unsigned long lru_pages = 0;
+-		int has_under_min_watermark_zone = 0;
+-
+-		unbalanced_zone = NULL;
+ 
+ 		/*
+ 		 * Scan in the highmem->dma direction for the highest
+@@ -2792,17 +2788,7 @@ loop_again:
+ 				continue;
+ 			}
+ 
+-			if (!zone_balanced(zone, testorder, 0, end_zone)) {
+-				unbalanced_zone = zone;
+-				/*
+-				 * We are still under min water mark.  This
+-				 * means that we have a GFP_ATOMIC allocation
+-				 * failure risk. Hurry up!
+-				 */
+-				if (!zone_watermark_ok_safe(zone, order,
+-					    min_wmark_pages(zone), end_zone, 0))
+-					has_under_min_watermark_zone = 1;
+-			} else {
++			if (zone_balanced(zone, testorder, 0, end_zone))
+ 				/*
+ 				 * If a zone reaches its high watermark,
+ 				 * consider it to be no longer congested. It's
+@@ -2811,8 +2797,6 @@ loop_again:
+ 				 * speculatively avoid congestion waits
+ 				 */
+ 				zone_clear_flag(zone, ZONE_CONGESTED);
+-			}
+-
+ 		}
+ 
+ 		/*
+@@ -2830,17 +2814,6 @@ loop_again:
+ 		}
+ 
+ 		/*
+-		 * OK, kswapd is getting into trouble.  Take a nap, then take
+-		 * another pass across the zones.
+-		 */
+-		if (total_scanned && (sc.priority < DEF_PRIORITY - 2)) {
+-			if (has_under_min_watermark_zone)
+-				count_vm_event(KSWAPD_SKIP_CONGESTION_WAIT);
+-			else if (unbalanced_zone)
+-				wait_iff_congested(unbalanced_zone, BLK_RW_ASYNC, HZ/10);
+-		}
+-
+-		/*
+ 		 * We do this so kswapd doesn't build up large priorities for
+ 		 * example when it is freeing in parallel with allocators. It
+ 		 * matches the direct reclaim path behaviour in terms of impact
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 58e3da5..bb492b5 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -769,7 +769,6 @@ const char * const vmstat_text[] = {
+ 	"kswapd_inodesteal",
+ 	"kswapd_low_wmark_hit_quickly",
+ 	"kswapd_high_wmark_hit_quickly",
+-	"kswapd_skip_congestion_wait",
+ 	"pageoutrun",
+ 	"allocstall",
+ 
+-- 
+1.8.1
 
-The bad:
-
-Obviously then, this patch didn't fix my issue. It just took a little
-bit longer for it to appear again.
-
-The ugly:
-
-Here's what I observe on one of my machines:
-
-Node 0, zone      DMA
-    nr_vmscan_write 0
-    nr_vmscan_immediate_reclaim 0
-Node 0, zone    DMA32
-    nr_vmscan_write 23164
-    nr_vmscan_immediate_reclaim 582038
-Node 0, zone   Normal
-    nr_vmscan_write 16584344  <-- ugh!
-    nr_vmscan_immediate_reclaim 1118415
-
-But that's just a sneak peek, I'll open a proper thread to discuss this
-when I collect a little bit more data. BTW, that Normal zone with
-extraordinary amount of writebacks under memory pressure is 4 times
-smaller than DMA32 zone, that's why I consider it ugly. :P
 -- 
 Zlatko
 
