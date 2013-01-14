@@ -1,79 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx173.postini.com [74.125.245.173])
-	by kanga.kvack.org (Postfix) with SMTP id A334C6B006E
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:19 -0500 (EST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 14 Jan 2013 10:02:14 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 5A41B38C801C
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:13 -0500 (EST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0EF2Adi216772
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:02:11 -0500
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0EF0wxN011205
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 08:00:59 -0700
-Message-ID: <50F41D9D.1000403@linux.vnet.ibm.com>
-Date: Mon, 14 Jan 2013 07:00:45 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 0595A6B006E
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 10:15:41 -0500 (EST)
+Date: Mon, 14 Jan 2013 17:16:41 +0200
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: 3.8-rc1 build failure with MIPS/SPARSEMEM
+Message-ID: <20130114151641.GA17996@otc-wbsnb-06>
+References: <20121222122757.GB6847@blackmetal.musicnaut.iki.fi>
+ <20121226003434.GA27760@otc-wbsnb-06>
+ <20121227121607.GA7097@blackmetal.musicnaut.iki.fi>
+ <20121230103850.GA5424@otc-wbsnb-06>
 MIME-Version: 1.0
-Subject: Re: [RFC] Reproducible OOM with just a few sleeps
-References: <201301120331.r0C3VxXc016220@como.maths.usyd.edu.au>
-In-Reply-To: <201301120331.r0C3VxXc016220@como.maths.usyd.edu.au>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="TB36FDmn/VVEgNH/"
+Content-Disposition: inline
+In-Reply-To: <20121230103850.GA5424@otc-wbsnb-06>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paul.szabo@sydney.edu.au
-Cc: linux-mm@kvack.org, 695182@bugs.debian.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-mips@linux-mips.org, Aaro Koskinen <aaro.koskinen@iki.fi>
 
-On 01/11/2013 07:31 PM, paul.szabo@sydney.edu.au wrote:
-> Seems that any i386 PAE machine will go OOM just by running a few
-> processes. To reproduce:
->   sh -c 'n=0; while [ $n -lt 19999 ]; do sleep 600 & ((n=n+1)); done'
-> My machine has 64GB RAM. With previous OOM episodes, it seemed that
-> running (booting) it with mem=32G might avoid OOM; but an OOM was
-> obtained just the same, and also with lower memory:
->   Memory    sleeps to OOM       free shows total
->   (mem=64G)  5300               64447796
->   mem=32G   10200               31155512
->   mem=16G   13400               14509364
->   mem=8G    14200               6186296
->   mem=6G    15200               4105532
->   mem=4G    16400               2041364
-> The machine does not run out of highmem, nor does it use any swap.
 
-I think what you're seeing here is that, as the amount of total memory
-increases, the amount of lowmem available _decreases_ due to inflation
-of mem_map[] (and a few other more minor things).  The number of sleeps
-you can do is bound by the number of processes, as you noticed from
-ulimit.  Creating processes that don't use much memory eats a relatively
-large amount of low memory.
+--TB36FDmn/VVEgNH/
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-This is a sad (and counterintuitive) fact: more RAM actually *CREATES*
-RAM bottlenecks on 32-bit systems.
+On Sun, Dec 30, 2012 at 12:38:50PM +0200, Kirill A. Shutemov wrote:
+> On Thu, Dec 27, 2012 at 02:16:07PM +0200, Aaro Koskinen wrote:
+> > Hi,
+> >=20
+> > On Wed, Dec 26, 2012 at 02:34:35AM +0200, Kirill A. Shutemov wrote:
+> > > On MIPS if SPARSEMEM is enabled we've got this:
+> > >=20
+> > > In file included from /home/kas/git/public/linux/arch/mips/include/as=
+m/pgtable.h:552,
+> > >                  from include/linux/mm.h:44,
+> > >                  from arch/mips/kernel/asm-offsets.c:14:
+> > > include/asm-generic/pgtable.h: In function =E2=80=98my_zero_pfn=E2=80=
+=99:
+> > > include/asm-generic/pgtable.h:466: error: implicit declaration of fun=
+ction =E2=80=98page_to_section=E2=80=99
+> > > In file included from arch/mips/kernel/asm-offsets.c:14:
+> > > include/linux/mm.h: At top level:
+> > > include/linux/mm.h:738: error: conflicting types for =E2=80=98page_to=
+_section=E2=80=99
+> > > include/asm-generic/pgtable.h:466: note: previous implicit declaratio=
+n of =E2=80=98page_to_section=E2=80=99 was here
+> > >=20
+> > > Due header files inter-dependencies, the only way I see to fix it is
+> > > convert my_zero_pfn() for __HAVE_COLOR_ZERO_PAGE to macros.
+> > >=20
+> > > Signed-off-by: Kirill A. Shutemov <kirill@shutemov.name>
+> >=20
+> > Thanks, this works.
+> >=20
+> > Tested-by: Aaro Koskinen <aaro.koskinen@iki.fi>
+>=20
+> Andrew, could you take the patch?
 
-> On my large machine, 'free' fails to show about 2GB memory, e.g. with
-> mem=16G it shows:
-> 
-> root@zeno:~# free -l
->              total       used       free     shared    buffers     cached
-> Mem:      14509364     435440   14073924          0       4068     111328
-> Low:        769044     120232     648812
-> High:     13740320     315208   13425112
-> -/+ buffers/cache:     320044   14189320
-> Swap:    134217724          0  134217724
+ping?
 
-You probably have a memory hole.  mem=16G means "give me all the memory
-below the physical address at 16GB".  It does *NOT* mean, "give me
-enough memory such that 'free' will show ~16G available."  If you have a
-1.5GB hole below 16GB, and you do mem=16G, you'll end up with ~14.5GB
-available.
+--=20
+ Kirill A. Shutemov
 
-The e820 map (during early boot in dmesg) or /proc/iomem will let you
-locate your memory holes.
+--TB36FDmn/VVEgNH/
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQ9CFZAAoJEAd+omnVudOMbdUP/24tVWl2QDuay6OFsj6muPt+
+fyeM0Rjl+vwOi3UaIz5Xhckf7mVJEE1P/xMkxL2GLf8anJL4fRxrYDE30phPOuOz
+YRQ4xGEDzjmfHNLQJgzgUdbcM03RwNazwteFYOHh67/Ag8CkPDUEqWgd/cmDjeKy
+Q/DFpxuqrVmgRQ0Mekei5vMGDd/k05piDgGzglsORTcAKxmFTH8R7XA8TtX7VzyN
+xI1+TA1hnGbS2lYJVNsoB1Q7FQUSHri06RtBzC8lbk5NDqrrNdilKqwZomuCPwuz
+9Qbaiht0+LoVbipPylAspJpJ+wNMCLE7UpGsfwB326Y/io/1lW9D4UAWgYzIVcNw
+o48a9v7C8GA0K5VWQg6Ps2t8FsRPsDDIE0asTp6w3yLhrwlvgl46kD5wVlXQDww9
+C0CKqV4UYLkyhmK6vHsoH9E9+pgsg420Xd9B7bPmoMOQVshtor9PyMnqNT500v3W
+feefsvorH+gDacvIzpHVd685dgi2EcGrNFv3St+qOlMUUJ7STBP8+WF7J8SpTY7/
+4OqTyavnLuAwYoQ7fri5S7pBITAPLCrcBe4oIKWFY9d5l6hsCokeMka8en1LBimA
+fGaI9i9dOim+aCKbMrCj4Lg18HIxJ45pAfoGnuvoRasslyFW8NhkIClQVI/gbmUq
+LFUita7qoobzjt4YCPG7
+=M1Vh
+-----END PGP SIGNATURE-----
+
+--TB36FDmn/VVEgNH/--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
