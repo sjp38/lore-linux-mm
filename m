@@ -1,71 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx142.postini.com [74.125.245.142])
-	by kanga.kvack.org (Postfix) with SMTP id 7F6BE6B0072
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:43:08 -0500 (EST)
-From: "Rafael J. Wysocki" <rjw@sisk.pl>
-Subject: Re: [RFC PATCH v2 01/12] Add sys_hotplug.h for system device hotplug framework
-Date: Mon, 14 Jan 2013 19:48:58 +0100
-Message-ID: <2154272.qDAyBlTr8z@vostro.rjw.lan>
-In-Reply-To: <1358177628.14145.49.camel@misato.fc.hp.com>
-References: <1357861230-29549-1-git-send-email-toshi.kani@hp.com> <5036592.TuXAnGzk4M@vostro.rjw.lan> <1358177628.14145.49.camel@misato.fc.hp.com>
+Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
+	by kanga.kvack.org (Postfix) with SMTP id 6255E6B0078
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 13:43:11 -0500 (EST)
+Date: Mon, 14 Jan 2013 19:43:08 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] memory-hotplug: revert register_page_bootmem_info_node()
+ to empty when platform related code is not implemented
+Message-ID: <20130114184308.GD5126@dhcp22.suse.cz>
+References: <1358160835-30617-1-git-send-email-linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1358160835-30617-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: lenb@kernel.org, gregkh@linuxfoundation.org, akpm@linux-foundation.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, bhelgaas@google.com, isimatu.yasuaki@jp.fujitsu.com, jiang.liu@huawei.com, wency@cn.fujitsu.com, guohanjun@huawei.com, yinghai@kernel.org, srivatsa.bhat@linux.vnet.ibm.com
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, wency@cn.fujitsu.com, jiang.liu@huawei.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
 
-On Monday, January 14, 2013 08:33:48 AM Toshi Kani wrote:
-> On Fri, 2013-01-11 at 22:23 +0100, Rafael J. Wysocki wrote:
-> > On Thursday, January 10, 2013 04:40:19 PM Toshi Kani wrote:
-> > > Added include/linux/sys_hotplug.h, which defines the system device
-> > > hotplug framework interfaces used by the framework itself and
-> > > handlers.
-> > > 
-> > > The order values define the calling sequence of handlers.  For add
-> > > execute, the ordering is ACPI->MEM->CPU.  Memory is onlined before
-> > > CPU so that threads on new CPUs can start using their local memory.
-> > > The ordering of the delete execute is symmetric to the add execute.
-> > > 
-> > > struct shp_request defines a hot-plug request information.  The
-> > > device resource information is managed with a list so that a single
-> > > request may target to multiple devices.
-> > > 
->  :
-> > > +
-> > > +struct shp_device {
-> > > +	struct list_head	list;
-> > > +	struct device		*device;
-> > > +	enum shp_class		class;
-> > > +	union shp_dev_info	info;
-> > > +};
-> > > +
-> > > +/*
-> > > + * Hot-plug request
-> > > + */
-> > > +struct shp_request {
-> > > +	/* common info */
-> > > +	enum shp_operation	operation;	/* operation */
-> > > +
-> > > +	/* hot-plug event info: only valid for hot-plug operations */
-> > > +	void			*handle;	/* FW handle */
-> > 
-> > What's the role of handle here?
+On Mon 14-01-13 18:53:55, Lin Feng wrote:
+> Memory-hotplug codes for x86_64 have been implemented by patchset:
+> https://lkml.org/lkml/2013/1/9/124
+> While other platforms haven't been completely implemented yet.
 > 
-> On ACPI-based platforms, the handle keeps a notified ACPI handle when a
-> hot-plug request is made.  ACPI bus handlers, acpi_add_execute() /
-> acpi_del_execute(), then scans / trims ACPI devices from the handle.
+> If we enable both CONFIG_MEMORY_HOTPLUG_SPARSE and CONFIG_SPARSEMEM_VMEMMAP,
+> register_page_bootmem_info_node() may be buggy, which is a hotplug generic
+> function but falling back to call platform related function
+> register_page_bootmem_memmap().
+> 
+> Other platforms such as powerpc it's not implemented, so on such platforms,
+> revert them as empty as they were before.
+> 
+> Reported-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+> ---
+>  mm/memory_hotplug.c |    9 +++++++++
+>  1 files changed, 9 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index 8aa2b56..bd93c2e 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -189,6 +189,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+>  }
+>  #endif
+>  
+> +#ifdef CONFIG_X86_64
+>  void register_page_bootmem_info_node(struct pglist_data *pgdat)
+>  {
+>  	unsigned long i, pfn, end_pfn, nr_pages;
+> @@ -230,6 +231,14 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
+>  			register_page_bootmem_info_section(pfn);
+>  	}
+>  }
+> +#else
+> +static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+> +{
+> +	/*
+> +	 * Todo: platforms other than X86_64 haven't been implemented yet.
+> +	 */
+> +}
+> +#endif
 
-OK, so this is ACPI-specific and should be described as such.
-
-Thanks,
-Rafael
-
-
+This is just ugly. Could you please add something like HAVE_BOOTMEM_INFO_NODE
+or something with a bettern name and let CONFIG_MEMORY_HOTPLUG select it
+for supported architectures and configurations (e.g.
+CONFIG_SPARSEMEM_VMEMMAP doesn't need a special arch support, right?).
+These Todo things are just too messy.
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
