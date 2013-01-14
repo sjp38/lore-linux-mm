@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx103.postini.com [74.125.245.103])
-	by kanga.kvack.org (Postfix) with SMTP id 5AFB96B0068
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 12:01:36 -0500 (EST)
-Date: Mon, 14 Jan 2013 09:01:34 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: Unique commit-id for "mm: compaction: [P,p]artially revert
- capture of suitable high-order page"
-Message-ID: <20130114170134.GA26655@kroah.com>
-References: <CA+icZUW5kryOCpX96CkaS=5uX61FmiYE0mh7y6F0eT9Bh8eUGw@mail.gmail.com>
- <20130114103612.GO13304@suse.de>
- <CA+icZUUReY7LPjnF1xTjD-aJSYYqgo9tF9K8T8--r_HjRwgCHA@mail.gmail.com>
- <20130114130911.GQ13304@suse.de>
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 5F9F76B0071
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 12:33:50 -0500 (EST)
+Message-ID: <50F440F5.3030006@zytor.com>
+Date: Mon, 14 Jan 2013 09:31:33 -0800
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130114130911.GQ13304@suse.de>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Sedat Dilek <sedat.dilek@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jan 14, 2013 at 01:09:11PM +0000, Mel Gorman wrote:
-> On Mon, Jan 14, 2013 at 12:27:20PM +0100, Sedat Dilek wrote:
-> > On Mon, Jan 14, 2013 at 11:36 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > > On Sun, Jan 13, 2013 at 05:12:45PM +0100, Sedat Dilek wrote:
-> > >> Hi Linus,
-> > >>
-> > >> I see two different commit-id for an identical patch (only subject
-> > >> line differs).
-> > >> [1] seems to be applied directly and [2] came with a merge of akpm-fixes.
-> > >> What is in case of backports for -stable kernels?
-> > >
-> > > I do not expect it to matter. I was going to use
-> > > 8fb74b9fb2b182d54beee592350d9ea1f325917a as the commit ID whenever I got
-> > > the complaint mail from Greg's tools about a 3.7 merge failure. The 3.7.2
-> > > backport looks like this.
-> > >
-> > 
-> > Oh cool and thanks!
-> > Are you planning to resend this backport-patch to the lists w/ a "3.7"
-> > (or for-3.7) in the commit-subject?
-> > 
-> 
-> Yes, when I get the reject mail from Greg's tools.
+On 01/14/2013 01:15 AM, Tang Chen wrote:
+>
+> For now, users can disable this functionality by not specifying the boot option.
+> Later, we will post SRAT support, and add another option value "movablecore_map=acpi"
+> to using SRAT.
+>
 
-You should have that rejection email now :)
+I still think the option "movablecore_map" is uglier than hell.  "core" 
+could just as easily refer to CPU cores there, but it is a memory mem. 
+"movablemem" seems more appropriate.
+
+Again, without SRAT I consider this patchset to be largely useless for 
+anything other than prototyping work.
+
+	-hpa
+
+-- 
+H. Peter Anvin, Intel Open Source Technology Center
+I work for Intel.  I don't speak on their behalf.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
