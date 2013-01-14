@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id EB7AE6B0071
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 04:16:13 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id 13FA86B0080
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 04:16:17 -0500 (EST)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v5 1/5] x86: get pg_data_t's memory from other node
-Date: Mon, 14 Jan 2013 17:15:21 +0800
-Message-Id: <1358154925-21537-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v5 4/5] page_alloc: Make movablecore_map has higher priority
+Date: Mon, 14 Jan 2013 17:15:24 +0800
+Message-Id: <1358154925-21537-5-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,39 +13,91 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+If kernelcore or movablecore is specified at the same time
+with movablecore_map, movablecore_map will have higher
+priority to be satisfied.
+This patch will make find_zone_movable_pfns_for_nodes()
+calculate zone_movable_pfn[] with the limit from
+zone_movable_limit[].
 
-If system can create movable node which all memory of the
-node is allocated as ZONE_MOVABLE, setup_node_data() cannot
-allocate memory for the node's pg_data_t.
-So, use memblock_alloc_try_nid() instead of memblock_alloc_nid()
-to retry when the first allocation fails.
+change log:
+Move find_usable_zone_for_movable() to free_area_init_nodes()
+so that sanitize_zone_movable_limit() in patch 3 could use
+initialized movable_zone.
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Reported-by: Wu Jianguo <wujianguo@huawei.com>
+
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
+Reviewed-by: Wen Congyang <wency@cn.fujitsu.com>
+Reviewed-by: Lai Jiangshan <laijs@cn.fujitsu.com>
+Tested-by: Lin Feng <linfeng@cn.fujitsu.com>
 ---
- arch/x86/mm/numa.c |    5 ++---
- 1 files changed, 2 insertions(+), 3 deletions(-)
+ mm/page_alloc.c |   28 +++++++++++++++++++++++++---
+ 1 files changed, 25 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 2d125be..db939b6 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -222,10 +222,9 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 		nd_pa = __pa(nd);
- 		remapped = true;
- 	} else {
--		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-+		nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
- 		if (!nd_pa) {
--			pr_err("Cannot find %zu bytes in node %d\n",
--			       nd_size, nid);
-+			pr_err("Cannot find %zu bytes in any node\n", nd_size);
- 			return;
- 		}
- 		nd = __va(nd_pa);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 093b953..00037a3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4902,9 +4902,17 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 		required_kernelcore = max(required_kernelcore, corepages);
+ 	}
+ 
+-	/* If kernelcore was not specified, there is no ZONE_MOVABLE */
+-	if (!required_kernelcore)
++	/*
++	 * If neither kernelcore/movablecore nor movablecore_map is specified,
++	 * there is no ZONE_MOVABLE. But if movablecore_map is specified, the
++	 * start pfn of ZONE_MOVABLE has been stored in zone_movable_limit[].
++	 */
++	if (!required_kernelcore) {
++		if (movablecore_map.nr_map)
++			memcpy(zone_movable_pfn, zone_movable_limit,
++				sizeof(zone_movable_pfn));
+ 		goto out;
++	}
+ 
+ 	/* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+ 	usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+@@ -4934,10 +4942,24 @@ restart:
+ 		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
+ 			unsigned long size_pages;
+ 
++			/*
++			 * Find more memory for kernelcore in
++			 * [zone_movable_pfn[nid], zone_movable_limit[nid]).
++			 */
+ 			start_pfn = max(start_pfn, zone_movable_pfn[nid]);
+ 			if (start_pfn >= end_pfn)
+ 				continue;
+ 
++			if (zone_movable_limit[nid]) {
++				end_pfn = min(end_pfn, zone_movable_limit[nid]);
++				/* No range left for kernelcore in this node */
++				if (start_pfn >= end_pfn) {
++					zone_movable_pfn[nid] =
++							zone_movable_limit[nid];
++					break;
++				}
++			}
++
+ 			/* Account for what is only usable for kernelcore */
+ 			if (start_pfn < usable_startpfn) {
+ 				unsigned long kernel_pages;
+@@ -4997,12 +5019,12 @@ restart:
+ 	if (usable_nodes && required_kernelcore > usable_nodes)
+ 		goto restart;
+ 
++out:
+ 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+ 	for (nid = 0; nid < MAX_NUMNODES; nid++)
+ 		zone_movable_pfn[nid] =
+ 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+ 
+-out:
+ 	/* restore the node_state */
+ 	node_states[N_MEMORY] = saved_node_state;
+ }
 -- 
 1.7.1
 
