@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 862616B0068
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:34:58 -0500 (EST)
-Date: Mon, 14 Jan 2013 14:34:56 -0800
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 62EF46B0069
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:35:24 -0500 (EST)
+Date: Mon, 14 Jan 2013 14:35:12 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
-Message-Id: <20130114143456.3962f3bd.akpm@linux-foundation.org>
-In-Reply-To: <50F440F5.3030006@zytor.com>
+Subject: Re: [PATCH v5 2/5] page_alloc: add movable_memmap kernel parameter
+Message-Id: <20130114143512.b961211e.akpm@linux-foundation.org>
+In-Reply-To: <1358154925-21537-3-git-send-email-tangchen@cn.fujitsu.com>
 References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
-	<50F440F5.3030006@zytor.com>
+	<1358154925-21537-3-git-send-email-tangchen@cn.fujitsu.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: jiang.liu@huawei.com, wujianguo@huawei.com, hpa@zytor.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, rob@landley.net, kosaki.motohiro@jp.fujitsu.com, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, tony.luck@intel.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 14 Jan 2013 09:31:33 -0800
-"H. Peter Anvin" <hpa@zytor.com> wrote:
+On Mon, 14 Jan 2013 17:15:22 +0800
+Tang Chen <tangchen@cn.fujitsu.com> wrote:
 
-> On 01/14/2013 01:15 AM, Tang Chen wrote:
-> >
-> > For now, users can disable this functionality by not specifying the boot option.
-> > Later, we will post SRAT support, and add another option value "movablecore_map=acpi"
-> > to using SRAT.
-> >
+> This patch adds functions to parse movablecore_map boot option. Since the
+> option could be specified more then once, all the maps will be stored in
+> the global variable movablecore_map.map array.
 > 
-> I still think the option "movablecore_map" is uglier than hell.  "core" 
-> could just as easily refer to CPU cores there, but it is a memory mem. 
-> "movablemem" seems more appropriate.
+> And also, we keep the array in monotonic increasing order by start_pfn.
+> And merge all overlapped ranges.
 > 
-> Again, without SRAT I consider this patchset to be largely useless for 
-> anything other than prototyping work.
-> 
+> ...
+>
+> +#define MOVABLECORE_MAP_MAX MAX_NUMNODES
+> +struct movablecore_entry {
+> +	unsigned long start_pfn;    /* start pfn of memory segment */
+> +	unsigned long end_pfn;      /* end pfn of memory segment */
 
-hm, why.  Obviously SRAT support will improve things, but is it
-actually unusable/unuseful with the command line configuration?
+It is important to tell readers whether an "end" is inclusive or
+exclusive.  ie: does it point at the last byte, or one beyond it?
 
-Also, "But even if we can use SRAT, users still need an interface to
-enable/disable this functionality if they don't want to loose their
-NUMA performance.  So I think, an user interface is always needed."
+By reading the code I see it is exclusive, so...
 
-
-There's also the matter of other architectures.  Has any thought been
-given to how (eg) powerpc would hook into here?
-
-And what about VMs (xen, KVM)?  I wonder if there is a case for those
-to implement memory hotplug.  
+--- a/include/linux/mm.h~page_alloc-add-movable_memmap-kernel-parameter-fix
++++ a/include/linux/mm.h
+@@ -1362,7 +1362,7 @@ extern void sparse_memory_present_with_a
+ #define MOVABLECORE_MAP_MAX MAX_NUMNODES
+ struct movablecore_entry {
+ 	unsigned long start_pfn;    /* start pfn of memory segment */
+-	unsigned long end_pfn;      /* end pfn of memory segment */
++	unsigned long end_pfn;      /* end pfn of memory segment (exclusive) */
+ };
+ 
+ struct movablecore_map {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
