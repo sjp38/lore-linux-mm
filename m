@@ -1,145 +1,256 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id 50DF96B0068
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 03:09:13 -0500 (EST)
-Received: by mail-qc0-f182.google.com with SMTP id k19so3026193qcs.41
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2013 00:09:12 -0800 (PST)
+Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
+	by kanga.kvack.org (Postfix) with SMTP id 7362B6B0069
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 03:43:49 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id a14so1692803eaa.37
+        for <linux-mm@kvack.org>; Tue, 15 Jan 2013 00:43:47 -0800 (PST)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH v2] mm: remove MIGRATE_ISOLATE check in hotpath
+In-Reply-To: <1358209006-18859-1-git-send-email-minchan@kernel.org>
+References: <1358209006-18859-1-git-send-email-minchan@kernel.org>
+Date: Tue, 15 Jan 2013 09:43:31 +0100
+Message-ID: <xa1t1udmsuoc.fsf@mina86.com>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <20130115064427.GB30331@kernel.dk>
-References: <CA+icZUW1+BzWCfGkbBiekKO8b6KiyAiyXWAHFmVUey2dHnSTzw@mail.gmail.com>
-	<50F454C2.6000509@kernel.dk>
-	<CA+icZUX_uKSzvdhd4tMtgb+vUxqC=fS7tfSHhs29+xD_XQQjBQ@mail.gmail.com>
-	<CA+icZUV_dz2Bvu6o=YRFu6324ccVr1MaOEpRcw0rguppR5rQQg@mail.gmail.com>
-	<20130115064427.GB30331@kernel.dk>
-Date: Tue, 15 Jan 2013 09:09:12 +0100
-Message-ID: <CA+icZUUdzALcqQUrB1QxcwNeVyLUWcf7x0ksm_XYrLnV5hsN_Q@mail.gmail.com>
-Subject: Re: [next-20130114] Call-trace in LTP (lite) madvise02 test
- (block|mm|vfs related?)
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: linux-next <linux-next@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue, Jan 15, 2013 at 7:44 AM, Jens Axboe <axboe@kernel.dk> wrote:
-> On Mon, Jan 14 2013, Sedat Dilek wrote:
->> On Mon, Jan 14, 2013 at 8:28 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
->> > On Mon, Jan 14, 2013 at 7:56 PM, Jens Axboe <axboe@kernel.dk> wrote:
->> >> On 2013-01-14 19:33, Sedat Dilek wrote:
->> >>> Hi,
->> >>>
->> >>> while running LTP lite on my next-20130114 kernel I hit this
->> >>> call-trace (file attached).
->> >>>
->> >>> Looks to me like problem in the block layer, but not sure.
->> >>> Might one of the experts have look at it?
->> >>
->> >> Really? 600kb of data to look through? Can't you just paste the actual
->> >> error, I can't even find it...
->> >>
->> >
->> > $ cat call-trace_ltplite_madvise02_next-20130114.txt
->> > Jan 14 17:47:14 fambox kernel: [ 1263.965957] ------------[ cut here
->> > ]------------
->> > Jan 14 17:47:14 fambox kernel: [ 1263.965989] Kernel BUG at
->> > ffffffff81328b2b [verbose debug info unavailable]
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966022] invalid opcode: 0000 [#1] SMP
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966046] Modules linked in:
->> > snd_hda_codec_hdmi snd_hda_codec_realtek joydev coretemp kvm_intel kvm
->> > snd_hda_intel snd_hda_codec arc4 iwldvm snd_hwdep snd_pcm
->> > ghash_clmulni_intel mac80211 aesni_intel i915 snd_page_alloc xts
->> > snd_seq_midi aes_x86_64 snd_seq_midi_event uvcvideo lrw gf128mul
->> > iwlwifi snd_rawmidi ablk_helper snd_seq i2c_algo_bit cryptd
->> > drm_kms_helper snd_timer videobuf2_vmalloc drm snd_seq_device
->> > videobuf2_memops psmouse parport_pc snd cfg80211 btusb rfcomm
->> > videobuf2_core bnep microcode ppdev soundcore videodev samsung_laptop
->> > wmi lp bluetooth serio_raw mei mac_hid hid_generic video lpc_ich
->> > parport usbhid hid r8169
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966377] CPU 3
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966388] Pid: 7803, comm:
->> > madvise02 Not tainted 3.8.0-rc3-next20130114-5-iniza-generic #1
->> > SAMSUNG ELECTRONICS CO., LTD.
->> > 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966450] RIP:
->> > 0010:[<ffffffff81328b2b>]  [<ffffffff81328b2b>]
->> > blk_flush_plug_list+0x1eb/0x210
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966508] RSP:
->> > 0018:ffff88000d933e58  EFLAGS: 00010287
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966532] RAX: 0000000091827364
->> > RBX: ffff88000d933e68 RCX: 0000000000000000
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966566] RDX: 0000000000000000
->> > RSI: 0000000000000000 RDI: ffff88000d933f10
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966614] RBP: ffff88000d933eb8
->> > R08: 0000000000000003 R09: 0000000000000000
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966656] R10: 00007fff3d62c9b0
->> > R11: 0000000000000206 R12: 0000000000000000
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966696] R13: 0000000000001000
->> > R14: ffff88000d933f10 R15: ffff88000d933f10
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966736] FS:
->> > 00007f56bcbc2700(0000) GS:ffff88011fac0000(0000)
->> > knlGS:0000000000000000
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966780] CS:  0010 DS: 0000 ES:
->> > 0000 CR0: 0000000080050033
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966813] CR2: 00007f56bc6ec060
->> > CR3: 000000000bf66000 CR4: 00000000000407e0
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966848] DR0: 0000000000000000
->> > DR1: 0000000000000000 DR2: 0000000000000000
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966885] DR3: 0000000000000000
->> > DR6: 00000000ffff0ff0 DR7: 0000000000000400
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966921] Process madvise02 (pid:
->> > 7803, threadinfo ffff88000d932000, task ffff88000d9f2e40)
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966963] Stack:
->> > Jan 14 17:47:14 fambox kernel: [ 1263.966978]  0000000000000001
->> > 0000000000000001 ffff88000d933e68 ffff88000d933e68
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967024]  ffff88000d933ef8
->> > ffffffff8114b77c ffff88000d933ec0 ffff88000d933f10
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967071]  0000000000000000
->> > 0000000000001000 0000000000010000 ffff88000d933f10
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967118] Call Trace:
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967137]  [<ffffffff8114b77c>] ?
->> > vm_mmap_pgoff+0xbc/0xe0
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967173]  [<ffffffff81328b68>]
->> > blk_finish_plug+0x18/0x50
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967209]  [<ffffffff811544d8>]
->> > sys_madvise+0xc8/0x3a0
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967247]  [<ffffffff816ba0e9>] ?
->> > do_page_fault+0x39/0x50
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967288]  [<ffffffff816be79d>]
->> > system_call_fastpath+0x1a/0x1f
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967331] Code: 4d 85 ff 74 0d 44
->> > 89 e2 89 c6 4c 89 ff e8 be b5 ff ff 4c 89 ef 57 9d 66 66 90 66 90 48
->> > 83 c4 38 5b 41 5c 41 5d 41 5e 41 5f 5d c3 <0f> 0b 31 d2 be ed ff ff ff
->> > 4c 89 f7 89 45 a8 e8 91 f9 ff ff 8b
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967589] RIP
->> > [<ffffffff81328b2b>] blk_flush_plug_list+0x1eb/0x210
->> > Jan 14 17:47:14 fambox kernel: [ 1263.967630]  RSP <ffff88000d933e58>
->> > Jan 14 17:47:14 fambox kernel: [ 1263.989553] ---[ end trace
->> > 19e1575014ab42a7 ]---
->> >
->>
->> Looks like this is the fix from Sasha [1].
->> Culprit commit is [2].
->> Testing...
->>
->> - Sedat -
->>
->> [1] https://patchwork.kernel.org/patch/1973481/
->> [2] http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git;a=commitdiff;h=0d18d770b9180ffc2c3f63b9eb8406ef80105e05
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+On Tue, Jan 15 2013, Minchan Kim wrote:
+> Now mm several functions test MIGRATE_ISOLATE and some of those
+> are hotpath but MIGRATE_ISOLATE is used only if we enable
+> CONFIG_MEMORY_ISOLATION(ie, CMA, memory-hotplug and memory-failure)
+> which are not common config option. So let's not add unnecessary
+> overhead and code when we don't enable CONFIG_MEMORY_ISOLATION.
 >
-> It does indeed, let us know if it doesn't fix it.
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/mmzone.h         |    2 ++
+>  include/linux/page-isolation.h |   19 +++++++++++++++++++
+>  mm/compaction.c                |    6 +++++-
+>  mm/page_alloc.c                |   16 ++++++++++------
+>  mm/vmstat.c                    |    2 ++
+>  5 files changed, 38 insertions(+), 7 deletions(-)
 >
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 73b64a3..4f4c8c2 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -57,7 +57,9 @@ enum {
+>  	 */
+>  	MIGRATE_CMA,
+>  #endif
+> +#ifdef CONFIG_MEMORY_ISOLATION
+>  	MIGRATE_ISOLATE,	/* can't allocate from here */
+> +#endif
+>  	MIGRATE_TYPES
+>  };
+>=20=20
+> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolatio=
+n.h
+> index a92061e..3fff8e7 100644
+> --- a/include/linux/page-isolation.h
+> +++ b/include/linux/page-isolation.h
+> @@ -1,6 +1,25 @@
+>  #ifndef __LINUX_PAGEISOLATION_H
+>  #define __LINUX_PAGEISOLATION_H
+>=20=20
+> +#ifdef CONFIG_MEMORY_ISOLATION
+> +static inline bool is_migrate_isolate_page(struct page *page)
+> +{
+> +	return get_pageblock_migratetype(page) =3D=3D MIGRATE_ISOLATE;
+> +}
+> +static inline bool is_migrate_isolate(int migratetype)
+> +{
+> +	return migratetype =3D=3D MIGRATE_ISOLATE;
+> +}
+> +#else
+> +static inline bool is_migrate_isolate_page(struct page *page)
+> +{
+> +	return false;
+> +}
+> +static inline bool is_migrate_isolate(int migratetype)
+> +{
+> +	return false;
+> +}
+> +#endif
+>=20=20
+>  bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>  			 bool skip_hwpoisoned_pages);
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 675937c..bb2a655 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -15,6 +15,7 @@
+>  #include <linux/sysctl.h>
+>  #include <linux/sysfs.h>
+>  #include <linux/balloon_compaction.h>
+> +#include <linux/page-isolation.h>
+>  #include "internal.h"
+>=20=20
+>  #ifdef CONFIG_COMPACTION
+> @@ -215,7 +216,10 @@ static bool suitable_migration_target(struct page *p=
+age)
+>  	int migratetype =3D get_pageblock_migratetype(page);
+>=20=20
+>  	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks=
+ */
+> -	if (migratetype =3D=3D MIGRATE_ISOLATE || migratetype =3D=3D MIGRATE_RE=
+SERVE)
+> +	if (migratetype =3D=3D MIGRATE_RESERVE)
+> +		return false;
+> +
+> +	if (is_migrate_isolate(migratetype))
+>  		return false;
+>=20=20
+>  	/* If the page is a large free page, then allow migration */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 82117f5..319a8f0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -665,7 +665,7 @@ static void free_pcppages_bulk(struct zone *zone, int=
+ count,
+>  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+>  			__free_one_page(page, zone, 0, mt);
+>  			trace_mm_page_pcpu_drain(page, 0, mt);
+> -			if (likely(get_pageblock_migratetype(page) !=3D MIGRATE_ISOLATE)) {
+> +			if (likely(!is_migrate_isolate_page(page))) {
+>  				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+>  				if (is_migrate_cma(mt))
+>  					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+> @@ -683,7 +683,7 @@ static void free_one_page(struct zone *zone, struct p=
+age *page, int order,
+>  	zone->pages_scanned =3D 0;
+>=20=20
+>  	__free_one_page(page, zone, order, migratetype);
+> -	if (unlikely(migratetype !=3D MIGRATE_ISOLATE))
+> +	if (unlikely(!is_migrate_isolate(migratetype)))
+>  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+>  	spin_unlock(&zone->lock);
+>  }
+> @@ -911,7 +911,9 @@ static int fallbacks[MIGRATE_TYPES][4] =3D {
+>  	[MIGRATE_MOVABLE]     =3D { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   M=
+IGRATE_RESERVE },
+>  #endif
+>  	[MIGRATE_RESERVE]     =3D { MIGRATE_RESERVE }, /* Never used */
+> +#ifdef CONFIG_MEMORY_ISOLATION
+>  	[MIGRATE_ISOLATE]     =3D { MIGRATE_RESERVE }, /* Never used */
+> +#endif
+>  };
+>=20=20
+>  /*
+> @@ -1137,7 +1139,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned=
+ int order,
+>  			list_add_tail(&page->lru, list);
+>  		if (IS_ENABLED(CONFIG_CMA)) {
+>  			mt =3D get_pageblock_migratetype(page);
+> -			if (!is_migrate_cma(mt) && mt !=3D MIGRATE_ISOLATE)
+> +			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
+>  				mt =3D migratetype;
+>  		}
+>  		set_freepage_migratetype(page, mt);
+> @@ -1321,7 +1323,7 @@ void free_hot_cold_page(struct page *page, int cold)
+>  	 * excessively into the page allocator
+>  	 */
+>  	if (migratetype >=3D MIGRATE_PCPTYPES) {
+> -		if (unlikely(migratetype =3D=3D MIGRATE_ISOLATE)) {
+> +		if (unlikely(is_migrate_isolate(migratetype))) {
+>  			free_one_page(zone, page, 0, migratetype);
+>  			goto out;
+>  		}
+> @@ -1402,7 +1404,7 @@ int capture_free_page(struct page *page, int alloc_=
+order, int migratetype)
+>  	order =3D page_order(page);
+>  	mt =3D get_pageblock_migratetype(page);
+>=20=20
+> -	if (mt !=3D MIGRATE_ISOLATE) {
+> +	if (!is_migrate_isolate(mt)) {
+>  		/* Obey watermarks as if the page was being allocated */
+>  		watermark =3D low_wmark_pages(zone) + (1 << order);
+>  		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+> @@ -1425,7 +1427,7 @@ int capture_free_page(struct page *page, int alloc_=
+order, int migratetype)
+>  		struct page *endpage =3D page + (1 << order) - 1;
+>  		for (; page < endpage; page +=3D pageblock_nr_pages) {
+>  			int mt =3D get_pageblock_migratetype(page);
+> -			if (mt !=3D MIGRATE_ISOLATE && !is_migrate_cma(mt))
+> +			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt))
+>  				set_pageblock_migratetype(page,
+>  							  MIGRATE_MOVABLE);
+>  		}
+> @@ -2911,7 +2913,9 @@ static void show_migration_types(unsigned char type)
+>  #ifdef CONFIG_CMA
+>  		[MIGRATE_CMA]		=3D 'C',
+>  #endif
+> +#ifdef CONFIG_MEMORY_ISOLATION
+>  		[MIGRATE_ISOLATE]	=3D 'I',
+> +#endif
+>  	};
+>  	char tmp[MIGRATE_TYPES + 1];
+>  	char *p =3D tmp;
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 7a65e26..b0f1db1 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -628,7 +628,9 @@ static char * const migratetype_names[MIGRATE_TYPES] =
+=3D {
+>  #ifdef CONFIG_CMA
+>  	"CMA",
+>  #endif
+> +#ifdef CONFIG_MEMORY_ISOLATION
+>  	"Isolate",
+> +#endif
+>  };
+>=20=20
+>  static void *frag_start(struct seq_file *m, loff_t *pos)
 
-It is fixing the issue for me!
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +----<email/xmpp: mpn@google.com>--------------ooO--(_)--Ooo--
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
 
-- Sedat -
+--==-=-=
+Content-Type: text/plain
 
-[1] http://marc.info/?l=linux-next&m=135819894717604&w=2
 
-> --
-> Jens Axboe
->
+--==-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
+
+iQIcBAEBAgAGBQJQ9RazAAoJECBgQBJQdR/0YI8P+gJOvIC2wgbZfPxTTZRn88y2
+BUCtbvf8PmMe9tukoWBa9wm0ftXOLyiD0jPbJGN2wL+fTMW4oI8U4GVS2QjV7veP
+RClnTr2FZRlvgPJaxSvgj42Xf6IOIlppkm5o781CULTOqDKtOBgcZ4OdBjUYSuBa
+IgPISVt7Nnt43LW0PjLePQPUbIefuJZLFBnPTuCcxs333DIhOdbR3sYnykOCiFgM
+Nsf8rkE8Ru8bWQ10YzcQYO1WmVFMSvApbWdFMBgiDhjl5oIIWS3IQHgBdnmYcCc7
+9FyXxIR/w3lunvOLNTbb0B4lYmdL8WpNr0qsR9N6PLfloki26tz2PUrr8YfYCMkf
+yQdU7D1K4nNz4xExQHcASpIArLXll0o54kuDsMIRU8uQ6mJ0xincYciP/Uo5h0GK
+kvHXtC9yMpZduhS2EY9lpyzCasbDFiFXWG2HUhf4DLnFFhMuYrg+WP6tSI2fDNAg
+zSPIhvvhjicGQ6dY8tUISwXPPcMD/OmN46MuYaERiXG0+JrmPy6hBc6V8YZ4LgQG
+z6UnIdonpIwxNJCNsF9uUDj84MqTqEqkxxfCocqmrnHYCTUe44kBFIi1aVojdV3m
+uCdzBtWxEq4POWbSzH4zdhN9oz9Wt3BfHBM1r7jMU2CBWS8HTgpTINk4nzW+T1aF
+aDWZGxVbATCqF5aP6hOJ
+=vhi+
+-----END PGP SIGNATURE-----
+--==-=-=--
+
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
