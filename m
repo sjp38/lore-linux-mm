@@ -1,47 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx104.postini.com [74.125.245.104])
-	by kanga.kvack.org (Postfix) with SMTP id 7F3656B0069
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 13:38:18 -0500 (EST)
-Message-ID: <50F5A215.5020708@redhat.com>
-Date: Tue, 15 Jan 2013 13:38:13 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id D6DA16B0069
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 13:46:25 -0500 (EST)
+Date: Tue, 15 Jan 2013 19:46:15 +0100 (CET)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: mmotm 2013-01-11-15-47 (trouble starting kvm)
+In-Reply-To: <50F18594.7070004@iskon.hr>
+Message-ID: <alpine.LRH.2.00.1301151943390.32259@twin.jikos.cz>
+References: <20130111234813.170A620004E@hpza10.eem.corp.google.com> <50F18594.7070004@iskon.hr>
 MIME-Version: 1.0
-Subject: Re: [RFCv3][PATCH 2/3] fix kvm's use of __pa() on percpu areas
-References: <20130109185904.DD641DCE@kernel.stglabs.ibm.com> <20130109185905.0DCFC236@kernel.stglabs.ibm.com>
-In-Reply-To: <20130109185905.0DCFC236@kernel.stglabs.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
 
-On 01/09/2013 01:59 PM, Dave Hansen wrote:
-> In short, it is illegal to call __pa() on an address holding
-> a percpu variable.  The times when this actually matters are
-> pretty obscure (certain 32-bit NUMA systems), but it _does_
-> happen.  It is important to keep KVM guests working on these
-> systems because the real hardware is getting harder and
-> harder to find.
->
-> This bug manifested first by me seeing a plain hang at boot
-> after this message:
->
-> 	CPU 0 irqstacks, hard=f3018000 soft=f301a000
->
-> or, sometimes, it would actually make it out to the console:
->
-> [    0.000000] BUG: unable to handle kernel paging request at ffffffff
->
-> I eventually traced it down to the KVM async pagefault code.
-> This can be worked around by disabling that code either at
-> compile-time, or on the kernel command-line.
+On Sat, 12 Jan 2013, Zlatko Calusic wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> > A git tree which contains the memory management portion of this tree is
+> > maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> > by Michal Hocko.  It contains the patches which are between the
+> 
+> The last commit I see in this tree is:
+> 
+> commit a0d271cbfed1dd50278c6b06bead3d00ba0a88f9
+> Author: Linus Torvalds <torvalds@linux-foundation.org>
+> Date:   Sun Sep 30 16:47:46 2012 -0700
+> 
+>     Linux 3.6
+> 
+> Is it dead? Or am I doing something wrong?
+> 
+> > A full copy of the full kernel tree with the linux-next and mmotm patches
+> > already applied is available through git within an hour of the mmotm
+> > release.  Individual mmotm releases are tagged.  The master branch always
+> > points to the latest release, so it's constantly rebasing.
+> > 
+> > http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
+> > 
+> > This mmotm tree contains the following patches against 3.8-rc3:
+> > (patches marked "*" will be included in linux-next)
+> > 
+> > * lockdep-rwsem-provide-down_write_nest_lock.patch
+> > * mm-mmap-annotate-vm_lock_anon_vma-locking-properly-for-lockdep.patch
+> 
+> Had to revert the above two patches to start KVM (win7) successfully.
+> Otherwise it would livelock on some semaphore, it seems. Couldn't kill it, ps
+> output would stuck, even reboot didn't work (had to use SysRQ).
+
+Copy/pasting from my response to the other thread at 
+https://lkml.org/lkml/2013/1/15/440
 
 
+====
+Thorough and careful review and analysis revealed that the rootcause very 
+likely is that I am a complete nitwit.
+
+Could you please try the patch below and report backt? Thanks.
+
+
+
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: [PATCH] lockdep, rwsem: fix down_write_nest_lock() if !CONFIG_DEBUG_LOCK_ALLOC
+
+Commit 1b963c81b1 ("lockdep, rwsem: provide down_write_nest_lock()") 
+contains a bug in a codepath when CONFIG_DEBUG_LOCK_ALLOC is disabled, 
+which causes down_read() to be called instead of down_write() by mistake 
+on such configurations. Fix that.
+
+Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+---
+ include/linux/rwsem.h |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
+index 413cc11..8da67d6 100644
+--- a/include/linux/rwsem.h
++++ b/include/linux/rwsem.h
+@@ -135,7 +135,7 @@ do {								\
+ 
+ #else
+ # define down_read_nested(sem, subclass)		down_read(sem)
+-# define down_write_nest_lock(sem, nest_lock)	down_read(sem)
++# define down_write_nest_lock(sem, nest_lock)	down_write(sem)
+ # define down_write_nested(sem, subclass)	down_write(sem)
+ #endif
+ 
 -- 
-All rights reversed
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
