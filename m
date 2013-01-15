@@ -1,43 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id A2D326B006E
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:19:04 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id bg2so159709pad.18
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2013 07:19:03 -0800 (PST)
-From: Jiang Liu <liuj97@gmail.com>
-Subject: [RESEND PATCH v3 3/3] mm: increase totalram_pages when free pages allocated by bootmem allocator
-Date: Tue, 15 Jan 2013 23:18:17 +0800
-Message-Id: <1358263097-11038-3-git-send-email-jiang.liu@huawei.com>
-In-Reply-To: <1358263097-11038-1-git-send-email-jiang.liu@huawei.com>
-References: <1358263097-11038-1-git-send-email-jiang.liu@huawei.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id 515C76B0068
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:36:12 -0500 (EST)
+Date: Tue, 15 Jan 2013 15:36:10 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 2/3] slub: correct bootstrap() for kmem_cache,
+ kmem_cache_node
+In-Reply-To: <1358234402-2615-2-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <0000013c3eda78d8-da8c775c-d7c0-4a88-bacf-0b5160b5c668-000000@email.amazonses.com>
+References: <1358234402-2615-1-git-send-email-iamjoonsoo.kim@lge.com> <1358234402-2615-2-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Wen Congyang <wency@cn.fujitsu.com>, David Rientjes <rientjes@google.com>
-Cc: Jiang Liu <jiang.liu@huawei.com>, Maciej Rutecki <maciej.rutecki@gmail.com>, Chris Clayton <chris2553@googlemail.com>, "Rafael J . Wysocki" <rjw@sisk.pl>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, Jianguo Wu <wujianguo@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Function put_page_bootmem() is used to free pages allocated by bootmem
-allocator, so it should increase totalram_pages when freeing pages into
-the buddy system.
+On Tue, 15 Jan 2013, Joonsoo Kim wrote:
 
-Signed-off-by: Jiang Liu <jiang.liu@huawei.com>
----
- mm/memory_hotplug.c |    1 +
- 1 file changed, 1 insertion(+)
+> These didn't make any error previously, because we normally don't free
+> objects which comes from kmem_cache's first slab and kmem_cache_node's.
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d04ed87..b52df74 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -124,6 +124,7 @@ void __ref put_page_bootmem(struct page *page)
- 		mutex_lock(&ppb_lock);
- 		__free_pages_bootmem(page, 0);
- 		mutex_unlock(&ppb_lock);
-+		totalram_pages++;
- 	}
- 
- }
--- 
-1.7.9.5
+And these slabs are on the partial list because the objects are typically
+relatively small compared to page size. Do you have a system with a very
+large kmem_cache size?
+
+> Problem will be solved if we consider a cpu slab in bootstrap().
+> This patch implement it.
+
+At boot time only one processor is up so you do not need the loop over all
+processors.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
