@@ -1,77 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx134.postini.com [74.125.245.134])
-	by kanga.kvack.org (Postfix) with SMTP id A8A1C8D0001
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 20:23:57 -0500 (EST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 128A53EE0C8
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:23:55 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id E7CE245DEBC
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:23:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id B887945DEB6
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:23:54 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id AA9E51DB8044
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:23:54 +0900 (JST)
-Received: from g01jpexchkw30.g01.fujitsu.local (g01jpexchkw30.g01.fujitsu.local [10.0.193.113])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 5ECBB1DB803E
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:23:54 +0900 (JST)
-Message-ID: <50F4AF88.9090201@jp.fujitsu.com>
-Date: Tue, 15 Jan 2013 10:23:20 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from psmtp.com (na3sys010amx192.postini.com [74.125.245.192])
+	by kanga.kvack.org (Postfix) with SMTP id 03E036B0068
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 20:41:25 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id bg2so2569326pad.4
+        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 17:41:25 -0800 (PST)
+Date: Tue, 15 Jan 2013 09:41:15 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [RFC]x86: clearing access bit don't flush tlb
+Message-ID: <20130115014115.GA1497@kernel.org>
+References: <20130107081213.GA21779@kernel.org>
+ <50EAE66B.1020804@redhat.com>
+ <50EB4CB9.9010104@zytor.com>
+ <20130108045519.GB2459@kernel.org>
+ <50EBA8AB.2060003@zytor.com>
+ <50EBA9DC.9070400@redhat.com>
+ <50EBAA27.7030506@zytor.com>
+ <50EBC4BD.7010700@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
-References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>
-In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50EBC4BD.7010700@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Tang Chen <tangchen@cn.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mingo@redhat.com, hughd@google.com
 
-2013/01/15 7:41, Luck, Tony wrote:
->> hm, why.  Obviously SRAT support will improve things, but is it
->> actually unusable/unuseful with the command line configuration?
->
+On Tue, Jan 08, 2013 at 02:03:25AM -0500, Rik van Riel wrote:
+> On 01/08/2013 12:09 AM, H. Peter Anvin wrote:
+> >On 01/07/2013 09:08 PM, Rik van Riel wrote:
+> >>On 01/08/2013 12:03 AM, H. Peter Anvin wrote:
+> >>>On 01/07/2013 08:55 PM, Shaohua Li wrote:
+> >>>>
+> >>>>I searched a little bit, the change (doing TLB flush to clear access
+> >>>>bit) is
+> >>>>made between 2.6.7 - 2.6.8, I can't find the changelog, but I found a
+> >>>>patch:
+> >>>>http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.7-rc2/2.6.7-rc2-mm2/broken-out/mm-flush-tlb-when-clearing-young.patch
+> >>>>
+> >>>>
+> >>>>The changelog declaims this is for arm/ppc/ppc64.
+> >>>>
+> >>>
+> >>>Not really.  It says that those have stumbled over it already.  It is
+> >>>true in general that this change will make very frequently used pages
+> >>>(which stick in the TLB) candidates for eviction.
+> >>
+> >>That is only true if the pages were to stay in the TLB for a
+> >>very very long time.  Probably multiple seconds.
+> >>
+> >>>x86 would seem to be just as affected, although possibly with a
+> >>>different frequency.
+> >>>
+> >>>Do we have any actual metrics on anything here?
+> >>
+> >>I suspect that if we do need to force a TLB flush for page
+> >>reclaim purposes, it may make sense to do that TLB flush
+> >>asynchronously. For example, kswapd could kick off a TLB
+> >>flush of every CPU in the system once a second, when the
+> >>system is under pageout pressure.
+> >>
+> >>We would have to do this in a smart way, so the kswapds
+> >>from multiple nodes do not duplicate the work.
+> >>
+> >>If people want that kind of functionality, I would be
+> >>happy to cook up an RFC patch.
+> >>
+> >
+> >So it sounds like you're saying that this patch should never have been
+> >applied in the first place?
+> 
+> It made sense at the time.
 
-> Users will want to set these moveable zones along node boundaries
-> (the whole purpose is to be able to remove a node by making sure
-> the kernel won't allocate anything tricky in it, right?)
+So you agreed the patch is safe, right?
+ 
+> However, with larger SMP systems, we may need a different
+> mechanism to get the TLB flushes done after we clear a bunch
+> of accessed bits.
+> 
+> One thing we could do is mark bits in a bitmap, keeping track
+> of which CPUs should have their TLB flushed due to accessed bit
+> scanning.
+> 
+> Then we could set a timer for eg. a 1 second timeout, after
+> which the TLB flush IPIs get sent. If the timer is already
+> pending, we do not start it, but piggyback on the invocation
+> that is already scheduled to happen.
+> 
+> Does something like that make sense?
 
-Yes
-
-> So raw addresses
-> are usable ... but to get them right the user will have to go parse the
-> SRAT table manually to come up with the addresses.
-
-I don't think so because user can easily get raw address by kernel
-message in x86.
-
-Here are kernel messages of x86 architecture.
----
-[    0.000000] SRAT: Node 0 PXM 0 [mem 0x00000000-0x7fffffff]
-[    0.000000] SRAT: Node 0 PXM 0 [mem 0x100000000-0x7ffffffff]
-[    0.000000] SRAT: Node 1 PXM 2 [mem 0x1000000000-0x17ffffffff]
-[    0.000000] SRAT: Node 2 PXM 3 [mem 0x1800000000-0x1fffffffff]
-[    0.000000] SRAT: Node 3 PXM 4 [mem 0x2000000000-0x27ffffffff]
-[    0.000000] SRAT: Node 4 PXM 5 [mem 0x2800000000-0x2fffffffff]
-[    0.000000] SRAT: Node 5 PXM 6 [mem 0x3000000000-0x37ffffffff]
-[    0.000000] SRAT: Node 6 PXM 7 [mem 0x3800000000-0x3fffffffff]
-[    0.000000] SRAT: Node 7 PXM 1 [mem 0x800000000-0xfffffffff]
----
+I don't understand why larger SMP system matters here. Only if there are enough
+TLB entries in CPU matters to me. And if the system is larger, memory is
+larger. TLB entries will not be sufficient. Or you are worrying about future
+larger SMP system can have very big TLB entries?
 
 Thanks,
-Yasuaki Ishimatsu
-
-> Any time you
-> make the user go off and do some tedious calculation that the computer
-> should have done for them is user-abuse.
->
-> -Tony
->
-
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
