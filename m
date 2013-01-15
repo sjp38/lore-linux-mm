@@ -1,77 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx120.postini.com [74.125.245.120])
-	by kanga.kvack.org (Postfix) with SMTP id CCECB6B0068
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 15:05:55 -0500 (EST)
-Received: by mail-bk0-f52.google.com with SMTP id w5so305719bku.25
-        for <linux-mm@kvack.org>; Tue, 15 Jan 2013 12:05:54 -0800 (PST)
-Message-ID: <50F5B69E.1070101@gmail.com>
-Date: Tue, 15 Jan 2013 21:05:50 +0100
-From: Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+Received: from psmtp.com (na3sys010amx145.postini.com [74.125.245.145])
+	by kanga.kvack.org (Postfix) with SMTP id D2AA46B0068
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 15:16:26 -0500 (EST)
+Date: Tue, 15 Jan 2013 15:16:17 -0500
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
+ dma_alloc_coherent() calls
+Message-ID: <20130115201617.GC25500@titan.lakedaemon.net>
+References: <20121119144826.f59667b2.akpm@linux-foundation.org>
+ <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
+ <50F3F289.3090402@web.de>
+ <20130115165642.GA25500@titan.lakedaemon.net>
+ <20130115175020.GA3764@kroah.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com> <50F3F289.3090402@web.de> <20130115165642.GA25500@titan.lakedaemon.net>
-In-Reply-To: <20130115165642.GA25500@titan.lakedaemon.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130115175020.GA3764@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
-Cc: Soeren Moch <smoch@web.de>, Greg KH <gregkh@linuxfoundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-arm-kernel@lists.infradead.org
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Soeren Moch <smoch@web.de>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, linaro-mm-sig@lists.linaro.org, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>
 
-On 01/15/2013 05:56 PM, Jason Cooper wrote:
-> Greg,
->
-> I've added you to the this thread hoping for a little insight into USB
-> drivers and their use of coherent and GFP_ATOMIC.  Am I barking up the
-> wrong tree by looking a the drivers?
->
-> On Mon, Jan 14, 2013 at 12:56:57PM +0100, Soeren Moch wrote:
->> On 20.11.2012 15:31, Marek Szyprowski wrote:
->>> dmapool always calls dma_alloc_coherent() with GFP_ATOMIC flag,
->>> regardless the flags provided by the caller. This causes excessive
->>> pruning of emergency memory pools without any good reason. Additionaly,
->>> on ARM architecture any driver which is using dmapools will sooner or
->>> later  trigger the following error:
->>> "ERROR: 256 KiB atomic DMA coherent pool is too small!
->>> Please increase it with coherent_pool= kernel parameter!".
->>> Increasing the coherent pool size usually doesn't help much and only
->>> delays such error, because all GFP_ATOMIC DMA allocations are always
->>> served from the special, very limited memory pool.
->>>
->>> This patch changes the dmapool code to correctly use gfp flags provided
->>> by the dmapool caller.
->>>
->>> Reported-by: Soeren Moch<smoch@web.de>
->>> Reported-by: Thomas Petazzoni<thomas.petazzoni@free-electrons.com>
->>> Signed-off-by: Marek Szyprowski<m.szyprowski@samsung.com>
->>> Tested-by: Andrew Lunn<andrew@lunn.ch>
->>> Tested-by: Soeren Moch<smoch@web.de>
->>
->> Now I tested linux-3.7.1 (this patch is included there) on my Marvell
->> Kirkwood system. I still see
->>
->>    ERROR: 1024 KiB atomic DMA coherent pool is too small!
->>    Please increase it with coherent_pool= kernel parameter!
->>
->> after several hours of runtime under heavy load with SATA and
->> DVB-Sticks (em28xx / drxk and dib0700).
->
-> Could you try running the system w/o the em28xx stick and see how it
-> goes with v3.7.1?
+On Tue, Jan 15, 2013 at 09:50:20AM -0800, Greg KH wrote:
+> On Tue, Jan 15, 2013 at 11:56:42AM -0500, Jason Cooper wrote:
+> > Greg,
+> > 
+> > I've added you to the this thread hoping for a little insight into USB
+> > drivers and their use of coherent and GFP_ATOMIC.  Am I barking up the
+> > wrong tree by looking a the drivers?
+> 
+> I don't understand, which drivers are you referring to?  USB host
+> controller drivers, or the "normal" drivers?
 
-Jason,
+Sorry I wasn't clear, I was referring specifically to the usb dvb
+drivers em28xx, drxk and dib0700.  These are the drivers reported to be
+in heavy use when the error occurs.
 
-can you point out what you think we should be looking for?
+sata_mv is also in use, however no other users of sata_mv have reported
+problems.  Including myself. ;-)
 
-I grep'd for 'GFP_' in  drivers/media/usb and especially for dvb-usb
-(dib0700) it looks like most of the buffers in usb-urb.c are allocated
-GFP_ATOMIC. em28xx also allocates some of the buffers atomic.
+> Most USB drivers use GFP_ATOMIC if they are creating memory during
+> their URB callback path, as that is interrupt context.  But it
+> shouldn't be all that bad, and the USB core hasn't changed in a while,
+> so something else must be causing this.
 
-If we look for a mem leak in one of the above drivers (including sata_mv),
-is there an easy way to keep track of allocated and freed kernel memory?
+Agreed, so I went and did more reading.  The key piece of the puzzle
+that I was missing was in arch/arm/mm/dma-mapping.c 660-684.
 
-Sebastian
+/*
+ * Allocate DMA-coherent memory space and return both the kernel
+ * remapped
+ * virtual and bus address for that space.
+ */
+void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+                    gfp_t gfp, struct dma_attrs *attrs)
+{
+        pgprot_t prot = __get_dma_pgprot(attrs, pgprot_kernel);
+        void *memory;
+
+        if (dma_alloc_from_coherent(dev, size, handle, &memory))
+                return memory;
+
+        return __dma_alloc(dev, size, handle, gfp, prot, false,
+                           __builtin_return_address(0));
+}
+
+static void *arm_coherent_dma_alloc(struct device *dev, size_t size,
+        dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs)
+{
+        pgprot_t prot = __get_dma_pgprot(attrs, pgprot_kernel);
+        void *memory;
+
+        if (dma_alloc_from_coherent(dev, size, handle, &memory))
+                return memory;
+
+        return __dma_alloc(dev, size, handle, gfp, prot, true,
+                           __builtin_return_address(0));
+}
+
+
+My understanding of this code is that when a driver requests dma memory,
+we will first try to alloc from the per-driver pool.  If that fails, we
+will then attempt to allocate from the atomic_pool.
+
+Once the atomic_pool is exhausted, we get the error:
+
+  ERROR: 1024 KiB atomic DMA coherent pool is too small!
+  Please increase it with coherent_pool= kernel parameter!
+
+If my understanding is correct, one of the drivers (most likely one)
+either asks for too small of a dma buffer, or is not properly
+deallocating blocks from the per-device pool.  Either case leads to
+exhaustion, and falling back to the atomic pool.  Which subsequently
+gets wiped out as well.
+
+Am I on the right track?
+
+thx,
+
+Jason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
