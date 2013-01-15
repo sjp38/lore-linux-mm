@@ -1,33 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
-	by kanga.kvack.org (Postfix) with SMTP id 51FA06B0069
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 12:01:07 -0500 (EST)
-Date: Tue, 15 Jan 2013 09:01:05 -0800
-From: Zach Brown <zab@zabbo.net>
-Subject: Re: [PATCH] mm/slab: add a leak decoder callback
-Message-ID: <20130115170105.GP12288@lenny.home.zabbo.net>
-References: <1358143419-13074-1-git-send-email-bo.li.liu@oracle.com>
- <0000013c3f0c8af2-361e64b5-f822-4a93-a67e-b2902bb336fc-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
+	by kanga.kvack.org (Postfix) with SMTP id A354B6B0044
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 12:38:15 -0500 (EST)
+Date: Tue, 15 Jan 2013 11:38:14 -0600
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Improving lock pages
+Message-ID: <20130115173814.GA13329@gulag1.americas.sgi.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0000013c3f0c8af2-361e64b5-f822-4a93-a67e-b2902bb336fc-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Liu Bo <bo.li.liu@oracle.com>, linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: holt@sgi.com, linux-mm@kvack.org
 
-> The merge processing occurs during kmem_cache_create and you are setting
-> up the decoder field afterwards! Wont work.
 
-In the thread I suggested providing the callback at destruction:
+Hello Mel,
+    You helped some time ago with contention in lock_pages on very large boxes. 
+You worked with Jack Steiner on this.  Currently I am tasked with improving this 
+area even more.  So I am fishing for any more ideas that would be productive or 
+worth trying. 
 
- http://www.mail-archive.com/linux-btrfs@vger.kernel.org/msg21130.html
+I have some numbers from a 512 machine.
 
-I liked that it limits accesibility of the callback to the only path
-that uses it.
+Linux uvpsw1 3.0.51-0.7.9-default #1 SMP Thu Nov 29 22:12:17 UTC 2012 (f3be9d0) x86_64 x86_64 x86_64 GNU/Linux
+      0.166850
+      0.082339
+      0.248428
+      0.081197
+      0.127635
 
-- z
+Linux uvpsw1 3.8.0-rc1-medusa_ntz_clean-dirty #32 SMP Tue Jan 8 16:01:04 CST 2013 x86_64 x86_64 x86_64 GNU/Linux
+      0.151778
+      0.118343
+      0.135750
+      0.437019
+      0.120536
+
+Nathan Zimmer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
