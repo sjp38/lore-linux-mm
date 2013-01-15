@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 7FFF16B006C
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:50:57 -0500 (EST)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Tue, 15 Jan 2013 15:50:56 -0700
-Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 911401FF001C
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 15:50:43 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0FMosSq198666
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 15:50:54 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0FMorMm000799
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 15:50:54 -0700
-Message-ID: <50F5DD45.4060603@linux.vnet.ibm.com>
-Date: Tue, 15 Jan 2013 14:50:45 -0800
-From: Dave Hansen <dave@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
+	by kanga.kvack.org (Postfix) with SMTP id B3B086B006C
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 18:11:33 -0500 (EST)
+Date: Tue, 15 Jan 2013 15:11:27 -0800
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: LSF 2013 call for participation?
+Message-ID: <20130115231127.GA6422@blackbox.djwong.org>
+References: <20130107123719.GA14255@quack.suse.cz>
+ <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
 MIME-Version: 1.0
-Subject: Re: [RFCv3][PATCH 1/3] create slow_virt_to_phys()
-References: <20130109185904.DD641DCE@kernel.stglabs.ibm.com> <50F5B214.5060604@zytor.com>
-In-Reply-To: <50F5B214.5060604@zytor.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi@redhat.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: "Martin K. Petersen" <martin.petersen@oracle.com>
+Cc: Jan Kara <jack@suse.cz>, James.Bottomley@HansenPartnership.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On 01/15/2013 11:46 AM, H. Peter Anvin wrote:
-> I object to this switch statement.  If we are going to create new
-> primitives, let's create a primitive that embody this and put it in
-> pgtypes_types.h, especially since it is simply an algorithmic operation:
+[adding linux-mm to cc...]
 
-Yeah, that's a good point.  I did at least copy part of the switch from
-elsewhere in the file, so there's certainly room for consolidating some
-things.
+On Mon, Jan 07, 2013 at 10:43:05AM -0500, Martin K. Petersen wrote:
+> >>>>> "Jan" == Jan Kara <jack@suse.cz> writes:
+> 
+> Jan> Hi, I wanted to ask about this year's LSFMM summit - I didn't see
+> Jan> any call for participation yet although previous years it was sent
+> Jan> out before Christmas. 
+> 
+> Really? I always thought they went out in January. In any case we are
+> getting the call rolling.
+> 
+> And for those that want to plan ahead the dates are April 18th and 19th
+> in San Francisco. This year we're trailing the Collab Summit instead of
+> preceding it:
+> 
+> 	https://events.linuxfoundation.org/events/lsfmm-summit
 
-> static inline unsigned long page_level_size(int level)
-> {
->     return (PAGE_SIZE/PGDIR_SIZE) << (PGDIR_SHIFT*level);
-> }
-> static inline unsigned long page_level_shift(int level)
-> {
->     return (PAGE_SHIFT-PGDIR_SHIFT) + (PGDIR_SHIFT*level);
-> }
+There are a few things I'd like to hold a discussion about...
 
-(PAGE_SHIFT-PGDIR_SHIFT) == -27, so this can't possibly work, right?
+ - How do we get from bcache/flashcache/dm-cache/enhanceio to a single upstream
+   driver?  If we merge one of them, then can we cherry-pick the more easily
+   pluggable pieces of each into whatever gets merged?  Which one would we
+   merge as a basis for the others?
 
-How about something like this?
+ - Stable pages part 3: Modifying existing block devices.  A number of block
+   devices and filesystems provide their own page snapshotting, or play tricks
+   with the page bits to satisfy their own stability requirements.  Can we
+   eliminate this?
 
-/*
- * Note: this only holds true for pagetable levels where PTEs can be
- * present.  It would break if you used it on the PGD level where PAE
- * is in use.  It basically assumes that the shift between _all_
- * adjacent levels of the pagetables are the same as the lowest-level
- * shift.
- */
-#define PG_SHIFT_PER_LEVEL (PMD_SHIFT-PAGE_SHIFT)
+Also, miscellaneous other odd topics:
 
-static inline unsigned long page_level_shift(int level)
-{
-	return PAGE_SHIFT + (level - PG_LEVEL_4K) * PG_SHIFT_PER_LEVEL;
-}
-static inline unsigned long page_level_size(int level)
-{
-	return 1 << page_level_shift(level);
-}
+ - How many of the infrequently-tested mount options in ext4/others can we get
+   away with eliminating?  Or at least hiding them behind a "pleaseeatmydata"
+   mount flag to minimize (hopefully) the amount of accidental data loss due to
+   wild mount incantations?
 
-The generated code for page_level_size() looks pretty good, despite it
-depending on page_level_shift(), so we might as well leave it defined
-this way for simplicity:
+ - Update on exposing T10/DIF data to userspace via the preadv/pwritev aio
+   interface.  I ought to publish some code first.
 
-0000000000400610 <plsize>:
-  400610:       8d 7c bf fb             lea    -0x5(%rdi,%rdi,4),%edi
-  400614:       b8 01 00 00 00          mov    $0x1,%eax
-  400619:       8d 4c 3f 0c             lea    0xc(%rdi,%rdi,1),%ecx
-  40061d:       d3 e0                   shl    %cl,%eax
-  40061f:       c3                      retq
+ - A discussion of deduplication could be fun, though I'm not sure its memory
+   and processing requirements make it a great candidate for kernel code, or
+   even general usage.  I'm not even sure there's a practical way to, say, have
+   a userspace dedupe tool that could listen for delayed allocations and try to
+   suggest adjustments before commit time.
 
-I'll send out another series doing this.
+--D
+> 
+> -- 
+> Martin K. Petersen	Oracle Linux Engineering
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
