@@ -1,94 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id D6DA16B0069
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 13:46:25 -0500 (EST)
-Date: Tue, 15 Jan 2013 19:46:15 +0100 (CET)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: mmotm 2013-01-11-15-47 (trouble starting kvm)
-In-Reply-To: <50F18594.7070004@iskon.hr>
-Message-ID: <alpine.LRH.2.00.1301151943390.32259@twin.jikos.cz>
-References: <20130111234813.170A620004E@hpza10.eem.corp.google.com> <50F18594.7070004@iskon.hr>
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 8A0696B0068
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 14:05:25 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [Linaro-mm-sig][RFC] ARM: dma-mapping: Add DMA attribute to skip iommu mapping
+Date: Tue, 15 Jan 2013 19:05:11 +0000
+References: <1357639944-12050-1-git-send-email-abhinav.k@samsung.com> <50F570A4.70606@samsung.com>
+In-Reply-To: <50F570A4.70606@samsung.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201301151905.11704.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Abhinav Kochhar <abhinav.k@samsung.com>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, inki.dae@samsung.com
 
-On Sat, 12 Jan 2013, Zlatko Calusic wrote:
-
-> > A git tree which contains the memory management portion of this tree is
-> > maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-> > by Michal Hocko.  It contains the patches which are between the
+On Tuesday 15 January 2013, Marek Szyprowski wrote:
+> I'm sorry, but from my perspective this patch and the yet another dma
+> attribute shows that there is something fishy happening in the exynos-drm
+> driver. Creating a mapping in DMA address space is the MAIN purpose of
+> the DMA mapping subsystem, so adding an attribute which skips this
+> operation already should give you a sign of warning that something is
+> not used right.
 > 
-> The last commit I see in this tree is:
-> 
-> commit a0d271cbfed1dd50278c6b06bead3d00ba0a88f9
-> Author: Linus Torvalds <torvalds@linux-foundation.org>
-> Date:   Sun Sep 30 16:47:46 2012 -0700
-> 
->     Linux 3.6
-> 
-> Is it dead? Or am I doing something wrong?
-> 
-> > A full copy of the full kernel tree with the linux-next and mmotm patches
-> > already applied is available through git within an hour of the mmotm
-> > release.  Individual mmotm releases are tagged.  The master branch always
-> > points to the latest release, so it's constantly rebasing.
-> > 
-> > http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-> > 
-> > This mmotm tree contains the following patches against 3.8-rc3:
-> > (patches marked "*" will be included in linux-next)
-> > 
-> > * lockdep-rwsem-provide-down_write_nest_lock.patch
-> > * mm-mmap-annotate-vm_lock_anon_vma-locking-properly-for-lockdep.patch
-> 
-> Had to revert the above two patches to start KVM (win7) successfully.
-> Otherwise it would livelock on some semaphore, it seems. Couldn't kill it, ps
-> output would stuck, even reboot didn't work (had to use SysRQ).
+> It looks that dma-mapping in the current state is simply not adequate
+> for this driver. I noticed that DRM drivers are already known for
+> implementing a lots of common code for their own with slightly changed
+> behavior, like custom page manager/allocator. It looks that exynos-drm
+> driver grew to the point where it also needs such features. It already
+> contains custom code for CPU cache handling, IOMMU and contiguous
+> memory special cases management. I would advise to drop DMA-mapping
+> API completely, avoid adding yet another dozen of DMA attributes useful
+> only for one driver and implement your own memory manager with direct
+> usage of IOMMU API, alloc_pages() and dma_alloc_pages_from_contiguous().
+> This way DMA mapping subsystem can be kept simple, robust and easy to
+> understand without confusing or conflicting parts.
 
-Copy/pasting from my response to the other thread at 
-https://lkml.org/lkml/2013/1/15/440
+Makes sense. DRM drivers and KVM are the two cases where you typically
+want to use the iommu API rather than the dma-mapping API, because you
+need protection between multiple concurrent user contexts.
 
-
-====
-Thorough and careful review and analysis revealed that the rootcause very 
-likely is that I am a complete nitwit.
-
-Could you please try the patch below and report backt? Thanks.
-
-
-
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: [PATCH] lockdep, rwsem: fix down_write_nest_lock() if !CONFIG_DEBUG_LOCK_ALLOC
-
-Commit 1b963c81b1 ("lockdep, rwsem: provide down_write_nest_lock()") 
-contains a bug in a codepath when CONFIG_DEBUG_LOCK_ALLOC is disabled, 
-which causes down_read() to be called instead of down_write() by mistake 
-on such configurations. Fix that.
-
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
----
- include/linux/rwsem.h |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
-
-diff --git a/include/linux/rwsem.h b/include/linux/rwsem.h
-index 413cc11..8da67d6 100644
---- a/include/linux/rwsem.h
-+++ b/include/linux/rwsem.h
-@@ -135,7 +135,7 @@ do {								\
- 
- #else
- # define down_read_nested(sem, subclass)		down_read(sem)
--# define down_write_nest_lock(sem, nest_lock)	down_read(sem)
-+# define down_write_nest_lock(sem, nest_lock)	down_write(sem)
- # define down_write_nested(sem, subclass)	down_write(sem)
- #endif
- 
--- 
-Jiri Kosina
-SUSE Labs
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
