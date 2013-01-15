@@ -1,96 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 1C0BE8D0001
-	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 19:18:46 -0500 (EST)
-Received: by mail-qc0-f177.google.com with SMTP id u28so2879541qcs.36
-        for <linux-mm@kvack.org>; Mon, 14 Jan 2013 16:18:45 -0800 (PST)
-MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <CA+icZUXHksmiZYVU+gTyi+j9q9e1b5R9ZJ2RxUTeWKiey2PRuA@mail.gmail.com>
-References: <CA+icZUXyTvW0P4Adbr2x+RP3X-b3Qj8E53uxWrnDe964MgZepg@mail.gmail.com>
-	<CA+icZUXHksmiZYVU+gTyi+j9q9e1b5R9ZJ2RxUTeWKiey2PRuA@mail.gmail.com>
-Date: Tue, 15 Jan 2013 01:18:44 +0100
-Message-ID: <CA+icZUW4TW9-VwAMVXXP38eWyVXZ7+9+G6=57cUsWSvN4sMw9g@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix BUG on madvise early failure
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id CCE0D8D0003
+	for <linux-mm@kvack.org>; Mon, 14 Jan 2013 19:34:49 -0500 (EST)
+Message-ID: <1358210073.15692.60.camel@deadeye.wl.decadent.org.uk>
+Subject: Re: Bug#695182: [RFC] Reproducible OOM with just a few sleeps
+From: Ben Hutchings <ben@decadent.org.uk>
+Date: Tue, 15 Jan 2013 00:34:33 +0000
+In-Reply-To: <201301142036.r0EKaYGN005907@como.maths.usyd.edu.au>
+References: <201301142036.r0EKaYGN005907@como.maths.usyd.edu.au>
+Content-Type: multipart/signed; micalg="pgp-sha512";
+	protocol="application/pgp-signature"; boundary="=-eTIYiJF0k2H4mifvGy7X"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Shaohua Li <shli@fusionio.com>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-next <linux-next@vger.kernel.org>
+To: paul.szabo@sydney.edu.au, 695182@bugs.debian.org
+Cc: dave@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 15, 2013 at 12:44 AM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
-> On Mon, Jan 14, 2013 at 10:29 PM, Sedat Dilek <sedat.dilek@gmail.com> wrote:
->> Hi,
->>
->> this patch is for Linux-Next - more exactly next-20130114.
->> Can you please enhance the subject-line of your patch next time.
->>
->> Your patch fixes the issue I have reported a few hours ago in [1].
->>
->> [ TESTCASE ]
->>
->> "madvise02" from Linux Test Project (LTP) see [2]
->>
->> $ cd /opt/ltp/testcases/bin/
->>
->> $ sudo ./madvise02
->> [ OUTPUT ]
->> madvise02    1  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
->> Invalid argument
->> madvise02    2  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
->> Invalid argument
->> madvise02    3  TPASS  :  failed as expected: TEST_ERRNO=EINVAL(22):
->> Invalid argument
->> madvise02    4  TPASS  :  failed as expected: TEST_ERRNO=ENOMEM(12):
->> Cannot allocate memory
->> madvise02    5  TFAIL  :  madvise succeeded unexpectedly
->>
->> [ /TESTCASE ]
->>
->> Please feel free and add a...
->>
->>      Tested-by: Sedat Dilek <sedat.dilek@gmail.com>
->>
->> Thanks!
->>
->> Regards,
->> - Sedat -
->>
->> [1] http://marc.info/?l=linux-mm&m=135818843710244&w=2
->> [2] http://sourceforge.net/projects/ltp/
->
-> You happen to know how I get more verbose-debug outputs?
->
-> You have...
->
-> [   57.320031] kernel BUG at block/blk-core.c:2981!
-> [   57.320031] invalid opcode: 0000 [#3] PREEMPT SMP DEBUG_PAGEALLOC
->
-> Me has...
->
-> [ 1263.965989] Kernel BUG at ffffffff81328b2b [verbose debug info unavailable]
-> [ 1263.966022] invalid opcode: 0000 [#1] SMP
->
-> CONFIG_DEBUG_PAGEALLOC=y ?
->
-> Block-specific debug settings?
->
-> $ egrep -i 'block|blk' .config | egrep -i 'debug|dbg'
-> # CONFIG_DEBUG_BLK_CGROUP is not set
-> # CONFIG_DEBUG_BLOCK_EXT_DEVT is not set
->
 
-Hmm, DEBUG_PAGEALLOC=y did not help.
+--=-eTIYiJF0k2H4mifvGy7X
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Maybe this one...
+On Tue, 2013-01-15 at 07:36 +1100, paul.szabo@sydney.edu.au wrote:
+> Dear Dave,
+>=20
+> >> Seems that any i386 PAE machine will go OOM just by running a few
+> >> processes. To reproduce:
+> >>   sh -c 'n=3D0; while [ $n -lt 19999 ]; do sleep 600 & ((n=3Dn+1)); do=
+ne'
+> >> ...
+> > I think what you're seeing here is that, as the amount of total memory
+> > increases, the amount of lowmem available _decreases_ due to inflation
+> > of mem_map[] (and a few other more minor things).  The number of sleeps
+> > you can do is bound by the number of processes, as you noticed from
+> > ulimit.  Creating processes that don't use much memory eats a relativel=
+y
+> > large amount of low memory.
+> > This is a sad (and counterintuitive) fact: more RAM actually *CREATES*
+> > RAM bottlenecks on 32-bit systems.
+>=20
+> I understand that more RAM leaves less lowmem. What is unacceptable is
+> that PAE crashes or freezes with OOM: it should gracefully handle the
+> issue.
+[...]
 
-$ grep DEBUG_BUGVERBOSE .config
-# CONFIG_DEBUG_BUGVERBOSE is not set
+Sorry, let me know where to send your refund.
 
-- Sedat -
+Ben.
 
-> - Sedat -
+--=20
+Ben Hutchings
+Quantity is no substitute for quality, but it's the only one we've got.
+
+--=-eTIYiJF0k2H4mifvGy7X
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIVAwUAUPSkGee/yOyVhhEJAQrbyxAAucDS0JK+jxM1edWyh6x21ngvDqaQ55Wi
+OfLa+fKTHz2yhZ1A6JoIJuL0xwalbLiAAeIaFVTsUAM410DUhTe2GWwxa/ZC+y1Q
+tyv4ZIb9BfIbDdsnfK0UlN7QjQVreNDFJEo1asfG1jjxnyupoCp9wr2ikJOc1uuW
+1jpDjtc9Dknkxo9cEtHJdf3fMVmZLEUp2sScbtRXX08PA9//EwADz3xvz0gaZcvj
+QH82Fluh1lJuhjWhDlQoKlFztcGc7QAfCBA14BQIEFw/T2sK6dGVeiBCTo+3vbcm
++qavK5lK8MlZ2ibFQ1HarzCkRzQmUiseXhOl4owdlhMNTZLmAixLJHiHpe7ybk6u
+cjWjklxenWmWTHxBF9tmPr8SJO8Q7e1RL08SCjUtME5wJ2KUHzpvqib49ysyEdwH
+TqQTEm1VMvFCbq/wYwRKw/jIsM+zg1r+e392QT/zMVAIui8y7whoeL9heyHoC6jF
+uiOSMnA23+OpawSZDM7knPW0j1K+MTz9p8IlsUa+Z8U6wirw7npLNz/Z4Py++8Dn
+uJ8WJcQ8n+HXbhWgaFy8cnir4zET35OdgwKq0p6BNqT1PqCDeVFKiDE3khhmUJAY
+U2LBYk0uzr6NAp1nfjzhPYLhp2TclkCM7wDH/CmZK6sM0r24HTfY3rOfL0S4YKRw
+PZLopwX7Rak=
+=28wN
+-----END PGP SIGNATURE-----
+
+--=-eTIYiJF0k2H4mifvGy7X--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
