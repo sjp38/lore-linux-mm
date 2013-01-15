@@ -1,76 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id B3B086B006C
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 18:11:33 -0500 (EST)
-Date: Tue, 15 Jan 2013 15:11:27 -0800
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: LSF 2013 call for participation?
-Message-ID: <20130115231127.GA6422@blackbox.djwong.org>
-References: <20130107123719.GA14255@quack.suse.cz>
- <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
+Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
+	by kanga.kvack.org (Postfix) with SMTP id AA7FE6B0062
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 18:36:27 -0500 (EST)
+Date: Tue, 15 Jan 2013 15:36:25 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: remove MIGRATE_ISOLATE check in hotpath
+Message-Id: <20130115153625.96265439.akpm@linux-foundation.org>
+In-Reply-To: <1358209006-18859-1-git-send-email-minchan@kernel.org>
+References: <1358209006-18859-1-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Martin K. Petersen" <martin.petersen@oracle.com>
-Cc: Jan Kara <jack@suse.cz>, James.Bottomley@HansenPartnership.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michal Nazarewicz <mina86@mina86.com>
 
-[adding linux-mm to cc...]
+On Tue, 15 Jan 2013 09:16:46 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-On Mon, Jan 07, 2013 at 10:43:05AM -0500, Martin K. Petersen wrote:
-> >>>>> "Jan" == Jan Kara <jack@suse.cz> writes:
-> 
-> Jan> Hi, I wanted to ask about this year's LSFMM summit - I didn't see
-> Jan> any call for participation yet although previous years it was sent
-> Jan> out before Christmas. 
-> 
-> Really? I always thought they went out in January. In any case we are
-> getting the call rolling.
-> 
-> And for those that want to plan ahead the dates are April 18th and 19th
-> in San Francisco. This year we're trailing the Collab Summit instead of
-> preceding it:
-> 
-> 	https://events.linuxfoundation.org/events/lsfmm-summit
+> Now mm several functions test MIGRATE_ISOLATE and some of those
+> are hotpath but MIGRATE_ISOLATE is used only if we enable
+> CONFIG_MEMORY_ISOLATION(ie, CMA, memory-hotplug and memory-failure)
+> which are not common config option. So let's not add unnecessary
+> overhead and code when we don't enable CONFIG_MEMORY_ISOLATION.
 
-There are a few things I'd like to hold a discussion about...
+ugh.  Better than nothing, I guess.
 
- - How do we get from bcache/flashcache/dm-cache/enhanceio to a single upstream
-   driver?  If we merge one of them, then can we cherry-pick the more easily
-   pluggable pieces of each into whatever gets merged?  Which one would we
-   merge as a basis for the others?
+There remain call sites which do open-coded
 
- - Stable pages part 3: Modifying existing block devices.  A number of block
-   devices and filesystems provide their own page snapshotting, or play tricks
-   with the page bits to satisfy their own stability requirements.  Can we
-   eliminate this?
+	get_pageblock_migratetype(page) != MIGRATE_ISOLATE
 
-Also, miscellaneous other odd topics:
+(undo_isolate_page_range() is one).  Wanna clean these up as well?
 
- - How many of the infrequently-tested mount options in ext4/others can we get
-   away with eliminating?  Or at least hiding them behind a "pleaseeatmydata"
-   mount flag to minimize (hopefully) the amount of accidental data loss due to
-   wild mount incantations?
+>
+> ...
+>
+> @@ -683,7 +683,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
+>  	zone->pages_scanned = 0;
+>  
+>  	__free_one_page(page, zone, order, migratetype);
+> -	if (unlikely(migratetype != MIGRATE_ISOLATE))
+> +	if (unlikely(!is_migrate_isolate(migratetype)))
+>  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+>  	spin_unlock(&zone->lock);
+>  }
 
- - Update on exposing T10/DIF data to userspace via the preadv/pwritev aio
-   interface.  I ought to publish some code first.
-
- - A discussion of deduplication could be fun, though I'm not sure its memory
-   and processing requirements make it a great candidate for kernel code, or
-   even general usage.  I'm not even sure there's a practical way to, say, have
-   a userspace dedupe tool that could listen for delayed allocations and try to
-   suggest adjustments before commit time.
-
---D
-> 
-> -- 
-> Martin K. Petersen	Oracle Linux Engineering
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+The code both before and after this patch is assuming that the
+migratetype in free_one_page is likely to be MIGRATE_ISOLATE.  Seems
+wrong.  If CONFIG_MEMORY_ISOLATION=n this ends up doing
+if(unlikely(true)) which is harmless-but-amusing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
