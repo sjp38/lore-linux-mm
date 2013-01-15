@@ -1,197 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 7DC346B0068
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 09:21:01 -0500 (EST)
-Date: Tue, 15 Jan 2013 15:20:56 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH V2] memory-hotplug: revert
- register_page_bootmem_info_node() to empty when platform related code is not
- implemented
-Message-ID: <20130115142056.GC21725@dhcp22.suse.cz>
-References: <1358245203-4181-1-git-send-email-linfeng@cn.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358245203-4181-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx110.postini.com [74.125.245.110])
+	by kanga.kvack.org (Postfix) with SMTP id BE7126B0068
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 10:07:18 -0500 (EST)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0MGO0007GA04Q670@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jan 2013 15:07:16 +0000 (GMT)
+Received: from [106.116.147.30] by eusync2.samsung.com
+ (Oracle Communications Messaging Server 7u4-23.01(7.0.4.23.0) 64bit (built Aug
+ 10 2011)) with ESMTPA id <0MGO00LRSA04N450@eusync2.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jan 2013 15:07:16 +0000 (GMT)
+Message-id: <50F570A4.70606@samsung.com>
+Date: Tue, 15 Jan 2013 16:07:16 +0100
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [Linaro-mm-sig][RFC] ARM: dma-mapping: Add DMA attribute to skip
+ iommu mapping
+References: <1357639944-12050-1-git-send-email-abhinav.k@samsung.com>
+In-reply-to: <1357639944-12050-1-git-send-email-abhinav.k@samsung.com>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, wency@cn.fujitsu.com, jiang.liu@huawei.com, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, linux-kernel@vger.kernel.org
+To: Abhinav Kochhar <abhinav.k@samsung.com>
+Cc: linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, linux-mm@kvack.org, inki.dae@samsung.com, Arnd Bergmann <arnd@arndb.de>
 
-On Tue 15-01-13 18:20:03, Lin Feng wrote:
-> Memory-hotplug codes for x86_64 have been implemented by patchset:
-> https://lkml.org/lkml/2013/1/9/124
-> While other platforms haven't been completely implemented yet.
-> 
-> If we enable both CONFIG_MEMORY_HOTPLUG_SPARSE and CONFIG_SPARSEMEM_VMEMMAP,
-> register_page_bootmem_info_node() may be buggy, which is a hotplug generic
-> function but falling back to call platform related function
-> register_page_bootmem_memmap().
-> 
-> Other platforms such as powerpc it's not implemented, so on such platforms,
-> revert them to empty as they were before.
-> 
-> It's implemented by adding a new Kconfig option named
-> CONFIG_HAVE_BOOTMEM_INFO_NODE, which will be automatically selected by
-> supported archs(currently only on x86_64).
-> 
-> Reported-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
-> ---
-> ChangeLog v1->v2:
-> - Add a Kconfig option named HAVE_BOOTMEM_INFO_NODE suggested by Michal, which
->   will be automatically selected by supported archs(currently only on x86_64).
-> ---
->  mm/Kconfig          |    8 ++++++++
->  mm/memory_hotplug.c |    7 +++++++
->  2 files changed, 15 insertions(+), 0 deletions(-)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 278e3ab..f8c5799 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -162,10 +162,18 @@ config MOVABLE_NODE
->  	  Say Y here if you want to hotplug a whole node.
->  	  Say N here if you want kernel to use memory on all nodes evenly.
->  
-> +#
-> +# Only be set on architectures that have completely implemented memory hotplug
-> +# feature. If you are not sure, don't touch it.
-> +#
-> +config HAVE_BOOTMEM_INFO_NODE
-> +	def_bool n
-> +
->  # eventually, we can have this option just 'select SPARSEMEM'
->  config MEMORY_HOTPLUG
->  	bool "Allow for memory hot-add"
->  	select MEMORY_ISOLATION
-> +	select HAVE_BOOTMEM_INFO_NODE if X86_64
->  	depends on SPARSEMEM || X86_64_ACPI_NUMA
->  	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
->  	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 8aa2b56..ef7a5c8 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -189,6 +189,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
->  }
->  #endif
->  
-> +#ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
->  void register_page_bootmem_info_node(struct pglist_data *pgdat)
->  {
->  	unsigned long i, pfn, end_pfn, nr_pages;
-> @@ -230,6 +231,12 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
->  			register_page_bootmem_info_section(pfn);
->  	}
->  }
-> +#else
-> +void register_page_bootmem_info_node(struct pglist_data *pgdat)
-> +{
-> +	/* TODO */
-> +}
+Hello,
 
-I think that TODO is misleading here because the function should be
-empty if !CONFIG_HAVE_BOOTMEM_INFO_NODE. I would also suggest updating
-include/linux/memory_hotplug.h and removing the arch specific functions
-without any implementation. Something like (untested) patch below:
----
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index 882a0fd..cb5e1ff 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -827,9 +827,4 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 2969591..7e2246f 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -302,10 +302,5 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 4073156..139bb48 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -240,12 +240,6 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
--
- /*
-  * Add memory segment to the segment list if it doesn't overlap with
-  * an already present segment.
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index f0ef3c2..07571a27 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2236,11 +2236,6 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void prot_init_common(unsigned long page_none,
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index d1b8257..defe6ee 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1317,7 +1317,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
- 	return 0;
- }
- 
--#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-+#if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HAVE_BOOTMEM_INFO_NODE)
- void register_page_bootmem_memmap(unsigned long section_nr,
- 				  struct page *start_page, unsigned long size)
- {
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index f60e728..34b0511 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -174,7 +174,13 @@ static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
- #endif /* CONFIG_NUMA */
- #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
- 
-+#ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
- extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
-+#else
-+static void register_page_bootmem_info_node(struct pglist_data *pgdat)
-+{
-+}
-+#endif
- extern void put_page_bootmem(struct page *page);
- extern void get_page_bootmem(unsigned long ingo, struct page *page,
- 			     unsigned long type);
+On 1/8/2013 11:12 AM, Abhinav Kochhar wrote:
+> Adding a new dma attribute which can be used by the
+> platform drivers to avoid creating iommu mappings.
+> In some cases the buffers are allocated by display
+> controller driver using dma alloc apis but are not
+> used for scanout. Though the buffers are allocated
+> by display controller but are only used for sharing
+> among different devices.
+> With this attribute the platform drivers can choose
+> not to create iommu mapping at the time of buffer
+> allocation and only create the mapping when they
+> access this buffer.
+>
+> Change-Id: I2178b3756170982d814e085ca62474d07b616a21
+> Signed-off-by: Abhinav Kochhar <abhinav.k@samsung.com>
+> ---
+>   arch/arm/mm/dma-mapping.c |    8 +++++---
+>   include/linux/dma-attrs.h |    1 +
+>   2 files changed, 6 insertions(+), 3 deletions(-)
+>
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index c0f0f43..e73003c 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -1279,9 +1279,11 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
+>   	if (!pages)
+>   		return NULL;
+>   
+> -	*handle = __iommu_create_mapping(dev, pages, size);
+> -	if (*handle == DMA_ERROR_CODE)
+> -		goto err_buffer;
+> +	if (!dma_get_attr(DMA_ATTR_NO_IOMMU_MAPPING, attrs)) {
+> +		*handle = __iommu_create_mapping(dev, pages, size);
+> +		if (*handle == DMA_ERROR_CODE)
+> +			goto err_buffer;
+> +	}
+>   
+>   	if (dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs))
+>   		return pages;
+> diff --git a/include/linux/dma-attrs.h b/include/linux/dma-attrs.h
+> index c8e1831..1f04419 100644
+> --- a/include/linux/dma-attrs.h
+> +++ b/include/linux/dma-attrs.h
+> @@ -15,6 +15,7 @@ enum dma_attr {
+>   	DMA_ATTR_WEAK_ORDERING,
+>   	DMA_ATTR_WRITE_COMBINE,
+>   	DMA_ATTR_NON_CONSISTENT,
+> +	DMA_ATTR_NO_IOMMU_MAPPING,
+>   	DMA_ATTR_NO_KERNEL_MAPPING,
+>   	DMA_ATTR_SKIP_CPU_SYNC,
+>   	DMA_ATTR_FORCE_CONTIGUOUS,
+
+I'm sorry, but from my perspective this patch and the yet another dma
+attribute shows that there is something fishy happening in the exynos-drm
+driver. Creating a mapping in DMA address space is the MAIN purpose of
+the DMA mapping subsystem, so adding an attribute which skips this
+operation already should give you a sign of warning that something is
+not used right.
+
+It looks that dma-mapping in the current state is simply not adequate
+for this driver. I noticed that DRM drivers are already known for
+implementing a lots of common code for their own with slightly changed
+behavior, like custom page manager/allocator. It looks that exynos-drm
+driver grew to the point where it also needs such features. It already
+contains custom code for CPU cache handling, IOMMU and contiguous
+memory special cases management. I would advise to drop DMA-mapping
+API completely, avoid adding yet another dozen of DMA attributes useful
+only for one driver and implement your own memory manager with direct
+usage of IOMMU API, alloc_pages() and dma_alloc_pages_from_contiguous().
+This way DMA mapping subsystem can be kept simple, robust and easy to
+understand without confusing or conflicting parts.
+
+Best regards
 -- 
-Michal Hocko
-SUSE Labs
+Marek Szyprowski
+Samsung Poland R&D Center
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
