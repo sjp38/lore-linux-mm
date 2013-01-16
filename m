@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx108.postini.com [74.125.245.108])
-	by kanga.kvack.org (Postfix) with SMTP id 32C586B0071
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id A559B6B0072
 	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:57 -0500 (EST)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
 	Tue, 15 Jan 2013 19:25:56 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id B546438C804D
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:38 -0500 (EST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PcCD323986
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:38 -0500
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PaCh011025
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:37 -0700
+Received: from d01relay05.pok.ibm.com (d01relay05.pok.ibm.com [9.56.227.237])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 191ABC90046
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:54 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay05.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PrTR338022
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:53 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PrpA020142
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 22:25:53 -0200
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 02/17] mmzone: add various zone_*() helper functions.
-Date: Tue, 15 Jan 2013 16:24:39 -0800
-Message-Id: <1358295894-24167-3-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH 14/17] mm/memory_hotplug: factor out zone+pgdat growth.
+Date: Tue, 15 Jan 2013 16:24:51 -0800
+Message-Id: <1358295894-24167-15-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <jmesmon@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-From: Cody P Schafer <jmesmon@gmail.com>
-
-Add zone_is_initialized(), zone_is_empty(), zone_spans_pfn(), and
-zone_end_pfn().
+Create a new function grow_pgdat_and_zone() which handles locking +
+growth of a zone & the pgdat which it is associated with.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- include/linux/mmzone.h | 20 ++++++++++++++++++++
- 1 file changed, 20 insertions(+)
+ mm/memory_hotplug.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 73b64a3..696cb7c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -543,6 +543,26 @@ static inline int zone_is_oom_locked(const struct zone *zone)
- 	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 0a74b86a..c6149a3 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -361,6 +361,16 @@ static void grow_pgdat_span(struct pglist_data *pgdat, unsigned long start_pfn,
+ 					pgdat->node_start_pfn;
  }
  
-+static inline unsigned zone_end_pfn(const struct zone *zone)
++static void grow_pgdat_and_zone(struct zone *zone, unsigned long start_pfn,
++		unsigned long end_pfn)
 +{
-+	return zone->zone_start_pfn + zone->spanned_pages;
++	unsigned long flags;
++	pgdat_resize_lock(zone->zone_pgdat, &flags);
++	grow_zone_span(zone, start_pfn, end_pfn);
++	grow_pgdat_span(zone->zone_pgdat, start_pfn, end_pfn);
++	pgdat_resize_unlock(zone->zone_pgdat, &flags);
 +}
 +
-+static inline bool zone_spans_pfn(const struct zone *zone, unsigned long pfn)
-+{
-+	return zone->zone_start_pfn <= pfn && pfn < zone_end_pfn(zone);
-+}
-+
-+static inline bool zone_is_initialized(struct zone *zone)
-+{
-+	return !!zone->wait_table;
-+}
-+
-+static inline bool zone_is_empty(struct zone *zone)
-+{
-+	return zone->spanned_pages == 0;
-+}
-+
- /*
-  * The "priority" of VM scanning is how much of the queues we will scan in one
-  * go. A value of 12 for DEF_PRIORITY implies that we will scan 1/4096th of the
+ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ {
+ 	struct pglist_data *pgdat = zone->zone_pgdat;
+@@ -375,11 +385,7 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
+ 	if (ret)
+ 		return ret;
+ 
+-	pgdat_resize_lock(zone->zone_pgdat, &flags);
+-	grow_zone_span(zone, phys_start_pfn, phys_start_pfn + nr_pages);
+-	grow_pgdat_span(zone->zone_pgdat, phys_start_pfn,
+-			phys_start_pfn + nr_pages);
+-	pgdat_resize_unlock(zone->zone_pgdat, &flags);
++	grow_pgdat_and_zone(zone, phys_start_pfn, phys_start_pfn + nr_pages);
+ 	memmap_init_zone(nr_pages, nid, zone_type,
+ 			 phys_start_pfn, MEMMAP_HOTPLUG);
+ 	return 0;
 -- 
 1.8.0.3
 
