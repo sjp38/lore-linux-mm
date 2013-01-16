@@ -1,101 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
-	by kanga.kvack.org (Postfix) with SMTP id C2DE56B005A
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 10:20:58 -0500 (EST)
-Date: Wed, 16 Jan 2013 15:20:57 +0000
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH V2] mm/slab: add a leak decoder callback
-In-Reply-To: <1358305393-3507-1-git-send-email-bo.li.liu@oracle.com>
-Message-ID: <0000013c43f2e550-649fcc34-13c2-4e4b-81be-96d68e63cf60-000000@email.amazonses.com>
-References: <1358305393-3507-1-git-send-email-bo.li.liu@oracle.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 147EC6B005A
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 10:50:55 -0500 (EST)
+Date: Wed, 16 Jan 2013 10:50:45 -0500
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: [PATCH] ata: sata_mv: fix sg_tbl_pool alignment
+Message-ID: <20130116155045.GI25500@titan.lakedaemon.net>
+References: <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com>
+ <50F3F289.3090402@web.de>
+ <20130115165642.GA25500@titan.lakedaemon.net>
+ <20130115175020.GA3764@kroah.com>
+ <20130115201617.GC25500@titan.lakedaemon.net>
+ <20130115215602.GF25500@titan.lakedaemon.net>
+ <50F5F1B7.3040201@web.de>
+ <20130116024014.GH25500@titan.lakedaemon.net>
+ <50F61D86.4020801@web.de>
+ <50F66B1B.40301@web.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50F66B1B.40301@web.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Bo <bo.li.liu@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, zab@zabbo.net, penberg@kernel.org
+To: Soeren Moch <smoch@web.de>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On Wed, 16 Jan 2013, Liu Bo wrote:
+On Wed, Jan 16, 2013 at 09:55:55AM +0100, Soeren Moch wrote:
+> On 16.01.2013 04:24, Soeren Moch wrote:
+> >On 16.01.2013 03:40, Jason Cooper wrote:
+> >>On Wed, Jan 16, 2013 at 01:17:59AM +0100, Soeren Moch wrote:
+> >>>On 15.01.2013 22:56, Jason Cooper wrote:
+> >>>>On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
 
-> --- a/include/linux/slub_def.h
-> +++ b/include/linux/slub_def.h
-> @@ -93,6 +93,7 @@ struct kmem_cache {
->  	gfp_t allocflags;	/* gfp flags to use on each alloc */
->  	int refcount;		/* Refcount for slab cache destroy */
->  	void (*ctor)(void *);
-> +	void (*decoder)(void *);
+> OK, I could trigger the error
+>   ERROR: 1024 KiB atomic DMA coherent pool is too small!
+>   Please increase it with coherent_pool= kernel parameter!
+> only with em28xx sticks and sata, dib0700 sticks removed.
 
-The field needs to be moved away from the first hot cachelines in
-kmem_cache.
+Did you test the reverse scenario?  ie dib0700 with sata_mv and no
+em28xx.
 
+What kind of throughput are you pushing to the sata disk?
 
-> index 3f3cd97..8c19bfd 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -193,6 +193,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
->  		s->object_size = s->size = size;
->  		s->align = calculate_alignment(flags, align, size);
->  		s->ctor = ctor;
-> +		s->decoder = NULL;
->
->  		if (memcg_register_cache(memcg, s, parent_cache)) {
->  			kmem_cache_free(kmem_cache, s);
+> >>What would be most helpful is if you could do a git bisect between
+> >>v3.5.x (working) and the oldest version where you know it started
+> >>failing (v3.7.1 or earlier if you know it).
+> >>
+> >I did not bisect it, but Marek mentioned earlier that commit
+> >e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
+> >new code for dma allocations. This is probably the root cause for the
+> >new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
+> 
+> I don't want to say that Mareks patch is wrong, probably it triggers a
+> bug somewhere else! (in em28xx?)
 
-Not necessary since s is filled with zeros on allocation.
+Of the four drivers you listed, none are using dma.  sata_mv is the only
+one.
 
-> @@ -248,7 +249,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
->  }
->  EXPORT_SYMBOL(kmem_cache_create);
->
-> -void kmem_cache_destroy(struct kmem_cache *s)
-> +static void __kmem_cache_destroy(struct kmem_cache *s, void (*decoder)(void *))
->  {
->  	/* Destroy all the children caches if we aren't a memcg cache */
->  	kmem_cache_destroy_memcg_children(s);
-> @@ -259,6 +260,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
->  	if (!s->refcount) {
->  		list_del(&s->list);
->
-> +		if (unlikely(decoder))
-> +			s->decoder = decoder;
-> +
->  		if (!__kmem_cache_shutdown(s)) {
->  			mutex_unlock(&slab_mutex);
->  			if (s->flags & SLAB_DESTROY_BY_RCU)
+If one is to believe the comments in sata_mv.c:~151, then the alignment
+is wrong for the sg_tbl_pool.
 
-Now that is a bit weird since __kmem_cache_destroy now sets a field in
-kmem_cache?
+Could you please try the following patch?
 
-If a kmem_cache has a decoder field set then it is no longer mergeable.
+thx,
 
-It looks like the decoder field would have to be set on cache creation.
+Jason.
 
-If we do that then the functionality could be more generic. I always
-wanted to have a function that checks the object integrity as well.
-
-The cache validation could then go through all objects and in addition to
-checking the slab meta data integrity could also have the subsystem
-confirm the integrity of the object.
-
-> index ba2ca53..34b3b75 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3098,6 +3098,8 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
->  	for_each_object(p, s, addr, page->objects) {
->
->  		if (!test_bit(slab_index(p, s, addr), map)) {
-> +			if (unlikely(s->decoder))
-> +				s->decoder(p);
->  			printk(KERN_ERR "INFO: Object 0x%p @offset=%tu\n",
->  							p, p - addr);
->  			print_tracking(s, p);
->
-
-Hmmm... The function is currently only used on kmem_cache_destroy but that
-may change.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---8<----------
