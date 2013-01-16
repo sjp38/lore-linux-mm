@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id ABDD86B005D
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:52:50 -0500 (EST)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Tue, 15 Jan 2013 17:52:50 -0700
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id A3FD63E4005E
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:32 -0700 (MST)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay04.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PcVs326976
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:38 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PanY020348
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:38 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 03/17] mm/page_alloc: add a VM_BUG in __free_one_page() if the zone is uninitialized.
-Date: Tue, 15 Jan 2013 16:24:40 -0800
-Message-Id: <1358295894-24167-4-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 85D836B005D
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 20:02:13 -0500 (EST)
+Date: Wed, 16 Jan 2013 08:59:43 +0800
+From: Liu Bo <bo.li.liu@oracle.com>
+Subject: Re: [PATCH] mm/slab: add a leak decoder callback
+Message-ID: <20130116005942.GA3942@liubo>
+Reply-To: bo.li.liu@oracle.com
+References: <1358143419-13074-1-git-send-email-bo.li.liu@oracle.com>
+ <0000013c3f0c8af2-361e64b5-f822-4a93-a67e-b2902bb336fc-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013c3f0c8af2-361e64b5-f822-4a93-a67e-b2902bb336fc-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <jmesmon@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, Zach Brown <zab@zabbo.net>, Pekka Enberg <penberg@kernel.org>
 
-From: Cody P Schafer <jmesmon@gmail.com>
+On Tue, Jan 15, 2013 at 04:30:52PM +0000, Christoph Lameter wrote:
+> On Mon, 14 Jan 2013, Liu Bo wrote:
+> 
+> > This adds a leak decoder callback so that kmem_cache_destroy()
+> > can use to generate debugging output for the allocated objects.
+> 
+> Interesting idea.
+> 
+> > @@ -3787,6 +3789,9 @@ static int slab_unmergeable(struct kmem_cache *s)
+> >  	if (s->ctor)
+> >  		return 1;
+> >
+> > +	if (s->decoder)
+> > +		return 1;
+> > +
+> >  	/*
+> >  	 * We may have set a slab to be unmergeable during bootstrap.
+> >  	 */
+> 
+> The merge processing occurs during kmem_cache_create and you are setting
+> up the decoder field afterwards! Wont work.
 
-Freeing pages to uninitialized zones is not handled by
-__free_one_page(), and should never happen when the code is correct.
+You're right, I miss the lock part.
 
-Ran into this while writing some code that dynamically onlines extra
-zones.
-
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- mm/page_alloc.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index df2022f..da5a5ec 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -532,6 +532,8 @@ static inline void __free_one_page(struct page *page,
- 	unsigned long uninitialized_var(buddy_idx);
- 	struct page *buddy;
- 
-+	VM_BUG_ON(!zone_is_initialized(zone));
-+
- 	if (unlikely(PageCompound(page)))
- 		if (unlikely(destroy_compound_page(page, order)))
- 			return;
--- 
-1.8.0.3
+thanks,
+liubo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
