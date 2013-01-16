@@ -1,107 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 57D756B006C
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 12:34:28 -0500 (EST)
-Message-ID: <50F6E419.5080007@web.de>
-Date: Wed, 16 Jan 2013 18:32:09 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx189.postini.com [74.125.245.189])
+	by kanga.kvack.org (Postfix) with SMTP id 0674D6B006C
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 12:47:43 -0500 (EST)
+Date: Wed, 16 Jan 2013 12:47:36 -0500
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all
+ dma_alloc_coherent() calls
+Message-ID: <20130116174736.GJ25500@titan.lakedaemon.net>
+References: <50F3F289.3090402@web.de>
+ <20130115165642.GA25500@titan.lakedaemon.net>
+ <20130115175020.GA3764@kroah.com>
+ <20130115201617.GC25500@titan.lakedaemon.net>
+ <20130115215602.GF25500@titan.lakedaemon.net>
+ <50F5F1B7.3040201@web.de>
+ <20130116024014.GH25500@titan.lakedaemon.net>
+ <50F61D86.4020801@web.de>
+ <50F66B1B.40301@web.de>
+ <50F6E419.5080007@web.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com> <50F3F289.3090402@web.de> <20130115165642.GA25500@titan.lakedaemon.net> <20130115175020.GA3764@kroah.com> <20130115201617.GC25500@titan.lakedaemon.net> <20130115215602.GF25500@titan.lakedaemon.net> <50F5F1B7.3040201@web.de> <20130116024014.GH25500@titan.lakedaemon.net> <50F61D86.4020801@web.de> <50F66B1B.40301@web.de>
-In-Reply-To: <50F66B1B.40301@web.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50F6E419.5080007@web.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
+To: Soeren Moch <smoch@web.de>
 Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On 16.01.2013 09:55, Soeren Moch wrote:
-> On 16.01.2013 04:24, Soeren Moch wrote:
->> On 16.01.2013 03:40, Jason Cooper wrote:
->>> Soeren,
->>>
->>> On Wed, Jan 16, 2013 at 01:17:59AM +0100, Soeren Moch wrote:
->>>> On 15.01.2013 22:56, Jason Cooper wrote:
->>>>> On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
->>>>>> If my understanding is correct, one of the drivers (most likely one)
->>>>>> either asks for too small of a dma buffer, or is not properly
->>>>>> deallocating blocks from the per-device pool.  Either case leads to
->>>>>> exhaustion, and falling back to the atomic pool.  Which subsequently
->>>>>> gets wiped out as well.
->>>>>
->>>>> If my hunch is right, could you please try each of the three dvb
->>>>> drivers
->>>>> in turn and see which one (or more than one) causes the error?
->>>>
->>>> In fact I use only 2 types of DVB sticks: em28xx usb bridge plus drxk
->>>> demodulator, and dib0700 usb bridge plus dib7000p demod.
->>>>
->>>> I would bet for em28xx causing the error, but this is not thoroughly
->>>> tested. Unfortunately testing with removed sticks is not easy, because
->>>> this is a production system and disabling some services for the long
->>>> time we need to trigger this error will certainly result in unhappy
->>>> users.
->>>
-> OK, I could trigger the error
->    ERROR: 1024 KiB atomic DMA coherent pool is too small!
->    Please increase it with coherent_pool= kernel parameter!
-> only with em28xx sticks and sata, dib0700 sticks removed.
->
->>> Just out of curiosity, what board is it?
->>
->> The kirkwood board? A modified Guruplug Server Plus.
-> em28xx sticks: "TerraTec Cinergy HTC Stick HD" and "PCTV Quatro Stick"
-> dib0700 sticks: "WinTV-NOVA-TD Stick"
->>>
->>>> I will see what I can do here. Is there an easy way to track the buffer
->>>> usage without having to wait for complete exhaustion?
->>>
->>> DMA_API_DEBUG
->>
->> OK, maybe I can try this.
->>>
->>>> In linux-3.5.x there is no such problem. Can we use all available
->>>> memory
->>>> for dma buffers here on armv5 architectures, in contrast to newer
->>>> kernels?
->>>
->>> Were the loads exactly the same when you tested 3.5.x?
->>
->> Exactly the same, yes.
->>
->>> I looked at the
->>> changes from v3.5 to v3.7.1 for all four drivers you mentioned as well
->>> as sata_mv.
->>>
->>> The biggest thing I see is that all of the media drivers got shuffled
->>> around into their own subdirectories after v3.5.  'git show -M 0c0d06c'
->>> shows it was a clean copy of all the files.
->>>
->>> What would be most helpful is if you could do a git bisect between
->>> v3.5.x (working) and the oldest version where you know it started
->>> failing (v3.7.1 or earlier if you know it).
->>>
->> I did not bisect it, but Marek mentioned earlier that commit
->> e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
->> new code for dma allocations. This is probably the root cause for the
->> new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
->
-> I don't want to say that Mareks patch is wrong, probably it triggers a
-> bug somewhere else! (in em28xx?)
+On Wed, Jan 16, 2013 at 06:32:09PM +0100, Soeren Moch wrote:
+> On 16.01.2013 09:55, Soeren Moch wrote:
+> >On 16.01.2013 04:24, Soeren Moch wrote:
+> >>I did not bisect it, but Marek mentioned earlier that commit
+> >>e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
+> >>new code for dma allocations. This is probably the root cause for the
+> >>new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
+> >
+> >I don't want to say that Mareks patch is wrong, probably it triggers a
+> >bug somewhere else! (in em28xx?)
+> 
+> The em28xx sticks are using isochronous usb transfers. Is there a
+> special handling for that?
 
-The em28xx sticks are using isochronous usb transfers. Is there a
-special handling for that?
+I'm looking at that now.  It looks like the em28xx wants (as a maximum)
+655040 bytes (em28xx-core.c:1088).  There are 5 transfer buffers, with
+64 max packets and 2047 max packet size (runtime reported max & 0x7ff).
 
->> I'm not very familiar with arm mm code, and from the patch itself I
->> cannot understand what's different. Maybe CONFIG_CMA is default
->> also for armv5 (not only v6) now? But I might be totally wrong here,
->> maybe someone of the mm experts can explain the difference?
->>
-Regards,
-Soeren
+If it actually needs all of that, then the answer may be to just
+increase coherent_pool= when using that driver.  I'll keep digging.
 
+thx,
+
+Jason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
