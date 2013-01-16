@@ -1,74 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id DB7F86B0062
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 04:10:13 -0500 (EST)
-Received: by mail-qa0-f47.google.com with SMTP id a19so3159059qad.13
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2013 01:10:12 -0800 (PST)
+Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
+	by kanga.kvack.org (Postfix) with SMTP id 419B76B006C
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 05:41:26 -0500 (EST)
+Date: Wed, 16 Jan 2013 11:41:20 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: LSF 2013 call for participation?
+Message-ID: <20130116104120.GC29162@quack.suse.cz>
+References: <20130107123719.GA14255@quack.suse.cz>
+ <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
+ <20130115231127.GA6422@blackbox.djwong.org>
 MIME-Version: 1.0
-Reply-To: sedat.dilek@gmail.com
-In-Reply-To: <20130115141102.9a7d93cf4ea74c759ff9e9d5@canb.auug.org.au>
-References: <CA+icZUW1+BzWCfGkbBiekKO8b6KiyAiyXWAHFmVUey2dHnSTzw@mail.gmail.com>
-	<50F454C2.6000509@kernel.dk>
-	<CA+icZUX_uKSzvdhd4tMtgb+vUxqC=fS7tfSHhs29+xD_XQQjBQ@mail.gmail.com>
-	<CA+icZUV_dz2Bvu6o=YRFu6324ccVr1MaOEpRcw0rguppR5rQQg@mail.gmail.com>
-	<20130115141102.9a7d93cf4ea74c759ff9e9d5@canb.auug.org.au>
-Date: Wed, 16 Jan 2013 10:10:12 +0100
-Message-ID: <CA+icZUV2ChWTudqBL=UdrQXu2e01LZSn7_-MYZuYbPzX0ekvsg@mail.gmail.com>
-Subject: Re: [next-20130114] Call-trace in LTP (lite) madvise02 test
- (block|mm|vfs related?)
-From: Sedat Dilek <sedat.dilek@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130115231127.GA6422@blackbox.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Jens Axboe <axboe@kernel.dk>, linux-next <linux-next@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Sasha Levin <sasha.levin@oracle.com>, Roland McGrath <roland@hack.frob.com>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>, Shaohua Li <shli@fusionio.com>, Rik van Riel <riel@redhat.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: "Martin K. Petersen" <martin.petersen@oracle.com>, Jan Kara <jack@suse.cz>, James.Bottomley@HansenPartnership.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jan 15, 2013 at 4:11 AM, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
-> Hi all,
->
-> On Mon, 14 Jan 2013 22:09:18 +0100 Sedat Dilek <sedat.dilek@gmail.com> wrote:
->>
->> Looks like this is the fix from Sasha [1].
->> Culprit commit is [2].
->> Testing...
->>
->> - Sedat -
->>
->> [1] https://patchwork.kernel.org/patch/1973481/
->
-> OK, I added this patch ("mm: fix BUG on madvise early failure") to the
-> copy of the akpm tree in linux-next today.
->
+On Tue 15-01-13 15:11:27, Darrick J. Wong wrote:
+> [adding linux-mm to cc...]
+> 
+> On Mon, Jan 07, 2013 at 10:43:05AM -0500, Martin K. Petersen wrote:
+> > >>>>> "Jan" == Jan Kara <jack@suse.cz> writes:
+> > 
+> > Jan> Hi, I wanted to ask about this year's LSFMM summit - I didn't see
+> > Jan> any call for participation yet although previous years it was sent
+> > Jan> out before Christmas. 
+> > 
+> > Really? I always thought they went out in January. In any case we are
+> > getting the call rolling.
+> > 
+> > And for those that want to plan ahead the dates are April 18th and 19th
+> > in San Francisco. This year we're trailing the Collab Summit instead of
+> > preceding it:
+> > 
+> > 	https://events.linuxfoundation.org/events/lsfmm-summit
+> 
+> There are a few things I'd like to hold a discussion about...
+...
+>  - Stable pages part 3: Modifying existing block devices.  A number of block
+>    devices and filesystems provide their own page snapshotting, or play tricks
+>    with the page bits to satisfy their own stability requirements.  Can we
+>    eliminate this?
+  I guess this is more about sending patches than agreeing on how to do
+it. But you can give a quick status update so that respective maintainers
+know about the current situation.
 
-Thanks for applying the patch!
+> Also, miscellaneous other odd topics:
+> 
+>  - How many of the infrequently-tested mount options in ext4/others can we get
+>    away with eliminating?  Or at least hiding them behind a "pleaseeatmydata"
+>    mount flag to minimize (hopefully) the amount of accidental data loss due to
+>    wild mount incantations?
+  I'm interested in this discussion as well. But be aware that this
+question is coming up for at least last two years if I remember right. And
+again if you come up with suggestions for particular options, we can speak
+about it. Actually I have a plan to prepare some concrete suggestions for
+ext4 workshop / LSF. So just tell me if you plan to work on this so that we
+don't duplicate the effort.
 
-Can you add my Tested-by (see [1]), thanks!
-( I compiled 8 (in words eight) Linux-Next kernels to catch all
-regressions and setup my desired kernel-config options. )
+>  - A discussion of deduplication could be fun, though I'm not sure its memory
+>    and processing requirements make it a great candidate for kernel code, or
+>    even general usage.  I'm not even sure there's a practical way to, say, have
+>    a userspace dedupe tool that could listen for delayed allocations and try to
+>    suggest adjustments before commit time.
+  I think userspace is a better place for efficient deduplication... Plus
+you have to implement COW to handle when deduplicated block is written.
 
-$ uname -r
-3.8.0-rc3-next20130114-8-iniza-generic
-
-$ cat /proc/version
-Linux version 3.8.0-rc3-next20130114-8-iniza-generic
-(sedat.dilek@gmail.com@fambox) (gcc version 4.6.3 (Ubuntu/Linaro
-4.6.3-1ubuntu5) ) #1 SMP Tue Jan 15 10:05:32 CET 2013
-
-And YES, I am running that kernel(s) in my daily working environment.
-My -8 kernel run successfully all LTP-lite tests...
-...which is a good orientation for a localmodconfig-ed kernel (minimal
-setup) but does not mean this release has no other bugs which I did
-not hit in my environment.
-
-- Sedat -
-
-[1] http://marc.info/?l=linux-mm&m=135819894617603&w=2
-
->> [2] http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git;a=commitdiff;h=0d18d770b9180ffc2c3f63b9eb8406ef80105e05
->
-> --
-> Cheers,
-> Stephen Rothwell                    sfr@canb.auug.org.au
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
