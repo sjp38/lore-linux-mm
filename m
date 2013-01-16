@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 419B76B006C
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 05:41:26 -0500 (EST)
-Date: Wed, 16 Jan 2013 11:41:20 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: LSF 2013 call for participation?
-Message-ID: <20130116104120.GC29162@quack.suse.cz>
-References: <20130107123719.GA14255@quack.suse.cz>
- <yq1fw2dxaly.fsf@sermon.lab.mkp.net>
- <20130115231127.GA6422@blackbox.djwong.org>
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id 821AA6B006C
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 09:14:46 -0500 (EST)
+Date: Wed, 16 Jan 2013 15:14:36 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 1/2] memory-hotplug: introduce
+ CONFIG_HAVE_BOOTMEM_INFO_NODE and revert register_page_bootmem_info_node()
+ when platform not support
+Message-ID: <20130116141436.GE343@dhcp22.suse.cz>
+References: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com>
+ <1358324059-9608-2-git-send-email-linfeng@cn.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130115231127.GA6422@blackbox.djwong.org>
+In-Reply-To: <1358324059-9608-2-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: "Martin K. Petersen" <martin.petersen@oracle.com>, Jan Kara <jack@suse.cz>, James.Bottomley@HansenPartnership.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Lin Feng <linfeng@cn.fujitsu.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, jbeulich@suse.com, dhowells@redhat.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, paul.gortmaker@windriver.com, laijs@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, jiang.liu@huawei.com, tony.luck@intel.com, fenghua.yu@intel.com, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, michael@ellerman.id.au, gerald.schaefer@de.ibm.com, gregkh@linuxfoundation.org, x86@kernel.org, linux390@de.ibm.com, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
 
-On Tue 15-01-13 15:11:27, Darrick J. Wong wrote:
-> [adding linux-mm to cc...]
-> 
-> On Mon, Jan 07, 2013 at 10:43:05AM -0500, Martin K. Petersen wrote:
-> > >>>>> "Jan" == Jan Kara <jack@suse.cz> writes:
-> > 
-> > Jan> Hi, I wanted to ask about this year's LSFMM summit - I didn't see
-> > Jan> any call for participation yet although previous years it was sent
-> > Jan> out before Christmas. 
-> > 
-> > Really? I always thought they went out in January. In any case we are
-> > getting the call rolling.
-> > 
-> > And for those that want to plan ahead the dates are April 18th and 19th
-> > in San Francisco. This year we're trailing the Collab Summit instead of
-> > preceding it:
-> > 
-> > 	https://events.linuxfoundation.org/events/lsfmm-summit
-> 
-> There are a few things I'd like to hold a discussion about...
-...
->  - Stable pages part 3: Modifying existing block devices.  A number of block
->    devices and filesystems provide their own page snapshotting, or play tricks
->    with the page bits to satisfy their own stability requirements.  Can we
->    eliminate this?
-  I guess this is more about sending patches than agreeing on how to do
-it. But you can give a quick status update so that respective maintainers
-know about the current situation.
+On Wed 16-01-13 16:14:18, Lin Feng wrote:
+[...]
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 278e3ab..f8c5799 100644
+> --- a/mm/Kconfig
+> +++ b/mm/Kconfig
+> @@ -162,10 +162,18 @@ config MOVABLE_NODE
+>  	  Say Y here if you want to hotplug a whole node.
+>  	  Say N here if you want kernel to use memory on all nodes evenly.
+>  
+> +#
+> +# Only be set on architectures that have completely implemented memory hotplug
+> +# feature. If you are not sure, don't touch it.
+> +#
+> +config HAVE_BOOTMEM_INFO_NODE
+> +	def_bool n
+> +
+>  # eventually, we can have this option just 'select SPARSEMEM'
+>  config MEMORY_HOTPLUG
+>  	bool "Allow for memory hot-add"
+>  	select MEMORY_ISOLATION
+> +	select HAVE_BOOTMEM_INFO_NODE if X86_64
+>  	depends on SPARSEMEM || X86_64_ACPI_NUMA
+>  	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
+>  	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
-> Also, miscellaneous other odd topics:
-> 
->  - How many of the infrequently-tested mount options in ext4/others can we get
->    away with eliminating?  Or at least hiding them behind a "pleaseeatmydata"
->    mount flag to minimize (hopefully) the amount of accidental data loss due to
->    wild mount incantations?
-  I'm interested in this discussion as well. But be aware that this
-question is coming up for at least last two years if I remember right. And
-again if you come up with suggestions for particular options, we can speak
-about it. Actually I have a plan to prepare some concrete suggestions for
-ext4 workshop / LSF. So just tell me if you plan to work on this so that we
-don't duplicate the effort.
+I am still not sure I understand the relation to MEMORY_HOTREMOVE.
+Is register_page_bootmem_info_node required/helpful even if
+!CONFIG_MEMORY_HOTREMOVE?
 
->  - A discussion of deduplication could be fun, though I'm not sure its memory
->    and processing requirements make it a great candidate for kernel code, or
->    even general usage.  I'm not even sure there's a practical way to, say, have
->    a userspace dedupe tool that could listen for delayed allocations and try to
->    suggest adjustments before commit time.
-  I think userspace is a better place for efficient deduplication... Plus
-you have to implement COW to handle when deduplicated block is written.
-
-								Honza
+Also, now that I am thinking about that more, maybe it would
+be cleaner to put the select into arch/x86/Kconfig and do it
+same as ARCH_ENABLE_MEMORY_{HOTPLUG,HOTREMOVE} (and name it
+ARCH_HAVE_BOOTMEM_INFO_NODE).
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
