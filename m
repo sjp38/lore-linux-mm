@@ -1,46 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx150.postini.com [74.125.245.150])
-	by kanga.kvack.org (Postfix) with SMTP id 01A3A6B0062
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 03:44:57 -0500 (EST)
-Date: Wed, 16 Jan 2013 17:45:00 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/3] slub: correct bootstrap() for kmem_cache,
- kmem_cache_node
-Message-ID: <20130116084459.GB13446@lge.com>
-References: <1358234402-2615-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1358234402-2615-2-git-send-email-iamjoonsoo.kim@lge.com>
- <0000013c3eda78d8-da8c775c-d7c0-4a88-bacf-0b5160b5c668-000000@email.amazonses.com>
+Received: from psmtp.com (na3sys010amx107.postini.com [74.125.245.107])
+	by kanga.kvack.org (Postfix) with SMTP id 492B76B0062
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 03:56:18 -0500 (EST)
+Message-ID: <50F66B1B.40301@web.de>
+Date: Wed, 16 Jan 2013 09:55:55 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0000013c3eda78d8-da8c775c-d7c0-4a88-bacf-0b5160b5c668-000000@email.amazonses.com>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
+ calls
+References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com> <50F3F289.3090402@web.de> <20130115165642.GA25500@titan.lakedaemon.net> <20130115175020.GA3764@kroah.com> <20130115201617.GC25500@titan.lakedaemon.net> <20130115215602.GF25500@titan.lakedaemon.net> <50F5F1B7.3040201@web.de> <20130116024014.GH25500@titan.lakedaemon.net> <50F61D86.4020801@web.de>
+In-Reply-To: <50F61D86.4020801@web.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On Tue, Jan 15, 2013 at 03:36:10PM +0000, Christoph Lameter wrote:
-> On Tue, 15 Jan 2013, Joonsoo Kim wrote:
-> 
-> > These didn't make any error previously, because we normally don't free
-> > objects which comes from kmem_cache's first slab and kmem_cache_node's.
-> 
-> And these slabs are on the partial list because the objects are typically
-> relatively small compared to page size. Do you have a system with a very
-> large kmem_cache size?
+On 16.01.2013 04:24, Soeren Moch wrote:
+> On 16.01.2013 03:40, Jason Cooper wrote:
+>> Soeren,
+>>
+>> On Wed, Jan 16, 2013 at 01:17:59AM +0100, Soeren Moch wrote:
+>>> On 15.01.2013 22:56, Jason Cooper wrote:
+>>>> On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
+>>>>> If my understanding is correct, one of the drivers (most likely one)
+>>>>> either asks for too small of a dma buffer, or is not properly
+>>>>> deallocating blocks from the per-device pool.  Either case leads to
+>>>>> exhaustion, and falling back to the atomic pool.  Which subsequently
+>>>>> gets wiped out as well.
+>>>>
+>>>> If my hunch is right, could you please try each of the three dvb
+>>>> drivers
+>>>> in turn and see which one (or more than one) causes the error?
+>>>
+>>> In fact I use only 2 types of DVB sticks: em28xx usb bridge plus drxk
+>>> demodulator, and dib0700 usb bridge plus dib7000p demod.
+>>>
+>>> I would bet for em28xx causing the error, but this is not thoroughly
+>>> tested. Unfortunately testing with removed sticks is not easy, because
+>>> this is a production system and disabling some services for the long
+>>> time we need to trigger this error will certainly result in unhappy
+>>> users.
+>>
+OK, I could trigger the error
+   ERROR: 1024 KiB atomic DMA coherent pool is too small!
+   Please increase it with coherent_pool= kernel parameter!
+only with em28xx sticks and sata, dib0700 sticks removed.
 
-These slabs are not on the partial list, but on the cpu_slab of boot cpu.
-Reason for this is described in changelog.
-Because these slabs are not on partial list, we need to
-check kmem_cache_cpu's cpu slab. This patch implement it.
+>> Just out of curiosity, what board is it?
+>
+> The kirkwood board? A modified Guruplug Server Plus.
+em28xx sticks: "TerraTec Cinergy HTC Stick HD" and "PCTV Quatro Stick"
+dib0700 sticks: "WinTV-NOVA-TD Stick"
+>>
+>>> I will see what I can do here. Is there an easy way to track the buffer
+>>> usage without having to wait for complete exhaustion?
+>>
+>> DMA_API_DEBUG
+>
+> OK, maybe I can try this.
+>>
+>>> In linux-3.5.x there is no such problem. Can we use all available memory
+>>> for dma buffers here on armv5 architectures, in contrast to newer
+>>> kernels?
+>>
+>> Were the loads exactly the same when you tested 3.5.x?
+>
+> Exactly the same, yes.
+>
+>> I looked at the
+>> changes from v3.5 to v3.7.1 for all four drivers you mentioned as well
+>> as sata_mv.
+>>
+>> The biggest thing I see is that all of the media drivers got shuffled
+>> around into their own subdirectories after v3.5.  'git show -M 0c0d06c'
+>> shows it was a clean copy of all the files.
+>>
+>> What would be most helpful is if you could do a git bisect between
+>> v3.5.x (working) and the oldest version where you know it started
+>> failing (v3.7.1 or earlier if you know it).
+>>
+> I did not bisect it, but Marek mentioned earlier that commit
+> e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
+> new code for dma allocations. This is probably the root cause for the
+> new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
 
-> > Problem will be solved if we consider a cpu slab in bootstrap().
-> > This patch implement it.
-> 
-> At boot time only one processor is up so you do not need the loop over all
-> processors.
+I don't want to say that Mareks patch is wrong, probably it triggers a
+bug somewhere else! (in em28xx?)
 
-Okay! I will fix and submit v2, soon.
+> I'm not very familiar with arm mm code, and from the patch itself I
+> cannot understand what's different. Maybe CONFIG_CMA is default
+> also for armv5 (not only v6) now? But I might be totally wrong here,
+> maybe someone of the mm experts can explain the difference?
+>
+Regards,
+Soeren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
