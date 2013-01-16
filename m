@@ -1,70 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
-	by kanga.kvack.org (Postfix) with SMTP id 72AE86B0069
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 14:21:27 -0500 (EST)
-Message-ID: <50F6FDC8.5020909@parallels.com>
-Date: Wed, 16 Jan 2013 11:21:44 -0800
-From: Glauber Costa <glommer@parallels.com>
+	by kanga.kvack.org (Postfix) with SMTP id 4898B6B0069
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:00:20 -0500 (EST)
+Date: Wed, 16 Jan 2013 14:00:18 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: Question/problem with mmu_notifier_unregister.
+Message-ID: <20130116200018.GA3460@sgi.com>
+References: <20130115162956.GH3438@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com> <1354058086-27937-10-git-send-email-david@fromorbit.com>
-In-Reply-To: <1354058086-27937-10-git-send-email-david@fromorbit.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130115162956.GH3438@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org
 
-On 11/27/2012 03:14 PM, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Tue, Jan 15, 2013 at 10:29:56AM -0600, Robin Holt wrote:
+> Andrea,
 > 
-> Now that we have an LRU list API, we can start to enhance the
-> implementation.  This splits the single LRU list into per-node lists
-> and locks to enhance scalability. Items are placed on lists
-> according to the node the memory belongs to. To make scanning the
-> lists efficient, also track whether the per-node lists have entries
-> in them in a active nodemask.
+> On a community or upcoming distro based kernel, I have one XPMEM test
+> which is failing.  The following patch (with lots of context) fixes it.
+> I do not yet understand the cause of the race condition.  I did hope it
+> would be obvious to you and save me the time of investigating further.
 > 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  include/linux/list_lru.h |   14 ++--
->  lib/list_lru.c           |  160 +++++++++++++++++++++++++++++++++++-----------
->  2 files changed, 129 insertions(+), 45 deletions(-)
+> The first test finds mn->hlist is on the chain.  The new second test
+> does not.  I have verified that neither xpmem nor gru is calling to
+> unregister the same mmu_notifier twice.  It is very difficult to find the
+> problem as the test case requires a very long time to trip.  To increase
+> the likelihood, I run many copies in parallel.  Each is 2 processes each
+> with one pthread.  I run two per socket on an 8 core per socket system
+> with 256 socket system.  When one job hits the null pointer deref, I can
+> have many thousands of lines of debug before the other jobs stop running.
+> Each process has /dev/gru mapped into their address space.  They have
+> used xpmem to attach part of the address space of the other process.
+> The tasks are exiting at approximately the same time.  The race seems to
+> be with one pthread hitting the final mmput at about the same time as the
+> other task is getting into the filp_close->flush() callout.
 > 
-> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-> index 3423949..b0e3ba2 100644
-> --- a/include/linux/list_lru.h
-> +++ b/include/linux/list_lru.h
-> @@ -8,21 +8,23 @@
->  #define _LRU_LIST_H 0
->  
->  #include <linux/list.h>
-> +#include <linux/nodemask.h>
->  
-> -struct list_lru {
-> +struct list_lru_node {
->  	spinlock_t		lock;
->  	struct list_head	list;
->  	long			nr_items;
-> +} ____cacheline_aligned_in_smp;
-> +
-> +struct list_lru {
-> +	struct list_lru_node	node[MAX_NUMNODES];
-> +	nodemask_t		active_nodes;
->  };
->  
-MAX_NUMNODES will default to 1 << 9, if I'm not mistaken. Your
-list_lru_node seems to be around 32 bytes on 64-bit systems (128 with
-debug). So we're talking about 16k per lru.
-The superblocks only, are present by the dozens even in a small system,
-and I believe the whole goal of this API is to get more users to switch
-to it. This can easily use up a respectable bunch of megs.
+> I have a couple other things to work on today, and will likely try to
+> chase this failure more tomorrow.  With this patch, I have not been able
+> to trigger any other issues in many hours of testing.  The test likewise
+> runs for many hours on a RHEL 6.3 based system and a SLES11 SP2 based
+> system so it might have something to do with the change in srcu locking.
 
-Isn't it a bit too much ?
+Using code inspection, I think I understand this issue some more.
 
-I am wondering if we can't do better in here and at least allocate+grow
-according to the actual number of nodes.
+Assume two tasks, one calling mmu_notifier_unregister() as a result
+of a filp_close() ->flush() callout (task A), and the other calling
+mmu_notifier_release() from an mmput() (task B).
+
+		A				B
+t1						srcu_read_lock()
+t2		if (!hlist_unhashed())
+t3		srcu_read_lock()
+t4						srcu_read_unlock()
+t5						hlist_del...()
+t6						synchronize_srcu()
+t7		srcu_read_unlock()
+t8		hlist_del_rcu()  <--- NULL pointer deref.
+
+
+Does this seem plausible?  Am I missing something?
+
+My earlier patch feels wrong as I think we will see two ->release()
+calls are made, but I am not sure of that.
+
+Thanks,
+Robin
+
+
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index 8a5ac8c..e2c9827 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -297,37 +299,38 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+>         if (!hlist_unhashed(&mn->hlist)) {
+>                 /*
+>                  * SRCU here will force exit_mmap to wait ->release to finish
+>                  * before freeing the pages.
+>                  */
+>                 int id;
+>  
+>                 id = srcu_read_lock(&srcu);
+>                 /*
+>                  * exit_mmap will block in mmu_notifier_release to
+>                  * guarantee ->release is called before freeing the
+>                  * pages.
+>                  */
+>                 if (mn->ops->release)
+>                         mn->ops->release(mn, mm);
+>                 srcu_read_unlock(&srcu, id);
+>  
+>                 spin_lock(&mm->mmu_notifier_mm->lock);
+> -               hlist_del_rcu(&mn->hlist);
+> +               if (!hlist_unhashed(&mn->hlist))
+> +                       hlist_del_rcu(&mn->hlist);
+>                 spin_unlock(&mm->mmu_notifier_mm->lock);
+>         }
+>  
+>         /*
+>          * Wait any running method to finish, of course including
+>          * ->release if it was run by mmu_notifier_relase instead of us.
+>          */
+>         synchronize_srcu(&srcu);
+>  
+>         BUG_ON(atomic_read(&mm->mm_count) <= 0);
+>  
+>         mmdrop(mm);
+>  }
+>  EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
+>  
+>  static int __init mmu_notifier_init(void)
+>  {
+>         return init_srcu_struct(&srcu);
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
