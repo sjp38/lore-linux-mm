@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 8ACAF6B006E
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 09:15:10 -0500 (EST)
-Date: Wed, 16 Jan 2013 15:15:08 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 0/2] memory-hotplug: introduce
- CONFIG_HAVE_BOOTMEM_INFO_NODE and revert register_page_bootmem_info_node()
- when platform not support
-Message-ID: <20130116141508.GF343@dhcp22.suse.cz>
-References: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
+	by kanga.kvack.org (Postfix) with SMTP id 233DA6B0070
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 10:04:25 -0500 (EST)
+Date: Wed, 16 Jan 2013 15:04:23 +0000
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] slub: correct to calculate num of acquired objects
+ in get_partial_node()
+In-Reply-To: <20130116084114.GA13446@lge.com>
+Message-ID: <0000013c43e3bb27-53587f7a-2c14-40a4-9ce9-a15dae10fc48-000000@email.amazonses.com>
+References: <1358234402-2615-1-git-send-email-iamjoonsoo.kim@lge.com> <0000013c3ee3b69a-80cfdc68-a753-44e0-ba68-511060864128-000000@email.amazonses.com> <20130116084114.GA13446@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Feng <linfeng@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, jbeulich@suse.com, dhowells@redhat.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, paul.gortmaker@windriver.com, laijs@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, jiang.liu@huawei.com, tony.luck@intel.com, fenghua.yu@intel.com, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, michael@ellerman.id.au, gerald.schaefer@de.ibm.com, gregkh@linuxfoundation.org, x86@kernel.org, linux390@de.ibm.com, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 16-01-13 16:14:17, Lin Feng wrote:
-[...]
-> changeLog v2->v3:
-> 1) patch 1/2:
-> - Rename the patch title to conform it's content.
-> - Update memory_hotplug.h and remove the misleading TODO pointed out by Michal.
-> 2) patch 2/2:
-> - New added, remove unimplemented functions suggested by Michal.
+On Wed, 16 Jan 2013, Joonsoo Kim wrote:
 
-I think that both patches should be merged into one and put to Andrew's
-queue as
-memory-hotplug-implement-register_page_bootmem_info_section-of-sparse-vmemmap-fix.patch
-rather than a separate patch.
--- 
-Michal Hocko
-SUSE Labs
+> In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
+
+Yes with that we signal that we have extracted the objects from the slab.
+
+> So
+>
+> 		acquire_slab(s, n, page, object == NULL);
+>
+>                 if (!object) {
+>                         c->page = page;
+>                         stat(s, ALLOC_FROM_PARTIAL);
+>                         object = t;
+>                         available =  page->objects - page->inuse;
+>
+> 			!!!!!! available is always 0 !!!!!!
+
+Correct. We should really count the objects that we extracted in
+acquire_slab(). Please update the description to the patch and repost.
+
+Also it would be nice if we had some way to avoid passing a pointer to an
+integer to acquire_slab. If we cannot avoid that then ok but it would be
+nicer without that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
