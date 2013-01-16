@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
-	by kanga.kvack.org (Postfix) with SMTP id 6FCE36B0069
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 18:01:00 -0500 (EST)
-Message-ID: <50F73111.40009@zytor.com>
-Date: Wed, 16 Jan 2013 15:00:33 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
+	by kanga.kvack.org (Postfix) with SMTP id 59C6D6B0069
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 18:11:06 -0500 (EST)
+Message-ID: <50F73351.3050708@web.de>
+Date: Thu, 17 Jan 2013 00:10:09 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
-References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org> <50F647E8.509@jp.fujitsu.com> <20130116132953.6159b673.akpm@linux-foundation.org> <50F72333.60200@jp.fujitsu.com>
-In-Reply-To: <50F72333.60200@jp.fujitsu.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] ata: sata_mv: fix sg_tbl_pool alignment
+References: <20130115165642.GA25500@titan.lakedaemon.net> <20130115175020.GA3764@kroah.com> <20130115201617.GC25500@titan.lakedaemon.net> <20130115215602.GF25500@titan.lakedaemon.net> <50F5F1B7.3040201@web.de> <20130116024014.GH25500@titan.lakedaemon.net> <50F61D86.4020801@web.de> <50F66B1B.40301@web.de> <20130116155045.GI25500@titan.lakedaemon.net> <50F6DDF7.9080605@web.de> <20130116175203.GK25500@titan.lakedaemon.net>
+In-Reply-To: <20130116175203.GK25500@titan.lakedaemon.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, isimatu.yasuaki@jp.fujitsu.com, tony.luck@intel.com, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On 01/16/2013 02:01 PM, KOSAKI Motohiro wrote:
->>>>
->>>> Things I'm wondering:
->>>>
->>>> - is there *really* a case for retaining the boot option if/when
->>>>    SRAT support is available?
+On 16.01.2013 18:52, Jason Cooper wrote:
+> On Wed, Jan 16, 2013 at 06:05:59PM +0100, Soeren Moch wrote:
+>> On 16.01.2013 16:50, Jason Cooper wrote:
+>>> On Wed, Jan 16, 2013 at 09:55:55AM +0100, Soeren Moch wrote:
+>>>> On 16.01.2013 04:24, Soeren Moch wrote:
+>>>>> On 16.01.2013 03:40, Jason Cooper wrote:
+>>>>>> On Wed, Jan 16, 2013 at 01:17:59AM +0100, Soeren Moch wrote:
+>>>>>>> On 15.01.2013 22:56, Jason Cooper wrote:
+>>>>>>>> On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
 >>>
->>> Yes. If SRAT support is available, all memory which enabled hotpluggable
->>> bit are managed by ZONEMOVABLE. But performance degradation may
->>> occur by NUMA because we can only allocate anonymous page and page-cache
->>> from these memory.
+>>>> OK, I could trigger the error
+>>>>    ERROR: 1024 KiB atomic DMA coherent pool is too small!
+>>>>    Please increase it with coherent_pool= kernel parameter!
+>>>> only with em28xx sticks and sata, dib0700 sticks removed.
 >>>
->>> In this case, if user cannot change SRAT information, user needs a way to
->>> select/set removable memory manually.
+>>> Did you test the reverse scenario?  ie dib0700 with sata_mv and no
+>>> em28xx.
 >>
->> If I understand this correctly you mean that once SRAT parsing is
->> implemented, the user can use movablecore_map to override that SRAT
->> parsing, yes?  That movablecore_map will take precedence over SRAT?
-> 
-> I think movablecore_map (I prefer movablemem than it, btw) should behave so.
-> because of, for past three years, almost all memory hotplug bug was handled
-> only I and kamezawa-san and, afaik, both don't have hotremove aware specific
-> hardware.
-> 
-> So, if the new feature require specific hardware, we can't maintain this area
-> any more.
->  
+>> Maybe I can test this next night.
+>
+> Please do, this will tell us if it is in the USB drivers or lower
+> (something in common).
+>
+>>>>>> What would be most helpful is if you could do a git bisect between
+>>>>>> v3.5.x (working) and the oldest version where you know it started
+>>>>>> failing (v3.7.1 or earlier if you know it).
+>>>>>>
+>>>>> I did not bisect it, but Marek mentioned earlier that commit
+>>>>> e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
+>>>>> new code for dma allocations. This is probably the root cause for the
+>>>>> new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
+>>>>
+>>>> I don't want to say that Mareks patch is wrong, probably it triggers a
+>>>> bug somewhere else! (in em28xx?)
+>>>
+>>> Of the four drivers you listed, none are using dma.  sata_mv is the only
+>>> one.
+>>
+>> usb_core is doing the actual DMA for the usb bridge drivers, I think.
+>
+> Yes, my mistake.  I'd like to attribute that statement to pre-coffee
+> rambling. :-)
+>
+>>> If one is to believe the comments in sata_mv.c:~151, then the alignment
+>>> is wrong for the sg_tbl_pool.
+>>>
+>>> Could you please try the following patch?
+>>
+>> OK, what should I test first, the setup from last night (em28xx, no
+>> dib0700) plus your patch, or the reverse setup (dib0700, no em28xx)
+>> without your patch, or my normal setting (all dvb sticks) plus your
+>> patch?
+>
+> if testing time is limited, please do the test I outlined at the top of
+> this email.  I've been digging more into the dma code and while I think
+> the patch is correct, I don't see where it would fix your problem (yet).
 
-It is more so than that: the design principle should always be that
-lower-level directives, if present, take precedence over higher-level
-directives.  The reason for that should be pretty obvious: one of the
-main uses of the low-level directives is to override the high-level
-directives due to bugs or debugging needs.
+Unfortunately test time is limited, and the test has to run about
+10 hours to trigger the error.
 
-	-hpa
+I also think that sata is not causing the problem.
+Maybe your patch even goes in the wrong direction. Perhaps the dma
+memory pool is not too small, there might be enough memory available,
+but it is too much fragmented to satisfy larger block allocations. With 
+different drivers allocating totally different block sizes aligned to
+bytes or words, perhaps we end up with lots of very small free blocks
+in the dma pool after several hours of runtime?
+So maybe it would help to align all allocations in the dma pool to 256B?
+
+Regards,
+Soeren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
