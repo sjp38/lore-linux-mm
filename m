@@ -1,237 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx185.postini.com [74.125.245.185])
-	by kanga.kvack.org (Postfix) with SMTP id 1B4646B0062
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 00:34:06 -0500 (EST)
-Message-ID: <50F63BEE.8040506@cn.fujitsu.com>
-Date: Wed, 16 Jan 2013 13:34:38 +0800
-From: Miao Xie <miaox@cn.fujitsu.com>
-Reply-To: miaox@cn.fujitsu.com
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id AF1626B0062
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 01:26:23 -0500 (EST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id D585E3EE0BC
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:26:21 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id BCCA945DEB7
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:26:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id A73EC45DEB2
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:26:21 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 9BC311DB8038
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:26:21 +0900 (JST)
+Received: from G01JPEXCHKW21.g01.fujitsu.local (G01JPEXCHKW21.g01.fujitsu.local [10.0.193.104])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 52D801DB803B
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 15:26:21 +0900 (JST)
+Message-ID: <50F647E8.509@jp.fujitsu.com>
+Date: Wed, 16 Jan 2013 15:25:44 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2] mm/slab: add a leak decoder callback
-References: <1358305393-3507-1-git-send-email-bo.li.liu@oracle.com>
-In-Reply-To: <1358305393-3507-1-git-send-email-bo.li.liu@oracle.com>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org>
+In-Reply-To: <20130114144601.1c40dc7e.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Bo <bo.li.liu@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, zab@zabbo.net, cl@linux.com, penberg@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Luck, Tony" <tony.luck@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Tang Chen <tangchen@cn.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On wed, 16 Jan 2013 11:03:13 +0800, Liu Bo wrote:
-> This adds a leak decoder callback so that slab destruction
-> can use to generate debugging output for the allocated objects.
-> 
-> Callers like btrfs are using their own leak tracking which will
-> manage allocated objects in a list(or something else), this does
-> indeed the same thing as what slab does.  So adding a callback
-> for leak tracking can avoid this as well as runtime overhead.
+2013/01/15 7:46, Andrew Morton wrote:
+> On Mon, 14 Jan 2013 22:41:03 +0000
+> "Luck, Tony" <tony.luck@intel.com> wrote:
+>
+>>> hm, why.  Obviously SRAT support will improve things, but is it
+>>> actually unusable/unuseful with the command line configuration?
+>>
+>> Users will want to set these moveable zones along node boundaries
+>> (the whole purpose is to be able to remove a node by making sure
+>> the kernel won't allocate anything tricky in it, right?)  So raw addresses
+>> are usable ... but to get them right the user will have to go parse the
+>> SRAT table manually to come up with the addresses. Any time you
+>> make the user go off and do some tedious calculation that the computer
+>> should have done for them is user-abuse.
+>>
+>
+> Sure.  But SRAT configuration is in progress and the boot option is
+> better than nothing?
 
-If the slab is merged with the other one, this patch can work well?
+Yes. I think boot option which specifies memory range is necessary.
 
-Thanks
-Miao
+>
+> Things I'm wondering:
+>
+> - is there *really* a case for retaining the boot option if/when
+>    SRAT support is available?
 
-> (The idea is from Zach Brown <zab@zabbo.net>.)
-> 
-> Signed-off-by: Liu Bo <bo.li.liu@oracle.com>
-> ---
-> v2: add a wrapper API for slab destruction to make decoder only
-> work in particular path.
-> 
->  fs/btrfs/extent_io.c     |   26 ++++++++++++++++++++++++--
->  fs/btrfs/extent_map.c    |   13 ++++++++++++-
->  include/linux/slab.h     |    2 ++
->  include/linux/slab_def.h |    1 +
->  include/linux/slub_def.h |    1 +
->  mm/slab_common.c         |   17 ++++++++++++++++-
->  mm/slub.c                |    2 ++
->  7 files changed, 58 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-> index bcc8dff..355c7fc 100644
-> --- a/fs/btrfs/extent_io.c
-> +++ b/fs/btrfs/extent_io.c
-> @@ -63,6 +63,26 @@ tree_fs_info(struct extent_io_tree *tree)
->  	return btrfs_sb(tree->mapping->host->i_sb);
->  }
->  
-> +static void extent_state_leak_decoder(void *object)
-> +{
-> +	struct extent_state *state = object;
-> +
-> +	printk(KERN_ERR "btrfs state leak: start %llu end %llu "
-> +	       "state %lu in tree %p refs %d\n",
-> +	       (unsigned long long)state->start,
-> +	       (unsigned long long)state->end,
-> +	       state->state, state->tree, atomic_read(&state->refs));
-> +}
-> +
-> +static void extent_buffer_leak_decoder(void *object)
-> +{
-> +	struct extent_buffer *eb = object;
-> +
-> +	printk(KERN_ERR "btrfs buffer leak start %llu len %lu "
-> +	       "refs %d\n", (unsigned long long)eb->start,
-> +	       eb->len, atomic_read(&eb->refs));
-> +}
-> +
->  int __init extent_io_init(void)
->  {
->  	extent_state_cache = kmem_cache_create("btrfs_extent_state",
-> @@ -115,9 +135,11 @@ void extent_io_exit(void)
->  	 */
->  	rcu_barrier();
->  	if (extent_state_cache)
-> -		kmem_cache_destroy(extent_state_cache);
-> +		kmem_cache_destroy_decoder(extent_state_cache,
-> +					   extent_state_leak_decoder);
->  	if (extent_buffer_cache)
-> -		kmem_cache_destroy(extent_buffer_cache);
-> +		kmem_cache_destroy_decoder(extent_buffer_cache,
-> +					   extent_buffer_leak_decoder);
->  }
->  
->  void extent_io_tree_init(struct extent_io_tree *tree,
-> diff --git a/fs/btrfs/extent_map.c b/fs/btrfs/extent_map.c
-> index f359e4c..bccba3d 100644
-> --- a/fs/btrfs/extent_map.c
-> +++ b/fs/btrfs/extent_map.c
-> @@ -16,6 +16,16 @@ static LIST_HEAD(emaps);
->  static DEFINE_SPINLOCK(map_leak_lock);
->  #endif
->  
-> +static void extent_map_leak_decoder(void *object)
-> +{
-> +	struct extent_map *em = object;
-> +
-> +	printk(KERN_ERR "btrfs ext map leak: start %llu len %llu block %llu "
-> +	       "flags %lu refs %d in tree %d compress %d\n",
-> +	       em->start, em->len, em->block_start, em->flags,
-> +	       atomic_read(&em->refs), em->in_tree, (int)em->compress_type);
-> +}
-> +
->  int __init extent_map_init(void)
->  {
->  	extent_map_cache = kmem_cache_create("btrfs_extent_map",
-> @@ -39,7 +49,8 @@ void extent_map_exit(void)
->  	}
->  
->  	if (extent_map_cache)
-> -		kmem_cache_destroy(extent_map_cache);
-> +		kmem_cache_destroy_decoder(extent_map_cache,
-> +					   extent_map_leak_decoder);
->  }
->  
->  /**
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 5d168d7..5c6a8d8 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -114,6 +114,7 @@ struct kmem_cache {
->  	const char *name;	/* Slab name for sysfs */
->  	int refcount;		/* Use counter */
->  	void (*ctor)(void *);	/* Called on object slot creation */
-> +	void (*decoder)(void *);/* Called on object slot leak detection */
->  	struct list_head list;	/* List of all slab caches on the system */
->  };
->  #endif
-> @@ -132,6 +133,7 @@ struct kmem_cache *
->  kmem_cache_create_memcg(struct mem_cgroup *, const char *, size_t, size_t,
->  			unsigned long, void (*)(void *), struct kmem_cache *);
->  void kmem_cache_destroy(struct kmem_cache *);
-> +void kmem_cache_destroy_decoder(struct kmem_cache *, void (*)(void *));
->  int kmem_cache_shrink(struct kmem_cache *);
->  void kmem_cache_free(struct kmem_cache *, void *);
->  
-> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-> index 8bb6e0e..7ca8309 100644
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -48,6 +48,7 @@ struct kmem_cache {
->  
->  	/* constructor func */
->  	void (*ctor)(void *obj);
-> +	void (*decoder)(void *obj);
->  
->  /* 4) cache creation/removal */
->  	const char *name;
-> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-> index 9db4825..fc18af7 100644
-> --- a/include/linux/slub_def.h
-> +++ b/include/linux/slub_def.h
-> @@ -93,6 +93,7 @@ struct kmem_cache {
->  	gfp_t allocflags;	/* gfp flags to use on each alloc */
->  	int refcount;		/* Refcount for slab cache destroy */
->  	void (*ctor)(void *);
-> +	void (*decoder)(void *);
->  	int inuse;		/* Offset to metadata */
->  	int align;		/* Alignment */
->  	int reserved;		/* Reserved bytes at the end of slabs */
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 3f3cd97..8c19bfd 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -193,6 +193,7 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
->  		s->object_size = s->size = size;
->  		s->align = calculate_alignment(flags, align, size);
->  		s->ctor = ctor;
-> +		s->decoder = NULL;
->  
->  		if (memcg_register_cache(memcg, s, parent_cache)) {
->  			kmem_cache_free(kmem_cache, s);
-> @@ -248,7 +249,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
->  }
->  EXPORT_SYMBOL(kmem_cache_create);
->  
-> -void kmem_cache_destroy(struct kmem_cache *s)
-> +static void __kmem_cache_destroy(struct kmem_cache *s, void (*decoder)(void *))
->  {
->  	/* Destroy all the children caches if we aren't a memcg cache */
->  	kmem_cache_destroy_memcg_children(s);
-> @@ -259,6 +260,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
->  	if (!s->refcount) {
->  		list_del(&s->list);
->  
-> +		if (unlikely(decoder))
-> +			s->decoder = decoder;
-> +
->  		if (!__kmem_cache_shutdown(s)) {
->  			mutex_unlock(&slab_mutex);
->  			if (s->flags & SLAB_DESTROY_BY_RCU)
-> @@ -279,8 +283,19 @@ void kmem_cache_destroy(struct kmem_cache *s)
->  	}
->  	put_online_cpus();
->  }
-> +
-> +void kmem_cache_destroy(struct kmem_cache *s)
-> +{
-> +	return __kmem_cache_destroy(s, NULL);
-> +}
->  EXPORT_SYMBOL(kmem_cache_destroy);
->  
-> +void kmem_cache_destroy_decoder(struct kmem_cache *s, void (*decoder)(void *))
-> +{
-> +	return __kmem_cache_destroy(s, decoder);
-> +}
-> +EXPORT_SYMBOL(kmem_cache_destroy_decoder);
-> +
->  int slab_is_available(void)
->  {
->  	return slab_state >= UP;
-> diff --git a/mm/slub.c b/mm/slub.c
-> index ba2ca53..34b3b75 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3098,6 +3098,8 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
->  	for_each_object(p, s, addr, page->objects) {
->  
->  		if (!test_bit(slab_index(p, s, addr), map)) {
-> +			if (unlikely(s->decoder))
-> +				s->decoder(p);
->  			printk(KERN_ERR "INFO: Object 0x%p @offset=%tu\n",
->  							p, p - addr);
->  			print_tracking(s, p);
-> 
+Yes. If SRAT support is available, all memory which enabled hotpluggable
+bit are managed by ZONEMOVABLE. But performance degradation may
+occur by NUMA because we can only allocate anonymous page and page-cache
+from these memory.
+
+In this case, if user cannot change SRAT information, user needs a way to
+select/set removable memory manually.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> - will the boot option be needed for other archictectures, presumably
+>    because they don't provide sufficient layout information to the
+>    kernel?
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
