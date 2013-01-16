@@ -1,100 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id EC5C76B006E
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 03:15:31 -0500 (EST)
-From: Lin Feng <linfeng@cn.fujitsu.com>
-Subject: [PATCH 2/2] memory-hotplug: cleanup: removing the arch specific functions without any implementation
-Date: Wed, 16 Jan 2013 16:14:19 +0800
-Message-Id: <1358324059-9608-3-git-send-email-linfeng@cn.fujitsu.com>
-In-Reply-To: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com>
-References: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 457516B0062
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 03:41:12 -0500 (EST)
+Date: Wed, 16 Jan 2013 17:41:14 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] slub: correct to calculate num of acquired objects
+ in get_partial_node()
+Message-ID: <20130116084114.GA13446@lge.com>
+References: <1358234402-2615-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <0000013c3ee3b69a-80cfdc68-a753-44e0-ba68-511060864128-000000@email.amazonses.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <0000013c3ee3b69a-80cfdc68-a753-44e0-ba68-511060864128-000000@email.amazonses.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.cz, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, jbeulich@suse.com, dhowells@redhat.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, paul.gortmaker@windriver.com, laijs@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, jiang.liu@huawei.com, tony.luck@intel.com, fenghua.yu@intel.com, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, michael@ellerman.id.au, gerald.schaefer@de.ibm.com, gregkh@linuxfoundation.org
-Cc: x86@kernel.org, linux390@de.ibm.com, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linfeng@cn.fujitsu.com, tangchen@cn.fujitsu.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.cz>
+On Tue, Jan 15, 2013 at 03:46:17PM +0000, Christoph Lameter wrote:
+> On Tue, 15 Jan 2013, Joonsoo Kim wrote:
+> 
+> > There is a subtle bug when calculating a number of acquired objects.
+> > After acquire_slab() is executed at first, page->inuse is same as
+> > page->objects, then, available is always 0. So, we always go next
+> > iteration.
+> 
+> page->inuse is always < page->objects because the partial list is not used
+> for slabs that are fully allocated. page->inuse == page->objects means
+> that no objects are available on the slab and therefore the slab would
+> have been removed from the partial list.
 
-After introducing CONFIG_HAVE_BOOTMEM_INFO_NODE Kconfig option, the related arch
-specific functions become confusing, remove them.
+Currently, we calculate "available = page->objects - page->inuse",
+after acquire_slab() is called in get_partial_node().
 
-Guys who want to implement memory-hotplug feature on such archs for this part
-should look into register_page_bootmem_info_node() and flesh out from top to
-end.
+In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
+So
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- arch/ia64/mm/discontig.c  |    5 -----
- arch/powerpc/mm/init_64.c |    5 -----
- arch/s390/mm/vmem.c       |    6 ------
- arch/sparc/mm/init_64.c   |    5 -----
- 4 files changed, 0 insertions(+), 21 deletions(-)
+		acquire_slab(s, n, page, object == NULL);
 
-diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
-index 882a0fd..cb5e1ff 100644
---- a/arch/ia64/mm/discontig.c
-+++ b/arch/ia64/mm/discontig.c
-@@ -827,9 +827,4 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index 2969591..7e2246f 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -302,10 +302,5 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
-diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
-index 81e6ba3..fa09c2f 100644
---- a/arch/s390/mm/vmem.c
-+++ b/arch/s390/mm/vmem.c
-@@ -276,12 +276,6 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
--
- /*
-  * Add memory segment to the segment list if it doesn't overlap with
-  * an already present segment.
-diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
-index 5afe21a..76ac544 100644
---- a/arch/sparc/mm/init_64.c
-+++ b/arch/sparc/mm/init_64.c
-@@ -2236,11 +2236,6 @@ void vmemmap_free(struct page *memmap, unsigned long nr_pages)
- {
- }
- 
--void register_page_bootmem_memmap(unsigned long section_nr,
--				  struct page *start_page, unsigned long size)
--{
--	/* TODO */
--}
- #endif /* CONFIG_SPARSEMEM_VMEMMAP */
- 
- static void prot_init_common(unsigned long page_none,
--- 
-1.7.1
+                if (!object) {
+                        c->page = page;
+                        stat(s, ALLOC_FROM_PARTIAL);
+                        object = t; 
+                        available =  page->objects - page->inuse;
+
+			!!!!!! available is always 0 !!!!!!
+
+
+                } else {
+                        available = put_cpu_partial(s, page, 0);
+                        stat(s, CPU_PARTIAL_NODE);
+                }
+
+Therefore, "available > s->cpu_partial / 2" is always false and
+we always go to second iteration.
+This patch correct this problem.
+
+> > After that, we don't need return value of put_cpu_partial().
+> > So remove it.
+> 
+> Hmmm... The code looks a bit easier to understand than what we have right now.
+> 
+> Could you try to explain it better?
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
