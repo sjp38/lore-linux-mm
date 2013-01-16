@@ -1,54 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 3D7656B005D
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:20:13 -0500 (EST)
-Message-ID: <50F5F1B7.3040201@web.de>
-Date: Wed, 16 Jan 2013 01:17:59 +0100
-From: Soeren Moch <smoch@web.de>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com> <50F3F289.3090402@web.de> <20130115165642.GA25500@titan.lakedaemon.net> <20130115175020.GA3764@kroah.com> <20130115201617.GC25500@titan.lakedaemon.net> <20130115215602.GF25500@titan.lakedaemon.net>
-In-Reply-To: <20130115215602.GF25500@titan.lakedaemon.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
+	by kanga.kvack.org (Postfix) with SMTP id 001E26B006C
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:17 -0500 (EST)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Tue, 15 Jan 2013 19:25:16 -0500
+Received: from d01relay06.pok.ibm.com (d01relay06.pok.ibm.com [9.56.227.116])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id E64BBC9003E
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:14 -0500 (EST)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay06.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PEI417432606
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:25:14 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PE92017527
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 22:25:14 -0200
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH 00/17] mm: zone & pgdat accessors plus some cleanup
+Date: Tue, 15 Jan 2013 16:24:37 -0800
+Message-Id: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Linux MM <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-On 15.01.2013 22:56, Jason Cooper wrote:
-> Soeren,
->
-> On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
->> If my understanding is correct, one of the drivers (most likely one)
->> either asks for too small of a dma buffer, or is not properly
->> deallocating blocks from the per-device pool.  Either case leads to
->> exhaustion, and falling back to the atomic pool.  Which subsequently
->> gets wiped out as well.
->
-> If my hunch is right, could you please try each of the three dvb drivers
-> in turn and see which one (or more than one) causes the error?
->
+Summaries:
 
-In fact I use only 2 types of DVB sticks: em28xx usb bridge plus drxk
-demodulator, and dib0700 usb bridge plus dib7000p demod.
+01 - removes the use of zone_end_pfn as a local var name.
+02 - adds zone_end_pfn(), zone_is_initialized(), zone_is_empty() and zone_spans_pfn()
+03 - adds a VM_BUG using zone_is_initialized() in __free_one_page()
 
-I would bet for em28xx causing the error, but this is not thoroughly
-tested. Unfortunately testing with removed sticks is not easy, because
-this is a production system and disabling some services for the long
-time we need to trigger this error will certainly result in unhappy
-users.
+04 - add ensure_zone_is_initialized() (for memory_hotplug)
+05 - use the above addition.
 
-I will see what I can do here. Is there an easy way to track the buffer
-usage without having to wait for complete exhaustion?
+06 - add pgdat_end_pfn() and pgdat_is_empty()
 
-In linux-3.5.x there is no such problem. Can we use all available memory
-for dma buffers here on armv5 architectures, in contrast to newer
-kernels?
+07,08,09,10,11,12,16,17 - use the new helpers
 
-Regards,
-Soeren
+13 - avoid repeating checks for section in page flags by adding a define.
+14 - memory hotplug: factor out zone+pgdat growth.
+15 - add debugging message to VM_BUG check.
+
+As a general concern: spanned_pages & start_pfn (in pgdat & zone) are supposed
+to be locked (via a seqlock) when read (due to changes to them via
+memory_hotplug), but very few (only 1?) of their users appear to actually lock
+them.
+
+--
+
+ include/linux/mm.h     |  8 ++++--
+ include/linux/mmzone.h | 34 ++++++++++++++++++++++---
+ mm/compaction.c        | 10 ++++----
+ mm/kmemleak.c          |  5 ++--
+ mm/memory_hotplug.c    | 68 ++++++++++++++++++++++++++++----------------------
+ mm/page_alloc.c        | 31 +++++++++++++----------
+ mm/vmstat.c            |  2 +-
+ 7 files changed, 100 insertions(+), 58 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
