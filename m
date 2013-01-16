@@ -1,92 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
-	by kanga.kvack.org (Postfix) with SMTP id A43B66B0062
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 22:25:09 -0500 (EST)
-Message-ID: <50F61D86.4020801@web.de>
-Date: Wed, 16 Jan 2013 04:24:54 +0100
-From: Soeren Moch <smoch@web.de>
+Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
+	by kanga.kvack.org (Postfix) with SMTP id 7991B6B0062
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 23:43:35 -0500 (EST)
+Date: Wed, 16 Jan 2013 13:43:33 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
+Message-ID: <20130116044333.GA11461@blaptop>
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
+ <1357712474-27595-3-git-send-email-minchan@kernel.org>
+ <20130109162602.53a60e77.akpm@linux-foundation.org>
+ <20130110022306.GB14685@blaptop>
+ <20130110135828.c88bcaf1.akpm@linux-foundation.org>
+ <20130111044327.GB6183@blaptop>
+ <20130115160957.9ef860d7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
- calls
-References: <20121119144826.f59667b2.akpm@linux-foundation.org> <1353421905-3112-1-git-send-email-m.szyprowski@samsung.com> <50F3F289.3090402@web.de> <20130115165642.GA25500@titan.lakedaemon.net> <20130115175020.GA3764@kroah.com> <20130115201617.GC25500@titan.lakedaemon.net> <20130115215602.GF25500@titan.lakedaemon.net> <50F5F1B7.3040201@web.de> <20130116024014.GH25500@titan.lakedaemon.net>
-In-Reply-To: <20130116024014.GH25500@titan.lakedaemon.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130115160957.9ef860d7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, Arnd Bergmann <arnd@arndb.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 16.01.2013 03:40, Jason Cooper wrote:
-> Soeren,
->
-> On Wed, Jan 16, 2013 at 01:17:59AM +0100, Soeren Moch wrote:
->> On 15.01.2013 22:56, Jason Cooper wrote:
->>> On Tue, Jan 15, 2013 at 03:16:17PM -0500, Jason Cooper wrote:
->>>> If my understanding is correct, one of the drivers (most likely one)
->>>> either asks for too small of a dma buffer, or is not properly
->>>> deallocating blocks from the per-device pool.  Either case leads to
->>>> exhaustion, and falling back to the atomic pool.  Which subsequently
->>>> gets wiped out as well.
->>>
->>> If my hunch is right, could you please try each of the three dvb drivers
->>> in turn and see which one (or more than one) causes the error?
->>
->> In fact I use only 2 types of DVB sticks: em28xx usb bridge plus drxk
->> demodulator, and dib0700 usb bridge plus dib7000p demod.
->>
->> I would bet for em28xx causing the error, but this is not thoroughly
->> tested. Unfortunately testing with removed sticks is not easy, because
->> this is a production system and disabling some services for the long
->> time we need to trigger this error will certainly result in unhappy
->> users.
->
-> Just out of curiosity, what board is it?
+On Tue, Jan 15, 2013 at 04:09:57PM -0800, Andrew Morton wrote:
+> On Fri, 11 Jan 2013 13:43:27 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > Hi Andrew,
+> > 
+> > On Thu, Jan 10, 2013 at 01:58:28PM -0800, Andrew Morton wrote:
+> > > On Thu, 10 Jan 2013 11:23:06 +0900
+> > > Minchan Kim <minchan@kernel.org> wrote:
+> > > 
+> > > > > I have a feeling that laptop mode has bitrotted and these patches are
+> > > > > kinda hacking around as-yet-not-understood failures...
+> > > > 
+> > > > Absolutely, this patch is last guard for unexpectable behavior.
+> > > > As I mentioned in cover-letter, Luigi's problem could be solved either [1/2]
+> > > > or [2/2] but I wanted to add this as last resort in case of unexpected
+> > > > emergency. But you're right. It's not good to hide the problem like this path
+> > > > so let's drop [2/2].
+> > > > 
+> > > > Also, I absolutely agree it has bitrotted so for correcting it, we need a
+> > > > volunteer who have to inverstigate power saveing experiment with long time.
+> > > > So [1/2] would be band-aid until that.
+> > > 
+> > > I'm inclined to hold off on 1/2 as well, really.
+> > 
+> > Then, what's your plan?
+> 
+> My plan is to sit here until someone gets down and fully tests and
+> fixes laptop-mode.  Making it work properly, reliably and as-designed.
+> 
+> Or perhaps someone wants to make the case that we just don't need it
+> any more (SSDs are silent!) and removes it all.
+> 
+> > > 
+> > > The point of laptop_mode isn't to save power btw - it is to minimise
+> > > the frequency with which the disk drive is spun up.  By deferring and
+> > > then batching writeout operations, basically.
+> > 
+> > I don't get it. Why should we minimise such frequency?
+> 
+> Because my laptop was going clickety every minute and was keeping me
+> awake.
+> 
+> > It's for saving the power to increase batter life.
+> 
+> It might well have that effect, dunno.  That wasn't my intent.  Testing
+> needed!
+> 
+> > As I real all document about laptop_mode, they all said about the power
+> > or battery life saving.
+> > 
+> > 1. Documentation/laptops/laptop-mode.txt
+> > 2. http://linux.die.net/man/8/laptop_mode
+> > 3. http://samwel.tk/laptop_mode/
+> > 3. http://www.thinkwiki.org/wiki/Laptop-mode 
+> 
+> Documentation creep ;)
+> 
+> Ten years ago, gad: http://lwn.net/Articles/1652/
 
-The kirkwood board? A modified Guruplug Server Plus.
->
->> I will see what I can do here. Is there an easy way to track the buffer
->> usage without having to wait for complete exhaustion?
->
-> DMA_API_DEBUG
+Odd, I grep it in linux-history.git and found this.
+http://git.kernel.org/?p=linux/kernel/git/tglx/history.git;a=commit;h=93d33a4885a483c708ccb7d24b56e0d5fef7bcab
 
-OK, maybe I can try this.
->
->> In linux-3.5.x there is no such problem. Can we use all available memory
->> for dma buffers here on armv5 architectures, in contrast to newer
->> kernels?
->
-> Were the loads exactly the same when you tested 3.5.x?
+It seem to be first commit about laptop_mode but it still said about battery life
+, NOT clickety. But unfortunately, it had no number, measure method and even no
+side-effect when the memory pressure is severe so we couldn't sure how it helped
+about batter life without reclaim problem so the VM problem have been exported
+since we apply f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware].
 
-Exactly the same, yes.
+So let's apply [1/2] in mainline and even stable to fix the problem.
+After that, we can add warning to laptop_mode so user who have used it will claim their
+requirements. With it, we can know they need it for power saving, clickety or
+, both so we can make requirement lists. From then, we can start to do someting.
+If we are luck, we can remove it totally if any user doesn't claim.
 
->I looked at the
-> changes from v3.5 to v3.7.1 for all four drivers you mentioned as well
-> as sata_mv.
->
-> The biggest thing I see is that all of the media drivers got shuffled
-> around into their own subdirectories after v3.5.  'git show -M 0c0d06c'
-> shows it was a clean copy of all the files.
->
-> What would be most helpful is if you could do a git bisect between
-> v3.5.x (working) and the oldest version where you know it started
-> failing (v3.7.1 or earlier if you know it).
->
-I did not bisect it, but Marek mentioned earlier that commit
-e9da6e9905e639b0f842a244bc770b48ad0523e9 in Linux v3.6-rc1 introduced
-new code for dma allocations. This is probably the root cause for the
-new (mis-)behavior (due to my tests 3.6.0 is not working anymore).
-I'm not very familiar with arm mm code, and from the patch itself I
-cannot understand what's different. Maybe CONFIG_CMA is default
-also for armv5 (not only v6) now? But I might be totally wrong here,
-maybe someone of the mm experts can explain the difference?
+What do you think about it?
 
-Regards,
-Soeren
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
-
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
