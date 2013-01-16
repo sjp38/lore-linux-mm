@@ -1,132 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id EFE3F6B0069
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 16:01:26 -0500 (EST)
-Date: Wed, 16 Jan 2013 15:01:24 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: [PATCH] [Patch] mmu_notifier_unregister NULL Pointer deref fix.
-Message-ID: <20130116210124.GB3460@sgi.com>
-References: <20130115162956.GH3438@sgi.com>
- <20130116200018.GA3460@sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20130116200018.GA3460@sgi.com>
+Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
+	by kanga.kvack.org (Postfix) with SMTP id CCC036B006C
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 16:29:55 -0500 (EST)
+Date: Wed, 16 Jan 2013 13:29:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+Message-Id: <20130116132953.6159b673.akpm@linux-foundation.org>
+In-Reply-To: <50F647E8.509@jp.fujitsu.com>
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>
+	<50F440F5.3030006@zytor.com>
+	<20130114143456.3962f3bd.akpm@linux-foundation.org>
+	<3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>
+	<20130114144601.1c40dc7e.akpm@linux-foundation.org>
+	<50F647E8.509@jp.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: "Luck, Tony" <tony.luck@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Tang Chen <tangchen@cn.fujitsu.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Wed, 16 Jan 2013 15:25:44 +0900
+Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
 
-There is a race condition between mmu_notifier_unregister() and
-__mmu_notifier_release().
+> >
+> > Things I'm wondering:
+> >
+> > - is there *really* a case for retaining the boot option if/when
+> >    SRAT support is available?
+> 
+> Yes. If SRAT support is available, all memory which enabled hotpluggable
+> bit are managed by ZONEMOVABLE. But performance degradation may
+> occur by NUMA because we can only allocate anonymous page and page-cache
+> from these memory.
+> 
+> In this case, if user cannot change SRAT information, user needs a way to
+> select/set removable memory manually.
 
-Assume two tasks, one calling mmu_notifier_unregister() as a result
-of a filp_close() ->flush() callout (task A), and the other calling
-mmu_notifier_release() from an mmput() (task B).
-
-                A                               B
-t1                                              srcu_read_lock()
-t2              if (!hlist_unhashed())
-t3                                              srcu_read_unlock()
-t4              srcu_read_lock()
-t5                                              hlist_del_init_rcu()
-t6                                              synchronize_srcu()
-t7              srcu_read_unlock()
-t8              hlist_del_rcu()  <--- NULL pointer deref.
-
-Tested with this patch applied.  My test case which was failing
-approximately every 300th iteration passed 25,000 tests.
-
-Signed-off-by: Robin Holt <holt@sgi.com>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
-Cc: Avi Kivity <avi@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Sagi Grimberg <sagig@mellanox.co.il>
-Cc: Haggai Eran <haggaie@mellanox.com>
----
- mm/mmu_notifier.c | 33 +++++++++++++++++++++------------
- 1 file changed, 21 insertions(+), 12 deletions(-)
-
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 8a5ac8c..b873598 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -55,7 +55,6 @@ void __mmu_notifier_release(struct mm_struct *mm)
- 		 */
- 		if (mn->ops->release)
- 			mn->ops->release(mn, mm);
--	srcu_read_unlock(&srcu, id);
- 
- 	spin_lock(&mm->mmu_notifier_mm->lock);
- 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
-@@ -72,6 +71,8 @@ void __mmu_notifier_release(struct mm_struct *mm)
- 	}
- 	spin_unlock(&mm->mmu_notifier_mm->lock);
- 
-+	srcu_read_unlock(&srcu, id);
-+
- 	/*
- 	 * synchronize_srcu here prevents mmu_notifier_release to
- 	 * return to exit_mmap (which would proceed freeing all pages
-@@ -292,16 +293,24 @@ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
-  */
- void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
- {
-+	int id;
-+
- 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
- 
-+	if (hlist_unhashed(&mn->hlist))
-+		goto released;
-+
-+	/*
-+	 * SRCU here will force exit_mmap to wait ->release to finish
-+	 * before freeing the pages.
-+	 */
-+	id = srcu_read_lock(&srcu);
-+
-+	spin_lock(&mm->mmu_notifier_mm->lock);
- 	if (!hlist_unhashed(&mn->hlist)) {
--		/*
--		 * SRCU here will force exit_mmap to wait ->release to finish
--		 * before freeing the pages.
--		 */
--		int id;
-+		hlist_del_rcu(&mn->hlist);
-+		spin_unlock(&mm->mmu_notifier_mm->lock);
- 
--		id = srcu_read_lock(&srcu);
- 		/*
- 		 * exit_mmap will block in mmu_notifier_release to
- 		 * guarantee ->release is called before freeing the
-@@ -309,16 +318,16 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
- 		 */
- 		if (mn->ops->release)
- 			mn->ops->release(mn, mm);
--		srcu_read_unlock(&srcu, id);
- 
--		spin_lock(&mm->mmu_notifier_mm->lock);
--		hlist_del_rcu(&mn->hlist);
-+	} else
- 		spin_unlock(&mm->mmu_notifier_mm->lock);
--	}
- 
-+	srcu_read_unlock(&srcu, id);
-+
-+released:
- 	/*
- 	 * Wait any running method to finish, of course including
--	 * ->release if it was run by mmu_notifier_relase instead of us.
-+	 * ->release if it was run by __mmu_notifier_release instead of us.
- 	 */
- 	synchronize_srcu(&srcu);
- 
--- 
-1.8.0.1
+If I understand this correctly you mean that once SRAT parsing is
+implemented, the user can use movablecore_map to override that SRAT
+parsing, yes?  That movablecore_map will take precedence over SRAT?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
