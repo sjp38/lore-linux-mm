@@ -1,72 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx160.postini.com [74.125.245.160])
-	by kanga.kvack.org (Postfix) with SMTP id 4A18B6B0081
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:26:28 -0500 (EST)
+Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
+	by kanga.kvack.org (Postfix) with SMTP id 61C3B6B0082
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:26:34 -0500 (EST)
 Received: from /spool/local
 	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Tue, 15 Jan 2013 17:26:27 -0700
-Received: from d03relay01.boulder.ibm.com (d03relay01.boulder.ibm.com [9.17.195.226])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 614CCC4000F
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:23 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay01.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PY7t249778
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:34 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PXWJ010900
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:34 -0700
+	Tue, 15 Jan 2013 17:26:33 -0700
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 82621C40006
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:28 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0G0PcaY098120
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:38 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0G0PcKS020414
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 17:25:38 -0700
 From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 01/17] mm/compaction: rename var zone_end_pfn to avoid conflicts with new function
-Date: Tue, 15 Jan 2013 16:24:38 -0800
-Message-Id: <1358295894-24167-2-git-send-email-cody@linux.vnet.ibm.com>
+Subject: [PATCH 04/17] mm: add helper ensure_zone_is_initialized()
+Date: Tue, 15 Jan 2013 16:24:41 -0800
+Message-Id: <1358295894-24167-5-git-send-email-cody@linux.vnet.ibm.com>
 In-Reply-To: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
 References: <1358295894-24167-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linux MM <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <jmesmon@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-Patches that follow add a inline function zone_end_pfn(), which
-conflicts with the naming of a local variable in isolate_freepages().
+From: Cody P Schafer <jmesmon@gmail.com>
 
-Rename the variable so it does not conflict.
+ensure_zone_is_initialized() checks if a zone is in a empty & not
+initialized state (typically occuring after it is created in memory
+hotplugging), and, if so, calls init_currently_empty_zone() to
+initialize the zone.
 
 Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
 ---
- mm/compaction.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/memory_hotplug.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index c62bd06..1b52528 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -644,7 +644,7 @@ static void isolate_freepages(struct zone *zone,
- 				struct compact_control *cc)
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d04ed87..875bdfe 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -253,6 +253,17 @@ static void fix_zone_id(struct zone *zone, unsigned long start_pfn,
+ 		set_page_links(pfn_to_page(pfn), zid, nid, pfn);
+ }
+ 
++/* Can fail with -ENOMEM from allocating a wait table with vmalloc() or
++ * alloc_bootmem_node_nopanic() */
++static int __ref ensure_zone_is_initialized(struct zone *zone,
++			unsigned long start_pfn, unsigned long num_pages)
++{
++	if (!zone_is_initialized(zone))
++		return init_currently_empty_zone(zone, start_pfn, num_pages,
++						 MEMMAP_HOTPLUG);
++	return 0;
++}
++
+ static int __meminit move_pfn_range_left(struct zone *z1, struct zone *z2,
+ 		unsigned long start_pfn, unsigned long end_pfn)
  {
- 	struct page *page;
--	unsigned long high_pfn, low_pfn, pfn, zone_end_pfn, end_pfn;
-+	unsigned long high_pfn, low_pfn, pfn, z_end_pfn, end_pfn;
- 	int nr_freepages = cc->nr_freepages;
- 	struct list_head *freelist = &cc->freepages;
- 
-@@ -663,7 +663,7 @@ static void isolate_freepages(struct zone *zone,
- 	 */
- 	high_pfn = min(low_pfn, pfn);
- 
--	zone_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
-+	z_end_pfn = zone->zone_start_pfn + zone->spanned_pages;
- 
- 	/*
- 	 * Isolate free pages until enough are available to migrate the
-@@ -706,7 +706,7 @@ static void isolate_freepages(struct zone *zone,
- 		 * only scans within a pageblock
- 		 */
- 		end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
--		end_pfn = min(end_pfn, zone_end_pfn);
-+		end_pfn = min(end_pfn, z_end_pfn);
- 		isolated = isolate_freepages_block(cc, pfn, end_pfn,
- 						   freelist, false);
- 		nr_freepages += isolated;
 -- 
 1.8.0.3
 
