@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx171.postini.com [74.125.245.171])
-	by kanga.kvack.org (Postfix) with SMTP id 7991B6B0062
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 23:43:35 -0500 (EST)
-Date: Wed, 16 Jan 2013 13:43:33 +0900
+Received: from psmtp.com (na3sys010amx174.postini.com [74.125.245.174])
+	by kanga.kvack.org (Postfix) with SMTP id E3E816B0062
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 23:47:44 -0500 (EST)
+Date: Wed, 16 Jan 2013 13:47:42 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
-Message-ID: <20130116044333.GA11461@blaptop>
+Message-ID: <20130116044742.GB11461@blaptop>
 References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
  <1357712474-27595-3-git-send-email-minchan@kernel.org>
  <20130109162602.53a60e77.akpm@linux-foundation.org>
@@ -13,91 +13,141 @@ References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
  <20130110135828.c88bcaf1.akpm@linux-foundation.org>
  <20130111044327.GB6183@blaptop>
  <20130115160957.9ef860d7.akpm@linux-foundation.org>
+ <CAPz6YkWC+y+jqD+0UNe+cD6OyveursZaahxc26mH81DOGD7sNw@mail.gmail.com>
+ <20130115165042.1daadec2.akpm@linux-foundation.org>
+ <CAPz6YkXNECSitpQvUNst0HW-uEWWssix-H1Cm_QfWSTMQE0m8Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20130115160957.9ef860d7.akpm@linux-foundation.org>
+In-Reply-To: <CAPz6YkXNECSitpQvUNst0HW-uEWWssix-H1Cm_QfWSTMQE0m8Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Sonny Rao <sonnyrao@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sameer Nanda <snanda@chromium.org>
 
-On Tue, Jan 15, 2013 at 04:09:57PM -0800, Andrew Morton wrote:
-> On Fri, 11 Jan 2013 13:43:27 +0900
-> Minchan Kim <minchan@kernel.org> wrote:
+On Tue, Jan 15, 2013 at 05:21:15PM -0800, Sonny Rao wrote:
+> On Tue, Jan 15, 2013 at 4:50 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Tue, 15 Jan 2013 16:32:38 -0800
+> > Sonny Rao <sonnyrao@google.com> wrote:
+> >
+> >> >> It's for saving the power to increase batter life.
+> >> >
+> >> > It might well have that effect, dunno.  That wasn't my intent.  Testing
+> >> > needed!
+> >> >
+> >>
+> >> Power saving is certainly why we had it on originally for ChromeOS,
+> >> but we turned it off due to misbehavior.
+> >>
+> >> Specifically, we saw a pathological behavior where we'd end up writing
+> >> to the disk every few seconds when laptop mode was turned on.  This
+> >> turned out to be because laptop-mode sets a timer which is used to
+> >> check for new dirty data after the initial flush and writes that out
+> >> before spinning the disk down, and on ChromeOS various chatty daemons
+> >> on the system were logging and dirtying data more or less constantly
+> >> so there was almost always something there to be written out.  So what
+> >> ended up happening was that we'd need to do a read, then wake up the
+> >> disk, and then keep writing every few seconds for a long period of
+> >> time, which had the opposite effect from what we wanted.
+> >
+> > So after the read, the disk would chatter away doing a dribble of
+> > writes?  That sounds like plain brokenness (and why did the chrome guys
+> > not tell anyone about it?!?!?).
 > 
-> > Hi Andrew,
-> > 
-> > On Thu, Jan 10, 2013 at 01:58:28PM -0800, Andrew Morton wrote:
-> > > On Thu, 10 Jan 2013 11:23:06 +0900
-> > > Minchan Kim <minchan@kernel.org> wrote:
-> > > 
-> > > > > I have a feeling that laptop mode has bitrotted and these patches are
-> > > > > kinda hacking around as-yet-not-understood failures...
-> > > > 
-> > > > Absolutely, this patch is last guard for unexpectable behavior.
-> > > > As I mentioned in cover-letter, Luigi's problem could be solved either [1/2]
-> > > > or [2/2] but I wanted to add this as last resort in case of unexpected
-> > > > emergency. But you're right. It's not good to hide the problem like this path
-> > > > so let's drop [2/2].
-> > > > 
-> > > > Also, I absolutely agree it has bitrotted so for correcting it, we need a
-> > > > volunteer who have to inverstigate power saveing experiment with long time.
-> > > > So [1/2] would be band-aid until that.
-> > > 
-> > > I'm inclined to hold off on 1/2 as well, really.
-> > 
-> > Then, what's your plan?
+> Yes, either read or fsync.  I ranted about it a little (here:
+> http://marc.info/?l=linux-mm&m=135422986220016&w=4), but mostly
+> assumed it was working as expected, and that ChromeOS was just
+> dirtying data at an absurd pace.  Might have been a bad assumption and
+> I could have been more explicit about reporting it, sorry about that.
 > 
-> My plan is to sit here until someone gets down and fully tests and
-> fixes laptop-mode.  Making it work properly, reliably and as-designed.
+> > The idea is that when the physical
+> > read occurs, we should opportunistically flush out all pending writes,
+> > while the disk is running.  Then go back into
+> > buffer-writes-for-a-long-time mode.
+> >
 > 
-> Or perhaps someone wants to make the case that we just don't need it
-> any more (SSDs are silent!) and removes it all.
+> See the comment in page-writeback.c above laptop_io_completion():
 > 
-> > > 
-> > > The point of laptop_mode isn't to save power btw - it is to minimise
-> > > the frequency with which the disk drive is spun up.  By deferring and
-> > > then batching writeout operations, basically.
-> > 
-> > I don't get it. Why should we minimise such frequency?
+> /*
+>  * We've spun up the disk and we're in laptop mode: schedule writeback
+>  * of all dirty data a few seconds from now.  If the flush is already
+> scheduled
+>  * then push it back - the user is still using the disk.
+>  */
+> void laptop_io_completion(struct backing_dev_info *info)
 > 
-> Because my laptop was going clickety every minute and was keeping me
-> awake.
+> What ends up happening fairly often is that there's always something
+> dirty with that few seconds (or even one second) on our system.
 > 
-> > It's for saving the power to increase batter life.
+> > I forget what we did with fsync() and friends.  Quite a lot of
+> > pestiferous applications like to do fsync quite frequently.  I had a
+> > special kernel in which fsync() consisted of "return 0;", but ISTR
+> > there being some resistance to productizing that idea.
+> >
 > 
-> It might well have that effect, dunno.  That wasn't my intent.  Testing
-> needed!
+> Yeah, we have this problem and we try to fix up users of fsync() as we
+> find them but it's a bit of a never-ending battle.  Such a feature
+> would be useful.
 > 
-> > As I real all document about laptop_mode, they all said about the power
-> > or battery life saving.
-> > 
-> > 1. Documentation/laptops/laptop-mode.txt
-> > 2. http://linux.die.net/man/8/laptop_mode
-> > 3. http://samwel.tk/laptop_mode/
-> > 3. http://www.thinkwiki.org/wiki/Laptop-mode 
+> >>  The issues
+> >> with zram swap just confirmed that we didn't want laptop mode.
+> >>
+> >> Most of our devices have had SSDs rather than spinning disks, so noise
+> >> wasn't an issue, although when we finally did support an official
+> >> device with a spinning disk people certainly complained when the disk
+> >> started clicking all the time
+> >
+> > hm, it's interesting that the general idea still has vailidity.  It
+> > would be a fun project for someone to sniff out all the requirements,
+> > fixup/enhance/rewrite the current implementation and generally make it
+> > all spiffy and nice.
+> >
+> >> (due to the underflow in the writeback code).
+> >
+> > To what underflow do you refer?
+> >
+> http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commit;h=c8b74c2f6604923de91f8aa6539f8bb934736754
 > 
-> Documentation creep ;)
+> That particular bug caused writes to happen almost instantly after the
+> underflow ocurred, and consequently slowed write throughput to a crawl
+> because there was no chance for contiguous writes to gather.
 > 
-> Ten years ago, gad: http://lwn.net/Articles/1652/
+> >> We do know that current SSDs save a significant amount of
+> >> power when they go into standby, so minimizing disk writes is still
+> >> useful on these devices.
+> >>
+> >> A very simple laptop mode which only does a single sync when we spin
+> >> up the disk, and didn't bother with the timer behavior or muck with
+> >> swap behavior might be something that is more useful for us, and I
+> >> suspect it might simplify the writeback code somewhat as well.
+> >
+> > I don't think I understand the problem with the timer.  My original RFC
+> > said
+> >
+> > : laptop_writeback_centisecs
+> > : --------------------------
+> > :
+> > : This tunable determines the maximum age of dirty data when the machine
+> > : is operating in Laptop mode.  The default value is 30000 - five
+> > : minutes.  This means that if applications are generating a small amount
+> > : of write traffic, the disk will spin up once per five minutes.
+> > :
+> > : If the disk is spun up for any other reason (such as for a read) then
+> > : all dirty data will be flushed anyway, and this timer is reset to zero.
+> >
+> > which all sounds very sensible and shouldn't exhibit the behavior you
+> > observed.
+> >
+> 
+> The laptop-mode timer get re-armed after each writeback (see above
+> laptop_io_completion function), even if it was caused by laptop-mode
+> itself.  So, if something is continually dirtying a little bit of
+> data, we end up getting a chain of small writes which keeps the disk
+> awake for long periods of time.
 
-Odd, I grep it in linux-history.git and found this.
-http://git.kernel.org/?p=linux/kernel/git/tglx/history.git;a=commit;h=93d33a4885a483c708ccb7d24b56e0d5fef7bcab
-
-It seem to be first commit about laptop_mode but it still said about battery life
-, NOT clickety. But unfortunately, it had no number, measure method and even no
-side-effect when the memory pressure is severe so we couldn't sure how it helped
-about batter life without reclaim problem so the VM problem have been exported
-since we apply f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware].
-
-So let's apply [1/2] in mainline and even stable to fix the problem.
-After that, we can add warning to laptop_mode so user who have used it will claim their
-requirements. With it, we can know they need it for power saving, clickety or
-, both so we can make requirement lists. From then, we can start to do someting.
-If we are luck, we can remove it totally if any user doesn't claim.
-
-What do you think about it?
+Out of curiosity, for saving the power, why don' you increase the value for
+laptop_mode?
 
 > 
 > --
