@@ -1,105 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx141.postini.com [74.125.245.141])
-	by kanga.kvack.org (Postfix) with SMTP id 9D8B66B005D
-	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 18:46:17 -0500 (EST)
-Message-ID: <50F5EA3F.70002@zytor.com>
-Date: Tue, 15 Jan 2013 15:46:07 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [RFCv3][PATCH 1/3] create slow_virt_to_phys()
-References: <20130109185904.DD641DCE@kernel.stglabs.ibm.com> <50F5B214.5060604@zytor.com> <50F5DD45.4060603@linux.vnet.ibm.com>
-In-Reply-To: <50F5DD45.4060603@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
+	by kanga.kvack.org (Postfix) with SMTP id 8C9996B005D
+	for <linux-mm@kvack.org>; Tue, 15 Jan 2013 19:09:59 -0500 (EST)
+Date: Tue, 15 Jan 2013 16:09:57 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm: forcely swapout when we are out of page cache
+Message-Id: <20130115160957.9ef860d7.akpm@linux-foundation.org>
+In-Reply-To: <20130111044327.GB6183@blaptop>
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
+	<1357712474-27595-3-git-send-email-minchan@kernel.org>
+	<20130109162602.53a60e77.akpm@linux-foundation.org>
+	<20130110022306.GB14685@blaptop>
+	<20130110135828.c88bcaf1.akpm@linux-foundation.org>
+	<20130111044327.GB6183@blaptop>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, Avi Kivity <avi@redhat.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 01/15/2013 02:50 PM, Dave Hansen wrote:
->
->> static inline unsigned long page_level_size(int level)
->> {
->>      return (PAGE_SIZE/PGDIR_SIZE) << (PGDIR_SHIFT*level);
->> }
->> static inline unsigned long page_level_shift(int level)
->> {
->>      return (PAGE_SHIFT-PGDIR_SHIFT) + (PGDIR_SHIFT*level);
->> }
->
-> (PAGE_SHIFT-PGDIR_SHIFT) == -27, so this can't possibly work, right?
->
+On Fri, 11 Jan 2013 13:43:27 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-Ah right... sorry, got messed up in my head what that constant is about.
+> Hi Andrew,
+> 
+> On Thu, Jan 10, 2013 at 01:58:28PM -0800, Andrew Morton wrote:
+> > On Thu, 10 Jan 2013 11:23:06 +0900
+> > Minchan Kim <minchan@kernel.org> wrote:
+> > 
+> > > > I have a feeling that laptop mode has bitrotted and these patches are
+> > > > kinda hacking around as-yet-not-understood failures...
+> > > 
+> > > Absolutely, this patch is last guard for unexpectable behavior.
+> > > As I mentioned in cover-letter, Luigi's problem could be solved either [1/2]
+> > > or [2/2] but I wanted to add this as last resort in case of unexpected
+> > > emergency. But you're right. It's not good to hide the problem like this path
+> > > so let's drop [2/2].
+> > > 
+> > > Also, I absolutely agree it has bitrotted so for correcting it, we need a
+> > > volunteer who have to inverstigate power saveing experiment with long time.
+> > > So [1/2] would be band-aid until that.
+> > 
+> > I'm inclined to hold off on 1/2 as well, really.
+> 
+> Then, what's your plan?
 
-> How about something like this?
->
-> /*
->   * Note: this only holds true for pagetable levels where PTEs can be
->   * present.  It would break if you used it on the PGD level where PAE
->   * is in use.  It basically assumes that the shift between _all_
->   * adjacent levels of the pagetables are the same as the lowest-level
->   * shift.
->   */
+My plan is to sit here until someone gets down and fully tests and
+fixes laptop-mode.  Making it work properly, reliably and as-designed.
 
-This comment is totally misleading.  What it refers to is the separation 
-between various levels of the page hierarchy; in x86 it is always the same.
+Or perhaps someone wants to make the case that we just don't need it
+any more (SSDs are silent!) and removes it all.
 
-Perhaps a cleaner way to do this is:
+> > 
+> > The point of laptop_mode isn't to save power btw - it is to minimise
+> > the frequency with which the disk drive is spun up.  By deferring and
+> > then batching writeout operations, basically.
+> 
+> I don't get it. Why should we minimise such frequency?
 
-#define PTRS_PER_PTE_SHIFT	ilog2(PTRS_PER_PTE)
+Because my laptop was going clickety every minute and was keeping me
+awake.
 
-> #define PG_SHIFT_PER_LEVEL (PMD_SHIFT-PAGE_SHIFT)
->
-> static inline unsigned long page_level_shift(int level)
-> {
-> 	return PAGE_SHIFT + (level - PG_LEVEL_4K) * PG_SHIFT_PER_LEVEL;
-> }
-> static inline unsigned long page_level_size(int level)
-> {
-> 	return 1 << page_level_shift(level);
-> }
->
-> The generated code for page_level_size() looks pretty good, despite it
-> depending on page_level_shift(), so we might as well leave it defined
-> this way for simplicity:
->
+> It's for saving the power to increase batter life.
 
-Make sure to make that 1UL instead of 1; page_level_shift() should 
-return int.  See below.
+It might well have that effect, dunno.  That wasn't my intent.  Testing
+needed!
 
-> 0000000000400610 <plsize>:
->    400610:       8d 7c bf fb             lea    -0x5(%rdi,%rdi,4),%edi
->    400614:       b8 01 00 00 00          mov    $0x1,%eax
->    400619:       8d 4c 3f 0c             lea    0xc(%rdi,%rdi,1),%ecx
->    40061d:       d3 e0                   shl    %cl,%eax
->    40061f:       c3                      retq
+> As I real all document about laptop_mode, they all said about the power
+> or battery life saving.
+> 
+> 1. Documentation/laptops/laptop-mode.txt
+> 2. http://linux.die.net/man/8/laptop_mode
+> 3. http://samwel.tk/laptop_mode/
+> 3. http://www.thinkwiki.org/wiki/Laptop-mode 
 
-We get better code with:
+Documentation creep ;)
 
-static inline int page_level_shift(int level)
-{
-	return (PAGE_SHIFT - PTRS_PER_PTE_SHIFT) +
-		level * PTRS_PER_PTE_SHIFT;
-}
-static inline unsigned long page_level_size(int level)
-{
-	return 1UL << page_level_shift(level);
-}
-
-... the resulting code has one lea instead of two:
-
-0000000000000000 <plsize>:
-    0:   8d 4c ff 03             lea    0x3(%rdi,%rdi,8),%ecx
-    4:   b8 01 00 00 00          mov    $0x1,%eax
-    9:   48 d3 e0                shl    %cl,%rax
-    c:   c3                      retq
-
-	-hpa
-
--- 
-H. Peter Anvin, Intel Open Source Technology Center
-I work for Intel.  I don't speak on their behalf.
+Ten years ago, gad: http://lwn.net/Articles/1652/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
