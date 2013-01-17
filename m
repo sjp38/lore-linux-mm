@@ -1,91 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 73C936B0008
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 13:11:00 -0500 (EST)
-Message-ID: <1358446258.23211.32.camel@gandalf.local.home>
-Subject: [RFC][PATCH] slub: Check for page NULL before doing the node_match
- check
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Thu, 17 Jan 2013 13:10:58 -0500
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 033166B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 13:20:54 -0500 (EST)
+Message-ID: <50F84118.7030608@parallels.com>
+Date: Thu, 17 Jan 2013 10:21:12 -0800
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com> <1354058086-27937-10-git-send-email-david@fromorbit.com> <50F6FDC8.5020909@parallels.com> <20130116225521.GF2498@dastard> <50F7475F.90609@parallels.com> <20130117042245.GG2498@dastard>
+In-Reply-To: <20130117042245.GG2498@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-In the -rt kernel (mrg), we hit the following dump:
 
-BUG: unable to handle kernel NULL pointer dereference at           (null) 
-IP: [<ffffffff811573f1>] kmem_cache_alloc_node+0x51/0x180 
-PGD a2d39067 PUD b1641067 PMD 0  
-Oops: 0000 [#1] PREEMPT SMP  
-Modules linked in: sunrpc cpufreq_ondemand ipv6 tg3 joydev sg serio_raw pcspkr k8temp amd64_edac_mod edac_core i2c_piix4 e100 mii shpchp ext4 mbcache jbd2 sd_mod crc_t10dif sr_mod cdrom sata_svw ata_generic pata_acpi pata_serverworks radeon ttm drm_kms_helper drm hwmon i2c_algo_bit i2c_core dm_mirror dm_region_hash dm_log dm_mod 
-CPU 3  
-Pid: 20878, comm: hackbench Not tainted 3.6.11-rt25.14.el6rt.x86_64 #1 empty empty/Tyan Transport GT24-B3992 
-RIP: 0010:[<ffffffff811573f1>]  [<ffffffff811573f1>] kmem_cache_alloc_node+0x51/0x180 
-RSP: 0018:ffff8800a9b17d70  EFLAGS: 00010213 
-RAX: 0000000000000000 RBX: 0000000001200011 RCX: ffff8800a06d8000 
-RDX: 0000000004d92a03 RSI: 00000000000000d0 RDI: ffff88013b805500 
-RBP: ffff8800a9b17dc0 R08: ffff88023fd14d10 R09: ffffffff81041cbd 
-R10: 00007f4e3f06e9d0 R11: 0000000000000246 R12: ffff88013b805500 
-R13: ffff8801ff46af40 R14: 0000000000000001 R15: 0000000000000000 
-FS:  00007f4e3f06e700(0000) GS:ffff88023fd00000(0000) knlGS:0000000000000000 
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b 
-CR2: 0000000000000000 CR3: 00000000a2d3a000 CR4: 00000000000007e0 
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000 
-DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400 
-Process hackbench (pid: 20878, threadinfo ffff8800a9b16000, task ffff8800a06d8000) 
-Stack: 
- ffff8800a9b17da0 ffffffff81202e08 ffff8800a9b17de0 000000d001200011 
- 0000000001200011 0000000001200011 0000000000000000 0000000000000000 
- 00007f4e3f06e9d0 0000000000000000 ffff8800a9b17e60 ffffffff81041cbd 
-Call Trace: 
- [<ffffffff81202e08>] ? current_has_perm+0x68/0x80 
- [<ffffffff81041cbd>] copy_process+0xdd/0x15b0 
- [<ffffffff810a2125>] ? rt_up_read+0x25/0x30 
- [<ffffffff8104369a>] do_fork+0x5a/0x360 
- [<ffffffff8107c66b>] ? migrate_enable+0xeb/0x220 
- [<ffffffff8100b068>] sys_clone+0x28/0x30 
- [<ffffffff81527423>] stub_clone+0x13/0x20 
- [<ffffffff81527152>] ? system_call_fastpath+0x16/0x1b 
-Code: 89 fc 89 75 cc 41 89 d6 4d 8b 04 24 65 4c 03 04 25 48 ae 00 00 49 8b 50 08 4d 8b 28 49 8b 40 10 4d 85 ed 74 12 41 83 fe ff 74 27 <48> 8b 00 48 c1 e8 3a 41 39 c6 74 1b 8b 75 cc 4c 89 c9 44 89 f2  
-RIP  [<ffffffff811573f1>] kmem_cache_alloc_node+0x51/0x180 
- RSP <ffff8800a9b17d70> 
-CR2: 0000000000000000 
----[ end trace 0000000000000002 ]--- 
+>> Deepest fears:
+>>
+>> 1) snakes.
+> 
+> Snakes are merely poisonous. Drop Bears are far more dangerous :P
+> 
 
-Now, this uses SLUB pretty much unmodified, but as it is the -rt kernel
-with CONFIG_PREEMPT_RT set, spinlocks are mutexes, although they do
-disable migration. But the SLUB code is relatively lockless, and the
-spin_locks there are raw_spin_locks (not converted to mutexes), thus I
-believe this bug can happen in mainline without -rt features. The -rt
-patch is just good at triggering mainline bugs ;-)
+fears are irrational anyway...
 
-Anyway, looking at where this crashed, it seems that the page variable
-can be NULL when passed to the node_match() function (which does not
-check if it is NULL). When this happens we get the above panic.
+>> 2) It won't surprise you to know that I am adapting your work, which
+>> provides a very sane and helpful API, to memcg shrinking.
+>>
+>> The dumb and simple approach in there is to copy all lrus that are
+>> marked memcg aware at memcg creation time. The API is kept the same,
+>> but when you do something like list_lru_add(lru, obj), for instance, we
+>> derive the memcg context from obj and relay it to the right list.
+> 
+> At which point, you don't want the overhead of per-node lists.
+> 
 
-As page is only used in slab_alloc() to check if the node matches, if
-it's NULL I'm assuming that we can say it doesn't and call the
-__slab_alloc() code. Is this a correct assumption?
+This is one of the assumptions we may have to end up doing here.
 
-Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+> The problem I see here is that someone might still need the
+> scalability of the per-node lists. If someone runs a large memcg in terms
+> of CPU and memory, then we most definitely are going to need to
+> retain per-node lists regardless of the fact that the workload is
+> running in a constrained environment. And if you are running a mix
+> of large and small containers, then one static solution is not going
+> to cut it for some workload.
+> 
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 2d9511a..85b95d5 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2399,7 +2399,7 @@ redo:
- 
- 	object = c->freelist;
- 	page = c->page;
--	if (unlikely(!object || !node_match(page, node)))
-+	if (unlikely(!object || !page || !node_match(page, node)))
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
- 	else {
+Yes, this is spot on. As a first approach, I think single-node lists
+will do.
+
+> This is a problem that superblock contexts don't care about - they
+> are global by their very nature. Hence I'm wondering if trying to
+> fit these two very different behaviours into the one LRU list is
+> the wrong approach.
+> 
+
+I am not that much concerned about that, honestly. I like the API, and I
+like the fact that it allow me to have the subsystems using it
+transparently, just by referring to the "master" lru (the dentry, inode,
+etc). It reduces complexity to reuse the data structures, but that is
+not paramount.
+
+However, a more flexible data structure in which we could select at
+least at creation time if we want per-node lists or not, would be quite
+helpful.
+
+And it seems it would be at least moderately helpful to you as well for
+usually-small filesystems, so I think it would be a good addition to
+next version.
+
+> Consider this: these patches give us a generic LRU list structure.
+> It currently uses a list_head in each object for indexing, and we
+> are talking about single LRU lists because of this limitation and
+> trying to build infrastructure that can support this indexing
+> mechanism.
+> 
+> I think that all of thses problems go away if we replace the
+> list_head index in the object with a "struct lru_item" index. To
+> start with, it's just a s/list_head/lru_item/ changeover, but from
+> there we can expand.
+> 
+> What I'm getting at is that we want to have multiple axis of
+> tracking and reclaim, but we only have a single axis for tracking.
+> If the lru_item grew a second list_head called "memcg_lru", then
+> suddenly the memcg LRUs can be maintained separately to the global
+> (per-superblock) LRU. i.e.:
+> 
+> struct lru_item {
+> 	struct list_head global_list;
+> 	struct list_head memcg_list;
+> }
+> 
+
+I may be misunderstanding you, but that is not how I see it. Your global
+list AFAIU, is more like a hook to keep the lists together. The actual
+accesses to it are controlled by a parent structure, like the
+super-block, which in turns, embeds a shrinker.
+
+So we get (in the sb case), from shrinker to sb, and from sb to dentry
+list (or inode). We never care about the global list head.
+
+>From this point on, we "entered" the LRU, but we still don't know which
+list to reclaim from: there is one list per node, and we need to figure
+out which is our target, based on the flags.
+
+This list selection mechanism is where I am usually hooking memcg: and
+for the same way you are using an array - given a node, you want fast
+access to the underlying list - so am I. Given the memcg context, I want
+to get to the corresponding memcg list.
+
+Now, in my earliest implementations, the memcg would still take me to a
+node-wide array, and an extra level would be required. We seem to agree
+that (at least as a starting point) getting rid of this extra level, so
+the memcg colapses all objects in the same list would provide decent
+behavior in most cases, while still keeping the footprint manageable. So
+that is what I am pursuing at the moment.
+
+
+> And then you can use whatever tracking structure you want for a
+> memcg LRU list. Indeed, this would allow per-node lists for the
+> global LRU, and whatever LRU type is appropriate for the memcg using
+> the object (e.g. single list for small memcgs, per-node for large
+> memcgs)....
+> 
+
+Yes. You can have either a small number of big memcgs or a big number of
+small memcgs. So if we adopt selectively per-node scalability, our
+memory usage is always bounded by #memcgs x avg_size. It works perfectly.
+
+> i.e. rather than trying to make the infrastructure jump through hoops
+> to only have one LRU index per object, have a second index that
+> allows memcg's to have a separate LRU index and a method for the
+> global LRU structure to find them. This woul dallow memcg specific
+> shrinker callouts switch to the memcg LRU rather than the global LRU
+> and operate on that. That way we still only instantiate a single
+> LRU/shrinker pair per cache context, but the memcg code doesn't need
+> to duplicate the entire LRU infrastructure into every memcg that
+> contains that type of object for that cache context....
+> 
+> /me stops rambling....
+> 
+
+>> Your current suggestion of going per-node only in the performance
+>> critical filesystems could also possibly work, provided this count is
+>> expected to be small.
+> 
+> The problem is deciding on a per filesystem basis. I was thinking
+> that all filesytsems of a specific type would use a particular type
+> of structure, not that specific instances of a filesystem could use
+> different types....
+> 
+
+Yes, I referred to "critical" as an attribute of the fs class as well.
+Most of the disk filesystems (if not all) would use per-node lists, and
+I would guess most of the pseudo fs would do fine with a single-node.
 
 
 
