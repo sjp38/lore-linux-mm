@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx125.postini.com [74.125.245.125])
-	by kanga.kvack.org (Postfix) with SMTP id 022F16B0006
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:22:19 -0500 (EST)
-Date: Thu, 17 Jan 2013 21:22:18 +0000
+Received: from psmtp.com (na3sys010amx191.postini.com [74.125.245.191])
+	by kanga.kvack.org (Postfix) with SMTP id E2FFA6B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:28:23 -0500 (EST)
+Date: Thu, 17 Jan 2013 21:28:22 +0000
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [RFC][PATCH] slub: Check for page NULL before doing the node_match
  check
-In-Reply-To: <1358446258.23211.32.camel@gandalf.local.home>
-Message-ID: <0000013c4a64146b-68cd6f7d-f7e2-460b-9ee5-d931714ce062-000000@email.amazonses.com>
-References: <1358446258.23211.32.camel@gandalf.local.home>
+In-Reply-To: <1358447864.23211.34.camel@gandalf.local.home>
+Message-ID: <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
+References: <1358446258.23211.32.camel@gandalf.local.home> <1358447864.23211.34.camel@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,17 +18,59 @@ Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew M
 
 On Thu, 17 Jan 2013, Steven Rostedt wrote:
 
-> Anyway, looking at where this crashed, it seems that the page variable
-> can be NULL when passed to the node_match() function (which does not
-> check if it is NULL). When this happens we get the above panic.
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -2399,7 +2399,7 @@ redo:
+> >
+> >  	object = c->freelist;
+> >  	page = c->page;
+> > -	if (unlikely(!object || !node_match(page, node)))
+> > +	if (unlikely(!object || !page || !node_match(page, node)))
 >
-> As page is only used in slab_alloc() to check if the node matches, if
-> it's NULL I'm assuming that we can say it doesn't and call the
-> __slab_alloc() code. Is this a correct assumption?
+> I'm still trying to see if c->freelist != NULL and c->page == NULL isn't
+> a bug. The cmpxchg_doubles are a little confusing. If it's not expected
+> that page is NULL but freelist isn't than we need to figure out why it
+> happened.
 
-c->page should only be NULL when c->freelist == NULL but obviously there
-are race conditions where c->freelist may not have been zapped but c->page
-was.
+hmmm.. We may want to change the sequence of updates to c->page and
+c->freelist. Update c->freelist to be NULL first so that we always enter
+the slow path for these cases where we can do more expensive
+synchronization.
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2013-01-15 10:42:08.490183607 -0600
++++ linux/mm/slub.c	2013-01-17 15:27:48.973051155 -0600
+@@ -1993,8 +1993,8 @@ static inline void flush_slab(struct kme
+ 	deactivate_slab(s, c->page, c->freelist);
+
+ 	c->tid = next_tid(c->tid);
+-	c->page = NULL;
+ 	c->freelist = NULL;
++	c->page = NULL;
+ }
+
+ /*
+@@ -2227,8 +2227,8 @@ redo:
+ 	if (unlikely(!node_match(page, node))) {
+ 		stat(s, ALLOC_NODE_MISMATCH);
+ 		deactivate_slab(s, page, c->freelist);
+-		c->page = NULL;
+ 		c->freelist = NULL;
++		c->page = NULL;
+ 		goto new_slab;
+ 	}
+
+@@ -2239,8 +2239,8 @@ redo:
+ 	 */
+ 	if (unlikely(!pfmemalloc_match(page, gfpflags))) {
+ 		deactivate_slab(s, page, c->freelist);
+-		c->page = NULL;
+ 		c->freelist = NULL;
++		c->page = NULL;
+ 		goto new_slab;
+ 	}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
