@@ -1,79 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx162.postini.com [74.125.245.162])
-	by kanga.kvack.org (Postfix) with SMTP id DF7736B0006
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:22:40 -0500 (EST)
-Date: Thu, 17 Jan 2013 14:22:38 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm: prevent to add a page to swap if may_writepage
- is unset
-Message-Id: <20130117142238.e32c46d5.akpm@linux-foundation.org>
-In-Reply-To: <20130117005314.GB18669@blaptop>
-References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
-	<1357712474-27595-2-git-send-email-minchan@kernel.org>
-	<20130116134155.18092f1a.akpm@linux-foundation.org>
-	<20130117005314.GB18669@blaptop>
+Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
+	by kanga.kvack.org (Postfix) with SMTP id 54FF46B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:46:05 -0500 (EST)
+Message-ID: <1358462763.23211.57.camel@gandalf.local.home>
+Subject: Re: [RFC][PATCH] slub: Check for page NULL before doing the
+ node_match check
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Thu, 17 Jan 2013 17:46:03 -0500
+In-Reply-To: <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
+References: <1358446258.23211.32.camel@gandalf.local.home>
+	  <1358447864.23211.34.camel@gandalf.local.home>
+	  <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
+	 <1358458996.23211.46.camel@gandalf.local.home>
+	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
+Content-Type: text/plain; charset="ISO-8859-15"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
+ Goncalves" <lgoncalv@redhat.com>
 
-On Thu, 17 Jan 2013 09:53:14 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+On Thu, 2013-01-17 at 21:51 +0000, Christoph Lameter wrote:
 
-> Recently, Luigi reported there are lots of free swap space when
-> OOM happens. It's easily reproduced on zram-over-swap, where
-> many instance of memory hogs are running and laptop_mode is enabled.
-> He said there was no problem when he disabled laptop_mode.
-> 
-> The problem when I investigate problem is following as.
-> 
-> Assumption for easy explanation: There are no page cache page in system
-> because they all are already reclaimed.
-> 
-> 1. try_to_free_pages disable may_writepage when laptop_mode is enabled.
-> 2. shrink_inactive_list isolates victim pages from inactive anon lru list.
-> 3. shrink_page_list adds them to swapcache via add_to_swap but it doesn't
->    pageout because sc->may_writepage is 0 so the page is rotated back into
->    inactive anon lru list. The add_to_swap made the page Dirty by SetPageDirty
-> 4. 3 couldn't reclaim any pages so do_try_to_free_pages increase priority and
->    retry reclaim with higher priority.
-> 5. shrink_inactlive_list try to isolate victim pages from inactive anon lru list
->    but got failed because it try to isolate pages with ISOLATE_CLEAN mode but
->    inactive anon lru list is full of dirty pages by 3 so it just returns
->    without  any reclaim progress.
-> 6. do_try_to_free_pages doesn't set may_write due to zero total_scanned.
+> This is dealing with the same cpu being interrupted. Some of these
+> segments are in interrupt disable sections so they are not affected.
 
-s/may_write/may_writepage/
+Except that we are not always on the same CPU. Now I'm looking at
+mainline (non modified by -rt):
 
->    Because sc->nr_scanned is increased by shrink_page_list but we don't call
->    shrink_page_list in 5 due to short of isolated pages.
+>From slab_alloc_node():
 
-This is the bug, is it not?
+	/*
+	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+	 * enabled. We may switch back and forth between cpus while
+	 * reading from one cpu area. That does not matter as long
+	 * as we end up on the original cpu again when doing the cmpxchg.
+	 */
+	c = __this_cpu_ptr(s->cpu_slab);
 
-In laptop mode, we still need to write out dirty swapcache at some
-point.  An appropriate time to do this is when the scanning priority is
-getting high.  But it seems that this ISOLATE_CLEAN->total_scanned
-interaction is preventing that.
+	/*
+	 * The transaction ids are globally unique per cpu and per operation on
+	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
+	 * occurs on the right processor and that there was no operation on the
+	 * linked list in between.
+	 */
+	tid = c->tid;
+	barrier();
 
-(An enhancement to laptop mode would be to opportunistically write out
-dirty swapcache in or around laptop_mode_timer_fn()).
+	object = c->freelist;
+	page = c->page;
+	if (unlikely(!object || !node_match(page, node)))
+		object = __slab_alloc(s, gfpflags, node, addr, c);
 
-> Above loop is continued until OOM happens.
-> The problem didn't happen before [1] was merged because old logic's isolatation
-> in shrink_inactive_list was successful and tried to call shrink_page_list
-> to pageout them but it still ends up failed to page out by may_writepage.
-> But important point is that sc->nr_scanned was increased althoug we couldn't
-> swap out them so do_try_to_free_pages could set may_writepages.
-> So this patch need to go stable tree althoug it's a band-aid.
-> Then, for latest linus tree, we should fix laptop_mode's fundamental
-> problem.
+Where we hit the bug on -rt, and can most certainly do it on mainline.
 
-Well.  Perhaps we can do that now.
+This code does not disable preemption (the comment even states that). So
+if we switch CPUs after reading __this_cpu_ptr(), we are still accessing
+the 'c' pointer of the CPU we left. Hence, there's nothing protecting
+c->page being NULL when c->freelist is not NULL.
 
-> [1] f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware]
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
