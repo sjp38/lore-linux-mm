@@ -1,77 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 905466B0069
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 20:28:17 -0500 (EST)
-Received: from mail-ie0-f174.google.com ([209.85.223.174])
-	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
-	(Exim 4.71)
-	(envelope-from <ming.lei@canonical.com>)
-	id 1TveHA-00028D-BI
-	for linux-mm@kvack.org; Thu, 17 Jan 2013 01:28:16 +0000
-Received: by mail-ie0-f174.google.com with SMTP id c11so3814133ieb.19
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2013 17:28:15 -0800 (PST)
+Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
+	by kanga.kvack.org (Postfix) with SMTP id 4DBC96B0069
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 20:48:42 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id bj3so1142483pad.28
+        for <linux-mm@kvack.org>; Wed, 16 Jan 2013 17:48:41 -0800 (PST)
+Message-ID: <50F75875.30909@linaro.org>
+Date: Wed, 16 Jan 2013 17:48:37 -0800
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-In-Reply-To: <20130116153744.70210fa3.akpm@linux-foundation.org>
-References: <1357352744-8138-1-git-send-email-ming.lei@canonical.com>
-	<20130116153744.70210fa3.akpm@linux-foundation.org>
-Date: Thu, 17 Jan 2013 09:28:14 +0800
-Message-ID: <CACVXFVOipr0VMyPQaZTLckxTaPan7ZneERUqZ1S_mYo11A5AeA@mail.gmail.com>
-Subject: Re: [PATCH v7 0/6] solve deadlock caused by memory allocation with I/O
-From: Ming Lei <ming.lei@canonical.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC 1/8] Introduce new system call mvolatile
+References: <1357187286-18759-1-git-send-email-minchan@kernel.org> <1357187286-18759-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1357187286-18759-2-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On Thu, Jan 17, 2013 at 7:37 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Sat,  5 Jan 2013 10:25:38 +0800
-> Ming Lei <ming.lei@canonical.com> wrote:
->
->> This patchset try to solve one deadlock problem which might be caused
->> by memory allocation with block I/O during runtime PM and block device
->> error handling path. Traditionly, the problem is addressed by passing
->> GFP_NOIO statically to mm, but that is not a effective solution, see
->> detailed description in patch 1's commit log.
->>
->> This patch set introduces one process flag and trys to fix the deadlock
->> problem on block device/network device during runtime PM or usb bus reset.
->
-> The patchset doesn't look like the worst thing I've ever applied ;)
->
-> One thing I'm wondering: during suspend and resume, why are GFP_KERNEL
-> allocation attempts even getting down to the device layer?  Presumably
-> the page scanner is encountering dirty pagecache or dirty swapcache
-> pages?
->
-> If so, I wonder if we could avoid the whole problem by appropriately
-> syncing all dirty memory back to storage before starting to turn devices
-> off?
+On 01/02/2013 08:27 PM, Minchan Kim wrote:
+> This patch adds new system call m[no]volatile.
+> If someone asks is_volatile system call, it could be added, too.
 
-The patchset is to address the probable deadlock problem by GFP_KERNEL
-during runtime suspend/resume which is per block/network device. I am
-wondering if syncing all dirty memory is suitable or necessary during
-per-storage/network device runtime resume/suspend:
+So some nits below from my initial playing around with this patchset.
 
-      - sys_sync is very slow and runtime pm operation is frequent
+> +/*
+> + * Return -EINVAL if range doesn't include a right vma at all.
+> + * Return -ENOMEM with interrupting range opeartion if memory is not enough to
+> + * merge/split vmas.
+> + * Return 0 if range consists of only proper vmas.
+> + * Return 1 if part of range includes inavlid area(ex, hole/huge/ksm/mlock/
+> + * special area)
+> + */
+> +SYSCALL_DEFINE2(mvolatile, unsigned long, start, size_t, len)
+> +{
+> +	unsigned long end, tmp;
+> +	struct vm_area_struct *vma, *prev;
+> +	bool invalid = false;
+> +	int error = -EINVAL;
+> +
+> +	down_write(&current->mm->mmap_sem);
+> +	if (start & ~PAGE_MASK)
+> +		goto out;
+> +
+> +	len &= PAGE_MASK;
+> +	if (!len)
+> +		goto out;
+> +
+> +	end = start + len;
+> +	if (end < start)
+> +		goto out;
+> +
+> +	vma = find_vma_prev(current->mm, start, &prev);
+> +	if (!vma)
+> +		goto out;
+> +
+> +	if (start > vma->vm_start)
+> +		prev = vma;
+> +
+> +	for (;;) {
+> +		/* Here start < (end|vma->vm_end). */
+> +		if (start < vma->vm_start) {
+> +			start = vma->vm_start;
+> +			if (start >= end)
+> +				goto out;
+> +			invalid = true;
+> +		}
+> +
+> +		/* Here vma->vm_start <= start < (end|vma->vm_end) */
+> +		tmp = vma->vm_end;
+> +		if (end < tmp)
+> +			tmp = end;
+> +
+> +		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
+> +		error = do_mvolatile(vma, &prev, start, tmp);
+> +		if (error == -ENOMEM) {
+> +			up_write(&current->mm->mmap_sem);
+> +			return error;
+> +		}
+> +		if (error == -EINVAL)
+> +			invalid = true;
+> +		else
+> +			error = 0;
+> +		start = tmp;
+> +		if (prev && start < prev->vm_end)
+> +			start = prev->vm_end;
+> +		if (start >= end)
+> +			break;
+> +
+> +		vma = prev->vm_next;
+> +		if (!vma)
+> +			break;
+> +	}
+> +out:
+> +	up_write(&current->mm->mmap_sem);
+> +	return invalid ? 1 : 0;
+> +}
 
-      - it is not efficient because only sync dirty memory against the affected
-        device is needed in theory and not necessary to sync all
+The error logic here is really strange. If any of the early error cases 
+are triggered (ie: (start & ~PAGE_MASK), etc), then we jump to out and 
+return 0 (instead of EINVAL). I don't think that's what you intended.
 
-     - we still need some synchronization to avoid accessing the storage
-       between sys_sync and device suspend, just like system sleep case,
-       pm_restrict_gfp_mask is needed even sys_sync has been done
-       inside enter_state().
 
-So looks the approach in the patch is simpler and more efficient, :-)
+> +/*
+> + * Return -ENOMEM with interrupting range opeartion if memory is not enough
+> + * to merge/split vmas.
+> + * Return 1 if part of range includes purged's one, otherwise, return 0
+> + */
+> +SYSCALL_DEFINE2(mnovolatile, unsigned long, start, size_t, len)
+> +{
+> +	unsigned long end, tmp;
+> +	struct vm_area_struct *vma, *prev;
+> +	int ret, error = -EINVAL;
+> +	bool is_purged = false;
+> +
+> +	down_write(&current->mm->mmap_sem);
+> +	if (start & ~PAGE_MASK)
+> +		goto out;
+> +
+> +	len &= PAGE_MASK;
+> +	if (!len)
+> +		goto out;
+> +
+> +	end = start + len;
+> +	if (end < start)
+> +		goto out;
+> +
+> +	vma = find_vma_prev(current->mm, start, &prev);
+> +	if (!vma)
+> +		goto out;
+> +
+> +	if (start > vma->vm_start)
+> +		prev = vma;
+> +
+> +	for (;;) {
+> +		/* Here start < (end|vma->vm_end). */
+> +		if (start < vma->vm_start) {
+> +			start = vma->vm_start;
+> +			if (start >= end)
+> +				goto out;
+> +		}
+> +
+> +		/* Here vma->vm_start <= start < (end|vma->vm_end) */
+> +		tmp = vma->vm_end;
+> +		if (end < tmp)
+> +			tmp = end;
+> +
+> +		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
+> +		error = do_mnovolatile(vma, &prev, start, tmp, &is_purged);
+> +		if (error) {
+> +			WARN_ON(error != -ENOMEM);
+> +			goto out;
+> +		}
+> +		start = tmp;
+> +		if (prev && start < prev->vm_end)
+> +			start = prev->vm_end;
+> +		if (start >= end)
+> +			break;
+> +
+> +		vma = prev->vm_next;
+> +		if (!vma)
+> +			break;
+> +	}
 
-Also, with the patchset, we can avoid many GFP_NOIO allocation
-which is fragile and not easy to use.
+I'm still not sure how this logic improves over the madvise case. If we 
+catch an error mid-way through setting a series of vmas to non-volatile, 
+we end up exiting and losing state (ie: if only the first vma was 
+purged, but half way through 10 vmas we get a ENOMEM error. So the first 
+vma is now non-volatile, but we do not return the purged flag ).
 
-Thanks,
---
-Ming Lei
+If we're going to have a new syscall for this (which I'm not sure is the 
+right approach), we should make use of multiple arguments so we can 
+return if data was purged, even if we hit an error midway).
+
+Alternatively, if we can find a way to allocate any necessary memory 
+before we do any vma volatility state changes, then we can return ENOMEM 
+then and be confident we won't end up with failed partial state change 
+(this is the approach I used in my fallocate-volatile patches).
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
