@@ -1,72 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
-	by kanga.kvack.org (Postfix) with SMTP id 48BCF6B005D
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 08:45:26 -0500 (EST)
-Date: Thu, 17 Jan 2013 07:45:23 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [PATCH] [Patch] mmu_notifier_unregister NULL Pointer deref fix.
-Message-ID: <20130117134523.GN3438@sgi.com>
-References: <20130115162956.GH3438@sgi.com>
- <20130116200018.GA3460@sgi.com>
- <20130116210124.GB3460@sgi.com>
- <50F765CC.9040608@linux.vnet.ibm.com>
- <20130117111213.GM3438@sgi.com>
- <50F7EC6B.6030401@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx179.postini.com [74.125.245.179])
+	by kanga.kvack.org (Postfix) with SMTP id 0F3A26B0069
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 08:48:15 -0500 (EST)
+Message-ID: <50F800EB.6040104@web.de>
+Date: Thu, 17 Jan 2013 14:47:23 +0100
+From: Soeren Moch <smoch@web.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50F7EC6B.6030401@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent()
+ calls
+References: <20121119144826.f59667b2.akpm@linux-foundation.org> <20130116024014.GH25500@titan.lakedaemon.net> <50F61D86.4020801@web.de> <201301171049.30415.arnd@arndb.de>
+In-Reply-To: <201301171049.30415.arnd@arndb.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
-Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Jason Cooper <jason@lakedaemon.net>, Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-On Thu, Jan 17, 2013 at 08:19:55PM +0800, Xiao Guangrong wrote:
-> On 01/17/2013 07:12 PM, Robin Holt wrote:
-> > On Thu, Jan 17, 2013 at 10:45:32AM +0800, Xiao Guangrong wrote:
-> >> On 01/17/2013 05:01 AM, Robin Holt wrote:
-> >>>
-> >>> There is a race condition between mmu_notifier_unregister() and
-> >>> __mmu_notifier_release().
-> >>>
-> >>> Assume two tasks, one calling mmu_notifier_unregister() as a result
-> >>> of a filp_close() ->flush() callout (task A), and the other calling
-> >>> mmu_notifier_release() from an mmput() (task B).
-> >>>
-> >>>                 A                               B
-> >>> t1                                              srcu_read_lock()
-> >>> t2              if (!hlist_unhashed())
-> >>> t3                                              srcu_read_unlock()
-> >>> t4              srcu_read_lock()
-> >>> t5                                              hlist_del_init_rcu()
-> >>> t6                                              synchronize_srcu()
-> >>> t7              srcu_read_unlock()
-> >>> t8              hlist_del_rcu()  <--- NULL pointer deref.
-> >>
-> >> The detailed code here is:
-> >> 	hlist_del_rcu(&mn->hlist);
-> >>
-> >> Can mn be NULL? I do not think so since mn is always the embedded struct
-> >> of the caller, it be freed after calling mmu_notifier_unregister.
-> > 
-> > If you look at __mmu_notifier_release() it is using hlist_del_init_rcu()
-> > which will set the hlist->pprev to NULL.  When hlist_del_rcu() is called,
-> > it attempts to update *hlist->pprev = hlist->next and that is where it
-> > takes the NULL pointer deref.
-> 
-> Yes, sorry for my careless. So, That can not be fixed by using
-> hlist_del_init_rcu instead?
+On 17.01.2013 11:49, Arnd Bergmann wrote:
+> On Wednesday 16 January 2013, Soeren Moch wrote:
+>>>> I will see what I can do here. Is there an easy way to track the buffer
+>>>> usage without having to wait for complete exhaustion?
+>>>
+>>> DMA_API_DEBUG
+>>
+>> OK, maybe I can try this.
+>>>
+>
+> Any success with this? It should at least tell you if there is a
+> memory leak in one of the drivers.
 
-The problem is the race described above.  Thread 'A' has checked to see
-if n->pprev != NULL.  Based upon that, it did called the mn->release()
-method.  While it was trying to call the release method, thread 'B' ended
-up calling hlist_del_init_rcu() which set n->pprev = NULL.  Then thread
-'A' got to run again and now it tries to do the hlist_del_rcu() which, as
-part of __hlist_del(), the pprev will be set to n->pprev (which is NULL)
-and then *pprev = n->next; hits the NULL pointer deref hits.
+Not yet, sorry. I have to do all the tests in my limited spare time.
+Can you tell me what to search for in the debug output?
 
-Thanks,
-Robin
+Soeren
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
