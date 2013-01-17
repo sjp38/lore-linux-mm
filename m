@@ -1,168 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id F26866B0006
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 18:24:34 -0500 (EST)
-Date: Thu, 17 Jan 2013 15:24:33 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2]swap: add per-partition lock for swapfile
-Message-Id: <20130117152433.9ebfb0f2.akpm@linux-foundation.org>
-In-Reply-To: <20121210012510.GB18570@kernel.org>
-References: <20121210012510.GB18570@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx182.postini.com [74.125.245.182])
+	by kanga.kvack.org (Postfix) with SMTP id E088D6B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 18:36:43 -0500 (EST)
+Date: Fri, 18 Jan 2013 08:36:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm: prevent to add a page to swap if may_writepage
+ is unset
+Message-ID: <20130117233641.GA31368@blaptop>
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org>
+ <1357712474-27595-2-git-send-email-minchan@kernel.org>
+ <20130116134155.18092f1a.akpm@linux-foundation.org>
+ <20130117005314.GB18669@blaptop>
+ <20130117142238.e32c46d5.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130117142238.e32c46d5.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, hughd@google.com, riel@redhat.com, minchan@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, 10 Dec 2012 09:25:10 +0800
-Shaohua Li <shli@kernel.org> wrote:
-
-> swap_lock is heavily contended when I test swap to 3 fast SSD (even slightly
-> slower than swap to 2 such SSD). The main contention comes from
-> swap_info_get(). This patch tries to fix the gap with adding a new
-> per-partition lock.
+On Thu, Jan 17, 2013 at 02:22:38PM -0800, Andrew Morton wrote:
+> On Thu, 17 Jan 2013 09:53:14 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 > 
-> global data like nr_swapfiles, total_swap_pages, least_priority and swap_list are
-> still protected by swap_lock.
+> > Recently, Luigi reported there are lots of free swap space when
+> > OOM happens. It's easily reproduced on zram-over-swap, where
+> > many instance of memory hogs are running and laptop_mode is enabled.
+> > He said there was no problem when he disabled laptop_mode.
+> > 
+> > The problem when I investigate problem is following as.
+> > 
+> > Assumption for easy explanation: There are no page cache page in system
+> > because they all are already reclaimed.
+> > 
+> > 1. try_to_free_pages disable may_writepage when laptop_mode is enabled.
+> > 2. shrink_inactive_list isolates victim pages from inactive anon lru list.
+> > 3. shrink_page_list adds them to swapcache via add_to_swap but it doesn't
+> >    pageout because sc->may_writepage is 0 so the page is rotated back into
+> >    inactive anon lru list. The add_to_swap made the page Dirty by SetPageDirty
+> > 4. 3 couldn't reclaim any pages so do_try_to_free_pages increase priority and
+> >    retry reclaim with higher priority.
+> > 5. shrink_inactlive_list try to isolate victim pages from inactive anon lru list
+> >    but got failed because it try to isolate pages with ISOLATE_CLEAN mode but
+> >    inactive anon lru list is full of dirty pages by 3 so it just returns
+> >    without  any reclaim progress.
+> > 6. do_try_to_free_pages doesn't set may_write due to zero total_scanned.
 > 
-> nr_swap_pages is an atomic now, it can be changed without swap_lock. In theory,
-> it's possible get_swap_page() finds no swap pages but actually there are free
-> swap pages. But sounds not a big problem.
+> s/may_write/may_writepage/
+
+Thanks!
+
 > 
-> accessing partition specific data (like scan_swap_map and so on) is only
-> protected by swap_info_struct.lock.
+> >    Because sc->nr_scanned is increased by shrink_page_list but we don't call
+> >    shrink_page_list in 5 due to short of isolated pages.
 > 
-> Changing swap_info_struct.flags need hold swap_lock and swap_info_struct.lock,
-> because scan_scan_map() will check it. read the flags is ok with either the
-> locks hold.
+> This is the bug, is it not?
 > 
-> If both swap_lock and swap_info_struct.lock must be hold, we always hold the
-> former first to avoid deadlock.
+> In laptop mode, we still need to write out dirty swapcache at some
+> point.  An appropriate time to do this is when the scanning priority is
+
+Yes and when to some point is really important. Now, the point for that is
+depends on on the number of scanned pages by shrink_page_list. It means we
+must isolate victim pages from inactive LRU list and call shrink_page_list
+to increase sc->nr_scanned but unfortunately, we have various filters to
+decrease CPU consumption and LRU churning when VM try to isolate victim pages
+so it could prevent isolating victim pages from LRU list.
+
+> getting high.  But it seems that this ISOLATE_CLEAN->total_scanned
+
+Yes. I absolutely agree on that some point should depend on priority, NOT
+the number of scanned pages. And I already said to you about that.
+https://lkml.org/lkml/2013/1/10/643
+
+We used to use such heuristic in several places in VM, ie DEF_PRIORITY - 2
+But why I hesitate with the patch is that I think this patch should go to
+stable tree so the patch should be really small and have no side effect so
+I don't wanted to change laptop_mode behavior heavily caused by changing
+condition for may_writepage trigger point.
+
+> interaction is preventing that.
 > 
-> swap_entry_free() can change swap_list. To delete that code, we add a new
-> highest_priority_index. Whenever get_swap_page() is called, we check it. If
-> it's valid, we use it.
+> (An enhancement to laptop mode would be to opportunistically write out
+> dirty swapcache in or around laptop_mode_timer_fn()).
+
+It could but it should be another patch and VM shouldn't rely on ONLY
+laptop_mode_timer_fn, IMHO. VM should have own rule to reclaim pages
+regardless of laptop_mode's help to prevent OOM kill.
+
 > 
-> It's a pitty get_swap_page() still holds swap_lock(). But in practice,
-> swap_lock() isn't heavily contended in my test with this patch (or I can say
-> there are other much more heavier bottlenecks like TLB flush). And BTW, looks
-> get_swap_page() doesn't really need the lock. We never free swap_info[] and we
-> check SWAP_WRITEOK flag. The only risk without the lock is we could swapout to
-> some low priority swap, but we can quickly recover after several rounds of
-> swap, so sounds not a big deal to me. But I'd prefer to fix this if it's a real
-> problem.
+> > Above loop is continued until OOM happens.
+> > The problem didn't happen before [1] was merged because old logic's isolatation
+> > in shrink_inactive_list was successful and tried to call shrink_page_list
+> > to pageout them but it still ends up failed to page out by may_writepage.
+> > But important point is that sc->nr_scanned was increased althoug we couldn't
+> > swap out them so do_try_to_free_pages could set may_writepages.
+> > So this patch need to go stable tree althoug it's a band-aid.
+> > Then, for latest linus tree, we should fix laptop_mode's fundamental
+> > problem.
 > 
-> ...
->
-> --- linux.orig/include/linux/swap.h	2012-12-10 09:02:45.029330611 +0800
-> +++ linux/include/linux/swap.h	2012-12-10 09:02:56.101191464 +0800
-> @@ -252,6 +252,7 @@ struct swap_info_struct {
->  	unsigned long *frontswap_map;	/* frontswap in-use, one bit per page */
->  	atomic_t frontswap_pages;	/* frontswap pages in-use counter */
->  #endif
-> +	spinlock_t lock;
->  };
+> Well.  Perhaps we can do that now.
 
-Please document the lock.  Describe what it protects and its ranking
-rules.
+Okay. If you don't object my suggestion, I will send patches next week.
+Thanks for the review, Andrew!
 
->  struct swap_list_t {
-> @@ -260,7 +261,8 @@ struct swap_list_t {
->  };
->  
->  /* Swap 50% full? Release swapcache more aggressively.. */
-> -#define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
-> +#define vm_swap_full() \
-> +	(atomic_long_read(&nr_swap_pages)*2 < total_swap_pages)
+> 
+> > [1] f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware]
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-May as well turn this into a real C function and move it to mm/internal.h.
-
->  /* linux/mm/page_alloc.c */
->  extern unsigned long totalram_pages;
-> @@ -397,7 +399,7 @@ extern struct page *swapin_readahead(swp
->
-> ...
->
-> --- linux.orig/include/linux/swap.h	2012-12-10 09:02:45.029330611 +0800
-> --- linux.orig/mm/swapfile.c	2012-12-10 09:02:45.037330401 +0800
-> +++ linux/mm/swapfile.c	2012-12-10 09:02:56.101191464 +0800
-> @@ -47,9 +47,11 @@ static sector_t map_swap_entry(swp_entry
->  
->  DEFINE_SPINLOCK(swap_lock);
->  static unsigned int nr_swapfiles;
-> -long nr_swap_pages;
-> +atomic_long_t nr_swap_pages;
-> +/* protected with swap_lock. reading in vm_swap_full() doesn't need lock */
->  long total_swap_pages;
->  static int least_priority;
-> +static atomic_t highest_priority_index = ATOMIC_INIT(-1);
-
-Please document this variable.  What does it mean, what does it do.
-
->  static const char Bad_file[] = "Bad swap file entry ";
->  static const char Unused_file[] = "Unused swap file entry ";
->
-> ...
->
-> @@ -417,13 +419,31 @@ swp_entry_t get_swap_page(void)
->  	pgoff_t offset;
->  	int type, next;
->  	int wrapped = 0;
-> +	int hp_index;
->  
->  	spin_lock(&swap_lock);
-> -	if (nr_swap_pages <= 0)
-> +	if (atomic_long_read(&nr_swap_pages) <= 0)
->  		goto noswap;
-> -	nr_swap_pages--;
-> +	atomic_long_dec(&nr_swap_pages);
->  
->  	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
-> +		hp_index = atomic_xchg(&highest_priority_index, -1);
-> +		/*
-> +		 * highest_priority_index isn't protected by swap_lock, so it
-> +		 * can be an invalid value if the corresponding swap is
-> +		 * swapoff.
-
-I don't understand this.  How can swap be swapoff?
-
-> 		   We double check the flags here. It's even possible
-> +		 * the swap is swapoff and swapon again and its priority is
-> +		 * changed. In such rare case, low prority swap might be used,
-> +		 * but eventually high priority swap will be used after several
-> +		 * rounds of swap.
-> +		 */
-> +		if (hp_index != -1 && hp_index != type &&
-> +		    swap_info[type]->prio < swap_info[hp_index]->prio &&
-> +		    (swap_info[hp_index]->flags & SWP_WRITEOK)) {
-> +			type = hp_index;
-> +			swap_list.next = type;
-> +		}
-> +
->
-> ...
->
-> +static void set_highest_priority_index(int type)
-> +{
-> +	int old_hp_index, new_hp_index;
-> +
-> +	do {
-> +		old_hp_index = atomic_read(&highest_priority_index);
-> +		if (old_hp_index != -1 &&
-> +			swap_info[old_hp_index]->prio >= swap_info[type]->prio)
-> +			break;
-> +		new_hp_index = type;
-> +	} while (atomic_cmpxchg(&highest_priority_index,
-> +		old_hp_index, new_hp_index) != old_hp_index);
-> +}
-
-Needs a covering comment explaining what it does and why it does it.
-
->
-> ...
->
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
