@@ -1,68 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx183.postini.com [74.125.245.183])
-	by kanga.kvack.org (Postfix) with SMTP id 54FF46B0006
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:46:05 -0500 (EST)
-Message-ID: <1358462763.23211.57.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH] slub: Check for page NULL before doing the
- node_match check
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Thu, 17 Jan 2013 17:46:03 -0500
-In-Reply-To: <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	  <1358447864.23211.34.camel@gandalf.local.home>
-	  <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 896086B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:54:09 -0500 (EST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
+	Thu, 17 Jan 2013 15:54:08 -0700
+Received: from d03relay03.boulder.ibm.com (d03relay03.boulder.ibm.com [9.17.195.228])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 7D6E53E40039
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 15:54:00 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by d03relay03.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0HMs5hV134734
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 15:54:05 -0700
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0HMs4gf006843
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 15:54:05 -0700
+From: Cody P Schafer <cody@linux.vnet.ibm.com>
+Subject: [PATCH 1/9] mm: add SECTION_IN_PAGE_FLAGS
+Date: Thu, 17 Jan 2013 14:52:53 -0800
+Message-Id: <1358463181-17956-2-git-send-email-cody@linux.vnet.ibm.com>
+In-Reply-To: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com>
+References: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
- Goncalves" <lgoncalv@redhat.com>
+To: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
 
-On Thu, 2013-01-17 at 21:51 +0000, Christoph Lameter wrote:
+Instead of directly utilizing a combination of config options to determine this,
+add a macro to specifically address it.
 
-> This is dealing with the same cpu being interrupted. Some of these
-> segments are in interrupt disable sections so they are not affected.
+Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
+---
+ include/linux/mm.h | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-Except that we are not always on the same CPU. Now I'm looking at
-mainline (non modified by -rt):
-
->From slab_alloc_node():
-
-	/*
-	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
-	 * enabled. We may switch back and forth between cpus while
-	 * reading from one cpu area. That does not matter as long
-	 * as we end up on the original cpu again when doing the cmpxchg.
-	 */
-	c = __this_cpu_ptr(s->cpu_slab);
-
-	/*
-	 * The transaction ids are globally unique per cpu and per operation on
-	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
-	 * occurs on the right processor and that there was no operation on the
-	 * linked list in between.
-	 */
-	tid = c->tid;
-	barrier();
-
-	object = c->freelist;
-	page = c->page;
-	if (unlikely(!object || !node_match(page, node)))
-		object = __slab_alloc(s, gfpflags, node, addr, c);
-
-Where we hit the bug on -rt, and can most certainly do it on mainline.
-
-This code does not disable preemption (the comment even states that). So
-if we switch CPUs after reading __this_cpu_ptr(), we are still accessing
-the 'c' pointer of the CPU we left. Hence, there's nothing protecting
-c->page being NULL when c->freelist is not NULL.
-
--- Steve
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 66e2f7c..ef69564 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -625,6 +625,10 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+ #define NODE_NOT_IN_PAGE_FLAGS
+ #endif
+ 
++#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
++#define SECTION_IN_PAGE_FLAGS
++#endif
++
+ /*
+  * Define the bit shifts to access each section.  For non-existent
+  * sections we define the shift as 0; that plus a 0 mask ensures
+@@ -727,7 +731,7 @@ static inline struct zone *page_zone(const struct page *page)
+ 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
+ }
+ 
+-#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
++#ifdef SECTION_IN_PAGE_FLAGS
+ static inline void set_page_section(struct page *page, unsigned long section)
+ {
+ 	page->flags &= ~(SECTIONS_MASK << SECTIONS_PGSHIFT);
+@@ -757,7 +761,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
+ {
+ 	set_page_zone(page, zone);
+ 	set_page_node(page, node);
+-#if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
++#ifdef SECTION_IN_PAGE_FLAGS
+ 	set_page_section(page, pfn_to_section_nr(pfn));
+ #endif
+ }
+-- 
+1.8.0.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
