@@ -1,71 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx114.postini.com [74.125.245.114])
-	by kanga.kvack.org (Postfix) with SMTP id 445BC6B0010
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:54:34 -0500 (EST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <cody@linux.vnet.ibm.com>;
-	Thu, 17 Jan 2013 17:54:33 -0500
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 53CD4C90026
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:54:30 -0500 (EST)
-Received: from d03av05.boulder.ibm.com (d03av05.boulder.ibm.com [9.17.195.85])
-	by d01relay04.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0HMsTQV360584
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 17:54:30 -0500
-Received: from d03av05.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av05.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0HMsQmc022014
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 15:54:29 -0700
-From: Cody P Schafer <cody@linux.vnet.ibm.com>
-Subject: [PATCH 5/9] mmzone: add pgdat_{end_pfn,is_empty}() helpers & consolidate.
-Date: Thu, 17 Jan 2013 14:52:57 -0800
-Message-Id: <1358463181-17956-6-git-send-email-cody@linux.vnet.ibm.com>
-In-Reply-To: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com>
-References: <1358463181-17956-1-git-send-email-cody@linux.vnet.ibm.com>
+Received: from psmtp.com (na3sys010amx157.postini.com [74.125.245.157])
+	by kanga.kvack.org (Postfix) with SMTP id 4EA846B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 18:10:47 -0500 (EST)
+Message-ID: <1358464245.23211.62.camel@gandalf.local.home>
+Subject: Re: [RFC][PATCH] slub: Check for page NULL before doing the
+ node_match check
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Thu, 17 Jan 2013 18:10:45 -0500
+In-Reply-To: <1358462763.23211.57.camel@gandalf.local.home>
+References: <1358446258.23211.32.camel@gandalf.local.home>
+	 <1358447864.23211.34.camel@gandalf.local.home>
+	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
+	 <1358458996.23211.46.camel@gandalf.local.home>
+	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
+	 <1358462763.23211.57.camel@gandalf.local.home>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux MM <linux-mm@kvack.org>, David Hansen <dave@linux.vnet.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Cody P Schafer <jmesmon@gmail.com>, Cody P Schafer <cody@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
+ Goncalves" <lgoncalv@redhat.com>
 
-From: Cody P Schafer <jmesmon@gmail.com>
+On Thu, 2013-01-17 at 17:46 -0500, Steven Rostedt wrote:
+> On Thu, 2013-01-17 at 21:51 +0000, Christoph Lameter wrote:
+> 
+> > This is dealing with the same cpu being interrupted. Some of these
+> > segments are in interrupt disable sections so they are not affected.
+> 
+> Except that we are not always on the same CPU. Now I'm looking at
+> mainline (non modified by -rt):
 
-Add pgdat_end_pfn() and pgdat_is_empty() helpers which match the similar
-zone_*() functions.
+Because there's also nothing to keep page related to object either, we
+may just need to do:
 
-Change node_end_pfn() to be a wrapper of pgdat_end_pfn().
 
-Signed-off-by: Cody P Schafer <cody@linux.vnet.ibm.com>
----
- include/linux/mmzone.h | 14 ++++++++++----
- 1 file changed, 10 insertions(+), 4 deletions(-)
+> 
+> From slab_alloc_node():
+> 
+> 	/*
+> 	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+> 	 * enabled. We may switch back and forth between cpus while
+> 	 * reading from one cpu area. That does not matter as long
+> 	 * as we end up on the original cpu again when doing the cmpxchg.
+> 	 */
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 696cb7c..d7abff0 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -772,11 +772,17 @@ typedef struct pglist_data {
- #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
- 
- #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-+#define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
- 
--#define node_end_pfn(nid) ({\
--	pg_data_t *__pgdat = NODE_DATA(nid);\
--	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;\
--})
-+static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
-+{
-+	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
-+}
-+
-+static inline bool pgdat_is_empty(pg_data_t *pgdat)
-+{
-+	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
-+}
- 
- #include <linux/memory_hotplug.h>
- 
--- 
-1.8.0.3
+	local_irq_save(flags);
+
+> 	c = __this_cpu_ptr(s->cpu_slab);
+> 
+> 	/*
+> 	 * The transaction ids are globally unique per cpu and per operation on
+> 	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
+> 	 * occurs on the right processor and that there was no operation on the
+> 	 * linked list in between.
+> 	 */
+> 	tid = c->tid;
+> 	barrier();
+> 
+> 	object = c->freelist;
+> 	page = c->page;
+
+	r = !object || !node_match(page, node);
+	local_irq_restore(flags);
+
+	if (unlikely(r)) {
+
+> 		object = __slab_alloc(s, gfpflags, node, addr, c);
+> 
+
+I was thinking at first we could use preempt_disable(), but if an
+interrupt comes in after we set object = c->freelist, and changes
+c->page, then we disassociate the freelist and page again.
+
+-- Steve
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
