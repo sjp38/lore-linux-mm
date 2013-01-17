@@ -1,185 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx202.postini.com [74.125.245.202])
-	by kanga.kvack.org (Postfix) with SMTP id 4DBC96B0069
-	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 20:48:42 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id bj3so1142483pad.28
-        for <linux-mm@kvack.org>; Wed, 16 Jan 2013 17:48:41 -0800 (PST)
-Message-ID: <50F75875.30909@linaro.org>
-Date: Wed, 16 Jan 2013 17:48:37 -0800
-From: John Stultz <john.stultz@linaro.org>
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id B6E9F6B0069
+	for <linux-mm@kvack.org>; Wed, 16 Jan 2013 20:50:33 -0500 (EST)
+Message-ID: <50F758BC.5070308@cn.fujitsu.com>
+Date: Thu, 17 Jan 2013 09:49:48 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [RFC 1/8] Introduce new system call mvolatile
-References: <1357187286-18759-1-git-send-email-minchan@kernel.org> <1357187286-18759-2-git-send-email-minchan@kernel.org>
-In-Reply-To: <1357187286-18759-2-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org> <50F647E8.509@jp.fujitsu.com> <20130116132953.6159b673.akpm@linux-foundation.org> <50F72F17.9030805@zytor.com>
+In-Reply-To: <50F72F17.9030805@zytor.com>
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, "Luck, Tony" <tony.luck@intel.com>, "jiang.liu@huawei.com" <jiang.liu@huawei.com>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "rob@landley.net" <rob@landley.net>, "kosaki.motohiro@jp.fujitsu.com" <kosaki.motohiro@jp.fujitsu.com>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/02/2013 08:27 PM, Minchan Kim wrote:
-> This patch adds new system call m[no]volatile.
-> If someone asks is_volatile system call, it could be added, too.
+On 01/17/2013 06:52 AM, H. Peter Anvin wrote:
+> On 01/16/2013 01:29 PM, Andrew Morton wrote:
+>>>
+>>> Yes. If SRAT support is available, all memory which enabled hotpluggable
+>>> bit are managed by ZONEMOVABLE. But performance degradation may
+>>> occur by NUMA because we can only allocate anonymous page and page-cache
+>>> from these memory.
+>>>
+>>> In this case, if user cannot change SRAT information, user needs a way to
+>>> select/set removable memory manually.
+>>
+>> If I understand this correctly you mean that once SRAT parsing is
+>> implemented, the user can use movablecore_map to override that SRAT
+>> parsing, yes?  That movablecore_map will take precedence over SRAT?
+>>
+>
+> Yes,
 
-So some nits below from my initial playing around with this patchset.
+Hi HPA, Andrew,
 
-> +/*
-> + * Return -EINVAL if range doesn't include a right vma at all.
-> + * Return -ENOMEM with interrupting range opeartion if memory is not enough to
-> + * merge/split vmas.
-> + * Return 0 if range consists of only proper vmas.
-> + * Return 1 if part of range includes inavlid area(ex, hole/huge/ksm/mlock/
-> + * special area)
-> + */
-> +SYSCALL_DEFINE2(mvolatile, unsigned long, start, size_t, len)
-> +{
-> +	unsigned long end, tmp;
-> +	struct vm_area_struct *vma, *prev;
-> +	bool invalid = false;
-> +	int error = -EINVAL;
-> +
-> +	down_write(&current->mm->mmap_sem);
-> +	if (start & ~PAGE_MASK)
-> +		goto out;
-> +
-> +	len &= PAGE_MASK;
-> +	if (!len)
-> +		goto out;
-> +
-> +	end = start + len;
-> +	if (end < start)
-> +		goto out;
-> +
-> +	vma = find_vma_prev(current->mm, start, &prev);
-> +	if (!vma)
-> +		goto out;
-> +
-> +	if (start > vma->vm_start)
-> +		prev = vma;
-> +
-> +	for (;;) {
-> +		/* Here start < (end|vma->vm_end). */
-> +		if (start < vma->vm_start) {
-> +			start = vma->vm_start;
-> +			if (start >= end)
-> +				goto out;
-> +			invalid = true;
-> +		}
-> +
-> +		/* Here vma->vm_start <= start < (end|vma->vm_end) */
-> +		tmp = vma->vm_end;
-> +		if (end < tmp)
-> +			tmp = end;
-> +
-> +		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-> +		error = do_mvolatile(vma, &prev, start, tmp);
-> +		if (error == -ENOMEM) {
-> +			up_write(&current->mm->mmap_sem);
-> +			return error;
-> +		}
-> +		if (error == -EINVAL)
-> +			invalid = true;
-> +		else
-> +			error = 0;
-> +		start = tmp;
-> +		if (prev && start < prev->vm_end)
-> +			start = prev->vm_end;
-> +		if (start >= end)
-> +			break;
-> +
-> +		vma = prev->vm_next;
-> +		if (!vma)
-> +			break;
-> +	}
-> +out:
-> +	up_write(&current->mm->mmap_sem);
-> +	return invalid ? 1 : 0;
-> +}
+No, I don't think so. In my [PATCH v4 3/6], I checked if users specified the
+unhotpluggable memory ranges, I will remove them from movablecore_map.map[].
+So this option will not override SRAT.
 
-The error logic here is really strange. If any of the early error cases 
-are triggered (ie: (start & ~PAGE_MASK), etc), then we jump to out and 
-return 0 (instead of EINVAL). I don't think that's what you intended.
+It works like this:
+
+    hotpluggable ranges:            |-----------------|
+    unhotpluggable ranges:  |-----|                      |--------|
+    user specified ranges:   |---|       |--------------------|
+    movablecore_map.map[]:               |------------|
+
+Please refer to https://lkml.org/lkml/2012/12/19/53.
+
+But in this v5 patch-set, I remove all SRAT related code. So this v5 users'
+option will override SRAT.
 
 
-> +/*
-> + * Return -ENOMEM with interrupting range opeartion if memory is not enough
-> + * to merge/split vmas.
-> + * Return 1 if part of range includes purged's one, otherwise, return 0
-> + */
-> +SYSCALL_DEFINE2(mnovolatile, unsigned long, start, size_t, len)
-> +{
-> +	unsigned long end, tmp;
-> +	struct vm_area_struct *vma, *prev;
-> +	int ret, error = -EINVAL;
-> +	bool is_purged = false;
-> +
-> +	down_write(&current->mm->mmap_sem);
-> +	if (start & ~PAGE_MASK)
-> +		goto out;
-> +
-> +	len &= PAGE_MASK;
-> +	if (!len)
-> +		goto out;
-> +
-> +	end = start + len;
-> +	if (end < start)
-> +		goto out;
-> +
-> +	vma = find_vma_prev(current->mm, start, &prev);
-> +	if (!vma)
-> +		goto out;
-> +
-> +	if (start > vma->vm_start)
-> +		prev = vma;
-> +
-> +	for (;;) {
-> +		/* Here start < (end|vma->vm_end). */
-> +		if (start < vma->vm_start) {
-> +			start = vma->vm_start;
-> +			if (start >= end)
-> +				goto out;
-> +		}
-> +
-> +		/* Here vma->vm_start <= start < (end|vma->vm_end) */
-> +		tmp = vma->vm_end;
-> +		if (end < tmp)
-> +			tmp = end;
-> +
-> +		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-> +		error = do_mnovolatile(vma, &prev, start, tmp, &is_purged);
-> +		if (error) {
-> +			WARN_ON(error != -ENOMEM);
-> +			goto out;
-> +		}
-> +		start = tmp;
-> +		if (prev && start < prev->vm_end)
-> +			start = prev->vm_end;
-> +		if (start >= end)
-> +			break;
-> +
-> +		vma = prev->vm_next;
-> +		if (!vma)
-> +			break;
-> +	}
+Thanks. :)
 
-I'm still not sure how this logic improves over the madvise case. If we 
-catch an error mid-way through setting a series of vmas to non-volatile, 
-we end up exiting and losing state (ie: if only the first vma was 
-purged, but half way through 10 vmas we get a ENOMEM error. So the first 
-vma is now non-volatile, but we do not return the purged flag ).
-
-If we're going to have a new syscall for this (which I'm not sure is the 
-right approach), we should make use of multiple arguments so we can 
-return if data was purged, even if we hit an error midway).
-
-Alternatively, if we can find a way to allocate any necessary memory 
-before we do any vma volatility state changes, then we can return ENOMEM 
-then and be confident we won't end up with failed partial state change 
-(this is the approach I used in my fallocate-volatile patches).
-
-thanks
--john
+>but we still need a higher-level user interface which specifies
+> which nodes, not which memory ranges, should be movable.  That is the
+> policy granularity that is actually appropriate for the administrator
+> (trading off performance vs reliability.)
+>
+> 	-hpa
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
