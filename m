@@ -1,25 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx102.postini.com [74.125.245.102])
-	by kanga.kvack.org (Postfix) with SMTP id 6CAB06B0006
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:36:28 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id mc8so1638526pbc.18
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2013 13:36:27 -0800 (PST)
+Received: from psmtp.com (na3sys010amx135.postini.com [74.125.245.135])
+	by kanga.kvack.org (Postfix) with SMTP id 2C6396B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:43:19 -0500 (EST)
+Message-ID: <1358458996.23211.46.camel@gandalf.local.home>
 Subject: Re: [RFC][PATCH] slub: Check for page NULL before doing the
  node_match check
-From: Eric Dumazet <eric.dumazet@gmail.com>
+From: Steven Rostedt <rostedt@goodmis.org>
+Date: Thu, 17 Jan 2013 16:43:16 -0500
 In-Reply-To: <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
 References: <1358446258.23211.32.camel@gandalf.local.home>
 	 <1358447864.23211.34.camel@gandalf.local.home>
 	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-Content-Type: text/plain; charset="UTF-8"
-Date: Thu, 17 Jan 2013 13:36:23 -0800
-Message-ID: <1358458583.11051.7.camel@edumazet-glaptop>
+Content-Type: text/plain; charset="ISO-8859-15"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R. Goncalves" <lgoncalv@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
+ Goncalves" <lgoncalv@redhat.com>
 
 On Thu, 2013-01-17 at 21:28 +0000, Christoph Lameter wrote:
 > On Thu, 17 Jan 2013, Steven Rostedt wrote:
@@ -30,6 +29,13 @@ On Thu, 2013-01-17 at 21:28 +0000, Christoph Lameter wrote:
 > > >
 > > >  	object = c->freelist;
 > > >  	page = c->page;
+
+We should add a BUG_ON(!page) if it's a problem. I wasted a bit of time
+finding this bug just because it triggered in a static inline function,
+and I didn't have the vmlinuz file to play with. I had to ask someone
+else to do the work for me.
+
+
 > > > -	if (unlikely(!object || !node_match(page, node)))
 > > > +	if (unlikely(!object || !page || !node_match(page, node)))
 > >
@@ -54,6 +60,15 @@ On Thu, 2013-01-17 at 21:28 +0000, Christoph Lameter wrote:
 > -	c->page = NULL;
 >  	c->freelist = NULL;
 > +	c->page = NULL;
+
+I'm assuming that this is to deal with the same CPU being able to touch
+the code?
+
+If so, it requires "barrier()". If this can affect other CPUs, then we
+need a smp_wmb() here, and smp_rmb() where it matters.
+
+-- Steve
+
 >  }
 > 
 >  /*
@@ -77,11 +92,6 @@ On Thu, 2013-01-17 at 21:28 +0000, Christoph Lameter wrote:
 >  		goto new_slab;
 >  	}
 > 
-
-Without appropriate barriers, this change is a shoot in the dark.
-
-
-
 
 
 --
