@@ -1,39 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx175.postini.com [74.125.245.175])
-	by kanga.kvack.org (Postfix) with SMTP id 3904D6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 20:15:26 -0500 (EST)
-Date: Fri, 18 Jan 2013 09:12:59 +0800
-From: Liu Bo <bo.li.liu@oracle.com>
-Subject: Re: [PATCH V2] mm/slab: add a leak decoder callback
-Message-ID: <20130118011258.GE6768@liubo>
-Reply-To: bo.li.liu@oracle.com
-References: <1358305393-3507-1-git-send-email-bo.li.liu@oracle.com>
- <50F63BEE.8040506@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx137.postini.com [74.125.245.137])
+	by kanga.kvack.org (Postfix) with SMTP id 432686B0006
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 21:42:18 -0500 (EST)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <xiaoguangrong@linux.vnet.ibm.com>;
+	Fri, 18 Jan 2013 08:10:49 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id A6282394004C
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 08:12:10 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0I2g7bw44237024
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 08:12:07 +0530
+Received: from d28av04.in.ibm.com (loopback [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0I2g9fE026188
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 13:42:09 +1100
+Message-ID: <50F8B67F.4090901@linux.vnet.ibm.com>
+Date: Fri, 18 Jan 2013 10:42:07 +0800
+From: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50F63BEE.8040506@cn.fujitsu.com>
+Subject: Re: [PATCH] [Patch] mmu_notifier_unregister NULL Pointer deref fix.
+References: <20130115162956.GH3438@sgi.com> <20130116200018.GA3460@sgi.com> <20130116210124.GB3460@sgi.com> <50F765CC.9040608@linux.vnet.ibm.com> <20130117111213.GM3438@sgi.com> <50F7EC6B.6030401@linux.vnet.ibm.com> <20130117134523.GN3438@sgi.com>
+In-Reply-To: <20130117134523.GN3438@sgi.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miao Xie <miaox@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-btrfs@vger.kernel.org, zab@zabbo.net, cl@linux.com, penberg@kernel.org
+To: Robin Holt <holt@sgi.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>
 
-On Wed, Jan 16, 2013 at 01:34:38PM +0800, Miao Xie wrote:
-> On wed, 16 Jan 2013 11:03:13 +0800, Liu Bo wrote:
-> > This adds a leak decoder callback so that slab destruction
-> > can use to generate debugging output for the allocated objects.
-> > 
-> > Callers like btrfs are using their own leak tracking which will
-> > manage allocated objects in a list(or something else), this does
-> > indeed the same thing as what slab does.  So adding a callback
-> > for leak tracking can avoid this as well as runtime overhead.
+On 01/17/2013 09:45 PM, Robin Holt wrote:
+> On Thu, Jan 17, 2013 at 08:19:55PM +0800, Xiao Guangrong wrote:
+>> On 01/17/2013 07:12 PM, Robin Holt wrote:
+>>> On Thu, Jan 17, 2013 at 10:45:32AM +0800, Xiao Guangrong wrote:
+>>>> On 01/17/2013 05:01 AM, Robin Holt wrote:
+>>>>>
+>>>>> There is a race condition between mmu_notifier_unregister() and
+>>>>> __mmu_notifier_release().
+>>>>>
+>>>>> Assume two tasks, one calling mmu_notifier_unregister() as a result
+>>>>> of a filp_close() ->flush() callout (task A), and the other calling
+>>>>> mmu_notifier_release() from an mmput() (task B).
+>>>>>
+>>>>>                 A                               B
+>>>>> t1                                              srcu_read_lock()
+>>>>> t2              if (!hlist_unhashed())
+>>>>> t3                                              srcu_read_unlock()
+>>>>> t4              srcu_read_lock()
+>>>>> t5                                              hlist_del_init_rcu()
+>>>>> t6                                              synchronize_srcu()
+>>>>> t7              srcu_read_unlock()
+>>>>> t8              hlist_del_rcu()  <--- NULL pointer deref.
+>>>>
+>>>> The detailed code here is:
+>>>> 	hlist_del_rcu(&mn->hlist);
+>>>>
+>>>> Can mn be NULL? I do not think so since mn is always the embedded struct
+>>>> of the caller, it be freed after calling mmu_notifier_unregister.
+>>>
+>>> If you look at __mmu_notifier_release() it is using hlist_del_init_rcu()
+>>> which will set the hlist->pprev to NULL.  When hlist_del_rcu() is called,
+>>> it attempts to update *hlist->pprev = hlist->next and that is where it
+>>> takes the NULL pointer deref.
+>>
+>> Yes, sorry for my careless. So, That can not be fixed by using
+>> hlist_del_init_rcu instead?
 > 
-> If the slab is merged with the other one, this patch can work well?
+> The problem is the race described above.  Thread 'A' has checked to see
+> if n->pprev != NULL.  Based upon that, it did called the mn->release()
+> method.  While it was trying to call the release method, thread 'B' ended
+> up calling hlist_del_init_rcu() which set n->pprev = NULL.  Then thread
+> 'A' got to run again and now it tries to do the hlist_del_rcu() which, as
+> part of __hlist_del(), the pprev will be set to n->pprev (which is NULL)
+> and then *pprev = n->next; hits the NULL pointer deref hits.
 
-Yes and no, so I'll disable merging slab in the next version :)
-
-thanks,
-liubo
+I mean using hlist_del_init_rcu instead of hlist_del_rcu in
+mmu_notifier_unregister(), hlist_del_init_rcu is aware of ->pprev.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
