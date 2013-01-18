@@ -1,103 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id 3DB7B6B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:39:06 -0500 (EST)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4BEE23EE0BD
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:39:04 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3278D45DE4D
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:39:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 11FB245DD78
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:39:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 065251DB803C
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:39:04 +0900 (JST)
-Received: from g01jpexchkw04.g01.fujitsu.local (g01jpexchkw04.g01.fujitsu.local [10.0.194.43])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B82FB1DB802C
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:39:03 +0900 (JST)
-Message-ID: <50F8FBE9.6040501@jp.fujitsu.com>
-Date: Fri, 18 Jan 2013 16:38:17 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
-References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org> <50F647E8.509@jp.fujitsu.com> <20130116132953.6159b673.akpm@linux-foundation.org> <50F72F17.9030805@zytor.com> <50F78750.8070403@jp.fujitsu.com> <50F79422.6090405@zytor.com> <3908561D78D1C84285E8C5FCA982C28F1C986D98@ORSMSX108.amr.corp.intel.com> <50F85ED5.3010003@jp.fujitsu.com> <50F8E63F.5040401@jp.fujitsu.com> <818a2b0a-f471-413f-9231-6167eb2d9607@email.android.com>
-In-Reply-To: <818a2b0a-f471-413f-9231-6167eb2d9607@email.android.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 68A9E6B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:55:47 -0500 (EST)
+From: Lin Feng <linfeng@cn.fujitsu.com>
+Subject: [PATCH] memory-hotplug: mm/Kconfig: move auto selects from MEMORY_HOTPLUG to MEMORY_HOTREMOVE as needed
+Date: Fri, 18 Jan 2013 15:54:36 +0800
+Message-Id: <1358495676-4488-1-git-send-email-linfeng@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tony.luck@intel.com, akpm@linux-foundation.org, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
+Cc: mhocko@suse.cz, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, laijs@cn.fujitsu.com, Lin Feng <linfeng@cn.fujitsu.com>
 
-2013/01/18 15:25, H. Peter Anvin wrote:
-> We already do DMI parsing in the kernel...
+Since we have 2 config options called MEMORY_HOTPLUG and MEMORY_HOTREMOVE
+used for memory hot-add and hot-remove separately, and codes in function
+register_page_bootmem_info_node() are only used for collecting infomation
+for hot-remove(commit 04753278), so move it to MEMORY_HOTREMOVE.
 
-Thank you for giving the infomation.
+Besides page_isolation.c selected by MEMORY_ISOLATION under MEMORY_HOTPLUG
+is also such case, move it too.
 
-Is your mention /sys/firmware/dmi/entries?
+Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
+---
+ mm/Kconfig |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
-If so, my box does not have memory information.
-My box has only type 0, 1, 2, 3, 4, 7, 8, 9, 38, 127 in DMI.
-At least, my box cannot use the information...
-
-If users use the boot parameter for investigating firmware bugs
-or debugging, users cannot use DMI information on like my box.
-
-Thanks,
-Yasuaki Ishimatsu
-
->
-> Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
->
->> 2013/01/18 5:28, KOSAKI Motohiro wrote:
->>> On 1/17/2013 11:30 AM, Luck, Tony wrote:
->>>>> 2. If the user *does* care which nodes are movable, then the user
->> needs
->>>>> to be able to specify that *in a way that makes sense to the user*.
->>>>> This may mean involving the DMI information as well as SRAT in
->> order to
->>>>> get "silk screen" type information out.
->>>>
->>>> One reason they might care would be which I/O devices are connected
->>>> to each node.  DMI might be a good way to get an invariant name for
->> the
->>>> node, but they might also want to specify in terms of what they
->> actually
->>>> want. E.g. "eth0 and eth4 are a redundant bonded pair of NICs -
->> don't
->>>> mark both these nodes as removable".  Though this is almost
->> certainly not
->>>> a job for kernel options, but for some user configuration tool that
->> would
->>>> spit out the DMI names.
->>>
->>> I agree DMI parsing should be done in userland if we really need DMI
->> parsing.
->>>
->>
->> If users use the boot parameter for bugs or debugging,  users need
->> a method which sets in detail range of movable memory. So specifying
->> node number is not enough because whole memory becomes movable memory.
->>
->> For this, we are discussing other ways, memory range and DMI
->> information.
->> By using DMI information, users may get an invariant name. But is it
->> really user friendly interface? I don't think so.
->>
->> You will think using memory range is not user friendly interface too.
->> But I think that using memory range is friendlier than using DMI
->> information since we can get easily memory range. So from developper
->> side, using memory range is good.
->>
->> Of course, using SRAT information is necessary solution. So we are
->> developing it now.
->>
->> Thanks,
->> Yasuaki Ishimatsu
->
-
+diff --git a/mm/Kconfig b/mm/Kconfig
+index f8c5799..a96c010 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -172,8 +172,6 @@ config HAVE_BOOTMEM_INFO_NODE
+ # eventually, we can have this option just 'select SPARSEMEM'
+ config MEMORY_HOTPLUG
+ 	bool "Allow for memory hot-add"
+-	select MEMORY_ISOLATION
+-	select HAVE_BOOTMEM_INFO_NODE if X86_64
+ 	depends on SPARSEMEM || X86_64_ACPI_NUMA
+ 	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
+ 	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
+@@ -184,6 +182,8 @@ config MEMORY_HOTPLUG_SPARSE
+ 
+ config MEMORY_HOTREMOVE
+ 	bool "Allow for memory hot remove"
++	select MEMORY_ISOLATION
++	select HAVE_BOOTMEM_INFO_NODE if X86_64
+ 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
+ 	depends on MIGRATION
+ 
+-- 
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
