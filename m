@@ -1,44 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 8DED56B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:59:35 -0500 (EST)
-Message-ID: <50F900A3.4060903@cn.fujitsu.com>
-Date: Fri, 18 Jan 2013 15:58:27 +0800
-From: Lin Feng <linfeng@cn.fujitsu.com>
+Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
+	by kanga.kvack.org (Postfix) with SMTP id 568AC6B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 03:08:30 -0500 (EST)
+Date: Fri, 18 Jan 2013 19:08:25 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
+Message-ID: <20130118080825.GP2498@dastard>
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+ <1354058086-27937-10-git-send-email-david@fromorbit.com>
+ <50F6FDC8.5020909@parallels.com>
+ <20130116225521.GF2498@dastard>
+ <50F7475F.90609@parallels.com>
+ <20130117042245.GG2498@dastard>
+ <50F84118.7030608@parallels.com>
+ <20130118001029.GK2498@dastard>
+ <50F89C77.4010101@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/2] memory-hotplug: introduce CONFIG_HAVE_BOOTMEM_INFO_NODE
- and revert register_page_bootmem_info_node() when platform not support
-References: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com> <1358324059-9608-2-git-send-email-linfeng@cn.fujitsu.com> <20130116141436.GE343@dhcp22.suse.cz> <50F7D456.9000904@cn.fujitsu.com> <20130117130509.GE20538@dhcp22.suse.cz>
-In-Reply-To: <20130117130509.GE20538@dhcp22.suse.cz>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50F89C77.4010101@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, jbeulich@suse.com, dhowells@redhat.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, paul.gortmaker@windriver.com, laijs@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, jiang.liu@huawei.com, tony.luck@intel.com, fenghua.yu@intel.com, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, michael@ellerman.id.au, gerald.schaefer@de.ibm.com, gregkh@linuxfoundation.org, x86@kernel.org, linux390@de.ibm.com, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
+To: Glauber Costa <glommer@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-Hi Michal,
-
-On 01/17/2013 09:05 PM, Michal Hocko wrote:
-> On Thu 17-01-13 18:37:10, Lin Feng wrote:
-> [...]
->>> > > I am still not sure I understand the relation to MEMORY_HOTREMOVE.
->>> > > Is register_page_bootmem_info_node required/helpful even if
->>> > > !CONFIG_MEMORY_HOTREMOVE?
->> > From old kenrel's view register_page_bootmem_info_node() is defined in 
->> > CONFIG_MEMORY_HOTPLUG_SPARSE, it registers some info for 
->> > memory hotplug/remove. If we don't use MEMORY_HOTPLUG feature, this
->> > function is empty, we don't need the info at all.
->> > So this info is not required/helpful if !CONFIG_MEMORY_HOTREMOVE.
-> OK, then I suggest moving it under CONFIG_MEMORY_HOTREMOVE guards rather
-> than CONFIG_MEMORY_HOTPLUG.
-I can't agree more ;-) 
-I also find that page_isolation.c selected by MEMORY_ISOLATION under MEMORY_HOTPLUG
-is also such case, I fix it by the way.
-
-thanks,
-linfeng
+On Thu, Jan 17, 2013 at 04:51:03PM -0800, Glauber Costa wrote:
+> On 01/17/2013 04:10 PM, Dave Chinner wrote:
+> > and we end up with:
+> > 
+> > lru_add(struct lru_list *lru, struct lru_item *item)
+> > {
+> > 	node_id = min(object_to_nid(item), lru->numnodes);
+> > 	
+> > 	__lru_add(lru, node_id, &item->global_list);
+> > 	if (memcg) {
+> > 		memcg_lru = find_memcg_lru(lru->memcg_lists, memcg_id)
+> > 		__lru_add_(memcg_lru, node_id, &item->memcg_list);
+> > 	}
+> > }
 > 
+> A follow up thought: If we have multiple memcgs, and global pressure
+> kicks in (meaning none of them are particularly under pressure),
+> shouldn't we try to maintain fairness among them and reclaim equal
+> proportions from them all the same way we do with sb's these days, for
+> instance?
+
+I don't like the complexity. The global lists will be reclaimed in
+LRU order, so it's going to be as fair as can be. If there's a memcg
+that has older unused objectsi than the others, then froma global
+perspective they should be reclaimed first because the memcg is not
+using them...
+
+> I would argue that if your memcg is small, the list of dentries is
+> small: scan it all for the nodes you want shouldn't hurt.
+
+on the contrary - the memcg might be small, but what happens if
+someone ran a find across all the filesytsems on the system in it?
+Then the LRU will be huge, and scanning expensive...
+
+We can't make static decisions about small and large, and we can't
+trust heuristics to get it right, either. If we have a single list,
+we don't/can't do node-aware reclaim efficiently and so shouldn't
+even try.
+
+> if the memcg is big, it will have per-node lists anyway.
+
+But may have no need for them due to the workload. ;)
+
+> Given that, do we really want to pay the price of two list_heads
+> in the objects?
+
+I'm just looking at ways at making the infrastructure sane. If the
+cost is an extra 16 bytes per object on a an LRU, then that a small
+price to pay for having robust memory reclaim infrastructure....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
