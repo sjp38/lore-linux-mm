@@ -1,96 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
-	by kanga.kvack.org (Postfix) with SMTP id 83E836B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 13:52:12 -0500 (EST)
-Message-ID: <1358535129.7383.25.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH v2] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 18 Jan 2013 13:52:09 -0500
-In-Reply-To: <0000013c4eec1cbd-fb392b9f-b39e-4bcf-a043-2fa76fb8d35a-000000@email.amazonses.com>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-	 <0000013c4e1ea131-b8ab56b9-bfca-44fe-b5da-f030551194c9-000000@email.amazonses.com>
-	 <1358521484.7383.8.camel@gandalf.local.home>
-	 <1358524501.7383.17.camel@gandalf.local.home>
-	 <0000013c4eec1cbd-fb392b9f-b39e-4bcf-a043-2fa76fb8d35a-000000@email.amazonses.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx155.postini.com [74.125.245.155])
+	by kanga.kvack.org (Postfix) with SMTP id 79C786B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 13:53:52 -0500 (EST)
+Message-ID: <50F99A37.2050902@redhat.com>
+Date: Fri, 18 Jan 2013 13:53:43 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: [CFP] Linux Storage, Filesystem and Memory Management Summit 2013
+References: <yq1vcavi797.fsf@sermon.lab.mkp.net>
+In-Reply-To: <yq1vcavi797.fsf@sermon.lab.mkp.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
- Goncalves" <lgoncalv@redhat.com>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Ying Han <yinghan@google.com>, Mel Gorman <mel@csn.ul.ie>
 
-On Fri, 2013-01-18 at 18:29 +0000, Christoph Lameter wrote:
-> On Fri, 18 Jan 2013, Steven Rostedt wrote:
-> 
-> > On Fri, 2013-01-18 at 10:04 -0500, Steven Rostedt wrote:
-> >
-> > Just to be more complete:
-> >
-> > > 	CPU0			CPU1
-> > > 	----			----
-> > 			c = __this_cpu_ptr(s->cpu_slab);
-> > 			<migrates to CPU0>
-> >
-> > > <cpu fetches c->page>
-> > 			<another task>
-> >
-> > > 			updates c->tid
-> 
-> We can avoid the above scenario by doing a cpu local fetch.
-> 
-> i.e.
-> `	tid = this_cpu_read(s->cpu_slab->tid);
+The annual Linux Storage, Filesystem and Memory Management Summit for
+2013 will be held on April 18th and 19th following the Linux Foundation
+Collaboration Summit at Parc 55 Hotel in San Francisco, CA:
 
-I'm curious to why not just add the preempt disable? It's rather quick
-and avoids all this complex trickery, which is just prone to bugs. It
-would make it much easier for others to review as well, and also keeps
-the setting of page, objects and cpu_slab consistent with everything
-else (which is assigned under preempt(irq)_disable).
+	https://events.linuxfoundation.org/events/collaboration-summit
+	https://events.linuxfoundation.org/events/lsfmm-summit
 
+We'd therefore like to issue a call for agenda proposals that are
+suitable for cross-track discussion as well as more technical subjects
+for discussion in the breakout sessions.
 
-> 
-> 
-> > > 			updates c->page
-> > > 			updates c->freelist
-> > > <cpu fetches c->tid>
-> > > <cpu fetches c->freelist>
-> > >
-> > >   node_match() succeeds even though
-> > >     current c->page wont
-> > >
-> >
-> >  <migrates back to CPU 1>
-> >
-> > >  this_cpu_cmpxchg_double() only tests
-> > >    the object (freelist) and tid, both which
-> > >    will match, but the page that was tested
-> > >    isn't the right one.
-> > >
-> >
-> > Yes, it's very unlikely, but we are in the business of dealing with the
-> > very unlikely. That's because in our business, the very unlikely is very
-> > likely. Damn, I need to buy a lotto ticket!
-> 
-> Well, the consequence would be that an object from another node than
-> desired will be allocated. Not that severe of an issue.
+1) Suggestions for agenda topics should be sent before February 8th
+2013 to:
 
-Yes, it's not that severe of an issue, but it is still incorrect code.
-Why not just allocate on whatever node you want then? Why bother with
-the check at all?
+	lsf-pc@lists.linux-foundation.org
 
--- Steve
+and optionally cc the Linux list which would be most interested in it:
+
+	ATA: linux-ide@vger.kernel.org
+	SCSI: linux-scsi@vger.kernel.org
+	FS: linux-fsdevel@vger.kernel.org
+	MM: linux-mm@kvack.org
+
+Please remember to tag your subject with [LSF/MM TOPIC] to make it
+easier to track. Agenda topics and attendees will be selected by the
+program committee, but the final agenda will be formed by consensus of
+the attendees on the day.
+
+We'll try to cap attendance at around 25-30 per track to facilitate
+discussions although the final numbers will depend on the room sizes at
+the venue.
+
+2) Requests to attend the summit should be sent to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Please summarize what expertise you will bring to the meeting, and what
+you'd like to discuss.  please also tag your email with [ATTEND] so
+there's less chance of it getting lost in the large mail pile.
+
+Presentations are allowed to guide discussion, but are strongly
+discouraged. There will be no recording or audio bridge. However,
+written minutes will be published as in previous years:
+
+2012:
+	http://lwn.net/Articles/490114/
+	http://lwn.net/Articles/490501/
+
+2011:
+	http://lwn.net/Articles/436871/
+	http://lwn.net/Articles/437066/
+
+2010:
+	http://lwn.net/Articles/399148/
+	http://lwn.net/Articles/399313/
+	http://lwn.net/Articles/400589/
+
+2009:
+	http://lwn.net/Articles/327601/
+	http://lwn.net/Articles/327740/
+	http://lwn.net/Articles/328347/
+
+Prior years:
+	http://www.usenix.org/events/lsf08/tech/lsf08sums.pdf
+	http://www.usenix.org/publications/login/2007-06/openpdfs...
+
+3) If you have feedback on last year's meeting that we can use to
+improve this year's, please also send that to:
+
+	lsf-pc@lists.linux-foundation.org
+
+Thank you on behalf of the program committee:
+
+Storage:
+	Martin K. Petersen
+	Jens Axboe
+	James Bottomley
+
+Filesystems:
+	Ric Wheeler
+	Christoph Hellwig
+	Jaegeuk Kim
+	Jeffrey Layton
+	Tao Ma
+	Chris Mason
+	Trond Myklebust
+	Eric Sandeen
+	Theodore Ts'o
+	Sage Weil
+
+MM:
+	Rik van Riel
+	Mel Gorman
+	Ying Han
+
 
 
 --
