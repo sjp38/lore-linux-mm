@@ -1,215 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 688896B0007
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 00:30:08 -0500 (EST)
-Date: Fri, 18 Jan 2013 14:30:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 1/8] Introduce new system call mvolatile
-Message-ID: <20130118053006.GB31368@blaptop>
-References: <1357187286-18759-1-git-send-email-minchan@kernel.org>
- <1357187286-18759-2-git-send-email-minchan@kernel.org>
- <50F75875.30909@linaro.org>
+Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
+	by kanga.kvack.org (Postfix) with SMTP id C2C866B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 01:06:37 -0500 (EST)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id D92EE3EE0BB
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 15:06:35 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id BC24145DE53
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 15:06:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id A00B545DE50
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 15:06:35 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 91B16E08009
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 15:06:35 +0900 (JST)
+Received: from g01jpexchkw05.g01.fujitsu.local (g01jpexchkw05.g01.fujitsu.local [10.0.194.44])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 471CCE08002
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 15:06:35 +0900 (JST)
+Message-ID: <50F8E63F.5040401@jp.fujitsu.com>
+Date: Fri, 18 Jan 2013 15:05:51 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50F75875.30909@linaro.org>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org> <50F647E8.509@jp.fujitsu.com> <20130116132953.6159b673.akpm@linux-foundation.org> <50F72F17.9030805@zytor.com> <50F78750.8070403@jp.fujitsu.com> <50F79422.6090405@zytor.com> <3908561D78D1C84285E8C5FCA982C28F1C986D98@ORSMSX108.amr.corp.intel.com> <50F85ED5.3010003@jp.fujitsu.com>
+In-Reply-To: <50F85ED5.3010003@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Arun Sharma <asharma@fb.com>, sanjay@google.com, Paul Turner <pjt@google.com>, David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tony.luck@intel.com, hpa@zytor.com
+Cc: akpm@linux-foundation.org, tangchen@cn.fujitsu.com, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jan 16, 2013 at 05:48:37PM -0800, John Stultz wrote:
-> On 01/02/2013 08:27 PM, Minchan Kim wrote:
-> >This patch adds new system call m[no]volatile.
-> >If someone asks is_volatile system call, it could be added, too.
-> 
-> So some nits below from my initial playing around with this patchset.
-> 
-> >+/*
-> >+ * Return -EINVAL if range doesn't include a right vma at all.
-> >+ * Return -ENOMEM with interrupting range opeartion if memory is not enough to
-> >+ * merge/split vmas.
-> >+ * Return 0 if range consists of only proper vmas.
-> >+ * Return 1 if part of range includes inavlid area(ex, hole/huge/ksm/mlock/
-> >+ * special area)
-> >+ */
-> >+SYSCALL_DEFINE2(mvolatile, unsigned long, start, size_t, len)
-> >+{
-> >+	unsigned long end, tmp;
-> >+	struct vm_area_struct *vma, *prev;
-> >+	bool invalid = false;
-> >+	int error = -EINVAL;
-> >+
-> >+	down_write(&current->mm->mmap_sem);
-> >+	if (start & ~PAGE_MASK)
-> >+		goto out;
-> >+
-> >+	len &= PAGE_MASK;
-> >+	if (!len)
-> >+		goto out;
-> >+
-> >+	end = start + len;
-> >+	if (end < start)
-> >+		goto out;
-> >+
-> >+	vma = find_vma_prev(current->mm, start, &prev);
-> >+	if (!vma)
-> >+		goto out;
-> >+
-> >+	if (start > vma->vm_start)
-> >+		prev = vma;
-> >+
-> >+	for (;;) {
-> >+		/* Here start < (end|vma->vm_end). */
-> >+		if (start < vma->vm_start) {
-> >+			start = vma->vm_start;
-> >+			if (start >= end)
-> >+				goto out;
-> >+			invalid = true;
-> >+		}
-> >+
-> >+		/* Here vma->vm_start <= start < (end|vma->vm_end) */
-> >+		tmp = vma->vm_end;
-> >+		if (end < tmp)
-> >+			tmp = end;
-> >+
-> >+		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-> >+		error = do_mvolatile(vma, &prev, start, tmp);
-> >+		if (error == -ENOMEM) {
-> >+			up_write(&current->mm->mmap_sem);
-> >+			return error;
-> >+		}
-> >+		if (error == -EINVAL)
-> >+			invalid = true;
-> >+		else
-> >+			error = 0;
-> >+		start = tmp;
-> >+		if (prev && start < prev->vm_end)
-> >+			start = prev->vm_end;
-> >+		if (start >= end)
-> >+			break;
-> >+
-> >+		vma = prev->vm_next;
-> >+		if (!vma)
-> >+			break;
-> >+	}
-> >+out:
-> >+	up_write(&current->mm->mmap_sem);
-> >+	return invalid ? 1 : 0;
-> >+}
-> 
-> The error logic here is really strange. If any of the early error
-> cases are triggered (ie: (start & ~PAGE_MASK), etc), then we jump to
-> out and return 0 (instead of EINVAL). I don't think that's what you
-> intended.
+2013/01/18 5:28, KOSAKI Motohiro wrote:
+> On 1/17/2013 11:30 AM, Luck, Tony wrote:
+>>> 2. If the user *does* care which nodes are movable, then the user needs
+>>> to be able to specify that *in a way that makes sense to the user*.
+>>> This may mean involving the DMI information as well as SRAT in order to
+>>> get "silk screen" type information out.
+>>
+>> One reason they might care would be which I/O devices are connected
+>> to each node.  DMI might be a good way to get an invariant name for the
+>> node, but they might also want to specify in terms of what they actually
+>> want. E.g. "eth0 and eth4 are a redundant bonded pair of NICs - don't
+>> mark both these nodes as removable".  Though this is almost certainly not
+>> a job for kernel options, but for some user configuration tool that would
+>> spit out the DMI names.
+>
+> I agree DMI parsing should be done in userland if we really need DMI parsing.
+>
 
-Need fixing.
+If users use the boot parameter for bugs or debugging,  users need
+a method which sets in detail range of movable memory. So specifying
+node number is not enough because whole memory becomes movable memory.
 
-> 
-> 
-> >+/*
-> >+ * Return -ENOMEM with interrupting range opeartion if memory is not enough
-> >+ * to merge/split vmas.
-> >+ * Return 1 if part of range includes purged's one, otherwise, return 0
-> >+ */
-> >+SYSCALL_DEFINE2(mnovolatile, unsigned long, start, size_t, len)
-> >+{
-> >+	unsigned long end, tmp;
-> >+	struct vm_area_struct *vma, *prev;
-> >+	int ret, error = -EINVAL;
-> >+	bool is_purged = false;
-> >+
-> >+	down_write(&current->mm->mmap_sem);
-> >+	if (start & ~PAGE_MASK)
-> >+		goto out;
-> >+
-> >+	len &= PAGE_MASK;
-> >+	if (!len)
-> >+		goto out;
-> >+
-> >+	end = start + len;
-> >+	if (end < start)
-> >+		goto out;
-> >+
-> >+	vma = find_vma_prev(current->mm, start, &prev);
-> >+	if (!vma)
-> >+		goto out;
-> >+
-> >+	if (start > vma->vm_start)
-> >+		prev = vma;
-> >+
-> >+	for (;;) {
-> >+		/* Here start < (end|vma->vm_end). */
-> >+		if (start < vma->vm_start) {
-> >+			start = vma->vm_start;
-> >+			if (start >= end)
-> >+				goto out;
-> >+		}
-> >+
-> >+		/* Here vma->vm_start <= start < (end|vma->vm_end) */
-> >+		tmp = vma->vm_end;
-> >+		if (end < tmp)
-> >+			tmp = end;
-> >+
-> >+		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-> >+		error = do_mnovolatile(vma, &prev, start, tmp, &is_purged);
-> >+		if (error) {
-> >+			WARN_ON(error != -ENOMEM);
-> >+			goto out;
-> >+		}
-> >+		start = tmp;
-> >+		if (prev && start < prev->vm_end)
-> >+			start = prev->vm_end;
-> >+		if (start >= end)
-> >+			break;
-> >+
-> >+		vma = prev->vm_next;
-> >+		if (!vma)
-> >+			break;
-> >+	}
-> 
-> I'm still not sure how this logic improves over the madvise case. If
-> we catch an error mid-way through setting a series of vmas to
-> non-volatile, we end up exiting and losing state (ie: if only the
-> first vma was purged, but half way through 10 vmas we get a ENOMEM
-> error. So the first vma is now non-volatile, but we do not return
-> the purged flag ).
+For this, we are discussing other ways, memory range and DMI information.
+By using DMI information, users may get an invariant name. But is it
+really user friendly interface? I don't think so.
 
-Right. 
+You will think using memory range is not user friendly interface too.
+But I think that using memory range is friendlier than using DMI
+information since we can get easily memory range. So from developper
+side, using memory range is good.
 
-> 
-> If we're going to have a new syscall for this (which I'm not sure is
-> the right approach), we should make use of multiple arguments so we
-> can return if data was purged, even if we hit an error midway).
+Of course, using SRAT information is necessary solution. So we are
+developing it now.
 
-It would be easier method to achieve our goal than below suggestion
-in case of VMA-basd approach because it's hard to expect how many
-we need vmas with atomically.
+Thanks,
+Yasuaki Ishimatsu
 
-Will do it in next version.
 
-> 
-> Alternatively, if we can find a way to allocate any necessary memory
-> before we do any vma volatility state changes, then we can return
-> ENOMEM then and be confident we won't end up with failed partial
-> state change (this is the approach I used in my fallocate-volatile
-> patches).
 
-Thanks for the review, John.
-
-> 
-> thanks
-> -john
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
