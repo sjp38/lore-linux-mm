@@ -1,53 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
-	by kanga.kvack.org (Postfix) with SMTP id 68A9E6B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:55:47 -0500 (EST)
+Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
+	by kanga.kvack.org (Postfix) with SMTP id 8DED56B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:59:35 -0500 (EST)
+Message-ID: <50F900A3.4060903@cn.fujitsu.com>
+Date: Fri, 18 Jan 2013 15:58:27 +0800
 From: Lin Feng <linfeng@cn.fujitsu.com>
-Subject: [PATCH] memory-hotplug: mm/Kconfig: move auto selects from MEMORY_HOTPLUG to MEMORY_HOTREMOVE as needed
-Date: Fri, 18 Jan 2013 15:54:36 +0800
-Message-Id: <1358495676-4488-1-git-send-email-linfeng@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 1/2] memory-hotplug: introduce CONFIG_HAVE_BOOTMEM_INFO_NODE
+ and revert register_page_bootmem_info_node() when platform not support
+References: <1358324059-9608-1-git-send-email-linfeng@cn.fujitsu.com> <1358324059-9608-2-git-send-email-linfeng@cn.fujitsu.com> <20130116141436.GE343@dhcp22.suse.cz> <50F7D456.9000904@cn.fujitsu.com> <20130117130509.GE20538@dhcp22.suse.cz>
+In-Reply-To: <20130117130509.GE20538@dhcp22.suse.cz>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kamezawa.hiroyu@jp.fujitsu.com
-Cc: mhocko@suse.cz, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, wency@cn.fujitsu.com, tangchen@cn.fujitsu.com, laijs@cn.fujitsu.com, Lin Feng <linfeng@cn.fujitsu.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, jbeulich@suse.com, dhowells@redhat.com, wency@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, paul.gortmaker@windriver.com, laijs@cn.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, mel@csn.ul.ie, minchan@kernel.org, aquini@redhat.com, jiang.liu@huawei.com, tony.luck@intel.com, fenghua.yu@intel.com, benh@kernel.crashing.org, paulus@samba.org, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, davem@davemloft.net, michael@ellerman.id.au, gerald.schaefer@de.ibm.com, gregkh@linuxfoundation.org, x86@kernel.org, linux390@de.ibm.com, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, tangchen@cn.fujitsu.com
 
-Since we have 2 config options called MEMORY_HOTPLUG and MEMORY_HOTREMOVE
-used for memory hot-add and hot-remove separately, and codes in function
-register_page_bootmem_info_node() are only used for collecting infomation
-for hot-remove(commit 04753278), so move it to MEMORY_HOTREMOVE.
+Hi Michal,
 
-Besides page_isolation.c selected by MEMORY_ISOLATION under MEMORY_HOTPLUG
-is also such case, move it too.
+On 01/17/2013 09:05 PM, Michal Hocko wrote:
+> On Thu 17-01-13 18:37:10, Lin Feng wrote:
+> [...]
+>>> > > I am still not sure I understand the relation to MEMORY_HOTREMOVE.
+>>> > > Is register_page_bootmem_info_node required/helpful even if
+>>> > > !CONFIG_MEMORY_HOTREMOVE?
+>> > From old kenrel's view register_page_bootmem_info_node() is defined in 
+>> > CONFIG_MEMORY_HOTPLUG_SPARSE, it registers some info for 
+>> > memory hotplug/remove. If we don't use MEMORY_HOTPLUG feature, this
+>> > function is empty, we don't need the info at all.
+>> > So this info is not required/helpful if !CONFIG_MEMORY_HOTREMOVE.
+> OK, then I suggest moving it under CONFIG_MEMORY_HOTREMOVE guards rather
+> than CONFIG_MEMORY_HOTPLUG.
+I can't agree more ;-) 
+I also find that page_isolation.c selected by MEMORY_ISOLATION under MEMORY_HOTPLUG
+is also such case, I fix it by the way.
 
-Signed-off-by: Lin Feng <linfeng@cn.fujitsu.com>
----
- mm/Kconfig |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f8c5799..a96c010 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -172,8 +172,6 @@ config HAVE_BOOTMEM_INFO_NODE
- # eventually, we can have this option just 'select SPARSEMEM'
- config MEMORY_HOTPLUG
- 	bool "Allow for memory hot-add"
--	select MEMORY_ISOLATION
--	select HAVE_BOOTMEM_INFO_NODE if X86_64
- 	depends on SPARSEMEM || X86_64_ACPI_NUMA
- 	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
- 	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
-@@ -184,6 +182,8 @@ config MEMORY_HOTPLUG_SPARSE
- 
- config MEMORY_HOTREMOVE
- 	bool "Allow for memory hot remove"
-+	select MEMORY_ISOLATION
-+	select HAVE_BOOTMEM_INFO_NODE if X86_64
- 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
- 	depends on MIGRATION
- 
--- 
-1.7.1
+thanks,
+linfeng
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
