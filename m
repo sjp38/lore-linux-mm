@@ -1,75 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx161.postini.com [74.125.245.161])
-	by kanga.kvack.org (Postfix) with SMTP id ADDA26B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:29:54 -0500 (EST)
-Message-ID: <1358522992.7383.13.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH v2] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 18 Jan 2013 10:29:52 -0500
-In-Reply-To: <20130118044242.GA18665@lge.com>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-	 <20130118044242.GA18665@lge.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx128.postini.com [74.125.245.128])
+	by kanga.kvack.org (Postfix) with SMTP id F360C6B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:37:18 -0500 (EST)
+Date: Fri, 18 Jan 2013 16:37:15 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 3/7] memcg: provide online test for memcg
+Message-ID: <20130118153715.GG10701@dhcp22.suse.cz>
+References: <1357897527-15479-1-git-send-email-glommer@parallels.com>
+ <1357897527-15479-4-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1357897527-15479-4-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio
- R. Goncalves" <lgoncalv@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, 2013-01-18 at 13:42 +0900, Joonsoo Kim wrote:
+On Fri 11-01-13 13:45:23, Glauber Costa wrote:
+> Since we are now splitting the memcg creation in two parts, following
+> the cgroup standard, it would be helpful to be able to determine if a
+> created memcg is already online.
+> 
+> We can do this by initially forcing the refcnt to 0, and waiting until
+> the last minute to flip it to 1.
 
-> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-> index 9db4825..b54dffa 100644
-> --- a/include/linux/slub_def.h
-> +++ b/include/linux/slub_def.h
-> @@ -46,6 +46,9 @@ enum stat_item {
->  struct kmem_cache_cpu {
->  	void **freelist;	/* Pointer to next available object */
->  	unsigned long tid;	/* Globally unique transaction id */
-> +#ifdef CONFIG_NUMA
-> +	int node;
+Is this useful, though? What does it tell you? mem_cgroup_online can say
+false even though half of the attributes have been already copied for
+example. I think it should be vice versa. It should mark the point when
+we _start_ copying values. mem_cgroup_online is not the best name then
+of course. It depends what it is going to be used for...
 
-Note, you put an int between a long and a pointer, which will waste 4
-bytes on 64bit machines.
-
-> +#endif
->  	struct page *page;	/* The slab from which we are allocating */
->  	struct page *partial;	/* Partially allocated frozen slabs */
->  #ifdef CONFIG_SLUB_STATS
-
-
-
-> @@ -2038,10 +2049,10 @@ static void flush_all(struct kmem_cache *s)
->   * Check if the objects in a per cpu structure fit numa
->   * locality expectations.
->   */
-> -static inline int node_match(struct page *page, int node)
-> +static inline int node_match(struct kmem_cache_cpu *c, int node)
+> During memcg's lifetime, this value
+> will vary. But if it ever reaches 0 again, memcg will be destructed. We
+> can therefore be sure that any value different than 0 will mean that
+> our group is online.
+> 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> ---
+>  mm/memcontrol.c | 15 ++++++++++++---
+>  1 file changed, 12 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2229945..2ac2808 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -475,6 +475,11 @@ enum res_type {
+>  static void mem_cgroup_get(struct mem_cgroup *memcg);
+>  static void mem_cgroup_put(struct mem_cgroup *memcg);
+>  
+> +static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
+> +{
+> +	return atomic_read(&memcg->refcnt) > 0;
+> +}
+> +
+>  static inline
+>  struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *s)
 >  {
->  #ifdef CONFIG_NUMA
-> -	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
-> +	if (node != NUMA_NO_NODE && c->node != node)
+> @@ -6098,7 +6103,7 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>  
+>  	memcg->last_scanned_node = MAX_NUMNODES;
+>  	INIT_LIST_HEAD(&memcg->oom_notify);
+> -	atomic_set(&memcg->refcnt, 1);
+> +	atomic_set(&memcg->refcnt, 0);
 
-We still have the issue of cpu fetching c->node before c->tid and
-c->freelist.
+I would prefer a comment rather than an explicit atomic_set. The value
+is zero already.
 
-I still believe the only solution is to prevent the task from migrating
-via a preempt disable.
+>  	memcg->move_charge_at_immigrate = 0;
+>  	mutex_init(&memcg->thresholds_lock);
+>  	spin_lock_init(&memcg->move_lock);
+> @@ -6116,10 +6121,13 @@ mem_cgroup_css_online(struct cgroup *cont)
+>  	struct mem_cgroup *memcg, *parent;
+>  	int error = 0;
+>
+	
+as I said above atomic_set(&memc->refcnt, 1) should be set here before
+we start copying anything.
 
--- Steve
+But maybe I have missed your intention and later patches in the series
+will convince me...
 
+> -	if (!cont->parent)
+> +	memcg = mem_cgroup_from_cont(cont);
+> +	if (!cont->parent) {
+> +		/* no need to lock, since this is the root cgroup */
+> +		atomic_set(&memcg->refcnt, 1);
+>  		return 0;
+> +	}
+>  
+> -	memcg = mem_cgroup_from_cont(cont);
+>  	parent = mem_cgroup_from_cont(cont->parent);
+>  
+>  	memcg->use_hierarchy = parent->use_hierarchy;
+> @@ -6151,6 +6159,7 @@ mem_cgroup_css_online(struct cgroup *cont)
+>  	}
+>  
+>  	memcg->swappiness = mem_cgroup_swappiness(parent);
+> +	atomic_set(&memcg->refcnt, 1);
+>  
+>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>  	if (error) {
+> -- 
+> 1.7.11.7
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
