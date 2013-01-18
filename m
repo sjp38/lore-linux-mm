@@ -1,70 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx136.postini.com [74.125.245.136])
-	by kanga.kvack.org (Postfix) with SMTP id C22946B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:55:03 -0500 (EST)
-Message-ID: <1358524501.7383.17.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH v2] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 18 Jan 2013 10:55:01 -0500
-In-Reply-To: <1358521484.7383.8.camel@gandalf.local.home>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-	 <0000013c4e1ea131-b8ab56b9-bfca-44fe-b5da-f030551194c9-000000@email.amazonses.com>
-	 <1358521484.7383.8.camel@gandalf.local.home>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx115.postini.com [74.125.245.115])
+	by kanga.kvack.org (Postfix) with SMTP id 70DB86B0007
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:56:24 -0500 (EST)
+Date: Fri, 18 Jan 2013 16:56:21 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 3/7] memcg: provide online test for memcg
+Message-ID: <20130118155621.GH10701@dhcp22.suse.cz>
+References: <1357897527-15479-1-git-send-email-glommer@parallels.com>
+ <1357897527-15479-4-git-send-email-glommer@parallels.com>
+ <20130118153715.GG10701@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20130118153715.GG10701@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
- Goncalves" <lgoncalv@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, 2013-01-18 at 10:04 -0500, Steven Rostedt wrote:
-
-Just to be more complete:
-
-> 	CPU0			CPU1
-> 	----			----
-			c = __this_cpu_ptr(s->cpu_slab);
-			<migrates to CPU0>
-
-> <cpu fetches c->page>
-			<another task>
-
-> 			updates c->tid
-> 			updates c->page
-> 			updates c->freelist
-> <cpu fetches c->tid>
-> <cpu fetches c->freelist>
+On Fri 18-01-13 16:37:15, Michal Hocko wrote:
+> On Fri 11-01-13 13:45:23, Glauber Costa wrote:
+> > Since we are now splitting the memcg creation in two parts, following
+> > the cgroup standard, it would be helpful to be able to determine if a
+> > created memcg is already online.
+> > 
+> > We can do this by initially forcing the refcnt to 0, and waiting until
+> > the last minute to flip it to 1.
 > 
->   node_match() succeeds even though
->     current c->page wont
-> 
+> Is this useful, though? What does it tell you? mem_cgroup_online can say
+> false even though half of the attributes have been already copied for
+> example. I think it should be vice versa. It should mark the point when
+> we _start_ copying values. mem_cgroup_online is not the best name then
+> of course. It depends what it is going to be used for...
 
- <migrates back to CPU 1>
-
->  this_cpu_cmpxchg_double() only tests
->    the object (freelist) and tid, both which
->    will match, but the page that was tested
->    isn't the right one.
-> 
-
-Yes, it's very unlikely, but we are in the business of dealing with the
-very unlikely. That's because in our business, the very unlikely is very
-likely. Damn, I need to buy a lotto ticket!
-
--- Steve
-
+And the later patch in the series shows that it is really not helpful on
+its own. You need to rely on other lock to be helpful. This calls for
+troubles and I do not think the win you get is really worth it. All it
+gives you is basically that you can change an inheritable attribute
+while your child is between css_alloc and css_online and so your
+attribute change doesn't fail if the child creation fails between those
+two. Is this the case you want to handle? Does it really even matter?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
