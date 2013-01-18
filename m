@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
-	by kanga.kvack.org (Postfix) with SMTP id D594A6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 19:28:46 -0500 (EST)
-Message-ID: <1358468924.23211.69.camel@gandalf.local.home>
-Subject: [RFC][PATCH v2] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Thu, 17 Jan 2013 19:28:44 -0500
-In-Reply-To: <1358468598.23211.67.camel@gandalf.local.home>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
+	by kanga.kvack.org (Postfix) with SMTP id 274AB6B0005
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 19:42:24 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id hz10so1793539pad.9
+        for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:42:23 -0800 (PST)
+Date: Thu, 17 Jan 2013 16:42:19 -0800
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH 1/3] zram: force disksize setting before using zram
+Message-ID: <20130118004219.GB29380@kroah.com>
+References: <1358388769-30112-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1358388769-30112-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
- Goncalves" <lgoncalv@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jerome Marchand <jmarchan@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-In slab_alloc_node(), after the cpu_slab is assigned, if the task is
-preempted and moves to another CPU, there's nothing keeping the page and
-object in sync. The -rt kernel crashed because page was NULL and object
-was not, and the node_match() dereferences page. Even though the crash
-happened on -rt, there's nothing that's keeping this from happening on
-mainline.
+On Thu, Jan 17, 2013 at 11:12:47AM +0900, Minchan Kim wrote:
+> Now zram document syas "set disksize is optional"
+> but partly it's wrong. When you try to use zram firstly after
+> booting, you must set disksize, otherwise zram can't work because
+> zram gendisk's size is 0. But once you do it, you can use zram freely
+> after reset because reset doesn't reset to zero paradoxically.
+> So in this time, disksize setting is optional.:(
+> It's inconsitent for user behavior and not straightforward.
+> 
+> This patch forces always setting disksize firstly before using zram.
+> Yes. It changes current behavior so someone could complain when
+> he upgrades zram. Apparently it could be a problem if zram is mainline
+> but it still lives in staging so behavior could be changed for right
+> way to go. Let them excuse.
 
-The easiest fix is to disable interrupts for the entire time from
-acquiring the current CPU cpu_slab and assigning the object and page.
-After that, it's fine to allow preemption.
+I don't know about changing this behavior.  I need some acks from some
+of the other zram developers before I can take this, or any of the other
+patches in this series.
 
-Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+thanks,
 
-diff --git a/mm/slub.c b/mm/slub.c
-index ba2ca53..f0681db 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2325,6 +2325,7 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
- 	struct kmem_cache_cpu *c;
- 	struct page *page;
- 	unsigned long tid;
-+	unsigned long flags;
- 
- 	if (slab_pre_alloc_hook(s, gfpflags))
- 		return NULL;
-@@ -2337,7 +2338,10 @@ redo:
- 	 * enabled. We may switch back and forth between cpus while
- 	 * reading from one cpu area. That does not matter as long
- 	 * as we end up on the original cpu again when doing the cmpxchg.
-+	 *
-+	 * But we need to sync the setting of page and object.
- 	 */
-+	local_irq_save(flags);
- 	c = __this_cpu_ptr(s->cpu_slab);
- 
- 	/*
-@@ -2347,10 +2351,11 @@ redo:
- 	 * linked list in between.
- 	 */
- 	tid = c->tid;
--	barrier();
- 
- 	object = c->freelist;
- 	page = c->page;
-+	local_irq_restore(flags);
-+
- 	if (unlikely(!object || !node_match(page, node)))
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
-
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
