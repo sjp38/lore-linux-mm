@@ -1,85 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx168.postini.com [74.125.245.168])
-	by kanga.kvack.org (Postfix) with SMTP id 568AC6B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 03:08:30 -0500 (EST)
-Date: Fri, 18 Jan 2013 19:08:25 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
-Message-ID: <20130118080825.GP2498@dastard>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
- <1354058086-27937-10-git-send-email-david@fromorbit.com>
- <50F6FDC8.5020909@parallels.com>
- <20130116225521.GF2498@dastard>
- <50F7475F.90609@parallels.com>
- <20130117042245.GG2498@dastard>
- <50F84118.7030608@parallels.com>
- <20130118001029.GK2498@dastard>
- <50F89C77.4010101@parallels.com>
+Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
+	by kanga.kvack.org (Postfix) with SMTP id 5F8C86B0008
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 03:09:06 -0500 (EST)
+Message-ID: <50F902F6.5010605@cn.fujitsu.com>
+Date: Fri, 18 Jan 2013 16:08:22 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50F89C77.4010101@parallels.com>
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com> <50F440F5.3030006@zytor.com> <20130114143456.3962f3bd.akpm@linux-foundation.org> <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com> <20130114144601.1c40dc7e.akpm@linux-foundation.org> <50F647E8.509@jp.fujitsu.com> <20130116132953.6159b673.akpm@linux-foundation.org> <50F72F17.9030805@zytor.com> <50F78750.8070403@jp.fujitsu.com> <50F79422.6090405@zytor.com> <3908561D78D1C84285E8C5FCA982C28F1C986D98@ORSMSX108.amr.corp.intel.com> <50F85ED5.3010003@jp.fujitsu.com> <50F8E63F.5040401@jp.fujitsu.com> <818a2b0a-f471-413f-9231-6167eb2d9607@email.android.com> <50F8FBE9.6040501@jp.fujitsu.com>
+In-Reply-To: <50F8FBE9.6040501@jp.fujitsu.com>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, tony.luck@intel.com, akpm@linux-foundation.org, jiang.liu@huawei.com, wujianguo@huawei.com, wency@cn.fujitsu.com, laijs@cn.fujitsu.com, linfeng@cn.fujitsu.com, yinghai@kernel.org, rob@landley.net, minchan.kim@gmail.com, mgorman@suse.de, rientjes@google.com, guz.fnst@cn.fujitsu.com, rusty@rustcorp.com.au, lliubbo@gmail.com, jaegeuk.hanse@gmail.com, glommer@parallels.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jan 17, 2013 at 04:51:03PM -0800, Glauber Costa wrote:
-> On 01/17/2013 04:10 PM, Dave Chinner wrote:
-> > and we end up with:
-> > 
-> > lru_add(struct lru_list *lru, struct lru_item *item)
-> > {
-> > 	node_id = min(object_to_nid(item), lru->numnodes);
-> > 	
-> > 	__lru_add(lru, node_id, &item->global_list);
-> > 	if (memcg) {
-> > 		memcg_lru = find_memcg_lru(lru->memcg_lists, memcg_id)
-> > 		__lru_add_(memcg_lru, node_id, &item->memcg_list);
-> > 	}
-> > }
-> 
-> A follow up thought: If we have multiple memcgs, and global pressure
-> kicks in (meaning none of them are particularly under pressure),
-> shouldn't we try to maintain fairness among them and reclaim equal
-> proportions from them all the same way we do with sb's these days, for
-> instance?
+On 01/18/2013 03:38 PM, Yasuaki Ishimatsu wrote:
+> 2013/01/18 15:25, H. Peter Anvin wrote:
+>> We already do DMI parsing in the kernel...
+>
+> Thank you for giving the infomation.
+>
+> Is your mention /sys/firmware/dmi/entries?
+>
+> If so, my box does not have memory information.
+> My box has only type 0, 1, 2, 3, 4, 7, 8, 9, 38, 127 in DMI.
+> At least, my box cannot use the information...
+>
+> If users use the boot parameter for investigating firmware bugs
+> or debugging, users cannot use DMI information on like my box.
 
-I don't like the complexity. The global lists will be reclaimed in
-LRU order, so it's going to be as fair as can be. If there's a memcg
-that has older unused objectsi than the others, then froma global
-perspective they should be reclaimed first because the memcg is not
-using them...
+And seeing from Documentation/ABI/testing/sysfs-firmware-dmi,
 
-> I would argue that if your memcg is small, the list of dentries is
-> small: scan it all for the nodes you want shouldn't hurt.
+	The kernel itself does not rely on the majority of the
+	information in these tables being correct.  It equally
+	cannot ensure that the data as exported to userland is
+	without error either.
 
-on the contrary - the memcg might be small, but what happens if
-someone ran a find across all the filesytsems on the system in it?
-Then the LRU will be huge, and scanning expensive...
-
-We can't make static decisions about small and large, and we can't
-trust heuristics to get it right, either. If we have a single list,
-we don't/can't do node-aware reclaim efficiently and so shouldn't
-even try.
-
-> if the memcg is big, it will have per-node lists anyway.
-
-But may have no need for them due to the workload. ;)
-
-> Given that, do we really want to pay the price of two list_heads
-> in the objects?
-
-I'm just looking at ways at making the infrastructure sane. If the
-cost is an extra 16 bytes per object on a an LRU, then that a small
-price to pay for having robust memory reclaim infrastructure....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+So when users are doing debug, they should not rely on this info.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
