@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx109.postini.com [74.125.245.109])
-	by kanga.kvack.org (Postfix) with SMTP id BC6F16B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 04:33:36 -0500 (EST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] mm: Define set_pmd_at for numabalance for CONFIG_PARAVIRT
-Date: Fri, 18 Jan 2013 10:33:24 +0100
-Message-Id: <1358501604-6797-1-git-send-email-mhocko@suse.cz>
+Received: from psmtp.com (na3sys010amx187.postini.com [74.125.245.187])
+	by kanga.kvack.org (Postfix) with SMTP id 8F6B56B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 05:23:02 -0500 (EST)
+Received: from mail-vc0-f175.google.com ([209.85.220.175])
+	by youngberry.canonical.com with esmtpsa (TLS1.0:RSA_ARCFOUR_SHA1:16)
+	(Exim 4.71)
+	(envelope-from <ming.lei@canonical.com>)
+	id 1Tw96D-0005H2-B3
+	for linux-mm@kvack.org; Fri, 18 Jan 2013 10:23:01 +0000
+Received: by mail-vc0-f175.google.com with SMTP id fw7so778064vcb.34
+        for <linux-mm@kvack.org>; Fri, 18 Jan 2013 02:23:00 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20130117135726.5b31fd0f.akpm@linux-foundation.org>
+References: <1357352744-8138-1-git-send-email-ming.lei@canonical.com>
+	<20130116153744.70210fa3.akpm@linux-foundation.org>
+	<CACVXFVOipr0VMyPQaZTLckxTaPan7ZneERUqZ1S_mYo11A5AeA@mail.gmail.com>
+	<20130117135726.5b31fd0f.akpm@linux-foundation.org>
+Date: Fri, 18 Jan 2013 18:22:59 +0800
+Message-ID: <CACVXFVPEcZCCxA1+EeW-qdouiaBMPPjx7fn+jbROzSwBRN58SA@mail.gmail.com>
+Subject: Re: [PATCH v7 0/6] solve deadlock caused by memory allocation with I/O
+From: Ming Lei <ming.lei@canonical.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-usb@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Alan Stern <stern@rowland.harvard.edu>, Oliver Neukum <oneukum@suse.de>, Minchan Kim <minchan@kernel.org>, "Rafael J. Wysocki" <rjw@sisk.pl>, Jens Axboe <axboe@kernel.dk>, "David S. Miller" <davem@davemloft.net>
 
-CONFIG_PARAVIRT defines set_pmd_at only for CONFIG_TRANSPARENT_HUGEPAGE
-which leads to the following compile errors when randconfig selected
-CONFIG_NUMA_BALANCING && CONFIG_PARAVIRT && !CONFIG_TRANSPARENT_HUGEPAGE:
+On Fri, Jan 18, 2013 at 5:57 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+>
+> Fair enough, thanks.
+>
+> I grabbed the patches for 3.9-rc1.  It is good that the page
+> allocator's newly-added test of current->flags is not on the fastpath.
+>
 
-mm/mprotect.c: In function a??change_pmd_protnumaa??:
-mm/mprotect.c:120: error: implicit declaration of function a??set_pmd_ata??
+Andrew, great thanks, :-)
 
-mm/memory.c: In function a??do_pmd_numa_pagea??:
-mm/memory.c:3529: error: implicit declaration of function a??set_pmd_ata??
+Also thank Alan, Oliver, Minchan, Rafael, Greg and other guys who
+reviewed and gave suggestions on this patch set.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- arch/x86/include/asm/paravirt.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h
-index a0facf3..f551e89 100644
---- a/arch/x86/include/asm/paravirt.h
-+++ b/arch/x86/include/asm/paravirt.h
-@@ -528,7 +528,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
- }
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_NUMA_BALANCING)
- static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 			      pmd_t *pmdp, pmd_t pmd)
- {
--- 
-1.7.10.4
+Thanks,
+--
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
