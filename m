@@ -1,14 +1,12 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx151.postini.com [74.125.245.151])
-	by kanga.kvack.org (Postfix) with SMTP id D48BB6B000C
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:46:38 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id rl6so2362328pac.29
-        for <linux-mm@kvack.org>; Fri, 18 Jan 2013 13:46:38 -0800 (PST)
-Date: Fri, 18 Jan 2013 13:46:26 -0800
-From: Greg KH <gregkh@linuxfoundation.org>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 298DF6B000C
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 16:56:29 -0500 (EST)
+Date: Fri, 18 Jan 2013 16:56:21 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Subject: Re: [PATCH V2 0/5] staging: zcache: move new zcache code base from
  ramster
-Message-ID: <20130118214626.GA11130@kroah.com>
+Message-ID: <20130118215621.GB4754@phenom.dumpdata.com>
 References: <1358544267-9104-1-git-send-email-dan.magenheimer@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -17,7 +15,7 @@ In-Reply-To: <1358544267-9104-1-git-send-email-dan.magenheimer@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Magenheimer <dan.magenheimer@oracle.com>
-Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, konrad.wilk@oracle.com, sjenning@linux.vnet.ibm.com, minchan@kernel.org
+Cc: devel@linuxdriverproject.org, linux-kernel@vger.kernel.org, gregkh@linuxfoundation.org, linux-mm@kvack.org, ngupta@vflare.org, sjenning@linux.vnet.ibm.com, minchan@kernel.org
 
 On Fri, Jan 18, 2013 at 01:24:22PM -0800, Dan Magenheimer wrote:
 > [V2: no code changes, patchset now generated via git format-patch -M]
@@ -32,9 +30,63 @@ On Fri, Jan 18, 2013 at 01:24:22PM -0800, Dan Magenheimer wrote:
 > 
 > This patchset should apply cleanly to staging-next.
 
-Very nice, now applied, thanks.
-
-greg k-h
+Sweet. Acked-by: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+> 
+> Thanks,
+> Dan
+> 
+> Signed-off-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> 
+> ---
+> Diffstat:
+> 
+>  drivers/staging/Kconfig                            |    4 +-
+>  drivers/staging/Makefile                           |    2 +-
+>  drivers/staging/ramster/Kconfig                    |   31 -
+>  drivers/staging/ramster/Makefile                   |    6 -
+>  drivers/staging/ramster/ramster.h                  |   59 -
+>  drivers/staging/ramster/ramster/heartbeat.c        |  462 ----
+>  drivers/staging/ramster/ramster/heartbeat.h        |   87 -
+>  drivers/staging/ramster/ramster/masklog.c          |  155 --
+>  drivers/staging/ramster/ramster/masklog.h          |  220 --
+>  drivers/staging/ramster/ramster/nodemanager.c      |  995 ---------
+>  drivers/staging/ramster/ramster/nodemanager.h      |   88 -
+>  drivers/staging/ramster/ramster/r2net.c            |  414 ----
+>  drivers/staging/ramster/ramster/ramster.c          |  985 ---------
+>  drivers/staging/ramster/ramster/ramster.h          |  161 --
+>  .../staging/ramster/ramster/ramster_nodemanager.h  |   39 -
+>  drivers/staging/ramster/ramster/tcp.c              | 2253 --------------------
+>  drivers/staging/ramster/ramster/tcp.h              |  159 --
+>  drivers/staging/ramster/ramster/tcp_internal.h     |  248 ---
+>  drivers/staging/ramster/tmem.c                     |  894 --------
+>  drivers/staging/ramster/tmem.h                     |  259 ---
+>  drivers/staging/ramster/zbud.c                     | 1060 ---------
+>  drivers/staging/ramster/zbud.h                     |   33 -
+>  drivers/staging/ramster/zcache-main.c              | 1820 ----------------
+>  drivers/staging/ramster/zcache.h                   |   53 -
+>  drivers/staging/zcache/Kconfig                     |   26 +
+>  drivers/staging/zcache/Makefile                    |    6 +
+>  drivers/staging/zcache/ramster.h                   |   59 +
+>  drivers/staging/zcache/ramster/heartbeat.c         |  462 ++++
+>  drivers/staging/zcache/ramster/heartbeat.h         |   87 +
+>  drivers/staging/zcache/ramster/masklog.c           |  155 ++
+>  drivers/staging/zcache/ramster/masklog.h           |  220 ++
+>  drivers/staging/zcache/ramster/nodemanager.c       |  995 +++++++++
+>  drivers/staging/zcache/ramster/nodemanager.h       |   88 +
+>  drivers/staging/zcache/ramster/r2net.c             |  414 ++++
+>  drivers/staging/zcache/ramster/ramster.c           |  985 +++++++++
+>  drivers/staging/zcache/ramster/ramster.h           |  161 ++
+>  .../staging/zcache/ramster/ramster_nodemanager.h   |   39 +
+>  drivers/staging/zcache/ramster/tcp.c               | 2253 ++++++++++++++++++++
+>  drivers/staging/zcache/ramster/tcp.h               |  159 ++
+>  drivers/staging/zcache/ramster/tcp_internal.h      |  248 +++
+>  drivers/staging/zcache/tmem.c                      |  894 ++++++++
+>  drivers/staging/zcache/tmem.h                      |  259 +++
+>  drivers/staging/zcache/zbud.c                      | 1060 +++++++++
+>  drivers/staging/zcache/zbud.h                      |   33 +
+>  drivers/staging/zcache/zcache-main.c               | 1820 ++++++++++++++++
+>  drivers/staging/zcache/zcache.h                    |   53 +
+>  46 files changed, 10479 insertions(+), 10484 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
