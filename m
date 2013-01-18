@@ -1,87 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx119.postini.com [74.125.245.119])
-	by kanga.kvack.org (Postfix) with SMTP id E90906B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:09:53 -0500 (EST)
-Message-ID: <1358521791.7383.11.camel@gandalf.local.home>
-Subject: [RFC][PATCH v3] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 18 Jan 2013 10:09:51 -0500
-In-Reply-To: <1358468924.23211.69.camel@gandalf.local.home>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx112.postini.com [74.125.245.112])
+	by kanga.kvack.org (Postfix) with SMTP id 4D37F6B0006
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 10:14:32 -0500 (EST)
+Date: Fri, 18 Jan 2013 09:14:30 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [PATCH] [Patch] mmu_notifier_unregister NULL Pointer deref fix.
+Message-ID: <20130118151430.GD3460@sgi.com>
+References: <20130116210124.GB3460@sgi.com>
+ <50F765CC.9040608@linux.vnet.ibm.com>
+ <20130117111213.GM3438@sgi.com>
+ <50F7EC6B.6030401@linux.vnet.ibm.com>
+ <20130117134523.GN3438@sgi.com>
+ <50F8B67F.4090901@linux.vnet.ibm.com>
+ <20130118024856.GC3460@sgi.com>
+ <50F8BBAA.1020904@linux.vnet.ibm.com>
+ <20130118121439.GR3438@sgi.com>
+ <50F94562.6010909@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50F94562.6010909@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio R.
- Goncalves" <lgoncalv@redhat.com>
+To: Xiao Guangrong <xiaoguangrong@linux.vnet.ibm.com>
+Cc: Robin Holt <holt@sgi.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Avi Kivity <avi@redhat.com>, Hugh Dickins <hughd@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Sagi Grimberg <sagig@mellanox.co.il>, Haggai Eran <haggaie@mellanox.com>
 
-In slab_alloc_node(), after the cpu_slab is assigned, if the task is
-preempted and moves to another CPU, there's nothing keeping the page and
-object in sync. The -rt kernel crashed because page was NULL and object
-was not, and the node_match() dereferences page. Even though the crash
-happened on -rt, there's nothing that's keeping this from happening on
-mainline.
+On Fri, Jan 18, 2013 at 08:51:46PM +0800, Xiao Guangrong wrote:
+> On 01/18/2013 08:14 PM, Robin Holt wrote:
+> > On Fri, Jan 18, 2013 at 11:04:10AM +0800, Xiao Guangrong wrote:
+> >> On 01/18/2013 10:48 AM, Robin Holt wrote:
+> >>> On Fri, Jan 18, 2013 at 10:42:07AM +0800, Xiao Guangrong wrote:
+> >>>> On 01/17/2013 09:45 PM, Robin Holt wrote:
+> >>>>> On Thu, Jan 17, 2013 at 08:19:55PM +0800, Xiao Guangrong wrote:
+> >>>>>> On 01/17/2013 07:12 PM, Robin Holt wrote:
+> >>>>>>> On Thu, Jan 17, 2013 at 10:45:32AM +0800, Xiao Guangrong wrote:
+> >>>>>>>> On 01/17/2013 05:01 AM, Robin Holt wrote:
+> >>>>>>>>>
+> >>>>>>>>> There is a race condition between mmu_notifier_unregister() and
+> >>>>>>>>> __mmu_notifier_release().
+> >>>>>>>>>
+> >>>>>>>>> Assume two tasks, one calling mmu_notifier_unregister() as a result
+> >>>>>>>>> of a filp_close() ->flush() callout (task A), and the other calling
+> >>>>>>>>> mmu_notifier_release() from an mmput() (task B).
+> >>>>>>>>>
+> >>>>>>>>>                 A                               B
+> >>>>>>>>> t1                                              srcu_read_lock()
+> >>>>>>>>> t2              if (!hlist_unhashed())
+> >>>>>>>>> t3                                              srcu_read_unlock()
+> >>>>>>>>> t4              srcu_read_lock()
+> >>>>>>>>> t5                                              hlist_del_init_rcu()
+> >>>>>>>>> t6                                              synchronize_srcu()
+> >>>>>>>>> t7              srcu_read_unlock()
+> >>>>>>>>> t8              hlist_del_rcu()  <--- NULL pointer deref.
+> >>>>>>>>
+> >>>>>>>> The detailed code here is:
+> >>>>>>>> 	hlist_del_rcu(&mn->hlist);
+> >>>>>>>>
+> >>>>>>>> Can mn be NULL? I do not think so since mn is always the embedded struct
+> >>>>>>>> of the caller, it be freed after calling mmu_notifier_unregister.
+> >>>>>>>
+> >>>>>>> If you look at __mmu_notifier_release() it is using hlist_del_init_rcu()
+> >>>>>>> which will set the hlist->pprev to NULL.  When hlist_del_rcu() is called,
+> >>>>>>> it attempts to update *hlist->pprev = hlist->next and that is where it
+> >>>>>>> takes the NULL pointer deref.
+> >>>>>>
+> >>>>>> Yes, sorry for my careless. So, That can not be fixed by using
+> >>>>>> hlist_del_init_rcu instead?
+> >>>>>
+> >>>>> The problem is the race described above.  Thread 'A' has checked to see
+> >>>>> if n->pprev != NULL.  Based upon that, it did called the mn->release()
+> >>>>> method.  While it was trying to call the release method, thread 'B' ended
+> >>>>> up calling hlist_del_init_rcu() which set n->pprev = NULL.  Then thread
+> >>>>> 'A' got to run again and now it tries to do the hlist_del_rcu() which, as
+> >>>>> part of __hlist_del(), the pprev will be set to n->pprev (which is NULL)
+> >>>>> and then *pprev = n->next; hits the NULL pointer deref hits.
+> >>>>
+> >>>> I mean using hlist_del_init_rcu instead of hlist_del_rcu in
+> >>>> mmu_notifier_unregister(), hlist_del_init_rcu is aware of ->pprev.
+> >>>
+> >>> How does that address the calling of the ->release() method twice?
+> >>
+> >> Hmm, what is the problem of it? If it is just for "performance issue", i think
+> >> it is not worth introducing so complex lock rule just for the really rare case.
+> > 
+> > Complex lock rule?  We merely moved the lock up earlier in code path.
+> > Without this, we have some cases where you get called on ->release()
+> > twice, while the majority of cases your notifier gets called once and
+> > it hits a NULL pointer deref at that.  What is so complex about that?
+> 
+> 
+> Aha, if we use hlist_del_init_rcu() instead of hlist_del_rcu, can the NULL deref
+> bug be fixed?
+> 
+> - If yes, you'd better make it as a simple patch, it is good for backport. Then
+>   make the second patch to fix the "problem" of calling ->release twice.
+> 
+> - if no. Could you please detail the changelog. From the changelog, i only see
+>   the bug is cased by calling hlist_del_rcu on the unhashed node.
 
-The easiest fix is to disable preemption for the entire time from
-acquiring the current CPU cpu_slab and assigning the object and page.
-After that, it's fine to allow preemption.
+What is it about this patch makes you think it is complex?  There are:
 
-Also add a check if page is NULL in node_match().
+1) 11 Lines relocated.
+2) 5 new lines added (4 four an optimization, 1 for "else" case).
+3) 5 blank line introduced.
+4) 1 comment line fixed.
 
-Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
+I would happily remove the optimization which brings us down to an else
+case.  That could be removed by introducing a temporary variable as well,
+but that seems pointless.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index ba2ca53..10714ee 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2041,7 +2041,7 @@ static void flush_all(struct kmem_cache *s)
- static inline int node_match(struct page *page, int node)
- {
- #ifdef CONFIG_NUMA
--	if (node != NUMA_NO_NODE && page_to_nid(page) != node)
-+	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
- 		return 0;
- #endif
- 	return 1;
-@@ -2337,7 +2337,10 @@ redo:
- 	 * enabled. We may switch back and forth between cpus while
- 	 * reading from one cpu area. That does not matter as long
- 	 * as we end up on the original cpu again when doing the cmpxchg.
-+	 *
-+	 * But we need to sync the setting of page and object.
- 	 */
-+	preempt_disable();
- 	c = __this_cpu_ptr(s->cpu_slab);
- 
- 	/*
-@@ -2347,10 +2350,14 @@ redo:
- 	 * linked list in between.
- 	 */
- 	tid = c->tid;
-+
-+	/* Must have tid first in case an interrupt comes in */
- 	barrier();
- 
- 	object = c->freelist;
- 	page = c->page;
-+	preempt_enable();
-+
- 	if (unlikely(!object || !node_match(page, node)))
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
- 
+Bottom line, I do not see how this patch, as-is or with some slight
+tweaking, is not already candidate material for the -stable trees.
+It is certainly not complex and significantly improves an inconsistency
+with how the unregister notifier has worked for a few years.  It is a new
+behavior which is contrary to the comments in mmu_notifier.h which says:
 
+         * Called either by mmu_notifier_unregister or when the mm is
+         * being destroyed by exit_mmap, always before all pages are
+...
+        void (*release)(struct mmu_notifier *mn,
+
+That does not say "and/or", it says "or" which used to be "once and
+only once", but is now "once, unless it is twice".  This new behavior
+was affecting some of our test jobs, but the failures were so sporadic
+that we were not making any progress on identifying the failures until we
+stumbled on a test case which more frequently failed, then refined that
+test to trigger easily.
+
+My reluctance to not improving the double callout is I would need to repeat
+a significant amount of testing to ensure the other problems are also
+fixed with just the removal of the NULL pointer deref.  I believe they
+are, but I am not certain.
+
+Thanks,
+Robin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
