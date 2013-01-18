@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx133.postini.com [74.125.245.133])
-	by kanga.kvack.org (Postfix) with SMTP id 274AB6B0005
-	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 19:42:24 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id hz10so1793539pad.9
-        for <linux-mm@kvack.org>; Thu, 17 Jan 2013 16:42:23 -0800 (PST)
-Date: Thu, 17 Jan 2013 16:42:19 -0800
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 1/3] zram: force disksize setting before using zram
-Message-ID: <20130118004219.GB29380@kroah.com>
-References: <1358388769-30112-1-git-send-email-minchan@kernel.org>
+Received: from psmtp.com (na3sys010amx129.postini.com [74.125.245.129])
+	by kanga.kvack.org (Postfix) with SMTP id 782526B0005
+	for <linux-mm@kvack.org>; Thu, 17 Jan 2013 19:50:46 -0500 (EST)
+Message-ID: <50F89C77.4010101@parallels.com>
+Date: Thu, 17 Jan 2013 16:51:03 -0800
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358388769-30112-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com> <1354058086-27937-10-git-send-email-david@fromorbit.com> <50F6FDC8.5020909@parallels.com> <20130116225521.GF2498@dastard> <50F7475F.90609@parallels.com> <20130117042245.GG2498@dastard> <50F84118.7030608@parallels.com> <20130118001029.GK2498@dastard>
+In-Reply-To: <20130118001029.GK2498@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Magenheimer <dan.magenheimer@oracle.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Jerome Marchand <jmarchan@redhat.com>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
 
-On Thu, Jan 17, 2013 at 11:12:47AM +0900, Minchan Kim wrote:
-> Now zram document syas "set disksize is optional"
-> but partly it's wrong. When you try to use zram firstly after
-> booting, you must set disksize, otherwise zram can't work because
-> zram gendisk's size is 0. But once you do it, you can use zram freely
-> after reset because reset doesn't reset to zero paradoxically.
-> So in this time, disksize setting is optional.:(
-> It's inconsitent for user behavior and not straightforward.
+On 01/17/2013 04:10 PM, Dave Chinner wrote:
+> and we end up with:
 > 
-> This patch forces always setting disksize firstly before using zram.
-> Yes. It changes current behavior so someone could complain when
-> he upgrades zram. Apparently it could be a problem if zram is mainline
-> but it still lives in staging so behavior could be changed for right
-> way to go. Let them excuse.
+> lru_add(struct lru_list *lru, struct lru_item *item)
+> {
+> 	node_id = min(object_to_nid(item), lru->numnodes);
+> 	
+> 	__lru_add(lru, node_id, &item->global_list);
+> 	if (memcg) {
+> 		memcg_lru = find_memcg_lru(lru->memcg_lists, memcg_id)
+> 		__lru_add_(memcg_lru, node_id, &item->memcg_list);
+> 	}
+> }
 
-I don't know about changing this behavior.  I need some acks from some
-of the other zram developers before I can take this, or any of the other
-patches in this series.
+A follow up thought: If we have multiple memcgs, and global pressure
+kicks in (meaning none of them are particularly under pressure),
+shouldn't we try to maintain fairness among them and reclaim equal
+proportions from them all the same way we do with sb's these days, for
+instance?
 
-thanks,
+I would argue that if your memcg is small, the list of dentries is
+small: scan it all for the nodes you want shouldn't hurt.
 
-greg k-h
+if the memcg is big, it will have per-node lists anyway.
+
+Given that, do we really want to pay the price of two list_heads in the
+objects?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
