@@ -1,64 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx113.postini.com [74.125.245.113])
-	by kanga.kvack.org (Postfix) with SMTP id E903D6B0006
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 14:20:37 -0500 (EST)
-Message-ID: <1358536835.7383.31.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH v3] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Fri, 18 Jan 2013 14:20:35 -0500
-In-Reply-To: <1358536190.11051.573.camel@edumazet-glaptop>
-References: <1358446258.23211.32.camel@gandalf.local.home>
-	 <1358447864.23211.34.camel@gandalf.local.home>
-	 <0000013c4a69a2cf-1a19a6f6-e6a3-4f06-99a4-10fdd4b9aca2-000000@email.amazonses.com>
-	 <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-	 <1358521791.7383.11.camel@gandalf.local.home>
-	 <0000013c4ef61783-2778b0f1-fdc1-421b-9d3e-ccd68d528115-000000@email.amazonses.com>
-	 <1358536190.11051.573.camel@edumazet-glaptop>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
+Received: from psmtp.com (na3sys010amx194.postini.com [74.125.245.194])
+	by kanga.kvack.org (Postfix) with SMTP id 17E166B0009
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 14:27:49 -0500 (EST)
+Message-ID: <50F9A240.5040808@parallels.com>
+Date: Fri, 18 Jan 2013 11:28:00 -0800
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 2/7] memcg: split part of memcg creation to css_online
+References: <1357897527-15479-1-git-send-email-glommer@parallels.com> <1357897527-15479-3-git-send-email-glommer@parallels.com> <20130118152526.GF10701@dhcp22.suse.cz>
+In-Reply-To: <20130118152526.GF10701@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio
- R. Goncalves" <lgoncalv@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On Fri, 2013-01-18 at 11:09 -0800, Eric Dumazet wrote:
-> On Fri, 2013-01-18 at 18:40 +0000, Christoph Lameter wrote:
+On 01/18/2013 07:25 AM, Michal Hocko wrote:
+> On Fri 11-01-13 13:45:22, Glauber Costa wrote:
+>> Although there is arguably some value in doing this per se, the main
 > 
-> > The fetching of the tid is the only critical thing here. If the tid is
-> > retrieved from the right cpu then the cmpxchg will fail if any changes
-> > occured to freelist or the page variable.
-> > 
-> > The tid can be retrieved without disabling preemption through
-> > this_cpu_read().
+> This begs for asking what are the other reasons but I would just leave
+> it alone and focus on the code reshuffling.
 > 
-> Strictly speaking, this_cpu_read() _does_ disable preemption.
+Yes, Sir.
 
-I was thinking the same thing.
+>> goal of this patch is to make room for the locking changes to come.
+>>
+>> With all the value assignment from parent happening in a context where
+>> our iterators can already be used, we can safely lock against value
+>> change in some key values like use_hierarchy, without resorting to the
+>> cgroup core at all.
+> 
+> Sorry but I do not understand the above. Please be more specific here.
+> Why the context matters if it matters at all.
+> 
+> Maybe something like the below?
+> "
+> mem_cgroup_css_alloc is currently responsible for the complete
+> initialization of a newly created memcg. Cgroup core offers another
+> stage of initialization - css_online - which is called after the newly
+> created group is already linked to the cgroup hierarchy.
+> All attributes inheritted from the parent group can be safely moved
+> into mem_cgroup_css_online because nobody can see the newly created
+> group yet. This has also an advantage that the parent can already see
+> the child group (via iterators) by the time we inherit values from it
+> so he can do appropriate steps (e.g. don't allow changing use_hierarchy
+> etc...).
+> 
+> This patch is a preparatory work for later locking rework to get rid of
+> big cgroup lock from memory controller code.
+> "
+> 
+Well, I will look into merging some of it, but AFAIK, you are explaining
+why is it safe (a good thing to do), while I was focusing on telling our
+future readers why is it needed.
+
+I'll try to rewrite for clarity
 
 > 
-> Of course, on x86, this_cpu_read() uses __this_cpu_read()
+> 	/*
+> 	 * Initialization of attributes which are linked with parent
+> 	 * based on use_hierarchy.
+> 	 */
+>>  	if (parent && parent->use_hierarchy) {
+> 
+> parent cannot be NULL.
+> 
+indeed.
 
+>>  		res_counter_init(&memcg->res, &parent->res);
+>>  		res_counter_init(&memcg->memsw, &parent->memsw);
+>> @@ -6120,15 +6149,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>>  		if (parent && parent != root_mem_cgroup)
+>>  			mem_cgroup_subsys.broken_hierarchy = true;
+>>  	}
+>> -	memcg->last_scanned_node = MAX_NUMNODES;
+>> -	INIT_LIST_HEAD(&memcg->oom_notify);
+>>  
+>> -	if (parent)
+>> -		memcg->swappiness = mem_cgroup_swappiness(parent);
+>> -	atomic_set(&memcg->refcnt, 1);
+>> -	memcg->move_charge_at_immigrate = 0;
+>> -	mutex_init(&memcg->thresholds_lock);
+>> -	spin_lock_init(&memcg->move_lock);
+>> +	memcg->swappiness = mem_cgroup_swappiness(parent);
+> 
+> Please move this up to oom_kill_disable and use_hierarchy
+> initialization.
+> 
+Yes, Sir!
 
-Looking at using this_cpu_read() on tid, I can't see what would break.
-We still need the check for page being NULL in node_match(). I'm still
-uneasy about it. Just because we can't see how it might break doesn't
-mean that it wont. As we have already found a bit of bugs in the current
-code. I'd feel more comfortable with the explicit preempt_disable(). And
-this is coming from an -rt guy that tries to avoid preempt_disable().
-But you're (Christoph) the maintainer.
+> 	/*
+> 	 * kmem initialization depends on memcg->res initialization
+> 	 * because it relies on parent_mem_cgroup
+> 	 */
+>>  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+>>  	if (error) {
+>> @@ -6138,12 +6160,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
+>>  		 * call __mem_cgroup_free, so return directly
+>>  		 */
+>>  		mem_cgroup_put(memcg);
+> 
+> Hmm, this doesn't release parent for use_hierarchy. The bug is there
+> from before this patch. So it should go into a separate patch.
+> 
+Good catch.
 
-I guess if you use this_cpu_read() you don't need that barrier anymore.
-
--- Steve
 
 
 --
