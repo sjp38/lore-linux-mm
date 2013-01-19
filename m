@@ -1,77 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx123.postini.com [74.125.245.123])
-	by kanga.kvack.org (Postfix) with SMTP id C03D06B0005
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 19:13:36 -0500 (EST)
-Message-ID: <50F9E53F.4090902@parallels.com>
-Date: Fri, 18 Jan 2013 16:13:51 -0800
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx146.postini.com [74.125.245.146])
+	by kanga.kvack.org (Postfix) with SMTP id 4878D6B0005
+	for <linux-mm@kvack.org>; Fri, 18 Jan 2013 20:07:07 -0500 (EST)
+Message-ID: <50F9F186.5050204@huawei.com>
+Date: Sat, 19 Jan 2013 09:06:14 +0800
+From: Jiang Liu <jiang.liu@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/19] list_lru: per-node list infrastructure
-References: <1354058086-27937-10-git-send-email-david@fromorbit.com> <50F6FDC8.5020909@parallels.com> <20130116225521.GF2498@dastard> <50F7475F.90609@parallels.com> <20130117042245.GG2498@dastard> <50F84118.7030608@parallels.com> <20130118001029.GK2498@dastard> <50F893D2.7080103@parallels.com> <20130118081133.GQ2498@dastard> <50F99E08.4060107@parallels.com> <20130119001042.GR2498@dastard>
-In-Reply-To: <20130119001042.GR2498@dastard>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH v5 0/5] Add movablecore_map boot option
+References: <1358154925-21537-1-git-send-email-tangchen@cn.fujitsu.com>  <50F440F5.3030006@zytor.com>  <20130114143456.3962f3bd.akpm@linux-foundation.org>  <3908561D78D1C84285E8C5FCA982C28F1C97C2DA@ORSMSX108.amr.corp.intel.com>  <20130114144601.1c40dc7e.akpm@linux-foundation.org>  <50F647E8.509@jp.fujitsu.com>  <20130116132953.6159b673.akpm@linux-foundation.org>  <50F72F17.9030805@zytor.com> <50F78750.8070403@jp.fujitsu.com>  <50F79422.6090405@zytor.com>  <3908561D78D1C84285E8C5FCA982C28F1C986D98@ORSMSX108.amr.corp.intel.com>  <50F85ED5.3010003@jp.fujitsu.com> <50F8E63F.5040401@jp.fujitsu.com>  <818a2b0a-f471-413f-9231-6167eb2d9607@email.android.com>  <50F8FBE9.6040501@jp.fujitsu.com>  <50F902F6.5010605@cn.fujitsu.com> <1358501031.22331.10.camel@liguang.fnst.cn.fujitsu.com> <3908561D78D1C84285E8C5FCA982C28F1C988096@ORSMSX108.amr.corp.intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F1C988096@ORSMSX108.amr.corp.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Greg Thelen <gthelen@google.com>, Ying Han <yinghan@google.com>, Suleiman Souhlal <suleiman@google.com>
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: li guang <lig.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "wujianguo@huawei.com" <wujianguo@huawei.com>, "wency@cn.fujitsu.com" <wency@cn.fujitsu.com>, "laijs@cn.fujitsu.com" <laijs@cn.fujitsu.com>, "linfeng@cn.fujitsu.com" <linfeng@cn.fujitsu.com>, "yinghai@kernel.org" <yinghai@kernel.org>, "rob@landley.net" <rob@landley.net>, "minchan.kim@gmail.com" <minchan.kim@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "rientjes@google.com" <rientjes@google.com>, "guz.fnst@cn.fujitsu.com" <guz.fnst@cn.fujitsu.com>, "rusty@rustcorp.com.au" <rusty@rustcorp.com.au>, "lliubbo@gmail.com" <lliubbo@gmail.com>, "jaegeuk.hanse@gmail.com" <jaegeuk.hanse@gmail.com>, "glommer@parallels.com" <glommer@parallels.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 01/18/2013 04:10 PM, Dave Chinner wrote:
-> On Fri, Jan 18, 2013 at 11:10:00AM -0800, Glauber Costa wrote:
->> On 01/18/2013 12:11 AM, Dave Chinner wrote:
->>> On Thu, Jan 17, 2013 at 04:14:10PM -0800, Glauber Costa wrote:
->>>> On 01/17/2013 04:10 PM, Dave Chinner wrote:
->>>>> And then each object uses:
->>>>>
->>>>> struct lru_item {
->>>>> 	struct list_head global_list;
->>>>> 	struct list_head memcg_list;
->>>>> }
->>>> by objects you mean dentries, inodes, and the such, right?
->>>
->>> Yup.
->>>
->>>> Would it be acceptable to you?
->>>
->>> If it works the way I think it should, then yes.
->>>
->>>> We've been of course doing our best to avoid increasing the size of the
->>>> objects, therefore this is something we've never mentioned. However, if
->>>> it would be acceptable from the fs POV, this would undoubtedly make our
->>>> life extremely easier.
->>>
->>> I've been trying hard to work out how to avoid increasing the size
->>> of structures as well. But if we can't work out how to implement
->>> something sanely with only a single list head per object to work
->>> from, then increasing the size of objects is something that we need
->>> to consider if it solves all the problems we are trying to solve.
->>>
->>> i.e. if adding a second list head makes the code dumb, simple,
->>> obviously correct and hard to break then IMO it's a no-brainer.
->>> But we have to tick all the right boxes first...
->>>
->>
->> One of our main efforts recently has been trying to reduce memcg impact
->> when it is not in use, even if its compiled in. So what really bothers
->> me here is the fact that we are increasing the size of dentries and
->> inodes no matter what.
->>
->> Still within the idea of exploring the playing field, would an
->> indirection be worth it ?
->> We would increase the total per-object memory usage by 8 bytes instead
->> of 16: the dentry gets a pointer, and a separate allocation for the
->> list_lru.
+On 2013-1-19 2:29, Luck, Tony wrote:
+>> kernel absolutely should not care much about SMBIOS(DMI info),
+>> AFAIK, every BIOS vendor did not fill accurate info in SMBIOS,
+>> mostly only on demand when OEMs required SMBIOS to report some
+>> specific info.
+>> furthermore, SMBIOS is so old and benifit nobody(in my personal
+>> opinion), so maybe let's forget it.
 > 
-> A separate allocation is really not an option. We can't do an
-> allocation in where dentries/inodes/other objects are added to the
-> LRU because they are under object state spinlocks, and adding a
-> potential memory allocation failure to the "add to lru" case is
-> pretty nasty, IMO.
+> The "not having right information" flaw could be fixed by OEMs selling
+> systems on which it is important for system functionality that it be right.
+> They could use monetary incentives, contractual obligations, or sharp
+> pointy sticks to make their BIOS vendor get the table right.
 > 
+> BUT there is a bigger flaw - SMBIOS is a static table with no way to
+> update it in response to hotplug events.  So it could in theory have the
+> right information at boot time ... there is no possible way for it to be
+> right as soon as somebody adds, removes or replaces hardware.
 
-That would of course happen on dentry creation time, not lru add time.
-It is totally possible since at creation time, we already know if memcg
-is enabled or not.
+SMBIOS plays an important role when we are trying to do hardware fault
+management, because OS needs information from SMBIOS to physically
+identify a component/FRU. I also remember there were efforts to extend
+SMBIOS specification to dynamically update the SMBIOS table when hotplug
+happens.
+
+Regards!
+Gerry
+
+> 
+> -Tony
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
