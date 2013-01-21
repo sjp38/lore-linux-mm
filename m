@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx181.postini.com [74.125.245.181])
-	by kanga.kvack.org (Postfix) with SMTP id 4999A6B0009
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:42:17 -0500 (EST)
-Message-ID: <50FCFF76.6090202@parallels.com>
-Date: Mon, 21 Jan 2013 12:42:30 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
+	by kanga.kvack.org (Postfix) with SMTP id 8B47A6B0005
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 04:15:10 -0500 (EST)
+Date: Mon, 21 Jan 2013 10:15:07 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 4/7] memcg: fast hierarchy-aware child test.
+Message-ID: <20130121091507.GC7798@dhcp22.suse.cz>
+References: <1357897527-15479-1-git-send-email-glommer@parallels.com>
+ <1357897527-15479-5-git-send-email-glommer@parallels.com>
+ <20130118160610.GI10701@dhcp22.suse.cz>
+ <50FCF539.6070000@parallels.com>
+ <20130121083418.GA7798@dhcp22.suse.cz>
+ <50FCFF34.9070308@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/7] memcg: split part of memcg creation to css_online
-References: <1357897527-15479-1-git-send-email-glommer@parallels.com> <1357897527-15479-3-git-send-email-glommer@parallels.com> <20130118152526.GF10701@dhcp22.suse.cz> <50FCEF40.8040709@parallels.com> <20130121083828.GB7798@dhcp22.suse.cz>
-In-Reply-To: <20130121083828.GB7798@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <50FCFF34.9070308@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Glauber Costa <glommer@parallels.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-On 01/21/2013 12:38 PM, Michal Hocko wrote:
-> On Mon 21-01-13 11:33:20, Glauber Costa wrote:
->> On 01/18/2013 07:25 PM, Michal Hocko wrote:
->>>> -	spin_lock_init(&memcg->move_lock);
->>>>> +	memcg->swappiness = mem_cgroup_swappiness(parent);
->>> Please move this up to oom_kill_disable and use_hierarchy
->>> initialization.
->>
->> One thing: wouldn't moving it to inside use_hierarchy be a change of
->> behavior here?
-> 
-> I do not see how it would change the behavior. But maybe I wasn't clear
-> enough. I just wanted to make all three:
-> 	memcg->use_hierarchy = parent->use_hierarchy;
-> 	memcg->oom_kill_disable = parent->oom_kill_disable;
-> 	memcg->swappiness = mem_cgroup_swappiness(parent);
-> 
-> in the same visual block so that we can split the function into three
-> parts. Inherited values which don't depend on use_hierarchy, those that
-> depend on use_hierarchy and the rest that depends on the previous
-> decisions (kmem e.g.).
-> Makes sense?
-> 
-Yes. I misunderstood you, believing you wanted the swappiness assignment
-to go inside the use_hierarchy block.
+On Mon 21-01-13 12:41:24, Glauber Costa wrote:
+> On 01/21/2013 12:34 PM, Michal Hocko wrote:
+[...]
+> > If you really insist on not using
+> > children directly then do something like:
+> > 	struct cgroup *pos;
+> > 
+> > 	if (!memcg->use_hierarchy)
+> > 		cgroup_for_each_child(pos, memcg->css.cgroup)
+> > 			return true;
+> > 
+> > 	return false;
+> > 
+> I don't oppose that.
+
+OK, I guess I could live with that ;)
+
+> > This still has an issue that a change (e.g. vm_swappiness) that requires
+> > this check will fail even though the child creation fails after it is
+> > made visible (e.g. during css_online).
+> > 
+> Is it a problem ?
+
+I thought you were considering this a problem. Quoting from patch 3/7
+"
+> This calls for troubles and I do not think the win you get is really
+> worth it. All it gives you is basically that you can change an
+> inheritable attribute while your child is between css_alloc and
+> css_online and so your attribute change doesn't fail if the child
+> creation fails between those two. Is this the case you want to
+> handle? Does it really even matter?
+
+I think it matters a lot. Aside from the before vs after discussion to
+which I've already conceded, without this protection we can't guarantee
+that we won't end up with an inconsistent value of the tunables between
+parent and child.
+"
+
+Just to make it clear. I do not see this failure as a big problem. We
+can fix it by adding an Online check later if somebody complains.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
