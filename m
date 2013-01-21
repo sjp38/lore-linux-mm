@@ -1,36 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
-	by kanga.kvack.org (Postfix) with SMTP id 47AD66B0006
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:33:49 -0500 (EST)
-Message-ID: <50FD51C4.6070909@redhat.com>
-Date: Mon, 21 Jan 2013 09:33:40 -0500
+Received: from psmtp.com (na3sys010amx163.postini.com [74.125.245.163])
+	by kanga.kvack.org (Postfix) with SMTP id 874866B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:39:16 -0500 (EST)
+Message-ID: <50FD530A.6010500@redhat.com>
+Date: Mon, 21 Jan 2013 09:39:06 -0500
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/rmap: rename anon_vma_unlock() => anon_vma_unlock_write()
-References: <20130121115921.23500.7190.stgit@zurg>
-In-Reply-To: <20130121115921.23500.7190.stgit@zurg>
+Subject: Re: [PATCH 1/2] mm: prevent to add a page to swap if may_writepage
+ is unset
+References: <1357712474-27595-1-git-send-email-minchan@kernel.org> <1357712474-27595-2-git-send-email-minchan@kernel.org> <20130116134155.18092f1a.akpm@linux-foundation.org> <20130117005314.GB18669@blaptop> <20130117142238.e32c46d5.akpm@linux-foundation.org> <20130117233641.GA31368@blaptop> <20130121015222.GA3666@blaptop>
+In-Reply-To: <20130121015222.GA3666@blaptop>
 Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@openvz.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dan Magenheimer <dan.magenheimer@oracle.com>, Sonny Rao <sonnyrao@google.com>, Bryan Freed <bfreed@google.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On 01/21/2013 06:59 AM, Konstantin Khlebnikov wrote:
-> comment in 4fc3f1d66b1ef0d7b8dc11f4ff1cc510f78b37d6 ("mm/rmap, migration:
-> Make rmap_walk_anon() and try_to_unmap_anon() more scalable") says:
->
-> | Rename anon_vma_[un]lock() => anon_vma_[un]lock_write(),
-> | to make it clearer that it's an exclusive write-lock in
-> | that case - suggested by Rik van Riel.
->
-> But that commit renames only anon_vma_lock()
->
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
+On 01/20/2013 08:52 PM, Minchan Kim wrote:
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+>  From 94086dc7152359d052802c55c82ef19509fe8cce Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Mon, 21 Jan 2013 10:43:43 +0900
+> Subject: [PATCH] mm: Use up free swap space before reaching OOM kill
+>
+> Recently, Luigi reported there are lots of free swap space when
+> OOM happens. It's easily reproduced on zram-over-swap, where
+> many instance of memory hogs are running and laptop_mode is enabled.
+> He said there was no problem when he disabled laptop_mode.
+> The problem when I investigate problem is following as.
+>
+> Assumption for easy explanation: There are no page cache page in system
+> because they all are already reclaimed.
+>
+> 1. try_to_free_pages disable may_writepage when laptop_mode is enabled.
+> 2. shrink_inactive_list isolates victim pages from inactive anon lru list.
+> 3. shrink_page_list adds them to swapcache via add_to_swap but it doesn't
+>     pageout because sc->may_writepage is 0 so the page is rotated back into
+>     inactive anon lru list. The add_to_swap made the page Dirty by SetPageDirty.
+> 4. 3 couldn't reclaim any pages so do_try_to_free_pages increase priority and
+>     retry reclaim with higher priority.
+> 5. shrink_inactlive_list try to isolate victim pages from inactive anon lru list
+>     but got failed because it try to isolate pages with ISOLATE_CLEAN mode but
+>     inactive anon lru list is full of dirty pages by 3 so it just returns
+>     without  any reclaim progress.
+> 6. do_try_to_free_pages doesn't set may_writepage due to zero total_scanned.
+>     Because sc->nr_scanned is increased by shrink_page_list but we don't call
+>     shrink_page_list in 5 due to short of isolated pages.
+>
+> Above loop is continued until OOM happens.
+> The problem didn't happen before [1] was merged because old logic's
+> isolatation in shrink_inactive_list was successful and tried to call
+> shrink_page_list to pageout them but it still ends up failed to page out
+> by may_writepage. But important point is that sc->nr_scanned was increased
+> although we couldn't swap out them so do_try_to_free_pages could set
+> may_writepages.
+>
+> Since [1] was introduced, it's not a good idea any more to depends on
+> only the number of scanned pages for setting may_writepage. So this patch
+> adds new trigger point of setting may_writepage as below DEF_PRIOIRTY - 2
+> which is used to show the significant memory pressure in VM so it's good
+> fit for our purpose which would be better to lose power saving or clickety
+> rather than OOM killing.
+>
+> [1] f80c067[mm: zone_reclaim: make isolate_lru_page() filter-aware]
+>
+> Reported-by: Luigi Semenzato <semenzato@google.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Your patch is a nice simplification.  I am ok with the
+change, provided it works for Luigi :)
+
+Acked-by: Rik van Riel <riel@redhat.com>
 
 
 -- 
