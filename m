@@ -1,84 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
-	by kanga.kvack.org (Postfix) with SMTP id 6467E6B0005
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:39:16 -0500 (EST)
-Date: Mon, 21 Jan 2013 03:39:07 -0500 (EST)
-From: Zhouping Liu <zliu@redhat.com>
-Message-ID: <389106003.8637801.1358757547754.JavaMail.root@redhat.com>
-In-Reply-To: <4FEE7665.6020409@jp.fujitsu.com>
-Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+Received: from psmtp.com (na3sys010amx147.postini.com [74.125.245.147])
+	by kanga.kvack.org (Postfix) with SMTP id 24BD26B0005
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:41:17 -0500 (EST)
+Message-ID: <50FCFF34.9070308@parallels.com>
+Date: Mon, 21 Jan 2013 12:41:24 +0400
+From: Glauber Costa <glommer@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH v2 4/7] memcg: fast hierarchy-aware child test.
+References: <1357897527-15479-1-git-send-email-glommer@parallels.com> <1357897527-15479-5-git-send-email-glommer@parallels.com> <20130118160610.GI10701@dhcp22.suse.cz> <50FCF539.6070000@parallels.com> <20130121083418.GA7798@dhcp22.suse.cz>
+In-Reply-To: <20130121083418.GA7798@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
 
-
-
------ Original Message -----
-> From: "Kamezawa Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
-> To: "Tejun Heo" <tj@kernel.org>
-> Cc: "David Rientjes" <rientjes@google.com>, "Michal Hocko" <mhocko@suse.cz>, "Zhouping Liu" <zliu@redhat.com>,
-> linux-mm@kvack.org, "Li Zefan" <lizefan@huawei.com>, "CAI Qian" <caiqian@redhat.com>, "LKML"
-> <linux-kernel@vger.kernel.org>, "Andrew Morton" <akpm@linux-foundation.org>
-> Sent: Saturday, June 30, 2012 11:45:41 AM
-> Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+On 01/21/2013 12:34 PM, Michal Hocko wrote:
+> On Mon 21-01-13 11:58:49, Glauber Costa wrote:
+>> On 01/18/2013 08:06 PM, Michal Hocko wrote:
+>>>> +	/* bounce at first found */
+>>>>> +	for_each_mem_cgroup_tree(iter, memcg) {
+>>> This will not work. Consider you will see a !online memcg. What happens?
+>>> mem_cgroup_iter will css_get group that it returns and css_put it when
+>>> it visits another one or finishes the loop. So your poor iter will be
+>>> released before it gets born. Not good.
+>>>
+>> Reading this again, I don't really follow. The iterator is not supposed
+>> to put() anything it hasn't get()'d before, so we will never release the
+>> group. Note that if it ever appears in here, the css refcnt is expected
+>> to be at least 1 already.
+>>
+>> The online test relies on the memcg refcnt, not on the css refcnt.
 > 
-> (2012/06/29 3:31), Tejun Heo wrote:
-> > Hello, KAME.
-> >
-> > On Thu, Jun 28, 2012 at 01:04:16PM +0900, Kamezawa Hiroyuki wrote:
-> >>> I still wish it's folded into CONFIG_MEMCG and conditionalized
-> >>> just on
-> >>> CONFIG_SWAP tho.
-> >>>
-> >>
-> >> In old days, memsw controller was not very stable. So, we devided
-> >> the config.
-> >> And, it makes size of memory for swap-device double (adds 2bytes
-> >> per swapent.)
-> >> That is the problem.
-> >
-> > I see.  Do you think it's now reasonable to drop the separate
-> > config
-> > option?  Having memcg enabled but swap unaccounted sounds
-> > half-broken
-> > to me.
-> >
+> Bahh, yeah, sorry about the confusion. Damn, it's not the first time I
+> managed to mix those two...
 > 
-> Hmm. Maybe it's ok if we can keep boot option. I'll cook a patch in
-> the next week.
+You're excused. This time.
 
-Hello Kame and All,
+>> Actually, now that the value setting is all done in css_online, the css
+>> refcnt should be enough to denote if the cgroup already has children,
+>> without a memcg-specific test. The css refcnt is bumped somewhere
+>> between alloc and online. 
+> 
+> Yes, in init_cgroup_css.
+Yes, but that should not matter. We should not depend on anything more
+general than "between alloc and online".
 
-Sorry for so delay to open the thread. (please open the link https://lkml.org/lkml/2012/6/26/547 if you don't remember the topic)
+> 
+>> Unless Tejun objects it, I think I will just get rid of the online
+>> test, and rely on the fact that if the iterator sees any children, we
+>> should already online.
+> 
+> Which means that we are back to list_empty(&cgrp->children) test, aren't
+> we. 
 
-do you have any updates for the issue?
+As long as cgroup core keeps using a list yes.
+The css itself won't go away, regardless of the infrastructure cgroup
+uses internally. So I do believe this is stronger long term.
 
-I checked the latest version, if we don't open CONFIG_MEMCG_SWAP_ENABLED(commit c255a458055e changed
-CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED as CONFIG_MEMCG_SWAP_ENABLED), the issue still exist:
+Note that we have been arguing here about the css_refcnt, but we don't
+actually refer to it: we do css_get and let cgroup core do whatever it
+pleases it internally.
 
-[root@dhcp-8-128 ~] cat .config  | grep -i memcg
-CONFIG_MEMCG=y
-CONFIG_MEMCG_SWAP=y
-# CONFIG_MEMCG_SWAP_ENABLED is not set
-CONFIG_MEMCG_KMEM=y
-[root@dhcp-8-128 ~] uname -r
-3.8.0-rc4+
-[root@dhcp-8-128 ~] cat memory.memsw.*
-cat: memory.memsw.failcnt: Operation not supported
-cat: memory.memsw.limit_in_bytes: Operation not supported
-cat: memory.memsw.max_usage_in_bytes: Operation not supported
-cat: memory.memsw.usage_in_bytes: Operation not supported
 
-As David said, we should not export memory.memsw.* files if we disable CONFIG_MEMCG_SWAP_ENABLED, or return -EINVAL, right?
-(please correct me if I'm wrong)
+> If you really insist on not using
+> children directly then do something like:
+> 	struct cgroup *pos;
+> 
+> 	if (!memcg->use_hierarchy)
+> 		cgroup_for_each_child(pos, memcg->css.cgroup)
+> 			return true;
+> 
+> 	return false;
+> 
+I don't oppose that.
 
--- 
-Thanks,
-Zhouping
+> This still has an issue that a change (e.g. vm_swappiness) that requires
+> this check will fail even though the child creation fails after it is
+> made visible (e.g. during css_online).
+> 
+Is it a problem ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
