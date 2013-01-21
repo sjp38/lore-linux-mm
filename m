@@ -1,123 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
-	by kanga.kvack.org (Postfix) with SMTP id 92AB56B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:10:54 -0500 (EST)
-Date: Mon, 21 Jan 2013 15:10:51 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 3/6] memcg: fast hierarchy-aware child test.
-Message-ID: <20130121141051.GN7798@dhcp22.suse.cz>
-References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
- <1358766813-15095-4-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx153.postini.com [74.125.245.153])
+	by kanga.kvack.org (Postfix) with SMTP id 47AD66B0006
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:33:49 -0500 (EST)
+Message-ID: <50FD51C4.6070909@redhat.com>
+Date: Mon, 21 Jan 2013 09:33:40 -0500
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1358766813-15095-4-git-send-email-glommer@parallels.com>
+Subject: Re: [PATCH] mm/rmap: rename anon_vma_unlock() => anon_vma_unlock_write()
+References: <20130121115921.23500.7190.stgit@zurg>
+In-Reply-To: <20130121115921.23500.7190.stgit@zurg>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+To: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
 
-On Mon 21-01-13 15:13:30, Glauber Costa wrote:
-> Currently, we use cgroups' provided list of children to verify if it is
-> safe to proceed with any value change that is dependent on the cgroup
-> being empty.
-> 
-> This is less than ideal, because it enforces a dependency over cgroup
-> core that we would be better off without. The solution proposed here is
-> to iterate over the child cgroups and if any is found that is already
-> online, we bounce and return: we don't really care how many children we
-> have, only if we have any.
-> 
-> This is also made to be hierarchy aware. IOW, cgroups with  hierarchy
-> disabled, while they still exist, will be considered for the purpose of
-> this interface as having no children.
-> 
-> Signed-off-by: Glauber Costa <glommer@parallels.com>
+On 01/21/2013 06:59 AM, Konstantin Khlebnikov wrote:
+> comment in 4fc3f1d66b1ef0d7b8dc11f4ff1cc510f78b37d6 ("mm/rmap, migration:
+> Make rmap_walk_anon() and try_to_unmap_anon() more scalable") says:
+>
+> | Rename anon_vma_[un]lock() => anon_vma_[un]lock_write(),
+> | to make it clearer that it's an exclusive write-lock in
+> | that case - suggested by Rik van Riel.
+>
+> But that commit renames only anon_vma_lock()
+>
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
 
-OK, as I said I can live with this.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-But
-> ---
->  mm/memcontrol.c | 34 +++++++++++++++++++++++++++++-----
->  1 file changed, 29 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 6c72204..6d3ad21 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4716,6 +4716,32 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
->  }
->  
->  /*
-> + * this mainly exists for tests during set of use_hierarchy. Since this is
-> + * the very setting we are changing, the current hierarchy value is meaningless
-> + */
-> +static inline bool __memcg_has_children(struct mem_cgroup *memcg)
-> +{
-> +	struct cgroup *pos;
-> +
-> +	/* bounce at first found */
-> +	cgroup_for_each_child(pos, memcg->css.cgroup)
-> +		return true;
-> +	return false;
-> +}
-
-This needs rcu_read_{un}lock.
-
-> +
-> +/*
-> + * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
-> + * already dead (like in mem_cgroup_force_empty, for instance).  This is
-> + * different than mem_cgroup_count_children, in the sense that we don't really
-> + * care how many children we have, we only need to know if we have any. It is
-> + * also count any memcg without hierarchy as infertile for that matter.
-> + */
-> +static inline bool memcg_has_children(struct mem_cgroup *memcg)
-> +{
-> +	return memcg->use_hierarchy && __memcg_has_children(memcg);
-> +}
-> +
-> +/*
->   * Reclaims as many pages from the given memcg as possible and moves
->   * the rest to the parent.
->   *
-> @@ -4800,7 +4826,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
->  	 */
->  	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
->  				(val == 1 || val == 0)) {
-> -		if (list_empty(&cont->children))
-> +		if (!__memcg_has_children(memcg))
->  			memcg->use_hierarchy = val;
->  		else
->  			retval = -EBUSY;
-> @@ -4917,8 +4943,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
->  	cgroup_lock();
->  	mutex_lock(&set_limit_mutex);
->  	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
-> -		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
-> -						!list_empty(&cont->children))) {
-> +		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
->  			ret = -EBUSY;
->  			goto out;
->  		}
-> @@ -5334,8 +5359,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
->  	cgroup_lock();
->  
->  	/* If under hierarchy, only empty-root can set this value */
-> -	if ((parent->use_hierarchy) ||
-> -	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-> +	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
->  		cgroup_unlock();
->  		return -EINVAL;
->  	}
-> -- 
-> 1.8.1
-> 
 
 -- 
-Michal Hocko
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
