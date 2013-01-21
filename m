@@ -1,80 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id 353B96B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 18:21:26 -0500 (EST)
-Date: Tue, 22 Jan 2013 10:21:21 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC, PATCH 00/19] Numa aware LRU lists and shrinkers
-Message-ID: <20130121232121.GG2498@dastard>
-References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
- <50FD6815.90900@parallels.com>
+Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
+	by kanga.kvack.org (Postfix) with SMTP id EB9AF6B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 18:23:15 -0500 (EST)
+Date: Tue, 22 Jan 2013 08:23:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 1/4] zram: force disksize setting before using zram
+Message-ID: <20130121232313.GE3666@blaptop>
+References: <1358745691-4556-1-git-send-email-minchan@kernel.org>
+ <50FD9954.7000303@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50FD6815.90900@parallels.com>
+In-Reply-To: <50FD9954.7000303@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Johannes Weiner <hannes@cmpxchg.org>
+To: Jerome Marchand <jmarchan@redhat.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Jan 21, 2013 at 08:08:53PM +0400, Glauber Costa wrote:
-> On 11/28/2012 03:14 AM, Dave Chinner wrote:
-> > [PATCH 09/19] list_lru: per-node list infrastructure
+On Mon, Jan 21, 2013 at 08:39:00PM +0100, Jerome Marchand wrote:
+> On 01/21/2013 06:21 AM, Minchan Kim wrote:
+> > Now zram document syas "set disksize is optional"
+> > but partly it's wrong. When you try to use zram firstly after
+> > booting, you must set disksize, otherwise zram can't work because
+> > zram gendisk's size is 0. But once you do it, you can use zram freely
+> > after reset because reset doesn't reset to zero paradoxically.
+> > So in this time, disksize setting is optional.:(
+> > It's inconsitent for user behavior and not straightforward.
 > > 
-> > This makes the generic LRU list much more scalable by changing it to
-> > a {list,lock,count} tuple per node. There are no external API
-> > changes to this changeover, so is transparent to current users.
+> > This patch forces always setting disksize firstly before using zram.
+> > Yes. It changes current behavior so someone could complain when
+> > he upgrades zram. Apparently it could be a problem if zram is mainline
+> > but it still lives in staging so behavior could be changed for right
+> > way to go. Let them excuse.
 > > 
-> > [PATCH 10/19] shrinker: add node awareness
-> > [PATCH 11/19] fs: convert inode and dentry shrinking to be node
+> > Cc: Nitin Gupta <ngupta@vflare.org>
+> > Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  drivers/staging/zram/zram.txt     |   27 +++++++++----------
+> >  drivers/staging/zram/zram_drv.c   |   52 ++++++++++++++-----------------------
+> >  drivers/staging/zram/zram_drv.h   |    5 +---
+> >  drivers/staging/zram/zram_sysfs.c |    6 +----
+> >  4 files changed, 35 insertions(+), 55 deletions(-)
 > > 
-> > Adds a nodemask to the struct shrink_control for callers of
-> > shrink_slab to set appropriately for their reclaim context. This
-> > nodemask is then passed by the inode and dentry cache reclaim code
-> > to the generic LRU list code to implement node aware shrinking.
+> > diff --git a/drivers/staging/zram/zram.txt b/drivers/staging/zram/zram.txt
+> > index 5f75d29..765d790 100644
+> > --- a/drivers/staging/zram/zram.txt
+> > +++ b/drivers/staging/zram/zram.txt
+> > @@ -23,17 +23,17 @@ Following shows a typical sequence of steps for using zram.
+> >  	This creates 4 devices: /dev/zram{0,1,2,3}
+> >  	(num_devices parameter is optional. Default: 1)
+> >  
+> > -2) Set Disksize (Optional):
+> > -	Set disk size by writing the value to sysfs node 'disksize'
+> > -	(in bytes). If disksize is not given, default value of 25%
+> > -	of RAM is used.
+> > -
+> > -	# Initialize /dev/zram0 with 50MB disksize
+> > -	echo $((50*1024*1024)) > /sys/block/zram0/disksize
+> > -
+> > -	NOTE: disksize cannot be changed if the disk contains any
+> > -	data. So, for such a disk, you need to issue 'reset' (see below)
+> > -	before you can change its disksize.
+> > +2) Set Disksize
+> > +        Set disk size by writing the value to sysfs node 'disksize'.
+> > +        The value can be either in bytes or you can use mem suffixes.
+> > +        Examples:
+> > +            # Initialize /dev/zram0 with 50MB disksize
+> > +            echo $((50*1024*1024)) > /sys/block/zram0/disksize
+> > +
+> > +            # Using mem suffixes
+> > +            echo 256K > /sys/block/zram0/disksize
+> > +            echo 512M > /sys/block/zram0/disksize
+> > +            echo 1G > /sys/block/zram0/disksize
+> >  
+> >  3) Activate:
+> >  	mkswap /dev/zram0
+> > @@ -65,8 +65,9 @@ Following shows a typical sequence of steps for using zram.
+> >  	echo 1 > /sys/block/zram0/reset
+> >  	echo 1 > /sys/block/zram1/reset
+> >  
+> > -	(This frees all the memory allocated for the given device).
+> > -
+> > +	This frees all the memory allocated for the given device and
+> > +	resets the disksize to zero. You must set the disksize again
+> > +	before reusing the device.
+> >  
+> >  Please report any problems at:
+> >   - Mailing list: linux-mm-cc at laptop dot org
+> > diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
+> > index 61fb8f1..1d45401 100644
+> > --- a/drivers/staging/zram/zram_drv.c
+> > +++ b/drivers/staging/zram/zram_drv.c
+> > @@ -94,34 +94,6 @@ static int page_zero_filled(void *ptr)
+> >  	return 1;
+> >  }
+> >  
+> > -static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
+> > -{
+> > -	if (!zram->disksize) {
+> > -		pr_info(
+> > -		"disk size not provided. You can use disksize_kb module "
+> > -		"param to specify size.\nUsing default: (%u%% of RAM).\n",
+> > -		default_disksize_perc_ram
+> > -		);
+> > -		zram->disksize = default_disksize_perc_ram *
+> > -					(totalram_bytes / 100);
+> > -	}
+> > -
+> > -	if (zram->disksize > 2 * (totalram_bytes)) {
+> > -		pr_info(
+> > -		"There is little point creating a zram of greater than "
+> > -		"twice the size of memory since we expect a 2:1 compression "
+> > -		"ratio. Note that zram uses about 0.1%% of the size of "
+> > -		"the disk when not in use so a huge zram is "
+> > -		"wasteful.\n"
+> > -		"\tMemory Size: %zu kB\n"
+> > -		"\tSize you selected: %llu kB\n"
+> > -		"Continuing anyway ...\n",
+> > -		totalram_bytes >> 10, zram->disksize >> 10);
+> > -	}
+> > -
+> > -	zram->disksize &= PAGE_MASK;
+> > -}
+> > -
+> >  static void zram_free_page(struct zram *zram, size_t index)
+> >  {
+> >  	unsigned long handle = zram->table[index].handle;
+> > @@ -495,6 +467,9 @@ void __zram_reset_device(struct zram *zram)
+> >  {
+> >  	size_t index;
+> >  
+> > +	if (!zram->init_done)
+> > +		goto out;
 > 
-> I have a follow up question that popped up from a discussion between me
-> and my very American friend Johnny Wheeler, also known as Johannes
-> Weiner (CC'd). I actually remember we discussing this, but don't fully
-> remember the outcome. And since I can't find it anywhere, it must have
-> been in a media other than e-mail. So I thought it would do no harm in
-> at least documenting it...
+> In that case, the device has not been initialized yet or has been
+> reset already. zram->disksize and disk capacity should already been
+> zero in that case. Why don't we just return here?
 > 
-> Why are we doing this per-node, instead of per-zone?
-> 
-> It seems to me that the goal is to collapse all zones of a node into a
-> single list, but since the number of zones is not terribly larger than
-> the number of nodes, and zones is where the pressure comes from, what do
-> we really gain from this?
+> Jerome
 
-The number is quite a bit higher - there are platforms with 5 zones
-to a node. The reality is, though, for most platforms slab
-allocations come from a single zone - they never come from ZONE_DMA,
-ZONE_HIGHMEM or ZONE_MOVEABLE, so there is there is no good reason
-for having cache LRUs for these zones. So, two zones at most.
+Done.
+Thanks for the pointing out, Jerome!
 
-And then there's the complexity issue - it's simple/trivial to user
-per node lists, node masks, etc. It's an obvious abstraction that
-everyone understands, is simle to understand, acheives exactly the
-purpose that is needed and is not tied to the /current/
-implementation of the current VM memory management code.
-
-I don't see any good reason for tying LRUs to MM zones. the
-original implementation of the per-node shrinkers by Nick Piggin did
-this: the LRUs for the dentry and inode caches were embedded in the
-struct zone, and it wasn't generically extensible because of that.
-i.e. node-aware shrinkers were directly influenced by the zone
-infrastructure and so the internal implementation of the mm
-subsystem started leaking out and determining how completely
-unrelated subsystems need to implement their own cache
-management.....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
