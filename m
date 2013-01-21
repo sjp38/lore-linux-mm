@@ -1,11 +1,11 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
-	by kanga.kvack.org (Postfix) with SMTP id 4E5C46B0005
+Received: from psmtp.com (na3sys010amx121.postini.com [74.125.245.121])
+	by kanga.kvack.org (Postfix) with SMTP id 581636B0009
 	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 06:13:27 -0500 (EST)
 From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 3/6] memcg: fast hierarchy-aware child test.
-Date: Mon, 21 Jan 2013 15:13:30 +0400
-Message-Id: <1358766813-15095-4-git-send-email-glommer@parallels.com>
+Subject: [PATCH v3 5/6] memcg: increment static branch right after limit set.
+Date: Mon, 21 Jan 2013 15:13:32 +0400
+Message-Id: <1358766813-15095-6-git-send-email-glommer@parallels.com>
 In-Reply-To: <1358766813-15095-1-git-send-email-glommer@parallels.com>
 References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
@@ -13,91 +13,75 @@ List-ID: <linux-mm.kvack.org>
 To: cgroups@vger.kernel.org
 Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>
 
-Currently, we use cgroups' provided list of children to verify if it is
-safe to proceed with any value change that is dependent on the cgroup
-being empty.
+We were deferring the kmemcg static branch increment to a later time,
+due to a nasty dependency between the cpu_hotplug lock, taken by the
+jump label update, and the cgroup_lock.
 
-This is less than ideal, because it enforces a dependency over cgroup
-core that we would be better off without. The solution proposed here is
-to iterate over the child cgroups and if any is found that is already
-online, we bounce and return: we don't really care how many children we
-have, only if we have any.
-
-This is also made to be hierarchy aware. IOW, cgroups with  hierarchy
-disabled, while they still exist, will be considered for the purpose of
-this interface as having no children.
+Now we no longer take the cgroup lock, and we can save ourselves the
+trouble.
 
 Signed-off-by: Glauber Costa <glommer@parallels.com>
+Acked-by: Michal Hocko <mhocko@suse>
 ---
- mm/memcontrol.c | 34 +++++++++++++++++++++++++++++-----
- 1 file changed, 29 insertions(+), 5 deletions(-)
+ mm/memcontrol.c | 31 +++++++------------------------
+ 1 file changed, 7 insertions(+), 24 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6c72204..6d3ad21 100644
+index d3b78b9..5a247de 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -4716,6 +4716,32 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
- }
- 
- /*
-+ * this mainly exists for tests during set of use_hierarchy. Since this is
-+ * the very setting we are changing, the current hierarchy value is meaningless
-+ */
-+static inline bool __memcg_has_children(struct mem_cgroup *memcg)
-+{
-+	struct cgroup *pos;
-+
-+	/* bounce at first found */
-+	cgroup_for_each_child(pos, memcg->css.cgroup)
-+		return true;
-+	return false;
-+}
-+
-+/*
-+ * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
-+ * already dead (like in mem_cgroup_force_empty, for instance).  This is
-+ * different than mem_cgroup_count_children, in the sense that we don't really
-+ * care how many children we have, we only need to know if we have any. It is
-+ * also count any memcg without hierarchy as infertile for that matter.
-+ */
-+static inline bool memcg_has_children(struct mem_cgroup *memcg)
-+{
-+	return memcg->use_hierarchy && __memcg_has_children(memcg);
-+}
-+
-+/*
-  * Reclaims as many pages from the given memcg as possible and moves
-  * the rest to the parent.
-  *
-@@ -4800,7 +4826,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
- 	 */
- 	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
- 				(val == 1 || val == 0)) {
--		if (list_empty(&cont->children))
-+		if (!__memcg_has_children(memcg))
- 			memcg->use_hierarchy = val;
- 		else
- 			retval = -EBUSY;
-@@ -4917,8 +4943,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
- 	cgroup_lock();
- 	mutex_lock(&set_limit_mutex);
- 	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
--		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
--						!list_empty(&cont->children))) {
-+		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
- 			ret = -EBUSY;
+@@ -4926,8 +4926,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ {
+ 	int ret = -EINVAL;
+ #ifdef CONFIG_MEMCG_KMEM
+-	bool must_inc_static_branch = false;
+-
+ 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+ 	/*
+ 	 * For simplicity, we won't allow this to be disabled.  It also can't
+@@ -4958,7 +4956,13 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 			res_counter_set_limit(&memcg->kmem, RESOURCE_MAX);
  			goto out;
  		}
-@@ -5334,8 +5359,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
- 	cgroup_lock();
- 
- 	/* If under hierarchy, only empty-root can set this value */
--	if ((parent->use_hierarchy) ||
--	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
-+	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
- 		cgroup_unlock();
- 		return -EINVAL;
- 	}
+-		must_inc_static_branch = true;
++		static_key_slow_inc(&memcg_kmem_enabled_key);
++		/*
++		 * setting the active bit after the inc will guarantee no one
++		 * starts accounting before all call sites are patched
++		 */
++		memcg_kmem_set_active(memcg);
++
+ 		/*
+ 		 * kmem charges can outlive the cgroup. In the case of slab
+ 		 * pages, for instance, a page contain objects from various
+@@ -4970,27 +4974,6 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+ 		ret = res_counter_set_limit(&memcg->kmem, val);
+ out:
+ 	mutex_unlock(&memcg_mutex);
+-
+-	/*
+-	 * We are by now familiar with the fact that we can't inc the static
+-	 * branch inside cgroup_lock. See disarm functions for details. A
+-	 * worker here is overkill, but also wrong: After the limit is set, we
+-	 * must start accounting right away. Since this operation can't fail,
+-	 * we can safely defer it to here - no rollback will be needed.
+-	 *
+-	 * The boolean used to control this is also safe, because
+-	 * KMEM_ACCOUNTED_ACTIVATED guarantees that only one process will be
+-	 * able to set it to true;
+-	 */
+-	if (must_inc_static_branch) {
+-		static_key_slow_inc(&memcg_kmem_enabled_key);
+-		/*
+-		 * setting the active bit after the inc will guarantee no one
+-		 * starts accounting before all call sites are patched
+-		 */
+-		memcg_kmem_set_active(memcg);
+-	}
+-
+ #endif
+ 	return ret;
+ }
 -- 
 1.8.1
 
