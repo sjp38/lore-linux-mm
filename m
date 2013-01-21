@@ -1,115 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx164.postini.com [74.125.245.164])
-	by kanga.kvack.org (Postfix) with SMTP id EFACF6B0012
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 12:53:00 -0500 (EST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 21 Jan 2013 10:53:00 -0700
-Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 34D7719D8048
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:55 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0LHqp0x167752
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:52 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0LHqkAU025212
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:47 -0700
-Subject: [PATCH 1/5] make DEBUG_VIRTUAL work earlier in boot
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 21 Jan 2013 09:52:45 -0800
-References: <20130121175244.E5839E06@kernel.stglabs.ibm.com>
-In-Reply-To: <20130121175244.E5839E06@kernel.stglabs.ibm.com>
-Message-Id: <20130121175245.3081B2B1@kernel.stglabs.ibm.com>
+Received: from psmtp.com (na3sys010amx201.postini.com [74.125.245.201])
+	by kanga.kvack.org (Postfix) with SMTP id 0AE976B0006
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 13:08:33 -0500 (EST)
+In-Reply-To: <20130121175249.AFE9EAD7@kernel.stglabs.ibm.com>
+References: <20130121175244.E5839E06@kernel.stglabs.ibm.com> <20130121175249.AFE9EAD7@kernel.stglabs.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+ charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH 4/5] create slow_virt_to_phys()
+From: "H. Peter Anvin" <hpa@zytor.com>
+Date: Mon, 21 Jan 2013 12:08:18 -0600
+Message-ID: <2ad09c09-98c3-4b2d-9b3f-f16fbcce4edf@email.android.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
+To: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
 
+Why are you initializing psize/pmask?
 
-The KVM code has some repeated bugs in it around use of __pa() on
-per-cpu data.  Those data are not in an area on which using
-__pa() is valid.  However, they are also called early enough in
-boot that __vmalloc_start_set is not set, and thus the
-CONFIG_DEBUG_VIRTUAL debugging does not catch them.
+Dave Hansen <dave@linux.vnet.ibm.com> wrote:
 
-This adds a check to also verify __pa() calls against max_low_pfn,
-which we can use earler in boot than is_vmalloc_addr().  However,
-if we are super-early in boot, max_low_pfn=0 and this will trip
-on every call, so also make sure that max_low_pfn is set before
-we try to use it.
+>
+>This is necessary because __pa() does not work on some kinds of
+>memory, like vmalloc() or the alloc_remap() areas on 32-bit
+>NUMA systems.  We have some functions to do conversions _like_
+>this in the vmalloc() code (like vmalloc_to_page()), but they
+>do not work on sizes other than 4k pages.  We would potentially
+>need to be able to handle all the page sizes that we use for
+>the kernel linear mapping (4k, 2M, 1G).
+>
+>In practice, on 32-bit NUMA systems, the percpu areas get stuck
+>in the alloc_remap() area.  Any __pa() call on them will break
+>and basically return garbage.
+>
+>This patch introduces a new function slow_virt_to_phys(), which
+>walks the kernel page tables on x86 and should do precisely
+>the same logical thing as __pa(), but actually work on a wider
+>range of memory.  It should work on the normal linear mapping,
+>vmalloc(), kmap(), etc...
+>
+>Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+>Acked-by: Rik van Riel <riel@redhat.com>
+>---
+>
+> linux-2.6.git-dave/arch/x86/include/asm/pgtable_types.h |    1 
+>linux-2.6.git-dave/arch/x86/mm/pageattr.c               |   31
+>++++++++++++++++
+> 2 files changed, 32 insertions(+)
+>
+>diff -puN arch/x86/include/asm/pgtable_types.h~create-slow_virt_to_phys
+>arch/x86/include/asm/pgtable_types.h
+>---
+>linux-2.6.git/arch/x86/include/asm/pgtable_types.h~create-slow_virt_to_phys	2013-01-17
+>10:22:26.590434129 -0800
+>+++ linux-2.6.git-dave/arch/x86/include/asm/pgtable_types.h	2013-01-17
+>10:22:26.598434199 -0800
+>@@ -352,6 +352,7 @@ static inline void update_page_count(int
+>  * as a pte too.
+>  */
+>extern pte_t *lookup_address(unsigned long address, unsigned int
+>*level);
+>+extern phys_addr_t slow_virt_to_phys(void *__address);
+> 
+> #endif	/* !__ASSEMBLY__ */
+> 
+>diff -puN arch/x86/mm/pageattr.c~create-slow_virt_to_phys
+>arch/x86/mm/pageattr.c
+>---
+>linux-2.6.git/arch/x86/mm/pageattr.c~create-slow_virt_to_phys	2013-01-17
+>10:22:26.594434163 -0800
+>+++ linux-2.6.git-dave/arch/x86/mm/pageattr.c	2013-01-17
+>10:22:26.598434199 -0800
+>@@ -364,6 +364,37 @@ pte_t *lookup_address(unsigned long addr
+> EXPORT_SYMBOL_GPL(lookup_address);
+> 
+> /*
+>+ * This is necessary because __pa() does not work on some
+>+ * kinds of memory, like vmalloc() or the alloc_remap()
+>+ * areas on 32-bit NUMA systems.  The percpu areas can
+>+ * end up in this kind of memory, for instance.
+>+ *
+>+ * This could be optimized, but it is only intended to be
+>+ * used at inititalization time, and keeping it
+>+ * unoptimized should increase the testing coverage for
+>+ * the more obscure platforms.
+>+ */
+>+phys_addr_t slow_virt_to_phys(void *__virt_addr)
+>+{
+>+	unsigned long virt_addr = (unsigned long)__virt_addr;
+>+	phys_addr_t phys_addr;
+>+	unsigned long offset;
+>+	unsigned int level = -1;
+>+	unsigned long psize = 0;
+>+	unsigned long pmask = 0;
+>+	pte_t *pte;
+>+
+>+	pte = lookup_address(virt_addr, &level);
+>+	BUG_ON(!pte);
+>+	psize = page_level_size(level);
+>+	pmask = page_level_mask(level);
+>+	offset = virt_addr & ~pmask;
+>+	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
+>+	return (phys_addr | offset);
+>+}
+>+EXPORT_SYMBOL_GPL(slow_virt_to_phys);
+>+
+>+/*
+>  * Set the new pmd in all the pgds we know about:
+>  */
+>static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t
+>pte)
+>_
 
-With this patch applied, CONFIG_DEBUG_VIRTUAL will actually
-catch the bug I was chasing (and fix later in this series).
-
-I'd love to find a generic way so that any __pa() call on percpu
-areas could do a BUG_ON(), but there don't appear to be any nice
-and easy ways to check if an address is a percpu one.  Anybody
-have ideas on a way to do this?
-
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
----
-
- linux-2.6.git-dave/arch/x86/mm/numa.c     |    2 +-
- linux-2.6.git-dave/arch/x86/mm/pat.c      |    4 ++--
- linux-2.6.git-dave/arch/x86/mm/physaddr.c |    9 ++++++++-
- 3 files changed, 11 insertions(+), 4 deletions(-)
-
-diff -puN arch/x86/mm/numa.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/numa.c
---- linux-2.6.git/arch/x86/mm/numa.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2013-01-17 10:22:25.614425502 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/numa.c	2013-01-17 10:22:25.622425572 -0800
-@@ -219,7 +219,7 @@ static void __init setup_node_data(int n
- 	 */
- 	nd = alloc_remap(nid, nd_size);
- 	if (nd) {
--		nd_pa = __pa(nd);
-+		nd_pa = __phys_addr_nodebug(nd);
- 		remapped = true;
- 	} else {
- 		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-diff -puN arch/x86/mm/pat.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/pat.c
---- linux-2.6.git/arch/x86/mm/pat.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2013-01-17 10:22:25.614425502 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/pat.c	2013-01-17 10:22:25.622425572 -0800
-@@ -560,10 +560,10 @@ int kernel_map_sync_memtype(u64 base, un
- {
- 	unsigned long id_sz;
- 
--	if (base >= __pa(high_memory))
-+	if (base > __pa(high_memory-1))
- 		return 0;
- 
--	id_sz = (__pa(high_memory) < base + size) ?
-+	id_sz = (__pa(high_memory-1) <= base + size) ?
- 				__pa(high_memory) - base :
- 				size;
- 
-diff -puN arch/x86/mm/physaddr.c~make-DEBUG_VIRTUAL-work-earlier-in-boot arch/x86/mm/physaddr.c
---- linux-2.6.git/arch/x86/mm/physaddr.c~make-DEBUG_VIRTUAL-work-earlier-in-boot	2013-01-17 10:22:25.618425536 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/physaddr.c	2013-01-17 10:22:25.622425572 -0800
-@@ -1,3 +1,4 @@
-+#include <linux/bootmem.h>
- #include <linux/mmdebug.h>
- #include <linux/module.h>
- #include <linux/mm.h>
-@@ -47,10 +48,16 @@ EXPORT_SYMBOL(__virt_addr_valid);
- #ifdef CONFIG_DEBUG_VIRTUAL
- unsigned long __phys_addr(unsigned long x)
- {
-+	unsigned long phys_addr = x - PAGE_OFFSET;
- 	/* VMALLOC_* aren't constants  */
- 	VIRTUAL_BUG_ON(x < PAGE_OFFSET);
- 	VIRTUAL_BUG_ON(__vmalloc_start_set && is_vmalloc_addr((void *) x));
--	return x - PAGE_OFFSET;
-+	/* max_low_pfn is set early, but not _that_ early */
-+	if (max_low_pfn) {
-+		VIRTUAL_BUG_ON((phys_addr >> PAGE_SHIFT) > max_low_pfn);
-+		BUG_ON(slow_virt_to_phys((void *)x) != phys_addr);
-+	}
-+	return phys_addr;
- }
- EXPORT_SYMBOL(__phys_addr);
- #endif
-_
+-- 
+Sent from my mobile phone. Please excuse brevity and lack of formatting.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
