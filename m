@@ -1,42 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx195.postini.com [74.125.245.195])
-	by kanga.kvack.org (Postfix) with SMTP id 2FF476B0005
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 02:58:36 -0500 (EST)
-Message-ID: <50FCF539.6070000@parallels.com>
-Date: Mon, 21 Jan 2013 11:58:49 +0400
-From: Glauber Costa <glommer@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/7] memcg: fast hierarchy-aware child test.
-References: <1357897527-15479-1-git-send-email-glommer@parallels.com> <1357897527-15479-5-git-send-email-glommer@parallels.com> <20130118160610.GI10701@dhcp22.suse.cz>
-In-Reply-To: <20130118160610.GI10701@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
+	by kanga.kvack.org (Postfix) with SMTP id 1A1476B0005
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:01:32 -0500 (EST)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 1/3] slub: correct to calculate num of acquired objects in get_partial_node()
+Date: Mon, 21 Jan 2013 17:01:25 +0900
+Message-Id: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kamezawa.hiroyu@jp.fujitsu.com, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Christoph Lameter <cl@linux-foundation.org>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 01/18/2013 08:06 PM, Michal Hocko wrote:
->> +	/* bounce at first found */
->> > +	for_each_mem_cgroup_tree(iter, memcg) {
-> This will not work. Consider you will see a !online memcg. What happens?
-> mem_cgroup_iter will css_get group that it returns and css_put it when
-> it visits another one or finishes the loop. So your poor iter will be
-> released before it gets born. Not good.
-> 
-Reading this again, I don't really follow. The iterator is not supposed
-to put() anything it hasn't get()'d before, so we will never release the
-group. Note that if it ever appears in here, the css refcnt is expected
-to be at least 1 already.
+There is a subtle bug when calculating a number of acquired objects.
 
-The online test relies on the memcg refcnt, not on the css refcnt.
+Currently, we calculate "available = page->objects - page->inuse",
+after acquire_slab() is called in get_partial_node().
 
-Actually, now that the value setting is all done in css_online, the css
-refcnt should be enough to denote if the cgroup already has children,
-without a memcg-specific test. The css refcnt is bumped somewhere
-between alloc and online. Unless Tejun objects it, I think I will just
-get rid of the online test, and rely on the fact that if the iterator
-sees any children, we should already online.
+In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
+So,
+
+	acquire_slab(s, n, page, object == NULL);
+
+	if (!object) {
+		c->page = page;
+		stat(s, ALLOC_FROM_PARTIAL);
+		object = t;
+		available = page->objects - page->inuse;
+
+		!!! availabe is always 0 !!!
+	...
+
+Therfore, "available > s->cpu_partial / 2" is always false and
+we always go to second iteration.
+This patch correct this problem.
+
+After that, we don't need return value of put_cpu_partial().
+So remove it.
+
+v2: calculate nr of objects using new.objects and new.inuse.
+It is more accurate way than before.
+
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+diff --git a/mm/slub.c b/mm/slub.c
+index ba2ca53..7204c74 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1493,7 +1493,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
+  */
+ static inline void *acquire_slab(struct kmem_cache *s,
+ 		struct kmem_cache_node *n, struct page *page,
+-		int mode)
++		int mode, int *objects)
+ {
+ 	void *freelist;
+ 	unsigned long counters;
+@@ -1507,6 +1507,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+ 	freelist = page->freelist;
+ 	counters = page->counters;
+ 	new.counters = counters;
++	*objects = new.objects - new.inuse;
+ 	if (mode) {
+ 		new.inuse = page->objects;
+ 		new.freelist = NULL;
+@@ -1528,7 +1529,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
+ 	return freelist;
+ }
+ 
+-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
++static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
+ static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
+ 
+ /*
+@@ -1539,6 +1540,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+ {
+ 	struct page *page, *page2;
+ 	void *object = NULL;
++	int available = 0;
++	int objects;
+ 
+ 	/*
+ 	 * Racy check. If we mistakenly see no partial slabs then we
+@@ -1552,22 +1555,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
+ 	spin_lock(&n->list_lock);
+ 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+ 		void *t;
+-		int available;
+ 
+ 		if (!pfmemalloc_match(page, flags))
+ 			continue;
+ 
+-		t = acquire_slab(s, n, page, object == NULL);
++		t = acquire_slab(s, n, page, object == NULL, &objects);
+ 		if (!t)
+ 			break;
+ 
++		available += objects;
+ 		if (!object) {
+ 			c->page = page;
+ 			stat(s, ALLOC_FROM_PARTIAL);
+ 			object = t;
+-			available =  page->objects - page->inuse;
+ 		} else {
+-			available = put_cpu_partial(s, page, 0);
++			put_cpu_partial(s, page, 0);
+ 			stat(s, CPU_PARTIAL_NODE);
+ 		}
+ 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
+@@ -1946,7 +1948,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+  * If we did not find a slot then simply move all the partials to the
+  * per node partial list.
+  */
+-static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
++static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ {
+ 	struct page *oldpage;
+ 	int pages;
+@@ -1984,7 +1986,6 @@ static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->next = oldpage;
+ 
+ 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+-	return pobjects;
+ }
+ 
+ static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
