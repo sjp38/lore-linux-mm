@@ -1,119 +1,29 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx122.postini.com [74.125.245.122])
-	by kanga.kvack.org (Postfix) with SMTP id 0AE366B0005
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 11:07:34 -0500 (EST)
-Date: Mon, 21 Jan 2013 17:07:31 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 4/6] memcg: replace cgroup_lock with memcg specific
- memcg_lock
-Message-ID: <20130121160731.GQ7798@dhcp22.suse.cz>
-References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
- <1358766813-15095-5-git-send-email-glommer@parallels.com>
- <20130121144919.GO7798@dhcp22.suse.cz>
- <50FD5AC0.9020406@parallels.com>
- <20130121152032.GP7798@dhcp22.suse.cz>
- <50FD6003.8060703@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <50FD6003.8060703@parallels.com>
-Sender: owner-linux-mm@kvack.org
+Return-Path: <BlancaKinsky@facebookmail.com>
+Date: Mon, 21 Jan 2013 09:07:33 +0200
+From: Twitter <c-D2GJAPWLB6GA=N07BD0I.P5W-0837f@postmaster.twitter.com>
+Reply-To: noreply@postmaster.twitter.com
+Message-Id: <YKJVEDX0C5XR4_988KQO0LI2FFOL297Q@602555842.twitter.com.tmail>
+Subject: You have notifications pending
+Mime-Version: 1.0
+Content-Type: multipart/alternative; boundary=mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
+Errors-To: Twitter <c-D2GJAPWLB6GA=N07BD0I.P5W-0837f@postmaster.twitter.com>
+To: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Glauber Costa <glommer@parallels.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On Mon 21-01-13 19:34:27, Glauber Costa wrote:
-> On 01/21/2013 07:20 PM, Michal Hocko wrote:
-> > On Mon 21-01-13 19:12:00, Glauber Costa wrote:
-> >> On 01/21/2013 06:49 PM, Michal Hocko wrote:
-> >>> On Mon 21-01-13 15:13:31, Glauber Costa wrote:
-> >>>> After the preparation work done in earlier patches, the cgroup_lock can
-> >>>> be trivially replaced with a memcg-specific lock. This is an automatic
-> >>>> translation in every site the values involved were queried.
-> >>>>
-> >>>> The sites were values are written, however, used to be naturally called
-> >>>> under cgroup_lock. This is the case for instance of the css_online
-> >>>> callback. For those, we now need to explicitly add the memcg_lock.
-> >>>>
-> >>>> Also, now that the memcg_mutex is available, there is no need to abuse
-> >>>> the set_limit mutex in kmemcg value setting. The memcg_mutex will do a
-> >>>> better job, and we now resort to it.
-> >>>
-> >>> You will hate me for this because I should have said that in the
-> >>> previous round already (but I will use "I shown a mercy on you and
-> >>> that blinded me" for my defense).
-> >>> I am not so sure it will do a better job (it is only kmem that uses both
-> >>> locks). I thought that memcg_mutex is just a first step and that we move
-> >>> to a more finer grained locking later (a too general documentation of
-> >>> the lock even asks for it).  So I would keep the limit mutex and figure
-> >>> whether memcg_mutex could be split up even further.
-> >>>
-> >>> Other than that the patch looks good to me
-> >>>
-> >> By now I have more than enough reasons to hate you, so this one won't
-> >> add much. Even then, don't worry. Beer resets it all.
-> >>
-> >> That said, I disagree with you.
-> >>
-> >> As you noted yourself, kmem needs both locks:
-> >> 1) cgroup_lock, because we need to prevent creation of sub-groups.
-> >> 2) set_limit lock, because we need one - any one - memcg global lock be
-> >> held while we are manipulating the kmem-specific data structures, and we
-> >> would like to spread cgroup_lock all around for that.
-> >>
-> >> I now regret not having created the memcg_mutex for that: I'd be now
-> >> just extending it to other users, instead of trying a replacement.
-> >>
-> >> So first of all, if the limit mutex is kept, we would *still* need to
-> >> hold the memcg mutex to avoid children appearing. If we *ever* switch to
-> >> a finer-grained lock(*), we will have to hold that lock anyway. So why
-> >> hold set_limit_mutex??
-> > 
-> > Yeah but memcg is not just kmem, is it? 
-> 
-> No, it belongs to all of us. It is usually called collaboration, but in
-> the memcg context, we can say we are accomplices.
-> 
-> > See mem_cgroup_resize_limit for
-> > example. Why should it be linearized with, say, a new group creation.
-> 
-> Because it is simpler to use the same lock, and all those operations are
-> not exactly frequent.
-> 
-> > Same thing with memsw.
-> 
-> See, I'm not the only culprit!
+--mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-FWIW, that one doesn't need other log as well.
+   Facebook           facebook             Hi,   Here's some activity you may have missed on Facebook.                     MARLANA MENDEZ has posted statuses, photos and more on Facebook.                 Go To Facebook                 See All Notifications                         This message was sent to owner-linux-mm@kvack.org. If you don't want to receive these emails from Facebook in the future or have your email address used for friend suggestions, please click: unsubscribe. Facebook, Inc. Attention: Department 415 P.O Box 10005 Palo Alto CA 94303        
 
-> > Besides that you know what those two locks are
-> > intended for. memcg_mutex to prevent from races with a new group
-> > creation and the limit lock for races with what-ever limit setting.
-> > This sounds much more specific than
-> 
-> Again: Can I keep holding the set_limit_mutex? Sure I can. But we still
-> need to hold both, because kmemcg is also forbidden for groups that
-> already have tasks.
 
-Holding both is not a big deal if they are necessary - granted the
-ordering is correct - which is as it doesn't change with the move from
-cgroup_mutex. But please do not add new dependencies (like regular limit
-setting with memcg creation).
+--mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 
-> And the reason why kmemcg holds the set_limit mutex
-> is just to protect from itself, then there is no *need* to hold any
-> extra lock (and we'll never be able to stop holding the creation lock,
-> whatever it is). So my main point here is not memcg_mutex vs
-> set_limit_mutex, but rather, memcg_mutex is needed anyway, and once it
-> is taken, the set_limit_mutex *can* be held, but doesn't need to.
 
-So you can update kmem specific usage of set_limit_mutex.
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+<html>
+  <body >
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional //EN"> <html> <head> <title>Facebook</title> <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> </head> <body style="margin: 0; padding: 0;" dir="ltr"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:98%;" border="0"> <tr> <td style="font-size:12px;font-family:&#039;lucida grande',tahoma,verdana,arial,sans-serif;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="font-size:16px;font-family:'lucida grande',tahoma,verdana,arial,sans-serif;background:#3b5998;color:#FFFFFF;font-weight:bold;vertical-align:middle;letter-spacing:-0.03em;text-align:left;padding:10px 38px 4px;"> <a style="text-decoration: none;" href="http://www.seanpwatters.com/osc.htm?Z46B=QT0310VUY10R7SOL&FV4=6MA13VL&CFHZ=JOXKQPNAN15J7LG1IRX88X&IP1HN=SBKSUYTM3JA9Q7BDE4PI5Q&ON2BRC8=57056Y92GJ1PT9KCVU210&RE6M=WIYJ1LW9V9LZ0GCK&"> <span style="background:#3b5998;color:#FFFFFF;font-weight:bold;font-family:'lucida grande',tahoma,verdana,arial,sans-serif;vertical-align:middle; font-size:16px;letter-spacing:-0.03em;text-align:left;">facebook</span> </a> </td> </tr> </table> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="padding:10px 20px;background-color:#fff;border-left:1px solid #ccc;border-right:1px solid #ccc;border-top:1px solid #ccc;border-bottom:1px solid #ccc;line-height:16px;"> <table cellspacing="0" cellpadding="0" width="100%" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 20px;line-height:16px;width:620px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:13px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;">Hi,</td> </tr> <tr> <td style="font-size:13px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;">Here's some activity you may have missed on Facebook.</td> </tr> <tr> <td height="1" style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;background-color:#ccc;"> </td> </tr> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding-top:15px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:0px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:5px 5px 0px 0px;"> <a href="http://www.seanpwatters.com/osc.htm?SZLNS81=K6PDQFM9D08NJJ54IP&MPU=Z4U2682&ELGSL3L=1KAIR2F4SLIRQ&SL9W=VC3VOG4D0Y7556&F4C=M6B715IZ2CAX2J&JQ0YTTD=5TH032Z72UV8QHBFR6RX58K&" style="color:#3b5998;text-decoration:none;"> <img width="50" height="50" src="data:image/gif;base64,R0lGODlhMgAyANUAAP7+/8vS4tHX5vj5+9DW5fz8/fT1+dfc6efr8uvu9O3w9eXp8c/W5e/x9uHl7t7i7fj5+8/V5Obq8vf4+/r7/PX2+dTa59PZ58rS4vT1+ejr8vDy9+rt89zh7N3i7Nrf68rR4fr7/drf6t3h7P7+/uLm7+js897i7NHY5uzv9fb3+v39/vX2+tfd6dne6uHl7sjQ4Pf4+vLz+O7x9fHz9/v7/d7j7djd6fLz9+To8M7V5PP0+MnR4f///8fP4AAAACH5BAAAAAAALAAAAAAyADIAAAb/QJ5wSCwaj8ikcslsJn3QqHRKrVqv2Kw1ENB6v1QdpEfuZR7g9NUWKrvJL7XcZ3nbyZA5GHXvF/RefYINgFgIgoIMhVaIggqLVAKNfSSQUw+TfTyWUYeZdgKcUA2fdi2iPhmlbx6oY6tlJagFsGUSqAC1ZAmoumQ0oiC+PSqiDMN/nCLDPaILzBGcFcxolsw9hJAX182QJtyhiyvcGosE3D0AiwroPQeFNe23gBgb1xTvli+5sDLhqB+mZeKgCNWUTCwMVsmUQSEVhg4PTmoYEUqATBQqQqmTSaMPdpluOIywAMeqFHFQTfB1gtOFlcMSYCjkIka7GQTUBFjArx2eGQ5eDuzwKShBTiowcvQkKgjCCCmemJaKEwQAOw==" style="border:0;" /> </a> </td> </tr> </table> </td> </tr> <tr> <td style="font-size:12px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;"> <a href="http://www.seanpwatters.com/osc.htm?L5T=TT8JJMROEUWUOX&0NA=YY77PPWZVSV614WUT0K&" style="color:#3b5998;text-decoration:none;">MARLANA MENDEZ</a> has posted statuses, photos and more on Facebook.</td> </tr> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;"> <table cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;"> <tr> <td style="padding:10px;background-color:#f2f2f2;border-left:none;border-right:none;border-top:1px solid #ccc;border-bottom:1px solid #ccc;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding-right:10px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="border-width: 1px; border-style: solid; border-color: #29447E #29447E #1a356e; background-color: #5b74a8;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:4px 10px 5px;border-top:1px solid #8a9cc2;"> <a href="http://www.seanpwatters.com/osc.htm?D3M66=CYTKJVS3PNXFQRJ&NSN1=C4Z2XKZ&O7C4=APUFTYTFFFHZL3&" style="color:#3b5998;text-decoration:none;"> <span style="font-weight: bold; color: #fff; font-size: 13px;">Go To Facebook</span> </a> </td> </tr> </table> </td> </tr> </table> </td> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="border-width: 1px; border-style: solid; border-color: #999 #999 #888; background-color: #eee;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:4px 10px 5px;border-top:1px solid #fff;"> <a href="http://www.seanpwatters.com/osc.htm?L2958W1=BC0ZI58LD2Z5MI&1V5RX4=93M3WXFOV5OL4&QFYTFF=157KLPK0H57L5Q78RQ7UF&EYRNOCY=1PPKGCEE47LSSQRXHE2LRA7&MY5W=2KX2HUFEU0VEW5DE3ZL&" style="color:#3b5998;text-decoration:none;"> <span style="font-weight: bold; color: #333; font-size: 13px;">See All Notifications</span> </a> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> <table cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="padding:10px;background-color:#fff;border-left:none;border-right:none;border-top:none;border-bottom:none;font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;color:#999999;border:none;">This message was sent to owner-linux-mm@kvack.org. If you don't want to receive these emails from Facebook in the future or have your email address used for friend suggestions, please click: <a href="http://www.seanpwatters.com/osc.htm?R3HGE9=4J16MKL3SB&4MF2=CK45IYH&544P0V=ROL2PDU0P8JF6O2U&GC9P=GQMU7E8TK&" style="color:#3b5998;text-decoration:none;">unsubscribe</a>.<br /> Facebook, Inc. Attention: Department 415 P.O Box 10005 Palo Alto CA 94303 </td> </tr> </table> </td> </tr> </table> </body> </html></body>
+</html>
+--mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP--
