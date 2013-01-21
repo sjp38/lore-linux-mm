@@ -1,147 +1,294 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx204.postini.com [74.125.245.204])
-	by kanga.kvack.org (Postfix) with SMTP id EB9AF6B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 18:23:15 -0500 (EST)
-Date: Tue, 22 Jan 2013 08:23:13 +0900
+Received: from psmtp.com (na3sys010amx127.postini.com [74.125.245.127])
+	by kanga.kvack.org (Postfix) with SMTP id 877D66B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 18:29:27 -0500 (EST)
+Date: Tue, 22 Jan 2013 08:29:25 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 1/4] zram: force disksize setting before using zram
-Message-ID: <20130121232313.GE3666@blaptop>
+Subject: Re: [PATCH v3 3/4] zram: get rid of lockdep warning
+Message-ID: <20130121232925.GF3666@blaptop>
 References: <1358745691-4556-1-git-send-email-minchan@kernel.org>
- <50FD9954.7000303@redhat.com>
+ <1358745691-4556-3-git-send-email-minchan@kernel.org>
+ <50FD9B50.4090802@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <50FD9954.7000303@redhat.com>
+In-Reply-To: <50FD9B50.4090802@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jerome Marchand <jmarchan@redhat.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Konrad Rzeszutek Wilk <konrad@darnok.org>, Dan Magenheimer <dan.magenheimer@oracle.com>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-On Mon, Jan 21, 2013 at 08:39:00PM +0100, Jerome Marchand wrote:
+On Mon, Jan 21, 2013 at 08:47:28PM +0100, Jerome Marchand wrote:
 > On 01/21/2013 06:21 AM, Minchan Kim wrote:
-> > Now zram document syas "set disksize is optional"
-> > but partly it's wrong. When you try to use zram firstly after
-> > booting, you must set disksize, otherwise zram can't work because
-> > zram gendisk's size is 0. But once you do it, you can use zram freely
-> > after reset because reset doesn't reset to zero paradoxically.
-> > So in this time, disksize setting is optional.:(
-> > It's inconsitent for user behavior and not straightforward.
+> > Lockdep complains about recursive deadlock of zram->init_lock.
+> > [1] made it false positive because we can't request IO to zram
+> > before setting disksize. Anyway, we should shut lockdep up to
+> > avoid many reporting from user.
 > > 
-> > This patch forces always setting disksize firstly before using zram.
-> > Yes. It changes current behavior so someone could complain when
-> > he upgrades zram. Apparently it could be a problem if zram is mainline
-> > but it still lives in staging so behavior could be changed for right
-> > way to go. Let them excuse.
-> > 
+> > Cc: Jerome Marchand <jmarchan@redhat.com>
 > > Cc: Nitin Gupta <ngupta@vflare.org>
-> > Acked-by: Dan Magenheimer <dan.magenheimer@oracle.com>
 > > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > > ---
-> >  drivers/staging/zram/zram.txt     |   27 +++++++++----------
-> >  drivers/staging/zram/zram_drv.c   |   52 ++++++++++++++-----------------------
-> >  drivers/staging/zram/zram_drv.h   |    5 +---
-> >  drivers/staging/zram/zram_sysfs.c |    6 +----
-> >  4 files changed, 35 insertions(+), 55 deletions(-)
+> >  drivers/staging/zram/zram_drv.c   |  115 +++++++++++++++++++------------------
+> >  drivers/staging/zram/zram_drv.h   |   12 +++-
+> >  drivers/staging/zram/zram_sysfs.c |   10 +++-
+> >  3 files changed, 79 insertions(+), 58 deletions(-)
 > > 
-> > diff --git a/drivers/staging/zram/zram.txt b/drivers/staging/zram/zram.txt
-> > index 5f75d29..765d790 100644
-> > --- a/drivers/staging/zram/zram.txt
-> > +++ b/drivers/staging/zram/zram.txt
-> > @@ -23,17 +23,17 @@ Following shows a typical sequence of steps for using zram.
-> >  	This creates 4 devices: /dev/zram{0,1,2,3}
-> >  	(num_devices parameter is optional. Default: 1)
-> >  
-> > -2) Set Disksize (Optional):
-> > -	Set disk size by writing the value to sysfs node 'disksize'
-> > -	(in bytes). If disksize is not given, default value of 25%
-> > -	of RAM is used.
-> > -
-> > -	# Initialize /dev/zram0 with 50MB disksize
-> > -	echo $((50*1024*1024)) > /sys/block/zram0/disksize
-> > -
-> > -	NOTE: disksize cannot be changed if the disk contains any
-> > -	data. So, for such a disk, you need to issue 'reset' (see below)
-> > -	before you can change its disksize.
-> > +2) Set Disksize
-> > +        Set disk size by writing the value to sysfs node 'disksize'.
-> > +        The value can be either in bytes or you can use mem suffixes.
-> > +        Examples:
-> > +            # Initialize /dev/zram0 with 50MB disksize
-> > +            echo $((50*1024*1024)) > /sys/block/zram0/disksize
-> > +
-> > +            # Using mem suffixes
-> > +            echo 256K > /sys/block/zram0/disksize
-> > +            echo 512M > /sys/block/zram0/disksize
-> > +            echo 1G > /sys/block/zram0/disksize
-> >  
-> >  3) Activate:
-> >  	mkswap /dev/zram0
-> > @@ -65,8 +65,9 @@ Following shows a typical sequence of steps for using zram.
-> >  	echo 1 > /sys/block/zram0/reset
-> >  	echo 1 > /sys/block/zram1/reset
-> >  
-> > -	(This frees all the memory allocated for the given device).
-> > -
-> > +	This frees all the memory allocated for the given device and
-> > +	resets the disksize to zero. You must set the disksize again
-> > +	before reusing the device.
-> >  
-> >  Please report any problems at:
-> >   - Mailing list: linux-mm-cc at laptop dot org
 > > diff --git a/drivers/staging/zram/zram_drv.c b/drivers/staging/zram/zram_drv.c
-> > index 61fb8f1..1d45401 100644
+> > index e95e37c..1f6938a 100644
 > > --- a/drivers/staging/zram/zram_drv.c
 > > +++ b/drivers/staging/zram/zram_drv.c
-> > @@ -94,34 +94,6 @@ static int page_zero_filled(void *ptr)
-> >  	return 1;
-> >  }
-> >  
-> > -static void zram_set_disksize(struct zram *zram, size_t totalram_bytes)
-> > -{
-> > -	if (!zram->disksize) {
-> > -		pr_info(
-> > -		"disk size not provided. You can use disksize_kb module "
-> > -		"param to specify size.\nUsing default: (%u%% of RAM).\n",
-> > -		default_disksize_perc_ram
-> > -		);
-> > -		zram->disksize = default_disksize_perc_ram *
-> > -					(totalram_bytes / 100);
-> > -	}
-> > -
-> > -	if (zram->disksize > 2 * (totalram_bytes)) {
-> > -		pr_info(
-> > -		"There is little point creating a zram of greater than "
-> > -		"twice the size of memory since we expect a 2:1 compression "
-> > -		"ratio. Note that zram uses about 0.1%% of the size of "
-> > -		"the disk when not in use so a huge zram is "
-> > -		"wasteful.\n"
-> > -		"\tMemory Size: %zu kB\n"
-> > -		"\tSize you selected: %llu kB\n"
-> > -		"Continuing anyway ...\n",
-> > -		totalram_bytes >> 10, zram->disksize >> 10);
-> > -	}
-> > -
-> > -	zram->disksize &= PAGE_MASK;
-> > -}
-> > -
-> >  static void zram_free_page(struct zram *zram, size_t index)
-> >  {
-> >  	unsigned long handle = zram->table[index].handle;
-> > @@ -495,6 +467,9 @@ void __zram_reset_device(struct zram *zram)
+> > @@ -462,19 +462,12 @@ error:
+> >  void __zram_reset_device(struct zram *zram)
 > >  {
 > >  	size_t index;
+> > +	struct zram_meta meta;
 > >  
-> > +	if (!zram->init_done)
-> > +		goto out;
+> >  	if (!zram->init_done)
+> >  		goto out;
+> >  
+> >  	zram->init_done = 0;
+> > -
+> > -	/* Free various per-device buffers */
+> > -	kfree(zram->compress_workmem);
+> > -	free_pages((unsigned long)zram->compress_buffer, 1);
+> > -
+> > -	zram->compress_workmem = NULL;
+> > -	zram->compress_buffer = NULL;
+> > -
+> >  	/* Free all pages that are still in this zram device */
+> >  	for (index = 0; index < zram->disksize >> PAGE_SHIFT; index++) {
+> >  		unsigned long handle = zram->table[index].handle;
+> > @@ -484,11 +477,11 @@ void __zram_reset_device(struct zram *zram)
+> >  		zs_free(zram->mem_pool, handle);
+> >  	}
+> >  
+> > -	vfree(zram->table);
+> > -	zram->table = NULL;
+> > -
+> > -	zs_destroy_pool(zram->mem_pool);
+> > -	zram->mem_pool = NULL;
+> > +	meta.compress_workmem = zram->compress_workmem;
+> > +	meta.compress_buffer = zram->compress_buffer;
+> > +	meta.table = zram->table;
+> > +	meta.mem_pool = zram->mem_pool;
+> > +	zram_meta_free(&meta);
+> >  
+> >  	/* Reset stats */
+> >  	memset(&zram->stats, 0, sizeof(zram->stats));
+> > @@ -505,12 +498,59 @@ void zram_reset_device(struct zram *zram)
+> >  	up_write(&zram->init_lock);
+> >  }
+> >  
+> > -/* zram->init_lock should be held */
+> > -int zram_init_device(struct zram *zram)
+> > +void zram_meta_free(struct zram_meta *meta)
+> > +{
+> > +	zs_destroy_pool(meta->mem_pool);
+> > +	kfree(meta->compress_workmem);
+> > +	free_pages((unsigned long)meta->compress_buffer, 1);
+> > +	vfree(meta->table);
+> > +	kfree(meta);
 > 
-> In that case, the device has not been initialized yet or has been
-> reset already. zram->disksize and disk capacity should already been
-> zero in that case. Why don't we just return here?
+> At all callsite, meta is a local variable. We don't want to free it.
+
+Argh, It was error from previous version which uses zram_meta dynamically.
+I will filx in next spin.
+
+> 
+> > +}
+> > +
+> > +int zram_meta_alloc(struct zram_meta *meta, u64 disksize)
+> >  {
+> > -	int ret;
+> >  	size_t num_pages;
+> >  
+> > +	meta->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+> > +	if (!meta->compress_workmem) {
+> > +		pr_err("Error allocating compressor working memory!\n");
+> > +		goto out;
+> > +	}
+> > +
+> > +	meta->compress_buffer =
+> > +			(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 1);
+> > +	if (!meta->compress_buffer) {
+> > +		pr_err("Error allocating compressor buffer space\n");
+> > +		goto free_workmem;
+> > +	}
+> > +
+> > +	num_pages = disksize >> PAGE_SHIFT;
+> > +	meta->table = vzalloc(num_pages * sizeof(*meta->table));
+> > +	if (!meta->table) {
+> > +		pr_err("Error allocating zram address table\n");
+> > +		goto free_buffer;
+> > +	}
+> > +
+> > +	meta->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
+> > +	if (!meta->mem_pool) {
+> > +		pr_err("Error creating memory pool\n");
+> > +		goto free_table;
+> > +	}
+> > +
+> > +	return 0;
+> > +
+> > +free_table:
+> > +	vfree(meta->table);
+> > +free_buffer:
+> > +	free_pages((unsigned long)meta->compress_buffer, 1);
+> > +free_workmem:
+> > +	kfree(meta->compress_workmem);
+> > +out:
+> > +	return -ENOMEM;
+> > +}
+> > +
+> > +void zram_init_device(struct zram *zram, struct zram_meta *meta)
+> > +{
+> >  	if (zram->disksize > 2 * (totalram_pages << PAGE_SHIFT)) {
+> >  		pr_info(
+> >  		"There is little point creating a zram of greater than "
+> > @@ -525,51 +565,16 @@ int zram_init_device(struct zram *zram)
+> >  		);
+> >  	}
+> >  
+> > -	zram->compress_workmem = kzalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
+> > -	if (!zram->compress_workmem) {
+> > -		pr_err("Error allocating compressor working memory!\n");
+> > -		ret = -ENOMEM;
+> > -		goto fail_no_table;
+> > -	}
+> > -
+> > -	zram->compress_buffer =
+> > -		(void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+> > -	if (!zram->compress_buffer) {
+> > -		pr_err("Error allocating compressor buffer space\n");
+> > -		ret = -ENOMEM;
+> > -		goto fail_no_table;
+> > -	}
+> > -
+> > -	num_pages = zram->disksize >> PAGE_SHIFT;
+> > -	zram->table = vzalloc(num_pages * sizeof(*zram->table));
+> > -	if (!zram->table) {
+> > -		pr_err("Error allocating zram address table\n");
+> > -		ret = -ENOMEM;
+> > -		goto fail_no_table;
+> > -	}
+> > -
+> >  	/* zram devices sort of resembles non-rotational disks */
+> >  	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, zram->disk->queue);
+> >  
+> > -	zram->mem_pool = zs_create_pool("zram", GFP_NOIO | __GFP_HIGHMEM);
+> > -	if (!zram->mem_pool) {
+> > -		pr_err("Error creating memory pool\n");
+> > -		ret = -ENOMEM;
+> > -		goto fail;
+> > -	}
+> > -
+> > +	zram->mem_pool = meta->mem_pool;
+> > +	zram->compress_workmem = meta->compress_workmem;
+> > +	zram->compress_buffer = meta->compress_buffer;
+> > +	zram->table = meta->table;
+> >  	zram->init_done = 1;
+> >  
+> >  	pr_debug("Initialization done!\n");
+> > -	return 0;
+> > -
+> > -fail_no_table:
+> > -	/* To prevent accessing table entries during cleanup */
+> > -	zram->disksize = 0;
+> > -fail:
+> > -	__zram_reset_device(zram);
+> 
+> Here goes the last call to __zram_reset_device() outside of zram_reset_device().
+> I guess we should get rid of it.
+
+Yeb. Will include it.
+Thanks for the review!
+
 > 
 > Jerome
-
-Done.
-Thanks for the pointing out, Jerome!
+> 
+> > -	pr_err("Initialization failed: err=%d\n", ret);
+> > -	return ret;
+> >  }
+> >  
+> >  static void zram_slot_free_notify(struct block_device *bdev,
+> > diff --git a/drivers/staging/zram/zram_drv.h b/drivers/staging/zram/zram_drv.h
+> > index 5b671d1..fbe7db0 100644
+> > --- a/drivers/staging/zram/zram_drv.h
+> > +++ b/drivers/staging/zram/zram_drv.h
+> > @@ -83,11 +83,19 @@ struct zram_stats {
+> >  	u32 bad_compress;	/* % of pages with compression ratio>=75% */
+> >  };
+> >  
+> > +struct zram_meta {
+> > +	void *compress_workmem;
+> > +	void *compress_buffer;
+> > +	struct table *table;
+> > +	struct zs_pool *mem_pool;
+> > +};
+> > +
+> >  struct zram {
+> >  	struct zs_pool *mem_pool;
+> >  	void *compress_workmem;
+> >  	void *compress_buffer;
+> >  	struct table *table;
+> > +
+> >  	spinlock_t stat64_lock;	/* protect 64-bit stats */
+> >  	struct rw_semaphore lock; /* protect compression buffers and table
+> >  				   * against concurrent read and writes */
+> > @@ -111,7 +119,9 @@ unsigned int zram_get_num_devices(void);
+> >  extern struct attribute_group zram_disk_attr_group;
+> >  #endif
+> >  
+> > -extern int zram_init_device(struct zram *zram);
+> >  extern void zram_reset_device(struct zram *zram);
+> > +extern int zram_meta_alloc(struct zram_meta *meta, u64 disksize);
+> > +extern void zram_meta_free(struct zram_meta *meta);
+> > +extern void zram_init_device(struct zram *zram, struct zram_meta *meta);
+> >  
+> >  #endif
+> > diff --git a/drivers/staging/zram/zram_sysfs.c b/drivers/staging/zram/zram_sysfs.c
+> > index 369db12..31433ef 100644
+> > --- a/drivers/staging/zram/zram_sysfs.c
+> > +++ b/drivers/staging/zram/zram_sysfs.c
+> > @@ -56,22 +56,28 @@ static ssize_t disksize_store(struct device *dev,
+> >  		struct device_attribute *attr, const char *buf, size_t len)
+> >  {
+> >  	u64 disksize;
+> > +	struct zram_meta meta;
+> >  	struct zram *zram = dev_to_zram(dev);
+> >  
+> >  	disksize = memparse(buf, NULL);
+> >  	if (!disksize)
+> >  		return -EINVAL;
+> >  
+> > +	disksize = PAGE_ALIGN(disksize);
+> > +	if (zram_meta_alloc(&meta, disksize))
+> > +		return -ENOMEM;
+> > +
+> >  	down_write(&zram->init_lock);
+> >  	if (zram->init_done) {
+> >  		up_write(&zram->init_lock);
+> > +		zram_meta_free(&meta);
+> >  		pr_info("Cannot change disksize for initialized device\n");
+> >  		return -EBUSY;
+> >  	}
+> >  
+> > -	zram->disksize = PAGE_ALIGN(disksize);
+> > +	zram->disksize = disksize;
+> >  	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
+> > -	zram_init_device(zram);
+> > +	zram_init_device(zram, &meta);
+> >  	up_write(&zram->init_lock);
+> >  
+> >  	return len;
+> > 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
