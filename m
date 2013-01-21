@@ -1,129 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx111.postini.com [74.125.245.111])
-	by kanga.kvack.org (Postfix) with SMTP id 1A1476B0005
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:01:32 -0500 (EST)
+	by kanga.kvack.org (Postfix) with SMTP id D705E6B0006
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:01:33 -0500 (EST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 1/3] slub: correct to calculate num of acquired objects in get_partial_node()
-Date: Mon, 21 Jan 2013 17:01:25 +0900
-Message-Id: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 2/3] slub: correct bootstrap() for kmem_cache, kmem_cache_node
+Date: Mon, 21 Jan 2013 17:01:26 +0900
+Message-Id: <1358755287-3899-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1358755287-3899-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux-foundation.org>, js1304@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-There is a subtle bug when calculating a number of acquired objects.
+Current implementation of bootstrap() is not sufficient for kmem_cache
+and kmem_cache_node.
 
-Currently, we calculate "available = page->objects - page->inuse",
-after acquire_slab() is called in get_partial_node().
+First, for kmem_cache.
+bootstrap() call kmem_cache_zalloc() at first. When kmem_cache_zalloc()
+is called, kmem_cache's slab is moved to cpu slab for satisfying kmem_cache
+allocation request. In current implementation, we only consider
+n->partial slabs, so, we miss this cpu slab for kmem_cache.
 
-In acquire_slab() with mode = 1, we always set new.inuse = page->objects.
-So,
+Second, for kmem_cache_node.
+When slab_state = PARTIAL, create_boot_cache() is called. And then,
+kmem_cache_node's slab is moved to cpu slab for satisfying kmem_cache_node
+allocation request. So, we also miss this slab.
 
-	acquire_slab(s, n, page, object == NULL);
+These didn't make any error previously, because we normally don't free
+objects which comes from kmem_cache's first slab and kmem_cache_node's.
 
-	if (!object) {
-		c->page = page;
-		stat(s, ALLOC_FROM_PARTIAL);
-		object = t;
-		available = page->objects - page->inuse;
+Problem will be solved if we consider a cpu slab in bootstrap().
+This patch implement it.
 
-		!!! availabe is always 0 !!!
-	...
-
-Therfore, "available > s->cpu_partial / 2" is always false and
-we always go to second iteration.
-This patch correct this problem.
-
-After that, we don't need return value of put_cpu_partial().
-So remove it.
-
-v2: calculate nr of objects using new.objects and new.inuse.
-It is more accurate way than before.
+v2: don't loop over all processors in bootstrap().
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/mm/slub.c b/mm/slub.c
-index ba2ca53..7204c74 100644
+index 7204c74..8b95364 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -1493,7 +1493,7 @@ static inline void remove_partial(struct kmem_cache_node *n,
-  */
- static inline void *acquire_slab(struct kmem_cache *s,
- 		struct kmem_cache_node *n, struct page *page,
--		int mode)
-+		int mode, int *objects)
+@@ -3614,10 +3614,15 @@ static int slab_memory_callback(struct notifier_block *self,
+ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
  {
- 	void *freelist;
- 	unsigned long counters;
-@@ -1507,6 +1507,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
- 	freelist = page->freelist;
- 	counters = page->counters;
- 	new.counters = counters;
-+	*objects = new.objects - new.inuse;
- 	if (mode) {
- 		new.inuse = page->objects;
- 		new.freelist = NULL;
-@@ -1528,7 +1529,7 @@ static inline void *acquire_slab(struct kmem_cache *s,
- 	return freelist;
- }
+ 	int node;
++	struct kmem_cache_cpu *c;
+ 	struct kmem_cache *s = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
  
--static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
-+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain);
- static inline bool pfmemalloc_match(struct page *page, gfp_t gfpflags);
+ 	memcpy(s, static_cache, kmem_cache->object_size);
  
- /*
-@@ -1539,6 +1540,8 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
- {
- 	struct page *page, *page2;
- 	void *object = NULL;
-+	int available = 0;
-+	int objects;
- 
- 	/*
- 	 * Racy check. If we mistakenly see no partial slabs then we
-@@ -1552,22 +1555,21 @@ static void *get_partial_node(struct kmem_cache *s, struct kmem_cache_node *n,
- 	spin_lock(&n->list_lock);
- 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
- 		void *t;
--		int available;
- 
- 		if (!pfmemalloc_match(page, flags))
- 			continue;
- 
--		t = acquire_slab(s, n, page, object == NULL);
-+		t = acquire_slab(s, n, page, object == NULL, &objects);
- 		if (!t)
- 			break;
- 
-+		available += objects;
- 		if (!object) {
- 			c->page = page;
- 			stat(s, ALLOC_FROM_PARTIAL);
- 			object = t;
--			available =  page->objects - page->inuse;
- 		} else {
--			available = put_cpu_partial(s, page, 0);
-+			put_cpu_partial(s, page, 0);
- 			stat(s, CPU_PARTIAL_NODE);
- 		}
- 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
-@@ -1946,7 +1948,7 @@ static void unfreeze_partials(struct kmem_cache *s,
-  * If we did not find a slot then simply move all the partials to the
-  * per node partial list.
-  */
--static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
-+static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- {
- 	struct page *oldpage;
- 	int pages;
-@@ -1984,7 +1986,6 @@ static int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		page->next = oldpage;
- 
- 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
--	return pobjects;
- }
- 
- static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
++	c = this_cpu_ptr(s->cpu_slab);
++	if (c->page)
++		c->page->slab_cache = s;
++
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+ 		struct kmem_cache_node *n = get_node(s, node);
+ 		struct page *p;
 -- 
 1.7.9.5
 
