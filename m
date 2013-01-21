@@ -1,110 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx131.postini.com [74.125.245.131])
-	by kanga.kvack.org (Postfix) with SMTP id 1E1BB6B000C
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 12:52:58 -0500 (EST)
+Received: from psmtp.com (na3sys010amx130.postini.com [74.125.245.130])
+	by kanga.kvack.org (Postfix) with SMTP id BE0B86B000E
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 12:52:59 -0500 (EST)
 Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dave@linux.vnet.ibm.com>;
-	Mon, 21 Jan 2013 10:52:56 -0700
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 3D6B71FF003F
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:40 -0700 (MST)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay05.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0LHqotC131996
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:50 -0700
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0LHqno3025493
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:49 -0700
-Subject: [PATCH 4/5] create slow_virt_to_phys()
+	Mon, 21 Jan 2013 10:52:58 -0700
+Received: from d03relay02.boulder.ibm.com (d03relay02.boulder.ibm.com [9.17.195.227])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 3207619D8045
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:55 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by d03relay02.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id r0LHqqOL262946
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:54 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id r0LHqpgE012014
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 10:52:52 -0700
+Subject: [PATCH 5/5] fix kvm's use of __pa() on percpu areas
 From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Mon, 21 Jan 2013 09:52:49 -0800
+Date: Mon, 21 Jan 2013 09:52:50 -0800
 References: <20130121175244.E5839E06@kernel.stglabs.ibm.com>
 In-Reply-To: <20130121175244.E5839E06@kernel.stglabs.ibm.com>
-Message-Id: <20130121175249.AFE9EAD7@kernel.stglabs.ibm.com>
+Message-Id: <20130121175250.1AAC7981@kernel.stglabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Hansen <dave@linux.vnet.ibm.com>
 
 
-This is necessary because __pa() does not work on some kinds of
-memory, like vmalloc() or the alloc_remap() areas on 32-bit
-NUMA systems.  We have some functions to do conversions _like_
-this in the vmalloc() code (like vmalloc_to_page()), but they
-do not work on sizes other than 4k pages.  We would potentially
-need to be able to handle all the page sizes that we use for
-the kernel linear mapping (4k, 2M, 1G).
+In short, it is illegal to call __pa() on an address holding
+a percpu variable.  The times when this actually matters are
+pretty obscure (certain 32-bit NUMA systems), but it _does_
+happen.  It is important to keep KVM guests working on these
+systems because the real hardware is getting harder and
+harder to find.
 
-In practice, on 32-bit NUMA systems, the percpu areas get stuck
-in the alloc_remap() area.  Any __pa() call on them will break
-and basically return garbage.
+This bug manifested first by me seeing a plain hang at boot
+after this message:
 
-This patch introduces a new function slow_virt_to_phys(), which
-walks the kernel page tables on x86 and should do precisely
-the same logical thing as __pa(), but actually work on a wider
-range of memory.  It should work on the normal linear mapping,
-vmalloc(), kmap(), etc...
+	CPU 0 irqstacks, hard=f3018000 soft=f301a000
+
+or, sometimes, it would actually make it out to the console:
+
+[    0.000000] BUG: unable to handle kernel paging request at ffffffff
+
+I eventually traced it down to the KVM async pagefault code.
+This can be worked around by disabling that code either at
+compile-time, or on the kernel command-line.
+
+The kvm async pagefault code was injecting page faults in
+to the guest which the guest misinterpreted because its
+"reason" was not being properly sent from the host.
+
+The guest passes a physical address of an per-cpu async page
+fault structure via an MSR to the host.  Since __pa() is
+broken on percpu data, the physical address it sent was
+bascially bogus and the host went scribbling on random data.
+The guest never saw the real reason for the page fault (it
+was injected by the host), assumed that the kernel had taken
+a _real_ page fault, and panic()'d.  The behavior varied,
+though, depending on what got corrupted by the bad write.
 
 Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
 Acked-by: Rik van Riel <riel@redhat.com>
 ---
 
- linux-2.6.git-dave/arch/x86/include/asm/pgtable_types.h |    1 
- linux-2.6.git-dave/arch/x86/mm/pageattr.c               |   31 ++++++++++++++++
- 2 files changed, 32 insertions(+)
+ linux-2.6.git-dave/arch/x86/kernel/kvm.c      |    9 +++++----
+ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c |    4 ++--
+ 2 files changed, 7 insertions(+), 6 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~create-slow_virt_to_phys arch/x86/include/asm/pgtable_types.h
---- linux-2.6.git/arch/x86/include/asm/pgtable_types.h~create-slow_virt_to_phys	2013-01-17 10:22:26.590434129 -0800
-+++ linux-2.6.git-dave/arch/x86/include/asm/pgtable_types.h	2013-01-17 10:22:26.598434199 -0800
-@@ -352,6 +352,7 @@ static inline void update_page_count(int
-  * as a pte too.
-  */
- extern pte_t *lookup_address(unsigned long address, unsigned int *level);
-+extern phys_addr_t slow_virt_to_phys(void *__address);
+diff -puN arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvm.c
+--- linux-2.6.git/arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas	2013-01-17 10:22:26.914436992 -0800
++++ linux-2.6.git-dave/arch/x86/kernel/kvm.c	2013-01-17 10:22:26.922437062 -0800
+@@ -289,9 +289,9 @@ static void kvm_register_steal_time(void
  
- #endif	/* !__ASSEMBLY__ */
+ 	memset(st, 0, sizeof(*st));
  
-diff -puN arch/x86/mm/pageattr.c~create-slow_virt_to_phys arch/x86/mm/pageattr.c
---- linux-2.6.git/arch/x86/mm/pageattr.c~create-slow_virt_to_phys	2013-01-17 10:22:26.594434163 -0800
-+++ linux-2.6.git-dave/arch/x86/mm/pageattr.c	2013-01-17 10:22:26.598434199 -0800
-@@ -364,6 +364,37 @@ pte_t *lookup_address(unsigned long addr
- EXPORT_SYMBOL_GPL(lookup_address);
+-	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
++	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
+ 	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
+-		cpu, __pa(st));
++		cpu, slow_virt_to_phys(st));
+ }
  
- /*
-+ * This is necessary because __pa() does not work on some
-+ * kinds of memory, like vmalloc() or the alloc_remap()
-+ * areas on 32-bit NUMA systems.  The percpu areas can
-+ * end up in this kind of memory, for instance.
-+ *
-+ * This could be optimized, but it is only intended to be
-+ * used at inititalization time, and keeping it
-+ * unoptimized should increase the testing coverage for
-+ * the more obscure platforms.
-+ */
-+phys_addr_t slow_virt_to_phys(void *__virt_addr)
-+{
-+	unsigned long virt_addr = (unsigned long)__virt_addr;
-+	phys_addr_t phys_addr;
-+	unsigned long offset;
-+	unsigned int level = -1;
-+	unsigned long psize = 0;
-+	unsigned long pmask = 0;
-+	pte_t *pte;
-+
-+	pte = lookup_address(virt_addr, &level);
-+	BUG_ON(!pte);
-+	psize = page_level_size(level);
-+	pmask = page_level_mask(level);
-+	offset = virt_addr & ~pmask;
-+	phys_addr = pte_pfn(*pte) << PAGE_SHIFT;
-+	return (phys_addr | offset);
-+}
-+EXPORT_SYMBOL_GPL(slow_virt_to_phys);
-+
-+/*
-  * Set the new pmd in all the pgds we know about:
-  */
- static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+ static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) = KVM_PV_EOI_DISABLED;
+@@ -316,7 +316,7 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 		return;
+ 
+ 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
+-		u64 pa = __pa(&__get_cpu_var(apf_reason));
++		u64 pa = slow_virt_to_phys(&__get_cpu_var(apf_reason));
+ 
+ #ifdef CONFIG_PREEMPT
+ 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
+@@ -332,7 +332,8 @@ void __cpuinit kvm_guest_cpu_init(void)
+ 		/* Size alignment is implied but just to make it explicit. */
+ 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
+ 		__get_cpu_var(kvm_apic_eoi) = 0;
+-		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
++		pa = slow_virt_to_phys(&__get_cpu_var(kvm_apic_eoi))
++			| KVM_MSR_ENABLED;
+ 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
+ 	}
+ 
+diff -puN arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas arch/x86/kernel/kvmclock.c
+--- linux-2.6.git/arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas	2013-01-17 10:22:26.918437028 -0800
++++ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c	2013-01-17 10:22:26.922437062 -0800
+@@ -162,8 +162,8 @@ int kvm_register_clock(char *txt)
+ 	int low, high, ret;
+ 	struct pvclock_vcpu_time_info *src = &hv_clock[cpu].pvti;
+ 
+-	low = (int)__pa(src) | 1;
+-	high = ((u64)__pa(src) >> 32);
++	low = (int)slow_virt_to_phys(src) | 1;
++	high = ((u64)slow_virt_to_phys(src) >> 32);
+ 	ret = native_write_msr_safe(msr_kvm_system_time, low, high);
+ 	printk(KERN_INFO "kvm-clock: cpu %d, msr %x:%x, %s\n",
+ 	       cpu, high, low, txt);
 _
 
 --
