@@ -1,170 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx205.postini.com [74.125.245.205])
-	by kanga.kvack.org (Postfix) with SMTP id 545DD6B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 08:56:38 -0500 (EST)
-Date: Mon, 21 Jan 2013 14:56:34 +0100
+Received: from psmtp.com (na3sys010amx166.postini.com [74.125.245.166])
+	by kanga.kvack.org (Postfix) with SMTP id 92AB56B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 09:10:54 -0500 (EST)
+Date: Mon, 21 Jan 2013 15:10:51 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 2/6] memcg: split part of memcg creation to css_online
-Message-ID: <20130121135634.GM7798@dhcp22.suse.cz>
+Subject: Re: [PATCH v3 3/6] memcg: fast hierarchy-aware child test.
+Message-ID: <20130121141051.GN7798@dhcp22.suse.cz>
 References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
- <1358766813-15095-3-git-send-email-glommer@parallels.com>
+ <1358766813-15095-4-git-send-email-glommer@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1358766813-15095-3-git-send-email-glommer@parallels.com>
+In-Reply-To: <1358766813-15095-4-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Glauber Costa <glommer@parallels.com>
 Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On Mon 21-01-13 15:13:29, Glauber Costa wrote:
-> This patch is a preparatory work for later locking rework to get rid of
-> big cgroup lock from memory controller code.
+On Mon 21-01-13 15:13:30, Glauber Costa wrote:
+> Currently, we use cgroups' provided list of children to verify if it is
+> safe to proceed with any value change that is dependent on the cgroup
+> being empty.
 > 
-> The memory controller uses some tunables to adjust its operation. Those
-> tunables are inherited from parent to children upon children
-> intialization. For most of them, the value cannot be changed after the
-> parent has a new children.
+> This is less than ideal, because it enforces a dependency over cgroup
+> core that we would be better off without. The solution proposed here is
+> to iterate over the child cgroups and if any is found that is already
+> online, we bounce and return: we don't really care how many children we
+> have, only if we have any.
 > 
-> cgroup core splits initialization in two phases: css_alloc and css_online.
-> After css_alloc, the memory allocation and basic initialization are
-> done. But the new group is not yet visible anywhere, not even for cgroup
-> core code. It is only somewhere between css_alloc and css_online that it
-> is inserted into the internal children lists. Copying tunable values in
-> css_alloc will lead to inconsistent values: the children will copy the
-> old parent values, that can change between the copy and the moment in
-> which the groups is linked to any data structure that can indicate the
-> presence of children.
+> This is also made to be hierarchy aware. IOW, cgroups with  hierarchy
+> disabled, while they still exist, will be considered for the purpose of
+> this interface as having no children.
 > 
 > Signed-off-by: Glauber Costa <glommer@parallels.com>
 
+OK, as I said I can live with this.
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Thanks!
+But
 > ---
->  mm/memcontrol.c | 61 ++++++++++++++++++++++++++++++++++++---------------------
->  1 file changed, 39 insertions(+), 22 deletions(-)
+>  mm/memcontrol.c | 34 +++++++++++++++++++++++++++++-----
+>  1 file changed, 29 insertions(+), 5 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 91d90a0..6c72204 100644
+> index 6c72204..6d3ad21 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -6063,7 +6063,7 @@ err_cleanup:
->  static struct cgroup_subsys_state * __ref
->  mem_cgroup_css_alloc(struct cgroup *cont)
->  {
-> -	struct mem_cgroup *memcg, *parent;
-> +	struct mem_cgroup *memcg;
->  	long error = -ENOMEM;
->  	int node;
->  
-> @@ -6079,7 +6079,6 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  	if (cont->parent == NULL) {
->  		int cpu;
->  		enable_swap_cgroup();
-> -		parent = NULL;
->  		if (mem_cgroup_soft_limit_tree_init())
->  			goto free_out;
->  		root_mem_cgroup = memcg;
-> @@ -6088,13 +6087,43 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  						&per_cpu(memcg_stock, cpu);
->  			INIT_WORK(&stock->work, drain_local_stock);
->  		}
-> -	} else {
-> -		parent = mem_cgroup_from_cont(cont->parent);
-> -		memcg->use_hierarchy = parent->use_hierarchy;
-> -		memcg->oom_kill_disable = parent->oom_kill_disable;
-> +
-> +		res_counter_init(&memcg->res, NULL);
-> +		res_counter_init(&memcg->memsw, NULL);
-> +		res_counter_init(&memcg->kmem, NULL);
->  	}
->  
-> -	if (parent && parent->use_hierarchy) {
-> +	memcg->last_scanned_node = MAX_NUMNODES;
-> +	INIT_LIST_HEAD(&memcg->oom_notify);
-> +	atomic_set(&memcg->refcnt, 1);
-> +	memcg->move_charge_at_immigrate = 0;
-> +	mutex_init(&memcg->thresholds_lock);
-> +	spin_lock_init(&memcg->move_lock);
-> +
-> +	return &memcg->css;
-> +
-> +free_out:
-> +	__mem_cgroup_free(memcg);
-> +	return ERR_PTR(error);
-> +}
-> +
-> +static int
-> +mem_cgroup_css_online(struct cgroup *cont)
-> +{
-> +	struct mem_cgroup *memcg, *parent;
-> +	int error = 0;
-> +
-> +	if (!cont->parent)
-> +		return 0;
-> +
-> +	memcg = mem_cgroup_from_cont(cont);
-> +	parent = mem_cgroup_from_cont(cont->parent);
-> +
-> +	memcg->use_hierarchy = parent->use_hierarchy;
-> +	memcg->oom_kill_disable = parent->oom_kill_disable;
-> +	memcg->swappiness = mem_cgroup_swappiness(parent);
-> +
-> +	if (parent->use_hierarchy) {
->  		res_counter_init(&memcg->res, &parent->res);
->  		res_counter_init(&memcg->memsw, &parent->memsw);
->  		res_counter_init(&memcg->kmem, &parent->kmem);
-> @@ -6115,18 +6144,9 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  		 * much sense so let cgroup subsystem know about this
->  		 * unfortunate state in our controller.
->  		 */
-> -		if (parent && parent != root_mem_cgroup)
-> +		if (parent != root_mem_cgroup)
->  			mem_cgroup_subsys.broken_hierarchy = true;
->  	}
-> -	memcg->last_scanned_node = MAX_NUMNODES;
-> -	INIT_LIST_HEAD(&memcg->oom_notify);
-> -
-> -	if (parent)
-> -		memcg->swappiness = mem_cgroup_swappiness(parent);
-> -	atomic_set(&memcg->refcnt, 1);
-> -	memcg->move_charge_at_immigrate = 0;
-> -	mutex_init(&memcg->thresholds_lock);
-> -	spin_lock_init(&memcg->move_lock);
->  
->  	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
->  	if (error) {
-> @@ -6136,12 +6156,8 @@ mem_cgroup_css_alloc(struct cgroup *cont)
->  		 * call __mem_cgroup_free, so return directly
->  		 */
->  		mem_cgroup_put(memcg);
-> -		return ERR_PTR(error);
->  	}
-> -	return &memcg->css;
-> -free_out:
-> -	__mem_cgroup_free(memcg);
-> -	return ERR_PTR(error);
-> +	return error;
+> @@ -4716,6 +4716,32 @@ static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
 >  }
 >  
->  static void mem_cgroup_css_offline(struct cgroup *cont)
-> @@ -6751,6 +6767,7 @@ struct cgroup_subsys mem_cgroup_subsys = {
->  	.name = "memory",
->  	.subsys_id = mem_cgroup_subsys_id,
->  	.css_alloc = mem_cgroup_css_alloc,
-> +	.css_online = mem_cgroup_css_online,
->  	.css_offline = mem_cgroup_css_offline,
->  	.css_free = mem_cgroup_css_free,
->  	.can_attach = mem_cgroup_can_attach,
+>  /*
+> + * this mainly exists for tests during set of use_hierarchy. Since this is
+> + * the very setting we are changing, the current hierarchy value is meaningless
+> + */
+> +static inline bool __memcg_has_children(struct mem_cgroup *memcg)
+> +{
+> +	struct cgroup *pos;
+> +
+> +	/* bounce at first found */
+> +	cgroup_for_each_child(pos, memcg->css.cgroup)
+> +		return true;
+> +	return false;
+> +}
+
+This needs rcu_read_{un}lock.
+
+> +
+> +/*
+> + * must be called with cgroup_lock held, unless the cgroup is guaranteed to be
+> + * already dead (like in mem_cgroup_force_empty, for instance).  This is
+> + * different than mem_cgroup_count_children, in the sense that we don't really
+> + * care how many children we have, we only need to know if we have any. It is
+> + * also count any memcg without hierarchy as infertile for that matter.
+> + */
+> +static inline bool memcg_has_children(struct mem_cgroup *memcg)
+> +{
+> +	return memcg->use_hierarchy && __memcg_has_children(memcg);
+> +}
+> +
+> +/*
+>   * Reclaims as many pages from the given memcg as possible and moves
+>   * the rest to the parent.
+>   *
+> @@ -4800,7 +4826,7 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
+>  	 */
+>  	if ((!parent_memcg || !parent_memcg->use_hierarchy) &&
+>  				(val == 1 || val == 0)) {
+> -		if (list_empty(&cont->children))
+> +		if (!__memcg_has_children(memcg))
+>  			memcg->use_hierarchy = val;
+>  		else
+>  			retval = -EBUSY;
+> @@ -4917,8 +4943,7 @@ static int memcg_update_kmem_limit(struct cgroup *cont, u64 val)
+>  	cgroup_lock();
+>  	mutex_lock(&set_limit_mutex);
+>  	if (!memcg->kmem_account_flags && val != RESOURCE_MAX) {
+> -		if (cgroup_task_count(cont) || (memcg->use_hierarchy &&
+> -						!list_empty(&cont->children))) {
+> +		if (cgroup_task_count(cont) || memcg_has_children(memcg)) {
+>  			ret = -EBUSY;
+>  			goto out;
+>  		}
+> @@ -5334,8 +5359,7 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
+>  	cgroup_lock();
+>  
+>  	/* If under hierarchy, only empty-root can set this value */
+> -	if ((parent->use_hierarchy) ||
+> -	    (memcg->use_hierarchy && !list_empty(&cgrp->children))) {
+> +	if ((parent->use_hierarchy) || memcg_has_children(memcg)) {
+>  		cgroup_unlock();
+>  		return -EINVAL;
+>  	}
 > -- 
 > 1.8.1
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
