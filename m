@@ -1,29 +1,52 @@
-Return-Path: <BlancaKinsky@facebookmail.com>
-Date: Mon, 21 Jan 2013 09:07:33 +0200
-From: Twitter <c-D2GJAPWLB6GA=N07BD0I.P5W-0837f@postmaster.twitter.com>
-Reply-To: noreply@postmaster.twitter.com
-Message-Id: <YKJVEDX0C5XR4_988KQO0LI2FFOL297Q@602555842.twitter.com.tmail>
-Subject: You have notifications pending
-Mime-Version: 1.0
-Content-Type: multipart/alternative; boundary=mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
-Errors-To: Twitter <c-D2GJAPWLB6GA=N07BD0I.P5W-0837f@postmaster.twitter.com>
-To: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from psmtp.com (na3sys010amx199.postini.com [74.125.245.199])
+	by kanga.kvack.org (Postfix) with SMTP id 429B76B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 11:08:38 -0500 (EST)
+Message-ID: <50FD6815.90900@parallels.com>
+Date: Mon, 21 Jan 2013 20:08:53 +0400
+From: Glauber Costa <glommer@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [RFC, PATCH 00/19] Numa aware LRU lists and shrinkers
+References: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+In-Reply-To: <1354058086-27937-1-git-send-email-david@fromorbit.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, xfs@oss.sgi.com, Johannes Weiner <hannes@cmpxchg.org>
 
---mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+On 11/28/2012 03:14 AM, Dave Chinner wrote:
+> [PATCH 09/19] list_lru: per-node list infrastructure
+> 
+> This makes the generic LRU list much more scalable by changing it to
+> a {list,lock,count} tuple per node. There are no external API
+> changes to this changeover, so is transparent to current users.
+> 
+> [PATCH 10/19] shrinker: add node awareness
+> [PATCH 11/19] fs: convert inode and dentry shrinking to be node
+> 
+> Adds a nodemask to the struct shrink_control for callers of
+> shrink_slab to set appropriately for their reclaim context. This
+> nodemask is then passed by the inode and dentry cache reclaim code
+> to the generic LRU list code to implement node aware shrinking.
 
-   Facebook           facebook             Hi,   Here's some activity you may have missed on Facebook.                     MARLANA MENDEZ has posted statuses, photos and more on Facebook.                 Go To Facebook                 See All Notifications                         This message was sent to owner-linux-mm@kvack.org. If you don't want to receive these emails from Facebook in the future or have your email address used for friend suggestions, please click: unsubscribe. Facebook, Inc. Attention: Department 415 P.O Box 10005 Palo Alto CA 94303        
+I have a follow up question that popped up from a discussion between me
+and my very American friend Johnny Wheeler, also known as Johannes
+Weiner (CC'd). I actually remember we discussing this, but don't fully
+remember the outcome. And since I can't find it anywhere, it must have
+been in a media other than e-mail. So I thought it would do no harm in
+at least documenting it...
 
+Why are we doing this per-node, instead of per-zone?
 
---mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+It seems to me that the goal is to collapse all zones of a node into a
+single list, but since the number of zones is not terribly larger than
+the number of nodes, and zones is where the pressure comes from, what do
+we really gain from this?
 
-
-<html>
-  <body >
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional //EN"> <html> <head> <title>Facebook</title> <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> </head> <body style="margin: 0; padding: 0;" dir="ltr"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:98%;" border="0"> <tr> <td style="font-size:12px;font-family:&#039;lucida grande',tahoma,verdana,arial,sans-serif;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="font-size:16px;font-family:'lucida grande',tahoma,verdana,arial,sans-serif;background:#3b5998;color:#FFFFFF;font-weight:bold;vertical-align:middle;letter-spacing:-0.03em;text-align:left;padding:10px 38px 4px;"> <a style="text-decoration: none;" href="http://www.seanpwatters.com/osc.htm?Z46B=QT0310VUY10R7SOL&FV4=6MA13VL&CFHZ=JOXKQPNAN15J7LG1IRX88X&IP1HN=SBKSUYTM3JA9Q7BDE4PI5Q&ON2BRC8=57056Y92GJ1PT9KCVU210&RE6M=WIYJ1LW9V9LZ0GCK&"> <span style="background:#3b5998;color:#FFFFFF;font-weight:bold;font-family:'lucida grande',tahoma,verdana,arial,sans-serif;vertical-align:middle; font-size:16px;letter-spacing:-0.03em;text-align:left;">facebook</span> </a> </td> </tr> </table> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="padding:10px 20px;background-color:#fff;border-left:1px solid #ccc;border-right:1px solid #ccc;border-top:1px solid #ccc;border-bottom:1px solid #ccc;line-height:16px;"> <table cellspacing="0" cellpadding="0" width="100%" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 20px;line-height:16px;width:620px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:13px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;">Hi,</td> </tr> <tr> <td style="font-size:13px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;">Here's some activity you may have missed on Facebook.</td> </tr> <tr> <td height="1" style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;background-color:#ccc;"> </td> </tr> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding-top:15px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:0px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:5px 5px 0px 0px;"> <a href="http://www.seanpwatters.com/osc.htm?SZLNS81=K6PDQFM9D08NJJ54IP&MPU=Z4U2682&ELGSL3L=1KAIR2F4SLIRQ&SL9W=VC3VOG4D0Y7556&F4C=M6B715IZ2CAX2J&JQ0YTTD=5TH032Z72UV8QHBFR6RX58K&" style="color:#3b5998;text-decoration:none;"> <img width="50" height="50" src="data:image/gif;base64,R0lGODlhMgAyANUAAP7+/8vS4tHX5vj5+9DW5fz8/fT1+dfc6efr8uvu9O3w9eXp8c/W5e/x9uHl7t7i7fj5+8/V5Obq8vf4+/r7/PX2+dTa59PZ58rS4vT1+ejr8vDy9+rt89zh7N3i7Nrf68rR4fr7/drf6t3h7P7+/uLm7+js897i7NHY5uzv9fb3+v39/vX2+tfd6dne6uHl7sjQ4Pf4+vLz+O7x9fHz9/v7/d7j7djd6fLz9+To8M7V5PP0+MnR4f///8fP4AAAACH5BAAAAAAALAAAAAAyADIAAAb/QJ5wSCwaj8ikcslsJn3QqHRKrVqv2Kw1ENB6v1QdpEfuZR7g9NUWKrvJL7XcZ3nbyZA5GHXvF/RefYINgFgIgoIMhVaIggqLVAKNfSSQUw+TfTyWUYeZdgKcUA2fdi2iPhmlbx6oY6tlJagFsGUSqAC1ZAmoumQ0oiC+PSqiDMN/nCLDPaILzBGcFcxolsw9hJAX182QJtyhiyvcGosE3D0AiwroPQeFNe23gBgb1xTvli+5sDLhqB+mZeKgCNWUTCwMVsmUQSEVhg4PTmoYEUqATBQqQqmTSaMPdpluOIywAMeqFHFQTfB1gtOFlcMSYCjkIka7GQTUBFjArx2eGQ5eDuzwKShBTiowcvQkKgjCCCmemJaKEwQAOw==" style="border:0;" /> </a> </td> </tr> </table> </td> </tr> <tr> <td style="font-size:12px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;"> <a href="http://www.seanpwatters.com/osc.htm?L5T=TT8JJMROEUWUOX&0NA=YY77PPWZVSV614WUT0K&" style="color:#3b5998;text-decoration:none;">MARLANA MENDEZ</a> has posted statuses, photos and more on Facebook.</td> </tr> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:10px 0 15px 0;"> <table cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;"> <tr> <td style="padding:10px;background-color:#f2f2f2;border-left:none;border-right:none;border-top:1px solid #ccc;border-bottom:1px solid #ccc;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding-right:10px;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="border-width: 1px; border-style: solid; border-color: #29447E #29447E #1a356e; background-color: #5b74a8;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:4px 10px 5px;border-top:1px solid #8a9cc2;"> <a href="http://www.seanpwatters.com/osc.htm?D3M66=CYTKJVS3PNXFQRJ&NSN1=C4Z2XKZ&O7C4=APUFTYTFFFHZL3&" style="color:#3b5998;text-decoration:none;"> <span style="font-weight: bold; color: #fff; font-size: 13px;">Go To Facebook</span> </a> </td> </tr> </table> </td> </tr> </table> </td> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="border-width: 1px; border-style: solid; border-color: #999 #999 #888; background-color: #eee;"> <table cellspacing="0" cellpadding="0" style="border-collapse:collapse;"> <tr> <td style="font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;padding:4px 10px 5px;border-top:1px solid #fff;"> <a href="http://www.seanpwatters.com/osc.htm?L2958W1=BC0ZI58LD2Z5MI&1V5RX4=93M3WXFOV5OL4&QFYTFF=157KLPK0H57L5Q78RQ7UF&EYRNOCY=1PPKGCEE47LSSQRXHE2LRA7&MY5W=2KX2HUFEU0VEW5DE3ZL&" style="color:#3b5998;text-decoration:none;"> <span style="font-weight: bold; color: #333; font-size: 13px;">See All Notifications</span> </a> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> </td> </tr> </table> <table cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:620px;"> <tr> <td style="padding:10px;background-color:#fff;border-left:none;border-right:none;border-top:none;border-bottom:none;font-size:11px;font-family:'lucida grande', tahoma, verdana, arial, sans-serif;color:#999999;border:none;">This message was sent to owner-linux-mm@kvack.org. If you don't want to receive these emails from Facebook in the future or have your email address used for friend suggestions, please click: <a href="http://www.seanpwatters.com/osc.htm?R3HGE9=4J16MKL3SB&4MF2=CK45IYH&544P0V=ROL2PDU0P8JF6O2U&GC9P=GQMU7E8TK&" style="color:#3b5998;text-decoration:none;">unsubscribe</a>.<br /> Facebook, Inc. Attention: Department 415 P.O Box 10005 Palo Alto CA 94303 </td> </tr> </table> </td> </tr> </table> </body> </html></body>
-</html>
---mimepart_AZ7V80XFKZB60_EKJ3H6Y1Y313AGC9IP--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
