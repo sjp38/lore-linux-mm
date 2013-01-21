@@ -1,130 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx203.postini.com [74.125.245.203])
-	by kanga.kvack.org (Postfix) with SMTP id 72BD06B0002
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 13:54:34 -0500 (EST)
-In-Reply-To: <20130121175250.1AAC7981@kernel.stglabs.ibm.com>
-References: <20130121175244.E5839E06@kernel.stglabs.ibm.com> <20130121175250.1AAC7981@kernel.stglabs.ibm.com>
+Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
+	by kanga.kvack.org (Postfix) with SMTP id 7794C6B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 13:55:31 -0500 (EST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH v2] mm: dmapool: use provided gfp flags for all dma_alloc_coherent() calls
+Date: Mon, 21 Jan 2013 18:55:25 +0000
+References: <20121119144826.f59667b2.akpm@linux-foundation.org> <201301192005.20093.arnd@arndb.de> <50FD5844.1010201@web.de>
+In-Reply-To: <50FD5844.1010201@web.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
- charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH 5/5] fix kvm's use of __pa() on percpu areas
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Mon, 21 Jan 2013 12:38:06 -0600
-Message-ID: <08cba1bf-6476-4fad-8d29-e380ec7127ba@email.android.com>
+Content-Type: Text/Plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
+Message-Id: <201301211855.25455.arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Gleb Natapov <gleb@redhat.com>, x86@kernel.org, Marcelo Tosatti <mtosatti@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Soeren Moch <smoch@web.de>
+Cc: Jason Cooper <jason@lakedaemon.net>, Greg KH <gregkh@linuxfoundation.org>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>, Andrew Lunn <andrew@lunn.ch>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Kyungmin Park <kyungmin.park@samsung.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, linaro-mm-sig@lists.linaro.org, linux-arm-kernel@lists.infradead.org, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 
-Final question: are any of these done in frequent paths?  (I believe no, but...)
+On Monday 21 January 2013, Soeren Moch wrote:
+> On 01/19/13 21:05, Arnd Bergmann wrote:
+> > from the distribution of the numbers, it seems that there is exactly 1 MB
+> > of data allocated between bus addresses 0x1f90000 and 0x1f9ffff, allocated
+> > in individual pages. This matches the size of your pool, so it's definitely
+> > something coming from USB, and no single other allocation, but it does not
+> > directly point to a specific line of code.
+> Very interesting, so this is no fragmentation problem nor something 
+> caused by sata or ethernet.
 
-Dave Hansen <dave@linux.vnet.ibm.com> wrote:
+Right.
 
->
->In short, it is illegal to call __pa() on an address holding
->a percpu variable.  The times when this actually matters are
->pretty obscure (certain 32-bit NUMA systems), but it _does_
->happen.  It is important to keep KVM guests working on these
->systems because the real hardware is getting harder and
->harder to find.
->
->This bug manifested first by me seeing a plain hang at boot
->after this message:
->
->	CPU 0 irqstacks, hard=f3018000 soft=f301a000
->
->or, sometimes, it would actually make it out to the console:
->
->[    0.000000] BUG: unable to handle kernel paging request at ffffffff
->
->I eventually traced it down to the KVM async pagefault code.
->This can be worked around by disabling that code either at
->compile-time, or on the kernel command-line.
->
->The kvm async pagefault code was injecting page faults in
->to the guest which the guest misinterpreted because its
->"reason" was not being properly sent from the host.
->
->The guest passes a physical address of an per-cpu async page
->fault structure via an MSR to the host.  Since __pa() is
->broken on percpu data, the physical address it sent was
->bascially bogus and the host went scribbling on random data.
->The guest never saw the real reason for the page fault (it
->was injected by the host), assumed that the kernel had taken
->a _real_ page fault, and panic()'d.  The behavior varied,
->though, depending on what got corrupted by the bad write.
->
->Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
->Acked-by: Rik van Riel <riel@redhat.com>
->---
->
-> linux-2.6.git-dave/arch/x86/kernel/kvm.c      |    9 +++++----
-> linux-2.6.git-dave/arch/x86/kernel/kvmclock.c |    4 ++--
-> 2 files changed, 7 insertions(+), 6 deletions(-)
->
->diff -puN arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas
->arch/x86/kernel/kvm.c
->---
->linux-2.6.git/arch/x86/kernel/kvm.c~fix-kvm-__pa-use-on-percpu-areas	2013-01-17
->10:22:26.914436992 -0800
->+++ linux-2.6.git-dave/arch/x86/kernel/kvm.c	2013-01-17
->10:22:26.922437062 -0800
->@@ -289,9 +289,9 @@ static void kvm_register_steal_time(void
-> 
-> 	memset(st, 0, sizeof(*st));
-> 
->-	wrmsrl(MSR_KVM_STEAL_TIME, (__pa(st) | KVM_MSR_ENABLED));
->+	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) |
->KVM_MSR_ENABLED));
-> 	printk(KERN_INFO "kvm-stealtime: cpu %d, msr %lx\n",
->-		cpu, __pa(st));
->+		cpu, slow_virt_to_phys(st));
-> }
-> 
->static DEFINE_PER_CPU(unsigned long, kvm_apic_eoi) =
->KVM_PV_EOI_DISABLED;
->@@ -316,7 +316,7 @@ void __cpuinit kvm_guest_cpu_init(void)
-> 		return;
-> 
-> 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
->-		u64 pa = __pa(&__get_cpu_var(apf_reason));
->+		u64 pa = slow_virt_to_phys(&__get_cpu_var(apf_reason));
-> 
-> #ifdef CONFIG_PREEMPT
-> 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
->@@ -332,7 +332,8 @@ void __cpuinit kvm_guest_cpu_init(void)
-> 		/* Size alignment is implied but just to make it explicit. */
-> 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
-> 		__get_cpu_var(kvm_apic_eoi) = 0;
->-		pa = __pa(&__get_cpu_var(kvm_apic_eoi)) | KVM_MSR_ENABLED;
->+		pa = slow_virt_to_phys(&__get_cpu_var(kvm_apic_eoi))
->+			| KVM_MSR_ENABLED;
-> 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
-> 	}
-> 
->diff -puN arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas
->arch/x86/kernel/kvmclock.c
->---
->linux-2.6.git/arch/x86/kernel/kvmclock.c~fix-kvm-__pa-use-on-percpu-areas	2013-01-17
->10:22:26.918437028 -0800
->+++ linux-2.6.git-dave/arch/x86/kernel/kvmclock.c	2013-01-17
->10:22:26.922437062 -0800
->@@ -162,8 +162,8 @@ int kvm_register_clock(char *txt)
-> 	int low, high, ret;
-> 	struct pvclock_vcpu_time_info *src = &hv_clock[cpu].pvti;
-> 
->-	low = (int)__pa(src) | 1;
->-	high = ((u64)__pa(src) >> 32);
->+	low = (int)slow_virt_to_phys(src) | 1;
->+	high = ((u64)slow_virt_to_phys(src) >> 32);
-> 	ret = native_write_msr_safe(msr_kvm_system_time, low, high);
-> 	printk(KERN_INFO "kvm-clock: cpu %d, msr %x:%x, %s\n",
-> 	       cpu, high, low, txt);
->_
+> > One thing I found was that the ARM dma-mapping code seems buggy in the way
+> > that it does a bitwise and between the gfp mask and GFP_ATOMIC, which does
+> > not work because GFP_ATOMIC is defined by the absence of __GFP_WAIT.
+> >
+> > I believe we need the patch below, but it is not clear to me if that issue
+> > is related to your problem or now.
+> Out of curiosity I checked include/linux/gfp.h. GFP_ATOMIC is defined as 
+> __GFP_HIGH (which means 'use emergency pool', and no wait), so this 
+> patch should not make any difference for "normal" (GPF_ATOMIC / 
+> GFP_KERNEL) allocations, only for gfp_flags accidentally set to zero. 
 
--- 
-Sent from my mobile phone. Please excuse brevity and lack of formatting.
+Yes, or one of the rare cases where someone intentionally does something like
+(GFP_ATOMIC & !__GFP_HIGH) or (GFP_KERNEL || __GFP_HIGH), which are both
+wrong.
+
+> So, can a new test with this patch help to debug the pool exhaustion?
+
+Yes, but I would not expect this to change much. It's a bug, but not likely
+the one you are hitting.
+
+> > So even for a GFP_KERNEL passed into usb_submit_urb, the ehci driver
+> > causes the low-level allocation to be GFP_ATOMIC, because
+> > qh_append_tds() is called under a spinlock. If we have hundreds
+> > of URBs in flight, that will exhaust the pool rather quickly.
+> >
+> Maybe there are hundreds of URBs in flight in my application, I have no 
+> idea how to check this.
+
+I don't know a lot about USB, but I always assumed that this was not
+a normal condition and that there are only a couple of URBs per endpoint
+used at a time. Maybe Greg or someone else with a USB background can
+shed some light on this.
+
+> It seems to me that bad reception conditions 
+> (lost lock / regained lock messages for some dvb channels) accelerate 
+> the buffer exhaustion. But even with a 4MB coherent pool I see the 
+> error. Is there any chance to fix this in the usb or dvb subsystem (or 
+> wherever)? Should I try to further increase the pool size, or what else 
+> can I do besides using an older kernel?
+
+There are two things that I think can be done if hundreds of URBs is
+indeed the normal working condition for this driver:
+
+* change the locking in your driver so it can actually call usb_submit_urb
+using GFP_KERNEL rather than GFP_ATOMIC
+* after that is done, rework the ehci_hcd driver so it can do the
+allocation inside of the submit_urb path to use the mem_flags rather
+than unconditional GFP_ATOMIC.
+
+Note that the problem you are seeing does not just exist in the case of
+the atomic coherent pool getting exhausted, but also on any platform
+that runs into an out-of-memory condition.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
