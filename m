@@ -1,124 +1,362 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx144.postini.com [74.125.245.144])
-	by kanga.kvack.org (Postfix) with SMTP id CF2B56B000E
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 06:13:29 -0500 (EST)
-From: Glauber Costa <glommer@parallels.com>
-Subject: [PATCH v3 1/6] memcg: prevent changes to move_charge_at_immigrate during task attach
-Date: Mon, 21 Jan 2013 15:13:28 +0400
-Message-Id: <1358766813-15095-2-git-send-email-glommer@parallels.com>
-In-Reply-To: <1358766813-15095-1-git-send-email-glommer@parallels.com>
-References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx170.postini.com [74.125.245.170])
+	by kanga.kvack.org (Postfix) with SMTP id 302EE6B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 06:57:34 -0500 (EST)
+Received: by mail-lb0-f177.google.com with SMTP id go11so395181lbb.36
+        for <linux-mm@kvack.org>; Mon, 21 Jan 2013 03:57:32 -0800 (PST)
+Subject: [PATCH RFC] mm/mmu_notifier: get rid of srcu-based synchronization
+From: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Date: Mon, 21 Jan 2013 15:57:28 +0400
+Message-ID: <20130121115728.23204.60931.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com, Glauber Costa <glommer@parallels.com>
+To: linux-kernel@vger.kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Currently, we rely on the cgroup_lock() to prevent changes to
-move_charge_at_immigrate during task migration. However, this is only
-needed because the current strategy keeps checking this value throughout
-the whole process. Since all we need is serialization, one needs only to
-guarantee that whatever decision we made in the beginning of a specific
-migration is respected throughout the process.
+This patch removes srcu-based protection from mmu-notitifier and collects all
+synchronization in mmu_notifier_unregister()/mmu_notifier_release().
 
-We can achieve this by just saving it in mc. By doing this, no kind of
-locking is needed.
+All mmu notifier methods are called either under mmap_sem or under one of rmap
+locks: root anon vma lock or inode mmaping lock. Because they always operates in
+particular vma and caller must protect it somehow. Thus we can use mmap_sem and
+rmap locks for waiting for all currently running mmu-notifier methods.
 
-[ v2: change flag name to avoid confusion ]
+This patch adds new helper function: mm_synchronize_all_locks(). This function
+acquires and releases all rmap locks one by one, it much faster than sequence
+mm_take_all_locks() - mm_drop_all_locks(). mm_synchronize_all_locks() needs only
+mmap_sem read-lock, but caller must lock mmap_sem for write at least once to
+synchronize with the rest operations which are protected with mmap_sem read-lock.
 
-Signed-off-by: Glauber Costa <glommer@parallels.com>
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 ---
- mm/memcontrol.c | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+ include/linux/mm.h           |    1 
+ include/linux/mmu_notifier.h |    1 
+ mm/mmap.c                    |   26 ++++++++++++
+ mm/mmu_notifier.c            |   91 ++++++++++++++----------------------------
+ 4 files changed, 57 insertions(+), 62 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 09255ec..91d90a0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -398,8 +398,8 @@ static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 66e2f7c..86cf9f3 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1461,6 +1461,7 @@ extern void exit_mmap(struct mm_struct *);
  
- /* Stuffs for move charges at task migration. */
- /*
-- * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
-- * left-shifted bitmap of these types.
-+ * Types of charges to be moved. "move_charge_at_immitgrate" and
-+ * "immigrate_flags" are treated as a left-shifted bitmap of these types.
-  */
- enum move_type {
- 	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
-@@ -412,6 +412,7 @@ static struct move_charge_struct {
- 	spinlock_t	  lock; /* for from, to */
- 	struct mem_cgroup *from;
- 	struct mem_cgroup *to;
-+	unsigned long immigrate_flags;
- 	unsigned long precharge;
- 	unsigned long moved_charge;
- 	unsigned long moved_swap;
-@@ -424,14 +425,12 @@ static struct move_charge_struct {
+ extern int mm_take_all_locks(struct mm_struct *mm);
+ extern void mm_drop_all_locks(struct mm_struct *mm);
++extern void mm_synchronize_all_locks(struct mm_struct *mm);
  
- static bool move_anon(void)
- {
--	return test_bit(MOVE_CHARGE_TYPE_ANON,
--					&mc.to->move_charge_at_immigrate);
-+	return test_bit(MOVE_CHARGE_TYPE_ANON, &mc.immigrate_flags);
- }
+ extern void set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file);
+ extern struct file *get_mm_exe_file(struct mm_struct *mm);
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index bc823c4..fa55d89 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -4,7 +4,6 @@
+ #include <linux/list.h>
+ #include <linux/spinlock.h>
+ #include <linux/mm_types.h>
+-#include <linux/srcu.h>
  
- static bool move_file(void)
- {
--	return test_bit(MOVE_CHARGE_TYPE_FILE,
--					&mc.to->move_charge_at_immigrate);
-+	return test_bit(MOVE_CHARGE_TYPE_FILE, &mc.immigrate_flags);
+ struct mmu_notifier;
+ struct mmu_notifier_ops;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0fb6805..89e884e 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3043,6 +3043,32 @@ void mm_drop_all_locks(struct mm_struct *mm)
  }
  
  /*
-@@ -5146,15 +5145,14 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
- 
- 	if (val >= (1 << NR_MOVE_TYPE))
- 		return -EINVAL;
++ * This function waits for all running pte operations which are protected with
++ * rmap locks like try_to_unmap(). To wait for rest operations like page-faults
++ * which runs under mmap_sem caller must lock mmap_sem for write at least once.
++ * This function itself requires only mmap_sem locked for read.
++ */
++void mm_synchronize_all_locks(struct mm_struct *mm)
++{
++	struct vm_area_struct *vma;
 +
- 	/*
--	 * We check this value several times in both in can_attach() and
--	 * attach(), so we need cgroup lock to prevent this value from being
--	 * inconsistent.
-+	 * No kind of locking is needed in here, because ->can_attach() will
-+	 * check this value once in the beginning of the process, and then carry
-+	 * on with stale data. This means that changes to this value will only
-+	 * affect task migrations starting after the change.
- 	 */
--	cgroup_lock();
- 	memcg->move_charge_at_immigrate = val;
--	cgroup_unlock();
++	BUG_ON(down_write_trylock(&mm->mmap_sem));
++
++	for (vma = mm->mmap; vma; vma = vma->vm_next) {
++		if (vma->anon_vma) {
++			anon_vma_lock_write(vma->anon_vma);
++			anon_vma_unlock_write(vma->anon_vma);
++		}
++		if (vma->vm_file && vma->vm_file->f_mapping) {
++			struct address_space *mapping = vma->vm_file->f_mapping;
++
++			mutex_lock(&mapping->i_mmap_mutex);
++			mutex_unlock(&mapping->i_mmap_mutex);
++		}
++	}
++}
++
++/*
+  * initialise the VMA slab
+  */
+ void __init mmap_init(void)
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 8a5ac8c..6b77a9f 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -14,37 +14,31 @@
+ #include <linux/export.h>
+ #include <linux/mm.h>
+ #include <linux/err.h>
+-#include <linux/srcu.h>
+-#include <linux/rcupdate.h>
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+ 
+-/* global SRCU for all MMs */
+-static struct srcu_struct srcu;
 -
- 	return 0;
+ /*
+  * This function can't run concurrently against mmu_notifier_register
+  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
+  * runs with mm_users == 0. Other tasks may still invoke mmu notifiers
+  * in parallel despite there being no task using this mm any more,
+  * through the vmas outside of the exit_mmap context, such as with
+- * vmtruncate. This serializes against mmu_notifier_unregister with
+- * the mmu_notifier_mm->lock in addition to SRCU and it serializes
+- * against the other mmu notifiers with SRCU. struct mmu_notifier_mm
+- * can't go away from under us as exit_mmap holds an mm_count pin
+- * itself.
++ * unmap_mapping_range(). This serializes against mmu_notifier_unregister()
++ * and other mmu notifiers with the mm->mmap_sem and the mmu_notifier_mm->lock.
++ * struct mmu_notifier_mm can't go away from under us as exit_mmap holds
++ * an mm_count pin itself.
+  */
+ void __mmu_notifier_release(struct mm_struct *mm)
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int id;
+ 
+ 	/*
+-	 * SRCU here will block mmu_notifier_unregister until
+-	 * ->release returns.
++	 * Block mmu_notifier_unregister() until ->release returns
++	 * and synchronize with concurrent page-faults.
+ 	 */
+-	id = srcu_read_lock(&srcu);
++	down_write(&mm->mmap_sem);
++
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist)
+ 		/*
+ 		 * if ->release runs before mmu_notifier_unregister it
+@@ -55,7 +49,6 @@ void __mmu_notifier_release(struct mm_struct *mm)
+ 		 */
+ 		if (mn->ops->release)
+ 			mn->ops->release(mn, mm);
+-	srcu_read_unlock(&srcu, id);
+ 
+ 	spin_lock(&mm->mmu_notifier_mm->lock);
+ 	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
+@@ -73,15 +66,19 @@ void __mmu_notifier_release(struct mm_struct *mm)
+ 	spin_unlock(&mm->mmu_notifier_mm->lock);
+ 
+ 	/*
+-	 * synchronize_srcu here prevents mmu_notifier_release to
++	 * locked mm->mmap_sem here prevents mmu_notifier_release to
+ 	 * return to exit_mmap (which would proceed freeing all pages
+ 	 * in the mm) until the ->release method returns, if it was
+ 	 * invoked by mmu_notifier_unregister.
+ 	 *
+ 	 * The mmu_notifier_mm can't go away from under us because one
+ 	 * mm_count is hold by exit_mmap.
++	 *
++	 * Explicit synchronization with mmu notifier methods isn't
++	 * required because exit_mmap() calls free_pgtables() after us,
++	 * which locks/unlocks all locks like mm_synchronize_all_locks().
+ 	 */
+-	synchronize_srcu(&srcu);
++	up_write(&mm->mmap_sem);
  }
- #else
-@@ -6530,8 +6528,15 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 	struct task_struct *p = cgroup_taskset_first(tset);
- 	int ret = 0;
- 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-+	unsigned long move_charge_at_immigrate;
  
--	if (memcg->move_charge_at_immigrate) {
+ /*
+@@ -94,14 +91,12 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int young = 0, id;
++	int young = 0;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->clear_flush_young)
+ 			young |= mn->ops->clear_flush_young(mn, mm, address);
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ 
+ 	return young;
+ }
+@@ -111,9 +106,8 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int young = 0, id;
++	int young = 0;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->test_young) {
+ 			young = mn->ops->test_young(mn, mm, address);
+@@ -121,7 +115,6 @@ int __mmu_notifier_test_young(struct mm_struct *mm,
+ 				break;
+ 		}
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ 
+ 	return young;
+ }
+@@ -131,14 +124,11 @@ void __mmu_notifier_change_pte(struct mm_struct *mm, unsigned long address,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int id;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->change_pte)
+ 			mn->ops->change_pte(mn, mm, address, pte);
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ }
+ 
+ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+@@ -146,14 +136,11 @@ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int id;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_page)
+ 			mn->ops->invalidate_page(mn, mm, address);
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ }
+ 
+ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+@@ -161,14 +148,11 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int id;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_start)
+ 			mn->ops->invalidate_range_start(mn, mm, start, end);
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ }
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+@@ -176,14 +160,11 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ {
+ 	struct mmu_notifier *mn;
+ 	struct hlist_node *n;
+-	int id;
+ 
+-	id = srcu_read_lock(&srcu);
+ 	hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list, hlist) {
+ 		if (mn->ops->invalidate_range_end)
+ 			mn->ops->invalidate_range_end(mn, mm, start, end);
+ 	}
+-	srcu_read_unlock(&srcu, id);
+ }
+ 
+ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+@@ -195,12 +176,6 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 
+ 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+ 
+-	/*
+-	 * Verify that mmu_notifier_init() already run and the global srcu is
+-	 * initialized.
+-	 */
+-	BUG_ON(!srcu.per_cpu_ref);
+-
+ 	ret = -ENOMEM;
+ 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+ 	if (unlikely(!mmu_notifier_mm))
+@@ -283,8 +258,8 @@ void __mmu_notifier_mm_destroy(struct mm_struct *mm)
+ /*
+  * This releases the mm_count pin automatically and frees the mm
+  * structure if it was the last user of it. It serializes against
+- * running mmu notifiers with SRCU and against mmu_notifier_unregister
+- * with the unregister lock + SRCU. All sptes must be dropped before
++ * mmu_notifier_unregister() with mmap_sem and agaings mmu notifiers
++ * with the mmap_sem + rmap locks. All sptes must be dropped before
+  * calling mmu_notifier_unregister. ->release or any other notifier
+  * method may be invoked concurrently with mmu_notifier_unregister,
+  * and only after mmu_notifier_unregister returned we're guaranteed
+@@ -294,14 +269,12 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ {
+ 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+ 
+-	if (!hlist_unhashed(&mn->hlist)) {
+-		/*
+-		 * SRCU here will force exit_mmap to wait ->release to finish
+-		 * before freeing the pages.
+-		 */
+-		int id;
 +	/*
-+	 * We are now commited to this value whatever it is. Changes in this
-+	 * tunable will only affect upcoming migrations, not the current one.
-+	 * So we need to save it, and keep it going.
++	 * Synchronize with concurrent mmu_notifier_release() and page-faults.
 +	 */
-+	move_charge_at_immigrate  = memcg->move_charge_at_immigrate;
-+	if (move_charge_at_immigrate) {
- 		struct mm_struct *mm;
- 		struct mem_cgroup *from = mem_cgroup_from_task(p);
++	down_write(&mm->mmap_sem);
  
-@@ -6551,6 +6556,7 @@ static int mem_cgroup_can_attach(struct cgroup *cgroup,
- 			spin_lock(&mc.lock);
- 			mc.from = from;
- 			mc.to = memcg;
-+			mc.immigrate_flags = move_charge_at_immigrate;
- 			spin_unlock(&mc.lock);
- 			/* We set mc.moving_task later */
+-		id = srcu_read_lock(&srcu);
++	if (!hlist_unhashed(&mn->hlist)) {
+ 		/*
+ 		 * exit_mmap will block in mmu_notifier_release to
+ 		 * guarantee ->release is called before freeing the
+@@ -309,28 +282,24 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
+ 		 */
+ 		if (mn->ops->release)
+ 			mn->ops->release(mn, mm);
+-		srcu_read_unlock(&srcu, id);
  
--- 
-1.8.1
+ 		spin_lock(&mm->mmu_notifier_mm->lock);
+ 		hlist_del_rcu(&mn->hlist);
+ 		spin_unlock(&mm->mmu_notifier_mm->lock);
+ 	}
+ 
++	downgrade_write(&mm->mmap_sem);
+ 	/*
+-	 * Wait any running method to finish, of course including
+-	 * ->release if it was run by mmu_notifier_relase instead of us.
++	 * Wait any running method to finish. All such operations are protected
++	 * either with mm->mmap_sem like handle_pte_fault() or with rmap locks
++	 * like try_to_unmap(). They need one of these locks to protect vma/pte
++	 * area where they operates.
+ 	 */
+-	synchronize_srcu(&srcu);
++	mm_synchronize_all_locks(mm);
++	up_read(&mm->mmap_sem);
+ 
+ 	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+ 
+ 	mmdrop(mm);
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
+-
+-static int __init mmu_notifier_init(void)
+-{
+-	return init_srcu_struct(&srcu);
+-}
+-
+-module_init(mmu_notifier_init);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
