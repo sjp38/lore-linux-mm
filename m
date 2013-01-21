@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx206.postini.com [74.125.245.206])
-	by kanga.kvack.org (Postfix) with SMTP id 389FB6B0005
-	for <linux-mm@kvack.org>; Sun, 20 Jan 2013 22:07:47 -0500 (EST)
-Date: Mon, 21 Jan 2013 14:07:34 +1100
+Received: from psmtp.com (na3sys010amx152.postini.com [74.125.245.152])
+	by kanga.kvack.org (Postfix) with SMTP id 6F9E06B0005
+	for <linux-mm@kvack.org>; Sun, 20 Jan 2013 22:16:04 -0500 (EST)
+Date: Mon, 21 Jan 2013 14:15:49 +1100
 From: paul.szabo@sydney.edu.au
-Message-Id: <201301210307.r0L37YuG018834@como.maths.usyd.edu.au>
-Subject: [PATCH] MAX_PAUSE to be at least 4
+Message-Id: <201301210315.r0L3FnGV021298@como.maths.usyd.edu.au>
+Subject: [PATCH] Subtract min_free_kbytes from dirtyable memory
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: 695182@bugs.debian.org, linux-kernel@vger.kernel.org
 
-Ensure MAX_PAUSE is 4 or larger, so limits in
-	return clamp_val(t, 4, MAX_PAUSE);
-(the only use of it) are not back-to-front.
+When calculating amount of dirtyable memory, min_free_kbytes should be
+subtracted because it is not intended for dirty pages.
+
+Using an "extern int" because that is the only interface to some such
+sysctl values.
 
 (This patch does not solve the PAE OOM issue.)
 
@@ -26,15 +28,22 @@ Signed-off-by: Paul Szabo <psz@maths.usyd.edu.au>
 
 --- mm/page-writeback.c.old	2012-12-06 22:20:40.000000000 +1100
 +++ mm/page-writeback.c	2013-01-21 13:57:05.000000000 +1100
-@@ -39,7 +39,7 @@
- /*
-  * Sleep at most 200ms at a time in balance_dirty_pages().
-  */
--#define MAX_PAUSE		max(HZ/5, 1)
-+#define MAX_PAUSE		max(HZ/5, 4)
+@@ -343,12 +343,16 @@
+ unsigned long determine_dirtyable_memory(void)
+ {
+ 	unsigned long x;
++	extern int min_free_kbytes;
  
- /*
-  * Estimate write bandwidth at 200ms intervals.
+ 	x = global_page_state(NR_FREE_PAGES) + global_reclaimable_pages();
+ 
+ 	if (!vm_highmem_is_dirtyable)
+ 		x -= highmem_dirtyable_memory(x);
+ 
++	/* Subtract min_free_kbytes */
++	x -= min(x, min_free_kbytes >> (PAGE_SHIFT - 10));
++
+ 	return x + 1;	/* Ensure that we never return 0 */
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
