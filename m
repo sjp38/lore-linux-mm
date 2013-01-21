@@ -1,45 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from psmtp.com (na3sys010amx180.postini.com [74.125.245.180])
-	by kanga.kvack.org (Postfix) with SMTP id A31AF6B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 07:19:44 -0500 (EST)
-Message-ID: <1358770782.23981.8.camel@gandalf.local.home>
-Subject: Re: [RFC][PATCH v2] slub: Keep page and object in sync in
- slab_alloc_node()
-From: Steven Rostedt <rostedt@goodmis.org>
-Date: Mon, 21 Jan 2013 07:19:42 -0500
-In-Reply-To: <20130121081121.GA3936@lge.com>
-References: <1358458996.23211.46.camel@gandalf.local.home>
-	 <0000013c4a7e7fbf-c51fd42a-2455-4fec-bb37-915035956f05-000000@email.amazonses.com>
-	 <1358462763.23211.57.camel@gandalf.local.home>
-	 <1358464245.23211.62.camel@gandalf.local.home>
-	 <1358464837.23211.66.camel@gandalf.local.home>
-	 <1358468598.23211.67.camel@gandalf.local.home>
-	 <1358468924.23211.69.camel@gandalf.local.home>
-	 <0000013c4e1ea131-b8ab56b9-bfca-44fe-b5da-f030551194c9-000000@email.amazonses.com>
-	 <1358521484.7383.8.camel@gandalf.local.home>
-	 <1358524501.7383.17.camel@gandalf.local.home>
-	 <20130121081121.GA3936@lge.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with SMTP id DFE286B0005
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 07:31:05 -0500 (EST)
+Date: Mon, 21 Jan 2013 13:30:57 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 6/6] memcg: avoid dangling reference count in creation
+ failure.
+Message-ID: <20130121123057.GH7798@dhcp22.suse.cz>
+References: <1358766813-15095-1-git-send-email-glommer@parallels.com>
+ <1358766813-15095-7-git-send-email-glommer@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1358766813-15095-7-git-send-email-glommer@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Thomas Gleixner <tglx@linutronix.de>, RT <linux-rt-users@vger.kernel.org>, Clark Williams <clark@redhat.com>, John Kacur <jkacur@gmail.com>, "Luis Claudio
- R. Goncalves" <lgoncalv@redhat.com>
+To: Glauber Costa <glommer@parallels.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
 
-On Mon, 2013-01-21 at 17:11 +0900, Joonsoo Kim wrote:
-
-> Hello.
-> I have one stupid question just for curiosity.
-> Does the processor re-order instructions which load data from same cacheline?
+On Mon 21-01-13 15:13:33, Glauber Costa wrote:
+> When use_hierarchy is enabled, we acquire an extra reference count
+> in our parent during cgroup creation. We don't release it, though,
+> if any failure exist in the creation process.
 > 
+> Signed-off-by: Glauber Costa <glommer@parallels.com>
+> Reported-by: Michal Hocko <mhocko@suse>
 
-Probably not, but I wouldn't have generic code assuming cacheline sizes.
+If you put this one to the head of the series we can backport it to
+stable which is preferred, although nobody have seen this as a problem.
 
--- Steve
+> ---
+>  mm/memcontrol.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 5a247de..3949123 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6167,6 +6167,8 @@ mem_cgroup_css_online(struct cgroup *cont)
+>  		 * call __mem_cgroup_free, so return directly
+>  		 */
+>  		mem_cgroup_put(memcg);
+> +		if (parent->use_hierarchy)
+> +			mem_cgroup_put(parent);
+>  	}
+>  	return error;
+>  }
+> -- 
+> 1.8.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
