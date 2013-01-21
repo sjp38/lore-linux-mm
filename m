@@ -1,60 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from psmtp.com (na3sys010amx186.postini.com [74.125.245.186])
-	by kanga.kvack.org (Postfix) with SMTP id 2C2256B0004
-	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 08:26:14 -0500 (EST)
-Message-ID: <50FD41FD.2010007@parallels.com>
-Date: Mon, 21 Jan 2013 17:26:21 +0400
-From: Glauber Costa <glommer@parallels.com>
+Received: from psmtp.com (na3sys010amx158.postini.com [74.125.245.158])
+	by kanga.kvack.org (Postfix) with SMTP id 2A7CE6B0004
+	for <linux-mm@kvack.org>; Mon, 21 Jan 2013 08:29:20 -0500 (EST)
+Message-ID: <50FD4245.3070402@redhat.com>
+Date: Mon, 21 Jan 2013 21:27:33 +0800
+From: Zhouping Liu <zliu@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 6/6] memcg: avoid dangling reference count in creation
- failure.
-References: <1358766813-15095-1-git-send-email-glommer@parallels.com> <1358766813-15095-7-git-send-email-glommer@parallels.com> <20130121123057.GH7798@dhcp22.suse.cz> <50FD3DD4.5050309@parallels.com> <20130121131921.GK7798@dhcp22.suse.cz>
-In-Reply-To: <20130121131921.GK7798@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+References: <4FEE7665.6020409@jp.fujitsu.com> <389106003.8637801.1358757547754.JavaMail.root@redhat.com> <20130121105624.GF7798@dhcp22.suse.cz>
+In-Reply-To: <20130121105624.GF7798@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, kamezawa.hiroyu@jp.fujitsu.com
+Cc: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Li Zefan <lizefan@huawei.com>, CAI Qian <caiqian@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>
 
-On 01/21/2013 05:19 PM, Michal Hocko wrote:
-> On Mon 21-01-13 17:08:36, Glauber Costa wrote:
->> On 01/21/2013 04:30 PM, Michal Hocko wrote:
->>> On Mon 21-01-13 15:13:33, Glauber Costa wrote:
->>>> When use_hierarchy is enabled, we acquire an extra reference count
->>>> in our parent during cgroup creation. We don't release it, though,
->>>> if any failure exist in the creation process.
+On 01/21/2013 06:56 PM, Michal Hocko wrote:
+> On Mon 21-01-13 03:39:07, Zhouping Liu wrote:
+>>
+>> ----- Original Message -----
+>>> From: "Kamezawa Hiroyuki" <kamezawa.hiroyu@jp.fujitsu.com>
+>>> To: "Tejun Heo" <tj@kernel.org>
+>>> Cc: "David Rientjes" <rientjes@google.com>, "Michal Hocko" <mhocko@suse.cz>, "Zhouping Liu" <zliu@redhat.com>,
+>>> linux-mm@kvack.org, "Li Zefan" <lizefan@huawei.com>, "CAI Qian" <caiqian@redhat.com>, "LKML"
+>>> <linux-kernel@vger.kernel.org>, "Andrew Morton" <akpm@linux-foundation.org>
+>>> Sent: Saturday, June 30, 2012 11:45:41 AM
+>>> Subject: Re: memcg: cat: memory.memsw.* : Operation not supported
+>>>
+>>> (2012/06/29 3:31), Tejun Heo wrote:
+>>>> Hello, KAME.
 >>>>
->>>> Signed-off-by: Glauber Costa <glommer@parallels.com>
->>>> Reported-by: Michal Hocko <mhocko@suse>
->>>
->>> If you put this one to the head of the series we can backport it to
->>> stable which is preferred, although nobody have seen this as a problem.
->>>
->> If I have to send again, I might. But I see no reason to do so otherwise.
-> 
-> The question is whether this is worth backporting to stable. If yes then
-> it makes to move it up the series. Keep it here otherwise. I think the
-> failure is quite improbable and nobody complained so far. On the other
-> hand this is an obvious bug fix so it should qualify for stable.
-> 
-> I would wait for others for what they think and do the shuffling after
-> all other patches are settled. I would rather be safe and push the fix
-> pro-actively.
-> 
+>>>> On Thu, Jun 28, 2012 at 01:04:16PM +0900, Kamezawa Hiroyuki wrote:
+>>>>>> I still wish it's folded into CONFIG_MEMCG and conditionalized
+>>>>>> just on
+>>>>>> CONFIG_SWAP tho.
+>>>>>>
+>>>>> In old days, memsw controller was not very stable. So, we devided
+>>>>> the config.
+>>>>> And, it makes size of memory for swap-device double (adds 2bytes
+>>>>> per swapent.)
+>>>>> That is the problem.
+>>>> I see.  Do you think it's now reasonable to drop the separate
+>>>> config
+>>>> option?  Having memcg enabled but swap unaccounted sounds
+>>>> half-broken
+>>>> to me.
+>>>>
+>>> Hmm. Maybe it's ok if we can keep boot option. I'll cook a patch in
+>>> the next week.
+>> Hello Kame and All,
+>>
+>> Sorry for so delay to open the thread. (please open the link https://lkml.org/lkml/2012/6/26/547 if you don't remember the topic)
+>>
+>> do you have any updates for the issue?
+>>
+>> I checked the latest version, if we don't open CONFIG_MEMCG_SWAP_ENABLED(commit c255a458055e changed
+>> CONFIG_CGROUP_MEM_RES_CTLR_SWAP_ENABLED as CONFIG_MEMCG_SWAP_ENABLED), the issue still exist:
+>>
+>> [root@dhcp-8-128 ~] cat .config  | grep -i memcg
+>> CONFIG_MEMCG=y
+>> CONFIG_MEMCG_SWAP=y
+>> # CONFIG_MEMCG_SWAP_ENABLED is not set
+>> CONFIG_MEMCG_KMEM=y
+>> [root@dhcp-8-128 ~] uname -r
+>> 3.8.0-rc4+
+>> [root@dhcp-8-128 ~] cat memory.memsw.*
+>> cat: memory.memsw.failcnt: Operation not supported
+>> cat: memory.memsw.limit_in_bytes: Operation not supported
+>> cat: memory.memsw.max_usage_in_bytes: Operation not supported
+>> cat: memory.memsw.usage_in_bytes: Operation not supported
+> Ohh, this one got lost. I thought Kame was working on that.
+> Anyway the patch bellow should work:
+> ---
+>  From 5f8141bf7d27014cfbc7b450f13f6146b5ab099d Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Mon, 21 Jan 2013 11:33:26 +0100
+> Subject: [PATCH] memcg: Do not create memsw files if swap accounting is
+>   disabled
+>
+> Zhouping Liu has reported that memsw files are exported even though
+> swap accounting is runtime disabled if CONFIG_MEMCG_SWAP is enabled.
+> This behavior has been introduced by af36f906 (memcg: always create
+> memsw files if CONFIG_CGROUP_MEM_RES_CTLR_SWAP) and it causes any
+> attempt to open the file to return EOPNOTSUPP. Although EOPNOTSUPP
+> should say be clear that memsw operations are not supported in the given
+> configuration it is fair to say that this behavior could be quite
+> confusing.
+>
+> Let's tear memsw files out of default cgroup files and add
+> them only if the swap accounting is really enabled (either by
+> CONFIG_MEMCG_SWAP_ENABLED or swapaccount=1 boot parameter). We can
+> hook into mem_cgroup_init which is called when the memcg subsystem is
+> initialized and which happens after boot command line is processed.
 
-As improbable as it is, what if we have one of those
-bugs-turned-feature, that end up working by accident just because the
-refcnt is not flushed? We should fix it, of course, but who knows how
-hard it could be?
+Thanks for your quick patch, your patch looks good for me.
 
-Of course it is all handwaving, but given that the trigger of this bug
-is an unlikely condition, and the effect is a couple of wasted kbs -
-even directory removal can proceed all right - and in the most common
-use case of children-at-parent-level-only the increased reference will
-be in the root memcg anyway... I wouldn't backport it.
+I tested it with or without CONFIG_MEMCG_SWAP_ENABLED=y,
+and also tested it with swapaccount=1 kernel parameters, all are okay.
 
+Tested-by: Zhouping Liu <zliu@redhat.com>
 
+Thanks,
+Zhouping
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
